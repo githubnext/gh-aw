@@ -1,15 +1,23 @@
 #
 # Pinned GitHub Actions:
+#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
+#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/create-github-app-token@v2 (29824e69f54612133e76f7eaac726eef6c875baf)
-#     https://github.com/actions/create-github-app-token/commit/29824e69f54612133e76f7eaac726eef6c875baf
 #   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
 #     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
+#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
+#   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
+#     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#   - astral-sh/setup-uv@v5 (e58605a9b6da7c637471fab8847a5e5a6b8df081)
+#     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 #
 #    ___                   _   _      
 #   / _ \                 | | (_)     
@@ -31,18 +39,13 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/reporting.md
-#     - shared/safe-output-app.md
+# Daily JavaScript unbloater that cleans one .cjs file per day using modern JavaScript patterns
 
-name: "Artifacts Summary"
+name: "jsweep - JavaScript Unbloater"
 "on":
   schedule:
-  - cron: "0 6 * * 0"
-    # Friendly format: weekly on sunday at 06:00
+  - cron: "47 14 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}
@@ -50,7 +53,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Artifacts Summary"
+run-name: "jsweep - JavaScript Unbloater"
 
 jobs:
   activation:
@@ -64,7 +67,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "artifacts-summary.lock.yml"
+          GH_AW_WORKFLOW_FILE: "jsweep.lock.yml"
         with:
           script: |
             async function main() {
@@ -153,6 +156,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -170,11 +175,39 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
+      - name: Install TypeScript language service
+        run: npm install -g typescript-language-server typescript
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Restore cache memory file share data
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -280,25 +313,32 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"artifacts\".",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[jsweep] \". Labels [unbloat automation] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
                     "type": "string"
                   },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                  "branch": {
+                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
                     "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
                     "type": "string"
                   }
                 },
@@ -308,7 +348,7 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "create_discussion"
+              "name": "create_pull_request"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -357,7 +397,7 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_discussion": {
+            "create_pull_request": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -366,14 +406,17 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "category": {
+                "branch": {
+                  "required": true,
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 128
-                },
-                "repo": {
-                  "type": "string",
                   "maxLength": 256
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
                 },
                 "title": {
                   "required": true,
@@ -4110,7 +4153,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=actions,repos",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
@@ -4137,6 +4180,12 @@ jobs:
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
+              },
+              "serena": {
+                "type": "local",
+                "command": "uvx",
+                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "tools": ["*"]
               }
             }
           }
@@ -4161,7 +4210,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              workflow_name: "Artifacts Summary",
+              workflow_name: "jsweep - JavaScript Unbloater",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -4175,7 +4224,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","node"],
+              allowed_domains: [],
               firewall_enabled: true,
               firewall_version: "",
               steps: {
@@ -4236,145 +4285,154 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          ## Report Formatting
+          # jsweep - JavaScript Unbloater
           
-          Structure your report with an overview followed by detailed content:
+          You are a JavaScript unbloater expert specializing in creating solid, simple, and lean CommonJS code. Your task is to clean and modernize **one .cjs file per day** from the `pkg/workflow/js/` directory.
           
-          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          ## Your Expertise
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          You are an expert at:
+          - Identifying whether code runs in github-script context (actions/github-script) or pure Node.js context
+          - Writing clean, modern JavaScript using ES6+ features
+          - Leveraging spread operators (`...`), `map`, `reduce`, arrow functions, optional chaining (`?.`)
+          - Removing unnecessary try/catch blocks that don't handle errors with control flow
+          - Maintaining and increasing test coverage
+          - Preserving original logic while improving code clarity
           
-          **Example format:**
+          ## Workflow Process
           
-          `````markdown
-          Brief overview paragraph 1 introducing the report and its main findings.
+          ### 1. Find the Next File to Clean
           
-          Optional overview paragraph 2 with additional context or highlights.
+          Use cache-memory to track which files you've already cleaned. Look for:
+          - Files in `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/*.cjs`
+          - Exclude test files (`*.test.cjs`)
+          - Exclude files you've already cleaned (stored in cache-memory as `cleaned_files` array)
+          - Pick the file with the earliest modification timestamp that hasn't been cleaned
           
-          <details>
-          <summary><b>Full Report Details</b></summary>
+          If you've cleaned all files, start over with the oldest cleaned file.
           
-          ## Detailed Analysis
+          ### 2. Analyze the File
           
-          Full report content with all sections, tables, and detailed information goes here.
+          Before making changes:
+          - Determine the execution context (github-script vs Node.js)
+          - Identify code smells: unnecessary try/catch, verbose patterns, missing modern syntax
+          - Check if the file has a corresponding test file
+          - Read the test file to understand expected behavior
           
-          ### Section 1
-          [Content]
+          ### 3. Clean the Code
           
-          ### Section 2
-          [Content]
+          Apply these principles:
           
-          </details>
-          `````
+          **Remove Unnecessary Try/Catch:**
+          ```javascript
+          // ❌ BEFORE: Exception not handled with control flow
+          try {
+            const result = await someOperation();
+            return result;
+          } catch (error) {
+            throw error; // Just re-throwing, no control flow
+          }
           
-          ## Reporting Workflow Run Information
-          
-          When analyzing workflow run logs or reporting information from GitHub Actions runs:
-          
-          ### 1. Workflow Run ID Formatting
-          
-          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
-          
-          **Format:**
-          
-          `````markdown
-          [§12345](https://github.com/owner/repo/actions/runs/12345)
-          `````
-          
-          **Example:**
-          
-          `````markdown
-          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          `````
-          
-          ### 2. Document References for Workflow Runs
-          
-          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
-          
-          **Format:**
-          
-          `````markdown
-          ---
-          
-          **References:**
-          - [§12345](https://github.com/owner/repo/actions/runs/12345)
-          - [§12346](https://github.com/owner/repo/actions/runs/12346)
-          - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          `````
-          
-          **Guidelines:**
-          
-          - Include **maximum 3 references** to keep reports concise
-          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
-          - If analyzing more than 3 runs, select the most important ones for references
-          
-          ## Footer Attribution
-          
-          **Do NOT add footer lines** like `> AI generated by...` to your comment. The system automatically appends attribution after your content to prevent duplicates.
-          
-          
-          
-          # Artifacts Summary
-          
-          Generate a comprehensive summary table of GitHub Actions artifacts usage in the repository __GH_AW_GITHUB_REPOSITORY__.
-          
-          ## Task Requirements
-          
-          1. **Analyze all workflows** in the repository to identify which ones generate artifacts
-          2. **Collect artifact data** for recent workflow runs (last 30 days recommended)
-          3. **Generate a summary table** with the following columns:
-             - Workflow Name
-             - Total Artifacts Count
-             - Total Size (in MB/GB)
-             - Average Size per Artifact
-             - Latest Run Date
-             - Status (Active/Inactive)
-          
-          ## Analysis Instructions
-          
-          Please:
-          
-          1. **List all workflows** in the repository using the GitHub API
-          2. **For each workflow**, get recent runs and their artifacts
-          3. **Calculate statistics**:
-             - Total number of artifacts per workflow
-             - Total size of all artifacts per workflow
-             - Average artifact size
-             - Most recent run date
-          4. **Create a markdown table** with the summary
-          5. **Include insights** such as:
-             - Which workflows generate the most artifacts
-             - Which workflows use the most storage
-             - Trends in artifact usage
-             - Recommendations for optimization
-          
-          ## Output Format
-          
-          Create an issue with a markdown table like this:
-          
-          ```markdown
-          # Artifacts Usage Report
-          
-          | Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |
-          |---------------|-----------------|------------|----------|------------|--------|
-          | workflow-1    | 45             | 2.3 GB     | 52 MB    | 2024-01-15 | Active |
-          | workflow-2    | 12             | 456 MB     | 38 MB    | 2024-01-10 | Active |
-          
-          ## Insights & Recommendations
-          [Your analysis and recommendations here]
+          // ✅ AFTER: Let errors bubble up
+          const result = await someOperation();
+          return result;
           ```
           
-          ## Important Notes
+          **Use Modern JavaScript:**
+          ```javascript
+          // ❌ BEFORE: Verbose array operations
+          const items = [];
+          for (let i = 0; i < array.length; i++) {
+            items.push(array[i].name);
+          }
           
-          - Focus on workflows that actually generate artifacts (skip those without any)
-          - Convert sizes to human-readable formats (MB, GB)
-          - Consider artifact retention policies in your analysis
-          - Include both successful and failed runs in the analysis, ignore cancelled runs
+          // ✅ AFTER: Use map
+          const items = array.map(item => item.name);
+          
+          // ❌ BEFORE: Manual null checks
+          const value = obj && obj.prop && obj.prop.value;
+          
+          // ✅ AFTER: Optional chaining
+          const value = obj?.prop?.value;
+          
+          // ❌ BEFORE: Verbose object spreading
+          const newObj = Object.assign({}, oldObj, { key: value });
+          
+          // ✅ AFTER: Spread operator
+          const newObj = { ...oldObj, key: value };
+          ```
+          
+          **Keep Try/Catch When Needed:**
+          ```javascript
+          // ✅ GOOD: Control flow based on exception
+          try {
+            const data = await fetchData();
+            return processData(data);
+          } catch (error) {
+            if (error.code === 'NOT_FOUND') {
+              return null; // Control flow decision
+            }
+            throw error;
+          }
+          ```
+          
+          ### 4. Increase Testing
+          
+          If the file has tests:
+          - Review test coverage
+          - Add tests for edge cases if missing
+          - Ensure all code paths are tested
+          
+          If the file lacks tests:
+          - Create a basic test file (`<filename>.test.cjs`)
+          - Add at least 3-5 meaningful test cases
+          
+          ### 5. Context-Specific Patterns
+          
+          **For github-script context files:**
+          - Use `core.info()`, `core.warning()`, `core.error()` instead of `console.log()`
+          - Use `core.setOutput()`, `core.getInput()`, `core.setFailed()`
+          - Access GitHub API via `github.rest.*` or `github.graphql()`
+          - Remember: `github`, `core`, and `context` are available globally
+          
+          **For Node.js context files:**
+          - Use proper module.exports
+          - Handle errors appropriately
+          - Use standard Node.js patterns
+          
+          ### 6. Create Pull Request
+          
+          After cleaning the file:
+          1. Update cache-memory to mark this file as cleaned (add to `cleaned_files` array with timestamp)
+          2. Create a pull request with:
+             - Title: `[jsweep] Clean <filename>`
+             - Description explaining what was improved
+             - The `unbloat` and `automation` labels
+          3. Include in the PR description:
+             - Summary of changes
+             - Context type (github-script or Node.js)
+             - Any test improvements
+          
+          ## Important Constraints
+          
+          - **DO NOT change logic** - only make the code cleaner and more maintainable
+          - **Always run tests** after changes if they exist
+          - **Preserve all functionality** - ensure the file works exactly as before
+          - **One file per run** - focus on quality over quantity
+          - **Document your changes** in the PR description
+          
+          ## Current Repository Context
+          
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Workflow Run**: __GH_AW_GITHUB_RUN_ID__
+          - **JavaScript Files Location**: `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/`
+          
+          Begin by checking cache-memory for previously cleaned files, then find and clean the next `.cjs` file!
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -4382,6 +4440,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs"),
@@ -4411,7 +4470,8 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
               }
             });
       - name: Append XPIA security instructions to prompt
@@ -4462,6 +4522,31 @@ jobs:
           </file-editing>
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -4475,7 +4560,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop
+          **Available tools**: create_pull_request, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -4579,6 +4664,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -4764,24 +4850,40 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
+        # --allow-tool shell(cat *)
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
+        # --allow-tool shell(find *)
+        # --allow-tool shell(git *)
+        # --allow-tool shell(git add:*)
+        # --allow-tool shell(git branch:*)
+        # --allow-tool shell(git checkout:*)
+        # --allow-tool shell(git commit:*)
+        # --allow-tool shell(git merge:*)
+        # --allow-tool shell(git rm:*)
+        # --allow-tool shell(git status)
+        # --allow-tool shell(git switch:*)
+        # --allow-tool shell(grep *)
         # --allow-tool shell(grep)
+        # --allow-tool shell(head *)
         # --allow-tool shell(head)
+        # --allow-tool shell(ls *)
         # --allow-tool shell(ls)
         # --allow-tool shell(pwd)
         # --allow-tool shell(sort)
+        # --allow-tool shell(tail *)
         # --allow-tool shell(tail)
         # --allow-tool shell(uniq)
+        # --allow-tool shell(wc *)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
         # --allow-tool write
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat *)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find *)' --allow-tool 'shell(git *)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head *)' --allow-tool 'shell(head)' --allow-tool 'shell(ls *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail *)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -4924,7 +5026,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -7772,7 +7874,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-artifacts-summary
+          name: firewall-logs-jsweep-javascript-unbloater
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7933,6 +8035,12 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -8169,6 +8277,13 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/aw.patch
+          if-no-files-found: ignore
 
   conclusion:
     needs:
@@ -8176,6 +8291,7 @@ jobs:
       - agent
       - detection
       - safe_outputs
+      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -8188,18 +8304,6 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
-          permission-contents: read
-          permission-issues: write
-          permission-pull-requests: write
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -8228,9 +8332,10 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
+          GH_AW_TRACKER_ID: "jsweep-daily"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;
@@ -8320,9 +8425,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
+          GH_AW_TRACKER_ID: "jsweep-daily"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -8431,11 +8537,12 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
+          GH_AW_TRACKER_ID: "jsweep-daily"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const MAX_LOG_CONTENT_LENGTH = 10000;
@@ -8685,19 +8792,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Invalidate GitHub App token
-        if: always() && steps.app-token.outputs.token != ''
-        env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          echo "Revoking GitHub App installation token..."
-          # GitHub CLI will auth with the token being revoked.
-          gh api \
-            --method DELETE \
-            -H "Authorization: token $TOKEN" \
-            /installation/token || echo "Token revoke may already be expired."
-          
-          echo "Token invalidation step complete."
 
   detection:
     needs: agent
@@ -8737,8 +8831,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Artifacts Summary"
-          WORKFLOW_DESCRIPTION: "Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository"
+          WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
+          WORKFLOW_DESCRIPTION: "Daily JavaScript unbloater that cleans one .cjs file per day using modern JavaScript patterns"
         with:
           script: |
             const fs = require('fs');
@@ -8961,18 +9055,20 @@ jobs:
 
   safe_outputs:
     needs:
+      - activation
       - agent
       - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
-      discussions: write
+      contents: write
+      issues: write
+      pull-requests: write
     timeout-minutes: 15
     outputs:
-      create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
-      create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
+      create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -8985,637 +9081,686 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          github-api-url: ${{ github.api_url }}
-          permission-contents: read
       - name: Setup JavaScript files
         id: setup_scripts
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/close_older_discussions.cjs << 'EOF_1a84cdd3'
+          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_09cd66f9'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
-          const { getCloseOlderDiscussionMessage } = require('/tmp/gh-aw/scripts/messages_close_discussion.cjs');
-          
-          /**
-           * Maximum number of older discussions to close
-           */
-          const MAX_CLOSE_COUNT = 10;
-          
-          /**
-           * Delay between GraphQL API calls in milliseconds to avoid rate limiting
-           */
-          const GRAPHQL_DELAY_MS = 500;
-          
-          /**
-           * Delay execution for a specified number of milliseconds
-           * @param {number} ms - Milliseconds to delay
-           * @returns {Promise<void>}
-           */
-          function delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-          }
-          
-          /**
-           * Search for open discussions with a matching title prefix and/or labels
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {string} titlePrefix - Title prefix to match (empty string to skip prefix matching)
-           * @param {string[]} labels - Labels to match (empty array to skip label matching)
-           * @param {string|undefined} categoryId - Optional category ID to filter by
-           * @param {number} excludeNumber - Discussion number to exclude (the newly created one)
-           * @returns {Promise<Array<{id: string, number: number, title: string, url: string}>>} Matching discussions
-           */
-          async function searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, excludeNumber) {
-            // Build GraphQL search query
-            // Search for open discussions, optionally with title prefix or labels
-            let searchQuery = `repo:${owner}/${repo} is:open`;
-          
-            if (titlePrefix) {
-              // Escape quotes in title prefix to prevent query injection
-              const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
-              searchQuery += ` in:title "${escapedPrefix}"`;
-            }
-          
-            // Add label filters to the search query
-            // Note: GitHub search uses AND logic for multiple labels, so discussions must have ALL labels.
-            // We add each label as a separate filter and also validate client-side for extra safety.
-            if (labels && labels.length > 0) {
-              for (const label of labels) {
-                // Escape quotes in label names to prevent query injection
-                const escapedLabel = label.replace(/"/g, '\\"');
-                searchQuery += ` label:"${escapedLabel}"`;
-              }
-            }
-          
-            const result = await github.graphql(
-              `
-              query($searchTerms: String!, $first: Int!) {
-                search(query: $searchTerms, type: DISCUSSION, first: $first) {
-                  nodes {
-                    ... on Discussion {
-                      id
-                      number
-                      title
-                      url
-                      category {
-                        id
-                      }
-                      labels(first: 100) {
-                        nodes {
-                          name
-                        }
-                      }
-                      closed
-                    }
-                  }
-                }
-              }`,
-              { searchTerms: searchQuery, first: 50 }
-            );
-          
-            if (!result || !result.search || !result.search.nodes) {
-              return [];
-            }
-          
-            // Filter results:
-            // 1. Must not be the excluded discussion (newly created one)
-            // 2. Must not be already closed
-            // 3. If titlePrefix is specified, must have title starting with the prefix
-            // 4. If labels are specified, must have ALL specified labels (AND logic, not OR)
-            // 5. If categoryId is specified, must match
-            return result.search.nodes
-              .filter(
-                /** @param {any} d */ d => {
-                  if (!d || d.number === excludeNumber || d.closed) {
-                    return false;
-                  }
-          
-                  // Check title prefix if specified
-                  if (titlePrefix && d.title && !d.title.startsWith(titlePrefix)) {
-                    return false;
-                  }
-          
-                  // Check labels if specified - requires ALL labels to match (AND logic)
-                  // This is intentional: we only want to close discussions that have ALL the specified labels
-                  if (labels && labels.length > 0) {
-                    const discussionLabels = d.labels?.nodes?.map((/** @type {{name: string}} */ l) => l.name) || [];
-                    const hasAllLabels = labels.every(label => discussionLabels.includes(label));
-                    if (!hasAllLabels) {
-                      return false;
-                    }
-                  }
-          
-                  // Check category if specified
-                  if (categoryId && (!d.category || d.category.id !== categoryId)) {
-                    return false;
-                  }
-          
-                  return true;
-                }
-              )
-              .map(
-                /** @param {any} d */ d => ({
-                  id: d.id,
-                  number: d.number,
-                  title: d.title,
-                  url: d.url,
-                })
-              );
-          }
-          
-          /**
-           * Add comment to a GitHub Discussion using GraphQL
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} discussionId - Discussion node ID
-           * @param {string} message - Comment body
-           * @returns {Promise<{id: string, url: string}>} Comment details
-           */
-          async function addDiscussionComment(github, discussionId, message) {
-            const result = await github.graphql(
-              `
-              mutation($dId: ID!, $body: String!) {
-                addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                  comment { 
-                    id 
-                    url
-                  }
-                }
-              }`,
-              { dId: discussionId, body: message }
-            );
-          
-            return result.addDiscussionComment.comment;
-          }
-          
-          /**
-           * Close a GitHub Discussion as OUTDATED using GraphQL
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} discussionId - Discussion node ID
-           * @returns {Promise<{id: string, url: string}>} Discussion details
-           */
-          async function closeDiscussionAsOutdated(github, discussionId) {
-            const result = await github.graphql(
-              `
-              mutation($dId: ID!) {
-                closeDiscussion(input: { discussionId: $dId, reason: OUTDATED }) {
-                  discussion { 
-                    id
-                    url
-                  }
-                }
-              }`,
-              { dId: discussionId }
-            );
-          
-            return result.closeDiscussion.discussion;
-          }
-          
-          /**
-           * Close older discussions that match the title prefix and/or labels
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {string} titlePrefix - Title prefix to match (empty string to skip)
-           * @param {string[]} labels - Labels to match (empty array to skip)
-           * @param {string|undefined} categoryId - Optional category ID to filter by
-           * @param {{number: number, url: string}} newDiscussion - The newly created discussion
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
-           */
-          async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion, workflowName, runUrl) {
-            // Build search criteria description for logging
-            const searchCriteria = [];
-            if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
-            if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
-            core.info(`Searching for older discussions with ${searchCriteria.join(" and ")}`);
-          
-            const olderDiscussions = await searchOlderDiscussions(github, owner, repo, titlePrefix, labels, categoryId, newDiscussion.number);
-          
-            if (olderDiscussions.length === 0) {
-              core.info("No older discussions found to close");
-              return [];
-            }
-          
-            core.info(`Found ${olderDiscussions.length} older discussion(s) to close`);
-          
-            // Limit to MAX_CLOSE_COUNT discussions
-            const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
-          
-            if (olderDiscussions.length > MAX_CLOSE_COUNT) {
-              core.warning(`Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
-            }
-          
-            const closedDiscussions = [];
-          
-            for (let i = 0; i < discussionsToClose.length; i++) {
-              const discussion = discussionsToClose[i];
-              try {
-                // Generate closing message using the messages module
-                const closingMessage = getCloseOlderDiscussionMessage({
-                  newDiscussionUrl: newDiscussion.url,
-                  newDiscussionNumber: newDiscussion.number,
-                  workflowName,
-                  runUrl,
-                });
-          
-                // Add comment first
-                core.info(`Adding closing comment to discussion #${discussion.number}`);
-                await addDiscussionComment(github, discussion.id, closingMessage);
-          
-                // Then close the discussion as outdated
-                core.info(`Closing discussion #${discussion.number} as outdated`);
-                await closeDiscussionAsOutdated(github, discussion.id);
-          
-                closedDiscussions.push({
-                  number: discussion.number,
-                  url: discussion.url,
-                });
-          
-                core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
-              } catch (error) {
-                core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
-                // Continue with other discussions even if one fails
-              }
-          
-              // Add delay between GraphQL operations to avoid rate limiting (except for the last item)
-              if (i < discussionsToClose.length - 1) {
-                await delay(GRAPHQL_DELAY_MS);
-              }
-            }
-          
-            return closedDiscussions;
-          }
-          
-          module.exports = {
-            closeOlderDiscussions,
-            searchOlderDiscussions,
-            addDiscussionComment,
-            closeDiscussionAsOutdated,
-            MAX_CLOSE_COUNT,
-            GRAPHQL_DELAY_MS,
-          };
-          
-          EOF_1a84cdd3
-          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_868e2bfb'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+          /** @type {typeof import("fs")} */
+          const fs = require("fs");
+          /** @type {typeof import("crypto")} */
+          const crypto = require("crypto");
+          const { updateActivationComment } = require('/tmp/gh-aw/scripts/update_activation_comment.cjs');
           const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-          const { closeOlderDiscussions } = require('/tmp/gh-aw/scripts/close_older_discussions.cjs');
-          const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-          const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
           const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
           const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
           
           /**
-           * Fetch repository ID and discussion categories for a repository
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @returns {Promise<{repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}|null>}
+           * Generate a patch preview with max 500 lines and 2000 chars for issue body
+           * @param {string} patchContent - The full patch content
+           * @returns {string} Formatted patch preview
            */
-          async function fetchRepoDiscussionInfo(owner, repo) {
-            const repositoryQuery = `
-              query($owner: String!, $repo: String!) {
-                repository(owner: $owner, name: $repo) {
-                  id
-                  discussionCategories(first: 20) {
-                    nodes {
-                      id
-                      name
-                      slug
-                      description
-                    }
-                  }
-                }
-              }
-            `;
-            const queryResult = await github.graphql(repositoryQuery, {
-              owner: owner,
-              repo: repo,
-            });
-            if (!queryResult || !queryResult.repository) {
-              return null;
-            }
-            return {
-              repositoryId: queryResult.repository.id,
-              discussionCategories: queryResult.repository.discussionCategories.nodes || [],
-            };
-          }
-          
-          /**
-           * Resolve category ID for a repository
-           * @param {string} categoryConfig - Category ID, name, or slug from config
-           * @param {string} itemCategory - Category from agent output item (optional)
-           * @param {Array<{id: string, name: string, slug: string}>} categories - Available categories
-           * @returns {{id: string, matchType: string, name: string, requestedCategory?: string}|undefined} Resolved category info
-           */
-          function resolveCategoryId(categoryConfig, itemCategory, categories) {
-            // Use item category if provided, otherwise use config
-            const categoryToMatch = itemCategory || categoryConfig;
-          
-            if (categoryToMatch) {
-              // Try to match against category IDs first
-              const categoryById = categories.find(cat => cat.id === categoryToMatch);
-              if (categoryById) {
-                return { id: categoryById.id, matchType: "id", name: categoryById.name };
-              }
-              // Try to match against category names
-              const categoryByName = categories.find(cat => cat.name === categoryToMatch);
-              if (categoryByName) {
-                return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
-              }
-              // Try to match against category slugs (routes)
-              const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
-              if (categoryBySlug) {
-                return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
-              }
+          function generatePatchPreview(patchContent) {
+            if (!patchContent || !patchContent.trim()) {
+              return "";
             }
           
-            // Fall back to first category if available
-            if (categories.length > 0) {
-              return {
-                id: categories[0].id,
-                matchType: "fallback",
-                name: categories[0].name,
-                requestedCategory: categoryToMatch,
-              };
+            const lines = patchContent.split("\n");
+            const maxLines = 500;
+            const maxChars = 2000;
+          
+            // Apply line limit first
+            let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+            const lineTruncated = lines.length > maxLines;
+          
+            // Apply character limit
+            const charTruncated = preview.length > maxChars;
+            if (charTruncated) {
+              preview = preview.slice(0, maxChars);
             }
           
-            return undefined;
+            const truncated = lineTruncated || charTruncated;
+            const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
+          
+            return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
           }
           
           async function main() {
             // Initialize outputs to empty strings to ensure they're always set
-            core.setOutput("discussion_number", "");
-            core.setOutput("discussion_url", "");
+            core.setOutput("pull_request_number", "");
+            core.setOutput("pull_request_url", "");
+            core.setOutput("issue_number", "");
+            core.setOutput("issue_url", "");
+            core.setOutput("branch_name", "");
+            core.setOutput("fallback_used", "");
           
-            // Load the temporary ID map from create_issue job
-            const temporaryIdMap = loadTemporaryIdMap();
-            if (temporaryIdMap.size > 0) {
-              core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+            // Check if we're in staged mode
+            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+          
+            // Environment validation - fail early if required variables are missing
+            const workflowId = process.env.GH_AW_WORKFLOW_ID;
+            if (!workflowId) {
+              throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
             }
           
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
+            const baseBranch = process.env.GH_AW_BASE_BRANCH;
+            if (!baseBranch) {
+              throw new Error("GH_AW_BASE_BRANCH environment variable is required");
             }
           
-            const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-            if (createDiscussionItems.length === 0) {
-              core.warning("No create-discussion items found in agent output");
-              return;
-            }
-            core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
           
-            // Parse allowed repos and default target
-            const allowedRepos = parseAllowedRepos();
-            const defaultTargetRepo = getDefaultTargetRepo();
-            core.info(`Default target repo: ${defaultTargetRepo}`);
-            if (allowedRepos.size > 0) {
-              core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-            }
-          
-            if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-              let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-              summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-              for (let i = 0; i < createDiscussionItems.length; i++) {
-                const item = createDiscussionItems[i];
-                summaryContent += `### Discussion ${i + 1}\n`;
-                summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                if (item.repo) {
-                  summaryContent += `**Repository:** ${item.repo}\n\n`;
-                }
-                if (item.body) {
-                  summaryContent += `**Body:**\n${item.body}\n\n`;
-                }
-                if (item.category) {
-                  summaryContent += `**Category:** ${item.category}\n\n`;
-                }
-                summaryContent += "---\n\n";
+            // Read agent output from file
+            let outputContent = "";
+            if (agentOutputFile.trim() !== "") {
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
               }
-              await core.summary.addRaw(summaryContent).write();
-              core.info("📝 Discussion creation preview written to step summary");
+            }
+          
+            if (outputContent.trim() === "") {
+              core.info("Agent output content is empty");
+            }
+          
+            const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+            const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
+          
+            // Check if patch file exists and has valid content
+            if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+              // If allow-empty is enabled, we can proceed without a patch file
+              if (allowEmpty) {
+                core.info("No patch file found, but allow-empty is enabled - will create empty PR");
+              } else {
+                const message = "No patch file found - cannot create pull request without changes";
+          
+                // If in staged mode, still show preview
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+          
+                  // Write to step summary
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                  return;
+                }
+          
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+            }
+          
+            let patchContent = "";
+            let isEmpty = true;
+          
+            if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+              patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              isEmpty = !patchContent || !patchContent.trim();
+            }
+          
+            // Check for actual error conditions (but allow empty patches as valid noop)
+            if (patchContent.includes("Failed to generate patch")) {
+              // If allow-empty is enabled, ignore patch errors and proceed
+              if (allowEmpty) {
+                core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+                patchContent = "";
+                isEmpty = true;
+              } else {
+                const message = "Patch file contains error message - cannot create pull request without changes";
+          
+                // If in staged mode, still show preview
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+          
+                  // Write to step summary
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch error)");
+                  return;
+                }
+          
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+            }
+          
+            // Validate patch size (unless empty)
+            if (!isEmpty) {
+              // Get maximum patch size from environment (default: 1MB = 1024 KB)
+              const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+              const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+              const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+          
+              core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+          
+              if (patchSizeKb > maxSizeKb) {
+                const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+          
+                // If in staged mode, still show preview with error
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+          
+                  // Write to step summary
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                  return;
+                }
+          
+                throw new Error(message);
+              }
+          
+              core.info("Patch size validation passed");
+            }
+          
+            if (isEmpty && !isStaged && !allowEmpty) {
+              const message = "Patch file is empty - no changes to apply (noop operation)";
+          
+              switch (ifNoChanges) {
+                case "error":
+                  throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                case "ignore":
+                  // Silent success - no console output
+                  return;
+                case "warn":
+                default:
+                  core.warning(message);
+                  return;
+              }
+            }
+          
+            core.info(`Agent output content length: ${outputContent.length}`);
+            if (!isEmpty) {
+              core.info("Patch content validation passed");
+            } else if (allowEmpty) {
+              core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
+            } else {
+              core.info("Patch file is empty - processing noop operation");
+            }
+          
+            // Parse the validated output JSON
+            let validatedOutput;
+            try {
+              validatedOutput = JSON.parse(outputContent);
+            } catch (error) {
+              core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
               return;
             }
           
-            // Cache for repository info to avoid redundant API calls
-            /** @type {Map<string, {repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}>} */
-            const repoInfoCache = new Map();
+            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+              core.warning("No valid items found in agent output");
+              return;
+            }
           
-            // Get configuration for close-older-discussions
-            const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
-            const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
-            const configCategory = process.env.GH_AW_DISCUSSION_CATEGORY || "";
-            const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
-            const labels = labelsEnvVar
-              ? labelsEnvVar
-                  .split(",")
-                  .map(l => l.trim())
-                  .filter(l => l.length > 0)
-              : [];
+            // Find the create-pull-request item
+            const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
+            if (!pullRequestItem) {
+              core.warning("No create-pull-request item found in agent output");
+              return;
+            }
+          
+            core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+          
+            // If in staged mode, emit step summary instead of creating PR
+            if (isStaged) {
+              let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+              summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+          
+              summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+              summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+              summaryContent += `**Base:** ${baseBranch}\n\n`;
+          
+              if (pullRequestItem.body) {
+                summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+              }
+          
+              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                if (patchStats.trim()) {
+                  summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                  summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                } else {
+                  summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                }
+              }
+          
+              // Write to step summary
+              await core.summary.addRaw(summaryContent).write();
+              core.info("📝 Pull request creation preview written to step summary");
+              return;
+            }
+          
+            // Extract title, body, and branch from the JSON item
+            let title = pullRequestItem.title.trim();
+            let processedBody = pullRequestItem.body;
+          
+            // Remove duplicate title from description if it starts with a header matching the title
+            processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+          
+            let bodyLines = processedBody.split("\n");
+            let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+          
+            // If no title was found, use a default
+            if (!title) {
+              title = "Agent Output";
+            }
+          
+            // Apply title prefix if provided via environment variable
+            const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+            if (titlePrefix && !title.startsWith(titlePrefix)) {
+              title = titlePrefix + title;
+            }
+          
+            // Add AI disclaimer with workflow name and run url
             const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
             const runId = context.runId;
             const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
             const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
           
-            const createdDiscussions = [];
-            const closedDiscussionsSummary = [];
+            // Add fingerprint comment if present
+            const trackerIDComment = getTrackerID("markdown");
+            if (trackerIDComment) {
+              bodyLines.push(trackerIDComment);
+            }
           
-            for (let i = 0; i < createDiscussionItems.length; i++) {
-              const createDiscussionItem = createDiscussionItems[i];
+            // Add expiration comment if expires is set (only for same-repo PRs)
+            addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
           
-              // Determine target repository for this discussion
-              const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
+            bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
           
-              // Validate the repository is allowed
-              const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-              if (!repoValidation.valid) {
-                core.warning(`Skipping discussion: ${repoValidation.error}`);
-                continue;
+            // Prepare the body content
+            const body = bodyLines.join("\n").trim();
+          
+            // Parse labels from environment variable (comma-separated string)
+            const labelsEnv = process.env.GH_AW_PR_LABELS;
+            const labels = labelsEnv
+              ? labelsEnv
+                  .split(",")
+                  .map(/** @param {string} label */ label => label.trim())
+                  .filter(/** @param {string} label */ label => label)
+              : [];
+          
+            // Parse draft setting from environment variable (defaults to true)
+            const draftEnv = process.env.GH_AW_PR_DRAFT;
+            const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+          
+            core.info(`Creating pull request with title: ${title}`);
+            core.info(`Labels: ${JSON.stringify(labels)}`);
+            core.info(`Draft: ${draft}`);
+            core.info(`Body length: ${body.length}`);
+          
+            const randomHex = crypto.randomBytes(8).toString("hex");
+            // Use branch name from JSONL if provided, otherwise generate unique branch name
+            if (!branchName) {
+              core.info("No branch name provided in JSONL, generating unique branch name");
+              // Generate unique branch name using cryptographic random hex
+              branchName = `${workflowId}-${randomHex}`;
+            } else {
+              branchName = `${branchName}-${randomHex}`;
+              core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+            }
+          
+            core.info(`Generated branch name: ${branchName}`);
+            core.info(`Base branch: ${baseBranch}`);
+          
+            // Create a new branch using git CLI, ensuring it's based on the correct base branch
+          
+            // First, fetch latest changes and checkout the base branch
+            core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+            await exec.exec("git fetch origin");
+            await exec.exec(`git checkout ${baseBranch}`);
+          
+            // Handle branch creation/checkout
+            core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+            await exec.exec(`git checkout -b ${branchName}`);
+            core.info(`Created new branch from base: ${branchName}`);
+          
+            // Apply the patch using git CLI (skip if empty)
+            if (!isEmpty) {
+              core.info("Applying patch...");
+          
+              // Log first 500 lines of patch for debugging
+              const patchLines = patchContent.split("\n");
+              const previewLineCount = Math.min(500, patchLines.length);
+              core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+              for (let i = 0; i < previewLineCount; i++) {
+                core.info(patchLines[i]);
               }
           
-              // Parse the repository slug
-              const repoParts = parseRepoSlug(itemRepo);
-              if (!repoParts) {
-                core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
-                continue;
-              }
-          
-              // Get repository info (cached)
-              let repoInfo = repoInfoCache.get(itemRepo);
-              if (!repoInfo) {
-                try {
-                  const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
-                  if (!fetchedInfo) {
-                    core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
-                    continue;
-                  }
-                  repoInfo = fetchedInfo;
-                  repoInfoCache.set(itemRepo, repoInfo);
-                  core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
-                    core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
-                    continue;
-                  }
-                  core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
-                  throw error;
-                }
-              }
-          
-              // Resolve category ID for this discussion
-              const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
-              if (!categoryInfo) {
-                core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
-                continue;
-              }
-          
-              // Log how the category was resolved
-              if (categoryInfo.matchType === "name") {
-                core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
-              } else if (categoryInfo.matchType === "slug") {
-                core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
-              } else if (categoryInfo.matchType === "fallback") {
-                if (categoryInfo.requestedCategory) {
-                  const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                  core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
-                  core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
-                } else {
-                  core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
-                }
-              }
-          
-              const categoryId = categoryInfo.id;
-          
-              core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
-          
-              // Replace temporary ID references in title
-              let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
-              // Replace temporary ID references in body (with defensive null check)
-              const bodyText = createDiscussionItem.body || "";
-              let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
-          
-              // Remove duplicate title from description if it starts with a header matching the title
-              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-          
-              let bodyLines = processedBody.split("\n");
-              if (!title) {
-                title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
-              }
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-          
-              // Add tracker-id comment if present
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-          
-              // Add expiration comment if expires is set
-              addExpirationComment(bodyLines, "GH_AW_DISCUSSION_EXPIRES", "Discussion");
-          
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
-              core.info(`Category ID: ${categoryId}`);
-              core.info(`Body length: ${body.length}`);
+              // Patches are created with git format-patch, so use git am to apply them
               try {
-                const createDiscussionMutation = `
-                  mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-                    createDiscussion(input: {
-                      repositoryId: $repositoryId,
-                      categoryId: $categoryId,
-                      title: $title,
-                      body: $body
-                    }) {
-                      discussion {
-                        id
-                        number
-                        title
-                        url
-                      }
-                    }
-                  }
-                `;
-                const mutationResult = await github.graphql(createDiscussionMutation, {
-                  repositoryId: repoInfo.repositoryId,
-                  categoryId: categoryId,
-                  title: title,
-                  body: body,
-                });
-                const discussion = mutationResult.createDiscussion.discussion;
-                if (!discussion) {
-                  core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
-                  continue;
-                }
-                core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
-                createdDiscussions.push({ ...discussion, _repo: itemRepo });
-                if (i === createDiscussionItems.length - 1) {
-                  core.setOutput("discussion_number", discussion.number);
-                  core.setOutput("discussion_url", discussion.url);
+                await exec.exec("git am /tmp/gh-aw/aw.patch");
+                core.info("Patch applied successfully");
+              } catch (patchError) {
+                core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+          
+                // Investigate why the patch failed by logging git status and the failed patch
+                try {
+                  core.info("Investigating patch failure...");
+          
+                  // Log git status to see the current state
+                  const statusResult = await exec.getExecOutput("git", ["status"]);
+                  core.info("Git status output:");
+                  core.info(statusResult.stdout);
+          
+                  // Log the failed patch diff
+                  const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                  core.info("Failed patch content:");
+                  core.info(patchResult.stdout);
+                } catch (investigateError) {
+                  core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
                 }
           
-                // Close older discussions if enabled and title prefix or labels are set
-                // Note: close-older-discussions only works within the same repository
-                const hasMatchingCriteria = titlePrefix || labels.length > 0;
-                if (closeOlderEnabled && hasMatchingCriteria) {
-                  core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                core.setFailed("Failed to apply patch");
+                return;
+              }
+          
+              // Push the applied commits to the branch (with fallback to issue creation on failure)
+              try {
+                // Check if remote branch already exists (optional precheck)
+                let remoteBranchExists = false;
+                try {
+                  const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                  if (stdout.trim()) {
+                    remoteBranchExists = true;
+                  }
+                } catch (checkError) {
+                  core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                }
+          
+                if (remoteBranchExists) {
+                  core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                  const extraHex = crypto.randomBytes(4).toString("hex");
+                  const oldBranch = branchName;
+                  branchName = `${branchName}-${extraHex}`;
+                  // Rename local branch
+                  await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                  core.info(`Renamed branch to ${branchName}`);
+                }
+          
+                await exec.exec(`git push origin ${branchName}`);
+                core.info("Changes pushed to branch");
+              } catch (pushError) {
+                // Push failed - create fallback issue instead of PR
+                core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                core.warning("Git push operation failed - creating fallback issue instead of pull request");
+          
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+          
+                // Read patch content for preview
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
+          
+                const fallbackBody = `${body}
+          
+          ---
+          
+          > [!NOTE]
+          > This was originally intended as a pull request, but the git push operation failed.
+          >
+          > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+          >
+          > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+          
+          To apply the patch locally:
+          
+          \`\`\`sh
+          # Download the artifact from the workflow run ${runUrl}
+          # (Use GitHub MCP tools if gh CLI is not available)
+          gh run download ${runId} -n aw.patch
+          
+          # Apply the patch
+          git am aw.patch
+          \`\`\`
+          ${patchPreview}`;
+          
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+          
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+          
+                  // Update the activation comment with issue link (if a comment was created)
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          
+                  // Set outputs for push failure fallback
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  core.setOutput("push_failed", "true");
+          
+                  // Write summary to GitHub Actions summary
+                  await core.summary
+                    .addRaw(
+                      `
+          
+          ## Push Failure Fallback
+          - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+          - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+          - **Patch Artifact:** Available in workflow run artifacts
+          - **Note:** Push failed, created issue as fallback
+          `
+                    )
+                    .write();
+          
+                  return;
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
+            } else {
+              core.info("Skipping patch application (empty patch)");
+          
+              // For empty patches with allow-empty, we still need to push the branch
+              if (allowEmpty) {
+                core.info("allow-empty is enabled - will create branch and push with empty commit");
+                // Push the branch with an empty commit to allow PR creation
+                try {
+                  // Create an empty commit to ensure there's a commit difference
+                  await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                  core.info("Created empty commit");
+          
+                  // Check if remote branch already exists (optional precheck)
+                  let remoteBranchExists = false;
                   try {
-                    const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
-          
-                    if (closedDiscussions.length > 0) {
-                      closedDiscussionsSummary.push(...closedDiscussions);
-                      core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                    if (stdout.trim()) {
+                      remoteBranchExists = true;
                     }
-                  } catch (closeError) {
-                    // Log error but don't fail the workflow - closing older discussions is a nice-to-have
-                    core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                  } catch (checkError) {
+                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
                   }
-                } else if (closeOlderEnabled && !hasMatchingCriteria) {
-                  core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+          
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    // Rename local branch
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+          
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Empty branch pushed successfully");
+                } catch (pushError) {
+                  core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  return;
                 }
-              } catch (error) {
-                core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
-                throw error;
+              } else {
+                // For empty patches without allow-empty, handle if-no-changes configuration
+                const message = "No changes to apply - noop operation completed successfully";
+          
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    // Silent success - no console output
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
               }
             }
-            if (createdDiscussions.length > 0) {
-              let summaryContent = "\n\n## GitHub Discussions\n";
-              for (const discussion of createdDiscussions) {
-                const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
-                summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
+          
+            // Try to create the pull request, with fallback to issue creation
+            try {
+              const { data: pullRequest } = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                head: branchName,
+                base: baseBranch,
+                draft: draft,
+              });
+          
+              core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+          
+              // Add labels if specified
+              if (labels.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pullRequest.number,
+                  labels: labels,
+                });
+                core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
               }
           
-              // Add closed discussions to summary
-              if (closedDiscussionsSummary.length > 0) {
-                summaryContent += "\n### Closed Older Discussions\n";
-                for (const closed of closedDiscussionsSummary) {
-                  summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
-                }
+              // Set output for other jobs to use
+              core.setOutput("pull_request_number", pullRequest.number);
+              core.setOutput("pull_request_url", pullRequest.html_url);
+              core.setOutput("branch_name", branchName);
+          
+              // Update the activation comment with PR link (if a comment was created)
+              await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+          
+              // Write summary to GitHub Actions summary
+              await core.summary
+                .addRaw(
+                  `
+          
+          ## Pull Request
+          - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+          - **Branch**: \`${branchName}\`
+          - **Base Branch**: \`${baseBranch}\`
+          `
+                )
+                .write();
+            } catch (prError) {
+              core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+              core.info("Falling back to creating an issue instead");
+          
+              // Create issue as fallback with enhanced body content
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+          
+              // Read patch content for preview
+              let patchPreview = "";
+              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                patchPreview = generatePatchPreview(patchContent);
               }
           
-              await core.summary.addRaw(summaryContent).write();
+              const fallbackBody = `${body}
+          
+          ---
+          
+          **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+          
+          **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+          
+          You can manually create a pull request from the branch if needed.${patchPreview}`;
+          
+              try {
+                const { data: issue } = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: fallbackBody,
+                  labels: labels,
+                });
+          
+                core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+          
+                // Update the activation comment with issue link (if a comment was created)
+                await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+          
+                // Set output for other jobs to use (issue instead of PR)
+                core.setOutput("issue_number", issue.number);
+                core.setOutput("issue_url", issue.html_url);
+                core.setOutput("branch_name", branchName);
+                core.setOutput("fallback_used", "true");
+          
+                // Write summary to GitHub Actions summary
+                await core.summary
+                  .addRaw(
+                    `
+          
+          ## Fallback Issue Created
+          - **Issue**: [#${issue.number}](${issue.html_url})
+          - **Branch**: [\`${branchName}\`](${branchUrl})
+          - **Base Branch**: \`${baseBranch}\`
+          - **Note**: Pull request creation failed, created issue as fallback
+          `
+                  )
+                  .write();
+              } catch (issueError) {
+                core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
+                return;
+              }
             }
-            core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
           }
           await main();
           
-          EOF_868e2bfb
+          EOF_09cd66f9
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -9669,241 +9814,6 @@ jobs:
           };
           
           EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          
-          /**
-           * Maximum content length to log for debugging purposes
-           * @type {number}
-           */
-          const MAX_LOG_CONTENT_LENGTH = 10000;
-          
-          /**
-           * Truncate content for logging if it exceeds the maximum length
-           * @param {string} content - Content to potentially truncate
-           * @returns {string} Truncated content with indicator if truncated
-           */
-          function truncateForLogging(content) {
-            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-              return content;
-            }
-            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-          }
-          
-          /**
-           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
-           *
-           * This utility handles the common pattern of:
-           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
-           * 2. Loading the file content
-           * 3. Validating the JSON structure
-           * 4. Returning parsed items array
-           *
-           * @returns {{
-           *   success: true,
-           *   items: any[]
-           * } | {
-           *   success: false,
-           *   items?: undefined,
-           *   error?: string
-           * }} Result object with success flag and items array (if successful) or error message
-           */
-          function loadAgentOutput() {
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-          
-            // No agent output file specified
-            if (!agentOutputFile) {
-              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-              return { success: false };
-            }
-          
-            // Read agent output from file
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(agentOutputFile, "utf8");
-            } catch (error) {
-              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Check for empty content
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-              return { success: false };
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Validate items array exists
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.info("No valid items found in agent output");
-              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-              return { success: false };
-            }
-          
-            return { success: true, items: validatedOutput.items };
-          }
-          
-          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
-          
-          EOF_b93f537f
-          cat > /tmp/gh-aw/scripts/messages_close_discussion.cjs << 'EOF_2b835e89'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Close Discussion Message Module
-           *
-           * This module provides the message for closing older discussions
-           * when a newer one is created.
-           */
-          
-          const { getMessages, renderTemplate, toSnakeCase } = require('/tmp/gh-aw/scripts/messages_core.cjs');
-          
-          /**
-           * @typedef {Object} CloseOlderDiscussionContext
-           * @property {string} newDiscussionUrl - URL of the new discussion that replaced this one
-           * @property {number} newDiscussionNumber - Number of the new discussion
-           * @property {string} workflowName - Name of the workflow
-           * @property {string} runUrl - URL of the workflow run
-           */
-          
-          /**
-           * Get the close-older-discussion message, using custom template if configured.
-           * @param {CloseOlderDiscussionContext} ctx - Context for message generation
-           * @returns {string} Close older discussion message
-           */
-          function getCloseOlderDiscussionMessage(ctx) {
-            const messages = getMessages();
-          
-            // Create context with both camelCase and snake_case keys
-            const templateContext = toSnakeCase(ctx);
-          
-            // Default close-older-discussion template - pirate themed! 🏴‍☠️
-            const defaultMessage = `⚓ Avast! This discussion be marked as **outdated** by [{workflow_name}]({run_url}).
-          
-          🗺️ A newer treasure map awaits ye at **[Discussion #{new_discussion_number}]({new_discussion_url})**.
-          
-          Fair winds, matey! 🏴‍☠️`;
-          
-            // Use custom message if configured
-            return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
-          }
-          
-          module.exports = {
-            getCloseOlderDiscussionMessage,
-          };
-          
-          EOF_2b835e89
-          cat > /tmp/gh-aw/scripts/messages_core.cjs << 'EOF_6cdb27e0'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Core Message Utilities Module
-           *
-           * This module provides shared utilities for message template processing.
-           * It includes configuration parsing and template rendering functions.
-           *
-           * Supported placeholders:
-           * - {workflow_name} - Name of the workflow
-           * - {run_url} - URL to the workflow run
-           * - {workflow_source} - Source specification (owner/repo/path@ref)
-           * - {workflow_source_url} - GitHub URL for the workflow source
-           * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
-           * - {operation} - Operation name (for staged mode titles/descriptions)
-           * - {event_type} - Event type description (for run-started messages)
-           * - {status} - Workflow status text (for run-failure messages)
-           *
-           * Both camelCase and snake_case placeholder formats are supported.
-           */
-          
-          /**
-           * @typedef {Object} SafeOutputMessages
-           * @property {string} [footer] - Custom footer message template
-           * @property {string} [footerInstall] - Custom installation instructions template
-           * @property {string} [stagedTitle] - Custom staged mode title template
-           * @property {string} [stagedDescription] - Custom staged mode description template
-           * @property {string} [runStarted] - Custom workflow activation message template
-           * @property {string} [runSuccess] - Custom workflow success message template
-           * @property {string} [runFailure] - Custom workflow failure message template
-           * @property {string} [detectionFailure] - Custom detection job failure message template
-           * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
-           */
-          
-          /**
-           * Get the safe-output messages configuration from environment variable.
-           * @returns {SafeOutputMessages|null} Parsed messages config or null if not set
-           */
-          function getMessages() {
-            const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-            if (!messagesEnv) {
-              return null;
-            }
-          
-            try {
-              // Parse JSON with camelCase keys from Go struct (using json struct tags)
-              return JSON.parse(messagesEnv);
-            } catch (error) {
-              core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-              return null;
-            }
-          }
-          
-          /**
-           * Replace placeholders in a template string with values from context.
-           * Supports {key} syntax for placeholder replacement.
-           * @param {string} template - Template string with {key} placeholders
-           * @param {Record<string, string|number|undefined>} context - Key-value pairs for replacement
-           * @returns {string} Template with placeholders replaced
-           */
-          function renderTemplate(template, context) {
-            return template.replace(/\{(\w+)\}/g, (match, key) => {
-              const value = context[key];
-              return value !== undefined && value !== null ? String(value) : match;
-            });
-          }
-          
-          /**
-           * Convert context object keys to snake_case for template rendering
-           * @param {Record<string, any>} obj - Object with camelCase keys
-           * @returns {Record<string, any>} Object with snake_case keys
-           */
-          function toSnakeCase(obj) {
-            /** @type {Record<string, any>} */
-            const result = {};
-            for (const [key, value] of Object.entries(obj)) {
-              // Convert camelCase to snake_case
-              const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-              result[snakeKey] = value;
-              // Also keep original key for backwards compatibility
-              result[key] = value;
-            }
-            return result;
-          }
-          
-          module.exports = {
-            getMessages,
-            renderTemplate,
-            toSnakeCase,
-          };
-          
-          EOF_6cdb27e0
           cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
           // @ts-check
           /**
@@ -9957,296 +9867,200 @@ jobs:
           module.exports = { removeDuplicateTitleFromDescription };
           
           EOF_bb4a8126
-          cat > /tmp/gh-aw/scripts/repo_helpers.cjs << 'EOF_0e3d051f'
+          cat > /tmp/gh-aw/scripts/update_activation_comment.cjs << 'EOF_967a5011'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
           /**
-           * Repository-related helper functions for safe-output scripts
-           * Provides common repository parsing, validation, and resolution logic
+           * Update the activation comment with a link to the created pull request or issue
+           * @param {any} github - GitHub REST API instance
+           * @param {any} context - GitHub Actions context
+           * @param {any} core - GitHub Actions core
+           * @param {string} itemUrl - URL of the created item (pull request or issue)
+           * @param {number} itemNumber - Number of the item (pull request or issue)
+           * @param {string} itemType - Type of item: "pull_request" or "issue" (defaults to "pull_request")
            */
+          async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
+            const itemLabel = itemType === "issue" ? "issue" : "pull request";
+            const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+            await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
+          }
           
           /**
-           * Parse the allowed repos from environment variable
-           * @returns {Set<string>} Set of allowed repository slugs
+           * Update the activation comment with a commit link
+           * @param {any} github - GitHub REST API instance
+           * @param {any} context - GitHub Actions context
+           * @param {any} core - GitHub Actions core
+           * @param {string} commitSha - SHA of the commit
+           * @param {string} commitUrl - URL of the commit
            */
-          function parseAllowedRepos() {
-            const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
-            const set = new Set();
-            if (allowedReposEnv) {
-              allowedReposEnv
-                .split(",")
-                .map(repo => repo.trim())
-                .filter(repo => repo)
-                .forEach(repo => set.add(repo));
+          async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
+            const shortSha = commitSha.substring(0, 7);
+            const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
+            await updateActivationCommentWithMessage(github, context, core, message, "commit");
+          }
+          
+          /**
+           * Update the activation comment with a custom message
+           * @param {any} github - GitHub REST API instance
+           * @param {any} context - GitHub Actions context
+           * @param {any} core - GitHub Actions core
+           * @param {string} message - Message to append to the comment
+           * @param {string} label - Optional label for log messages (e.g., "pull request", "issue", "commit")
+           */
+          async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
+            const commentId = process.env.GH_AW_COMMENT_ID;
+            const commentRepo = process.env.GH_AW_COMMENT_REPO;
+          
+            // If no comment was created in activation, skip updating
+            if (!commentId) {
+              core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
+              return;
             }
-            return set;
-          }
           
-          /**
-           * Get the default target repository
-           * @returns {string} Repository slug in "owner/repo" format
-           */
-          function getDefaultTargetRepo() {
-            // First check if there's a target-repo override
-            const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-            if (targetRepoSlug) {
-              return targetRepoSlug;
-            }
-            // Fall back to context repo
-            return `${context.repo.owner}/${context.repo.repo}`;
-          }
+            core.info(`Updating activation comment ${commentId}`);
           
-          /**
-           * Validate that a repo is allowed for operations
-           * @param {string} repo - Repository slug to validate
-           * @param {string} defaultRepo - Default target repository
-           * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
-           * @returns {{valid: boolean, error: string|null}}
-           */
-          function validateRepo(repo, defaultRepo, allowedRepos) {
-            // Default repo is always allowed
-            if (repo === defaultRepo) {
-              return { valid: true, error: null };
-            }
-            // Check if it's in the allowed repos list
-            if (allowedRepos.has(repo)) {
-              return { valid: true, error: null };
-            }
-            return {
-              valid: false,
-              error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
-            };
-          }
-          
-          /**
-           * Parse owner and repo from a repository slug
-           * @param {string} repoSlug - Repository slug in "owner/repo" format
-           * @returns {{owner: string, repo: string}|null}
-           */
-          function parseRepoSlug(repoSlug) {
-            const parts = repoSlug.split("/");
-            if (parts.length !== 2 || !parts[0] || !parts[1]) {
-              return null;
-            }
-            return { owner: parts[0], repo: parts[1] };
-          }
-          
-          module.exports = {
-            parseAllowedRepos,
-            getDefaultTargetRepo,
-            validateRepo,
-            parseRepoSlug,
-          };
-          
-          EOF_0e3d051f
-          cat > /tmp/gh-aw/scripts/temporary_id.cjs << 'EOF_795429aa'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const crypto = require("crypto");
-          
-          /**
-           * Regex pattern for matching temporary ID references in text
-           * Format: #aw_XXXXXXXXXXXX (aw_ prefix + 12 hex characters)
-           */
-          const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
-          
-          /**
-           * @typedef {Object} RepoIssuePair
-           * @property {string} repo - Repository slug in "owner/repo" format
-           * @property {number} number - Issue or discussion number
-           */
-          
-          /**
-           * Generate a temporary ID with aw_ prefix for temporary issue IDs
-           * @returns {string} A temporary ID in format aw_XXXXXXXXXXXX (12 hex characters)
-           */
-          function generateTemporaryId() {
-            return "aw_" + crypto.randomBytes(6).toString("hex");
-          }
-          
-          /**
-           * Check if a value is a valid temporary ID (aw_ prefix + 12-character hex string)
-           * @param {any} value - The value to check
-           * @returns {boolean} True if the value is a valid temporary ID
-           */
-          function isTemporaryId(value) {
-            if (typeof value === "string") {
-              return /^aw_[0-9a-f]{12}$/i.test(value);
-            }
-            return false;
-          }
-          
-          /**
-           * Normalize a temporary ID to lowercase for consistent map lookups
-           * @param {string} tempId - The temporary ID to normalize
-           * @returns {string} Lowercase temporary ID
-           */
-          function normalizeTemporaryId(tempId) {
-            return String(tempId).toLowerCase();
-          }
-          
-          /**
-           * Replace temporary ID references in text with actual issue numbers
-           * Format: #aw_XXXXXXXXXXXX -> #123 (same repo) or owner/repo#123 (cross-repo)
-           * @param {string} text - The text to process
-           * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
-           * @param {string} [currentRepo] - Current repository slug for same-repo references
-           * @returns {string} Text with temporary IDs replaced with issue numbers
-           */
-          function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
-            return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
-              const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
-              if (resolved !== undefined) {
-                // If we have a currentRepo and the issue is in the same repo, use short format
-                if (currentRepo && resolved.repo === currentRepo) {
-                  return `#${resolved.number}`;
-                }
-                // Otherwise use full repo#number format for cross-repo references
-                return `${resolved.repo}#${resolved.number}`;
+            // Parse comment repo (format: "owner/repo") with validation
+            let repoOwner = context.repo.owner;
+            let repoName = context.repo.repo;
+            if (commentRepo) {
+              const parts = commentRepo.split("/");
+              if (parts.length === 2) {
+                repoOwner = parts[0];
+                repoName = parts[1];
+              } else {
+                core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
               }
-              // Return original if not found (it may be created later)
-              return match;
-            });
-          }
-          
-          /**
-           * Replace temporary ID references in text with actual issue numbers (legacy format)
-           * This is a compatibility function that works with Map<string, number>
-           * Format: #aw_XXXXXXXXXXXX -> #123
-           * @param {string} text - The text to process
-           * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
-           * @returns {string} Text with temporary IDs replaced with issue numbers
-           */
-          function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
-            return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
-              const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
-              if (issueNumber !== undefined) {
-                return `#${issueNumber}`;
-              }
-              // Return original if not found (it may be created later)
-              return match;
-            });
-          }
-          
-          /**
-           * Load the temporary ID map from environment variable
-           * Supports both old format (temporary_id -> number) and new format (temporary_id -> {repo, number})
-           * @returns {Map<string, RepoIssuePair>} Map of temporary_id to {repo, number}
-           */
-          function loadTemporaryIdMap() {
-            const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
-            if (!mapJson || mapJson === "{}") {
-              return new Map();
             }
+          
+            core.info(`Updating comment in ${repoOwner}/${repoName}`);
+          
+            // Check if this is a discussion comment (GraphQL node ID format)
+            const isDiscussionComment = commentId.startsWith("DC_");
+          
             try {
-              const mapObject = JSON.parse(mapJson);
-              /** @type {Map<string, RepoIssuePair>} */
-              const result = new Map();
+              if (isDiscussionComment) {
+                // Get current comment body using GraphQL
+                const currentComment = await github.graphql(
+                  `
+                  query($commentId: ID!) {
+                    node(id: $commentId) {
+                      ... on DiscussionComment {
+                        body
+                      }
+                    }
+                  }`,
+                  { commentId: commentId }
+                );
           
-              for (const [key, value] of Object.entries(mapObject)) {
-                const normalizedKey = normalizeTemporaryId(key);
-                if (typeof value === "number") {
-                  // Legacy format: number only, use context repo
-                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-                  result.set(normalizedKey, { repo: contextRepo, number: value });
-                } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
-                  // New format: {repo, number}
-                  result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
+                if (!currentComment?.node?.body) {
+                  core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
+                  return;
                 }
+                const currentBody = currentComment.node.body;
+                const updatedBody = currentBody + message;
+          
+                // Update discussion comment using GraphQL
+                const result = await github.graphql(
+                  `
+                  mutation($commentId: ID!, $body: String!) {
+                    updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                      comment {
+                        id
+                        url
+                      }
+                    }
+                  }`,
+                  { commentId: commentId, body: updatedBody }
+                );
+          
+                const comment = result.updateDiscussionComment.comment;
+                const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
+                core.info(successMessage);
+                core.info(`Comment ID: ${comment.id}`);
+                core.info(`Comment URL: ${comment.url}`);
+              } else {
+                // Get current comment body using REST API
+                const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                  owner: repoOwner,
+                  repo: repoName,
+                  comment_id: parseInt(commentId, 10),
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+          
+                if (!currentComment?.data?.body) {
+                  core.warning("Unable to fetch current comment body, comment may have been deleted");
+                  return;
+                }
+                const currentBody = currentComment.data.body;
+                const updatedBody = currentBody + message;
+          
+                // Update issue/PR comment using REST API
+                const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                  owner: repoOwner,
+                  repo: repoName,
+                  comment_id: parseInt(commentId, 10),
+                  body: updatedBody,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+          
+                const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
+                core.info(successMessage);
+                core.info(`Comment ID: ${response.data.id}`);
+                core.info(`Comment URL: ${response.data.html_url}`);
               }
-              return result;
             } catch (error) {
-              if (typeof core !== "undefined") {
-                core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
-              }
-              return new Map();
+              // Don't fail the workflow if we can't update the comment - just log a warning
+              core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
             }
-          }
-          
-          /**
-           * Resolve an issue number that may be a temporary ID or an actual issue number
-           * Returns structured result with the resolved number, repo, and metadata
-           * @param {any} value - The value to resolve (can be temporary ID, number, or string)
-           * @param {Map<string, RepoIssuePair>} temporaryIdMap - Map of temporary ID to {repo, number}
-           * @returns {{resolved: RepoIssuePair|null, wasTemporaryId: boolean, errorMessage: string|null}}
-           */
-          function resolveIssueNumber(value, temporaryIdMap) {
-            if (value === undefined || value === null) {
-              return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
-            }
-          
-            // Check if it's a temporary ID
-            const valueStr = String(value);
-            if (isTemporaryId(valueStr)) {
-              const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-              if (resolvedPair !== undefined) {
-                return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
-              }
-              return {
-                resolved: null,
-                wasTemporaryId: true,
-                errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
-              };
-            }
-          
-            // It's a real issue number - use context repo as default
-            const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
-            if (isNaN(issueNumber) || issueNumber <= 0) {
-              return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
-            }
-          
-            const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
-            return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
-          }
-          
-          /**
-           * Serialize the temporary ID map to JSON for output
-           * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
-           * @returns {string} JSON string of the map
-           */
-          function serializeTemporaryIdMap(tempIdMap) {
-            const obj = Object.fromEntries(tempIdMap);
-            return JSON.stringify(obj);
           }
           
           module.exports = {
-            TEMPORARY_ID_PATTERN,
-            generateTemporaryId,
-            isTemporaryId,
-            normalizeTemporaryId,
-            replaceTemporaryIdReferences,
-            replaceTemporaryIdReferencesLegacy,
-            loadTemporaryIdMap,
-            resolveIssueNumber,
-            serializeTemporaryIdMap,
+            updateActivationComment,
+            updateActivationCommentWithCommit,
           };
           
-          EOF_795429aa
-      - name: Create Discussion
-        id: create_discussion
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+          EOF_967a5011
+      - name: Create Pull Request
+        id: create_pull_request
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GH_AW_PR_TITLE_PREFIX: "[jsweep] "
+          GH_AW_PR_LABELS: "unbloat,automation"
+          GH_AW_PR_DRAFT: "false"
+          GH_AW_PR_IF_NO_CHANGES: "ignore"
+          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
+          GH_AW_TRACKER_ID: "jsweep-daily"
           GH_AW_ENGINE_ID: "copilot"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_discussion.cjs');
-      - name: Invalidate GitHub App token
-        if: always() && steps.app-token.outputs.token != ''
-        env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          echo "Revoking GitHub App installation token..."
-          # GitHub CLI will auth with the token being revoked.
-          gh api \
-            --method DELETE \
-            -H "Authorization: token $TOKEN" \
-            /installation/token || echo "Token revoke may already be expired."
-          
-          echo "Token invalidation step complete."
+            require('/tmp/gh-aw/scripts/create_pull_request.cjs');
+
+  update_cache_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Download cache-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
 

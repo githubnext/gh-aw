@@ -21,11 +21,11 @@
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
-    "format:terser": "find . -name '*.cjs' -type f | while read file; do if ! grep -qE '^(await |/// <reference|// @ts-check)|await import' \"$file\"; then npx terser \"$file\" -c dead_code=true,unused=true,collapse_vars=true --ecma 2022 --comments all -o \"$file.tmp\" && mv \"$file.tmp\" \"$file\"; fi; done",
-    "format:cjs": "prettier --write '**/*.cjs' '**/*.ts' '**/*.json' && npm run format:terser && prettier --write '**/*.cjs'",
-    "lint:cjs": "prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
-    "format:schema": "prettier --write ../../workflow/schemas/github-workflow.json --ignore-path /dev/null",
-    "format:pkg-json": "prettier --write '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null",
-    "check:pkg-json": "prettier --check '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null"
+    "format:terser": "find . -name '*.cjs' -type f -not -path './node_modules/*' | while read file; do if ! grep -qE '^(await |/// <reference|// @ts-check)|await import' \"$file\"; then npx terser \"$file\" -c dead_code=true,unused=true,collapse_vars=true --ecma 2022 -o \"$file.tmp\" && mv \"$file.tmp\" \"$file\"; fi; done",
+    "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json' && npm run format:terser && npx prettier --write '**/*.cjs'",
+    "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
+    "format:schema": "npx prettier --write ../../workflow/schemas/github-workflow.json --ignore-path /dev/null",
+    "format:pkg-json": "npx prettier --write '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null",
+    "check:pkg-json": "npx prettier --check '../../**/*.json' '!../../workflow/js/**/*.json' --ignore-path /dev/null"
   }
 }
