@@ -1222,12 +1222,7 @@ jobs:
                 if (data.length === 0) {
                   break;
                 }
-                const filteredComments = data
-                  .filter(comment => 
-                    comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
-                    !comment.body.includes(`<!-- comment-type: reaction -->`)
-                  )
-                  .map(({ id, node_id, body }) => ({ id, node_id, body }));
+                const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
                 comments.push(...filteredComments);
                 if (data.length < perPage) {
                   break;
@@ -1263,10 +1258,7 @@ jobs:
                   break;
                 }
                 const filteredComments = result.repository.discussion.comments.nodes
-                  .filter(comment => 
-                    comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
-                    !comment.body.includes(`<!-- comment-type: reaction -->`)
-                  )
+                  .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
                   .map(({ id, body }) => ({ id, body }));
                 comments.push(...filteredComments);
                 if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
@@ -1351,9 +1343,7 @@ jobs:
                       }
                     }
                   }`;
-              const variables = replyToId
-                ? { dId: discussionId, body: message, replyToId }
-                : { dId: discussionId, body: message };
+              const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
               const result = await github.graphql(mutation, variables);
               const comment = result.addDiscussionComment.comment;
               return {
@@ -1528,10 +1518,10 @@ jobs:
                 const references = [
                   createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
                   createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
-                  createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`
+                  createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
                 ].filter(Boolean);
                 if (references.length > 0) {
-                  body += `\n\n#### Related Items\n\n${references.join('\n')}\n`;
+                  body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
                 }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -1556,9 +1546,7 @@ jobs:
                 if (commentEndpoint === "discussions") {
                   core.info(`Creating comment on discussion #${itemNumber}`);
                   core.info(`Comment content length: ${body.length}`);
-                  const replyToId = (context.eventName === "discussion_comment" && context.payload?.comment?.node_id)
-                    ? context.payload.comment.node_id
-                    : undefined;
+                  const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
                   if (replyToId) {
                     core.info(`Creating threaded reply to comment ${replyToId}`);
                   }
@@ -1584,8 +1572,7 @@ jobs:
                 }
               }
               if (createdComments.length > 0) {
-                const summaryContent = "\n\n## GitHub Comments\n" + 
-                  createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join('\n');
+                const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
                 await core.summary.addRaw(summaryContent).write();
               }
               core.info(`Successfully created ${createdComments.length} comment(s)`);
