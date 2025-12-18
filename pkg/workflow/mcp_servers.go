@@ -74,8 +74,9 @@ func getSafeOutputsDependencies() ([]string, error) {
 }
 
 // getJavaScriptFileContent returns the content for a JavaScript file by name.
-// It transforms relative requires (./file.cjs) to absolute paths (/tmp/gh-aw/safeoutputs/file.cjs)
-// so that files can require each other from the filesystem.
+// It returns the content as-is without transforming requires.
+// All files are written to the same directory (/tmp/gh-aw/safeoutputs/) so they can
+// use relative requires (./file.cjs) to reference each other at runtime.
 // Files are NOT inlined/bundled - they are written separately and require each other at runtime.
 func getJavaScriptFileContent(filename string) (string, error) {
 	// Get all sources
@@ -87,11 +88,9 @@ func getJavaScriptFileContent(filename string) (string, error) {
 		return "", fmt.Errorf("JavaScript file not found: %s", filename)
 	}
 
-	// Transform relative requires to absolute paths for /tmp/gh-aw/safeoutputs/
-	// This allows files to require each other at runtime from the filesystem
-	transformed := TransformRequiresToAbsolutePath(content, "/tmp/gh-aw/safeoutputs")
-
-	return transformed, nil
+	// Return content as-is - files use relative requires (./file.cjs)
+	// which work because all files are written to the same directory
+	return content, nil
 }
 
 // hasMCPServers checks if the workflow has any MCP servers configured

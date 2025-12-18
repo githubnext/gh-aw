@@ -474,7 +474,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const { execSync } = require("child_process");
-            const { getBaseBranch } = require('/tmp/gh-aw/safeoutputs/get_base_branch.cjs');
+            const { getBaseBranch } = require("./get_base_branch.cjs");
             function generateGitPatch(branchName) {
               const patchPath = "/tmp/gh-aw/aw.patch";
               const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -766,8 +766,8 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/mcp_server_core.cjs << 'EOF_MCP_SERVER_CORE'
             const fs = require("fs");
             const path = require("path");
-            const { ReadBuffer } = require('/tmp/gh-aw/safeoutputs/read_buffer.cjs');
-            const { validateRequiredFields } = require('/tmp/gh-aw/safeoutputs/safe_inputs_validation.cjs');
+            const { ReadBuffer } = require("./read_buffer.cjs");
+            const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
             const encoder = new TextEncoder();
             function initLogFile(server) {
               if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
@@ -947,7 +947,7 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
                       }
                     }
-                    const { createShellHandler } = require('/tmp/gh-aw/safeoutputs/mcp_handler_shell.cjs');
+                    const { createShellHandler } = require("./mcp_handler_shell.cjs");
                     const timeout = tool.timeout || 60; 
                     tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -965,7 +965,7 @@ jobs:
                         server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
                       }
                     }
-                    const { createPythonHandler } = require('/tmp/gh-aw/safeoutputs/mcp_handler_python.cjs');
+                    const { createPythonHandler } = require("./mcp_handler_python.cjs");
                     const timeout = tool.timeout || 60; 
                     tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
                     loadedCount++;
@@ -1307,8 +1307,8 @@ jobs:
           EOF_SAFE_OUTPUTS_APPEND
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_bootstrap.cjs << 'EOF_SAFE_OUTPUTS_BOOTSTRAP'
             const fs = require("fs");
-            const { loadConfig } = require('/tmp/gh-aw/safeoutputs/safe_outputs_config.cjs');
-            const { loadTools } = require('/tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs');
+            const { loadConfig } = require("./safe_outputs_config.cjs");
+            const { loadTools } = require("./safe_outputs_tools_loader.cjs");
             function bootstrapSafeOutputsServer(logger) {
               logger.debug("Loading safe-outputs configuration");
               const { config, outputFile } = loadConfig(logger);
@@ -1379,12 +1379,12 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            const { normalizeBranchName } = require('/tmp/gh-aw/safeoutputs/normalize_branch_name.cjs');
-            const { estimateTokens } = require('/tmp/gh-aw/safeoutputs/estimate_tokens.cjs');
-            const { writeLargeContentToFile } = require('/tmp/gh-aw/safeoutputs/write_large_content_to_file.cjs');
-            const { getCurrentBranch } = require('/tmp/gh-aw/safeoutputs/get_current_branch.cjs');
-            const { getBaseBranch } = require('/tmp/gh-aw/safeoutputs/get_base_branch.cjs');
-            const { generateGitPatch } = require('/tmp/gh-aw/safeoutputs/generate_git_patch.cjs');
+            const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+            const { estimateTokens } = require("./estimate_tokens.cjs");
+            const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
+            const { getCurrentBranch } = require("./get_current_branch.cjs");
+            const { getBaseBranch } = require("./get_base_branch.cjs");
+            const { generateGitPatch } = require("./generate_git_patch.cjs");
             function createHandlers(server, appendSafeOutput, config = {}) {
               const defaultHandler = type => args => {
                 const entry = { ...(args || {}), type };
@@ -1593,11 +1593,11 @@ jobs:
             module.exports = { createHandlers };
           EOF_SAFE_OUTPUTS_HANDLERS
           cat > /tmp/gh-aw/safeoutputs/safe_outputs_mcp_server.cjs << 'EOF_SAFE_OUTPUTS_MCP_SERVER'
-            const { createServer, registerTool, normalizeTool, start } = require('/tmp/gh-aw/safeoutputs/mcp_server_core.cjs');
-            const { createAppendFunction } = require('/tmp/gh-aw/safeoutputs/safe_outputs_append.cjs');
-            const { createHandlers } = require('/tmp/gh-aw/safeoutputs/safe_outputs_handlers.cjs');
-            const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require('/tmp/gh-aw/safeoutputs/safe_outputs_tools_loader.cjs');
-            const { bootstrapSafeOutputsServer, cleanupConfigFile } = require('/tmp/gh-aw/safeoutputs/safe_outputs_bootstrap.cjs');
+            const { createServer, registerTool, normalizeTool, start } = require("./mcp_server_core.cjs");
+            const { createAppendFunction } = require("./safe_outputs_append.cjs");
+            const { createHandlers } = require("./safe_outputs_handlers.cjs");
+            const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
+            const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
             function startSafeOutputsServer(options = {}) {
               const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
               const MCP_LOG_DIR = options.logDir || process.env.GH_AW_MCP_LOG_DIR;
@@ -1739,7 +1739,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            const { generateCompactSchema } = require('/tmp/gh-aw/safeoutputs/generate_compact_schema.cjs');
+            const { generateCompactSchema } = require("./generate_compact_schema.cjs");
             function writeLargeContentToFile(content) {
               const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
