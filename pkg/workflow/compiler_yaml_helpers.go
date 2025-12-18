@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
 
 // convertStepToYAML converts a step map to YAML format.
 // This is a method wrapper around the package-level ConvertStepToYAML function.
@@ -16,13 +19,17 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
 func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
+	engineID := engine.GetID()
+	compilerYamlHelpersLog.Printf("Getting installation version for engine: %s", engineID)
+
 	// If version is specified in engine config, use it
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		compilerYamlHelpersLog.Printf("Using engine config version: %s", data.EngineConfig.Version)
 		return data.EngineConfig.Version
 	}
 
 	// Otherwise, use the default version for the engine
-	switch engine.GetID() {
+	switch engineID {
 	case "copilot":
 		return string(constants.DefaultCopilotVersion)
 	case "claude":
@@ -31,6 +38,7 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultCodexVersion)
 	default:
 		// Custom or unknown engines don't have a default version
+		compilerYamlHelpersLog.Printf("No default version for custom engine: %s", engineID)
 		return ""
 	}
 }
@@ -42,6 +50,8 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	if len(expressionMappings) == 0 {
 		return
 	}
+
+	compilerYamlHelpersLog.Printf("Generating placeholder substitution step with %d mappings", len(expressionMappings))
 
 	// Use actions/github-script to perform the substitutions
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
