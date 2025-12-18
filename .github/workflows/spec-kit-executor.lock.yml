@@ -338,7 +338,7 @@
 name: "Spec Kit Executor"
 "on":
   schedule:
-  - cron: "50 20 * * *"
+  - cron: "22 15 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
