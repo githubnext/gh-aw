@@ -57,8 +57,9 @@ maintainability measurable.
   `memory/campaigns/go-file-size-reduction-*/metrics/`
 - **Project Board**: GitHub Projects board named `Go File
   Size Reduction Campaign` used as the primary campaign dashboard. The
-  `daily-file-diet` workflow keeps this board in sync via the
-  `update-project` safe-output.
+  campaign orchestrator keeps this board in sync by discovering issues
+  created by worker workflows (labeled with `campaign:go-file-size-reduction`)
+  and adding them to the project board via the `update-project` safe-output.
 
 One-time setup (manual): create the Project in the GitHub UI and set its URL in
 `project-url`. Views (board/table, grouping, filters) are configured in the UI;

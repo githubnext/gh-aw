@@ -25,8 +25,6 @@ safe-outputs:
     title-prefix: "[file-diet] "
     labels: [refactoring, code-health, automated-analysis, "campaign:go-file-size-reduction"]
     max: 1
-  update-project:
-    max: 10
 
 tools:
   serena: ["go"]
@@ -318,42 +316,6 @@ To support enterprise reporting and visual trends for the
    - When no issue is created (all files healthy), you may still update
      the metrics snapshot and generate charts so artifacts remain
      up-to-date for campaign-level intelligence workflows.
-
-## Project Board Integration
-
-Enterprises expect every campaign to have a GitHub Projects board as
-its primary dashboard. Use the `update-project` safe output to keep the
-board in sync with refactor issues:
-
-1. **Choose the board**:
-
-   - Prefer an organization or repository project named
-     `Code Health: Go File Size Reduction`.
-   - If it does not exist, humans should create the board once and
-     re-run the workflow. (Optional: with an elevated token and an
-     explicit opt-in like `create_if_missing: true`, the `update-project`
-     safe output can create it.)
-
-2. **Add each refactor issue to the board** when you create it:
-
-   - Call `update-project` with:
-     - `project`: the board name or URL (for example,
-       `"Code Health: Go File Size Reduction"`).
-     - `content_number`: the GitHub issue number of the refactor task
-       you just created.
-     - `content_type`: `"issue"`.
-     - `campaign_id`: `"go-file-size-reduction"` so the tooling can
-       apply consistent campaign metadata.
-   - Let the smart project updater handle adding the issue to the board
-     and avoiding duplicates.
-
-3. **Set fields or status columns** (if the board defines them):
-
-   - When supported by the project, use `fields` in the `update-project`
-     payload to set values like status (for example, `Todo`), priority,
-     or team ownership.
-   - Keep field usage simple and aligned with how your teams already
-     use project boards.
 
 ## Important Guidelines
 
