@@ -686,5 +686,3 @@ func generatePinnedActionsComment(usedPins map[string]ActionPin) string {
 
 	return comment.String()
 }
-
-
