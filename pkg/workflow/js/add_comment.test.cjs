@@ -148,9 +148,7 @@ describe("add_comment.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      'Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
@@ -651,10 +649,7 @@ describe("add_comment.cjs", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", "DC_kwDOPc1QR84BpqRt");
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "comment_url",
-      "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("comment_url", "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123");
 
     // Clean up
     delete global.github.graphql;
@@ -737,10 +732,7 @@ describe("add_comment.cjs", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", "DC_kwDOPc1QR84BpqRv");
-    expect(mockCore.setOutput).toHaveBeenCalledWith(
-      "comment_url",
-      "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456"
-    );
+    expect(mockCore.setOutput).toHaveBeenCalledWith("comment_url", "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456");
 
     // Verify info logging shows it's targeting a discussion
     expect(mockCore.info).toHaveBeenCalledWith("Creating comment on discussion #2001");

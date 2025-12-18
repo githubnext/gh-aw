@@ -24,15 +24,13 @@ describe("parse_firewall_logs.cjs", () => {
     const scriptPath = path.join(process.cwd(), "parse_firewall_logs.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
     // Update pattern to match the actual main block check in parse_firewall_logs.cjs
-    const scriptForTesting = scriptContent
-      .replace(/if \(typeof module === "undefined".*?\) \{[\s\S]*?main\(\);[\s\S]*?\}/g, "// main() execution disabled for testing")
-      .replace(
-        "// Export for testing",
-        `global.testParseFirewallLogLine = parseFirewallLogLine;
+    const scriptForTesting = scriptContent.replace(/if \(typeof module === "undefined".*?\) \{[\s\S]*?main\(\);[\s\S]*?\}/g, "// main() execution disabled for testing").replace(
+      "// Export for testing",
+      `global.testParseFirewallLogLine = parseFirewallLogLine;
         global.testIsRequestAllowed = isRequestAllowed;
         global.testGenerateFirewallSummary = generateFirewallSummary;
         // Export for testing`
-      );
+    );
 
     eval(scriptForTesting);
 
@@ -43,8 +41,7 @@ describe("parse_firewall_logs.cjs", () => {
 
   describe("parseFirewallLogLine", () => {
     test("should parse valid firewall log line", () => {
-      const line =
-        '1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"';
+      const line = '1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"';
       const result = parseFirewallLogLine(line);
       expect(result).not.toBeNull();
       expect(result.timestamp).toBe("1761332530.474");
@@ -64,26 +61,18 @@ describe("parse_firewall_logs.cjs", () => {
     });
 
     test("should return null for invalid timestamp", () => {
-      expect(
-        parseFirewallLogLine(
-          'WARNING: 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-        )
-      ).toBeNull();
+      expect(parseFirewallLogLine('WARNING: 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"')).toBeNull();
     });
 
     test("should parse line with non-standard client IP:port format", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 Accepting api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.clientIpPort).toBe("Accepting");
       expect(result.domain).toBe("api.github.com:443");
     });
 
     test("should parse line with non-standard domain format", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 172.30.0.20:35288 DNS 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.domain).toBe("DNS");
       expect(result.clientIpPort).toBe("172.30.0.20:35288");
@@ -96,36 +85,28 @@ describe("parse_firewall_logs.cjs", () => {
     });
 
     test("should parse line with non-standard dest IP:port format", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 172.30.0.20:35288 api.github.com:443 Local 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.destIpPort).toBe("Local");
       expect(result.domain).toBe("api.github.com:443");
     });
 
     test("should parse line with non-numeric status code", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT Swap TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.status).toBe("Swap");
       expect(result.decision).toBe("TCP_TUNNEL:HIER_DIRECT");
     });
 
     test("should parse line with non-standard decision format", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 Waiting api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.decision).toBe("Waiting");
       expect(result.status).toBe("200");
     });
 
     test("should parse line with pipe character in domain position", () => {
-      const result = parseFirewallLogLine(
-        '1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"'
-      );
+      const result = parseFirewallLogLine('1761332530.474 172.30.0.20:35288 pinger|test 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"');
       expect(result).not.toBeNull();
       expect(result.domain).toBe("pinger|test");
       expect(result.decision).toBe("TCP_TUNNEL:HIER_DIRECT");

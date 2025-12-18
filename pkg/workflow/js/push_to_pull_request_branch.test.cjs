@@ -732,9 +732,7 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Pull request is missing required labels: automation, enhancement. Current labels: feature"
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request is missing required labels: automation, enhancement. Current labels: feature");
     });
 
     it("should validate both title prefix and labels when both are specified", async () => {

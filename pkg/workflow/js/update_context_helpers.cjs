@@ -37,11 +37,7 @@ function getIssueNumber(payload) {
  * @returns {boolean} Whether context is valid for PR updates
  */
 function isPRContext(eventName, payload) {
-  const isPR =
-    eventName === "pull_request" ||
-    eventName === "pull_request_review" ||
-    eventName === "pull_request_review_comment" ||
-    eventName === "pull_request_target";
+  const isPR = eventName === "pull_request" || eventName === "pull_request_review" || eventName === "pull_request_review_comment" || eventName === "pull_request_target";
 
   // Also check for issue_comment on a PR
   const isIssueCommentOnPR = eventName === "issue_comment" && payload?.issue && payload?.issue?.pull_request;

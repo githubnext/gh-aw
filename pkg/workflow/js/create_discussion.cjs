@@ -158,9 +158,7 @@ async function main() {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository
-    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   const createdDiscussions = [];
   const closedDiscussionsSummary = [];
@@ -196,16 +194,10 @@ async function main() {
         }
         repoInfo = fetchedInfo;
         repoInfoCache.set(itemRepo, repoInfo);
-        core.info(
-          `Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`
-        );
+        core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (
-          errorMessage.includes("Not Found") ||
-          errorMessage.includes("not found") ||
-          errorMessage.includes("Could not resolve to a Repository")
-        ) {
+        if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
           core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
           continue;
         }
@@ -229,9 +221,7 @@ async function main() {
     } else if (categoryInfo.matchType === "fallback") {
       if (categoryInfo.requestedCategory) {
         const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-        core.warning(
-          `Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`
-        );
+        core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
         core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
       } else {
         core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
@@ -240,9 +230,7 @@ async function main() {
 
     const categoryId = categoryInfo.id;
 
-    core.info(
-      `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`
-    );
+    core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
 
     // Replace temporary ID references in title
     let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
@@ -317,17 +305,7 @@ async function main() {
       if (closeOlderEnabled && hasMatchingCriteria) {
         core.info("close-older-discussions is enabled, searching for older discussions to close...");
         try {
-          const closedDiscussions = await closeOlderDiscussions(
-            github,
-            repoParts.owner,
-            repoParts.repo,
-            titlePrefix,
-            labels,
-            categoryId,
-            { number: discussion.number, url: discussion.url },
-            workflowName,
-            runUrl
-          );
+          const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
 
           if (closedDiscussions.length > 0) {
             closedDiscussionsSummary.push(...closedDiscussions);

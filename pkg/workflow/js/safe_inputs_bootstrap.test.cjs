@@ -159,10 +159,7 @@ describe("safe_inputs_bootstrap.cjs", () => {
       // Should not throw error, just log warning
       cleanupConfigFile(configPath, logger);
 
-      expect(logger.debugError).toHaveBeenCalledWith(
-        expect.stringContaining("Warning: Could not delete configuration file"),
-        expect.any(Error)
-      );
+      expect(logger.debugError).toHaveBeenCalledWith(expect.stringContaining("Warning: Could not delete configuration file"), expect.any(Error));
 
       // Restore original function
       fs.unlinkSync = originalUnlink;

@@ -229,8 +229,7 @@ describe("sanitize_output.cjs", () => {
       eval(scriptWithExport);
       const customSanitize = global.testSanitizeContent;
 
-      const input =
-        "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://raw.github.example.com/file https://blocked.com/page";
+      const input = "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://raw.github.example.com/file https://blocked.com/page";
       const result = customSanitize(input);
 
       // Should allow custom domain
@@ -263,8 +262,7 @@ describe("sanitize_output.cjs", () => {
       eval(scriptWithExport);
       const customSanitize = global.testSanitizeContent;
 
-      const input =
-        "Raw content: https://raw.githubusercontent.com/owner/repo/main/file.txt and API: https://api.github.com/repos/owner/repo";
+      const input = "Raw content: https://raw.githubusercontent.com/owner/repo/main/file.txt and API: https://api.github.com/repos/owner/repo";
       const result = customSanitize(input);
 
       // Should allow raw.githubusercontent.com

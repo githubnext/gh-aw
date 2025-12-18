@@ -115,10 +115,7 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
           fs.appendFileSync(outputFile, entryJSON + "\n");
 
           // Use output from safe-job config if available
-          const outputText =
-            jobConfig && jobConfig.output
-              ? jobConfig.output
-              : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+          const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
 
           return {
             content: [

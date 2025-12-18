@@ -2,13 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const {
-  generateConversationMarkdown,
-  generateInformationSection,
-  formatInitializationSummary,
-  formatToolUse,
-  parseLogEntries,
-} = require("./log_parser_shared.cjs");
+const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({

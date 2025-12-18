@@ -25,9 +25,7 @@ const renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_templa
 
 // Extract the functions from the script
 const isTruthyMatch = renderTemplateScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/);
-const renderMarkdownTemplateMatch = renderTemplateScript.match(
-  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/
-);
+const renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 
 if (!isTruthyMatch || !renderMarkdownTemplateMatch) {
   throw new Error("Could not extract functions from render_template.cjs");

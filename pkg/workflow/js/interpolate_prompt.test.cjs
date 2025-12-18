@@ -22,13 +22,9 @@ const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolat
 const { isTruthy } = require("./is_truthy.cjs");
 
 // Extract the functions from the script
-const interpolateVariablesMatch = interpolatePromptScript.match(
-  /function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/
-);
+const interpolateVariablesMatch = interpolatePromptScript.match(/function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 
-const renderMarkdownTemplateMatch = interpolatePromptScript.match(
-  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/
-);
+const renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 
 if (!interpolateVariablesMatch) {
   throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");

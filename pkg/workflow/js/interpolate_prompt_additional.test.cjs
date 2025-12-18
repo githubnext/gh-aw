@@ -13,9 +13,7 @@ const { isTruthy } = require("./is_truthy.cjs");
 // Import the interpolation script and extract renderMarkdownTemplate
 const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8");
 
-const renderMarkdownTemplateMatch = interpolatePromptScript.match(
-  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/
-);
+const renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 
 if (!renderMarkdownTemplateMatch) {
   throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");

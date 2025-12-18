@@ -30,9 +30,7 @@ function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) 
 
     // Pass inputs as JSON via stdin (more Pythonic approach)
     const inputJson = JSON.stringify(args || {});
-    server.debug(
-      `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-    );
+    server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
 
     return new Promise((resolve, reject) => {
       server.debug(`  [${toolName}] Executing Python script...`);

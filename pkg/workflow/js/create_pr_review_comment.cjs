@@ -74,10 +74,8 @@ async function main() {
   }
 
   // Extract triggering context for footer generation
-  const triggeringIssueNumber =
-    context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber =
-    context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   const createdComments = [];
@@ -157,9 +155,7 @@ async function main() {
         pullRequest = fullPR;
         core.info(`Fetched full pull request details for PR #${pullRequestNumber}`);
       } catch (error) {
-        core.info(
-          `Failed to fetch pull request details for PR #${pullRequestNumber}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        core.info(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
       }
     }
@@ -204,22 +200,10 @@ async function main() {
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository
-      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-    body += generateFooter(
-      workflowName,
-      runUrl,
-      workflowSource,
-      workflowSourceURL,
-      triggeringIssueNumber,
-      triggeringPRNumber,
-      triggeringDiscussionNumber
-    );
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
 
-    core.info(
-      `Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`
-    );
+    core.info(`Creating review comment on PR #${pullRequestNumber} at ${commentItem.path}:${line}${startLine ? ` (lines ${startLine}-${line})` : ""} [${side}]`);
     core.info(`Comment content length: ${body.length}`);
 
     try {

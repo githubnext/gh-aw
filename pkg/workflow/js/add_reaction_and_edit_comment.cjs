@@ -9,9 +9,7 @@ async function main() {
   const command = process.env.GH_AW_COMMAND; // Only present for command workflows
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository
-    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
@@ -460,9 +458,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   } catch (error) {
     // Don't fail the entire job if comment creation fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.warning(
-      "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-    );
+    core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
   }
 }
 

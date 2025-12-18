@@ -93,10 +93,7 @@ describe("compute_text.cjs", () => {
 
     // Extract sanitizeIncomingText function for unit testing
     // We need to eval the script to get access to the function
-    const scriptWithExport = computeTextScript.replace(
-      "await main();",
-      "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;"
-    );
+    const scriptWithExport = computeTextScript.replace("await main();", "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;");
     eval(scriptWithExport);
     sanitizeIncomingTextFunction = global.testSanitizeIncomingText;
   });
