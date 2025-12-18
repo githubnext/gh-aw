@@ -62,18 +62,18 @@ func TestGetRepositoryRelativePathConsistency(t *testing.T) {
 	// Test different ways of constructing the same path
 	path1 := filepath.Join(repoRoot, ".github", "workflows", "test.md")
 	path2 := filepath.Join(repoRoot, ".github/workflows/test.md")
-	
+
 	// Change to repo root directory temporarily
 	oldWd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Chdir(oldWd)
-	
+
 	if err := os.Chdir(repoRoot); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Relative path that needs to be made absolute
 	path3 := ".github/workflows/test.md"
 
@@ -118,7 +118,7 @@ func TestGetRepositoryRelativePathCrossPlatform(t *testing.T) {
 
 	// Test with a path that would have backslashes on Windows
 	testPath := filepath.Join(repoRoot, ".github", "workflows", "daily-test.md")
-	
+
 	result, err := getRepositoryRelativePath(testPath)
 	if err != nil {
 		t.Fatalf("getRepositoryRelativePath(%q) error = %v", testPath, err)

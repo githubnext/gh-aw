@@ -25,7 +25,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		relPath = filepath.Base(filePath)
 	}
 	compiler.SetWorkflowIdentifier(relPath)
-	
+
 	// Set repository slug for this specific file (may differ from CWD's repo)
 	fileRepoSlug := getRepositorySlugForPath(filePath)
 	if fileRepoSlug != "" {

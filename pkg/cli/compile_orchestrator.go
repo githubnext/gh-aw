@@ -60,7 +60,7 @@ func getRepositorySlugForPath(path string) string {
 
 	// Use the directory containing the file
 	dir := filepath.Dir(absPath)
-	
+
 	// Try to get from git remote URL in the file's repository
 	cmd := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url")
 	output, err := cmd.Output()
@@ -112,7 +112,7 @@ func getRepositoryRootForPath(path string) (string, error) {
 
 	// Use the directory containing the file
 	dir := filepath.Dir(absPath)
-	
+
 	// Run git command in the file's directory
 	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
@@ -530,14 +530,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				relPath = filepath.Base(resolvedFile)
 			}
 			compiler.SetWorkflowIdentifier(relPath)
-			
+
 			// Set repository slug for this specific file (may differ from CWD's repo)
 			fileRepoSlug := getRepositorySlugForPath(resolvedFile)
 			if fileRepoSlug != "" {
 				compiler.SetRepositorySlug(fileRepoSlug)
 				compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
 			}
-			
+
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
@@ -851,14 +851,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			relPath = filepath.Base(file)
 		}
 		compiler.SetWorkflowIdentifier(relPath)
-		
+
 		// Set repository slug for this specific file (may differ from CWD's repo)
 		fileRepoSlug := getRepositorySlugForPath(file)
 		if fileRepoSlug != "" {
 			compiler.SetRepositorySlug(fileRepoSlug)
 			compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
 		}
-		
+
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
 			if !jsonOutput {
