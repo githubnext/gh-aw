@@ -134,13 +134,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
-	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
 		// Parse permissions from the workflow data
 		// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
 		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
 
-		// Validate permissions
-		validationResult := ValidatePermissions(permissions, githubTool)
+		// Validate permissions using the typed GitHub tool configuration
+		validationResult := ValidatePermissions(permissions, workflowData.ParsedTools.GitHub)
 
 		if validationResult.HasValidationIssues {
 			// Format the validation message
