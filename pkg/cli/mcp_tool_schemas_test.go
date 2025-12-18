@@ -96,8 +96,11 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 		}
 
 		// This will be an array schema
-		if schema.Type != "array" {
-			t.Errorf("Expected schema type 'array', got '%s'", schema.Type)
+		// In v0.4.0+, nullable arrays use Types []string with ["null", "array"]
+		// instead of Type string with "array"
+		isArray := schema.Type == "array" || containsType(schema.Types, "array")
+		if !isArray {
+			t.Errorf("Expected schema to be an array type, got Type='%s', Types=%v", schema.Type, schema.Types)
 		}
 
 		t.Log("Note: Status tool cannot use this schema in MCP because output schemas must be objects")
