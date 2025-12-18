@@ -60,12 +60,6 @@
 #       expires: 1d
 #     add-labels:
 #       allowed: [smoke-copilot]
-#     messages:
-#       footer: "📰🔥📋 [{run_url}]({run_url})"
-#       run-started: "📰🚀🔍👀📡🕵️ [{run_url}]({run_url})"
-#       run-success: "📰✅🎉🏁✨🎤 [{run_url}]({run_url})"
-#       run-failure: "📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})"
-# timeout-minutes: 5
 # strict: true
 # ```
 #
@@ -290,7 +284,6 @@ jobs:
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           script: |
             function getMessages() {
@@ -739,7 +732,6 @@ jobs:
           GH_AW_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1492,7 +1484,6 @@ jobs:
           GH_AW_LABELS_MAX_COUNT: 3
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5554,7 +5545,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -9156,7 +9147,6 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
           GH_AW_SAFE_OUTPUT_JOBS: "{\"add_comment\":\"comment_url\",\"create_issue\":\"issue_url\"}"
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
@@ -9450,7 +9440,6 @@ jobs:
           GH_AW_ISSUE_EXPIRES: "1"
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"📰🔥📋 [{run_url}]({run_url})\",\"runStarted\":\"📰🚀🔍👀📡🕵️ [{run_url}]({run_url})\",\"runSuccess\":\"📰✅🎉🏁✨🎤 [{run_url}]({run_url})\",\"runFailure\":\"📰⚠️🔥❌🚨🔧 [{run_url}]({run_url})\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
