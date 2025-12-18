@@ -368,17 +368,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			if lockFileInfo.Size() > MaxLockFileSize {
 				lockSize := console.FormatFileSize(lockFileInfo.Size())
 				maxSize := console.FormatFileSize(MaxLockFileSize)
-				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
-				formattedErr := console.FormatError(console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   lockFile,
-						Line:   1,
-						Column: 1,
-					},
-					Type:    "error",
-					Message: err.Error(),
-				})
-				return errors.New(formattedErr)
+				warningMsg := fmt.Sprintf("Generated lock file size (%s) exceeds recommended maximum size (%s)", lockSize, maxSize)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 			}
 		}
 	}

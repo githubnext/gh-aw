@@ -108,9 +108,9 @@ This workflow tests the file size validation logic.
 		}
 	})
 
-	t.Run("test file size validation error message", func(t *testing.T) {
-		// Test that our validation produces the correct error message format
-		// by simulating the error condition
+	t.Run("test file size validation warning message", func(t *testing.T) {
+		// Test that our validation produces the correct warning message format
+		// by simulating the warning condition
 
 		testFile := filepath.Join(tmpDir, "size-validation-test.md")
 		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
@@ -133,19 +133,19 @@ This workflow tests the file size validation logic.
 			t.Fatalf("Mock file size %d should exceed limit %d", info.Size(), MaxLockFileSize)
 		}
 
-		// Test our validation logic by checking what the error message would look like
+		// Test our validation logic by checking what the warning message would look like
 		lockSize := console.FormatFileSize(info.Size())
 		maxSize := console.FormatFileSize(MaxLockFileSize)
-		expectedMessage := fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
+		expectedMessage := fmt.Sprintf("Generated lock file size (%s) exceeds recommended maximum size (%s)", lockSize, maxSize)
 
-		t.Logf("Generated error message would be: %s", expectedMessage)
+		t.Logf("Generated warning message would be: %s", expectedMessage)
 
 		// Verify the message contains expected elements
-		if !strings.Contains(expectedMessage, "exceeds maximum allowed size") {
-			t.Error("Error message should contain 'exceeds maximum allowed size'")
+		if !strings.Contains(expectedMessage, "exceeds recommended maximum size") {
+			t.Error("Warning message should contain 'exceeds recommended maximum size'")
 		}
 		if !strings.Contains(expectedMessage, "KB") {
-			t.Error("Error message should contain size in KB")
+			t.Error("Warning message should contain size in KB")
 		}
 
 		// Clean up
