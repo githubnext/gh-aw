@@ -35,6 +35,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -71,16 +72,30 @@ func validateDockerImage(image string, verbose bool) error {
 
 	dockerValidationLog.Printf("Docker image not found locally, attempting to pull: %s", image)
 
-	// Image doesn't exist locally, try to pull it
-	pullCmd := exec.Command("docker", "pull", image)
-	pullOutput, pullErr := pullCmd.CombinedOutput()
-
-	if pullErr != nil {
+	// Image doesn't exist locally, try to pull it with retry logic
+	maxAttempts := 3
+	waitTime := 5 // seconds
+	
+	var lastOutput string
+	
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		dockerValidationLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
+		
+		pullCmd := exec.Command("docker", "pull", image)
+		pullOutput, pullErr := pullCmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(pullOutput))
-
+		
+		if pullErr == nil {
+			// Successfully pulled
+			dockerValidationLog.Printf("Successfully pulled image %s on attempt %d", image, attempt)
+			return nil
+		}
+		
+		lastOutput = outputStr
+		
 		// Check if the error is due to authentication issues for existing private repositories
 		// We need to distinguish between:
-		// 1. "repository does not exist" - should fail validation
+		// 1. "repository does not exist" - should fail validation immediately
 		// 2. "authentication required" for existing repos - should pass (private repo)
 		if (strings.Contains(outputStr, "denied") ||
 			strings.Contains(outputStr, "unauthorized") ||
@@ -89,13 +104,27 @@ func validateDockerImage(image string, verbose bool) error {
 			!strings.Contains(outputStr, "not found") {
 			// This is likely a private image that requires authentication
 			// Don't fail validation for private/authenticated images
+			dockerValidationLog.Printf("Image %s appears to be private/authenticated, skipping validation", image)
 			return nil
 		}
-
-		// Other errors indicate the image truly doesn't exist or has issues
-		return fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, outputStr)
+		
+		// Check for non-retryable errors (image doesn't exist)
+		if strings.Contains(outputStr, "does not exist") || 
+		   strings.Contains(outputStr, "not found") ||
+		   strings.Contains(outputStr, "manifest unknown") {
+			// These errors won't be resolved by retrying
+			dockerValidationLog.Printf("Image %s does not exist (non-retryable error)", image)
+			return fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, outputStr)
+		}
+		
+		// If not the last attempt, wait and retry (likely network error)
+		if attempt < maxAttempts {
+			dockerValidationLog.Printf("Failed to pull image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
+			time.Sleep(time.Duration(waitTime) * time.Second)
+			waitTime *= 2 // Exponential backoff
+		}
 	}
-
-	// Successfully pulled
-	return nil
+	
+	// All attempts failed with retryable errors
+	return fmt.Errorf("container image '%s' not found and could not be pulled after %d attempts: %s. Please verify the image name and tag. Example: container: \"node:20\" or container: \"ghcr.io/owner/image:latest\"", image, maxAttempts, lastOutput)
 }
