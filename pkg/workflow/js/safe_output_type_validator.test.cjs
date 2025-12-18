@@ -362,11 +362,7 @@ describe("safe_output_type_validator", () => {
     it("should pass when start_line <= line", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem(
-        { type: "create_pull_request_review_comment", path: "test.js", line: 10, start_line: 5, body: "Test comment" },
-        "create_pull_request_review_comment",
-        1
-      );
+      const result = validateItem({ type: "create_pull_request_review_comment", path: "test.js", line: 10, start_line: 5, body: "Test comment" }, "create_pull_request_review_comment", 1);
 
       expect(result.isValid).toBe(true);
     });
@@ -374,11 +370,7 @@ describe("safe_output_type_validator", () => {
     it("should fail when start_line > line", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem(
-        { type: "create_pull_request_review_comment", path: "test.js", line: 5, start_line: 10, body: "Test comment" },
-        "create_pull_request_review_comment",
-        1
-      );
+      const result = validateItem({ type: "create_pull_request_review_comment", path: "test.js", line: 5, start_line: 10, body: "Test comment" }, "create_pull_request_review_comment", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("start_line");
@@ -447,11 +439,7 @@ describe("safe_output_type_validator", () => {
     it("should reject pattern mismatch with custom error", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem(
-        { type: "create_code_scanning_alert", file: "test.js", line: 10, severity: "warning", message: "Test", ruleIdSuffix: "test rule!" },
-        "create_code_scanning_alert",
-        1
-      );
+      const result = validateItem({ type: "create_code_scanning_alert", file: "test.js", line: 10, severity: "warning", message: "Test", ruleIdSuffix: "test rule!" }, "create_code_scanning_alert", 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must contain only alphanumeric characters, hyphens, and underscores");

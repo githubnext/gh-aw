@@ -1033,37 +1033,9 @@
                   "$ref": "#/definitions/types",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "category_changed",
-                      "answered",
-                      "unanswered"
-                    ]
+                    "enum": ["created", "edited", "deleted", "transferred", "pinned", "unpinned", "labeled", "unlabeled", "locked", "unlocked", "category_changed", "answered", "unanswered"]
                   },
-                  "default": [
-                    "created",
-                    "edited",
-                    "deleted",
-                    "transferred",
-                    "pinned",
-                    "unpinned",
-                    "labeled",
-                    "unlabeled",
-                    "locked",
-                    "unlocked",
-                    "category_changed",
-                    "answered",
-                    "unanswered"
-                  ]
+                  "default": ["created", "edited", "deleted", "transferred", "pinned", "unpinned", "labeled", "unlabeled", "locked", "unlocked", "category_changed", "answered", "unanswered"]
                 }
               }
             },
@@ -1116,43 +1088,9 @@
                   "$ref": "#/definitions/types",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "opened",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "closed",
-                      "reopened",
-                      "assigned",
-                      "unassigned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "milestoned",
-                      "demilestoned"
-                    ]
+                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
                   },
-                  "default": [
-                    "opened",
-                    "edited",
-                    "deleted",
-                    "transferred",
-                    "pinned",
-                    "unpinned",
-                    "closed",
-                    "reopened",
-                    "assigned",
-                    "unassigned",
-                    "labeled",
-                    "unlabeled",
-                    "locked",
-                    "unlocked",
-                    "milestoned",
-                    "demilestoned"
-                  ]
+                  "default": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
                 }
               }
             },

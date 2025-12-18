@@ -368,10 +368,7 @@ x`;
     });
 
     it("should detect failed MCP server connections", () => {
-      const lines = [
-        "2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: time",
-        "2025-01-15T12:00:02.123Z ERROR codex_core::mcp::client: Failed to connect to MCP server 'time': Connection timeout",
-      ];
+      const lines = ["2025-01-15T12:00:00.345Z DEBUG codex_core::mcp::client: Connecting to MCP server: time", "2025-01-15T12:00:02.123Z ERROR codex_core::mcp::client: Failed to connect to MCP server 'time': Connection timeout"];
 
       const result = extractMCPInitialization(lines);
 
@@ -386,9 +383,7 @@ x`;
     });
 
     it("should extract available MCP tools", () => {
-      const lines = [
-        "2025-01-15T12:00:02.678Z INFO codex_core: Available tools: github.list_issues, github.create_comment, safe_outputs.create_issue",
-      ];
+      const lines = ["2025-01-15T12:00:02.678Z INFO codex_core: Available tools: github.list_issues, github.create_comment, safe_outputs.create_issue"];
 
       const result = extractMCPInitialization(lines);
 
@@ -438,10 +433,7 @@ x`;
     });
 
     it("should handle initialization failed pattern", () => {
-      const lines = [
-        "2025-01-15T12:00:01.789Z DEBUG codex_core::mcp::client: Connecting to MCP server: custom",
-        "2025-01-15T12:00:02.234Z WARN codex_core::mcp: MCP server 'custom' initialization failed, continuing without it",
-      ];
+      const lines = ["2025-01-15T12:00:01.789Z DEBUG codex_core::mcp::client: Connecting to MCP server: custom", "2025-01-15T12:00:02.234Z WARN codex_core::mcp: MCP server 'custom' initialization failed, continuing without it"];
 
       const result = extractMCPInitialization(lines);
 

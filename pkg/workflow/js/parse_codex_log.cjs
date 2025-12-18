@@ -304,13 +304,7 @@ function parseCodexLog(logContent) {
               const respLine = lines[k];
 
               // Stop if we hit the next tool call, exec, or tokens used
-              if (
-                respLine.includes("tool ") ||
-                respLine.includes("exec ") ||
-                respLine.includes("ToolCall:") ||
-                respLine.includes("tokens used") ||
-                respLine.includes("thinking")
-              ) {
+              if (respLine.includes("tool ") || respLine.includes("exec ") || respLine.includes("ToolCall:") || respLine.includes("tokens used") || respLine.includes("thinking")) {
                 break;
               }
 

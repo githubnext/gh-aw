@@ -37,9 +37,7 @@ function getCloseOlderDiscussionMessage(ctx) {
 Fair winds, matey! 🏴‍☠️`;
 
   // Use custom message if configured
-  return messages?.closeOlderDiscussion
-    ? renderTemplate(messages.closeOlderDiscussion, templateContext)
-    : renderTemplate(defaultMessage, templateContext);
+  return messages?.closeOlderDiscussion ? renderTemplate(messages.closeOlderDiscussion, templateContext) : renderTemplate(defaultMessage, templateContext);
 }
 
 module.exports = {

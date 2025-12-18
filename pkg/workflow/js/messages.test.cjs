@@ -175,9 +175,7 @@ describe("messages.cjs", () => {
         triggeringNumber: 42,
       });
 
-      expect(result).toBe(
-        "> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow](https://github.com/test/repo/actions/runs/123) fer issue #42 🗺️"
-      );
+      expect(result).toBe("> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow](https://github.com/test/repo/actions/runs/123) fer issue #42 🗺️");
     });
 
     it("should use custom footer template", async () => {
@@ -259,15 +257,7 @@ describe("messages.cjs", () => {
     it("should generate complete default footer", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        undefined,
-        undefined,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
       expect(result).toContain("> Ahoy! This treasure was crafted by [🏴‍☠️ Test Workflow]");
       expect(result).toContain("https://github.com/test/repo/actions/runs/123");
@@ -276,15 +266,7 @@ describe("messages.cjs", () => {
     it("should include triggering issue number", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        42,
-        undefined,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", 42, undefined, undefined);
 
       expect(result).toContain("fer issue #42 🗺️");
     });
@@ -292,15 +274,7 @@ describe("messages.cjs", () => {
     it("should include triggering PR number when no issue", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        undefined,
-        99,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, 99, undefined);
 
       expect(result).toContain("fer issue #99 🗺️");
     });
@@ -308,15 +282,7 @@ describe("messages.cjs", () => {
     it("should include triggering discussion number", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        undefined,
-        undefined,
-        7
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, 7);
 
       expect(result).toContain("fer issue #discussion #7 🗺️");
     });
@@ -324,15 +290,7 @@ describe("messages.cjs", () => {
     it("should include installation instructions when source is provided", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "owner/repo/workflow.md@main",
-        "https://github.com/owner/repo",
-        undefined,
-        undefined,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "owner/repo/workflow.md@main", "https://github.com/owner/repo", undefined, undefined, undefined);
 
       expect(result).toContain("gh aw add owner/repo/workflow.md@main");
     });
@@ -340,15 +298,7 @@ describe("messages.cjs", () => {
     it("should include XML comment marker for traceability", async () => {
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        undefined,
-        undefined,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
       expect(result).toContain("<!-- agentic-workflow: Test Workflow");
       expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
@@ -361,15 +311,7 @@ describe("messages.cjs", () => {
 
       const { generateFooterWithMessages } = await import("./messages.cjs");
 
-      const result = generateFooterWithMessages(
-        "Test Workflow",
-        "https://github.com/test/repo/actions/runs/123",
-        "",
-        "",
-        undefined,
-        undefined,
-        undefined
-      );
+      const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
       expect(result).toContain("<!-- agentic-workflow: Test Workflow");
       expect(result).toContain("engine: copilot");
@@ -416,9 +358,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe(
-        "<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
-      );
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_ENGINE_VERSION;
@@ -433,9 +373,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe(
-        "<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->"
-      );
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_TRACKER_ID;
     });
@@ -451,9 +389,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe(
-        "<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->"
-      );
+      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_ENGINE_VERSION;
@@ -545,9 +481,7 @@ describe("messages.cjs", () => {
         runUrl: "https://github.com/test/repo/actions/runs/123",
       });
 
-      expect(result).toBe(
-        "🎉 Yo ho ho! [Test Workflow](https://github.com/test/repo/actions/runs/123) found the treasure and completed successfully! ⚓💰"
-      );
+      expect(result).toBe("🎉 Yo ho ho! [Test Workflow](https://github.com/test/repo/actions/runs/123) found the treasure and completed successfully! ⚓💰");
     });
 
     it("should use custom run-success template", async () => {
@@ -576,9 +510,7 @@ describe("messages.cjs", () => {
         status: "failed",
       });
 
-      expect(result).toBe(
-        "💀 Blimey! [Test Workflow](https://github.com/test/repo/actions/runs/123) failed and walked the plank! No treasure today, matey! ☠️"
-      );
+      expect(result).toBe("💀 Blimey! [Test Workflow](https://github.com/test/repo/actions/runs/123) failed and walked the plank! No treasure today, matey! ☠️");
     });
 
     it("should use custom run-failure template", async () => {
@@ -606,9 +538,7 @@ describe("messages.cjs", () => {
         status: "was cancelled",
       });
 
-      expect(result).toBe(
-        "💀 Blimey! [Test Workflow](https://github.com/test/repo/actions/runs/123) was cancelled and walked the plank! No treasure today, matey! ☠️"
-      );
+      expect(result).toBe("💀 Blimey! [Test Workflow](https://github.com/test/repo/actions/runs/123) was cancelled and walked the plank! No treasure today, matey! ☠️");
     });
   });
 

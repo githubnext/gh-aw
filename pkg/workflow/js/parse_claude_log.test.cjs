@@ -106,10 +106,7 @@ describe("parse_claude_log.cjs", () => {
 
     try {
       // Create a new function context to execute the script
-      const scriptWithExports = parseClaudeLogScript.replace(
-        "main();",
-        "global.testParseClaudeLog = parseClaudeLog; global.testMain = main; main();"
-      );
+      const scriptWithExports = parseClaudeLogScript.replace("main();", "global.testParseClaudeLog = parseClaudeLog; global.testMain = main; main();");
       const scriptFunction = new Function(scriptWithExports);
       await scriptFunction();
     } finally {
@@ -624,9 +621,7 @@ npm warn exec The following package was not found
 
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        "Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully."
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.");
 
       // Clean up
       delete process.env.GH_AW_MAX_TURNS;
@@ -760,8 +755,7 @@ npm warn exec The following package was not found
               {
                 type: "tool_result",
                 tool_use_id: "tool_1",
-                content:
-                  "total 48\ndrwxr-xr-x 5 user user 4096 Jan 1 00:00 .\ndrwxr-xr-x 3 user user 4096 Jan 1 00:00 ..\n-rw-r--r-- 1 user user  123 Jan 1 00:00 file1.txt\n-rw-r--r-- 1 user user  456 Jan 1 00:00 file2.txt",
+                content: "total 48\ndrwxr-xr-x 5 user user 4096 Jan 1 00:00 .\ndrwxr-xr-x 3 user user 4096 Jan 1 00:00 ..\n-rw-r--r-- 1 user user  123 Jan 1 00:00 file1.txt\n-rw-r--r-- 1 user user  456 Jan 1 00:00 file2.txt",
                 is_error: false,
               },
             ],

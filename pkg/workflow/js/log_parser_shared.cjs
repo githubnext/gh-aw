@@ -564,24 +564,7 @@ function formatInitializationSummary(initEntry, options = {}) {
     };
 
     // Builtin tools that come with gh-aw / Copilot
-    const builtinTools = [
-      "bash",
-      "write_bash",
-      "read_bash",
-      "stop_bash",
-      "list_bash",
-      "grep",
-      "glob",
-      "view",
-      "create",
-      "edit",
-      "store_memory",
-      "code_review",
-      "codeql_checker",
-      "report_progress",
-      "report_intent",
-      "gh-advisory-database",
-    ];
+    const builtinTools = ["bash", "write_bash", "read_bash", "stop_bash", "list_bash", "grep", "glob", "view", "create", "edit", "store_memory", "code_review", "codeql_checker", "report_progress", "report_intent", "gh-advisory-database"];
 
     // Internal tools that are specific to Copilot CLI
     const internalTools = ["fetch_copilot_cli_documentation"];
@@ -1166,9 +1149,7 @@ function generatePlainTextSummary(logEntries, options = {}) {
       const cacheReadTokens = usage.cache_read_input_tokens || 0;
       const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
-      lines.push(
-        `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-      );
+      lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
     }
   }
   if (lastEntry?.total_cost_usd) {
@@ -1381,9 +1362,7 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
       const cacheReadTokens = usage.cache_read_input_tokens || 0;
       const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
-      lines.push(
-        `  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`
-      );
+      lines.push(`  Tokens: ${totalTokens.toLocaleString()} total (${usage.input_tokens.toLocaleString()} in / ${usage.output_tokens.toLocaleString()} out)`);
     }
   }
   if (lastEntry?.total_cost_usd) {

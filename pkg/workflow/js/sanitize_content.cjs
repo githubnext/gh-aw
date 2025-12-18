@@ -5,14 +5,7 @@
  * For incoming text that doesn't need mention filtering, use sanitize_incoming_text.cjs instead.
  */
 
-const {
-  sanitizeContentCore,
-  getRedactedDomains,
-  clearRedactedDomains,
-  writeRedactedDomainsLog,
-  extractDomainsFromUrl,
-  addRedactedDomain,
-} = require("./sanitize_content_core.cjs");
+const { sanitizeContentCore, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog, extractDomainsFromUrl, addRedactedDomain } = require("./sanitize_content_core.cjs");
 
 /**
  * @typedef {Object} SanitizeOptions
@@ -180,39 +173,36 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} Sanitized string
    */
   function sanitizeUrlProtocols(s) {
-    return s.replace(
-      /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-      (match, _fullMatch, domain) => {
-        // Extract domain for http/ftp/file/ssh/git protocols
-        if (domain) {
-          const domainLower = domain.toLowerCase();
-          const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+    return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+      // Extract domain for http/ftp/file/ssh/git protocols
+      if (domain) {
+        const domainLower = domain.toLowerCase();
+        const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Redacted URL: ${truncated}`);
+        }
+        if (typeof core !== "undefined" && core.debug) {
+          core.debug(`Redacted URL (full): ${match}`);
+        }
+        addRedactedDomain(domainLower);
+      } else {
+        // For other protocols (data:, javascript:, etc.), track the protocol itself
+        const protocolMatch = match.match(/^([^:]+):/);
+        if (protocolMatch) {
+          const protocol = protocolMatch[1] + ":";
+          // Truncate the matched URL for logging (keep first 12 chars + "...")
+          const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
           if (typeof core !== "undefined" && core.info) {
             core.info(`Redacted URL: ${truncated}`);
           }
           if (typeof core !== "undefined" && core.debug) {
             core.debug(`Redacted URL (full): ${match}`);
           }
-          addRedactedDomain(domainLower);
-        } else {
-          // For other protocols (data:, javascript:, etc.), track the protocol itself
-          const protocolMatch = match.match(/^([^:]+):/);
-          if (protocolMatch) {
-            const protocol = protocolMatch[1] + ":";
-            // Truncate the matched URL for logging (keep first 12 chars + "...")
-            const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-            if (typeof core !== "undefined" && core.info) {
-              core.info(`Redacted URL: ${truncated}`);
-            }
-            if (typeof core !== "undefined" && core.debug) {
-              core.debug(`Redacted URL (full): ${match}`);
-            }
-            addRedactedDomain(protocol);
-          }
+          addRedactedDomain(protocol);
         }
-        return "(redacted)";
       }
-    );
+      return "(redacted)";
+    });
   }
 
   /**
@@ -266,37 +256,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} Processed string
    */
   function convertXmlTags(s) {
-    const allowedTags = [
-      "b",
-      "blockquote",
-      "br",
-      "code",
-      "details",
-      "em",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "hr",
-      "i",
-      "li",
-      "ol",
-      "p",
-      "pre",
-      "strong",
-      "sub",
-      "summary",
-      "sup",
-      "table",
-      "tbody",
-      "td",
-      "th",
-      "thead",
-      "tr",
-      "ul",
-    ];
+    const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
 
     s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
       const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");

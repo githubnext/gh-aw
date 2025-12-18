@@ -180,9 +180,7 @@ async function main() {
           },
         },
         results: validFindings.map((finding, index) => ({
-          ruleId: finding.ruleIdSuffix
-            ? `${workflowFilename}-${finding.ruleIdSuffix}`
-            : `${workflowFilename}-security-finding-${index + 1}`,
+          ruleId: finding.ruleIdSuffix ? `${workflowFilename}-${finding.ruleIdSuffix}` : `${workflowFilename}-security-finding-${index + 1}`,
           message: { text: finding.message },
           level: finding.sarifLevel,
           locations: [

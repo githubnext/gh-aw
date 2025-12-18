@@ -89,9 +89,7 @@ function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
           try {
             if (fs.existsSync(outputFile)) {
               const outputContent = fs.readFileSync(outputFile, "utf-8");
-              server.debug(
-                `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-              );
+              server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
 
               // Parse outputs (key=value format, one per line)
               const lines = outputContent.split("\n");
