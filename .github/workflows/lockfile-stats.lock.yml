@@ -19,28 +19,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Analyzes package lockfiles to track dependency statistics, vulnerabilities, and update patterns
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
-#
-# Pinned GitHub Actions:
-#   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/cache/save@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v6 (395ad3262231945c25e8478fd5baf05154b1d79f)
-#     https://github.com/actions/setup-node/commit/395ad3262231945c25e8478fd5baf05154b1d79f
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Lockfile Statistics Analysis Agent"
 "on":

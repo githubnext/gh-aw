@@ -45,7 +45,6 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Add description comment if provided
 	if data.Description != "" {
-		yaml.WriteString("#\n")
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
 		for _, line := range descriptionLines {
@@ -120,22 +119,6 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString(c.jobManager.RenderToYAML())
 
 	yamlContent := yaml.String()
-
-	// Collect used action pins from the generated YAML and add them to the header
-	usedPins := collectUsedActionPins(yamlContent)
-	compilerYamlLog.Printf("Collected %d pinned actions", len(usedPins))
-	pinnedActionsComment := generatePinnedActionsComment(usedPins)
-
-	// If we have pinned actions, insert the comment before the workflow name
-	if pinnedActionsComment != "" {
-		// Find the position after the mermaid graph and before "name:"
-		// The yamlContent has the header comments, then a blank line, then "name:"
-		namePos := strings.Index(yamlContent, "\nname:")
-		if namePos != -1 {
-			// Insert the pinned actions comment before "name:"
-			yamlContent = yamlContent[:namePos] + pinnedActionsComment + yamlContent[namePos:]
-		}
-	}
 
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
