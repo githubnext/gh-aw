@@ -17,38 +17,11 @@ import (
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
 
-// getRepositorySlug extracts the repository slug (owner/repo) from git config
-// Deprecated: Use getRepositorySlugFromRemote from git.go instead
-func getRepositorySlug() string {
-	return getRepositorySlugFromRemote()
-}
-
-// getRepositorySlugForPath extracts the repository slug (owner/repo) from the git config
-// of the repository containing the specified file path
-// Deprecated: Use getRepositorySlugFromRemoteForPath from git.go instead
-func getRepositorySlugForPath(path string) string {
-	return getRepositorySlugFromRemoteForPath(path)
-}
-
-// getRepositoryRoot returns the absolute path to the git repository root
-// It looks for the git repository containing the current directory
-// Deprecated: Use findGitRoot from git.go instead
-func getRepositoryRoot() (string, error) {
-	return findGitRoot()
-}
-
-// getRepositoryRootForPath returns the absolute path to the git repository root
-// containing the specified file path
-// Deprecated: Use findGitRootForPath from git.go instead
-func getRepositoryRootForPath(path string) (string, error) {
-	return findGitRootForPath(path)
-}
-
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
 // This ensures stable workflow identifiers regardless of where the repository is cloned
 func getRepositoryRelativePath(absPath string) (string, error) {
 	// Get the repository root for the specific file
-	repoRoot, err := getRepositoryRootForPath(absPath)
+	repoRoot, err := findGitRootForPath(absPath)
 	if err != nil {
 		// If we can't get the repo root, just use the basename as fallback
 		compileOrchestratorLog.Printf("Warning: could not get repository root for %s: %v, using basename", absPath, err)
@@ -246,7 +219,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compileOrchestratorLog.Print("Created compiler instance")
 
 	// Set repository slug for schedule scattering
-	repoSlug := getRepositorySlug()
+	repoSlug := getRepositorySlugFromRemote()
 	if repoSlug != "" {
 		compiler.SetRepositorySlug(repoSlug)
 		compileOrchestratorLog.Printf("Repository slug set: %s", repoSlug)
@@ -454,7 +427,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compiler.SetWorkflowIdentifier(relPath)
 
 			// Set repository slug for this specific file (may differ from CWD's repo)
-			fileRepoSlug := getRepositorySlugForPath(resolvedFile)
+			fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
 			if fileRepoSlug != "" {
 				compiler.SetRepositorySlug(fileRepoSlug)
 				compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
@@ -791,7 +764,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		compiler.SetWorkflowIdentifier(relPath)
 
 		// Set repository slug for this specific file (may differ from CWD's repo)
-		fileRepoSlug := getRepositorySlugForPath(file)
+		fileRepoSlug := getRepositorySlugFromRemoteForPath(file)
 		if fileRepoSlug != "" {
 			compiler.SetRepositorySlug(fileRepoSlug)
 			compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
