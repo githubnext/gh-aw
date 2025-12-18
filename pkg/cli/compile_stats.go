@@ -98,8 +98,6 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	totalSteps := 0
 	totalScripts := 0
 	totalScriptSize := 0
-	totalShells := 0
-	totalShellSize := 0
 
 	for _, stats := range statsList {
 		totalSize += stats.FileSize
@@ -107,8 +105,6 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		totalSteps += stats.Steps
 		totalScripts += stats.ScriptCount
 		totalScriptSize += stats.ScriptSize
-		totalShells += stats.ShellCount
-		totalShellSize += stats.ShellSize
 	}
 
 	// Build table rows
@@ -120,14 +116,13 @@ func displayStatsTable(statsList []*WorkflowStats) {
 			fmt.Sprintf("%d", stats.Jobs),
 			fmt.Sprintf("%d", stats.Steps),
 			fmt.Sprintf("%d", stats.ScriptCount),
-			fmt.Sprintf("%d", stats.ShellCount),
 		})
 	}
 
 	// Create table config
 	tableConfig := console.TableConfig{
 		Title:   "Workflow Statistics (sorted by file size)",
-		Headers: []string{"WORKFLOW", "FILE SIZE", "JOBS", "STEPS", "SCRIPTS", "SHELLS"},
+		Headers: []string{"WORKFLOW", "FILE SIZE", "JOBS", "STEPS", "SCRIPTS"},
 		Rows:    rows,
 	}
 
@@ -141,5 +136,4 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	fmt.Fprintf(os.Stderr, "  Total jobs:      %d\n", totalJobs)
 	fmt.Fprintf(os.Stderr, "  Total steps:     %d\n", totalSteps)
 	fmt.Fprintf(os.Stderr, "  Total scripts:   %d (%s)\n", totalScripts, console.FormatFileSize(int64(totalScriptSize)))
-	fmt.Fprintf(os.Stderr, "  Total shells:    %d (%s)\n", totalShells, console.FormatFileSize(int64(totalShellSize)))
 }
