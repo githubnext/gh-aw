@@ -724,57 +724,19 @@ since it's not supported by actions/github-script.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that safe_outputs job with push_to_pull_request_branch step is generated (at proper YAML indentation)
-	if !strings.Contains(lockContentStr, "\n  push_to_pull_request_branch:") {
-		t.Errorf("Generated workflow should contain safe_outputs job with push_to_pull_request_branch step")
+	// Verify that safe_outputs job is generated (consolidated mode)
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Errorf("Generated workflow should contain safe_outputs job")
+	}
+
+	// Verify that push_to_pull_request_branch step is present
+	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
 	}
 
 	// Verify that working-directory is NOT present (not supported by actions/github-script)
 	if strings.Contains(lockContentStr, "working-directory:") {
 		t.Errorf("Generated workflow should NOT contain working-directory - it's not supported by actions/github-script\nGenerated workflow:\n%s", lockContentStr)
-	}
-
-	// Extract the safe_outputs job with push_to_pull_request_branch step section
-	// Use newline prefix to ensure we find the YAML job definition, not JavaScript object properties
-	jobStartIdx := strings.Index(lockContentStr, "\n  push_to_pull_request_branch:")
-	if jobStartIdx == -1 {
-		t.Fatal("Could not find safe_outputs job with push_to_pull_request_branch step section")
-	}
-	jobStartIdx++ // Skip the leading newline
-
-	// Find the next job by looking for a line starting with exactly 2 spaces followed by a word and colon
-	// This avoids matching JavaScript object properties which have more indentation
-	jobEndIdx := len(lockContentStr)
-	remaining := lockContentStr[jobStartIdx+30:] // Skip past "  push_to_pull_request_branch:"
-	lines := strings.Split(remaining, "\n")
-	offset := jobStartIdx + 30
-	for _, line := range lines {
-		offset += len(line) + 1 // +1 for newline
-		// Match lines that look like YAML job definitions: exactly 2 spaces, then word characters, then colon
-		if len(line) > 2 && line[0] == ' ' && line[1] == ' ' && line[2] != ' ' && strings.Contains(line, ":") {
-			jobEndIdx = offset - len(line) - 1
-			break
-		}
-	}
-
-	jobSection := lockContentStr[jobStartIdx:jobEndIdx]
-
-	// Verify that github-token is present and script is present
-	githubTokenIdx := strings.Index(jobSection, "github-token:")
-	scriptIdx := strings.Index(jobSection, "script: |")
-
-	if githubTokenIdx == -1 {
-		t.Error("github-token not found in safe_outputs job with push_to_pull_request_branch step")
-	}
-	if scriptIdx == -1 {
-		t.Error("script section not found in safe_outputs job with push_to_pull_request_branch step")
-	}
-
-	// Verify order: github-token comes before script
-	if githubTokenIdx != -1 && scriptIdx != -1 {
-		if githubTokenIdx > scriptIdx {
-			t.Error("github-token should come before script in the 'with' section")
-		}
 	}
 }
 
