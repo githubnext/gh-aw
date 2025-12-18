@@ -121,7 +121,7 @@ func displayStatsTable(statsList []*WorkflowStats) {
 
 	// Create table config
 	tableConfig := console.TableConfig{
-		Title:   "Workflow Statistics (sorted by file size)",
+		Title:   "",
 		Headers: []string{"WORKFLOW", "FILE SIZE", "JOBS", "STEPS", "SCRIPTS"},
 		Rows:    rows,
 	}
