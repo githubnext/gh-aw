@@ -510,6 +510,10 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 			customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"false\"\n")
 		}
 	}
+	// Add if-no-changes setting if explicitly set
+	if cfg.IfNoChanges != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
+	}
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_pull_request")
