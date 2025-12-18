@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"gopkg.in/yaml.v3"
@@ -93,42 +92,6 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		return statsList[i].FileSize > statsList[j].FileSize
 	})
 
-	// Print header
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflow Statistics (sorted by file size)"))
-	fmt.Fprintln(os.Stderr, "")
-
-	// Calculate column widths
-	maxWorkflowLen := len("WORKFLOW")
-	for _, stats := range statsList {
-		if len(stats.Workflow) > maxWorkflowLen {
-			maxWorkflowLen = len(stats.Workflow)
-		}
-	}
-
-	// Print table header
-	headerFormat := fmt.Sprintf("%%-%ds  %%10s  %%5s  %%6s  %%8s  %%8s\n", maxWorkflowLen)
-	rowFormat := fmt.Sprintf("%%-%ds  %%10s  %%5d  %%6d  %%8d  %%8d\n", maxWorkflowLen)
-
-	header := fmt.Sprintf(headerFormat, "WORKFLOW", "FILE SIZE", "JOBS", "STEPS", "SCRIPTS", "SHELLS")
-	fmt.Fprint(os.Stderr, header)
-	fmt.Fprintln(os.Stderr, strings.Repeat("-", len(header)-1))
-
-	// Print each workflow's stats
-	for _, stats := range statsList {
-		fileSize := console.FormatFileSize(stats.FileSize)
-		fmt.Fprintf(os.Stderr, rowFormat,
-			stats.Workflow,
-			fileSize,
-			stats.Jobs,
-			stats.Steps,
-			stats.ScriptCount,
-			stats.ShellCount,
-		)
-	}
-
-	// Print summary
-	fmt.Fprintln(os.Stderr, "")
-
 	// Calculate totals
 	totalSize := int64(0)
 	totalJobs := 0
@@ -148,7 +111,30 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		totalShellSize += stats.ShellSize
 	}
 
-	// Print totals
+	// Build table rows
+	rows := make([][]string, 0, len(statsList))
+	for _, stats := range statsList {
+		rows = append(rows, []string{
+			stats.Workflow,
+			console.FormatFileSize(stats.FileSize),
+			fmt.Sprintf("%d", stats.Jobs),
+			fmt.Sprintf("%d", stats.Steps),
+			fmt.Sprintf("%d", stats.ScriptCount),
+			fmt.Sprintf("%d", stats.ShellCount),
+		})
+	}
+
+	// Create table config
+	tableConfig := console.TableConfig{
+		Title:   "Workflow Statistics (sorted by file size)",
+		Headers: []string{"WORKFLOW", "FILE SIZE", "JOBS", "STEPS", "SCRIPTS", "SHELLS"},
+		Rows:    rows,
+	}
+
+	// Render and print table
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
+
+	// Print summary
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary:"))
 	fmt.Fprintf(os.Stderr, "  Total workflows: %d\n", len(statsList))
 	fmt.Fprintf(os.Stderr, "  Total size:      %s\n", console.FormatFileSize(totalSize))
