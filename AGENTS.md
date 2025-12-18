@@ -247,6 +247,49 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
 
+### Type Patterns and Best Practices
+
+Use appropriate type patterns to improve code clarity, maintainability, and type safety:
+
+**Semantic Type Aliases** - Use for domain-specific primitives:
+```go
+// ✅ GOOD - Semantic meaning
+type LineLength int
+type Version string
+type FeatureFlag string
+
+const MaxExpressionLineLength LineLength = 120
+const DefaultCopilotVersion Version = "0.0.369"
+const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+```
+
+**Dynamic Types** - Use `map[string]any` for truly dynamic data:
+```go
+// ✅ GOOD - Unknown structure at compile time
+func ProcessFrontmatter(frontmatter map[string]any) error {
+    // YAML/JSON with dynamic structure
+}
+
+// ✅ GOOD - Document why any is needed
+// githubTool uses any because tool configuration structure
+// varies based on engine and toolsets
+func ValidatePermissions(permissions *Permissions, githubTool any)
+```
+
+**When to use each pattern**:
+- **Semantic type aliases**: Domain concepts (lengths, versions, durations)
+- **`map[string]any`**: YAML/JSON parsing, dynamic configurations
+- **Interfaces**: Multiple implementations, polymorphism, testing
+- **Concrete types**: Known structure, type safety
+
+**Avoid**:
+- Using `any` when the type is known
+- Creating unnecessary type aliases that don't add clarity
+- Large "god" interfaces with many methods
+- Type name collisions (use descriptive, domain-qualified names)
+
+**See**: <a>specs/go-type-patterns.md</a> for detailed guidance and examples
+
 ### GitHub Actions Integration  
 For JavaScript files in `pkg/workflow/js/*.cjs`:
 - Use `core.info`, `core.warning`, `core.error` (not console.log)

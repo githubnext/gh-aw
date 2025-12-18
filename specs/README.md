@@ -8,6 +8,7 @@ This directory contains design specifications and implementation documentation f
 |----------|--------|----------------|
 | [Code Organization Patterns](./code-organization.md) | ✅ Documented | Code organization guidelines and patterns |
 | [Validation Architecture](./validation-architecture.md) | ✅ Documented | `pkg/workflow/validation.go` and domain-specific files |
+| [Go Type Patterns and Best Practices](./go-type-patterns.md) | ✅ Documented | `pkg/constants/constants.go`, `pkg/workflow/permissions_validator.go`, `pkg/parser/frontmatter.go` |
 
 ## Specifications
 
@@ -43,4 +44,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-12-05
+**Last Updated**: 2025-12-18
