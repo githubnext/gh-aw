@@ -14,8 +14,8 @@ import (
 var log = logger.New("workflow:compiler")
 
 const (
-	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
-	MaxLockFileSize = 1048576 // 1MB in bytes
+	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (500KB)
+	MaxLockFileSize = 512000 // 500KB in bytes
 
 	// MaxExpressionSize is the maximum allowed size for GitHub Actions expression values (21KB)
 	// This includes environment variable values, if conditions, and other expression contexts

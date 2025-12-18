@@ -16,8 +16,8 @@ func TestCompileWorkflowFileSizeValidation(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "file-size-test")
 
-	t.Run("workflow under 1MB should compile successfully", func(t *testing.T) {
-		// Create a normal workflow that should be well under 1MB
+	t.Run("workflow under 500KB should compile successfully", func(t *testing.T) {
+		// Create a normal workflow that should be well under 500KB
 		testContent := `---
 on: push
 timeout_minutes: 10
@@ -47,7 +47,7 @@ This is a normal workflow that should compile successfully.
 			t.Errorf("Expected no error for normal workflow, got: %v", err)
 		}
 
-		// Verify lock file was created and is under 1MB
+		// Verify lock file was created and is under 500KB
 		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
 		if info, err := os.Stat(lockFile); err != nil {
 			t.Errorf("Lock file was not created: %v", err)
@@ -97,14 +97,14 @@ This workflow tests the file size validation logic.
 			t.Fatalf("Lock file was not created: %v", err)
 		}
 
-		// The lock file should be well under 1MB (typically around 30KB)
+		// The lock file should be well under 500KB (typically around 30KB)
 		if info.Size() > MaxLockFileSize {
 			t.Errorf("Unexpected: lock file size %d exceeds max size %d", info.Size(), MaxLockFileSize)
 		}
 
-		// Verify our constant is correct (1MB = 1048576 bytes)
-		if MaxLockFileSize != 1048576 {
-			t.Errorf("MaxLockFileSize constant should be 1048576, got %d", MaxLockFileSize)
+		// Verify our constant is correct (500KB = 512000 bytes)
+		if MaxLockFileSize != 512000 {
+			t.Errorf("MaxLockFileSize constant should be 512000, got %d", MaxLockFileSize)
 		}
 	})
 
@@ -116,7 +116,7 @@ This workflow tests the file size validation logic.
 		lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
 
 		// Create a mock file that exceeds the size limit
-		largeSize := int64(MaxLockFileSize + 1000000) // 1MB over the limit
+		largeSize := int64(MaxLockFileSize + 100000) // 100KB over the limit
 		mockContent := strings.Repeat("x", int(largeSize))
 
 		if err := os.WriteFile(lockFile, []byte(mockContent), 0644); err != nil {
@@ -144,8 +144,8 @@ This workflow tests the file size validation logic.
 		if !strings.Contains(expectedMessage, "exceeds maximum allowed size") {
 			t.Error("Error message should contain 'exceeds maximum allowed size'")
 		}
-		if !strings.Contains(expectedMessage, "MB") {
-			t.Error("Error message should contain size in MB")
+		if !strings.Contains(expectedMessage, "KB") {
+			t.Error("Error message should contain size in KB")
 		}
 
 		// Clean up
