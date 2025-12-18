@@ -30,7 +30,7 @@ network:
     - accounts.google.com        # Chrome account checks
     - android.clients.google.com # Chrome internal
 sandbox:
-  agent: false  # Firewall disabled (migrated from network.firewall)
+  agent: awf  # Firewall enabled
 tools:
   cache-memory: true
   edit:
