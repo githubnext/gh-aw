@@ -6700,7 +6700,7 @@ jobs:
           };
           
           EOF_1a84cdd3
-          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_868e2bfb'
+          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_bc9dcdcf'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7045,9 +7045,8 @@ jobs:
             }
             core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
           }
-          await main();
-          
-          EOF_868e2bfb
+          (async () => { await main(); })();
+          EOF_bc9dcdcf
           cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -7553,7 +7552,7 @@ jobs:
           };
           
           EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/link_sub_issue.cjs << 'EOF_b9593fff'
+          cat > /tmp/gh-aw/scripts/link_sub_issue.cjs << 'EOF_424fc277'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7914,9 +7913,8 @@ jobs:
             }
           }
           
-          await main();
-          
-          EOF_b9593fff
+          (async () => { await main(); })();
+          EOF_424fc277
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />

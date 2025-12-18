@@ -6912,7 +6912,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_f0058b8e'
+          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7480,9 +7480,8 @@ jobs:
             core.info(`Successfully created ${createdComments.length} comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_f0058b8e
+          (async () => { await main(); })();
+          EOF_5abe5c6a
           cat > /tmp/gh-aw/scripts/assign_agent_helpers.cjs << 'EOF_b5665d23'
           // @ts-check
           /// <reference types="@actions/github-script" />

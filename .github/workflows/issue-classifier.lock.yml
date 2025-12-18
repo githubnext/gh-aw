@@ -5393,7 +5393,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_bd023207'
+          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_d086a447'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -5518,9 +5518,8 @@ jobs:
               core.setFailed(`Failed to add labels: ${errorMessage}`);
             }
           }
-          await main();
-          
-          EOF_bd023207
+          (async () => { await main(); })();
+          EOF_d086a447
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />

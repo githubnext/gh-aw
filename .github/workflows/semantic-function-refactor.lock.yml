@@ -7123,7 +7123,7 @@ jobs:
           };
           
           EOF_96ffce00
-          cat > /tmp/gh-aw/scripts/close_issue.cjs << 'EOF_4a637b01'
+          cat > /tmp/gh-aw/scripts/close_issue.cjs << 'EOF_8d898bf3'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7198,9 +7198,8 @@ jobs:
             });
           }
           
-          await main();
-          
-          EOF_4a637b01
+          (async () => { await main(); })();
+          EOF_8d898bf3
           cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
           // @ts-check
           /// <reference types="@actions/github-script" />

@@ -7016,7 +7016,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_f0058b8e'
+          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7584,10 +7584,9 @@ jobs:
             core.info(`Successfully created ${createdComments.length} comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_f0058b8e
-          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_bd023207'
+          (async () => { await main(); })();
+          EOF_5abe5c6a
+          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_d086a447'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7712,9 +7711,8 @@ jobs:
               core.setFailed(`Failed to add labels: ${errorMessage}`);
             }
           }
-          await main();
-          
-          EOF_bd023207
+          (async () => { await main(); })();
+          EOF_d086a447
           cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
           // @ts-check
           /// <reference types="@actions/github-script" />

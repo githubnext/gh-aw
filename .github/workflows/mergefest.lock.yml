@@ -7475,7 +7475,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_4120caab'
+          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_80af4800'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7894,9 +7894,8 @@ jobs:
             await core.summary.addRaw(summaryContent).write();
           }
           
-          await main();
-          
-          EOF_4120caab
+          (async () => { await main(); })();
+          EOF_80af4800
           cat > /tmp/gh-aw/scripts/staged_preview.cjs << 'EOF_8386ee20'
           // @ts-check
           /// <reference types="@actions/github-script" />

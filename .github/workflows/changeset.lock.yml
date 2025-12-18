@@ -7626,7 +7626,7 @@ jobs:
           };
           
           EOF_c14886c6
-          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_4120caab'
+          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_80af4800'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8045,9 +8045,8 @@ jobs:
             await core.summary.addRaw(summaryContent).write();
           }
           
-          await main();
-          
-          EOF_4120caab
+          (async () => { await main(); })();
+          EOF_80af4800
           cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
           // @ts-check
           /**
@@ -8501,7 +8500,7 @@ jobs:
           };
           
           EOF_d0693c3b
-          cat > /tmp/gh-aw/scripts/update_pull_request.cjs << 'EOF_d983bcda'
+          cat > /tmp/gh-aw/scripts/update_pull_request.cjs << 'EOF_ee736168'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8597,9 +8596,8 @@ jobs:
             });
           }
           
-          await main();
-          
-          EOF_d983bcda
+          (async () => { await main(); })();
+          EOF_ee736168
           cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_1b5d3c1d'
           // @ts-check
           /// <reference types="@actions/github-script" />

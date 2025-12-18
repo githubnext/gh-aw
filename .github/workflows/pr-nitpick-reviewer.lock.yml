@@ -7762,7 +7762,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_f0058b8e'
+          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8330,9 +8330,8 @@ jobs:
             core.info(`Successfully created ${createdComments.length} comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_f0058b8e
+          (async () => { await main(); })();
+          EOF_5abe5c6a
           cat > /tmp/gh-aw/scripts/close_older_discussions.cjs << 'EOF_1a84cdd3'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -8601,7 +8600,7 @@ jobs:
           };
           
           EOF_1a84cdd3
-          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_868e2bfb'
+          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_bc9dcdcf'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8946,10 +8945,9 @@ jobs:
             }
             core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
           }
-          await main();
-          
-          EOF_868e2bfb
-          cat > /tmp/gh-aw/scripts/create_pr_review_comment.cjs << 'EOF_9902b371'
+          (async () => { await main(); })();
+          EOF_bc9dcdcf
+          cat > /tmp/gh-aw/scripts/create_pr_review_comment.cjs << 'EOF_cbb53d38'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9207,9 +9205,8 @@ jobs:
             core.info(`Successfully created ${createdComments.length} review comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_9902b371
+          (async () => { await main(); })();
+          EOF_cbb53d38
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />

@@ -7711,7 +7711,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/close_discussion.cjs << 'EOF_f280cc1e'
+          cat > /tmp/gh-aw/scripts/close_discussion.cjs << 'EOF_6761a10b'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8026,9 +8026,8 @@ jobs:
             core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
             return closedDiscussions;
           }
-          await main();
-          
-          EOF_f280cc1e
+          (async () => { await main(); })();
+          EOF_6761a10b
           cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
           // @ts-check
           /// <reference types="@actions/github-script" />

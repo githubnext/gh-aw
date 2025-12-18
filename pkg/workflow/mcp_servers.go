@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -78,6 +79,7 @@ func getSafeOutputsDependencies() ([]string, error) {
 // All files are written to the same directory (/tmp/gh-aw/safeoutputs/) so they can
 // use relative requires (./file.cjs) to reference each other at runtime.
 // Files are NOT inlined/bundled - they are written separately and require each other at runtime.
+// Top-level await patterns (like `await main();`) are wrapped in an async IIFE to work in CommonJS.
 func getJavaScriptFileContent(filename string) (string, error) {
 	// Get all sources
 	sources := GetJavaScriptSources()
@@ -88,9 +90,31 @@ func getJavaScriptFileContent(filename string) (string, error) {
 		return "", fmt.Errorf("JavaScript file not found: %s", filename)
 	}
 
-	// Return content as-is - files use relative requires (./file.cjs)
+	// Patch top-level await patterns to work in CommonJS
+	// This wraps `await main();` calls in an async IIFE
+	content = patchTopLevelAwait(content)
+
+	// Return content - files use relative requires (./file.cjs)
 	// which work because all files are written to the same directory
 	return content, nil
+}
+
+// patchTopLevelAwait wraps top-level `await main();` calls in an async IIFE.
+// CommonJS modules don't support top-level await, so we need to wrap it.
+//
+// This transforms:
+//
+//	await main();
+//
+// Into:
+//
+//	(async () => { await main(); })();
+func patchTopLevelAwait(content string) string {
+	// Match `await main();` at the end of the file (with optional whitespace/newlines)
+	// This pattern is used in safe output scripts as the entry point
+	awaitMainRegex := regexp.MustCompile(`(?m)^await\s+main\s*\(\s*\)\s*;?\s*$`)
+
+	return awaitMainRegex.ReplaceAllString(content, "(async () => { await main(); })();")
 }
 
 // hasMCPServers checks if the workflow has any MCP servers configured

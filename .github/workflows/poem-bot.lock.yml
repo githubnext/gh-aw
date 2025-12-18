@@ -8136,7 +8136,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_f0058b8e'
+          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8704,10 +8704,9 @@ jobs:
             core.info(`Successfully created ${createdComments.length} comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_f0058b8e
-          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_bd023207'
+          (async () => { await main(); })();
+          EOF_5abe5c6a
+          cat > /tmp/gh-aw/scripts/add_labels.cjs << 'EOF_d086a447'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8832,9 +8831,8 @@ jobs:
               core.setFailed(`Failed to add labels: ${errorMessage}`);
             }
           }
-          await main();
-          
-          EOF_bd023207
+          (async () => { await main(); })();
+          EOF_d086a447
           cat > /tmp/gh-aw/scripts/close_entity_helpers.cjs << 'EOF_96ffce00'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -9501,7 +9499,7 @@ jobs:
           };
           
           EOF_1a84cdd3
-          cat > /tmp/gh-aw/scripts/close_pull_request.cjs << 'EOF_fe70bb20'
+          cat > /tmp/gh-aw/scripts/close_pull_request.cjs << 'EOF_b208b9b9'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9576,10 +9574,9 @@ jobs:
             });
           }
           
-          await main();
-          
-          EOF_fe70bb20
-          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_868e2bfb'
+          (async () => { await main(); })();
+          EOF_b208b9b9
+          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_bc9dcdcf'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9924,9 +9921,8 @@ jobs:
             }
             core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
           }
-          await main();
-          
-          EOF_868e2bfb
+          (async () => { await main(); })();
+          EOF_bc9dcdcf
           cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -10282,7 +10278,7 @@ jobs:
           })();
           
           EOF_71cfd09f
-          cat > /tmp/gh-aw/scripts/create_pr_review_comment.cjs << 'EOF_9902b371'
+          cat > /tmp/gh-aw/scripts/create_pr_review_comment.cjs << 'EOF_cbb53d38'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -10540,10 +10536,9 @@ jobs:
             core.info(`Successfully created ${createdComments.length} review comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_9902b371
-          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_09cd66f9'
+          (async () => { await main(); })();
+          EOF_cbb53d38
+          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_fc9e192e'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -11215,9 +11210,8 @@ jobs:
               }
             }
           }
-          await main();
-          
-          EOF_09cd66f9
+          (async () => { await main(); })();
+          EOF_fc9e192e
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -11400,7 +11394,7 @@ jobs:
           };
           
           EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/link_sub_issue.cjs << 'EOF_b9593fff'
+          cat > /tmp/gh-aw/scripts/link_sub_issue.cjs << 'EOF_424fc277'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -11761,9 +11755,8 @@ jobs:
             }
           }
           
-          await main();
-          
-          EOF_b9593fff
+          (async () => { await main(); })();
+          EOF_424fc277
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -12173,7 +12166,7 @@ jobs:
           };
           
           EOF_c14886c6
-          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_4120caab'
+          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_80af4800'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -12592,9 +12585,8 @@ jobs:
             await core.summary.addRaw(summaryContent).write();
           }
           
-          await main();
-          
-          EOF_4120caab
+          (async () => { await main(); })();
+          EOF_80af4800
           cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
           // @ts-check
           /**
@@ -13814,7 +13806,7 @@ jobs:
           };
           
           EOF_95d23c7d
-          cat > /tmp/gh-aw/scripts/update_issue.cjs << 'EOF_85756c2d'
+          cat > /tmp/gh-aw/scripts/update_issue.cjs << 'EOF_781bc212'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -13875,9 +13867,8 @@ jobs:
             });
           }
           
-          await main();
-          
-          EOF_85756c2d
+          (async () => { await main(); })();
+          EOF_781bc212
           cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_1b5d3c1d'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -14232,7 +14223,7 @@ jobs:
           };
           
           EOF_1b5d3c1d
-          cat > /tmp/gh-aw/scripts/upload_assets.cjs << 'EOF_621149dd'
+          cat > /tmp/gh-aw/scripts/upload_assets.cjs << 'EOF_cba24f31'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -14432,9 +14423,8 @@ jobs:
             core.setOutput("branch_name", normalizedBranchName);
           }
           
-          await main();
-          
-          EOF_621149dd
+          (async () => { await main(); })();
+          EOF_cba24f31
       - name: Create Issue
         id: create_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))

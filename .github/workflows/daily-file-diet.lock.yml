@@ -8975,7 +8975,7 @@ jobs:
           };
           
           EOF_795429aa
-          cat > /tmp/gh-aw/scripts/upload_assets.cjs << 'EOF_621149dd'
+          cat > /tmp/gh-aw/scripts/upload_assets.cjs << 'EOF_cba24f31'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9175,9 +9175,8 @@ jobs:
             core.setOutput("branch_name", normalizedBranchName);
           }
           
-          await main();
-          
-          EOF_621149dd
+          (async () => { await main(); })();
+          EOF_cba24f31
       - name: Create Issue
         id: create_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))

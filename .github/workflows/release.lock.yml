@@ -7009,7 +7009,7 @@ jobs:
           module.exports = { generateStagedPreview };
           
           EOF_8386ee20
-          cat > /tmp/gh-aw/scripts/update_release.cjs << 'EOF_90701e74'
+          cat > /tmp/gh-aw/scripts/update_release.cjs << 'EOF_0f562db8'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7180,9 +7180,8 @@ jobs:
           }
           
           // Call the main function
-          await main();
-          
-          EOF_90701e74
+          (async () => { await main(); })();
+          EOF_0f562db8
       - name: Update Release
         id: update_release
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_release'))

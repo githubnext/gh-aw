@@ -6563,7 +6563,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/create_code_scanning_alert.cjs << 'EOF_d4efdf88'
+          cat > /tmp/gh-aw/scripts/create_code_scanning_alert.cjs << 'EOF_889cc75a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -6807,9 +6807,8 @@ jobs:
               findings: validFindings,
             };
           }
-          await main();
-          
-          EOF_d4efdf88
+          (async () => { await main(); })();
+          EOF_889cc75a
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />

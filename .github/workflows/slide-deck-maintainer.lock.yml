@@ -7059,7 +7059,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_09cd66f9'
+          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_fc9e192e'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7731,9 +7731,8 @@ jobs:
               }
             }
           }
-          await main();
-          
-          EOF_09cd66f9
+          (async () => { await main(); })();
+          EOF_fc9e192e
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />

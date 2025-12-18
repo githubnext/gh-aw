@@ -7283,7 +7283,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_09cd66f9'
+          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_fc9e192e'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7955,9 +7955,8 @@ jobs:
               }
             }
           }
-          await main();
-          
-          EOF_09cd66f9
+          (async () => { await main(); })();
+          EOF_fc9e192e
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -8011,7 +8010,7 @@ jobs:
           };
           
           EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_4120caab'
+          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_80af4800'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8430,9 +8429,8 @@ jobs:
             await core.summary.addRaw(summaryContent).write();
           }
           
-          await main();
-          
-          EOF_4120caab
+          (async () => { await main(); })();
+          EOF_80af4800
           cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
           // @ts-check
           /**

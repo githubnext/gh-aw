@@ -7757,7 +7757,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_f0058b8e'
+          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8325,9 +8325,8 @@ jobs:
             core.info(`Successfully created ${createdComments.length} comment(s)`);
             return createdComments;
           }
-          await main();
-          
-          EOF_f0058b8e
+          (async () => { await main(); })();
+          EOF_5abe5c6a
           cat > /tmp/gh-aw/scripts/get_repository_url.cjs << 'EOF_75ff5f42'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -8744,7 +8743,7 @@ jobs:
           };
           
           EOF_c14886c6
-          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_4120caab'
+          cat > /tmp/gh-aw/scripts/push_to_pull_request_branch.cjs << 'EOF_80af4800'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9163,9 +9162,8 @@ jobs:
             await core.summary.addRaw(summaryContent).write();
           }
           
-          await main();
-          
-          EOF_4120caab
+          (async () => { await main(); })();
+          EOF_80af4800
           cat > /tmp/gh-aw/scripts/staged_preview.cjs << 'EOF_8386ee20'
           // @ts-check
           /// <reference types="@actions/github-script" />

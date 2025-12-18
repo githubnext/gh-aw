@@ -59,6 +59,7 @@ type ScriptFilesResult struct {
 
 // CollectScriptFiles recursively collects all JavaScript files used by a script.
 // It starts from the main script and follows all local require() statements.
+// Top-level await patterns (like `await main();`) are patched to work in CommonJS.
 //
 // Parameters:
 //   - scriptName: Name of the main script (e.g., "create_issue")
@@ -76,11 +77,14 @@ func CollectScriptFiles(scriptName string, mainContent string, sources map[strin
 	// The main script path
 	mainPath := scriptName + ".cjs"
 
+	// Patch top-level await patterns to work in CommonJS
+	patchedContent := patchTopLevelAwaitForFileMode(mainContent)
+
 	// Add the main script first
-	hash := computeShortHash(mainContent)
+	hash := computeShortHash(patchedContent)
 	collected[mainPath] = &ScriptFile{
 		Path:    mainPath,
-		Content: mainContent,
+		Content: patchedContent,
 		Hash:    hash,
 	}
 	processed[mainPath] = true
@@ -178,6 +182,24 @@ func collectDependencies(content string, currentDir string, sources map[string]s
 func computeShortHash(content string) string {
 	hash := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(hash[:])[:8]
+}
+
+// patchTopLevelAwaitForFileMode wraps top-level `await main();` calls in an async IIFE.
+// CommonJS modules don't support top-level await, so we need to wrap it.
+//
+// This transforms:
+//
+//	await main();
+//
+// Into:
+//
+//	(async () => { await main(); })();
+func patchTopLevelAwaitForFileMode(content string) string {
+	// Match `await main();` at the end of the file (with optional whitespace/newlines)
+	// This pattern is used in safe output scripts as the entry point
+	awaitMainRegex := regexp.MustCompile(`(?m)^await\s+main\s*\(\s*\)\s*;?\s*$`)
+
+	return awaitMainRegex.ReplaceAllString(content, "(async () => { await main(); })();")
 }
 
 // GenerateWriteScriptsStep generates the YAML for a step that writes all collected
