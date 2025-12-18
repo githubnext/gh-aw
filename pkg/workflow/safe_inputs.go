@@ -59,8 +59,7 @@ type SafeInputParam struct {
 
 // SafeInputsMode constants define the available transport modes
 const (
-	SafeInputsModeHTTP  = "http"
-	SafeInputsModeStdio = "stdio"
+	SafeInputsModeHTTP = "http"
 )
 
 // HasSafeInputs checks if safe-inputs are configured
@@ -68,14 +67,10 @@ func HasSafeInputs(safeInputs *SafeInputsConfig) bool {
 	return safeInputs != nil && len(safeInputs.Tools) > 0
 }
 
-// IsSafeInputsStdioMode checks if safe-inputs is configured to use stdio mode
-func IsSafeInputsStdioMode(safeInputs *SafeInputsConfig) bool {
-	return safeInputs != nil && safeInputs.Mode == SafeInputsModeStdio
-}
-
 // IsSafeInputsHTTPMode checks if safe-inputs is configured to use HTTP mode
+// Note: All safe-inputs configurations now use HTTP mode exclusively
 func IsSafeInputsHTTPMode(safeInputs *SafeInputsConfig) bool {
-	return safeInputs != nil && (safeInputs.Mode == SafeInputsModeHTTP || safeInputs.Mode == "")
+	return safeInputs != nil
 }
 
 // IsSafeInputsEnabled checks if safe-inputs are configured.
@@ -90,19 +85,12 @@ func IsSafeInputsEnabled(safeInputs *SafeInputsConfig, workflowData *WorkflowDat
 // Returns the config and a boolean indicating whether any tools were found.
 func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) {
 	config := &SafeInputsConfig{
-		Mode:  "http", // Default to HTTP mode
+		Mode:  "http", // Only HTTP mode is supported
 		Tools: make(map[string]*SafeInputToolConfig),
 	}
 
-	// Parse mode if specified (optional field)
-	if mode, exists := safeInputsMap["mode"]; exists {
-		if modeStr, ok := mode.(string); ok {
-			// Validate mode value
-			if modeStr == "stdio" || modeStr == "http" {
-				config.Mode = modeStr
-			}
-		}
-	}
+	// Mode field is ignored - only HTTP mode is supported
+	// All safe-inputs configurations use HTTP transport
 
 	for toolName, toolValue := range safeInputsMap {
 		// Skip the "mode" field as it's not a tool definition
@@ -387,37 +375,12 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
-// This script chooses the transport based on mode: HTTP or stdio
+// This script uses HTTP transport exclusively
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
 	var sb strings.Builder
 
-	if IsSafeInputsStdioMode(safeInputs) {
-		// Stdio transport - server started by agent
-		sb.WriteString(`// @ts-check
-// Auto-generated safe-inputs MCP server entry point (stdio transport)
-// This script uses the reusable safe_inputs_mcp_server module with stdio transport
-
-const path = require("path");
-const { startSafeInputsServer } = require("./safe_inputs_mcp_server.cjs");
-
-// Configuration file path (generated alongside this script)
-const configPath = path.join(__dirname, "tools.json");
-
-// Start the stdio server
-// Note: skipCleanup is true for stdio mode to allow agent restarts
-try {
-  startSafeInputsServer(configPath, {
-    logDir: "/tmp/gh-aw/safe-inputs/logs",
-    skipCleanup: true
-  });
-} catch (error) {
-  console.error("Failed to start safe-inputs stdio server:", error);
-  process.exit(1);
-}
-`)
-	} else {
-		// HTTP transport - server started in separate step
-		sb.WriteString(`// @ts-check
+	// HTTP transport - server started in separate step
+	sb.WriteString(`// @ts-check
 // Auto-generated safe-inputs MCP server entry point (HTTP transport)
 // This script uses the reusable safe_inputs_mcp_server_http module
 
@@ -441,7 +404,6 @@ startHttpServer(configPath, {
   process.exit(1);
 });
 `)
-	}
 
 	return sb.String()
 }
@@ -633,104 +595,64 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
-// Supports both HTTP and stdio transport modes
+// Only supports HTTP transport mode
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
 	envVars := getSafeInputsEnvVars(safeInputs)
 
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
 
-	// Choose transport based on mode
-	if IsSafeInputsStdioMode(safeInputs) {
-		// Stdio transport configuration - server started by agent
-		// Use "local" for Copilot CLI, "stdio" for other engines
-		typeValue := "stdio"
-		if includeCopilotFields {
-			typeValue = "local"
-		}
-		yaml.WriteString("                \"type\": \"" + typeValue + "\",\n")
-		yaml.WriteString("                \"command\": \"node\",\n")
-		yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-inputs/mcp-server.cjs\"],\n")
+	// HTTP transport configuration - server started in separate step
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
 
-		// Add tools field for Copilot
-		if includeCopilotFields {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-
-		// Add env block for environment variable passthrough
-		yaml.WriteString("                \"env\": {\n")
-
-		// Write environment variables with appropriate escaping
-		for i, envVar := range envVars {
-			isLastEnvVar := i == len(envVars)-1
-			comma := ""
-			if !isLastEnvVar {
-				comma = ","
-			}
-
-			if includeCopilotFields {
-				// Copilot format: backslash-escaped shell variable reference
-				yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-			} else {
-				// Claude/Custom format: direct shell variable reference
-				yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-			}
-		}
-
-		yaml.WriteString("                }\n")
+	// HTTP URL using environment variable
+	// Use host.docker.internal to allow access from firewall container
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
 	} else {
-		// HTTP transport configuration - server started in separate step
-		// Add type field for HTTP (required by MCP specification for HTTP transport)
-		yaml.WriteString("                \"type\": \"http\",\n")
-
-		// HTTP URL using environment variable
-		// Use host.docker.internal to allow access from firewall container
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
-		}
-
-		// Add Authorization header with API key
-		yaml.WriteString("                \"headers\": {\n")
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
-		}
-		yaml.WriteString("                },\n")
-
-		// Add tools field for Copilot
-		if includeCopilotFields {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-
-		// Add env block for environment variable passthrough
-		envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
-		yaml.WriteString("                \"env\": {\n")
-
-		// Write environment variables with appropriate escaping
-		for i, envVar := range envVarsWithServerConfig {
-			isLastEnvVar := i == len(envVarsWithServerConfig)-1
-			comma := ""
-			if !isLastEnvVar {
-				comma = ","
-			}
-
-			if includeCopilotFields {
-				// Copilot format: backslash-escaped shell variable reference
-				yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-			} else {
-				// Claude/Custom format: direct shell variable reference
-				yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-			}
-		}
-
-		yaml.WriteString("                }\n")
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
 	}
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
+	if includeCopilotFields {
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GH_AW_SAFE_INPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\"\n")
+	}
+	yaml.WriteString("                },\n")
+
+	// Add tools field for Copilot
+	if includeCopilotFields {
+		yaml.WriteString("                \"tools\": [\"*\"],\n")
+	}
+
+	// Add env block for environment variable passthrough
+	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
+	yaml.WriteString("                \"env\": {\n")
+
+	// Write environment variables with appropriate escaping
+	for i, envVar := range envVarsWithServerConfig {
+		isLastEnvVar := i == len(envVarsWithServerConfig)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
+	}
+
+	yaml.WriteString("                }\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")
@@ -753,21 +675,15 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 			continue
 		}
 
-		// Parse the imported JSON config
+		// Merge the imported JSON config
 		var importedMap map[string]any
 		if err := json.Unmarshal([]byte(configJSON), &importedMap); err != nil {
 			safeInputsLog.Printf("Warning: failed to parse imported safe-inputs config: %v", err)
 			continue
 		}
 
-		// Merge mode if present in imported config and not set in main
-		if mode, exists := importedMap["mode"]; exists && main.Mode == "http" {
-			if modeStr, ok := mode.(string); ok {
-				if modeStr == "stdio" || modeStr == "http" {
-					main.Mode = modeStr
-				}
-			}
-		}
+		// Mode field is ignored - only HTTP mode is supported
+		// All safe-inputs configurations use HTTP transport
 
 		// Merge each tool from the imported config
 		for toolName, toolValue := range importedMap {

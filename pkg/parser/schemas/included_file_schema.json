@@ -592,9 +592,9 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["http", "stdio"],
+          "enum": ["http"],
           "default": "http",
-          "description": "Transport mode for the safe-inputs MCP server. 'http' starts the server as a separate step (default), 'stdio' starts the server directly by the agent within the firewall."
+          "description": "Transport mode for the safe-inputs MCP server. Only 'http' mode is supported, which starts the server as a separate step."
         }
       }
     },
