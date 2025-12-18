@@ -293,6 +293,11 @@ func removeExports(content string) string {
 	moduleExportsRegex := regexp.MustCompile(`^\s*module\.exports\s*=`)
 	exportsRegex := regexp.MustCompile(`^\s*exports\.\w+\s*=`)
 
+	// Pattern for inline conditional exports like:
+	// ("undefined" != typeof module && module.exports && (module.exports = {...}),
+	// This pattern is used by minified/terser-processed code
+	inlineConditionalExportRegex := regexp.MustCompile(`\(\s*["']undefined["']\s*!=\s*typeof\s+module\s*&&\s*module\.exports`)
+
 	// Track if we're inside a conditional export block that should be removed
 	inConditionalExport := false
 	conditionalDepth := 0
@@ -303,6 +308,13 @@ func removeExports(content string) string {
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
+
+		// Check for inline conditional export pattern (minified/terser style)
+		// These lines should be entirely removed as they only contain the conditional export
+		if inlineConditionalExportRegex.MatchString(trimmed) {
+			// Skip the entire line - it's an inline conditional export
+			continue
+		}
 
 		// Check if this starts a conditional export block
 		// Pattern: if (typeof module !== "undefined" && module.exports) {

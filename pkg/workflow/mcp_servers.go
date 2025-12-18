@@ -73,7 +73,8 @@ func getSafeOutputsDependencies() ([]string, error) {
 	return deps, nil
 }
 
-// getJavaScriptFileContent returns the content for a JavaScript file by name
+// getJavaScriptFileContent returns the bundled content for a JavaScript file by name.
+// It bundles the file with its local dependencies (inlining ./local.cjs requires).
 func getJavaScriptFileContent(filename string) (string, error) {
 	// Get all sources
 	sources := GetJavaScriptSources()
@@ -84,7 +85,15 @@ func getJavaScriptFileContent(filename string) (string, error) {
 		return "", fmt.Errorf("JavaScript file not found: %s", filename)
 	}
 
-	return content, nil
+	// Bundle the content to inline local requires (e.g., ./get_base_branch.cjs)
+	// Use RuntimeModeNodeJS since these files run as Node.js scripts on the filesystem
+	bundled, err := BundleJavaScriptWithMode(content, sources, "", RuntimeModeNodeJS)
+	if err != nil {
+		mcpServersLog.Printf("Warning: failed to bundle %s: %v, using unbundled content", filename, err)
+		return content, nil
+	}
+
+	return bundled, nil
 }
 
 // hasMCPServers checks if the workflow has any MCP servers configured
