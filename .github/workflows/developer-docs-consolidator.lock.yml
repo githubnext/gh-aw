@@ -783,7 +783,7 @@
 name: "Developer Documentation Consolidator"
 "on":
   schedule:
-  - cron: "40 17 * * *"
+  - cron: "59 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
