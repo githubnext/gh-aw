@@ -24,36 +24,20 @@ engine: copilot
 ```yaml wrap
 engine:
   id: copilot
-  version: latest                       # Optional: defaults to latest
-  model: gpt-5                          # Optional: defaults to claude-sonnet-4
-  args: ["--add-dir", "/workspace"]     # Optional: custom CLI arguments
+  version: latest                       # defaults to latest
+  model: gpt-5                          # defaults to claude-sonnet-4
+  args: ["--add-dir", "/workspace"]     # custom CLI arguments
 ```
 
-#### Configuration Options
-
-- **`model`**: AI model (`gpt-5` or `claude-sonnet-4`)
-- **`version`**: CLI version to install
-- **`args`**: Custom command-line arguments (supported by all engines)
-
-#### Environment Variables
-
-- **`COPILOT_MODEL`**: Alternative way to set the model
+Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI version), `args` (command-line arguments). Alternatively set model via `COPILOT_MODEL` environment variable.
 
 #### Required Secrets
 
-- **`COPILOT_GITHUB_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission
-- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions)
+**`COPILOT_GITHUB_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission. **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions).
 
 #### Authenticating with a Personal Access Token (PAT)
 
-To use the Copilot engine, you need a fine-grained Personal Access Token with the "Copilot Requests" permission enabled:
-
-1. Visit <https://github.com/settings/personal-access-tokens/new>
-2. Under "Resource owner", select your user account (not an organization, see note below).
-3. Under "Repository access," select "Public repositories"
-4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
-5. Generate your token
-6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
+Create a fine-grained PAT at <https://github.com/settings/personal-access-tokens/new>. Select your user account (not an organization), choose "Public repositories" access, and enable "Copilot Requests" permissions. Then add it to your repository:
 
 ```bash wrap
 gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
@@ -79,71 +63,19 @@ The Copilot engine does not have built-in `web-search` support. You can add web 
 
 #### Network Permissions
 
-The Copilot engine supports network access control through the `network:` configuration at the workflow level. When network permissions are configured, you can enable AWF (Agent Workflow Firewall) to enforce domain-based access controls. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
-
-Enable network permissions and firewall in your workflow:
+The Copilot engine supports network access control through AWF (Agent Workflow Firewall) from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall). Enable it to enforce domain allowlists and log network activity:
 
 ```yaml wrap
 engine: copilot
-
 network:
-  firewall: true           # Enable AWF enforcement
+  firewall: true           # or configure: { version, log-level, args }
   allowed:
-    - defaults             # Basic infrastructure domains
-    - python              # Python ecosystem
-    - "api.example.com"   # Custom domain
+    - defaults             # infrastructure domains
+    - python              # ecosystem identifier
+    - "api.example.com"   # custom domain
 ```
 
-When enabled, AWF wraps the Copilot CLI execution and enforces the configured domain allowlist, logging all network activity for audit purposes. This provides network egress control and an additional layer of security for workflows that need strict network access control.
-
-**Advanced Firewall Configuration:**
-
-Additional AWF settings can be configured through the network configuration:
-
-```yaml wrap
-network:
-  allowed:
-    - defaults
-    - python
-  firewall:
-    version: "v1.0.0"                    # Optional: AWF version (defaults to latest)
-    log-level: debug                     # Optional: debug, info (default), warn, error
-    args: ["--custom-arg", "value"]      # Optional: additional AWF arguments
-```
-
-**Firewall Configuration Formats:**
-
-The `firewall` field supports multiple formats:
-
-```yaml wrap
-# Enable with defaults
-network:
-  firewall: true
-
-# Enable with empty object (same as true)
-network:
-  firewall:
-
-# Configure log level
-network:
-  firewall:
-    log-level: info    # Options: debug, info (default), warn, error
-
-# Disable firewall using boolean
-network:
-  firewall: false
-
-# Disable firewall using string (equivalent to false)
-network:
-  firewall: "disable"
-
-# Custom configuration with version and arguments
-network:
-  firewall:
-    version: "v0.1.0"
-    log-level: debug
-    args: ["--verbose"]
-```
+Advanced configuration: set `firewall.version` (defaults to latest), `log-level` (debug, info, warn, error), or `args` for additional AWF arguments. Use `firewall: false` or `"disable"` to disable.
 
 ### Disabling the Firewall
 
@@ -151,37 +83,9 @@ network:
 The `network.firewall: false` configuration is deprecated. Use `sandbox.agent: false` instead.
 :::
 
-To disable the firewall for any engine that supports it, use `sandbox.agent: false`:
+Disable firewall enforcement with `sandbox.agent: false`. Network permissions still apply for content sanitization. Legacy approach: `strict: false` with `network.firewall: false` (deprecated).
 
-```yaml wrap
-engine: copilot
-network:
-  allowed:
-    - defaults
-    - python
-    - "api.example.com"
-sandbox:
-  agent: false
-```
-
-**Legacy approach (deprecated):**
-
-```yaml wrap
-strict: false
-network:
-  allowed:
-    - defaults
-    - python
-    - "api.example.com"
-  firewall: false
-```
-
-When the firewall is disabled:
-- Network permissions still apply for content sanitization
-- The agent can make network requests without firewall enforcement
-- This is useful during development or when the firewall is incompatible with your workflow
-
-See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
+See [Network Permissions](/gh-aw/reference/network/) for domain configuration details.
 
 ### Custom Engine
 
