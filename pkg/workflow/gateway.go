@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var gatewayLog = logger.New("workflow:gateway")
 
 const (
-	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
-	MCPGatewayFeatureFlag = "mcp-gateway"
 	// DefaultMCPGatewayPort is the default port for the MCP gateway
 	DefaultMCPGatewayPort = 8080
 	// MCPGatewayLogsFolder is the folder where MCP gateway logs are stored
@@ -46,7 +45,7 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 	}
 
 	// Then check if the feature flag is enabled
-	return isFeatureEnabled(MCPGatewayFeatureFlag, workflowData)
+	return isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData)
 }
 
 // getMCPGatewayConfig extracts the MCPGatewayConfig from sandbox configuration

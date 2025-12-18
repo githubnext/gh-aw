@@ -2,13 +2,15 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestIsFeatureEnabled(t *testing.T) {
 	tests := []struct {
 		name     string
 		envValue string
-		flag     string
+		flag     constants.FeatureFlag
 		expected bool
 	}{
 		{
@@ -76,7 +78,7 @@ func TestIsFeatureEnabled(t *testing.T) {
 }
 
 func TestIsFeatureEnabledNoEnv(t *testing.T) {
-	result := isFeatureEnabled("firewall", nil)
+	result := isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
 	if result != false {
 		t.Errorf("isFeatureEnabled(\"firewall\", nil) with no env = %v, want false", result)
 	}
@@ -87,7 +89,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		name        string
 		envValue    string
 		frontmatter map[string]bool
-		flag        string
+		flag        constants.FeatureFlag
 		expected    bool
 		description string
 	}{
@@ -178,7 +180,7 @@ func TestIsFeatureEnabledWithDataNilWorkflow(t *testing.T) {
 	t.Setenv("GH_AW_FEATURES", "firewall")
 
 	// When workflowData is nil, should fall back to env
-	result := isFeatureEnabled("firewall", nil)
+	result := isFeatureEnabled(constants.FeatureFlag("firewall"), nil)
 	if result != true {
 		t.Errorf("isFeatureEnabled(\"firewall\", nil) with env=firewall = %v, want true", result)
 	}

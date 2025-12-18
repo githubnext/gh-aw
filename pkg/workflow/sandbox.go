@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -283,7 +284,7 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	// Validate that SRT is only used with Copilot engine
 	if isSRTEnabled(workflowData) {
 		// Check if the sandbox-runtime feature flag is enabled
-		if !isFeatureEnabled("sandbox-runtime", workflowData) {
+		if !isFeatureEnabled(constants.SandboxRuntimeFeatureFlag, workflowData) {
 			return fmt.Errorf("sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag to be enabled. Set 'features: { sandbox-runtime: true }' in frontmatter or set GH_AW_FEATURES=sandbox-runtime")
 		}
 
