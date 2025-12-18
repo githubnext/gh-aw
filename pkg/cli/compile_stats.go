@@ -13,14 +13,14 @@ import (
 
 // WorkflowStats holds statistics about a compiled workflow
 type WorkflowStats struct {
-	Workflow     string
-	FileSize     int64
-	Jobs         int
-	Steps        int
-	ScriptCount  int
-	ScriptSize   int
-	ShellCount   int
-	ShellSize    int
+	Workflow    string
+	FileSize    int64
+	Jobs        int
+	Steps       int
+	ScriptCount int
+	ScriptSize  int
+	ShellCount  int
+	ShellSize   int
 }
 
 // collectWorkflowStats parses a lock file and collects statistics
