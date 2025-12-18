@@ -1,30 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-// Mock the global objects that GitHub Actions provides
 const mockCore = {
-    // Core logging functions
     debug: vi.fn(),
     info: vi.fn(),
     notice: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
-    // Core workflow functions
     setFailed: vi.fn(),
     setOutput: vi.fn(),
     exportVariable: vi.fn(),
     setSecret: vi.fn(),
-    // Input/state functions (less commonly used but included for completeness)
     getInput: vi.fn(),
     getBooleanInput: vi.fn(),
     getMultilineInput: vi.fn(),
     getState: vi.fn(),
     saveState: vi.fn(),
-    // Group functions
     startGroup: vi.fn(),
     endGroup: vi.fn(),
     group: vi.fn(),
-    // Other utility functions
     addPath: vi.fn(),
     setCommandEcho: vi.fn(),
     isDebug: vi.fn().mockReturnValue(!1),
@@ -32,29 +26,19 @@ const mockCore = {
     toPlatformPath: vi.fn(),
     toPosixPath: vi.fn(),
     toWin32Path: vi.fn(),
-    // Summary object with chainable methods
     summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
   },
   mockGithub = { rest: { repos: { getCollaboratorPermissionLevel: vi.fn(), listCollaborators: vi.fn() }, users: { getByUsername: vi.fn() } } },
   mockContext = { actor: "test-user", repo: { owner: "test-owner", repo: "test-repo" }, eventName: "issues", payload: {} };
-// Set up global variables
 ((global.core = mockCore),
   (global.github = mockGithub),
   (global.context = mockContext),
   describe("compute_text.cjs", () => {
     let computeTextScript, sanitizeIncomingTextFunction;
     (beforeEach(() => {
-      (vi.clearAllMocks(),
-        // Reset context
-        (mockContext.eventName = "issues"),
-        (mockContext.payload = {}),
-        // Reset environment variables
-        delete process.env.GH_AW_ALLOWED_DOMAINS);
-      // Read the script content
+      (vi.clearAllMocks(), (mockContext.eventName = "issues"), (mockContext.payload = {}), delete process.env.GH_AW_ALLOWED_DOMAINS);
       const scriptPath = path.join(process.cwd(), "compute_text.cjs");
       computeTextScript = fs.readFileSync(scriptPath, "utf8");
-      // Extract sanitizeIncomingText function for unit testing
-      // We need to eval the script to get access to the function
       const scriptWithExport = computeTextScript.replace("await main();", "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;");
       (eval(scriptWithExport), (sanitizeIncomingTextFunction = global.testSanitizeIncomingText));
     }),
@@ -80,15 +64,11 @@ const mockCore = {
           }),
           it("should handle self-closing XML tags without whitespace", () => {
             const result = sanitizeIncomingTextFunction('Self-closing: <br/> <img src="test.jpg"/> <meta charset="utf-8"/>');
-            (expect(result).toContain("<br/>"), // br is allowed
-              expect(result).toContain('(img src="test.jpg"/)'),
-              expect(result).toContain('(meta charset="utf-8"/)'));
+            (expect(result).toContain("<br/>"), expect(result).toContain('(img src="test.jpg"/)'), expect(result).toContain('(meta charset="utf-8"/)'));
           }),
           it("should handle self-closing XML tags with whitespace", () => {
             const result = sanitizeIncomingTextFunction('With spaces: <br /> <img src="test.jpg" /> <meta charset="utf-8" />');
-            (expect(result).toContain("<br />"), // br is allowed
-              expect(result).toContain('(img src="test.jpg" /)'),
-              expect(result).toContain('(meta charset="utf-8" /)'));
+            (expect(result).toContain("<br />"), expect(result).toContain('(img src="test.jpg" /)'), expect(result).toContain('(meta charset="utf-8" /)'));
           }),
           it("should handle XML tags with various whitespace patterns", () => {
             const result = sanitizeIncomingTextFunction('Various: <div\tclass="test">content</div> <span\n  id="test">text</span>');
@@ -108,17 +88,16 @@ const mockCore = {
           }),
           it("should truncate long content", () => {
             const longContent = "a".repeat(6e5),
-              result = sanitizeIncomingTextFunction(longContent); // Exceed 524288 limit
+              result = sanitizeIncomingTextFunction(longContent);
             (expect(result.length).toBeLessThan(6e5), expect(result).toContain("[Content truncated due to length]"));
           }),
           it("should truncate too many lines", () => {
             const manyLines = Array(7e4).fill("line").join("\n"),
-              result = sanitizeIncomingTextFunction(manyLines); // Exceed 65000 limit
+              result = sanitizeIncomingTextFunction(manyLines);
             (expect(result.split("\n").length).toBeLessThan(7e4), expect(result).toContain("[Content truncated due to line count]"));
           }),
           it("should remove ANSI escape sequences", () => {
             const result = sanitizeIncomingTextFunction("Hello [31mred[0m world");
-            // ANSI sequences should be removed, allowing for possible differences in regex matching
             (expect(result).toMatch(/Hello.*red.*world/), expect(result).not.toMatch(/\u001b\[/));
           }),
           it("should respect custom allowed domains", () => {
@@ -130,72 +109,7 @@ const mockCore = {
       describe("main function", () => {
         let testMain;
         (beforeEach(() => {
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
-          // Set up default successful permission check
           (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
-            // Set up default collaborators list (team members)
             mockGithub.rest.repos.listCollaborators.mockResolvedValue({
               data: [
                 { login: "team-member-1", type: "User", permissions: { push: !1, admin: !1, maintain: !0 } },
@@ -203,7 +117,6 @@ const mockCore = {
                 { login: "dependabot", type: "Bot", permissions: { push: !0, admin: !1, maintain: !1 } },
               ],
             }),
-            // Get the main function from global scope
             (testMain = global.testMain));
         }),
           it("should extract text from issue payload", async () => {
@@ -258,11 +171,7 @@ const mockCore = {
             (expect(outputCall[1]).toContain("`@user`"), expect(outputCall[1]).toContain("`fixes #123`"), expect(outputCall[1]).toContain("(redacted)"));
           }),
           it("should handle missing title and body gracefully", async () => {
-            ((mockContext.eventName = "issues"),
-              (mockContext.payload = { issue: {} }),
-              await testMain(),
-              // Since empty strings get sanitized/trimmed, expect empty string
-              expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""));
+            ((mockContext.eventName = "issues"), (mockContext.payload = { issue: {} }), await testMain(), expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""));
           }),
           it("should handle null values in payload", async () => {
             ((mockContext.eventName = "issue_comment"), (mockContext.payload = { comment: { body: null } }), await testMain(), expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""));
@@ -270,37 +179,31 @@ const mockCore = {
           it("should neutralize all mentions including issue author", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test Issue by @issueAuthor", body: "Body mentioning @issueAuthor and @other", user: { login: "issueAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized (mention filtering is done by output collector, not compute_text)
             (expect(outputCall[1]).toContain("`@issueAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should neutralize all mentions including PR author", async () => {
             ((mockContext.eventName = "pull_request"), (mockContext.payload = { pull_request: { title: "PR by @prAuthor", body: "Mentioning @prAuthor", user: { login: "prAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@prAuthor`");
           }),
           it("should neutralize all mentions including comment author", async () => {
             ((mockContext.eventName = "issue_comment"), (mockContext.payload = { comment: { body: "Comment by @commentAuthor mentioning @commentAuthor", user: { login: "commentAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@commentAuthor`");
           }),
           it("should neutralize all mentions including discussion author", async () => {
             ((mockContext.eventName = "discussion"), (mockContext.payload = { discussion: { title: "Discussion by @discussionAuthor", body: "Body with @discussionAuthor", user: { login: "discussionAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@discussionAuthor`");
           }),
           it("should neutralize all mentions including release author", async () => {
             ((mockContext.eventName = "release"), (mockContext.payload = { release: { name: "Release by @releaseAuthor", body: "Notes mentioning @releaseAuthor", author: { login: "releaseAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@releaseAuthor`");
           }),
           it("should neutralize all mentions regardless of case", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @AUTHOR", body: "Body with @author", user: { login: "Author" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized regardless of case
             (expect(outputCall[1]).toContain("`@AUTHOR`"), expect(outputCall[1]).toContain("`@author`"));
           }),
           it("should neutralize all mentions including comment and issue authors", async () => {
@@ -308,7 +211,6 @@ const mockCore = {
               (mockContext.payload = { comment: { body: "Mentioning @commentAuthor and @issueAuthor and @other", user: { login: "commentAuthor" } }, issue: { user: { login: "issueAuthor" } } }),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@commentAuthor`"), expect(outputCall[1]).toContain("`@issueAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should neutralize all mentions including review comment and PR authors", async () => {
@@ -316,7 +218,6 @@ const mockCore = {
               (mockContext.payload = { comment: { body: "Mentioning @reviewCommentAuthor and @prAuthor and @other", user: { login: "reviewCommentAuthor" } }, pull_request: { user: { login: "prAuthor" } } }),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@reviewCommentAuthor`"), expect(outputCall[1]).toContain("`@prAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should neutralize all mentions including review and PR authors", async () => {
@@ -324,7 +225,6 @@ const mockCore = {
               (mockContext.payload = { review: { body: "Mentioning @reviewAuthor and @prAuthor and @other", user: { login: "reviewAuthor" } }, pull_request: { user: { login: "prAuthor" } } }),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@reviewAuthor`"), expect(outputCall[1]).toContain("`@prAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should neutralize all mentions including comment and discussion authors", async () => {
@@ -332,43 +232,32 @@ const mockCore = {
               (mockContext.payload = { comment: { body: "Mentioning @commentAuthor and @discussionAuthor and @other", user: { login: "commentAuthor" } }, discussion: { user: { login: "discussionAuthor" } } }),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@commentAuthor`"), expect(outputCall[1]).toContain("`@discussionAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should neutralize all mentions including workflow_dispatch actor", async () => {
             ((mockContext.actor = "dispatchActor"),
               (mockContext.eventName = "workflow_dispatch"),
               (mockContext.payload = { inputs: { release_id: "12345" } }),
-              // Mock the release fetch
               (mockGithub.rest.repos.getRelease = vi.fn().mockResolvedValue({ data: { name: "v1.0.0", body: "Release by @dispatchActor and @releaseAuthor and @other", author: { login: "releaseAuthor" } } })),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@dispatchActor`"), expect(outputCall[1]).toContain("`@releaseAuthor`"), expect(outputCall[1]).toContain("`@other`"));
           }),
           it("should handle workflow_dispatch without release inputs", async () => {
-            ((mockContext.actor = "dispatchActor"),
-              (mockContext.eventName = "workflow_dispatch"),
-              (mockContext.payload = { inputs: {} }),
-              await testMain(),
-              // Should produce empty text but not error
-              expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""));
+            ((mockContext.actor = "dispatchActor"), (mockContext.eventName = "workflow_dispatch"), (mockContext.payload = { inputs: {} }), await testMain(), expect(mockCore.setOutput).toHaveBeenCalledWith("text", ""));
           }),
           it("should neutralize all mentions in workflow_dispatch with release_url", async () => {
             ((mockContext.actor = "dispatchActor"),
               (mockContext.eventName = "workflow_dispatch"),
               (mockContext.payload = { inputs: { release_url: "https://github.com/test-owner/test-repo/releases/tag/v1.0.0" } }),
-              // Mock the release fetch by tag
               (mockGithub.rest.repos.getReleaseByTag = vi.fn().mockResolvedValue({ data: { name: "v1.0.0", body: "Release notes mentioning @dispatchActor", author: { login: "releaseAuthor" } } })),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@dispatchActor`");
           }),
           it("should neutralize bot authors like any other mention", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @botUser", body: "Body mentioning @botUser", user: { login: "botUser", type: "Bot" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@botUser`");
           }),
           it("should neutralize all mentions including team members", async () => {
@@ -376,18 +265,15 @@ const mockCore = {
               (mockContext.payload = { issue: { title: "Test @team-member-1 and @team-member-2", body: "Body mentioning @team-member-1 and @team-member-2", user: { login: "issueAuthor" } } }),
               await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             (expect(outputCall[1]).toContain("`@team-member-1`"), expect(outputCall[1]).toContain("`@team-member-2`"));
           }),
           it("should neutralize bot team members like any other mention", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @dependabot", body: "Body mentioning @dependabot", user: { login: "issueAuthor" } } }), await testMain());
             const outputCall = mockCore.setOutput.mock.calls[0];
-            // All mentions should be neutralized
             expect(outputCall[1]).toContain("`@dependabot`");
           }),
           it("should not log allowed mentions (mentions not resolved in compute_text)", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @team-member-1 and @issueAuthor", body: "Body mentioning @team-member-2", user: { login: "issueAuthor" } } }), await testMain());
-            // Check that allowed mentions were NOT logged (mention resolution moved to output collector)
             const allowedMentionsLog = mockCore.info.mock.calls.map(call => call[0]).find(msg => msg.includes("Allowed mentions"));
             expect(allowedMentionsLog).toBeUndefined();
           }),
@@ -405,15 +291,12 @@ const mockCore = {
                 },
               }),
               await testMain());
-            // Check that known authors were NOT logged (mention resolution moved to output collector)
             const knownAuthorsLog = mockCore.info.mock.calls.map(call => call[0]).find(msg => msg.includes("Known authors (from payload)"));
             expect(knownAuthorsLog).toBeUndefined();
           }),
           it("should log escaped mentions", async () => {
             ((mockContext.eventName = "issues"), (mockContext.payload = { issue: { title: "Test @unknown-user", body: "Body mentioning @team-member-1", user: { login: "issueAuthor" } } }), await testMain());
-            // Check that escaped mentions were logged
             const escapedMentionLogs = mockCore.info.mock.calls.map(call => call[0]).filter(msg => msg.includes("Escaped mention"));
-            // Should have logged both mentions as escaped
             expect(escapedMentionLogs.length).toBeGreaterThanOrEqual(2);
             const allEscapedMentions = escapedMentionLogs.join(" ");
             (expect(allEscapedMentions).toContain("@unknown-user"), expect(allEscapedMentions).toContain("@team-member-1"));
@@ -422,9 +305,7 @@ const mockCore = {
             ((mockContext.eventName = "issues"),
               (mockContext.payload = { issue: { title: "Test @issueAuthor", body: "Body", user: { login: "issueAuthor" } } }),
               await testMain(),
-              // listCollaborators should NOT be called (mention resolution moved to output collector)
               expect(mockGithub.rest.repos.listCollaborators).not.toHaveBeenCalled(),
-              // Should still set output with issue text
               expect(mockCore.setOutput).toHaveBeenCalledWith("text", expect.any(String)));
           }));
       }));

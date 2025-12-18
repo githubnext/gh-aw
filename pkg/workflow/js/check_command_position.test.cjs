@@ -1,30 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-// Mock the global objects that GitHub Actions provides
 const mockCore = {
-    // Core logging functions
     debug: vi.fn(),
     info: vi.fn(),
     notice: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
-    // Core workflow functions
     setFailed: vi.fn(),
     setOutput: vi.fn(),
     exportVariable: vi.fn(),
     setSecret: vi.fn(),
-    // Input/state functions
     getInput: vi.fn(),
     getBooleanInput: vi.fn(),
     getMultilineInput: vi.fn(),
     getState: vi.fn(),
     saveState: vi.fn(),
-    // Group functions
     startGroup: vi.fn(),
     endGroup: vi.fn(),
     group: vi.fn(),
-    // Other utility functions
     addPath: vi.fn(),
     setCommandEcho: vi.fn(),
     isDebug: vi.fn().mockReturnValue(!1),
@@ -32,28 +26,19 @@ const mockCore = {
     toPlatformPath: vi.fn(),
     toPosixPath: vi.fn(),
     toWin32Path: vi.fn(),
-    // Summary object with chainable methods
     summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
   },
   mockContext = { eventName: "issues", payload: {}, runId: 12345, repo: { owner: "testowner", repo: "testrepo" } };
-// Set up global variables
 ((global.core = mockCore),
   (global.context = mockContext),
   describe("check_command_position.cjs", () => {
     let checkCommandPositionScript, originalEnv;
     (beforeEach(() => {
-      (vi.clearAllMocks(),
-        // Store original environment
-        (originalEnv = { GH_AW_COMMAND: process.env.GH_AW_COMMAND }));
-      // Load the script
+      (vi.clearAllMocks(), (originalEnv = { GH_AW_COMMAND: process.env.GH_AW_COMMAND }));
       const scriptPath = path.join(__dirname, "check_command_position.cjs");
-      ((checkCommandPositionScript = fs.readFileSync(scriptPath, "utf8")),
-        // Reset context
-        (mockContext.eventName = "issues"),
-        (mockContext.payload = {}));
+      ((checkCommandPositionScript = fs.readFileSync(scriptPath, "utf8")), (mockContext.eventName = "issues"), (mockContext.payload = {}));
     }),
       afterEach(() => {
-        // Restore original environment
         void 0 !== originalEnv.GH_AW_COMMAND ? (process.env.GH_AW_COMMAND = originalEnv.GH_AW_COMMAND) : delete process.env.GH_AW_COMMAND;
       }),
       it("should fail when GH_AW_COMMAND is not set", async () => {

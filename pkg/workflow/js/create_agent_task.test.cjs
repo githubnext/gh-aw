@@ -3,76 +3,10 @@ import fs from "fs";
 describe("create_agent_task.cjs", () => {
   let mockCore, mockExec, testOutputFile;
   (beforeEach(() => {
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
-    // Mock core actions methods
     ((mockCore = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } }),
-      // Mock exec
       (mockExec = { exec: vi.fn().mockResolvedValue(0) }),
       (global.core = mockCore),
       (global.exec = mockExec),
-      // Create test output file
       (testOutputFile = `/tmp/test_agent_output_${Date.now()}.json`));
   }),
     afterEach(() => {
@@ -83,7 +17,6 @@ describe("create_agent_task.cjs", () => {
         delete process.env.GITHUB_AW_AGENT_TASK_BASE,
         delete process.env.GITHUB_AW_TARGET_REPO,
         delete process.env.GITHUB_REPOSITORY,
-        // Clean up test file
         fs.existsSync(testOutputFile) && fs.unlinkSync(testOutputFile));
     }));
   const createAgentOutput = items => {
@@ -92,18 +25,11 @@ describe("create_agent_task.cjs", () => {
     },
     runScript = async () => {
       ((global.core = mockCore), (global.exec = mockExec));
-      // Import and execute the script
       const scriptPath = require("path").join(process.cwd(), "create_agent_task.cjs");
-      // Clear the module cache to ensure fresh execution
       delete require.cache[require.resolve(scriptPath)];
-      // The script calls main() at the end, so just requiring it will run it
       try {
-        (require(scriptPath),
-          // Wait longer for async operations to complete
-          await new Promise(resolve => setTimeout(resolve, 50)));
-      } catch (error) {
-        // Errors are handled by the script via core.setFailed
-      }
+        (require(scriptPath), await new Promise(resolve => setTimeout(resolve, 50)));
+      } catch (error) {}
     };
   (describe("basic functionality", () => {
     (it("should handle missing environment variable", async () => {
@@ -181,70 +107,6 @@ describe("create_agent_task.cjs", () => {
     }),
     describe("output initialization", () => {
       it("should initialize outputs to empty strings", async () => {
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
-        // Even without any agent output, outputs should be initialized
         (delete process.env.GITHUB_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("task_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("task_url", ""));
       });
     }),
@@ -270,8 +132,6 @@ describe("create_agent_task.cjs", () => {
             createAgentOutput([{ type: "create_agent_task", body: "Test" }]),
             await runScript());
           const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          // Note: In staged mode, GITHUB_REF_NAME is not used as fallback - it only uses GITHUB_AW_AGENT_TASK_BASE or "main"
-          // This is different from the actual creation mode which does use GITHUB_REF_NAME as fallback
           expect(summaryCall[0]).toContain("**Base Branch:** main");
         }));
     }));

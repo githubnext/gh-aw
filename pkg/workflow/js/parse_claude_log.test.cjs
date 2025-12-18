@@ -6,32 +6,25 @@ describe("parse_claude_log.cjs", () => {
   (beforeEach(() => {
     ((originalConsole = global.console),
       (originalProcess = { ...process }),
-      // Mock console methods
       (global.console = { log: vi.fn(), error: vi.fn() }),
-      // Mock core actions methods
       (mockCore = {
-        // Core logging functions
         debug: vi.fn(),
         info: vi.fn(),
         notice: vi.fn(),
         warning: vi.fn(),
         error: vi.fn(),
-        // Core workflow functions
         setFailed: vi.fn(),
         setOutput: vi.fn(),
         exportVariable: vi.fn(),
         setSecret: vi.fn(),
-        // Input/state functions
         getInput: vi.fn(),
         getBooleanInput: vi.fn(),
         getMultilineInput: vi.fn(),
         getState: vi.fn(),
         saveState: vi.fn(),
-        // Group functions
         startGroup: vi.fn(),
         endGroup: vi.fn(),
         group: vi.fn(),
-        // Other utility functions
         addPath: vi.fn(),
         setCommandEcho: vi.fn(),
         isDebug: vi.fn().mockReturnValue(!1),
@@ -39,11 +32,9 @@ describe("parse_claude_log.cjs", () => {
         toPlatformPath: vi.fn(),
         toPosixPath: vi.fn(),
         toWin32Path: vi.fn(),
-        // Summary object with chainable methods
         summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
       }),
       (global.core = mockCore),
-      // Mock require
       (global.require = vi.fn().mockImplementation(module => {
         if ("fs" === module) return fs;
         if ("@actions/core" === module) return mockCore;
@@ -51,99 +42,24 @@ describe("parse_claude_log.cjs", () => {
         if ("./log_parser_shared.cjs" === module) return require("./log_parser_shared.cjs");
         throw new Error(`Module not found: ${module}`);
       })));
-    // Read the script file
     const scriptPath = path.join(__dirname, "parse_claude_log.cjs");
     parseClaudeLogScript = fs.readFileSync(scriptPath, "utf8");
   }),
     afterEach(() => {
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      // Clean up environment variables
-      (delete process.env.GH_AW_AGENT_OUTPUT,
-        // Restore originals
-        (global.console = originalConsole),
-        (process.env = originalProcess.env),
-        // Clean up globals
-        delete global.core,
-        delete global.require);
+      (delete process.env.GH_AW_AGENT_OUTPUT, (global.console = originalConsole), (process.env = originalProcess.env), delete global.core, delete global.require);
     }));
   const runScript = async logContent => {
-      // Create a temporary log file
       const tempFile = path.join(process.cwd(), `test_log_${Date.now()}.txt`);
       (fs.writeFileSync(tempFile, logContent), (process.env.GH_AW_AGENT_OUTPUT = tempFile));
       try {
-        // Create a new function context to execute the script
         const scriptWithExports = parseClaudeLogScript.replace("main();", "global.testParseClaudeLog = parseClaudeLog; global.testMain = main; main();"),
           scriptFunction = new Function(scriptWithExports);
         await scriptFunction();
       } finally {
-        // Clean up temp file
         fs.existsSync(tempFile) && fs.unlinkSync(tempFile);
       }
     },
     extractParseFunction = () => {
-      // Extract just the parseClaudeLog function for unit testing
       const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testParseClaudeLog = parseClaudeLog;");
       return (new Function(scriptWithExport)(), global.testParseClaudeLog);
     };
@@ -266,11 +182,7 @@ describe("parse_claude_log.cjs", () => {
             { type: "system", subtype: "init", session_id: "test-long-stderr", tools: ["Bash"], mcp_servers: [{ name: "verbose_failure", status: "failed", stderr: longStderr }], model: "claude-sonnet-4-20250514" },
           ]),
           result = parseClaudeLog(logWithLongStderr);
-        (expect(result.markdown).toContain("verbose_failure (failed)"),
-          expect(result.markdown).toContain("**Stderr:**"),
-          // Should be truncated to 500 chars plus "..."
-          expect(result.markdown).toMatch(/Stderr:.*x{500}\.\.\./),
-          expect(result.mcpFailures).toEqual(["verbose_failure"]));
+        (expect(result.markdown).toContain("verbose_failure (failed)"), expect(result.markdown).toContain("**Stderr:**"), expect(result.markdown).toMatch(/Stderr:.*x{500}\.\.\./), expect(result.mcpFailures).toEqual(["verbose_failure"]));
       }),
       it("should handle MCP server failures with partial error information", () => {
         const logWithPartialInfo = JSON.stringify([
@@ -344,7 +256,6 @@ describe("parse_claude_log.cjs", () => {
         (expect(result.markdown).toContain("github::create_issue"), expect(result.markdown).toContain("safe_outputs::missing-tool"), expect(result.mcpFailures).toEqual([]));
       }),
       it("should detect when max-turns limit is hit", () => {
-        // Set the environment variable for max-turns
         process.env.GH_AW_MAX_TURNS = "5";
         const logWithMaxTurns = JSON.stringify([
             { type: "system", subtype: "init", session_id: "test-789", tools: ["Bash"], model: "claude-sonnet-4-20250514" },
@@ -352,10 +263,7 @@ describe("parse_claude_log.cjs", () => {
             { type: "result", total_cost_usd: 0.05, usage: { input_tokens: 500, output_tokens: 200 }, num_turns: 5 },
           ]),
           result = parseClaudeLog(logWithMaxTurns);
-        (expect(result.markdown).toContain("**Turns:** 5"),
-          expect(result.maxTurnsHit).toBe(!0),
-          // Clean up
-          delete process.env.GH_AW_MAX_TURNS);
+        (expect(result.markdown).toContain("**Turns:** 5"), expect(result.maxTurnsHit).toBe(!0), delete process.env.GH_AW_MAX_TURNS);
       }),
       it("should not flag max-turns when turns is less than limit", () => {
         process.env.GH_AW_MAX_TURNS = "10";
@@ -364,10 +272,7 @@ describe("parse_claude_log.cjs", () => {
             { type: "result", total_cost_usd: 0.01, usage: { input_tokens: 100, output_tokens: 50 }, num_turns: 3 },
           ]),
           result = parseClaudeLog(logBelowMaxTurns);
-        (expect(result.markdown).toContain("**Turns:** 3"),
-          expect(result.maxTurnsHit).toBe(!1),
-          // Clean up
-          delete process.env.GH_AW_MAX_TURNS);
+        (expect(result.markdown).toContain("**Turns:** 3"), expect(result.maxTurnsHit).toBe(!1), delete process.env.GH_AW_MAX_TURNS);
       }),
       it("should not flag max-turns when environment variable is not set", () => {
         const logWithoutMaxTurnsEnv = JSON.stringify([
@@ -385,13 +290,8 @@ describe("parse_claude_log.cjs", () => {
           { type: "result", total_cost_usd: 0.001, usage: { input_tokens: 50, output_tokens: 25 }, num_turns: 1 },
         ]);
         (await runScript(validLog), expect(mockCore.summary.addRaw).toHaveBeenCalled(), expect(mockCore.summary.write).toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
-        // Check that Copilot CLI style markdown was added to summary
         const markdownCall = mockCore.summary.addRaw.mock.calls[0];
-        (expect(markdownCall[0]).toContain("```"),
-          expect(markdownCall[0]).toContain("Conversation:"),
-          expect(markdownCall[0]).toContain("Statistics:"),
-          // Verify that core.info was called with plain text summary (contains parser name and model info)
-          expect(mockCore.info).toHaveBeenCalled());
+        (expect(markdownCall[0]).toContain("```"), expect(markdownCall[0]).toContain("Conversation:"), expect(markdownCall[0]).toContain("Statistics:"), expect(mockCore.info).toHaveBeenCalled());
         const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== Claude Execution Summary ==="));
         (expect(infoCall).toBeDefined(), expect(infoCall[0]).toContain("Model: claude-sonnet-4-20250514"));
       }),
@@ -424,18 +324,15 @@ describe("parse_claude_log.cjs", () => {
             expect(mockCore.summary.addRaw).toHaveBeenCalled(),
             expect(mockCore.summary.write).toHaveBeenCalled(),
             expect(mockCore.setFailed).toHaveBeenCalledWith("Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully."),
-            // Clean up
             delete process.env.GH_AW_MAX_TURNS);
         }),
         it("should handle missing log file", async () => {
           process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.log";
-          // Extract main function and run it directly
           const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");
           (new Function(scriptWithExport)(), await global.testMain(), expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /nonexistent/file.log"), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
         it("should handle missing environment variable", async () => {
           delete process.env.GH_AW_AGENT_OUTPUT;
-          // Extract main function and run it directly
           const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");
           (new Function(scriptWithExport)(), await global.testMain(), expect(mockCore.info).toHaveBeenCalledWith("No agent log file specified"), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }));
@@ -443,15 +340,12 @@ describe("parse_claude_log.cjs", () => {
     describe("helper function tests", () => {
       (it("should format bash commands correctly", () => {
         const result = extractParseFunction()(JSON.stringify([{ type: "assistant", message: { content: [{ type: "tool_use", id: "tool_1", name: "Bash", input: { command: "echo 'hello world'\n  && ls -la\n  && pwd" } }] } }]));
-        // Test with the parseClaudeLog function to access formatBashCommand indirectly
-        // Check that multi-line commands are normalized to single line
         expect(result.markdown).toContain("echo 'hello world' && ls -la && pwd");
       }),
         it("should truncate long strings appropriately", () => {
           const parseClaudeLog = extractParseFunction(),
             longCommand = "a".repeat(400),
             result = parseClaudeLog(JSON.stringify([{ type: "assistant", message: { content: [{ type: "tool_use", id: "tool_1", name: "Bash", input: { command: longCommand } }] } }]));
-          // Should truncate and add ellipsis
           expect(result.markdown).toContain("...");
         }),
         it("should format MCP tool names correctly", () => {
@@ -477,16 +371,12 @@ describe("parse_claude_log.cjs", () => {
               },
             ])
           );
-          // Should contain HTML details tag
           (expect(result.markdown).toContain("<details>"),
             expect(result.markdown).toContain("<summary>"),
             expect(result.markdown).toContain("</summary>"),
             expect(result.markdown).toContain("</details>"),
-            // Summary should contain the tool description and command
             expect(result.markdown).toContain("List files: <code>ls -la</code>"),
-            // Should contain token estimate
             expect(result.markdown).toMatch(/~\d+t/),
-            // Details should contain the output in a code block
             expect(result.markdown).toContain("```"),
             expect(result.markdown).toContain("total 48"),
             expect(result.markdown).toContain("file1.txt"));
@@ -498,10 +388,7 @@ describe("parse_claude_log.cjs", () => {
               { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tool_1", content: "Issue created successfully with number 123", is_error: !1 }] } },
             ])
           );
-          // Should contain token estimate with ~Xt format
-          (expect(result.markdown).toMatch(/~\d+t/),
-            // Should contain the MCP tool name
-            expect(result.markdown).toContain("github::create_issue"));
+          (expect(result.markdown).toMatch(/~\d+t/), expect(result.markdown).toContain("github::create_issue"));
         }),
         it("should include duration when available in tool_result", () => {
           const result = extractParseFunction()(
@@ -510,10 +397,7 @@ describe("parse_claude_log.cjs", () => {
               { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tool_1", content: "", is_error: !1, duration_ms: 2500 }] } },
             ])
           );
-          // Should contain duration in seconds (2500ms rounds to 3s)
-          (expect(result.markdown).toMatch(/<code>\d+s<\/code>/),
-            // Should also contain token estimate
-            expect(result.markdown).toMatch(/~\d+t/));
+          (expect(result.markdown).toMatch(/<code>\d+s<\/code>/), expect(result.markdown).toMatch(/~\d+t/));
         }),
         it("should truncate long tool outputs", () => {
           const parseClaudeLog = extractParseFunction(),
@@ -524,10 +408,7 @@ describe("parse_claude_log.cjs", () => {
                 { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tool_1", content: longOutput, is_error: !1 }] } },
               ])
             );
-          // Should truncate with ellipsis
-          (expect(result.markdown).toContain("..."),
-            // Should not contain the full output
-            expect(result.markdown).not.toContain("x".repeat(600)));
+          (expect(result.markdown).toContain("..."), expect(result.markdown).not.toContain("x".repeat(600)));
         }),
         it("should show summary only when no tool output", () => {
           const result = extractParseFunction()(
@@ -536,10 +417,7 @@ describe("parse_claude_log.cjs", () => {
               { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tool_1", content: "", is_error: !1 }] } },
             ])
           );
-          // Should not contain details tag when there's no output
-          (expect(result.markdown).not.toContain("<details>"),
-            // Should still contain the summary line
-            expect(result.markdown).toContain("mkdir test_dir"));
+          (expect(result.markdown).not.toContain("<details>"), expect(result.markdown).toContain("mkdir test_dir"));
         }),
         it("should display all tools even when there are many (more than 5)", () => {
           const result = extractParseFunction()(
@@ -570,8 +448,6 @@ describe("parse_claude_log.cjs", () => {
               },
             ])
           );
-          // Create a log with many GitHub tools (more than 5 to test the display logic)
-          // Verify all GitHub tools are shown (not just first 3 with "and X more")
           (expect(result.markdown).toContain("github::create_issue"),
             expect(result.markdown).toContain("github::list_issues"),
             expect(result.markdown).toContain("github::get_issue"),
@@ -580,19 +456,15 @@ describe("parse_claude_log.cjs", () => {
             expect(result.markdown).toContain("github::get_pull_request"),
             expect(result.markdown).toContain("github::create_discussion"),
             expect(result.markdown).toContain("github::list_discussions"),
-            // Verify safe_outputs tools are shown (without prefix, in Safe Outputs category)
             expect(result.markdown).toContain("**Safe Outputs:**"),
             expect(result.markdown).toContain("create_issue"),
             expect(result.markdown).toContain("add-comment"),
-            // Verify file operations are shown
             expect(result.markdown).toContain("Read"),
             expect(result.markdown).toContain("Write"),
             expect(result.markdown).toContain("Edit"),
             expect(result.markdown).toContain("LS"),
             expect(result.markdown).toContain("Grep"),
-            // Verify Bash is shown
             expect(result.markdown).toContain("Bash"));
-          // Ensure we don't have "and X more" text in the tools list (the pattern used to truncate tool lists)
           const toolsSection = result.markdown.split("## 🤖 Reasoning")[0];
           expect(toolsSection).not.toMatch(/and \d+ more/);
         }));

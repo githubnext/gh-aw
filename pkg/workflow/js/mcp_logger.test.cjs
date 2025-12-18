@@ -1,17 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createLogger } from "./mcp_logger.cjs";
-/**
- * Unit tests for mcp_logger.cjs
- *
- * These tests validate the logger creation and functionality.
- */ describe("mcp_logger.cjs", () => {
+describe("mcp_logger.cjs", () => {
   let stderrSpy;
   (beforeEach(() => {
-    // Spy on stderr write
     stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => !0);
   }),
     afterEach(() => {
-      // Restore stderr
       stderrSpy.mockRestore();
     }),
     describe("createLogger", () => {
@@ -38,10 +32,7 @@ import { createLogger } from "./mcp_logger.cjs";
         it("should log error stack trace if available", () => {
           const logger = createLogger("test-server"),
             error = new Error("Test error");
-          (logger.debugError("Error: ", error),
-            expect(stderrSpy).toHaveBeenCalled(),
-            // First call is the error message, second call is the stack trace
-            expect(stderrSpy.mock.calls.length).toBeGreaterThanOrEqual(2));
+          (logger.debugError("Error: ", error), expect(stderrSpy).toHaveBeenCalled(), expect(stderrSpy.mock.calls.length).toBeGreaterThanOrEqual(2));
           const stackOutput = stderrSpy.mock.calls[1][0];
           expect(stackOutput).toContain("Stack trace:");
         }),

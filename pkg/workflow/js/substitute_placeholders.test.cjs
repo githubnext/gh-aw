@@ -1,6 +1,3 @@
-/**
- * @fileoverview Tests for substitute_placeholders.cjs
- */
 const fs = require("fs"),
   os = require("os"),
   path = require("path"),
@@ -8,137 +5,9 @@ const fs = require("fs"),
 describe("substitutePlaceholders", () => {
   let tempDir, testFile;
   (beforeEach(() => {
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
-    // Create a temporary directory and file for testing
     ((tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "substitute-test-"))), (testFile = path.join(tempDir, "test.txt")));
   }),
     afterEach(() => {
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
-      // Clean up
       (fs.existsSync(testFile) && fs.unlinkSync(testFile), fs.existsSync(tempDir) && fs.rmdirSync(tempDir));
     }),
     it("should substitute a single placeholder", async () => {
@@ -154,7 +23,6 @@ describe("substitutePlaceholders", () => {
     it("should handle special characters safely", async () => {
       (fs.writeFileSync(testFile, "Command: __CMD__", "utf8"), await substitutePlaceholders({ file: testFile, substitutions: { CMD: "$(malicious) `backdoor` ${VAR} | pipe" } }));
       const content = fs.readFileSync(testFile, "utf8");
-      // All special characters should be preserved as-is
       expect(content).toBe("Command: $(malicious) `backdoor` ${VAR} | pipe");
     }),
     it("should handle placeholders appearing multiple times", async () => {

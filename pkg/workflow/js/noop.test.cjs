@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 describe("noop", () => {
   let mockCore, noopScript, tempFilePath;
-  // Helper function to set agent output via file
   const setAgentOutput = data => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = "string" == typeof data ? data : JSON.stringify(data);
@@ -11,18 +10,12 @@ describe("noop", () => {
   };
   (beforeEach(() => {
     ((mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), exportVariable: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } }),
-      // Set up global mocks
       (global.core = mockCore),
       (global.fs = fs));
-    // Read the script content
     const scriptPath = path.join(process.cwd(), "noop.cjs");
-    ((noopScript = fs.readFileSync(scriptPath, "utf8")),
-      // Reset environment variables
-      delete process.env.GH_AW_SAFE_OUTPUTS_STAGED,
-      delete process.env.GH_AW_AGENT_OUTPUT);
+    ((noopScript = fs.readFileSync(scriptPath, "utf8")), delete process.env.GH_AW_SAFE_OUTPUTS_STAGED, delete process.env.GH_AW_AGENT_OUTPUT);
   }),
     afterEach(() => {
-      // Clean up temporary file
       tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
     }),
     it("should handle empty agent output", async () => {
@@ -79,10 +72,7 @@ describe("noop", () => {
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: This is the only noop"));
     }),
     it("should handle missing agent output file", async () => {
-      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"),
-        await eval(`(async () => { ${noopScript} })()`),
-        // loadAgentOutput logs an error when file doesn't exist
-        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
+      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"), await eval(`(async () => { ${noopScript} })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
     }),
     it("should generate proper step summary format", async () => {
       (setAgentOutput({

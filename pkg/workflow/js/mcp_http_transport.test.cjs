@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { MCPServer, MCPHTTPTransport } from "./mcp_http_transport.cjs";
-/**
- * Unit tests for mcp_http_transport.cjs
- *
- * These tests validate the core MCP server and HTTP transport functionality
- * without requiring a full HTTP server setup.
- */ describe("mcp_http_transport.cjs", () => {
+describe("mcp_http_transport.cjs", () => {
   (describe("MCPServer", () => {
     (it("should create a server with basic info", () => {
       const server = new MCPServer({ name: "test-server", version: "1.0.0" }, { capabilities: { tools: {} } });

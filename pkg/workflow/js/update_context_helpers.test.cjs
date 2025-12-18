@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-// Import the functions to test
 const { isIssueContext, getIssueNumber, isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
 describe("update_context_helpers", () => {
   (describe("isIssueContext", () => {

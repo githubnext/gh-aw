@@ -8,17 +8,14 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
       expect(!0).toBe(!0);
     }),
       it("should detect when patch has content", () => {
-        // Test the logic for detecting non-empty patches
         const isEmpty = !"From 1234567890abcdef\nSubject: Test commit\n\ndiff --git a/file.txt b/file.txt".trim();
         expect(isEmpty).toBe(!1);
       }),
       it("should calculate patch size correctly", () => {
-        // Test patch size calculation
         const patchSize = Buffer.byteLength("test content", "utf8");
         expect(patchSize).toBe(12);
       }),
       it("should count patch lines correctly", () => {
-        // Test patch line counting
         const patchLines = "line 1\nline 2\nline 3".split("\n").length;
         expect(patchLines).toBe(3);
       }),
@@ -36,14 +33,12 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
         }).toThrow("No changes to commit - patch is empty");
       }),
         it("should not throw error when patch generation succeeds", () => {
-          // Test successful case doesn't throw
           const patchResult = { success: !0, patchPath: "/tmp/gh-aw/aw.patch", patchSize: 1024, patchLines: 50 };
           expect(() => {
             if (!patchResult.success) throw new Error(patchResult.error || "Failed to generate patch");
           }).not.toThrow();
         }),
         it("should return success response with patch info", () => {
-          // Test successful response structure
           const response = { content: [{ type: "text", text: JSON.stringify({ result: "success", patch: { path: "/tmp/gh-aw/aw.patch", size: 1024, lines: 50 } }) }] };
           (expect(response.content).toHaveLength(1), expect(response.content[0].type).toBe("text"));
           const responseData = JSON.parse(response.content[0].text);
@@ -60,17 +55,14 @@ describe("safe_outputs_mcp_server.cjs - Patch Generation", () => {
           }));
       }),
         it("should validate patch path format", () => {
-          // Test patch path validation
           const patchPath = "/tmp/gh-aw/aw.patch";
           (expect(patchPath).toMatch(/^\/tmp\/gh-aw\//), expect(patchPath).toMatch(/\.patch$/), expect(path.dirname(patchPath)).toBe("/tmp/gh-aw"), expect(path.basename(patchPath)).toBe("aw.patch"));
         }),
         it("should construct git format-patch command correctly", () => {
-          // Test command construction
           const expectedCommand = "git format-patch origin/main..feature-branch --stdout";
           (expect(expectedCommand).toContain("git format-patch"), expect(expectedCommand).toContain("origin/main"), expect(expectedCommand).toContain("feature-branch"), expect(expectedCommand).toContain("--stdout"));
         }),
         it("should construct git rev-list command correctly", () => {
-          // Test commit count command construction
           const expectedCommand = "git rev-list --count main..HEAD";
           (expect(expectedCommand).toContain("git rev-list"), expect(expectedCommand).toContain("--count"), expect(expectedCommand).toContain("main"), expect(expectedCommand).toContain("HEAD"));
         }));

@@ -1,84 +1,16 @@
-// Tests for runtime_import.cjs
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-// Mock the core module
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-// Import the functions to test
 const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   (beforeEach(() => {
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
-    // Create a temporary directory for test files
     ((tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-import-test-"))), vi.clearAllMocks());
   }),
     afterEach(() => {
-      // Clean up temporary directory
       tempDir && fs.existsSync(tempDir) && fs.rmSync(tempDir, { recursive: !0, force: !0 });
     }),
     describe("hasFrontMatter", () => {
@@ -115,7 +47,6 @@ describe("runtime_import", () => {
           expect(removeXMLComments("No comments here")).toBe("No comments here");
         }),
         it("should handle nested-looking comments", () => {
-          // This should remove up to the first closing -->
           expect(removeXMLComments("\x3c!-- outer \x3c!-- inner --\x3e --\x3e")).toBe(" --\x3e");
         }),
         it("should handle empty content", () => {
@@ -305,7 +236,6 @@ describe("runtime_import", () => {
         it("should not process runtime-import as a substring", () => {
           const content = "text{{#runtime-importnospace.md}}text",
             result = processRuntimeImports(content, tempDir);
-          // Should not match because there's no space after runtime-import
           expect(result).toBe(content);
         }),
         it("should handle front matter with varying formats", () => {

@@ -1,4 +1,3 @@
-// Tests for render_template.cjs
 import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
@@ -7,16 +6,12 @@ const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename),
   core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary: { addHeading: vi.fn().mockReturnThis(), addRaw: vi.fn().mockReturnThis(), write: vi.fn() } };
 global.core = core;
-// Import the template renderer functions
 const renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
   isTruthyMatch = renderTemplateScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/),
   renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-// Extract the functions from the script
 if (!isTruthyMatch || !renderMarkdownTemplateMatch) throw new Error("Could not extract functions from render_template.cjs");
-// eslint-disable-next-line no-eval
 const isTruthy = eval(`(${isTruthyMatch[0]})`),
   renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
-// eslint-disable-next-line no-eval
 (describe("isTruthy", () => {
   (it("should return false for empty string", () => {
     expect(isTruthy("")).toBe(!1);
@@ -58,7 +53,6 @@ const isTruthy = eval(`(${isTruthyMatch[0]})`),
       }),
       it("should handle nested content", () => {
         const output = renderMarkdownTemplate("# Title\n\n{{#if true}}\n## Section 1\nThis should be kept.\n{{/if}}\n\n{{#if false}}\n## Section 2\nThis should be removed.\n{{/if}}\n\n## Section 3\nThis is always visible.");
-        // With empty line cleanup, we expect at most 2 consecutive newlines
         expect(output).toBe("# Title\n\n## Section 1\nThis should be kept.\n\n## Section 3\nThis is always visible.");
       }),
       it("should leave content without conditionals unchanged", () => {
@@ -80,13 +74,11 @@ const isTruthy = eval(`(${isTruthyMatch[0]})`),
         (expect(renderMarkdownTemplate("{{#if   true  }}\nKeep\n{{/if}}")).toBe("Keep\n"), expect(renderMarkdownTemplate("{{#if\ttrue\t}}\nKeep\n{{/if}}")).toBe("Keep\n"));
       }),
       it("should clean up multiple consecutive empty lines", () => {
-        // When a false block is removed, it should not leave more than 2 consecutive newlines
         const output = renderMarkdownTemplate("# Title\n\n{{#if false}}\n## Hidden Section\nThis should be removed.\n{{/if}}\n\n## Visible Section\nThis is always visible.");
         expect(output).toBe("# Title\n\n## Visible Section\nThis is always visible.");
       }),
       it("should collapse multiple false blocks without excessive empty lines", () => {
         const output = renderMarkdownTemplate("Start\n\n{{#if false}}\nBlock 1\n{{/if}}\n\n{{#if false}}\nBlock 2\n{{/if}}\n\n{{#if false}}\nBlock 3\n{{/if}}\n\nEnd");
-        // Should not have more than 2 consecutive newlines anywhere
         (expect(output).not.toMatch(/\n{3,}/), expect(output).toContain("Start"), expect(output).toContain("End"));
       }),
       it("should preserve leading spaces with truthy block", () => {
@@ -115,8 +107,6 @@ const isTruthy = eval(`(${isTruthyMatch[0]})`),
             "123"
           ),
           output = renderMarkdownTemplate(inputWithValue);
-        // Note: The expression would normally be evaluated before this step,
-        // so we test with a truthy value
         expect(output).toBe("# Analysis\n\n  ## Issue Analysis\n  \n  Analyzing issue #123\n  \n  - Check description\n  - Review labels\n\nContinue with other tasks");
       }),
       it("should preserve closing tag indentation", () => {
