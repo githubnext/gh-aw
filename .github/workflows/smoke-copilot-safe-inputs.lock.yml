@@ -26,8 +26,7 @@
 # ```yaml
 # description: Smoke Copilot Safe Inputs
 # on: 
-#   schedule:
-#     - cron: "0 0,7,13,19 * * *"  # Every 6 hours
+#   schedule: daily
 #   workflow_dispatch:
 #   pull_request:
 #     types: [labeled]
@@ -168,7 +167,7 @@ name: "Smoke Copilot Safe Inputs"
     types:
     - labeled
   schedule:
-  - cron: "0 0,7,13,19 * * *"
+  - cron: "2 23 * * *"
   workflow_dispatch: null
 
 permissions: {}

@@ -309,7 +309,7 @@
 name: "Duplicate Code Detector"
 "on":
   schedule:
-  - cron: "27 14 * * *"
+  - cron: "28 18 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
