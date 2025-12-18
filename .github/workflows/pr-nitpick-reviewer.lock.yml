@@ -9718,7 +9718,7 @@ jobs:
                   description: "The following review comments would be created if staged mode was disabled:",
                   items: reviewCommentItems,
                   renderItem: (item, index) => {
-                    let content = `### Review Comment ${index + 1}\n`;
+                    let content = `#### Review Comment ${index + 1}\n`;
                     if (item.pull_request_number) {
                       const repoUrl = getRepositoryUrl();
                       const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;

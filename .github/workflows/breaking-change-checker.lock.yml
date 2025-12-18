@@ -7602,7 +7602,7 @@ jobs:
                   description: "The following issues would be created if staged mode was disabled:",
                   items: createIssueItems,
                   renderItem: (item, index) => {
-                    let content = `### Issue ${index + 1}\n`;
+                    let content = `#### Issue ${index + 1}\n`;
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
                     if (item.temporary_id) {
                       content += `**Temporary ID:** ${item.temporary_id}\n\n`;
