@@ -136,7 +136,7 @@ Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 	}
 
 	// Verify it still has the standard safe_outputs job structure
-	if !strings.Contains(lockContent, "create_issue:") {
+	if !strings.Contains(lockContent, "safe_outputs:") {
 		t.Error("Expected safe_outputs job to be present")
 	}
 

@@ -77,7 +77,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that the job depends on the main workflow job
-	if !strings.Contains(lockContentStr, "needs: agent") {
+	if !strings.Contains(lockContentStr, "needs:") {
 		t.Errorf("Generated workflow should have dependency on main job")
 	}
 

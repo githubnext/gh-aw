@@ -6970,6 +6970,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_TITLE_PREFIX: "[specs] "
           GH_AW_PR_LABELS: "documentation,automation"
+          GH_AW_PR_DRAFT: "false"
           GH_AW_WORKFLOW_NAME: "Layout Specification Maintainer"
           GH_AW_TRACKER_ID: "layout-spec-maintainer"
           GH_AW_ENGINE_ID: "copilot"

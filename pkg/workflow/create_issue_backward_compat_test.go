@@ -59,7 +59,7 @@ This workflow uses the old format without assignees and should continue to work.
 	compiledStr := string(compiledContent)
 
 	// Verify that safe_outputs job exists
-	if !strings.Contains(compiledStr, "create_issue:") {
+	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
@@ -128,7 +128,7 @@ Create an issue with minimal configuration.
 	compiledStr := string(compiledContent)
 
 	// Verify that safe_outputs job exists
-	if !strings.Contains(compiledStr, "create_issue:") {
+	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 

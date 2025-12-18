@@ -9590,6 +9590,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
           GH_AW_PR_LABELS: "poetry,automation,creative-writing"
+          GH_AW_PR_DRAFT: "false"
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5"

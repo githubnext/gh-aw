@@ -56,7 +56,7 @@ This workflow tests that create-issue uses its own github-token.
 		yamlContent := string(content)
 
 		// Verify that the safe_outputs job exists
-		if !strings.Contains(yamlContent, "create_issue:") {
+		if !strings.Contains(yamlContent, "safe_outputs:") {
 			t.Error("Expected safe_outputs job to be generated")
 		}
 
@@ -131,10 +131,10 @@ This workflow tests that create-pull-request falls back to global github-token.
 		yamlContent := string(content)
 
 		// Verify that both jobs exist and use correct tokens
-		if !strings.Contains(yamlContent, "create_pull_request:") {
+		if !strings.Contains(yamlContent, "safe_outputs:") {
 			t.Error("Expected create_pull_request job to be generated")
 		}
-		if !strings.Contains(yamlContent, "create_issue:") {
+		if !strings.Contains(yamlContent, "safe_outputs:") {
 			t.Error("Expected safe_outputs job to be generated")
 		}
 
@@ -244,7 +244,7 @@ This workflow tests that the global github-token still works when no individual 
 		yamlContent := string(content)
 
 		// Verify that the safe_outputs job uses the global token
-		if !strings.Contains(yamlContent, "create_issue:") {
+		if !strings.Contains(yamlContent, "safe_outputs:") {
 			t.Error("Expected safe_outputs job to be generated")
 		}
 

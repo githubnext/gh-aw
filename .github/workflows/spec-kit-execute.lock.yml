@@ -7382,6 +7382,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_TITLE_PREFIX: "[spec-kit] "
           GH_AW_PR_LABELS: "spec-kit,automation"
+          GH_AW_PR_DRAFT: "false"
           GH_AW_WORKFLOW_NAME: "Spec-Kit Execute"
           GH_AW_TRACKER_ID: "spec-kit-execute"
           GH_AW_ENGINE_ID: "copilot"

@@ -53,7 +53,7 @@ Create a GitHub Copilot agent task to improve the code quality.
 	lockYAML := string(lockContent)
 
 	// Verify the create_agent_task job was created
-	if !strings.Contains(lockYAML, "create_agent_task:") {
+	if !strings.Contains(lockYAML, "safe_outputs:") {
 		t.Error("Generated workflow does not contain create_agent_task job")
 	}
 
@@ -147,7 +147,7 @@ Create a GitHub Copilot agent task in another repository.
 	lockYAML := string(lockContent)
 
 	// Verify the create_agent_task job was created
-	if !strings.Contains(lockYAML, "create_agent_task:") {
+	if !strings.Contains(lockYAML, "safe_outputs:") {
 		t.Error("Generated workflow does not contain create_agent_task job")
 	}
 

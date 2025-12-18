@@ -502,6 +502,14 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", cfg.AllowedLabels)...)
+	// Add draft setting if explicitly set
+	if cfg.Draft != nil {
+		if *cfg.Draft {
+			customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"true\"\n")
+		} else {
+			customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"false\"\n")
+		}
+	}
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_pull_request")

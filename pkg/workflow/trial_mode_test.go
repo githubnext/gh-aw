@@ -63,10 +63,10 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// In normal mode, safe output jobs should be included
-		if !strings.Contains(lockContent, "create_pull_request:") {
+		if !strings.Contains(lockContent, "safe_outputs:") {
 			t.Error("Expected create_pull_request job in normal mode")
 		}
-		if !strings.Contains(lockContent, "create_issue:") {
+		if !strings.Contains(lockContent, "safe_outputs:") {
 			t.Error("Expected safe_outputs job in normal mode")
 		}
 
@@ -120,10 +120,10 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// In trial mode, safe output jobs should be suppressed
-		if !strings.Contains(lockContent, "create_pull_request:") {
+		if !strings.Contains(lockContent, "safe_outputs:") {
 			t.Error("Expected create_pull_request job in trial mode")
 		}
-		if !strings.Contains(lockContent, "create_issue:") {
+		if !strings.Contains(lockContent, "safe_outputs:") {
 			t.Error("Expected safe_outputs job in trial mode")
 		}
 
@@ -208,7 +208,7 @@ func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
 		{
 			name:          "CreatePullRequest only",
 			safeOutputs:   "create-pull-request",
-			shouldContain: []string{"create_pull_request:"},
+			shouldContain: []string{"safe_outputs:"},
 		},
 		{
 			name:          "CreateIssue only",
@@ -218,7 +218,7 @@ func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
 		{
 			name:          "Both safe outputs",
 			safeOutputs:   "create-pull-request, create-issue",
-			shouldContain: []string{"create_pull_request:", "create_issue:"},
+			shouldContain: []string{"safe_outputs:", "create_issue:"},
 		},
 		{
 			name:          "No safe outputs",

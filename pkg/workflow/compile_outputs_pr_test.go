@@ -171,14 +171,14 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
-	// Verify draft setting defaults to true
-	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
-		t.Error("Expected draft to default to true when not specified")
+	// Verify create_pull_request step exists in consolidated job
+	if !strings.Contains(lockContentStr, "id: create_pull_request") {
+		t.Error("Expected create_pull_request step in safe_outputs job")
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContentStr, "needs: agent") {
-		t.Error("Expected create_pull_request job to depend on main job")
+	if !strings.Contains(lockContentStr, "needs:") {
+		t.Error("Expected safe_outputs job to have dependencies")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)

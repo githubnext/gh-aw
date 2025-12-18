@@ -108,7 +108,7 @@ This workflow tests custom 2MB patch size configuration.`,
 
 			// Check that the environment variable is set correctly in create PR job
 			if tt.shouldContainPRJob {
-				if !strings.Contains(lockContentStr, "create_pull_request:") {
+				if !strings.Contains(lockContentStr, "safe_outputs:") {
 					t.Errorf("Expected create_pull_request job to be generated")
 				}
 				if !strings.Contains(lockContentStr, tt.expectedEnvValue) {

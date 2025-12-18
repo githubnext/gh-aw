@@ -287,7 +287,7 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			expectedJob:    "create_pull_request:",
+			expectedJob:    "safe_outputs:",
 			expectedPerms:  "contents: write",
 			expectedOutput: "pull_request_number:",
 		},

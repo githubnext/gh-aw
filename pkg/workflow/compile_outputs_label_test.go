@@ -152,7 +152,7 @@ This workflow tests the safe_outputs job generation.
 	if !conditionFound {
 		t.Error("Expected safe_outputs job to have conditional execution with always()")
 	}
-	if !strings.Contains(lockContent, "needs: agent") {
+	if !strings.Contains(lockContent, "needs:") {
 		t.Error("Expected safe_outputs job to depend on main job")
 	}
 

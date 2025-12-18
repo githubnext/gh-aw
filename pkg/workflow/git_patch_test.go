@@ -80,7 +80,7 @@ Please do the following tasks:
 	// The patch generation script commands should NOT be in the main job
 	// Note: git commands may still appear elsewhere in the workflow (e.g., checkout, git config)
 	mainJobIndex := strings.Index(lockContent, "execute_agentic_workflow:")
-	createPRJobIndex := strings.Index(lockContent, "create_pull_request:")
+	createPRJobIndex := strings.Index(lockContent, "safe_outputs:")
 
 	var mainJobContent string
 	if mainJobIndex != -1 && createPRJobIndex != -1 {
