@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var githubToolsetValidationLog = logger.New("workflow:github_toolset_validation_error")
 
 // GitHubToolsetValidationError represents an error when GitHub tools are specified
 // but their required toolsets are not enabled
@@ -15,6 +19,7 @@ type GitHubToolsetValidationError struct {
 
 // NewGitHubToolsetValidationError creates a new validation error
 func NewGitHubToolsetValidationError(missingToolsets map[string][]string) *GitHubToolsetValidationError {
+	githubToolsetValidationLog.Printf("Creating toolset validation error for %d missing toolsets", len(missingToolsets))
 	return &GitHubToolsetValidationError{
 		MissingToolsets: missingToolsets,
 	}
@@ -22,6 +27,8 @@ func NewGitHubToolsetValidationError(missingToolsets map[string][]string) *GitHu
 
 // Error implements the error interface
 func (e *GitHubToolsetValidationError) Error() string {
+	githubToolsetValidationLog.Printf("Formatting error message for %d missing toolsets", len(e.MissingToolsets))
+
 	var lines []string
 	lines = append(lines, "ERROR: GitHub tools specified in 'allowed' field require toolsets that are not enabled:")
 	lines = append(lines, "")
