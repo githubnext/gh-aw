@@ -730,6 +730,35 @@ func renderLogsJSON(data LogsData) error {
 	return encoder.Encode(data)
 }
 
+// writeSummaryFile writes the logs data to a JSON file
+func writeSummaryFile(path string, data LogsData, verbose bool) error {
+	reportLog.Printf("Writing summary file: path=%s, runs=%d", path, data.Summary.TotalRuns)
+
+	// Create parent directory if it doesn't exist
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory for summary file: %w", err)
+	}
+
+	// Marshal to JSON with indentation for readability
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal logs data to JSON: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(path, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write summary file: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Wrote summary to %s", path)))
+	}
+
+	reportLog.Printf("Successfully wrote summary file: %s", path)
+	return nil
+}
+
 // renderLogsConsole outputs the logs data as formatted console output
 func renderLogsConsole(data LogsData) {
 	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
