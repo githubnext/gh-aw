@@ -154,10 +154,8 @@
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Smoke Copilot Safe Inputs"
-"on":
+on:
   pull_request:
-    # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
