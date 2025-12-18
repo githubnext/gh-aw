@@ -1,1 +1,321 @@
-import{describe,it,expect,beforeEach,afterEach,vi}from"vitest";import fs from"fs";import path from"path";import{loadTools,attachHandlers,registerPredefinedTools,registerDynamicTools}from"./safe_outputs_tools_loader.cjs";describe("safe_outputs_tools_loader",()=>{let mockServer,testToolsPath;beforeEach(()=>{mockServer={debug:vi.fn(),tools:{}};const testId=Math.random().toString(36).substring(7);testToolsPath=`/tmp/test-tools-loader-${testId}/tools.json`,process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH=testToolsPath}),afterEach(()=>{try{fs.existsSync(testToolsPath)&&fs.unlinkSync(testToolsPath);const testDir=path.dirname(testToolsPath);fs.existsSync(testDir)&&fs.rmdirSync(testDir,{recursive:!0})}catch(error){}delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH}),describe("loadTools",()=>{it("should load tools from valid JSON file",()=>{const toolsDir=path.dirname(testToolsPath);fs.mkdirSync(toolsDir,{recursive:!0});const tools=[{name:"tool1",description:"Tool 1"},{name:"tool2",description:"Tool 2"}];fs.writeFileSync(testToolsPath,JSON.stringify(tools));const result=loadTools(mockServer);expect(result).toEqual(tools),expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Successfully parsed 2 tools"))}),it("should return empty array when file doesn't exist",()=>{const result=loadTools(mockServer);expect(result).toEqual([]),expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("does not exist"))}),it("should return empty array when JSON is invalid",()=>{const toolsDir=path.dirname(testToolsPath);fs.mkdirSync(toolsDir,{recursive:!0}),fs.writeFileSync(testToolsPath,"{ invalid json }");const result=loadTools(mockServer);expect(result).toEqual([]),expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Error reading tools file"))}),it("should use default path when env var not set",()=>{delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;const defaultPath="/tmp/gh-aw/safeoutputs/tools.json",defaultDir=path.dirname(defaultPath);fs.existsSync(defaultPath)&&fs.unlinkSync(defaultPath),fs.existsSync(defaultDir)&&fs.rmdirSync(defaultDir,{recursive:!0});const result=loadTools(mockServer);expect(result).toEqual([]),expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("/tmp/gh-aw/safeoutputs/tools.json"))})}),describe("attachHandlers",()=>{it("should attach create_pull_request handler",()=>{const handlers={createPullRequestHandler:vi.fn(),pushToPullRequestBranchHandler:vi.fn(),uploadAssetHandler:vi.fn()},result=attachHandlers([{name:"create_pull_request",description:"Create PR"},{name:"other_tool",description:"Other"}],handlers);expect(result[0].handler).toBe(handlers.createPullRequestHandler),expect(result[1].handler).toBeUndefined()}),it("should attach push_to_pull_request_branch handler",()=>{const handlers={createPullRequestHandler:vi.fn(),pushToPullRequestBranchHandler:vi.fn(),uploadAssetHandler:vi.fn()},result=attachHandlers([{name:"push_to_pull_request_branch",description:"Push to PR"}],handlers);expect(result[0].handler).toBe(handlers.pushToPullRequestBranchHandler)}),it("should attach upload_asset handler",()=>{const handlers={createPullRequestHandler:vi.fn(),pushToPullRequestBranchHandler:vi.fn(),uploadAssetHandler:vi.fn()},result=attachHandlers([{name:"upload_asset",description:"Upload Asset"}],handlers);expect(result[0].handler).toBe(handlers.uploadAssetHandler)}),it("should attach multiple handlers",()=>{const handlers={createPullRequestHandler:vi.fn(),pushToPullRequestBranchHandler:vi.fn(),uploadAssetHandler:vi.fn()},result=attachHandlers([{name:"create_pull_request",description:"Create PR"},{name:"upload_asset",description:"Upload"},{name:"push_to_pull_request_branch",description:"Push"}],handlers);expect(result[0].handler).toBe(handlers.createPullRequestHandler),expect(result[1].handler).toBe(handlers.uploadAssetHandler),expect(result[2].handler).toBe(handlers.pushToPullRequestBranchHandler)}),it("should not modify tools without matching handlers",()=>{const handlers={createPullRequestHandler:vi.fn(),pushToPullRequestBranchHandler:vi.fn(),uploadAssetHandler:vi.fn()},result=attachHandlers([{name:"unknown_tool",description:"Unknown"}],handlers);expect(result[0].handler).toBeUndefined()})}),describe("registerPredefinedTools",()=>{it("should register enabled tools",()=>{const tools=[{name:"create_pull_request",description:"Create PR"},{name:"upload_asset",description:"Upload"}],registerTool=vi.fn();registerPredefinedTools(mockServer,tools,{create_pull_request:!0},registerTool,name=>name.replace(/-/g,"_")),expect(registerTool).toHaveBeenCalledWith(mockServer,tools[0]),expect(registerTool).not.toHaveBeenCalledWith(mockServer,tools[1])}),it("should handle config with dashes",()=>{const tools=[{name:"create_pull_request",description:"Create PR"}],registerTool=vi.fn();registerPredefinedTools(mockServer,tools,{"create-pull-request":!0},registerTool,name=>name.replace(/-/g,"_")),expect(registerTool).toHaveBeenCalledWith(mockServer,tools[0])}),it("should not register disabled tools",()=>{const registerTool=vi.fn();registerPredefinedTools(mockServer,[{name:"create_pull_request",description:"Create PR"}],{upload_asset:!0},registerTool,name=>name.replace(/-/g,"_")),expect(registerTool).not.toHaveBeenCalled()})}),describe("registerDynamicTools",()=>{it("should register dynamic safe-job tool",()=>{const registerTool=vi.fn();registerDynamicTools(mockServer,[],{custom_job:{description:"Custom job",output:"Job completed"}},"/tmp/test-output.jsonl",registerTool,name=>name.replace(/-/g,"_")),expect(registerTool).toHaveBeenCalled();const toolArg=registerTool.mock.calls[0][1];expect(toolArg.name).toBe("custom_job"),expect(toolArg.description).toBe("Custom job"),expect(toolArg.handler).toBeDefined()}),it("should not register predefined tools as dynamic tools",()=>{mockServer.tools={create_pull_request:{}};const registerTool=vi.fn();registerDynamicTools(mockServer,[{name:"create_pull_request",description:"Create PR"}],{create_pull_request:!0},"/tmp/test-output.jsonl",registerTool,name=>name.replace(/-/g,"_")),expect(registerTool).not.toHaveBeenCalled()}),it("should create dynamic tool with input schema",()=>{const registerTool=vi.fn();registerDynamicTools(mockServer,[],{custom_job:{description:"Custom job",inputs:{required_field:{type:"string",description:"Required field",required:!0},optional_field:{type:"number",description:"Optional field"}}}},"/tmp/test-output.jsonl",registerTool,name=>name.replace(/-/g,"_"));const toolArg=registerTool.mock.calls[0][1];expect(toolArg.inputSchema.properties).toBeDefined(),expect(toolArg.inputSchema.properties.required_field).toBeDefined(),expect(toolArg.inputSchema.properties.optional_field).toBeDefined(),expect(toolArg.inputSchema.required).toEqual(["required_field"])}),it("should create dynamic tool with enum options",()=>{const registerTool=vi.fn();registerDynamicTools(mockServer,[],{custom_job:{inputs:{status:{type:"string",options:["success","failure","pending"]}}}},"/tmp/test-output.jsonl",registerTool,name=>name.replace(/-/g,"_"));const toolArg=registerTool.mock.calls[0][1];expect(toolArg.inputSchema.properties.status.enum).toEqual(["success","failure","pending"])}),it("should use default description if not provided",()=>{const registerTool=vi.fn();registerDynamicTools(mockServer,[],{"custom-job":{}},"/tmp/test-output.jsonl",registerTool,name=>name.replace(/-/g,"_"));const toolArg=registerTool.mock.calls[0][1];expect(toolArg.description).toBe("Custom safe-job: custom-job")})})});
+// @ts-check
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import path from "path";
+import { loadTools, attachHandlers, registerPredefinedTools, registerDynamicTools } from "./safe_outputs_tools_loader.cjs";
+
+describe("safe_outputs_tools_loader", () => {
+  let mockServer;
+  let testToolsPath;
+
+  beforeEach(() => {
+    mockServer = {
+      debug: vi.fn(),
+      tools: {},
+    };
+
+    const testId = Math.random().toString(36).substring(7);
+    testToolsPath = `/tmp/test-tools-loader-${testId}/tools.json`;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = testToolsPath;
+  });
+
+  afterEach(() => {
+    try {
+      if (fs.existsSync(testToolsPath)) {
+        fs.unlinkSync(testToolsPath);
+      }
+      const testDir = path.dirname(testToolsPath);
+      if (fs.existsSync(testDir)) {
+        fs.rmdirSync(testDir, { recursive: true });
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
+    delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+  });
+
+  describe("loadTools", () => {
+    it("should load tools from valid JSON file", () => {
+      const toolsDir = path.dirname(testToolsPath);
+      fs.mkdirSync(toolsDir, { recursive: true });
+
+      const tools = [
+        { name: "tool1", description: "Tool 1" },
+        { name: "tool2", description: "Tool 2" },
+      ];
+      fs.writeFileSync(testToolsPath, JSON.stringify(tools));
+
+      const result = loadTools(mockServer);
+
+      expect(result).toEqual(tools);
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Successfully parsed 2 tools"));
+    });
+
+    it("should return empty array when file doesn't exist", () => {
+      const result = loadTools(mockServer);
+
+      expect(result).toEqual([]);
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("does not exist"));
+    });
+
+    it("should return empty array when JSON is invalid", () => {
+      const toolsDir = path.dirname(testToolsPath);
+      fs.mkdirSync(toolsDir, { recursive: true });
+      fs.writeFileSync(testToolsPath, "{ invalid json }");
+
+      const result = loadTools(mockServer);
+
+      expect(result).toEqual([]);
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Error reading tools file"));
+    });
+
+    it("should use default path when env var not set", () => {
+      delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+
+      // Clean up the default path to ensure isolation from other test runs/jobs
+      const defaultPath = "/tmp/gh-aw/safeoutputs/tools.json";
+      const defaultDir = path.dirname(defaultPath);
+      if (fs.existsSync(defaultPath)) {
+        fs.unlinkSync(defaultPath);
+      }
+      if (fs.existsSync(defaultDir)) {
+        fs.rmdirSync(defaultDir, { recursive: true });
+      }
+
+      const result = loadTools(mockServer);
+
+      expect(result).toEqual([]);
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("/tmp/gh-aw/safeoutputs/tools.json"));
+    });
+  });
+
+  describe("attachHandlers", () => {
+    it("should attach create_pull_request handler", () => {
+      const tools = [
+        { name: "create_pull_request", description: "Create PR" },
+        { name: "other_tool", description: "Other" },
+      ];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.createPullRequestHandler);
+      expect(result[1].handler).toBeUndefined();
+    });
+
+    it("should attach push_to_pull_request_branch handler", () => {
+      const tools = [{ name: "push_to_pull_request_branch", description: "Push to PR" }];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.pushToPullRequestBranchHandler);
+    });
+
+    it("should attach upload_asset handler", () => {
+      const tools = [{ name: "upload_asset", description: "Upload Asset" }];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.uploadAssetHandler);
+    });
+
+    it("should attach multiple handlers", () => {
+      const tools = [
+        { name: "create_pull_request", description: "Create PR" },
+        { name: "upload_asset", description: "Upload" },
+        { name: "push_to_pull_request_branch", description: "Push" },
+      ];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBe(handlers.createPullRequestHandler);
+      expect(result[1].handler).toBe(handlers.uploadAssetHandler);
+      expect(result[2].handler).toBe(handlers.pushToPullRequestBranchHandler);
+    });
+
+    it("should not modify tools without matching handlers", () => {
+      const tools = [{ name: "unknown_tool", description: "Unknown" }];
+      const handlers = {
+        createPullRequestHandler: vi.fn(),
+        pushToPullRequestBranchHandler: vi.fn(),
+        uploadAssetHandler: vi.fn(),
+      };
+
+      const result = attachHandlers(tools, handlers);
+
+      expect(result[0].handler).toBeUndefined();
+    });
+  });
+
+  describe("registerPredefinedTools", () => {
+    it("should register enabled tools", () => {
+      const tools = [
+        { name: "create_pull_request", description: "Create PR" },
+        { name: "upload_asset", description: "Upload" },
+      ];
+      const config = {
+        create_pull_request: true,
+      };
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerPredefinedTools(mockServer, tools, config, registerTool, normalizeTool);
+
+      expect(registerTool).toHaveBeenCalledWith(mockServer, tools[0]);
+      expect(registerTool).not.toHaveBeenCalledWith(mockServer, tools[1]);
+    });
+
+    it("should handle config with dashes", () => {
+      const tools = [{ name: "create_pull_request", description: "Create PR" }];
+      const config = {
+        "create-pull-request": true,
+      };
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerPredefinedTools(mockServer, tools, config, registerTool, normalizeTool);
+
+      expect(registerTool).toHaveBeenCalledWith(mockServer, tools[0]);
+    });
+
+    it("should not register disabled tools", () => {
+      const tools = [{ name: "create_pull_request", description: "Create PR" }];
+      const config = {
+        upload_asset: true,
+      };
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerPredefinedTools(mockServer, tools, config, registerTool, normalizeTool);
+
+      expect(registerTool).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("registerDynamicTools", () => {
+    it("should register dynamic safe-job tool", () => {
+      const tools = [];
+      const config = {
+        custom_job: {
+          description: "Custom job",
+          output: "Job completed",
+        },
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      expect(registerTool).toHaveBeenCalled();
+      const toolArg = registerTool.mock.calls[0][1];
+      expect(toolArg.name).toBe("custom_job");
+      expect(toolArg.description).toBe("Custom job");
+      expect(toolArg.handler).toBeDefined();
+    });
+
+    it("should not register predefined tools as dynamic tools", () => {
+      mockServer.tools = { create_pull_request: {} };
+
+      const tools = [{ name: "create_pull_request", description: "Create PR" }];
+      const config = {
+        create_pull_request: true,
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      expect(registerTool).not.toHaveBeenCalled();
+    });
+
+    it("should create dynamic tool with input schema", () => {
+      const tools = [];
+      const config = {
+        custom_job: {
+          description: "Custom job",
+          inputs: {
+            required_field: {
+              type: "string",
+              description: "Required field",
+              required: true,
+            },
+            optional_field: {
+              type: "number",
+              description: "Optional field",
+            },
+          },
+        },
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      const toolArg = registerTool.mock.calls[0][1];
+      expect(toolArg.inputSchema.properties).toBeDefined();
+      expect(toolArg.inputSchema.properties.required_field).toBeDefined();
+      expect(toolArg.inputSchema.properties.optional_field).toBeDefined();
+      expect(toolArg.inputSchema.required).toEqual(["required_field"]);
+    });
+
+    it("should create dynamic tool with enum options", () => {
+      const tools = [];
+      const config = {
+        custom_job: {
+          inputs: {
+            status: {
+              type: "string",
+              options: ["success", "failure", "pending"],
+            },
+          },
+        },
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      const toolArg = registerTool.mock.calls[0][1];
+      expect(toolArg.inputSchema.properties.status.enum).toEqual(["success", "failure", "pending"]);
+    });
+
+    it("should use default description if not provided", () => {
+      const tools = [];
+      const config = {
+        "custom-job": {},
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      const toolArg = registerTool.mock.calls[0][1];
+      expect(toolArg.description).toBe("Custom safe-job: custom-job");
+    });
+  });
+});

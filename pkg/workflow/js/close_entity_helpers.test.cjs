@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+// Mock the global objects that GitHub Actions provides
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } },
   mockContext = { eventName: "issues", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, payload: { issue: { number: 42 }, pull_request: { number: 100 }, repository: { html_url: "https://github.com/testowner/testrepo" } } };
+// Set up global mocks before importing the module
 ((global.core = mockCore), (global.context = mockContext));
 const { checkLabelFilter, checkTitlePrefixFilter, parseEntityConfig, resolveEntityNumber, escapeMarkdownTitle, ISSUE_CONFIG, PULL_REQUEST_CONFIG } = require("./close_entity_helpers.cjs");
 describe("close_entity_helpers", () => {
   (beforeEach(() => {
     (vi.clearAllMocks(),
+      // Reset environment variables
       delete process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS,
       delete process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX,
       delete process.env.GH_AW_CLOSE_ISSUE_TARGET,
       delete process.env.GH_AW_CLOSE_PR_REQUIRED_LABELS,
       delete process.env.GH_AW_CLOSE_PR_REQUIRED_TITLE_PREFIX,
       delete process.env.GH_AW_CLOSE_PR_TARGET,
+      // Reset context to default state
       (global.context.eventName = "issues"),
       (global.context.payload.issue = { number: 42 }),
       (global.context.payload.pull_request = { number: 100 }));
@@ -94,7 +98,9 @@ describe("close_entity_helpers", () => {
           }),
           it("should fail when number is zero (falsy)", () => {
             const result = resolveEntityNumber(ISSUE_CONFIG, "*", { issue_number: 0 }, !0);
-            (expect(result.success).toBe(!1), expect(result.message).toContain("no issue_number specified"));
+            (expect(result.success).toBe(!1),
+              // 0 is falsy in JS, so it hits the "no number specified" branch
+              expect(result.message).toContain("no issue_number specified"));
           }));
       }),
         describe("with explicit target number", () => {

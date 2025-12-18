@@ -1,39 +1,118 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * Shared utility for repository permission validation
+ * Used by both check_permissions.cjs and check_membership.cjs
+ */
+
+/**
+ * Parse required permissions from environment variable
+ * @returns {string[]} Array of required permission levels
+ */
 function parseRequiredPermissions() {
   const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-  return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => "" !== p.trim()) : [];
+  return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 }
+
+/**
+ * Parse allowed bot identifiers from environment variable
+ * @returns {string[]} Array of allowed bot identifiers
+ */
 function parseAllowedBots() {
   const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
-  return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => "" !== b.trim()) : [];
+  return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
 }
+
+/**
+ * Check if the actor is a bot and if it's active on the repository
+ * @param {string} actor - GitHub username to check
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @returns {Promise<{isBot: boolean, isActive: boolean, error?: string}>}
+ */
 async function checkBotStatus(actor, owner, repo) {
   try {
-    if (!actor.endsWith("[bot]")) return { isBot: !1, isActive: !1 };
+    // Check if the actor looks like a bot (ends with [bot])
+    const isBot = actor.endsWith("[bot]");
+
+    if (!isBot) {
+      return { isBot: false, isActive: false };
+    }
+
     core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
+
+    // Try to get the bot's permission level to verify it's installed/active on the repo
+    // GitHub Apps/bots that are installed on a repository show up in the collaborators
     try {
-      const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: actor });
-      return (core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`), { isBot: !0, isActive: !0 });
+      const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+        owner: owner,
+        repo: repo,
+        username: actor,
+      });
+
+      core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
+      return { isBot: true, isActive: true };
     } catch (botError) {
-      if ("object" == typeof botError && null !== botError && "status" in botError && 404 === botError.status) return (core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`), { isBot: !0, isActive: !1 });
+      // If we get a 404, the bot is not installed/active on this repository
+      if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
+        core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
+        return { isBot: true, isActive: false };
+      }
+      // For other errors, we'll treat as inactive to be safe
       const errorMessage = botError instanceof Error ? botError.message : String(botError);
-      return (core.warning(`Failed to check bot status: ${errorMessage}`), { isBot: !0, isActive: !1, error: errorMessage });
+      core.warning(`Failed to check bot status: ${errorMessage}`);
+      return { isBot: true, isActive: false, error: errorMessage };
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return (core.warning(`Error checking bot status: ${errorMessage}`), { isBot: !1, isActive: !1, error: errorMessage });
+    core.warning(`Error checking bot status: ${errorMessage}`);
+    return { isBot: false, isActive: false, error: errorMessage };
   }
 }
+
+/**
+ * Check if user has required repository permissions
+ * @param {string} actor - GitHub username to check
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string[]} requiredPermissions - Array of required permission levels
+ * @returns {Promise<{authorized: boolean, permission?: string, error?: string}>}
+ */
 async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
   try {
-    (core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`), core.info(`Required permissions: ${requiredPermissions.join(", ")}`));
-    const permission = (await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: actor })).data.permission;
+    core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+    core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+
+    const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+      owner: owner,
+      repo: repo,
+      username: actor,
+    });
+
+    const permission = repoPermission.data.permission;
     core.info(`Repository permission level: ${permission}`);
-    for (const requiredPerm of requiredPermissions)
-      if (permission === requiredPerm || ("maintainer" === requiredPerm && "maintain" === permission)) return (core.info(`✅ User has ${permission} access to repository`), { authorized: !0, permission });
-    return (core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`), { authorized: !1, permission });
+
+    // Check if user has one of the required permission levels
+    for (const requiredPerm of requiredPermissions) {
+      if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+        core.info(`✅ User has ${permission} access to repository`);
+        return { authorized: true, permission: permission };
+      }
+    }
+
+    core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+    return { authorized: false, permission: permission };
   } catch (repoError) {
     const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-    return (core.warning(`Repository permission check failed: ${errorMessage}`), { authorized: !1, error: errorMessage });
+    core.warning(`Repository permission check failed: ${errorMessage}`);
+    return { authorized: false, error: errorMessage };
   }
 }
-module.exports = { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus };
+
+module.exports = {
+  parseRequiredPermissions,
+  parseAllowedBots,
+  checkRepositoryPermission,
+  checkBotStatus,
+};

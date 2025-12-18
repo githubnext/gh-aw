@@ -2,26 +2,32 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+// Mock the global objects that GitHub Actions provides
 const mockCore = {
+  // Core logging functions
   debug: vi.fn(),
   info: vi.fn(),
   notice: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+  // Core workflow functions
   setFailed: vi.fn(),
   setOutput: vi.fn(),
   exportVariable: vi.fn(),
   setSecret: vi.fn(),
   setCancelled: vi.fn(),
   setError: vi.fn(),
+  // Input/state functions
   getInput: vi.fn(),
   getBooleanInput: vi.fn(),
   getMultilineInput: vi.fn(),
   getState: vi.fn(),
   saveState: vi.fn(),
+  // Group functions
   startGroup: vi.fn(),
   endGroup: vi.fn(),
   group: vi.fn(),
+  // Other utility functions
   addPath: vi.fn(),
   setCommandEcho: vi.fn(),
   isDebug: vi.fn().mockReturnValue(!1),
@@ -29,24 +35,33 @@ const mockCore = {
   toPlatformPath: vi.fn(),
   toPosixPath: vi.fn(),
   toWin32Path: vi.fn(),
+  // Summary object with chainable methods
   summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
 };
+// Set up global variables
 ((global.core = mockCore),
   describe("check_workflow_timestamp.cjs", () => {
     let checkWorkflowTimestampScript, originalEnv, tmpDir, workflowsDir;
     (beforeEach(() => {
+      // Reset all mocks
       (vi.clearAllMocks(),
+        // Store original environment
         (originalEnv = { GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE, GH_AW_WORKFLOW_FILE: process.env.GH_AW_WORKFLOW_FILE }),
+        // Create a temporary directory for test files
         (tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-test-"))),
         (workflowsDir = path.join(tmpDir, ".github", "workflows")),
         fs.mkdirSync(workflowsDir, { recursive: !0 }),
+        // Set up environment
         (process.env.GITHUB_WORKSPACE = tmpDir));
+      // Read the script content
       const scriptPath = path.join(process.cwd(), "check_workflow_timestamp.cjs");
       checkWorkflowTimestampScript = fs.readFileSync(scriptPath, "utf8");
     }),
       afterEach(() => {
+        // Restore original environment
         (void 0 !== originalEnv.GITHUB_WORKSPACE ? (process.env.GITHUB_WORKSPACE = originalEnv.GITHUB_WORKSPACE) : delete process.env.GITHUB_WORKSPACE,
           void 0 !== originalEnv.GH_AW_WORKFLOW_FILE ? (process.env.GH_AW_WORKFLOW_FILE = originalEnv.GH_AW_WORKFLOW_FILE) : delete process.env.GH_AW_WORKFLOW_FILE,
+          // Clean up temporary directory
           tmpDir && fs.existsSync(tmpDir) && fs.rmSync(tmpDir, { recursive: !0, force: !0 }));
       }),
       describe("when environment variables are missing", () => {
@@ -66,6 +81,7 @@ const mockCore = {
       describe("when files do not exist", () => {
         (it("should skip check when source file does not exist", async () => {
           ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
+          // Create only the lock file
           const lockFile = path.join(workflowsDir, "test.lock.yml");
           (fs.writeFileSync(lockFile, "# Lock file content"),
             await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
@@ -76,6 +92,7 @@ const mockCore = {
         }),
           it("should skip check when lock file does not exist", async () => {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
+            // Create only the source file
             const workflowFile = path.join(workflowsDir, "test.md");
             (fs.writeFileSync(workflowFile, "# Workflow content"),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
@@ -98,8 +115,11 @@ const mockCore = {
           ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
           const workflowFile = path.join(workflowsDir, "test.md"),
             lockFile = path.join(workflowsDir, "test.lock.yml");
+          // Create source file first
           (fs.writeFileSync(workflowFile, "# Workflow content"),
+            // Wait a bit to ensure different timestamps
             await new Promise(resolve => setTimeout(resolve, 10)),
+            // Create lock file (newer)
             fs.writeFileSync(lockFile, "# Lock file content"),
             await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file is up to date")),
@@ -114,6 +134,7 @@ const mockCore = {
               now = new Date();
             (fs.writeFileSync(workflowFile, "# Workflow content"),
               fs.writeFileSync(lockFile, "# Lock file content"),
+              // Set both files to have the exact same timestamp
               fs.utimesSync(workflowFile, now, now),
               fs.utimesSync(lockFile, now, now),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
@@ -128,8 +149,11 @@ const mockCore = {
           ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
           const workflowFile = path.join(workflowsDir, "test.md"),
             lockFile = path.join(workflowsDir, "test.lock.yml");
+          // Create lock file first
           (fs.writeFileSync(lockFile, "# Lock file content"),
+            // Wait a bit to ensure different timestamps
             await new Promise(resolve => setTimeout(resolve, 10)),
+            // Create source file (newer)
             fs.writeFileSync(workflowFile, "# Workflow content"),
             await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
             expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("WARNING: Lock file")),
@@ -143,8 +167,11 @@ const mockCore = {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "my-workflow.lock.yml"));
             const workflowFile = path.join(workflowsDir, "my-workflow.md"),
               lockFile = path.join(workflowsDir, "my-workflow.lock.yml");
+            // Create lock file first
             (fs.writeFileSync(lockFile, "# Lock file content"),
+              // Wait a bit to ensure different timestamps
               await new Promise(resolve => setTimeout(resolve, 10)),
+              // Create source file (newer)
               fs.writeFileSync(workflowFile, "# Workflow content"),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
               expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/WARNING.*my-workflow\.lock\.yml.*outdated/)),
@@ -154,8 +181,11 @@ const mockCore = {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
             const workflowFile = path.join(workflowsDir, "test.md"),
               lockFile = path.join(workflowsDir, "test.lock.yml");
+            // Create lock file first
             (fs.writeFileSync(lockFile, "# Lock file content"),
+              // Wait a bit to ensure different timestamps
               await new Promise(resolve => setTimeout(resolve, 10)),
+              // Create source file (newer)
               fs.writeFileSync(workflowFile, "# Workflow content"),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Workflow Lock File Warning")),
@@ -167,8 +197,11 @@ const mockCore = {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"), (process.env.GITHUB_SHA = "abc123def456"));
             const workflowFile = path.join(workflowsDir, "test.md"),
               lockFile = path.join(workflowsDir, "test.lock.yml");
+            // Create lock file first
             (fs.writeFileSync(lockFile, "# Lock file content"),
+              // Wait a bit to ensure different timestamps
               await new Promise(resolve => setTimeout(resolve, 10)),
+              // Create source file (newer)
               fs.writeFileSync(workflowFile, "# Workflow content"),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Git Commit")),
@@ -179,8 +212,11 @@ const mockCore = {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
             const workflowFile = path.join(workflowsDir, "test.md"),
               lockFile = path.join(workflowsDir, "test.lock.yml");
+            // Create lock file first
             (fs.writeFileSync(lockFile, "# Lock file content"),
+              // Wait a bit to ensure different timestamps
               await new Promise(resolve => setTimeout(resolve, 10)),
+              // Create source file (newer)
               fs.writeFileSync(workflowFile, "# Workflow content"),
               await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("modified:")),
