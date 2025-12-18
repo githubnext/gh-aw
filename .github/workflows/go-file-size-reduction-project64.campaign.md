@@ -75,8 +75,8 @@ This campaign systematically reduces oversized Go files in the codebase to impro
 ## Workflow Integration
 
 The `daily-file-diet` worker workflow and campaign orchestrator work together:
-- **Worker** (`daily-file-diet`): Scans for oversized Go files, creates tracking issues with campaign label, records daily metrics snapshots
-- **Orchestrator**: Discovers issues created by worker (via campaign label), adds them to project board, updates board status, reports on campaign progress
+- **Worker** (`daily-file-diet`): Scans for oversized Go files independently, creates tracking issues, records daily metrics snapshots
+- **Orchestrator**: Monitors worker workflow runs (via `tracker-id`), discovers issues created by workers, adds them to project board, updates board status, reports on campaign progress
 
 ## Setup
 
