@@ -632,6 +632,31 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 	return secrets
 }
 
+// injectFirewallProxyEnv adds proxy environment variables to all safe-inputs tools
+// when the firewall is enabled. This allows tools to use the Squid proxy explicitly.
+func injectFirewallProxyEnv(safeInputs *SafeInputsConfig, squidIP string, squidPort string) {
+	if safeInputs == nil || len(safeInputs.Tools) == 0 {
+		return
+	}
+
+	proxyURL := "http://" + squidIP + ":" + squidPort
+
+	// Add proxy environment variables to each tool
+	for _, toolConfig := range safeInputs.Tools {
+		if toolConfig.Env == nil {
+			toolConfig.Env = make(map[string]string)
+		}
+
+		// Add both uppercase and lowercase variants for maximum compatibility
+		toolConfig.Env["HTTP_PROXY"] = proxyURL
+		toolConfig.Env["HTTPS_PROXY"] = proxyURL
+		toolConfig.Env["http_proxy"] = proxyURL
+		toolConfig.Env["https_proxy"] = proxyURL
+	}
+
+	safeInputsLog.Printf("Injected firewall proxy environment variables (%s) into %d safe-inputs tools", proxyURL, len(safeInputs.Tools))
+}
+
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
 // Supports both HTTP and stdio transport modes
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {

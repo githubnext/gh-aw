@@ -4231,7 +4231,11 @@ jobs:
                 "handler": "gh.sh",
                 "env": {
                   "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
-                  "GH_DEBUG": "GH_DEBUG"
+                  "GH_DEBUG": "GH_DEBUG",
+                  "HTTPS_PROXY": "HTTPS_PROXY",
+                  "HTTP_PROXY": "HTTP_PROXY",
+                  "http_proxy": "http_proxy",
+                  "https_proxy": "https_proxy"
                 },
                 "timeout": 60
               }
@@ -4275,6 +4279,10 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_DEBUG: 1
+          HTTPS_PROXY: http://172.30.0.10:3128
+          HTTP_PROXY: http://172.30.0.10:3128
+          http_proxy: http://172.30.0.10:3128
+          https_proxy: http://172.30.0.10:3128
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -4288,7 +4296,11 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
-                  "GH_DEBUG": "\${GH_DEBUG}"
+                  "GH_DEBUG": "\${GH_DEBUG}",
+                  "HTTPS_PROXY": "\${HTTPS_PROXY}",
+                  "HTTP_PROXY": "\${HTTP_PROXY}",
+                  "http_proxy": "\${http_proxy}",
+                  "https_proxy": "\${https_proxy}"
                 }
               },
               "safeoutputs": {
@@ -4802,7 +4814,11 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
+          HTTPS_PROXY: http://172.30.0.10:3128
+          HTTP_PROXY: http://172.30.0.10:3128
           XDG_CONFIG_HOME: /home/runner
+          http_proxy: http://172.30.0.10:3128
+          https_proxy: http://172.30.0.10:3128
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

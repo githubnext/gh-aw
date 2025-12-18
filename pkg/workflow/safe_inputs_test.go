@@ -671,6 +671,87 @@ func TestGenerateSafeInputsMCPServerScript(t *testing.T) {
 	}
 }
 
+func TestInjectFirewallProxyEnv(t *testing.T) {
+	t.Run("injects proxy env vars into all tools", func(t *testing.T) {
+		config := &SafeInputsConfig{
+			Tools: map[string]*SafeInputToolConfig{
+				"gh": {
+					Name:        "gh",
+					Description: "GitHub CLI",
+					Env: map[string]string{
+						"GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+					},
+				},
+				"npm": {
+					Name:        "npm",
+					Description: "NPM tool",
+					Env:         map[string]string{},
+				},
+			},
+		}
+
+		injectFirewallProxyEnv(config, "172.30.0.10", "3128")
+
+		// Check gh tool has proxy vars plus original env var
+		ghTool := config.Tools["gh"]
+		if ghTool.Env["HTTP_PROXY"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected HTTP_PROXY to be set, got %s", ghTool.Env["HTTP_PROXY"])
+		}
+		if ghTool.Env["HTTPS_PROXY"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected HTTPS_PROXY to be set, got %s", ghTool.Env["HTTPS_PROXY"])
+		}
+		if ghTool.Env["http_proxy"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected http_proxy to be set, got %s", ghTool.Env["http_proxy"])
+		}
+		if ghTool.Env["https_proxy"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected https_proxy to be set, got %s", ghTool.Env["https_proxy"])
+		}
+		if ghTool.Env["GH_TOKEN"] != "${{ secrets.GITHUB_TOKEN }}" {
+			t.Error("Expected original GH_TOKEN env var to be preserved")
+		}
+
+		// Check npm tool has proxy vars
+		npmTool := config.Tools["npm"]
+		if npmTool.Env["HTTP_PROXY"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected HTTP_PROXY to be set, got %s", npmTool.Env["HTTP_PROXY"])
+		}
+	})
+
+	t.Run("handles nil config", func(t *testing.T) {
+		injectFirewallProxyEnv(nil, "172.30.0.10", "3128")
+		// Should not panic
+	})
+
+	t.Run("handles empty tools", func(t *testing.T) {
+		config := &SafeInputsConfig{
+			Tools: map[string]*SafeInputToolConfig{},
+		}
+		injectFirewallProxyEnv(config, "172.30.0.10", "3128")
+		// Should not panic
+	})
+
+	t.Run("initializes env map if nil", func(t *testing.T) {
+		config := &SafeInputsConfig{
+			Tools: map[string]*SafeInputToolConfig{
+				"test": {
+					Name: "test",
+					Env:  nil, // No env map
+				},
+			},
+		}
+
+		injectFirewallProxyEnv(config, "172.30.0.10", "3128")
+
+		testTool := config.Tools["test"]
+		if testTool.Env == nil {
+			t.Error("Expected Env map to be initialized")
+		}
+		if testTool.Env["HTTP_PROXY"] != "http://172.30.0.10:3128" {
+			t.Error("Expected HTTP_PROXY to be set after initializing Env map")
+		}
+	})
+}
+
 func TestGenerateSafeInputsToolsConfigWithEnv(t *testing.T) {
 	config := &SafeInputsConfig{
 		Tools: map[string]*SafeInputToolConfig{

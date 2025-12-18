@@ -649,6 +649,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.SafeInputs = c.mergeSafeInputs(workflowData.SafeInputs, importsResult.MergedSafeInputs)
 	}
 
+	// Inject firewall proxy environment variables into safe-inputs tools
+	// This allows safe-inputs tools to use the Squid proxy explicitly when firewall is enabled
+	if isFirewallEnabled(workflowData) && workflowData.SafeInputs != nil {
+		// Squid proxy runs at 172.30.0.10:3128 inside the AWF agent container
+		// These values are set by the gh-aw-firewall setup
+		injectFirewallProxyEnv(workflowData.SafeInputs, "172.30.0.10", "3128")
+	}
+
 	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
