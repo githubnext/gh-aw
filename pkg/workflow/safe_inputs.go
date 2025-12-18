@@ -647,11 +647,12 @@ func injectFirewallProxyEnv(safeInputs *SafeInputsConfig, squidIP string, squidP
 			toolConfig.Env = make(map[string]string)
 		}
 
-		// Add both uppercase and lowercase variants for maximum compatibility
+		// Add uppercase variants only to avoid GitHub Actions env block conflicts
+		// (GitHub Actions treats env var names as case-insensitive)
+		// The MCP server will pass these to tools, which will have both uppercase
+		// and lowercase variants available in their process environment
 		toolConfig.Env["HTTP_PROXY"] = proxyURL
 		toolConfig.Env["HTTPS_PROXY"] = proxyURL
-		toolConfig.Env["http_proxy"] = proxyURL
-		toolConfig.Env["https_proxy"] = proxyURL
 	}
 
 	safeInputsLog.Printf("Injected firewall proxy environment variables (%s) into %d safe-inputs tools", proxyURL, len(safeInputs.Tools))

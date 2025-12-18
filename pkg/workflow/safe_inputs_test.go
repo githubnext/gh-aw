@@ -692,7 +692,7 @@ func TestInjectFirewallProxyEnv(t *testing.T) {
 
 		injectFirewallProxyEnv(config, "172.30.0.10", "3128")
 
-		// Check gh tool has proxy vars plus original env var
+		// Check gh tool has proxy vars (uppercase only) plus original env var
 		ghTool := config.Tools["gh"]
 		if ghTool.Env["HTTP_PROXY"] != "http://172.30.0.10:3128" {
 			t.Errorf("Expected HTTP_PROXY to be set, got %s", ghTool.Env["HTTP_PROXY"])
@@ -700,20 +700,24 @@ func TestInjectFirewallProxyEnv(t *testing.T) {
 		if ghTool.Env["HTTPS_PROXY"] != "http://172.30.0.10:3128" {
 			t.Errorf("Expected HTTPS_PROXY to be set, got %s", ghTool.Env["HTTPS_PROXY"])
 		}
-		if ghTool.Env["http_proxy"] != "http://172.30.0.10:3128" {
-			t.Errorf("Expected http_proxy to be set, got %s", ghTool.Env["http_proxy"])
+		// Lowercase variants should NOT be set (to avoid GitHub Actions env conflicts)
+		if _, exists := ghTool.Env["http_proxy"]; exists {
+			t.Error("Expected http_proxy NOT to be set (lowercase conflicts with uppercase in GitHub Actions)")
 		}
-		if ghTool.Env["https_proxy"] != "http://172.30.0.10:3128" {
-			t.Errorf("Expected https_proxy to be set, got %s", ghTool.Env["https_proxy"])
+		if _, exists := ghTool.Env["https_proxy"]; exists {
+			t.Error("Expected https_proxy NOT to be set (lowercase conflicts with uppercase in GitHub Actions)")
 		}
 		if ghTool.Env["GH_TOKEN"] != "${{ secrets.GITHUB_TOKEN }}" {
 			t.Error("Expected original GH_TOKEN env var to be preserved")
 		}
 
-		// Check npm tool has proxy vars
+		// Check npm tool has proxy vars (uppercase only)
 		npmTool := config.Tools["npm"]
 		if npmTool.Env["HTTP_PROXY"] != "http://172.30.0.10:3128" {
 			t.Errorf("Expected HTTP_PROXY to be set, got %s", npmTool.Env["HTTP_PROXY"])
+		}
+		if npmTool.Env["HTTPS_PROXY"] != "http://172.30.0.10:3128" {
+			t.Errorf("Expected HTTPS_PROXY to be set, got %s", npmTool.Env["HTTPS_PROXY"])
 		}
 	})
 
