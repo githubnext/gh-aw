@@ -61,10 +61,11 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
 3. **Tools & MCP Servers**
    - Detect which tools are needed based on the task. Examples:
-     - API integration → `github` (with fine-grained `allowed`), `web-fetch`, `web-search`, `jq` (via `bash`)
+     - API integration → `github` (with fine-grained `allowed` for read-only operations), `web-fetch`, `web-search`, `jq` (via `bash`)
      - Browser automation → `playwright`
      - Media manipulation → `ffmpeg` (installed via `steps:`)
      - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
+   - ⚠️ For GitHub write operations (creating issues, adding comments, etc.), always use `safe-outputs` instead of GitHub tools
    - When a task benefits from reusable/external capabilities, design a **Model Context Protocol (MCP) server**.
    - For each tool / MCP server:
      - Explain why it's needed.
@@ -147,15 +148,20 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
    ### Correct tool snippets (reference)
 
-   **GitHub tool with fine-grained allowances**:
+   **GitHub tool with fine-grained allowances (read-only)**:
    ```yaml
    tools:
      github:
        allowed:
-         - add_issue_comment
-         - update_issue
-         - create_issue
+         - get_repository
+         - list_commits
+         - get_issue
    ```
+   
+   ⚠️ **IMPORTANT**: 
+   - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
+   - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
+   - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
 
    **General tools (editing, fetching, searching, bash patterns, Playwright)**:
    ```yaml
