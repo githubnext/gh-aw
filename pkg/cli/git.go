@@ -31,6 +31,111 @@ func findGitRoot() (string, error) {
 	return gitRoot, nil
 }
 
+// findGitRootForPath finds the root directory of the git repository containing the specified path
+func findGitRootForPath(path string) (string, error) {
+	gitLog.Printf("Finding git root for path: %s", path)
+
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+
+	// Run git command in the file's directory
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
+	}
+	gitRoot := strings.TrimSpace(string(output))
+	gitLog.Printf("Found git root for path: %s", gitRoot)
+	return gitRoot, nil
+}
+
+// parseGitHubRepoSlugFromURL extracts owner/repo from a GitHub URL
+// Supports both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats
+func parseGitHubRepoSlugFromURL(url string) string {
+	gitLog.Printf("Parsing GitHub repo slug from URL: %s", url)
+
+	// Remove .git suffix if present
+	url = strings.TrimSuffix(url, ".git")
+
+	// Handle HTTPS URLs: https://github.com/owner/repo
+	if strings.HasPrefix(url, "https://github.com/") {
+		slug := strings.TrimPrefix(url, "https://github.com/")
+		gitLog.Printf("Extracted slug from HTTPS URL: %s", slug)
+		return slug
+	}
+
+	// Handle SSH URLs: git@github.com:owner/repo
+	if strings.HasPrefix(url, "git@github.com:") {
+		slug := strings.TrimPrefix(url, "git@github.com:")
+		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
+		return slug
+	}
+
+	gitLog.Print("Could not extract slug from URL")
+	return ""
+}
+
+// getRepositorySlugFromRemote extracts the repository slug (owner/repo) from git remote URL
+func getRepositorySlugFromRemote() string {
+	gitLog.Print("Getting repository slug from git remote")
+
+	// Try to get from git remote URL
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to get remote URL: %v", err)
+		return ""
+	}
+
+	url := strings.TrimSpace(string(output))
+	slug := parseGitHubRepoSlugFromURL(url)
+
+	if slug != "" {
+		gitLog.Printf("Repository slug: %s", slug)
+	}
+
+	return slug
+}
+
+// getRepositorySlugFromRemoteForPath extracts the repository slug (owner/repo) from the git remote URL
+// of the repository containing the specified file path
+func getRepositorySlugFromRemoteForPath(path string) string {
+	gitLog.Printf("Getting repository slug for path: %s", path)
+
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		gitLog.Printf("Failed to get absolute path: %v", err)
+		return ""
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+
+	// Try to get from git remote URL in the file's repository
+	cmd := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to get remote URL for path: %v", err)
+		return ""
+	}
+
+	url := strings.TrimSpace(string(output))
+	slug := parseGitHubRepoSlugFromURL(url)
+
+	if slug != "" {
+		gitLog.Printf("Repository slug for path: %s", slug)
+	}
+
+	return slug
+}
+
 func stageWorkflowChanges() {
 	// Find git root and add .github/workflows relative to it
 	if gitRoot, err := findGitRoot(); err == nil {

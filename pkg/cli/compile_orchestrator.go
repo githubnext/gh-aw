@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,115 +17,11 @@ import (
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
 
-// getRepositorySlug extracts the repository slug (owner/repo) from git config
-func getRepositorySlug() string {
-	// Try to get from git remote URL
-	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	url := strings.TrimSpace(string(output))
-
-	// Parse GitHub URL patterns:
-	// - https://github.com/owner/repo.git
-	// - git@github.com:owner/repo.git
-	// - https://github.com/owner/repo
-
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
-
-	// Extract owner/repo from URL
-	if strings.HasPrefix(url, "https://github.com/") {
-		slug := strings.TrimPrefix(url, "https://github.com/")
-		return slug
-	} else if strings.HasPrefix(url, "git@github.com:") {
-		slug := strings.TrimPrefix(url, "git@github.com:")
-		return slug
-	}
-
-	return ""
-}
-
-// getRepositorySlugForPath extracts the repository slug (owner/repo) from the git config
-// of the repository containing the specified file path
-func getRepositorySlugForPath(path string) string {
-	// Get absolute path first
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return ""
-	}
-
-	// Use the directory containing the file
-	dir := filepath.Dir(absPath)
-
-	// Try to get from git remote URL in the file's repository
-	cmd := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	url := strings.TrimSpace(string(output))
-
-	// Parse GitHub URL patterns:
-	// - https://github.com/owner/repo.git
-	// - git@github.com:owner/repo.git
-	// - https://github.com/owner/repo
-
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
-
-	// Extract owner/repo from URL
-	if strings.HasPrefix(url, "https://github.com/") {
-		slug := strings.TrimPrefix(url, "https://github.com/")
-		return slug
-	} else if strings.HasPrefix(url, "git@github.com:") {
-		slug := strings.TrimPrefix(url, "git@github.com:")
-		return slug
-	}
-
-	return ""
-}
-
-// getRepositoryRoot returns the absolute path to the git repository root
-// It looks for the git repository containing the current directory
-func getRepositoryRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get repository root: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-// getRepositoryRootForPath returns the absolute path to the git repository root
-// containing the specified file path
-func getRepositoryRootForPath(path string) (string, error) {
-	// Get absolute path first
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	// Use the directory containing the file
-	dir := filepath.Dir(absPath)
-
-	// Run git command in the file's directory
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
 // This ensures stable workflow identifiers regardless of where the repository is cloned
 func getRepositoryRelativePath(absPath string) (string, error) {
 	// Get the repository root for the specific file
-	repoRoot, err := getRepositoryRootForPath(absPath)
+	repoRoot, err := findGitRootForPath(absPath)
 	if err != nil {
 		// If we can't get the repo root, just use the basename as fallback
 		compileOrchestratorLog.Printf("Warning: could not get repository root for %s: %v, using basename", absPath, err)
@@ -324,7 +219,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compileOrchestratorLog.Print("Created compiler instance")
 
 	// Set repository slug for schedule scattering
-	repoSlug := getRepositorySlug()
+	repoSlug := getRepositorySlugFromRemote()
 	if repoSlug != "" {
 		compiler.SetRepositorySlug(repoSlug)
 		compileOrchestratorLog.Printf("Repository slug set: %s", repoSlug)
@@ -532,7 +427,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compiler.SetWorkflowIdentifier(relPath)
 
 			// Set repository slug for this specific file (may differ from CWD's repo)
-			fileRepoSlug := getRepositorySlugForPath(resolvedFile)
+			fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
 			if fileRepoSlug != "" {
 				compiler.SetRepositorySlug(fileRepoSlug)
 				compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
@@ -745,14 +640,21 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		fmt.Printf("Found %d markdown files to compile\n", len(mdFiles))
 	}
 
-	// Handle purge logic: collect existing .lock.yml files before compilation
+	// Handle purge logic: collect existing .lock.yml and .invalid.yml files before compilation
 	var existingLockFiles []string
+	var existingInvalidFiles []string
 	var expectedLockFiles []string
 	if purge {
 		// Find all existing .lock.yml files
 		existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to find existing lock files: %w", err)
+		}
+
+		// Find all existing .invalid.yml files
+		existingInvalidFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to find existing invalid files: %w", err)
 		}
 
 		// Create expected lock files list based on markdown files
@@ -763,6 +665,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		if verbose && len(existingLockFiles) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+		}
+		if verbose && len(existingInvalidFiles) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
 		}
 	}
 
@@ -869,7 +774,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		compiler.SetWorkflowIdentifier(relPath)
 
 		// Set repository slug for this specific file (may differ from CWD's repo)
-		fileRepoSlug := getRepositorySlugForPath(file)
+		fileRepoSlug := getRepositorySlugFromRemoteForPath(file)
 		if fileRepoSlug != "" {
 			compiler.SetRepositorySlug(fileRepoSlug)
 			compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
@@ -963,6 +868,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
+		}
+	}
+
+	// Handle purge logic: delete all .invalid.yml files (these should always be cleaned up)
+	if purge && len(existingInvalidFiles) > 0 {
+		// Delete all .invalid.yml files since these are temporary debugging artifacts
+		// that should not persist after compilation
+		for _, invalidFile := range existingInvalidFiles {
+			if err := os.Remove(invalidFile); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed invalid file: %s", filepath.Base(invalidFile))))
+			}
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
 		}
 	}
 
