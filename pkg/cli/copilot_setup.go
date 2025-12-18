@@ -39,8 +39,8 @@ jobs:
         run: gh aw version
 `
 
-// WorkflowStep represents a GitHub Actions workflow step
-type WorkflowStep struct {
+// CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
+type CopilotWorkflowStep struct {
 	Name string         `yaml:"name,omitempty"`
 	Uses string         `yaml:"uses,omitempty"`
 	Run  string         `yaml:"run,omitempty"`
@@ -50,9 +50,9 @@ type WorkflowStep struct {
 
 // WorkflowJob represents a GitHub Actions workflow job
 type WorkflowJob struct {
-	RunsOn      any            `yaml:"runs-on,omitempty"`
-	Permissions map[string]any `yaml:"permissions,omitempty"`
-	Steps       []WorkflowStep `yaml:"steps,omitempty"`
+	RunsOn      any                   `yaml:"runs-on,omitempty"`
+	Permissions map[string]any        `yaml:"permissions,omitempty"`
+	Steps       []CopilotWorkflowStep `yaml:"steps,omitempty"`
 }
 
 // Workflow represents a GitHub Actions workflow file
@@ -137,11 +137,11 @@ func ensureCopilotSetupSteps(verbose bool) error {
 // injectExtensionInstallStep injects the gh-aw extension install and verification steps into an existing workflow
 func injectExtensionInstallStep(workflow *Workflow) error {
 	// Define the extension install and verify steps to inject
-	installStep := WorkflowStep{
+	installStep := CopilotWorkflowStep{
 		Name: "Install gh-aw extension",
 		Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 	}
-	verifyStep := WorkflowStep{
+	verifyStep := CopilotWorkflowStep{
 		Name: "Verify gh-aw installation",
 		Run:  "gh aw version",
 	}
@@ -156,7 +156,7 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 	insertPosition := 0
 
 	// Insert both steps at the determined position
-	newSteps := make([]WorkflowStep, 0, len(job.Steps)+2)
+	newSteps := make([]CopilotWorkflowStep, 0, len(job.Steps)+2)
 	newSteps = append(newSteps, job.Steps[:insertPosition]...)
 	newSteps = append(newSteps, installStep)
 	newSteps = append(newSteps, verifyStep)

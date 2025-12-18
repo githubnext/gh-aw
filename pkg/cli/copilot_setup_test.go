@@ -48,7 +48,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
 						RunsOn: "ubuntu-latest",
-						Steps: []WorkflowStep{
+						Steps: []CopilotWorkflowStep{
 							{
 								Name: "Checkout code",
 								Uses: "actions/checkout@v5",
@@ -79,7 +79,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
 						RunsOn: "ubuntu-latest",
-						Steps: []WorkflowStep{
+						Steps: []CopilotWorkflowStep{
 							{
 								Name: "Some existing step",
 								Run:  "echo 'existing'",
@@ -197,7 +197,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
-						Steps: []WorkflowStep{
+						Steps: []CopilotWorkflowStep{
 							{Name: "Some step"},
 							{Name: "Build"},
 						},
@@ -223,7 +223,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"copilot-setup-steps": {
-						Steps: []WorkflowStep{},
+						Steps: []CopilotWorkflowStep{},
 					},
 				},
 			},
@@ -248,7 +248,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 			workflow: &Workflow{
 				Jobs: map[string]WorkflowJob{
 					"other-job": {
-						Steps: []WorkflowStep{},
+						Steps: []CopilotWorkflowStep{},
 					},
 				},
 			},
@@ -293,7 +293,7 @@ func TestWorkflowStructMarshaling(t *testing.T) {
 				Permissions: map[string]any{
 					"contents": "read",
 				},
-				Steps: []WorkflowStep{
+				Steps: []CopilotWorkflowStep{
 					{
 						Name: "Checkout",
 						Uses: "actions/checkout@v5",
@@ -435,30 +435,30 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 	}
 }
 
-func TestWorkflowStepStructure(t *testing.T) {
+func TestCopilotWorkflowStepStructure(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name string
-		step WorkflowStep
+		step CopilotWorkflowStep
 	}{
 		{
 			name: "step with uses",
-			step: WorkflowStep{
+			step: CopilotWorkflowStep{
 				Name: "Checkout",
 				Uses: "actions/checkout@v5",
 			},
 		},
 		{
 			name: "step with run",
-			step: WorkflowStep{
+			step: CopilotWorkflowStep{
 				Name: "Run command",
 				Run:  "echo 'test'",
 			},
 		},
 		{
 			name: "step with environment",
-			step: WorkflowStep{
+			step: CopilotWorkflowStep{
 				Name: "Run with env",
 				Run:  "echo $TEST",
 				Env: map[string]any{
@@ -468,7 +468,7 @@ func TestWorkflowStepStructure(t *testing.T) {
 		},
 		{
 			name: "step with with parameters",
-			step: WorkflowStep{
+			step: CopilotWorkflowStep{
 				Name: "Setup",
 				Uses: "actions/setup-go@v6",
 				With: map[string]any{
@@ -487,7 +487,7 @@ func TestWorkflowStepStructure(t *testing.T) {
 			}
 
 			// Unmarshal back
-			var unmarshaledStep WorkflowStep
+			var unmarshaledStep CopilotWorkflowStep
 			if err := yaml.Unmarshal(data, &unmarshaledStep); err != nil {
 				t.Fatalf("Failed to unmarshal step: %v", err)
 			}
