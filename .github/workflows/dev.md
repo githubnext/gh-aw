@@ -2,31 +2,31 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Add a poem to an issue
+description: Add a poem to the latest discussion
 timeout-minutes: 5
 strict: false
 engine: copilot
 
 permissions:
   contents: read
-  issues: write
+  discussions: write
 
 tools:
   github:
-    toolsets: [issues]
+    toolsets: [discussions]
 imports:
   - shared/gh.md
 safe-outputs:
-  update-issue:
+  update-discussion:
     body:
 ---
 
-Find an open issue in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
+Find the latest discussion in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
 
 The poem should:
 - Be 4-8 lines long
 - Mention automation, AI agents, or workflow concepts
 - Be uplifting and inspiring
-- Be added to the existing issue body
+- Be added to the existing discussion body
 
-You MUST use the update_issue tool to update an issue with a poem in the body. This is required.
+You MUST use the update_discussion tool to update a discussion with a poem in the body. This is required.

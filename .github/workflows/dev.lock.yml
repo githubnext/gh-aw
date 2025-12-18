@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Add a poem to an issue
+# Add a poem to the latest discussion
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      discussions: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -290,42 +290,34 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
+          {"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
+              "description": "Update an existing GitHub discussion's title or body. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
+                    "description": "New discussion body to replace the existing content. Use Markdown formatting.",
                     "type": "string"
                   },
-                  "issue_number": {
-                    "description": "Issue number to update. Required when the workflow target is '*' (any issue).",
+                  "discussion_number": {
+                    "description": "Discussion number to update. Required when the workflow target is '*' (any discussion).",
                     "type": [
                       "number",
                       "string"
                     ]
                   },
-                  "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
-                    "enum": [
-                      "open",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
                   "title": {
-                    "description": "New issue title to replace the existing title.",
+                    "description": "New discussion title to replace the existing title.",
                     "type": "string"
                   }
                 },
                 "type": "object"
               },
-              "name": "update_issue"
+              "name": "update_discussion"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -406,32 +398,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
             }
           }
           EOF
@@ -3094,7 +3060,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=issues",
+                  "GITHUB_TOOLSETS=discussions",
                   "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
@@ -3250,15 +3216,15 @@ jobs:
           
           
           
-          Find an open issue in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
+          Find the latest discussion in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
           
           The poem should:
           - Be 4-8 lines long
           - Mention automation, AI agents, or workflow concepts
           - Be uplifting and inspiring
-          - Be added to the existing issue body
+          - Be added to the existing discussion body
           
-          You MUST use the update_issue tool to update an issue with a poem in the body. This is required.
+          You MUST use the update_discussion tool to update a discussion with a poem in the body. This is required.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -3307,7 +3273,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: missing_tool, noop, update_issue
+          **Available tools**: missing_tool, noop, update_discussion
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -7541,7 +7507,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Dev"
-          WORKFLOW_DESCRIPTION: "Add a poem to an issue"
+          WORKFLOW_DESCRIPTION: "Add a poem to the latest discussion"
         with:
           script: |
             const fs = require('fs');
@@ -7770,8 +7736,11 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      issues: write
+      discussions: write
     timeout-minutes: 15
+    outputs:
+      update_discussion_discussion_number: ${{ steps.update_discussion.outputs.discussion_number }}
+      update_discussion_discussion_url: ${{ steps.update_discussion.outputs.discussion_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -8420,14 +8389,15 @@ jobs:
           };
           
           EOF_006d32d7
-      - name: Update Issue
-        id: update_issue
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
+      - name: Update Discussion
+        id: update_discussion
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_discussion'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ENGINE_ID: "copilot"
+          GH_AW_UPDATE_BODY: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8437,41 +8407,90 @@ jobs:
             globalThis.exec = exec;
             globalThis.io = io;
             const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
-            const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
+            const { isDiscussionContext, getDiscussionNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
             const renderStagedItem = createRenderStagedItem({
-              entityName: "Issue",
-              numberField: "issue_number",
-              targetLabel: "Target Issue:",
-              currentTargetText: "Current issue",
+              entityName: "Discussion",
+              numberField: "discussion_number",
+              targetLabel: "Target Discussion:",
+              currentTargetText: "Current discussion",
               includeOperation: false,
             });
-            async function executeIssueUpdate(github, context, issueNumber, updateData) {
-              const { _operation, _rawBody, ...apiData } = updateData;
-              const { data: issue } = await github.rest.issues.update({
+            async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
+              const { _operation, _rawBody, ...fieldsToUpdate } = updateData;
+              const getDiscussionQuery = `
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $number) {
+                      id
+                      title
+                      body
+                      url
+                    }
+                  }
+                }
+              `;
+              const queryResult = await github.graphql(getDiscussionQuery, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issueNumber,
-                ...apiData,
+                number: discussionNumber,
               });
-              return issue;
+              if (!queryResult?.repository?.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found`);
+              }
+              const discussionId = queryResult.repository.discussion.id;
+              const updateDiscussionMutation = `
+                mutation($discussionId: ID!, $title: String, $body: String) {
+                  updateDiscussion(input: {
+                    discussionId: $discussionId
+                    ${fieldsToUpdate.title !== undefined ? "title: $title" : ""}
+                    ${fieldsToUpdate.body !== undefined ? "body: $body" : ""}
+                  }) {
+                    discussion {
+                      id
+                      number
+                      title
+                      body
+                      url
+                    }
+                  }
+                }
+              `;
+              const variables = {
+                discussionId: discussionId,
+              };
+              if (fieldsToUpdate.title !== undefined) {
+                variables.title = fieldsToUpdate.title;
+              }
+              if (fieldsToUpdate.body !== undefined) {
+                variables.body = fieldsToUpdate.body;
+              }
+              const mutationResult = await github.graphql(updateDiscussionMutation, variables);
+              if (!mutationResult?.updateDiscussion?.discussion) {
+                throw new Error("Failed to update discussion");
+              }
+              const discussion = mutationResult.updateDiscussion.discussion;
+              return {
+                ...discussion,
+                html_url: discussion.url,
+              };
             }
             const getSummaryLine = createGetSummaryLine({
-              entityPrefix: "Issue",
+              entityPrefix: "Discussion",
             });
             async function main() {
               return await runUpdateWorkflow({
-                itemType: "update_issue",
-                displayName: "issue",
-                displayNamePlural: "issues",
-                numberField: "issue_number",
-                outputNumberKey: "issue_number",
-                outputUrlKey: "issue_url",
-                isValidContext: isIssueContext,
-                getContextNumber: getIssueNumber,
-                supportsStatus: true,
+                itemType: "update_discussion",
+                displayName: "discussion",
+                displayNamePlural: "discussions",
+                numberField: "discussion_number",
+                outputNumberKey: "discussion_number",
+                outputUrlKey: "discussion_url",
+                isValidContext: isDiscussionContext,
+                getContextNumber: getDiscussionNumber,
+                supportsStatus: false,
                 supportsOperation: false,
                 renderStagedItem,
-                executeUpdate: executeIssueUpdate,
+                executeUpdate: executeDiscussionUpdate,
                 getSummaryLine,
               });
             }
