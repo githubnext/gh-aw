@@ -7684,6 +7684,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const fs = require("fs");
             const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
             const { updateActivationCommentWithCommit } = require('/tmp/gh-aw/scripts/update_activation_comment.cjs');

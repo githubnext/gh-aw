@@ -312,20 +312,34 @@ func GenerateRequireScript(mainScriptPath string) string {
 	return fmt.Sprintf(`(async () => { await require('%s'); })();`, fullPath)
 }
 
+// GitHubScriptGlobalsPreamble is JavaScript code that exposes the github-script
+// built-in objects (github, context, core, exec, io) on the global JavaScript object.
+// This allows required modules to access these globals via globalThis.
+const GitHubScriptGlobalsPreamble = `// Expose github-script globals to required modules
+globalThis.github = github;
+globalThis.context = context;
+globalThis.core = core;
+globalThis.exec = exec;
+globalThis.io = io;
+
+`
+
 // GetInlinedScriptForFileMode gets the main script content and transforms it for inlining
 // in the github-script action while using file mode for dependencies.
 //
 // This function:
-// 1. Gets the script content from the registry
-// 2. Transforms relative require() calls to absolute paths (e.g., './helper.cjs' -> '/tmp/gh-aw/scripts/helper.cjs')
-// 3. Patches top-level await patterns to work in the execution context
+// 1. Adds a preamble to expose github-script globals (github, context, core, exec, io) on globalThis
+// 2. Gets the script content from the registry
+// 3. Transforms relative require() calls to absolute paths (e.g., './helper.cjs' -> '/tmp/gh-aw/scripts/helper.cjs')
+// 4. Patches top-level await patterns to work in the execution context
 //
 // This is different from GenerateRequireScript which just generates a require() call.
 // Inlining the main script is necessary because:
 // - require() runs in a separate module context without the GitHub Script globals
 // - The main script needs access to github, context, core, etc. in its top-level scope
 //
-// Dependencies are still loaded from files using require().
+// Dependencies are still loaded from files using require() and can access the globals
+// via globalThis (e.g., globalThis.github, globalThis.core).
 func GetInlinedScriptForFileMode(scriptName string) (string, error) {
 	// Get script content from registry
 	content := DefaultScriptRegistry.GetSource(scriptName)
@@ -339,9 +353,12 @@ func GetInlinedScriptForFileMode(scriptName string) (string, error) {
 	// Patch top-level await patterns
 	patched := patchTopLevelAwaitForFileMode(transformed)
 
-	fileModeLog.Printf("Inlined script %s: %d bytes (transformed from %d)", scriptName, len(patched), len(content))
+	// Add preamble to expose globals to required modules
+	result := GitHubScriptGlobalsPreamble + patched
 
-	return patched, nil
+	fileModeLog.Printf("Inlined script %s: %d bytes (transformed from %d)", scriptName, len(result), len(content))
+
+	return result, nil
 }
 
 // RewriteScriptForFileMode rewrites a script's require statements to use absolute

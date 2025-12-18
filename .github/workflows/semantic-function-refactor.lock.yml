@@ -7801,6 +7801,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const { sanitizeLabelContent } = require('/tmp/gh-aw/scripts/sanitize_label_content.cjs');
             const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
             const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
@@ -8096,6 +8101,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const { processCloseEntityItems, ISSUE_CONFIG } = require('/tmp/gh-aw/scripts/close_entity_helpers.cjs');
             async function getIssueDetails(github, owner, repo, issueNumber) {
               const { data: issue } = await github.rest.issues.get({

@@ -8514,6 +8514,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
             const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
             const { closeOlderDiscussions } = require('/tmp/gh-aw/scripts/close_older_discussions.cjs');
@@ -8796,6 +8801,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");

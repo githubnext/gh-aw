@@ -7866,6 +7866,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
             const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
             const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require('/tmp/gh-aw/scripts/assign_agent_helpers.cjs');
@@ -8041,6 +8046,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
             const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
             const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
             const renderStagedItem = createRenderStagedItem({
