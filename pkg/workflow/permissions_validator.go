@@ -145,7 +145,7 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *
 		permissionsValidatorLog.Print("No GitHub tool configured (nil interface), skipping validation")
 		return result
 	}
-	
+
 	// Check if concrete type is nil (interface wrapping nil pointer)
 	if config, ok := githubTool.(*GitHubToolConfig); ok && config == nil {
 		permissionsValidatorLog.Print("No GitHub tool configured (nil concrete type), skipping validation")
