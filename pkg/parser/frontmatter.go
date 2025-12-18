@@ -84,7 +84,11 @@ type ImportsResult struct {
 	MergedSecretMasking string         // Merged secret-masking steps from all imports
 	ImportedFiles       []string       // List of imported file paths (for manifest)
 	AgentFile           string         // Path to custom agent file (if imported)
-	ImportInputs        map[string]any // Aggregated input values from all imports (key = input name, value = input value)
+	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
+	// This is parsed from YAML frontmatter where the structure is dynamic and not known at compile time.
+	// This is an appropriate use of 'any' for dynamic YAML/JSON data.
+	// See specs/go-type-patterns.md for guidance on when to use map[string]any.
+	ImportInputs map[string]any // Aggregated input values from all imports (key = input name, value = input value)
 }
 
 // ImportInputDefinition defines an input parameter for a shared workflow import.
@@ -94,19 +98,26 @@ type ImportsResult struct {
 type ImportInputDefinition struct {
 	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Required    bool     `yaml:"required,omitempty" json:"required,omitempty"`
-	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean
+	Default     any      `yaml:"default,omitempty" json:"default,omitempty"` // Can be string, number, or boolean (dynamic type from YAML)
 	Type        string   `yaml:"type,omitempty" json:"type,omitempty"`       // "string", "choice", "boolean", "number"
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"` // Options for choice type
 }
 
 // ImportSpec represents a single import specification (either a string path or an object with path and inputs)
 type ImportSpec struct {
-	Path   string         // Import path (required)
+	Path string // Import path (required)
+	// Inputs uses map[string]any because input values can be different types (string, number, boolean).
+	// This is parsed from YAML frontmatter and validated against the imported workflow's input definitions.
+	// This is an appropriate use of 'any' for dynamic YAML data. See specs/go-type-patterns.md.
 	Inputs map[string]any // Optional input values to pass to the imported workflow (values are string, number, or boolean)
 }
 
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
+//
+// Type Pattern Note: frontmatter uses map[string]any because it represents parsed YAML with
+// dynamic structure that varies by workflow. This is the appropriate pattern for parsing
+// user-provided configuration files. See specs/go-type-patterns.md for guidance.
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
 	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, nil)
 	if err != nil {
