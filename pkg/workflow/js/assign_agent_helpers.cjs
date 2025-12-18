@@ -119,9 +119,7 @@ async function findAgent(owner, repo, agentName) {
       core.info("No coding agents are currently assignable in this repository.");
     }
     if (agentName === "copilot") {
-      core.info(
-        "Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot"
-      );
+      core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
     }
     return null;
   } catch (error) {
@@ -253,11 +251,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     }
 
     // Check for permission-related errors
-    if (
-      errorMessage.includes("Resource not accessible by personal access token") ||
-      errorMessage.includes("Resource not accessible by integration") ||
-      errorMessage.includes("Insufficient permissions to assign")
-    ) {
+    if (errorMessage.includes("Resource not accessible by personal access token") || errorMessage.includes("Resource not accessible by integration") || errorMessage.includes("Insufficient permissions to assign")) {
       // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
       core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
       try {
@@ -346,8 +340,7 @@ function generatePermissionErrorSummary() {
   content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
   content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
   content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-  content +=
-    "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+  content += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
   content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
   return content;
 }

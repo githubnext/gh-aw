@@ -202,15 +202,7 @@ async function main() {
 
   // Fetch the specific PR to get its head branch, title, and labels
   try {
-    const prInfoRes = await exec.getExecOutput(`gh`, [
-      `pr`,
-      `view`,
-      `${pullNumber}`,
-      `--json`,
-      `headRefName,title,labels`,
-      `--jq`,
-      `{headRefName, title, labels: (.labels // [] | map(.name))}`,
-    ]);
+    const prInfoRes = await exec.getExecOutput(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: (.labels // [] | map(.name))}`]);
     if (prInfoRes.exitCode === 0) {
       const prData = JSON.parse(prInfoRes.stdout.trim());
       branchName = prData.headRefName;
@@ -273,9 +265,7 @@ async function main() {
   try {
     await exec.exec(`git rev-parse --verify origin/${branchName}`);
   } catch (verifyError) {
-    core.setFailed(
-      `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
-    );
+    core.setFailed(`Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`);
     return;
   }
 
@@ -284,9 +274,7 @@ async function main() {
     await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
     core.info(`Checked out existing branch from origin: ${branchName}`);
   } catch (checkoutError) {
-    core.setFailed(
-      `Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`
-    );
+    core.setFailed(`Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`);
     return;
   }
 
@@ -306,10 +294,7 @@ async function main() {
         // Modify Subject lines in the patch to append the suffix
         // Patch format has "Subject: [PATCH] <original title>" or "Subject: <original title>"
         // Append the suffix at the end of the title to avoid git am stripping brackets
-        patchContent = patchContent.replace(
-          /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-          (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`
-        );
+        patchContent = patchContent.replace(/^Subject: (?:\[PATCH\] )?(.*)$/gm, (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`);
 
         // Write the modified patch back
         fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
@@ -364,9 +349,7 @@ async function main() {
         core.info("Failed patch (full):");
         core.info(patchFullResult.stdout);
       } catch (investigateError) {
-        core.warning(
-          `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-        );
+        core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
       }
 
       core.setFailed("Failed to apply patch");
@@ -399,9 +382,7 @@ async function main() {
 
   // Get repository base URL and construct URLs
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const repoUrl = context.payload.repository
-    ? context.payload.repository.html_url
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+  const repoUrl = context.payload.repository ? context.payload.repository.html_url : `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
   const pushUrl = `${repoUrl}/tree/${branchName}`;
   const commitUrl = `${repoUrl}/commit/${commitSha}`;
 

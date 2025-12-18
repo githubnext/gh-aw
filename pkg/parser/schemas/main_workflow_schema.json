@@ -17,10 +17,7 @@
     "source": {
       "type": "string",
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
-      "examples": [
-        "githubnext/agentics/workflows/ci-doctor.md",
-        "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-      ]
+      "examples": ["githubnext/agentics/workflows/ci-doctor.md", "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"]
     },
     "tracker-id": {
       "type": "string",
@@ -158,16 +155,7 @@
                         {
                           "type": "string",
                           "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
-                          "enum": [
-                            "*",
-                            "issues",
-                            "issue_comment",
-                            "pull_request_comment",
-                            "pull_request",
-                            "pull_request_review_comment",
-                            "discussion",
-                            "discussion_comment"
-                          ]
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                         },
                         {
                           "type": "array",
@@ -176,16 +164,7 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": [
-                              "*",
-                              "issues",
-                              "issue_comment",
-                              "pull_request_comment",
-                              "pull_request",
-                              "pull_request_review_comment",
-                              "discussion",
-                              "discussion_comment"
-                            ]
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                           }
                         }
                       ]
@@ -224,16 +203,7 @@
                         {
                           "type": "string",
                           "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
-                          "enum": [
-                            "*",
-                            "issues",
-                            "issue_comment",
-                            "pull_request_comment",
-                            "pull_request",
-                            "pull_request_review_comment",
-                            "discussion",
-                            "discussion_comment"
-                          ]
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                         },
                         {
                           "type": "array",
@@ -242,16 +212,7 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": [
-                              "*",
-                              "issues",
-                              "issue_comment",
-                              "pull_request_comment",
-                              "pull_request",
-                              "pull_request_review_comment",
-                              "discussion",
-                              "discussion_comment"
-                            ]
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                           }
                         }
                       ]
@@ -430,26 +391,7 @@
                   "description": "Types of issue events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "opened",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "closed",
-                      "reopened",
-                      "assigned",
-                      "unassigned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "milestoned",
-                      "demilestoned",
-                      "typed",
-                      "untyped"
-                    ]
+                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned", "typed", "untyped"]
                   }
                 },
                 "names": {
@@ -503,21 +445,7 @@
                   "description": "Types of discussion events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "category_changed",
-                      "answered",
-                      "unanswered"
-                    ]
+                    "enum": ["created", "edited", "deleted", "transferred", "pinned", "unpinned", "labeled", "unlabeled", "locked", "unlocked", "category_changed", "answered", "unanswered"]
                   }
                 }
               }
@@ -2144,10 +2072,7 @@
     "if": {
       "type": "string",
       "description": "Conditional execution expression",
-      "examples": [
-        "${{ github.event.workflow_run.event == 'workflow_dispatch' }}",
-        "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
-      ]
+      "examples": ["${{ github.event.workflow_run.event == 'workflow_dispatch' }}", "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"]
     },
     "steps": {
       "description": "Custom workflow steps",
@@ -2346,14 +2271,7 @@
                   "toolsets": ["pull_requests", "actions", "repos"]
                 },
                 {
-                  "allowed": [
-                    "search_pull_requests",
-                    "pull_request_read",
-                    "list_pull_requests",
-                    "get_file_contents",
-                    "list_commits",
-                    "get_commit"
-                  ]
+                  "allowed": ["search_pull_requests", "pull_request_read", "list_pull_requests", "get_file_contents", "list_commits", "get_commit"]
                 },
                 {
                   "read-only": true
@@ -2401,20 +2319,7 @@
           ],
           "examples": [
             true,
-            [
-              "git fetch",
-              "git checkout",
-              "git status",
-              "git diff",
-              "git log",
-              "make recompile",
-              "make fmt",
-              "make lint",
-              "make test-unit",
-              "cat",
-              "echo",
-              "ls"
-            ],
+            ["git fetch", "git checkout", "git status", "git diff", "git log", "make recompile", "make fmt", "make lint", "make test-unit", "cat", "echo", "ls"],
             ["echo", "ls", "cat"],
             ["gh pr list *", "gh search prs *", "jq *"],
             ["date *", "echo *", "cat", "ls"]
@@ -4339,11 +4244,7 @@
         "github-token": {
           "$ref": "#/$defs/github_token",
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
-          "examples": [
-            "${{ secrets.GITHUB_TOKEN }}",
-            "${{ secrets.CUSTOM_PAT }}",
-            "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          ]
+          "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
         },
         "app": {
           "type": "object",
@@ -4557,10 +4458,7 @@
             "footer": {
               "type": "string",
               "description": "Custom footer message template for AI-generated content. Available placeholders: {workflow_name}, {run_url}, {triggering_number}, {workflow_source}, {workflow_source_url}. Example: '> Generated by [{workflow_name}]({run_url})'",
-              "examples": [
-                "> Generated by [{workflow_name}]({run_url})",
-                "> AI output from [{workflow_name}]({run_url}) for #{triggering_number}"
-              ]
+              "examples": ["> Generated by [{workflow_name}]({run_url})", "> AI output from [{workflow_name}]({run_url}) for #{triggering_number}"]
             },
             "footer-install": {
               "type": "string",
@@ -4580,34 +4478,22 @@
             "run-started": {
               "type": "string",
               "description": "Custom message template for workflow activation comment. Available placeholders: {workflow_name}, {run_url}, {event_type}. Default: 'Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.'",
-              "examples": [
-                "Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.",
-                "[{workflow_name}]({run_url}) started processing this {event_type}."
-              ]
+              "examples": ["Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.", "[{workflow_name}]({run_url}) started processing this {event_type}."]
             },
             "run-success": {
               "type": "string",
               "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": [
-                "\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.",
-                "\u2705 [{workflow_name}]({run_url}) finished."
-              ]
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
               "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": [
-                "\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
-                "\u274c [{workflow_name}]({run_url}) {status}."
-              ]
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
               "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": [
-                "\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
-                "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."
-              ]
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             }
           },
           "additionalProperties": false

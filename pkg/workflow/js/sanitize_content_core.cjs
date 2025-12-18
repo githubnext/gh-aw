@@ -262,39 +262,36 @@ function sanitizeContentCore(content, maxLength) {
     // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
     // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
     // Note: No word boundary check to catch protocols even when preceded by word characters
-    return s.replace(
-      /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-      (match, _fullMatch, domain) => {
-        // Extract domain for http/ftp/file/ssh/git protocols
-        if (domain) {
-          const domainLower = domain.toLowerCase();
-          const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+    return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+      // Extract domain for http/ftp/file/ssh/git protocols
+      if (domain) {
+        const domainLower = domain.toLowerCase();
+        const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Redacted URL: ${truncated}`);
+        }
+        if (typeof core !== "undefined" && core.debug) {
+          core.debug(`Redacted URL (full): ${match}`);
+        }
+        addRedactedDomain(domainLower);
+      } else {
+        // For other protocols (data:, javascript:, etc.), track the protocol itself
+        const protocolMatch = match.match(/^([^:]+):/);
+        if (protocolMatch) {
+          const protocol = protocolMatch[1] + ":";
+          // Truncate the matched URL for logging (keep first 12 chars + "...")
+          const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
           if (typeof core !== "undefined" && core.info) {
             core.info(`Redacted URL: ${truncated}`);
           }
           if (typeof core !== "undefined" && core.debug) {
             core.debug(`Redacted URL (full): ${match}`);
           }
-          addRedactedDomain(domainLower);
-        } else {
-          // For other protocols (data:, javascript:, etc.), track the protocol itself
-          const protocolMatch = match.match(/^([^:]+):/);
-          if (protocolMatch) {
-            const protocol = protocolMatch[1] + ":";
-            // Truncate the matched URL for logging (keep first 12 chars + "...")
-            const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-            if (typeof core !== "undefined" && core.info) {
-              core.info(`Redacted URL: ${truncated}`);
-            }
-            if (typeof core !== "undefined" && core.debug) {
-              core.debug(`Redacted URL (full): ${match}`);
-            }
-            addRedactedDomain(protocol);
-          }
+          addRedactedDomain(protocol);
         }
-        return "(redacted)";
       }
-    );
+      return "(redacted)";
+    });
   }
 
   /**
@@ -351,37 +348,7 @@ function sanitizeContentCore(content, maxLength) {
    */
   function convertXmlTags(s) {
     // Allow safe HTML tags: b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
-    const allowedTags = [
-      "b",
-      "blockquote",
-      "br",
-      "code",
-      "details",
-      "em",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "hr",
-      "i",
-      "li",
-      "ol",
-      "p",
-      "pre",
-      "strong",
-      "sub",
-      "summary",
-      "sup",
-      "table",
-      "tbody",
-      "td",
-      "th",
-      "thead",
-      "tr",
-      "ul",
-    ];
+    const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
 
     // First, process CDATA sections specially - convert tags inside them and the CDATA markers
     s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {

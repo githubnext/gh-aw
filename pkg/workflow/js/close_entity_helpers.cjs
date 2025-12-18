@@ -40,9 +40,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 function buildRunUrl() {
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  return context.payload.repository
-    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  return context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 }
 
 /**
@@ -60,15 +58,7 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
 
   let commentBody = body.trim();
   commentBody += getTrackerID("markdown");
-  commentBody += generateFooter(
-    workflowName,
-    runUrl,
-    workflowSource,
-    workflowSourceURL,
-    triggeringIssueNumber,
-    triggeringPRNumber,
-    undefined
-  );
+  commentBody += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 
   return commentBody;
 }

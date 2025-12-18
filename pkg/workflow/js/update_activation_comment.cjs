@@ -12,10 +12,7 @@
  */
 async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
   const itemLabel = itemType === "issue" ? "issue" : "pull request";
-  const linkMessage =
-    itemType === "issue"
-      ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})`
-      : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
+  const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
   await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
 }
 
@@ -108,9 +105,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
       );
 
       const comment = result.updateDiscussionComment.comment;
-      const successMessage = label
-        ? `Successfully updated discussion comment with ${label} link`
-        : "Successfully updated discussion comment";
+      const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
       core.info(successMessage);
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);

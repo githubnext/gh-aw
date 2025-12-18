@@ -37,9 +37,7 @@ async function main() {
 
   if (!result.authorized) {
     // Fail the workflow when permission check fails (cancellation handled by activation job's if condition)
-    core.warning(
-      `Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-    );
+    core.warning(`Access denied: Only authorized users can trigger this workflow. User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
     core.setFailed(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
   }
 }

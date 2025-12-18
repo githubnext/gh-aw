@@ -1,13 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const {
-  AGENT_LOGIN_NAMES,
-  findAgent,
-  getIssueDetails,
-  assignAgentToIssue,
-  generatePermissionErrorSummary,
-} = require("./assign_agent_helpers.cjs");
+const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 
 /**
  * Assign copilot to issues created by create_issue job.
@@ -145,9 +139,7 @@ async function main() {
     }
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(
-      r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions"))
-    );
+    const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();

@@ -104,9 +104,7 @@ async function main() {
     core.info("Missing tools summary:");
 
     // Create structured summary for GitHub Actions step summary
-    core.summary
-      .addHeading("Missing Tools Report", 3)
-      .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+    core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
 
     missingTools.forEach((tool, index) => {
       core.info(`${index + 1}. Tool: ${tool.tool}`);

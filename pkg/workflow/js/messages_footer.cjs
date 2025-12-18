@@ -60,13 +60,10 @@ function getFooterInstallMessage(ctx) {
   const templateContext = toSnakeCase(ctx);
 
   // Default installation template - pirate themed! 🏴‍☠️
-  const defaultInstall =
-    "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
+  const defaultInstall = "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
 
   // Use custom installation message if configured
-  return messages?.footerInstall
-    ? renderTemplate(messages.footerInstall, templateContext)
-    : renderTemplate(defaultInstall, templateContext);
+  return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
 }
 
 /**
@@ -132,15 +129,7 @@ function generateXMLMarker(workflowName, runUrl) {
  * @param {number|undefined} triggeringDiscussionNumber - Discussion number that triggered this workflow
  * @returns {string} Complete footer text
  */
-function generateFooterWithMessages(
-  workflowName,
-  runUrl,
-  workflowSource,
-  workflowSourceURL,
-  triggeringIssueNumber,
-  triggeringPRNumber,
-  triggeringDiscussionNumber
-) {
+function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
   // Determine triggering number (issue takes precedence, then PR, then discussion)
   let triggeringNumber;
   if (triggeringIssueNumber) {

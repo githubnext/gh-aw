@@ -57,16 +57,7 @@ const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validat
  * @returns {Promise<ProcessorResult>} Processing result
  */
 async function processSafeOutput(config, stagedPreviewOptions) {
-  const {
-    itemType,
-    configKey,
-    displayName,
-    itemTypeName,
-    supportsPR = false,
-    supportsIssue = false,
-    findMultiple = false,
-    envVars,
-  } = config;
+  const { itemType, configKey, displayName, itemTypeName, supportsPR = false, supportsIssue = false, findMultiple = false, envVars } = config;
 
   // Step 1: Load agent output
   const result = loadAgentOutput();

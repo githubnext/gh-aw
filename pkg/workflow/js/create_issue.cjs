@@ -6,13 +6,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const {
-  generateTemporaryId,
-  isTemporaryId,
-  normalizeTemporaryId,
-  replaceTemporaryIdReferences,
-  serializeTemporaryIdMap,
-} = require("./temporary_id.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences, serializeTemporaryIdMap } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
@@ -81,10 +75,8 @@ async function main() {
   const temporaryIdMap = new Map();
 
   // Extract triggering context for footer generation
-  const triggeringIssueNumber =
-    context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber =
-    context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
@@ -117,9 +109,7 @@ async function main() {
 
     // Get or generate the temporary ID for this issue
     const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-    core.info(
-      `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`
-    );
+    core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
 
     // Debug logging for parent field
     core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
@@ -137,9 +127,7 @@ async function main() {
           effectiveParentRepo = resolvedParent.repo;
           core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
         } else {
-          core.warning(
-            `Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`
-          );
+          core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
           effectiveParentIssueNumber = undefined;
         }
       } else {
@@ -157,9 +145,7 @@ async function main() {
         effectiveParentIssueNumber = parentIssueNumber;
       }
     }
-    core.info(
-      `Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`
-    );
+    core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
 
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
       core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
@@ -207,9 +193,7 @@ async function main() {
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository
-      ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");
@@ -220,20 +204,7 @@ async function main() {
     // Add expiration comment if expires is set
     addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
 
-    bodyLines.push(
-      ``,
-      ``,
-      generateFooter(
-        workflowName,
-        runUrl,
-        workflowSource,
-        workflowSourceURL,
-        triggeringIssueNumber,
-        triggeringPRNumber,
-        triggeringDiscussionNumber
-      ).trimEnd(),
-      ""
-    );
+    bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
     const body = bodyLines.join("\n").trim();
     core.info(`Creating issue in ${itemRepo} with title: ${title}`);
     core.info(`Labels: ${labels}`);
@@ -327,9 +298,7 @@ async function main() {
             });
             core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
-            core.info(
-              `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-            );
+            core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
           }
         }
       } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {

@@ -87,12 +87,7 @@ describe("safe_inputs_mcp_server.cjs", () => {
     it("should create a valid tool configuration", async () => {
       const { createToolConfig } = await import("./safe_inputs_mcp_server.cjs");
 
-      const config = createToolConfig(
-        "my_tool",
-        "My tool description",
-        { type: "object", properties: { input: { type: "string" } } },
-        "my_tool.cjs"
-      );
+      const config = createToolConfig("my_tool", "My tool description", { type: "object", properties: { input: { type: "string" } } }, "my_tool.cjs");
 
       expect(config.name).toBe("my_tool");
       expect(config.description).toBe("My tool description");

@@ -90,10 +90,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_GITHUB_TOKEN = secretValue;
 
       // Mock findFiles to return our test directory
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       // Execute the modified script
       await eval(`(async () => { ${modifiedScript} })()`);
@@ -119,10 +116,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_API_KEY2 = "api-key-456";
       process.env.SECRET_API_KEY3 = "api-key-789";
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
@@ -141,10 +135,7 @@ describe("redact_secrets.cjs", () => {
       process.env.GH_AW_SECRET_NAMES = "API_KEY";
       process.env.SECRET_API_KEY = secretValue;
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
@@ -161,10 +152,7 @@ describe("redact_secrets.cjs", () => {
       process.env.GH_AW_SECRET_NAMES = "SECRET_KEY";
       process.env.SECRET_SECRET_KEY = secretValue;
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
@@ -184,10 +172,7 @@ describe("redact_secrets.cjs", () => {
       process.env.GH_AW_SECRET_NAMES = "SHORT_SECRET";
       process.env.SECRET_SHORT_SECRET = "abc"; // Only 3 chars, should be skipped
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
@@ -205,19 +190,14 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_TOKEN1 = secret1;
       process.env.SECRET_TOKEN2 = secret2;
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
       const redacted = fs.readFileSync(testFile, "utf8");
       // ghp_1234567890abcdefghijklmnopqrstuvwxyz (40 chars) -> ghp + 37 asterisks
       // sk-proj-abcdef1234567890 (24 chars) -> sk- + 21 asterisks
-      expect(redacted).toBe(
-        "Token1: ghp*************************************\nToken2: sk-*********************\nToken1 again: ghp*************************************"
-      );
+      expect(redacted).toBe("Token1: ghp*************************************\nToken2: sk-*********************\nToken1 again: ghp*************************************");
     });
 
     it("should handle empty secret values gracefully", async () => {
@@ -227,10 +207,7 @@ describe("redact_secrets.cjs", () => {
       process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET";
       process.env.SECRET_EMPTY_SECRET = "";
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
@@ -251,10 +228,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_API_YML = "api-key-yml123";
       process.env.SECRET_API_JSONL = "api-key-jsonl123";
 
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp/gh-aw", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
+      const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
 
       await eval(`(async () => { ${modifiedScript} })()`);
 

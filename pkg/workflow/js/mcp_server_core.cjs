@@ -71,10 +71,7 @@ function initLogFile(server) {
     }
     // Initialize/truncate log file with header
     const timestamp = new Date().toISOString();
-    fs.writeFileSync(
-      server.logFilePath,
-      `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-    );
+    fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
     server.logFileInitialized = true;
   } catch {
     // Silently ignore errors - logging to stderr will still work

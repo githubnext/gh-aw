@@ -21,13 +21,7 @@ const mockGithub = {
 global.core = mockCore;
 global.github = mockGithub;
 
-const {
-  extractMentions,
-  isPayloadUserBot,
-  getRecentCollaborators,
-  checkUserPermission,
-  resolveMentionsLazily,
-} = require("./resolve_mentions.cjs");
+const { extractMentions, isPayloadUserBot, getRecentCollaborators, checkUserPermission, resolveMentionsLazily } = require("./resolve_mentions.cjs");
 
 describe("resolve_mentions.cjs", () => {
   beforeEach(() => {

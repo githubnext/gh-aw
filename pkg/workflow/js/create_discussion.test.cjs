@@ -195,15 +195,12 @@ describe("create_discussion.cjs", () => {
     });
 
     // Verify create discussion mutation
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
-      {
-        repositoryId: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
-        categoryId: "DIC_test456",
-        title: "Test Discussion",
-        body: expect.stringContaining("Test discussion body"),
-      }
-    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), {
+      repositoryId: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+      categoryId: "DIC_test456",
+      title: "Test Discussion",
+      body: expect.stringContaining("Test discussion body"),
+    });
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 1);
