@@ -67,6 +67,10 @@ Campaign Orchestrator Usage:
     on the board as the real-time view of progress, ownership, and status. The orchestrator workflow
     can use the 'update-project' safe output to sync status fields without modifying worker workflow
     files. Workers remain unchanged while the campaign board reflects current execution state.
+    
+    For incremental updates, pull data for each worker based on the last pull time using --start-date
+    (e.g., --start-date -1d for daily updates) and align with existing board items. Compare run data
+    from summary.json with board status to update only changed workers, preserving board state.
 
 ` + WorkflowIDExplanation + `
 
