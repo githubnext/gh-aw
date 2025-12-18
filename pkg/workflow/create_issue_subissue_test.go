@@ -135,12 +135,12 @@ Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 		t.Error("Expected compiled workflow to log successful sub-issue linking")
 	}
 
-	// Verify it still has the standard create_issue job structure
+	// Verify it still has the standard safe_outputs job structure
 	if !strings.Contains(lockContent, "create_issue:") {
-		t.Error("Expected create_issue job to be present")
+		t.Error("Expected safe_outputs job to be present")
 	}
 
 	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
-		t.Error("Expected correct permissions in create_issue job")
+		t.Error("Expected correct permissions in safe_outputs job")
 	}
 }

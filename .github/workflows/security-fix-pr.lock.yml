@@ -41,6 +41,7 @@
 #   agent --> update_cache_memory
 #   detection --> conclusion
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   detection --> update_cache_memory
 #   pre_activation --> activation
 #   safe_outputs --> conclusion
@@ -6551,6 +6552,7 @@ jobs:
     needs:
       - activation
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim

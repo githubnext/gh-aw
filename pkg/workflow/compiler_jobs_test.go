@@ -387,7 +387,7 @@ Test content`
 		t.Error("Expected detection job to be created")
 	}
 
-	// Check that create_issue job depends on detection
+	// Check that safe_outputs job depends on detection
 	if !strings.Contains(yamlStr, constants.DetectionJobName) {
 		t.Error("Expected safe output jobs to depend on detection job")
 	}

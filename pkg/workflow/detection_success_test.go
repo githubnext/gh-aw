@@ -107,9 +107,9 @@ Create outputs.
 	}
 	yaml := string(yamlBytes)
 
-	// Check that create_issue job has detection success check in its condition
+	// Check that safe_outputs job has detection success check in its condition
 	if !strings.Contains(yaml, "create_issue:") {
-		t.Fatal("create_issue job not found")
+		t.Fatal("safe_outputs job not found")
 	}
 
 	if !strings.Contains(yaml, "needs.detection.outputs.success == 'true'") {

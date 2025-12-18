@@ -55,20 +55,20 @@ This workflow tests that create-issue uses its own github-token.
 
 		yamlContent := string(content)
 
-		// Verify that the create_issue job exists
+		// Verify that the safe_outputs job exists
 		if !strings.Contains(yamlContent, "create_issue:") {
-			t.Error("Expected create_issue job to be generated")
+			t.Error("Expected safe_outputs job to be generated")
 		}
 
 		// Verify that the specific token is used for create_issue
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.ISSUE_SPECIFIC_PAT }}") {
-			t.Error("Expected create_issue job to use the issue-specific GitHub token")
+			t.Error("Expected safe_outputs job to use the issue-specific GitHub token")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
 		// Verify that the global token is not used in create_issue
 		if strings.Contains(yamlContent, "github-token: ${{ secrets.GLOBAL_PAT }}") {
-			// Check if it's in the create_issue job section specifically
+			// Check if it's in the safe_outputs job section specifically
 			lines := strings.Split(yamlContent, "\n")
 			inCreateIssueJob := false
 			for _, line := range lines {
@@ -81,7 +81,7 @@ This workflow tests that create-issue uses its own github-token.
 					inCreateIssueJob = false
 				}
 				if inCreateIssueJob && strings.Contains(line, "github-token: ${{ secrets.GLOBAL_PAT }}") {
-					t.Error("create_issue job should not use the global GitHub token when individual token is specified")
+					t.Error("safe_outputs job should not use the global GitHub token when individual token is specified")
 				}
 			}
 		}
@@ -135,7 +135,7 @@ This workflow tests that create-pull-request falls back to global github-token.
 			t.Error("Expected create_pull_request job to be generated")
 		}
 		if !strings.Contains(yamlContent, "create_issue:") {
-			t.Error("Expected create_issue job to be generated")
+			t.Error("Expected safe_outputs job to be generated")
 		}
 
 		// Use simple string checks like the other working tests
@@ -145,7 +145,7 @@ This workflow tests that create-pull-request falls back to global github-token.
 		}
 
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.ISSUE_SPECIFIC_PAT }}") {
-			t.Error("Expected create_issue job to use individual GitHub token")
+			t.Error("Expected safe_outputs job to use individual GitHub token")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})
@@ -191,13 +191,13 @@ This workflow tests that add-labels uses its own github-token.
 
 		yamlContent := string(content)
 
-		// Verify that the add_labels job uses the specific token
+		// Verify that the safe_outputs job uses the specific token
 		if !strings.Contains(yamlContent, "add_labels:") {
-			t.Error("Expected add_labels job to be generated")
+			t.Error("Expected safe_outputs job to be generated")
 		}
 
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.LABELS_PAT }}") {
-			t.Error("Expected add_labels job to use the labels-specific GitHub token")
+			t.Error("Expected safe_outputs job to use the labels-specific GitHub token")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})
@@ -243,13 +243,13 @@ This workflow tests that the global github-token still works when no individual 
 
 		yamlContent := string(content)
 
-		// Verify that the create_issue job uses the global token
+		// Verify that the safe_outputs job uses the global token
 		if !strings.Contains(yamlContent, "create_issue:") {
-			t.Error("Expected create_issue job to be generated")
+			t.Error("Expected safe_outputs job to be generated")
 		}
 
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.LEGACY_PAT }}") {
-			t.Error("Expected create_issue job to use the global GitHub token for backward compatibility")
+			t.Error("Expected safe_outputs job to use the global GitHub token for backward compatibility")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})

@@ -56,9 +56,9 @@ This is a test workflow that should create an issue and assign it to multiple us
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
+	// Verify that safe_outputs job exists
 	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
 	// Verify that assignee steps are present
@@ -175,9 +175,9 @@ This workflow should compile successfully without assignees configuration.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
+	// Verify that safe_outputs job exists
 	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
 	// Verify that no assignee steps are present

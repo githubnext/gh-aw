@@ -44,6 +44,7 @@
 #   ast_grep --> agent
 #   detection --> conclusion
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   safe_outputs --> conclusion
 # ```
 #
@@ -6318,6 +6319,7 @@ jobs:
   safe_outputs:
     needs:
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim

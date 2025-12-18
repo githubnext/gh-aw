@@ -112,9 +112,9 @@ Test workflow with app token minting.
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse markdown content")
 
-	// Build the create_issue job
+	// Build the safe_outputs job
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main")
-	require.NoError(t, err, "Failed to build create_issue job")
+	require.NoError(t, err, "Failed to build safe_outputs job")
 	require.NotNil(t, job, "Job should not be nil")
 
 	// Convert steps to string for easier assertion
@@ -167,9 +167,9 @@ Test workflow with app token minting and repository restrictions.
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Failed to parse markdown content")
 
-	// Build the create_issue job
+	// Build the safe_outputs job
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main")
-	require.NoError(t, err, "Failed to build create_issue job")
+	require.NoError(t, err, "Failed to build safe_outputs job")
 	require.NotNil(t, job, "Job should not be nil")
 
 	// Convert steps to string for easier assertion

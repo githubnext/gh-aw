@@ -124,7 +124,7 @@ This workflow tests the create_pull_request job generation.
 	lockContentStr := string(lockContent)
 
 	// Verify create_pull_request job is present
-	if !strings.Contains(lockContentStr, "create_pull_request:") {
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
 		t.Error("Expected 'create_pull_request' job to be in generated workflow")
 	}
 
@@ -235,7 +235,7 @@ This workflow tests the create_pull_request job generation with draft: false.
 	lockContentStr := string(lockContent)
 
 	// Verify create_pull_request job is present
-	if !strings.Contains(lockContentStr, "create_pull_request:") {
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
 		t.Error("Expected 'create_pull_request' job to be in generated workflow")
 	}
 
@@ -307,7 +307,7 @@ This workflow tests the create_pull_request job generation with draft: true.
 	lockContentStr := string(lockContent)
 
 	// Verify create_pull_request job is present
-	if !strings.Contains(lockContentStr, "create_pull_request:") {
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
 		t.Error("Expected 'create_pull_request' job to be in generated workflow")
 	}
 

@@ -170,10 +170,10 @@ core.info('Creating issue');
 
 	lockStr := string(lockContent)
 
-	// Extract the create_issue job section for more precise testing
+	// Extract the safe_outputs job section for more precise testing
 	createIssueJobStart := strings.Index(lockStr, "  create_issue:")
 	if createIssueJobStart == -1 {
-		t.Fatal("create_issue job not found in lock file")
+		t.Fatal("safe_outputs job not found in lock file")
 	}
 
 	// Find the next job (at same indentation level "  <job_name>:")
@@ -205,19 +205,19 @@ core.info('Creating issue');
 		t.Error("Expected custom action reference './actions/create-issue' not found in lock file")
 	}
 
-	// Verify the create_issue job does NOT use actions/github-script for the main action step
+	// Verify the safe_outputs job does NOT use actions/github-script for the main action step
 	// (other jobs may still use it, which is fine)
 	if strings.Contains(createIssueJobSection, "actions/github-script@") {
-		t.Error("create_issue job should not use 'actions/github-script@' when using dev action mode")
+		t.Error("safe_outputs job should not use 'actions/github-script@' when using dev action mode")
 	}
 
-	// Verify the create_issue job uses the token input instead of github-token
+	// Verify the safe_outputs job uses the token input instead of github-token
 	if strings.Contains(createIssueJobSection, "github-token:") && strings.Contains(createIssueJobSection, "uses: ./actions/create-issue") {
 		t.Error("Dev action mode should use 'token:' input for custom action, not 'github-token:'")
 	}
 
 	if !strings.Contains(createIssueJobSection, "token:") {
-		t.Error("Expected 'token:' input not found in create_issue job for custom action")
+		t.Error("Expected 'token:' input not found in safe_outputs job for custom action")
 	}
 }
 

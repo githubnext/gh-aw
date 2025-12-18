@@ -298,7 +298,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 		t.Fatalf("Failed to build safe output jobs: %v", err)
 	}
 
-	// Check that both detection and create_issue jobs were created
+	// Check that both detection and safe_outputs jobs were created
 	jobs := compiler.jobManager.GetAllJobs()
 	var detectionJob, createIssueJob *Job
 
@@ -316,7 +316,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	}
 
 	if createIssueJob == nil {
-		t.Fatal("Expected create_issue job to be created")
+		t.Fatal("Expected safe_outputs job to be created")
 	}
 
 	// Check that detection job depends on agent job
@@ -324,9 +324,9 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 		t.Errorf("Expected detection job to depend on agent job, got dependencies: %v", detectionJob.Needs)
 	}
 
-	// Check that create_issue job depends on both agent and detection jobs
+	// Check that safe_outputs job depends on both agent and detection jobs
 	if len(createIssueJob.Needs) != 2 || createIssueJob.Needs[0] != constants.AgentJobName || createIssueJob.Needs[1] != constants.DetectionJobName {
-		t.Errorf("Expected create_issue job to depend on both agent and detection jobs, got dependencies: %v", createIssueJob.Needs)
+		t.Errorf("Expected safe_outputs job to depend on both agent and detection jobs, got dependencies: %v", createIssueJob.Needs)
 	}
 }
 

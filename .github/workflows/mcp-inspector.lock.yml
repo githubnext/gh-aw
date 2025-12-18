@@ -64,6 +64,7 @@
 #   detection --> notion_add_comment
 #   detection --> post_to_slack_channel
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   detection --> update_cache_memory
 #   notion_add_comment --> conclusion
 #   post_to_slack_channel --> conclusion
@@ -7596,6 +7597,7 @@ jobs:
   safe_outputs:
     needs:
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim

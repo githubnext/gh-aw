@@ -58,9 +58,9 @@ This workflow uses the old format without assignees and should continue to work.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
+	// Verify that safe_outputs job exists
 	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
 	// Verify that JavaScript step is present
@@ -127,9 +127,9 @@ Create an issue with minimal configuration.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
+	// Verify that safe_outputs job exists
 	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
 	// Verify that no assignee steps are present
@@ -139,9 +139,9 @@ Create an issue with minimal configuration.
 
 	// Verify basic job structure
 	if !strings.Contains(compiledStr, "permissions:") {
-		t.Error("Expected permissions section in create_issue job")
+		t.Error("Expected permissions section in safe_outputs job")
 	}
 	if !strings.Contains(compiledStr, "issues: write") {
-		t.Error("Expected issues: write permission in create_issue job")
+		t.Error("Expected issues: write permission in safe_outputs job")
 	}
 }

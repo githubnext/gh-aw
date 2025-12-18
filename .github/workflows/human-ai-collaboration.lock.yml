@@ -40,6 +40,7 @@
 #   detection --> conclusion
 #   detection --> push_repo_memory
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   push_repo_memory --> conclusion
 #   safe_outputs --> conclusion
 # ```
@@ -7399,6 +7400,7 @@ jobs:
   safe_outputs:
     needs:
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim

@@ -67,7 +67,7 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected create_pull_request job in normal mode")
 		}
 		if !strings.Contains(lockContent, "create_issue:") {
-			t.Error("Expected create_issue job in normal mode")
+			t.Error("Expected safe_outputs job in normal mode")
 		}
 
 		// Checkout should not include github-token in normal mode
@@ -124,7 +124,7 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected create_pull_request job in trial mode")
 		}
 		if !strings.Contains(lockContent, "create_issue:") {
-			t.Error("Expected create_issue job in trial mode")
+			t.Error("Expected safe_outputs job in trial mode")
 		}
 
 		// Checkout in agent job should include github-token in trial mode

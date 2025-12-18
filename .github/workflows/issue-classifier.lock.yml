@@ -42,6 +42,7 @@
 #   agent --> safe_outputs
 #   detection --> conclusion
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   pre_activation --> activation
 #   safe_outputs --> conclusion
 # ```
@@ -5429,6 +5430,7 @@ jobs:
   safe_outputs:
     needs:
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim

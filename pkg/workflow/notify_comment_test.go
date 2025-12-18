@@ -554,7 +554,7 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 		checkJSONKeys []string
 	}{
 		{
-			name:          "creates env vars for create_issue job",
+			name:          "creates env vars for safe_outputs job",
 			jobNames:      []string{"create_issue"},
 			expectJSON:    true,
 			expectEnvVars: 1,

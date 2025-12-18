@@ -105,9 +105,9 @@ Test that safe-outputs github-token overrides top-level.
 		// Strip the comment header to check only the actual YAML content
 		yamlContentNoComments := testutil.StripYAMLCommentHeader(yamlContent)
 
-		// Verify that safe-outputs token is used in the create_issue job
+		// Verify that safe-outputs token is used in the safe_outputs job
 		if !strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
-			t.Error("Expected safe-outputs github-token to be used in create_issue job")
+			t.Error("Expected safe-outputs github-token to be used in safe_outputs job")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
@@ -155,9 +155,9 @@ Test that individual safe-output github-token has highest precedence.
 
 		yamlContent := string(content)
 
-		// Verify that individual token is used in the create_issue job
+		// Verify that individual token is used in the safe_outputs job
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.INDIVIDUAL_PAT }}") {
-			t.Error("Expected individual safe-output github-token to be used in create_issue job")
+			t.Error("Expected individual safe-output github-token to be used in safe_outputs job")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
@@ -171,7 +171,7 @@ Test that individual safe-output github-token has highest precedence.
 		}
 
 		// Note: safe-outputs global token might appear in other safe-output jobs or contexts
-		// but should not appear more frequently than the individual token in the create_issue job
+		// but should not appear more frequently than the individual token in the safe_outputs job
 		// The test is primarily checking that the individual token is used where it should be
 		if individualCount == 0 && safeOutputsCount > 0 {
 			t.Error("Individual token should take precedence over safe-outputs token")

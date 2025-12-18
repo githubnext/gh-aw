@@ -45,6 +45,7 @@
 #   agent --> update_cache_memory
 #   detection --> conclusion
 #   detection --> safe_outputs
+#   detection --> safe_outputs
 #   detection --> update_cache_memory
 #   safe_outputs --> conclusion
 #   update_cache_memory --> conclusion
@@ -6873,6 +6874,7 @@ jobs:
   safe_outputs:
     needs:
       - agent
+      - detection
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim
