@@ -81,6 +81,35 @@ func GetToolsetsData() GitHubToolsetsData {
 	return data
 }
 
+// ValidatableTool represents a tool configuration that can be validated for permissions
+// This interface abstracts the tool configuration structure to enable type-safe permission validation
+type ValidatableTool interface {
+	// GetToolsets returns the comma-separated list of toolsets configured for this tool
+	GetToolsets() string
+	// IsReadOnly returns whether the tool is configured in read-only mode
+	IsReadOnly() bool
+}
+
+// GetToolsets implements ValidatableTool for GitHubToolConfig
+func (g *GitHubToolConfig) GetToolsets() string {
+	if g == nil {
+		// Should not happen - ValidatePermissions checks for nil before calling this
+		return ""
+	}
+	// Convert toolset array to comma-separated string
+	// If empty, expandDefaultToolset will apply defaults
+	toolsetsStr := strings.Join(g.Toolset, ",")
+	return expandDefaultToolset(toolsetsStr)
+}
+
+// IsReadOnly implements ValidatableTool for GitHubToolConfig
+func (g *GitHubToolConfig) IsReadOnly() bool {
+	if g == nil {
+		return true // default to read-only for security
+	}
+	return g.ReadOnly
+}
+
 // PermissionsValidationResult contains the result of permissions validation
 type PermissionsValidationResult struct {
 	MissingPermissions    map[PermissionScope]PermissionLevel // Permissions required but not granted
@@ -95,21 +124,14 @@ type PermissionsValidationResult struct {
 //
 // Parameters:
 //   - permissions: The workflow's declared permissions
-//   - githubTool: The GitHub tool configuration (uses any type because the structure varies
-//     based on the engine and toolsets being used. This is an appropriate use of any for
-//     dynamic configuration data that cannot be known at compile time.)
+//   - githubTool: The GitHub tool configuration implementing ValidatableTool interface
 //
 // Returns:
 //   - A validation result indicating any missing permissions and which toolsets require them
 //
-// Type Pattern Note: githubTool uses 'any' because tool configuration structure is dynamic
-// and varies based on engine (copilot, claude, codex) and mode (local, remote). This is
-// parsed from YAML frontmatter where the structure is not known until runtime.
-// See specs/go-type-patterns.md for guidance on when to use 'any' types.
-//
 // Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
 // Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
-func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsValidationResult {
+func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *PermissionsValidationResult {
 	permissionsValidatorLog.Print("Starting permissions validation")
 
 	result := &PermissionsValidationResult{
@@ -118,14 +140,21 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 	}
 
 	// If GitHub tool is not configured, no validation needed
+	// Check both for nil interface and nil concrete type
 	if githubTool == nil {
-		permissionsValidatorLog.Print("No GitHub tool configured, skipping validation")
+		permissionsValidatorLog.Print("No GitHub tool configured (nil interface), skipping validation")
+		return result
+	}
+
+	// Check if concrete type is nil (interface wrapping nil pointer)
+	if config, ok := githubTool.(*GitHubToolConfig); ok && config == nil {
+		permissionsValidatorLog.Print("No GitHub tool configured (nil concrete type), skipping validation")
 		return result
 	}
 
 	// Extract toolsets from GitHub tool configuration
-	toolsetsStr := getGitHubToolsets(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
+	toolsetsStr := githubTool.GetToolsets()
+	readOnly := githubTool.IsReadOnly()
 	result.ReadOnlyMode = readOnly
 
 	permissionsValidatorLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)

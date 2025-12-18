@@ -123,7 +123,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 	tests := []struct {
 		name               string
 		permissions        *Permissions
-		githubTool         any
+		githubToolConfig   *GitHubToolConfig
 		expectMissing      map[PermissionScope]PermissionLevel
 		expectMissingCount int
 		expectHasIssues    bool
@@ -131,7 +131,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 		{
 			name:               "No GitHub tool configured",
 			permissions:        NewPermissions(),
-			githubTool:         nil,
+			githubToolConfig:   nil,
 			expectMissing:      map[PermissionScope]PermissionLevel{},
 			expectMissingCount: 0,
 			expectHasIssues:    false,
@@ -139,8 +139,8 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 		{
 			name:        "Default toolsets with no permissions",
 			permissions: NewPermissions(),
-			githubTool: map[string]any{
-				"toolsets": []string{"default"},
+			githubToolConfig: &GitHubToolConfig{
+				Toolset: []string{"default"},
 			},
 			expectMissingCount: 3, // contents, issues, pull-requests
 			expectHasIssues:    true,
@@ -152,9 +152,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"default"},
-				"read-only": false,
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"default"},
+				ReadOnly: false,
 			},
 			expectMissingCount: 0,
 			expectHasIssues:    false,
@@ -166,9 +166,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionIssues:       PermissionRead,
 				PermissionPullRequests: PermissionRead,
 			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"default"},
-				"read-only": false, // Need write permissions
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"default"},
+				ReadOnly: false, // Need write permissions
 			},
 			expectMissingCount: 3, // All need write
 			expectHasIssues:    true,
@@ -180,9 +180,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionIssues:       PermissionRead,
 				PermissionPullRequests: PermissionRead,
 			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"default"},
-				"read-only": true,
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"default"},
+				ReadOnly: true,
 			},
 			expectMissingCount: 0,
 			expectHasIssues:    false,
@@ -192,9 +192,9 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionContents: PermissionWrite,
 			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"repos", "issues"},
-				"read-only": false,
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"repos", "issues"},
+				ReadOnly: false,
 			},
 			expectMissingCount: 1, // Missing issues: write
 			expectHasIssues:    true,
@@ -204,8 +204,8 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionActions: PermissionRead,
 			}),
-			githubTool: map[string]any{
-				"toolsets": []string{"actions"},
+			githubToolConfig: &GitHubToolConfig{
+				Toolset: []string{"actions"},
 			},
 			expectMissingCount: 0,
 			expectHasIssues:    false,
@@ -214,7 +214,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ValidatePermissions(tt.permissions, tt.githubTool)
+			result := ValidatePermissions(tt.permissions, tt.githubToolConfig)
 
 			if len(result.MissingPermissions) != tt.expectMissingCount {
 				t.Errorf("Expected %d missing permissions, got %d: %v",
@@ -336,17 +336,17 @@ func TestToolsetPermissionsMapping(t *testing.T) {
 
 func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 	tests := []struct {
-		name        string
-		permissions *Permissions
-		githubTool  any
-		expectMsg   []string
+		name             string
+		permissions      *Permissions
+		githubToolConfig *GitHubToolConfig
+		expectMsg        []string
 	}{
 		{
 			name:        "Shorthand read-all with default toolsets",
 			permissions: NewPermissionsReadAll(),
-			githubTool: map[string]any{
-				"toolsets":  []string{"default"},
-				"read-only": false,
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"default"},
+				ReadOnly: false,
 			},
 			expectMsg: []string{
 				"Missing required permissions for github toolsets:",
@@ -358,9 +358,9 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 		{
 			name:        "All: read with discussions toolset",
 			permissions: NewPermissionsAllRead(),
-			githubTool: map[string]any{
-				"toolsets":  []string{"discussions"},
-				"read-only": false,
+			githubToolConfig: &GitHubToolConfig{
+				Toolset:  []string{"discussions"},
+				ReadOnly: false,
 			},
 			expectMsg: []string{
 				"Missing required permissions for github toolsets:",
@@ -371,7 +371,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ValidatePermissions(tt.permissions, tt.githubTool)
+			result := ValidatePermissions(tt.permissions, tt.githubToolConfig)
 			message := FormatValidationMessage(result, false)
 
 			for _, expected := range tt.expectMsg {
