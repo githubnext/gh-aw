@@ -971,6 +971,19 @@ func (c *Compiler) buildUpdateDiscussionStepConfig(data *WorkflowData, mainJobNa
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
+	// Add target environment variable if set
+	if cfg.Target != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", cfg.Target))
+	}
+
+	// Add field update flags - presence of pointer indicates field can be updated
+	if cfg.Title != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_TITLE: \"true\"\n")
+	}
+	if cfg.Body != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_BODY: \"true\"\n")
+	}
+
 	condition := BuildSafeOutputType("update_discussion")
 
 	return SafeOutputStepConfig{
