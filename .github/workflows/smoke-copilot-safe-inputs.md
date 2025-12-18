@@ -18,8 +18,6 @@ network:
     - defaults
     - node
     - github
-sandbox:
-  agent: false  # Firewall disabled (migrated from network.firewall)
 imports:
   - shared/gh.md
 tools:
