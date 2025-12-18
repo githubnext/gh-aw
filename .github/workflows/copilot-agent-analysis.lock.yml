@@ -69,7 +69,7 @@
 name: "Copilot Agent PR Analysis"
 "on":
   schedule:
-  - cron: "30 11 * * *"
+  - cron: "2 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

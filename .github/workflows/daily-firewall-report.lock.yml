@@ -77,7 +77,7 @@
 name: "Daily Firewall Logs Collector and Reporter"
 "on":
   schedule:
-  - cron: "54 0 * * *"
+  - cron: "26 12 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

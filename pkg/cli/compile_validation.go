@@ -17,8 +17,21 @@ var compileValidationLog = logger.New("cli:compile_validation")
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
 
-	// Set workflow identifier for schedule scattering (use the file path as unique identifier)
-	compiler.SetWorkflowIdentifier(filePath)
+	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
+	relPath, err := getRepositoryRelativePath(filePath)
+	if err != nil {
+		compileValidationLog.Printf("Warning: failed to get repository-relative path for %s: %v", filePath, err)
+		// Fallback to basename if we can't get relative path
+		relPath = filepath.Base(filePath)
+	}
+	compiler.SetWorkflowIdentifier(relPath)
+
+	// Set repository slug for this specific file (may differ from CWD's repo)
+	fileRepoSlug := getRepositorySlugForPath(filePath)
+	if fileRepoSlug != "" {
+		compiler.SetRepositorySlug(fileRepoSlug)
+		compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+	}
 
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
