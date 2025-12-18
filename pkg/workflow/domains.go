@@ -22,6 +22,7 @@ var CopilotDefaultDomains = []string{
 	"api.business.githubcopilot.com",
 	"api.enterprise.githubcopilot.com",
 	"api.github.com",
+	"api.githubcopilot.com",
 	"api.individual.githubcopilot.com",
 	"github.com",
 	"host.docker.internal",
