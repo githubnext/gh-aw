@@ -674,55 +674,23 @@ jobs:
           
           # Verify installation
           copilot --version
+      - name: Install awf binary
+        run: |
+          echo "Installing awf from release: v0.6.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.6.0/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot"],"max":3},"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":1},"add_labels":{"allowed":["smoke-copilot"],"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
-            {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "parent": {
-                    "description": "Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_issue"
-            },
             {
               "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added.",
               "inputSchema": {
@@ -842,39 +810,6 @@ jobs:
                   "itemType": "string",
                   "itemSanitize": true,
                   "itemMaxLength": 128
-                }
-              }
-            },
-            "create_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "parent": {
-                  "issueOrPRNumber": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "temporary_id": {
-                  "type": "string"
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
                 }
               }
             },
@@ -3633,10 +3568,10 @@ jobs:
               staged: false,
               network_mode: "defaults",
               allowed_domains: ["api.github.com","defaults","github","node"],
-              firewall_enabled: false,
+              firewall_enabled: true,
               firewall_version: "",
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -3837,7 +3772,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, add_labels, create_issue, missing_tool, noop
+          **Available tools**: add_comment, add_labels, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -4035,12 +3970,9 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains '*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -7033,6 +6965,165 @@ jobs:
               return entries;
             }
             main();
+      - name: Upload Firewall Logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: firewall-logs-smoke-copilot-safe-inputs
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+              return name
+                .toLowerCase()
+                .replace(/[:\\/\s]/g, "-")
+                .replace(/[^a-z0-9._-]/g, "-");
+            }
+            function main() {
+              const fs = require("fs");
+              const path = require("path");
+              try {
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
+                if (!fs.existsSync(squidLogsDir)) {
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+                  return;
+                }
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+                if (files.length === 0) {
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+                  return;
+                }
+                core.info(`Found ${files.length} firewall log file(s)`);
+                let totalRequests = 0;
+                let allowedRequests = 0;
+                let deniedRequests = 0;
+                const allowedDomains = new Set();
+                const deniedDomains = new Set();
+                const requestsByDomain = new Map();
+                for (const file of files) {
+                  const filePath = path.join(squidLogsDir, file);
+                  core.info(`Parsing firewall log: ${file}`);
+                  const content = fs.readFileSync(filePath, "utf8");
+                  const lines = content.split("\n").filter(line => line.trim());
+                  for (const line of lines) {
+                    const entry = parseFirewallLogLine(line);
+                    if (!entry) {
+                      continue;
+                    }
+                    totalRequests++;
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+                    if (isAllowed) {
+                      allowedRequests++;
+                      allowedDomains.add(entry.domain);
+                    } else {
+                      deniedRequests++;
+                      deniedDomains.add(entry.domain);
+                    }
+                    if (!requestsByDomain.has(entry.domain)) {
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+                    }
+                    const domainStats = requestsByDomain.get(entry.domain);
+                    if (isAllowed) {
+                      domainStats.allowed++;
+                    } else {
+                      domainStats.denied++;
+                    }
+                  }
+                }
+                const summary = generateFirewallSummary({
+                  totalRequests,
+                  allowedRequests,
+                  deniedRequests,
+                  allowedDomains: Array.from(allowedDomains).sort(),
+                  deniedDomains: Array.from(deniedDomains).sort(),
+                  requestsByDomain,
+                });
+                core.summary.addRaw(summary).write();
+                core.info("Firewall log summary generated successfully");
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseFirewallLogLine(line) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith("#")) {
+                return null;
+              }
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+              if (!fields || fields.length < 10) {
+                return null;
+              }
+              const timestamp = fields[0];
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+                return null;
+              }
+              return {
+                timestamp,
+                clientIpPort: fields[1],
+                domain: fields[2],
+                destIpPort: fields[3],
+                proto: fields[4],
+                method: fields[5],
+                status: fields[6],
+                decision: fields[7],
+                url: fields[8],
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+              };
+            }
+            function isRequestAllowed(decision, status) {
+              const statusCode = parseInt(status, 10);
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+                return true;
+              }
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+                return true;
+              }
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+                return false;
+              }
+              return false;
+            }
+            function generateFirewallSummary(analysis) {
+              const { totalRequests, requestsByDomain } = analysis;
+              const validDomains = Array.from(requestsByDomain.keys())
+                .filter(domain => domain !== "-")
+                .sort();
+              const uniqueDomainCount = validDomains.length;
+              let validAllowedRequests = 0;
+              let validDeniedRequests = 0;
+              for (const domain of validDomains) {
+                const stats = requestsByDomain.get(domain);
+                validAllowedRequests += stats.allowed;
+                validDeniedRequests += stats.denied;
+              }
+              let summary = "### 🔥 Firewall Activity\n\n";
+              summary += "<details>\n";
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `${validAllowedRequests} allowed | `;
+              summary += `${validDeniedRequests} blocked | `;
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+              if (uniqueDomainCount > 0) {
+                summary += "| Domain | Allowed | Denied |\n";
+                summary += "|--------|---------|--------|\n";
+                for (const domain of validDomains) {
+                  const stats = requestsByDomain.get(domain);
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
+                }
+              } else {
+                summary += "No firewall activity detected.\n";
+              }
+              summary += "\n</details>\n\n";
+              return summary;
+            }
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+            if (isDirectExecution) {
+              main();
+            }
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -8207,9 +8298,6 @@ jobs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
       add_labels_labels_added: ${{ steps.add_labels.outputs.labels_added }}
-      create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
-      create_issue_temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -8227,133 +8315,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Add expiration XML comment to body lines if expires is set
-           * @param {string[]} bodyLines - Array of body lines to append to
-           * @param {string} envVarName - Name of the environment variable containing expires days (e.g., "GH_AW_DISCUSSION_EXPIRES")
-           * @param {string} entityType - Type of entity for logging (e.g., "Discussion", "Issue", "Pull Request")
-           * @returns {void}
-           */
-          function addExpirationComment(bodyLines, envVarName, entityType) {
-            const expiresEnv = process.env[envVarName];
-            if (expiresEnv) {
-              const expiresDays = parseInt(expiresEnv, 10);
-              if (!isNaN(expiresDays) && expiresDays > 0) {
-                const expirationDate = new Date();
-                expirationDate.setDate(expirationDate.getDate() + expiresDays);
-                const expirationISO = expirationDate.toISOString();
-                bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-                core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
-              }
-            }
-          }
-          
-          module.exports = {
-            addExpirationComment,
-          };
-          
-          EOF_33eff070
-          cat > /tmp/gh-aw/scripts/generate_footer.cjs << 'EOF_88f9d2d4'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Generates an XML comment marker with agentic workflow metadata for traceability.
-           * This marker enables searching and tracing back items generated by an agentic workflow.
-           *
-           * Note: This function is duplicated in messages_footer.cjs. While normally we would
-           * consolidate to a shared module, importing messages_footer.cjs here would cause the
-           * bundler to inline messages_core.cjs which contains 'GH_AW_SAFE_OUTPUT_MESSAGES:' in
-           * a warning message, breaking tests that check for env var declarations.
-           *
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @returns {string} XML comment marker with workflow metadata
-           */
-          function generateXMLMarker(workflowName, runUrl) {
-            // Read engine metadata from environment variables
-            const engineId = process.env.GH_AW_ENGINE_ID || "";
-            const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
-            const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
-            const trackerId = process.env.GH_AW_TRACKER_ID || "";
-          
-            // Build the key-value pairs for the marker
-            const parts = [];
-          
-            // Always include agentic-workflow name
-            parts.push(`agentic-workflow: ${workflowName}`);
-          
-            // Add tracker-id if available (for searchability and tracing)
-            if (trackerId) {
-              parts.push(`tracker-id: ${trackerId}`);
-            }
-          
-            // Add engine ID if available
-            if (engineId) {
-              parts.push(`engine: ${engineId}`);
-            }
-          
-            // Add version if available
-            if (engineVersion) {
-              parts.push(`version: ${engineVersion}`);
-            }
-          
-            // Add model if available
-            if (engineModel) {
-              parts.push(`model: ${engineModel}`);
-            }
-          
-            // Always include run URL
-            parts.push(`run: ${runUrl}`);
-          
-            // Return the XML comment marker
-            return `<!-- ${parts.join(", ")} -->`;
-          }
-          
-          /**
-           * Generate footer with AI attribution and workflow installation instructions
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @param {string} workflowSource - Source of the workflow (owner/repo/path@ref)
-           * @param {string} workflowSourceURL - GitHub URL for the workflow source
-           * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
-           * @param {number|undefined} triggeringPRNumber - Pull request number that triggered this workflow
-           * @param {number|undefined} triggeringDiscussionNumber - Discussion number that triggered this workflow
-           * @returns {string} Footer text
-           */
-          function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
-            let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-          
-            // Add reference to triggering issue/PR/discussion if available
-            if (triggeringIssueNumber) {
-              footer += ` for #${triggeringIssueNumber}`;
-            } else if (triggeringPRNumber) {
-              footer += ` for #${triggeringPRNumber}`;
-            } else if (triggeringDiscussionNumber) {
-              footer += ` for discussion #${triggeringDiscussionNumber}`;
-            }
-          
-            if (workflowSource && workflowSourceURL) {
-              footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-            }
-          
-            // Add XML comment marker for traceability
-            footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
-          
-            footer += "\n";
-            return footer;
-          }
-          
-          module.exports = {
-            generateFooter,
-            generateXMLMarker,
-          };
-          
-          EOF_88f9d2d4
           cat > /tmp/gh-aw/scripts/get_repository_url.cjs << 'EOF_75ff5f42'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -8770,142 +8731,6 @@ jobs:
           };
           
           EOF_c14886c6
-          cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
-          // @ts-check
-          /**
-           * Remove duplicate title from description
-           * @module remove_duplicate_title
-           */
-          
-          /**
-           * Removes duplicate title from the beginning of description content.
-           * If the description starts with a header (# or ## or ### etc.) that matches
-           * the title, it will be removed along with any trailing newlines.
-           *
-           * @param {string} title - The title text to match and remove
-           * @param {string} description - The description content that may contain duplicate title
-           * @returns {string} The description with duplicate title removed
-           */
-          function removeDuplicateTitleFromDescription(title, description) {
-            // Handle null/undefined/empty inputs
-            if (!title || typeof title !== "string") {
-              return description || "";
-            }
-            if (!description || typeof description !== "string") {
-              return "";
-            }
-          
-            const trimmedTitle = title.trim();
-            const trimmedDescription = description.trim();
-          
-            if (!trimmedTitle || !trimmedDescription) {
-              return trimmedDescription;
-            }
-          
-            // Match any header level (# to ######) followed by the title at the start
-            // This regex matches:
-            // - Start of string
-            // - One or more # characters
-            // - One or more spaces
-            // - The exact title (escaped for regex special chars)
-            // - Optional trailing spaces
-            // - Optional newlines after the header
-            const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
-          
-            if (headerRegex.test(trimmedDescription)) {
-              return trimmedDescription.replace(headerRegex, "").trim();
-            }
-          
-            return trimmedDescription;
-          }
-          
-          module.exports = { removeDuplicateTitleFromDescription };
-          
-          EOF_bb4a8126
-          cat > /tmp/gh-aw/scripts/repo_helpers.cjs << 'EOF_0e3d051f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Repository-related helper functions for safe-output scripts
-           * Provides common repository parsing, validation, and resolution logic
-           */
-          
-          /**
-           * Parse the allowed repos from environment variable
-           * @returns {Set<string>} Set of allowed repository slugs
-           */
-          function parseAllowedRepos() {
-            const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
-            const set = new Set();
-            if (allowedReposEnv) {
-              allowedReposEnv
-                .split(",")
-                .map(repo => repo.trim())
-                .filter(repo => repo)
-                .forEach(repo => set.add(repo));
-            }
-            return set;
-          }
-          
-          /**
-           * Get the default target repository
-           * @returns {string} Repository slug in "owner/repo" format
-           */
-          function getDefaultTargetRepo() {
-            // First check if there's a target-repo override
-            const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-            if (targetRepoSlug) {
-              return targetRepoSlug;
-            }
-            // Fall back to context repo
-            return `${context.repo.owner}/${context.repo.repo}`;
-          }
-          
-          /**
-           * Validate that a repo is allowed for operations
-           * @param {string} repo - Repository slug to validate
-           * @param {string} defaultRepo - Default target repository
-           * @param {Set<string>} allowedRepos - Set of explicitly allowed repos
-           * @returns {{valid: boolean, error: string|null}}
-           */
-          function validateRepo(repo, defaultRepo, allowedRepos) {
-            // Default repo is always allowed
-            if (repo === defaultRepo) {
-              return { valid: true, error: null };
-            }
-            // Check if it's in the allowed repos list
-            if (allowedRepos.has(repo)) {
-              return { valid: true, error: null };
-            }
-            return {
-              valid: false,
-              error: `Repository '${repo}' is not in the allowed-repos list. Allowed: ${defaultRepo}${allowedRepos.size > 0 ? ", " + Array.from(allowedRepos).join(", ") : ""}`,
-            };
-          }
-          
-          /**
-           * Parse owner and repo from a repository slug
-           * @param {string} repoSlug - Repository slug in "owner/repo" format
-           * @returns {{owner: string, repo: string}|null}
-           */
-          function parseRepoSlug(repoSlug) {
-            const parts = repoSlug.split("/");
-            if (parts.length !== 2 || !parts[0] || !parts[1]) {
-              return null;
-            }
-            return { owner: parts[0], repo: parts[1] };
-          }
-          
-          module.exports = {
-            parseAllowedRepos,
-            getDefaultTargetRepo,
-            validateRepo,
-            parseRepoSlug,
-          };
-          
-          EOF_0e3d051f
           cat > /tmp/gh-aw/scripts/safe_output_helpers.cjs << 'EOF_80a143d8'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -9759,307 +9584,6 @@ jobs:
           };
           
           EOF_795429aa
-      - name: Create Issue
-        id: create_issue
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_EXPIRES: "1"
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { sanitizeLabelContent } = require('/tmp/gh-aw/scripts/sanitize_label_content.cjs');
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-            const { generateFooter } = require('/tmp/gh-aw/scripts/generate_footer.cjs');
-            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-            const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences, serializeTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-            const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
-            const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
-            const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-            async function main() {
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("temporary_id_map", "{}");
-              core.setOutput("issues_to_assign_copilot", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createIssueItems = result.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              const allowedRepos = parseAllowedRepos();
-              const defaultTargetRepo = getDefaultTargetRepo();
-              core.info(`Default target repo: ${defaultTargetRepo}`);
-              if (allowedRepos.size > 0) {
-                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-              }
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Create Issues",
-                  description: "The following issues would be created if staged mode was disabled:",
-                  items: createIssueItems,
-                  renderItem: (item, index) => {
-                    let content = `#### Issue ${index + 1}\n`;
-                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
-                    if (item.temporary_id) {
-                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
-                    }
-                    if (item.repo) {
-                      content += `**Repository:** ${item.repo}\n\n`;
-                    }
-                    if (item.body) {
-                      content += `**Body:**\n${item.body}\n\n`;
-                    }
-                    if (item.labels && item.labels.length > 0) {
-                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                    }
-                    if (item.parent) {
-                      content += `**Parent:** ${item.parent}\n\n`;
-                    }
-                    return content;
-                  },
-                });
-                return;
-              }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const temporaryIdMap = new Map();
-              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
-                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-                if (!repoValidation.valid) {
-                  core.warning(`Skipping issue: ${repoValidation.error}`);
-                  continue;
-                }
-                const repoParts = parseRepoSlug(itemRepo);
-                if (!repoParts) {
-                  core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
-                  continue;
-                }
-                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-                core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
-                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
-                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-                let effectiveParentIssueNumber;
-                let effectiveParentRepo = itemRepo; 
-                if (createIssueItem.parent !== undefined) {
-                  if (isTemporaryId(createIssueItem.parent)) {
-                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
-                    if (resolvedParent !== undefined) {
-                      effectiveParentIssueNumber = resolvedParent.number;
-                      effectiveParentRepo = resolvedParent.repo;
-                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-                    } else {
-                      core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
-                      effectiveParentIssueNumber = undefined;
-                    }
-                  } else {
-                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
-                    if (isNaN(effectiveParentIssueNumber)) {
-                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
-                      effectiveParentIssueNumber = undefined;
-                    }
-                  }
-                } else {
-                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-                  if (itemRepo === contextRepo) {
-                    effectiveParentIssueNumber = parentIssueNumber;
-                  }
-                }
-                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-                }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
-                }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
-                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-                let bodyLines = processedBody.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
-                  if (effectiveParentRepo === itemRepo) {
-                    bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                  } else {
-                    bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-                  }
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const trackerIDComment = getTrackerID("markdown");
-                if (trackerIDComment) {
-                  bodyLines.push(trackerIDComment);
-                }
-                addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: repoParts.owner,
-                    repo: repoParts.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
-                  createdIssues.push({ ...issue, _repo: itemRepo });
-                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
-                  core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
-                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-                  if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
-                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
-                    try {
-                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                          repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
-                              id
-                            }
-                          }
-                        }
-                      `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: repoParts.owner,
-                        repo: repoParts.repo,
-                        issueNumber: effectiveParentIssueNumber,
-                      });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      core.info(`Parent issue node ID: ${parentNodeId}`);
-                      core.info(`Fetching node ID for child issue #${issue.number}...`);
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: repoParts.owner,
-                        repo: repoParts.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      core.info(`Child issue node ID: ${childNodeId}`);
-                      core.info(`Executing addSubIssue mutation...`);
-                      const addSubIssueMutation = `
-                        mutation($issueId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            issueId: $issueId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        issueId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
-                      try {
-                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-                        await github.rest.issues.createComment({
-                          owner: repoParts.owner,
-                          repo: repoParts.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
-                      }
-                    }
-                  } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
-                    core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
-                  } else {
-                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
-                  throw error;
-                }
-              }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
-                  summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
-              core.setOutput("temporary_id_map", tempIdMapOutput);
-              core.info(`Temporary ID map: ${tempIdMapOutput}`);
-              const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
-              if (assignCopilot && createdIssues.length > 0) {
-                const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
-                core.setOutput("issues_to_assign_copilot", issuesToAssign);
-                core.info(`Issues to assign copilot: ${issuesToAssign}`);
-              }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
-            }
-            (async () => {
-              await main();
-            })();
       - name: Add Comment
         id: add_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
@@ -10067,9 +9591,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_HIDE_OLDER_COMMENTS: "true"
-          GH_AW_CREATED_ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
-          GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-          GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
           GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
           GH_AW_ENGINE_ID: "copilot"
         with:
