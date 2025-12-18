@@ -122,10 +122,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.HideComment != nil {
 		scriptNames = append(scriptNames, "hide_comment")
 	}
-	if data.SafeOutputs.CreateAgentTasks != nil {
-		// create_agent_task is not in the registry with this name, use direct source
-		// Skip for now - handled separately
-	}
+	// create_agent_task is handled separately through its direct source
 	if data.SafeOutputs.UpdateProjects != nil {
 		scriptNames = append(scriptNames, "update_project")
 	}
@@ -469,7 +466,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		),
 	)
 
-	var jobCondition ConditionNode = agentNotSkipped
+	jobCondition := agentNotSkipped
 	if threatDetectionEnabled {
 		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}

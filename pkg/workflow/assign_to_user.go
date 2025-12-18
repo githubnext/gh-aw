@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -13,42 +11,6 @@ type AssignToUserConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed usernames. If omitted, any users are allowed.
-}
-
-// buildAssignToUserJob creates the assign_to_user job
-func (c *Compiler) buildAssignToUserJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	assignToUserLog.Printf("Building assign_to_user job for workflow: %s, main_job: %s", data.Name, mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.AssignToUser == nil {
-		return nil, fmt.Errorf("safe-outputs.assign-to-user configuration is required")
-	}
-
-	cfg := data.SafeOutputs.AssignToUser
-
-	// Build list job config
-	listJobConfig := ListJobConfig{
-		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
-		Allowed:                cfg.Allowed,
-	}
-
-	// Build extra condition: only run if in issue context when target is not specified
-	var extraCondition ConditionNode
-	if cfg.Target == "" {
-		extraCondition = BuildPropertyAccess("github.event.issue.number")
-	}
-
-	// Use shared builder for list-based safe-output jobs
-	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
-		JobName:        "assign_to_user",
-		StepName:       "Assign to User",
-		StepID:         "assign_to_user",
-		EnvPrefix:      "GH_AW_ASSIGNEES",
-		OutputName:     "assigned_users",
-		Script:         getAssignToUserScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
-		DefaultMax:     1,
-		ExtraCondition: extraCondition,
-	})
 }
 
 // parseAssignToUserConfig handles assign-to-user configuration

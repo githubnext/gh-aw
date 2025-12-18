@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -13,47 +11,6 @@ type UpdatePullRequestsConfig struct {
 	UpdateEntityConfig `yaml:",inline"`
 	Title              *bool `yaml:"title,omitempty"` // Allow updating PR title - defaults to true, set to false to disable
 	Body               *bool `yaml:"body,omitempty"`  // Allow updating PR body - defaults to true, set to false to disable
-}
-
-// buildCreateOutputUpdatePullRequestJob creates the update_pull_request job
-func (c *Compiler) buildCreateOutputUpdatePullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	updatePullRequestLog.Printf("Building update pull request job: workflow=%s, mainJob=%s", data.Name, mainJobName)
-	if data.SafeOutputs == nil || data.SafeOutputs.UpdatePullRequests == nil {
-		return nil, fmt.Errorf("safe-outputs.update-pull-request configuration is required")
-	}
-
-	cfg := data.SafeOutputs.UpdatePullRequests
-
-	return c.buildStandardUpdateEntityJob(
-		data,
-		mainJobName,
-		&cfg.UpdateEntityConfig,
-		UpdateEntityPullRequest,
-		"update-pull-request",
-		"update_pull_request",
-		"Update Pull Request",
-		getUpdatePullRequestScript,
-		NewPermissionsContentsReadPRWrite,
-		func(config *UpdateEntityConfig) []string {
-			// Default to true for both title and body unless explicitly set to false
-			canUpdateTitle := cfg.Title == nil || *cfg.Title
-			canUpdateBody := cfg.Body == nil || *cfg.Body
-			return []string{
-				fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", canUpdateTitle),
-				fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", canUpdateBody),
-			}
-		},
-		func() map[string]string {
-			return map[string]string{
-				"pull_request_number": "${{ steps.update_pull_request.outputs.pull_request_number }}",
-				"pull_request_url":    "${{ steps.update_pull_request.outputs.pull_request_url }}",
-			}
-		},
-		func(target string) ConditionNode {
-			return BuildPropertyAccess("github.event.pull_request.number")
-		},
-		updatePullRequestLog,
-	)
 }
 
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
