@@ -213,6 +213,7 @@ Examples:
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		fix, _ := cmd.Flags().GetBool("fix")
+		stats, _ := cmd.Flags().GetBool("stats")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
@@ -256,6 +257,7 @@ Examples:
 			Poutine:              poutine,
 			Actionlint:           actionlint,
 			JSONOutput:           jsonOutput,
+			Stats:                stats,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			errMsg := err.Error()
@@ -465,6 +467,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
+	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by file size (shows jobs, steps, scripts, and shells)")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
 	// Register completions for compile command

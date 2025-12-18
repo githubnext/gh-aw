@@ -1,4 +1,14 @@
 #
+# Pinned GitHub Actions:
+#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
+#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
+#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
+#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
+#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
+#
 #    ___                   _   _      
 #   / _ \                 | | (_)     
 #  | |_| | __ _  ___ _ __ | |_ _  ___ 
@@ -19,37 +29,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors, with daily metrics snapshots and a GitHub Projects dashboard.
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   safe_outputs["safe_outputs"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> safe_outputs
-#   detection --> conclusion
-#   detection --> safe_outputs
-#   detection --> safe_outputs
-#   safe_outputs --> conclusion
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Go File Size Reduction Campaign"
 "on":
@@ -2004,9 +1984,42 @@ jobs:
           - Metrics glob: `memory/campaigns/go-file-size-reduction-*/metrics/*.json`
           - Project URL: https://github.com/orgs/githubnext/projects/60
           
-          Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and update any tracker issues using the campaign label.
+          Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and monitor the progress of associated worker workflows.
           
-          If all issues with the campaign label are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
+          **Tracking Worker Output**: The campaign has knowledge of its workers (listed in the `workflows` field) and monitors their output directly. For each worker workflow:
+          
+          1. **Query GitHub Actions API for recent workflow runs** using the GitHub MCP server:
+             - Use `github-list_workflow_runs` with the worker's workflow file (e.g., `daily-file-diet.lock.yml`)
+             - Filter for recent completed runs (last 24-48 hours) to find worker activity
+             
+          2. **Extract issue URLs from workflow run artifacts**:
+             - Use `github-list_workflow_run_artifacts` to list artifacts from each workflow run
+             - Download the `agent-output` artifact which contains workflow outputs
+             - Parse the artifact to extract issue URLs created by safe-output actions
+             - Look for outputs like: `GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL` in the run logs
+             
+          3. **Alternative: Use GitHub Issues search** as a fallback:
+             - Search for recently created issues with labels matching the worker's output patterns
+             - Filter by creation date (within the worker's run time window)
+             - Cross-reference with workflow run timestamps to confirm correlation
+             
+          4. **Add discovered issues to the project board**:
+             - Use `update-project` safe-output to add issue URLs to the project board
+             - Set appropriate status fields (e.g., "Todo", "In Progress", "Done")
+             - Preserve any existing project item metadata
+             
+          5. **Report on campaign progress**:
+             - Count total issues discovered from worker runs
+             - Track open vs closed issues
+             - Calculate progress percentage
+             - Highlight any issues that need attention
+          
+          Workers operate independently without knowledge of the campaign. The orchestrator discovers their work by monitoring workflow runs, parsing artifacts, and extracting issue URLs from workflow outputs.
+          
+          **Understanding Empty Boards**: If you find zero items on the project board, this is normal when a campaign is just starting or when all work has been completed. This is not an error condition - simply report the current state. Worker workflows will create issues as they discover work to be done, and the orchestrator will add them to the board on subsequent runs.
+          
+          
+          If all issues tracked by the campaign are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
           
           Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/60
           
@@ -2130,46 +2143,35 @@ jobs:
              * @param {string} params.file - Path to the file to process
              * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
              */
-            
-            const fs = require("fs");
-            
-            const substitutePlaceholders = async ({ file, substitutions }) => {
-              // Validate inputs
-              if (!file) {
-                throw new Error("file parameter is required");
-              }
-              if (!substitutions || typeof substitutions !== "object") {
-                throw new Error("substitutions parameter must be an object");
-              }
-            
-              // Read the file content
-              let content;
-              try {
-                content = fs.readFileSync(file, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to read file ${file}: ${error.message}`);
-              }
-            
-              // Perform substitutions
-              // Each placeholder is in the format __VARIABLE_NAME__
-              // We replace it with the corresponding value from the substitutions object
-              for (const [key, value] of Object.entries(substitutions)) {
-                const placeholder = `__${key}__`;
-                // Use a simple string replacement - no regex to avoid any potential issues
-                // with special characters in the value
-                content = content.split(placeholder).join(value);
-              }
-            
-              // Write the updated content back to the file
-              try {
-                fs.writeFileSync(file, content, "utf8");
-              } catch (error) {
-                throw new Error(`Failed to write file ${file}: ${error.message}`);
-              }
-            
-              return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-            };
-            
+            const fs = require("fs"),
+              substitutePlaceholders = async ({ file, substitutions }) => {
+                // Validate inputs
+                if (!file) throw new Error("file parameter is required");
+                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
+                // Read the file content
+                let content;
+                try {
+                  content = fs.readFileSync(file, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to read file ${file}: ${error.message}`);
+                }
+                // Perform substitutions
+                // Each placeholder is in the format __VARIABLE_NAME__
+                // We replace it with the corresponding value from the substitutions object
+                for (const [key, value] of Object.entries(substitutions)) {
+                  const placeholder = `__${key}__`;
+                  // Use a simple string replacement - no regex to avoid any potential issues
+                  // with special characters in the value
+                  content = content.split(placeholder).join(value);
+                }
+                // Write the updated content back to the file
+                try {
+                  fs.writeFileSync(file, content, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to write file ${file}: ${error.message}`);
+                }
+                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              };
             
             
             // Call the substitution function
@@ -5379,297 +5381,151 @@ jobs:
         with:
           script: |
             function sanitizeWorkflowName(name) {
-
               return name
-
                 .toLowerCase()
-
                 .replace(/[:\\/\s]/g, "-")
-
                 .replace(/[^a-z0-9._-]/g, "-");
-
             }
-
             function main() {
-
               const fs = require("fs");
-
               const path = require("path");
-
               try {
-
                 const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
-
                 if (!fs.existsSync(squidLogsDir)) {
-
                   core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
                 if (files.length === 0) {
-
                   core.info(`No firewall log files found in: ${squidLogsDir}`);
-
                   return;
-
                 }
-
                 core.info(`Found ${files.length} firewall log file(s)`);
-
                 let totalRequests = 0;
-
                 let allowedRequests = 0;
-
                 let deniedRequests = 0;
-
                 const allowedDomains = new Set();
-
                 const deniedDomains = new Set();
-
                 const requestsByDomain = new Map();
-
                 for (const file of files) {
-
                   const filePath = path.join(squidLogsDir, file);
-
                   core.info(`Parsing firewall log: ${file}`);
-
                   const content = fs.readFileSync(filePath, "utf8");
-
                   const lines = content.split("\n").filter(line => line.trim());
-
                   for (const line of lines) {
-
                     const entry = parseFirewallLogLine(line);
-
                     if (!entry) {
-
                       continue;
-
                     }
-
                     totalRequests++;
-
                     const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
                     if (isAllowed) {
-
                       allowedRequests++;
-
                       allowedDomains.add(entry.domain);
-
                     } else {
-
                       deniedRequests++;
-
                       deniedDomains.add(entry.domain);
-
                     }
-
                     if (!requestsByDomain.has(entry.domain)) {
-
                       requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
                     }
-
                     const domainStats = requestsByDomain.get(entry.domain);
-
                     if (isAllowed) {
-
                       domainStats.allowed++;
-
                     } else {
-
                       domainStats.denied++;
-
                     }
-
                   }
-
                 }
-
                 const summary = generateFirewallSummary({
-
                   totalRequests,
-
                   allowedRequests,
-
                   deniedRequests,
-
                   allowedDomains: Array.from(allowedDomains).sort(),
-
                   deniedDomains: Array.from(deniedDomains).sort(),
-
                   requestsByDomain,
-
                 });
-
                 core.summary.addRaw(summary).write();
-
                 core.info("Firewall log summary generated successfully");
-
               } catch (error) {
-
                 core.setFailed(error instanceof Error ? error : String(error));
-
               }
-
             }
-
             function parseFirewallLogLine(line) {
-
               const trimmed = line.trim();
-
               if (!trimmed || trimmed.startsWith("#")) {
-
                 return null;
-
               }
-
               const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
               if (!fields || fields.length < 10) {
-
                 return null;
-
               }
-
               const timestamp = fields[0];
-
               if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
                 return null;
-
               }
-
               return {
-
                 timestamp,
-
                 clientIpPort: fields[1],
-
                 domain: fields[2],
-
                 destIpPort: fields[3],
-
                 proto: fields[4],
-
                 method: fields[5],
-
                 status: fields[6],
-
                 decision: fields[7],
-
                 url: fields[8],
-
                 userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
-
               };
-
             }
-
             function isRequestAllowed(decision, status) {
-
               const statusCode = parseInt(status, 10);
-
               if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
                 return true;
-
               }
-
               if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
                 return true;
-
               }
-
               if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
                 return false;
-
               }
-
               return false;
-
             }
-
             function generateFirewallSummary(analysis) {
-
               const { totalRequests, requestsByDomain } = analysis;
-
               const validDomains = Array.from(requestsByDomain.keys())
-
                 .filter(domain => domain !== "-")
-
                 .sort();
-
               const uniqueDomainCount = validDomains.length;
-
               let validAllowedRequests = 0;
-
               let validDeniedRequests = 0;
-
               for (const domain of validDomains) {
-
                 const stats = requestsByDomain.get(domain);
-
                 validAllowedRequests += stats.allowed;
-
                 validDeniedRequests += stats.denied;
-
               }
-
               let summary = "### 🔥 Firewall Activity\n\n";
-
               summary += "<details>\n";
-
               summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
-
               summary += `${validAllowedRequests} allowed | `;
-
               summary += `${validDeniedRequests} blocked | `;
-
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
-
               if (uniqueDomainCount > 0) {
-
                 summary += "| Domain | Allowed | Denied |\n";
-
                 summary += "|--------|---------|--------|\n";
-
                 for (const domain of validDomains) {
-
                   const stats = requestsByDomain.get(domain);
-
                   summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
-
                 }
-
               } else {
-
                 summary += "No firewall activity detected.\n";
-
               }
-
               summary += "\n</details>\n\n";
-
               return summary;
-
             }
-
             const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
             if (isDirectExecution) {
-
               main();
-
             }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -7405,649 +7261,306 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
+             function logGraphQLError(error, operation) {
+              (core.error(`GraphQL Error during: ${operation}`), core.error(`Message: ${error.message}`));
+              const errorList = Array.isArray(error.errors) ? error.errors : [],
+                hasInsufficientScopes = errorList.some(e => e && "INSUFFICIENT_SCOPES" === e.type),
+                hasNotFound = errorList.some(e => e && "NOT_FOUND" === e.type);
+              (hasInsufficientScopes
+                ? core.error(
+                    "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
+                  )
+                : hasNotFound &&
+                  /projectV2\b/.test(error.message) &&
+                  core.error(
+                    "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project."
+                  ),
+                error.errors &&
+                  (core.error(`Errors array (${error.errors.length} error(s)):`),
+                  error.errors.forEach((err, idx) => {
+                    (core.error(`  [${idx + 1}] ${err.message}`),
+                      err.type && core.error(`      Type: ${err.type}`),
+                      err.path && core.error(`      Path: ${JSON.stringify(err.path)}`),
+                      err.locations && core.error(`      Locations: ${JSON.stringify(err.locations)}`));
+                  })),
+                error.request && core.error(`Request: ${JSON.stringify(error.request, null, 2)}`),
+                error.data && core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`));
             }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function logGraphQLError(error, operation) {
-              core.error(`GraphQL Error during: ${operation}`);
-              core.error(`Message: ${error.message}`);
-              const errorList = Array.isArray(error.errors) ? error.errors : [];
-              const hasInsufficientScopes = errorList.some(e => e && e.type === "INSUFFICIENT_SCOPES");
-              const hasNotFound = errorList.some(e => e && e.type === "NOT_FOUND");
-              if (hasInsufficientScopes) {
-                core.error(
-                  "This looks like a token permission problem for Projects v2. " +
-                    "The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). " +
-                    "Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
-                );
-              } else if (hasNotFound && /projectV2\b/.test(error.message)) {
-                core.error(
-                  "GitHub returned NOT_FOUND for ProjectV2. This can mean either: " +
-                    "(1) the project number is wrong for Projects v2, " +
-                    "(2) the project is a classic Projects board (not Projects v2), or " +
-                    "(3) the token does not have access to that org/user project."
-                );
-              }
-              if (error.errors) {
-                core.error(`Errors array (${error.errors.length} error(s)):`);
-                error.errors.forEach((err, idx) => {
-                  core.error(`  [${idx + 1}] ${err.message}`);
-                  if (err.type) core.error(`      Type: ${err.type}`);
-                  if (err.path) core.error(`      Path: ${JSON.stringify(err.path)}`);
-                  if (err.locations) core.error(`      Locations: ${JSON.stringify(err.locations)}`);
-                });
-              }
-              if (error.request) {
-                core.error(`Request: ${JSON.stringify(error.request, null, 2)}`);
-              }
-              if (error.data) {
-                core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`);
-              }
-            }
-            function parseProjectInput(projectUrl) {
-              if (!projectUrl || typeof projectUrl !== "string") {
-                throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
-              }
+             function parseProjectInput(projectUrl) {
+              if (!projectUrl || "string" != typeof projectUrl) throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
               const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
-              if (!urlMatch) {
-                throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
-              }
+              if (!urlMatch) throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
               return urlMatch[1];
             }
-            function parseProjectUrl(projectUrl) {
-              if (!projectUrl || typeof projectUrl !== "string") {
-                throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
-              }
+             function parseProjectUrl(projectUrl) {
+              if (!projectUrl || "string" != typeof projectUrl) throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
               const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
-              if (!match) {
-                throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
-              }
+              if (!match) throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
               return { scope: match[1], ownerLogin: match[2], projectNumber: match[3] };
             }
-            async function listAccessibleProjectsV2(projectInfo) {
-              const baseQuery = `projectsV2(first: 100) {
-                totalCount
-                nodes {
-                  id
-                  number
-                  title
-                  closed
-                  url
-                }
-                edges {
-                  node {
-                    id
-                    number
-                    title
-                    closed
-                    url
-                  }
-                }
-              }`;
-              if (projectInfo.scope === "orgs") {
-                const result = await github.graphql(
-                  `query($login: String!) {
-                    organization(login: $login) {
-                      ${baseQuery}
-                    }
-                  }`,
-                  { login: projectInfo.ownerLogin }
-                );
-                const conn = result && result.organization && result.organization.projectsV2;
-                const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
-                const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
-                const nodeNodes = rawNodes.filter(Boolean);
-                const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
-                const unique = new Map();
-                for (const n of [...nodeNodes, ...edgeNodes]) {
-                  if (n && typeof n.id === "string") {
-                    unique.set(n.id, n);
-                  }
-                }
+             async function listAccessibleProjectsV2(projectInfo) {
+              const baseQuery =
+                "projectsV2(first: 100) {\n    totalCount\n    nodes {\n      id\n      number\n      title\n      closed\n      url\n    }\n    edges {\n      node {\n        id\n        number\n        title\n        closed\n        url\n      }\n    }\n  }";
+              if ("orgs" === projectInfo.scope) {
+                const result = await github.graphql(`query($login: String!) {\n        organization(login: $login) {\n          ${baseQuery}\n        }\n      }`, { login: projectInfo.ownerLogin }),
+                  conn = result && result.organization && result.organization.projectsV2,
+                  rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [],
+                  rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [],
+                  nodeNodes = rawNodes.filter(Boolean),
+                  edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean),
+                  unique = new Map();
+                for (const n of [...nodeNodes, ...edgeNodes]) n && "string" == typeof n.id && unique.set(n.id, n);
                 return {
                   nodes: Array.from(unique.values()),
                   totalCount: conn && conn.totalCount,
-                  diagnostics: {
-                    rawNodesCount: rawNodes.length,
-                    nullNodesCount: rawNodes.length - nodeNodes.length,
-                    rawEdgesCount: rawEdges.length,
-                    nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
-                  },
+                  diagnostics: { rawNodesCount: rawNodes.length, nullNodesCount: rawNodes.length - nodeNodes.length, rawEdgesCount: rawEdges.length, nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length },
                 };
               }
-              const result = await github.graphql(
-                `query($login: String!) {
-                  user(login: $login) {
-                    ${baseQuery}
-                  }
-                }`,
-                { login: projectInfo.ownerLogin }
-              );
-              const conn = result && result.user && result.user.projectsV2;
-              const rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [];
-              const rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [];
-              const nodeNodes = rawNodes.filter(Boolean);
-              const edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean);
-              const unique = new Map();
-              for (const n of [...nodeNodes, ...edgeNodes]) {
-                if (n && typeof n.id === "string") {
-                  unique.set(n.id, n);
-                }
-              }
+              const result = await github.graphql(`query($login: String!) {\n      user(login: $login) {\n        ${baseQuery}\n      }\n    }`, { login: projectInfo.ownerLogin }),
+                conn = result && result.user && result.user.projectsV2,
+                rawNodes = conn && Array.isArray(conn.nodes) ? conn.nodes : [],
+                rawEdges = conn && Array.isArray(conn.edges) ? conn.edges : [],
+                nodeNodes = rawNodes.filter(Boolean),
+                edgeNodes = rawEdges.map(e => e && e.node).filter(Boolean),
+                unique = new Map();
+              for (const n of [...nodeNodes, ...edgeNodes]) n && "string" == typeof n.id && unique.set(n.id, n);
               return {
                 nodes: Array.from(unique.values()),
                 totalCount: conn && conn.totalCount,
-                diagnostics: {
-                  rawNodesCount: rawNodes.length,
-                  nullNodesCount: rawNodes.length - nodeNodes.length,
-                  rawEdgesCount: rawEdges.length,
-                  nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length,
-                },
+                diagnostics: { rawNodesCount: rawNodes.length, nullNodesCount: rawNodes.length - nodeNodes.length, rawEdgesCount: rawEdges.length, nullEdgeNodesCount: rawEdges.filter(e => !e || !e.node).length },
               };
             }
-            function summarizeProjectsV2(projects, limit = 20) {
-              if (!Array.isArray(projects) || projects.length === 0) {
-                return "(none)";
-              }
+             function summarizeProjectsV2(projects, limit = 20) {
+              if (!Array.isArray(projects) || 0 === projects.length) return "(none)";
               const normalized = projects
-                .filter(p => p && typeof p.number === "number" && typeof p.title === "string")
+                .filter(p => p && "number" == typeof p.number && "string" == typeof p.title)
                 .slice(0, limit)
                 .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
               return normalized.length > 0 ? normalized.join("; ") : "(none)";
             }
-            function summarizeEmptyProjectsV2List(list) {
-              const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
-              const d = list && list.diagnostics;
-              const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
-              if (typeof total === "number" && total > 0) {
-                return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
-              }
-              return `(none${diag})`;
+             function summarizeEmptyProjectsV2List(list) {
+              const total = "number" == typeof list.totalCount ? list.totalCount : void 0,
+                d = list && list.diagnostics,
+                diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
+              return "number" == typeof total && total > 0
+                ? `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`
+                : `(none${diag})`;
             }
-            async function resolveProjectV2(projectInfo, projectNumberInt) {
+             async function resolveProjectV2(projectInfo, projectNumberInt) {
               try {
-                if (projectInfo.scope === "orgs") {
+                if ("orgs" === projectInfo.scope) {
                   const direct = await github.graphql(
-                    `query($login: String!, $number: Int!) {
-                      organization(login: $login) {
-                        projectV2(number: $number) {
-                          id
-                          number
-                          title
-                          url
-                        }
-                      }
-                    }`,
-                    { login: projectInfo.ownerLogin, number: projectNumberInt }
-                  );
-                  const project = direct && direct.organization && direct.organization.projectV2;
-                  if (project) {
-                    return project;
-                  }
+                      "query($login: String!, $number: Int!) {\n          organization(login: $login) {\n            projectV2(number: $number) {\n              id\n              number\n              title\n              url\n            }\n          }\n        }",
+                      { login: projectInfo.ownerLogin, number: projectNumberInt }
+                    ),
+                    project = direct && direct.organization && direct.organization.projectV2;
+                  if (project) return project;
                 } else {
                   const direct = await github.graphql(
-                    `query($login: String!, $number: Int!) {
-                      user(login: $login) {
-                        projectV2(number: $number) {
-                          id
-                          number
-                          title
-                          url
-                        }
-                      }
-                    }`,
-                    { login: projectInfo.ownerLogin, number: projectNumberInt }
-                  );
-                  const project = direct && direct.user && direct.user.projectV2;
-                  if (project) {
-                    return project;
-                  }
+                      "query($login: String!, $number: Int!) {\n          user(login: $login) {\n            projectV2(number: $number) {\n              id\n              number\n              title\n              url\n            }\n          }\n        }",
+                      { login: projectInfo.ownerLogin, number: projectNumberInt }
+                    ),
+                    project = direct && direct.user && direct.user.projectV2;
+                  if (project) return project;
                 }
               } catch (error) {
                 core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${error.message}`);
               }
-              const list = await listAccessibleProjectsV2(projectInfo);
-              const nodes = Array.isArray(list.nodes) ? list.nodes : [];
-              const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
-              if (found) {
-                return found;
-              }
-              const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
-              const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
-              const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+              const list = await listAccessibleProjectsV2(projectInfo),
+                nodes = Array.isArray(list.nodes) ? list.nodes : [],
+                found = nodes.find(p => p && "number" == typeof p.number && p.number === projectNumberInt);
+              if (found) return found;
+              const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list),
+                total = "number" == typeof list.totalCount ? ` (totalCount=${list.totalCount})` : "",
+                who = "orgs" === projectInfo.scope ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
               throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
             }
-            function generateCampaignId(projectUrl, projectNumber) {
+             function generateCampaignId(projectUrl, projectNumber) {
               const urlMatch = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects/);
-              const orgName = urlMatch ? urlMatch[2] : "project";
-              const slug = `${orgName}-project-${projectNumber}`
+              return `${`${urlMatch ? urlMatch[2] : "project"}-project-${projectNumber}`
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/^-+|-+$/g, "")
-                .substring(0, 30);
-              const timestamp = Date.now().toString(36).substring(0, 8);
-              return `${slug}-${timestamp}`;
+                .substring(0, 30)}-${Date.now().toString(36).substring(0, 8)}`;
             }
-            async function updateProject(output) {
-              const { owner, repo } = context.repo;
-              const projectInfo = parseProjectUrl(output.project);
-              const projectNumberFromUrl = projectInfo.projectNumber;
-              const campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
+             async function updateProject(output) {
+              const { owner, repo } = context.repo,
+                projectInfo = parseProjectUrl(output.project),
+                projectNumberFromUrl = projectInfo.projectNumber,
+                campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
               try {
-                core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
-                core.info("[1/5] Fetching repository information...");
                 let repoResult;
+                (core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`),
+                  core.info("[1/5] Fetching repository information..."));
                 try {
                   repoResult = await github.graphql(
-                    `query($owner: String!, $repo: String!) {
-                      repository(owner: $owner, name: $repo) {
-                        id
-                        owner {
-                          id
-                          __typename
-                        }
-                      }
-                    }`,
+                    "query($owner: String!, $repo: String!) {\n          repository(owner: $owner, name: $repo) {\n            id\n            owner {\n              id\n              __typename\n            }\n          }\n        }",
                     { owner, repo }
                   );
                 } catch (error) {
-                  logGraphQLError(error, "Fetching repository information");
-                  throw error;
+                  throw (logGraphQLError(error, "Fetching repository information"), error);
                 }
-                const repositoryId = repoResult.repository.id;
-                const ownerType = repoResult.repository.owner.__typename;
+                const repositoryId = repoResult.repository.id,
+                  ownerType = repoResult.repository.owner.__typename;
                 core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
                 try {
-                  const viewerResult = await github.graphql(
-                    `query {
-                      viewer {
-                        login
-                      }
-                    }`
-                  );
-                  if (viewerResult && viewerResult.viewer && viewerResult.viewer.login) {
-                    core.info(`✓ Authenticated as: ${viewerResult.viewer.login}`);
-                  }
+                  const viewerResult = await github.graphql("query {\n          viewer {\n            login\n          }\n        }");
+                  viewerResult && viewerResult.viewer && viewerResult.viewer.login && core.info(`✓ Authenticated as: ${viewerResult.viewer.login}`);
                 } catch (viewerError) {
                   core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
                 }
-                core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
                 let projectId;
+                core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
                 let resolvedProjectNumber = projectNumberFromUrl;
                 try {
                   const projectNumberInt = parseInt(projectNumberFromUrl, 10);
-                  if (!Number.isFinite(projectNumberInt)) {
-                    throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
-                  }
+                  if (!Number.isFinite(projectNumberInt)) throw new Error(`Invalid project number parsed from URL: ${projectNumberFromUrl}`);
                   const project = await resolveProjectV2(projectInfo, projectNumberInt);
-                  projectId = project.id;
-                  resolvedProjectNumber = String(project.number);
-                  core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
+                  ((projectId = project.id), (resolvedProjectNumber = String(project.number)), core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`));
                 } catch (error) {
-                  logGraphQLError(error, "Resolving project from URL");
-                  throw error;
+                  throw (logGraphQLError(error, "Resolving project from URL"), error);
                 }
                 core.info("[3/5] Linking project to repository...");
                 try {
                   await github.graphql(
-                    `mutation($projectId: ID!, $repositoryId: ID!) {
-                      linkProjectV2ToRepository(input: {
-                        projectId: $projectId,
-                        repositoryId: $repositoryId
-                      }) {
-                        repository {
-                          id
-                        }
-                      }
-                    }`,
+                    "mutation($projectId: ID!, $repositoryId: ID!) {\n          linkProjectV2ToRepository(input: {\n            projectId: $projectId,\n            repositoryId: $repositoryId\n          }) {\n            repository {\n              id\n            }\n          }\n        }",
                     { projectId, repositoryId }
                   );
                 } catch (linkError) {
-                  if (!linkError.message || !linkError.message.includes("already linked")) {
-                    logGraphQLError(linkError, "Linking project to repository");
-                    core.warning(`Could not link project: ${linkError.message}`);
-                  }
+                  (linkError.message && linkError.message.includes("already linked")) || (logGraphQLError(linkError, "Linking project to repository"), core.warning(`Could not link project: ${linkError.message}`));
                 }
-                core.info("✓ Project linked to repository");
-                core.info("[4/5] Processing content (issue/PR) if specified...");
-                const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
-                const hasIssue = output.issue !== undefined && output.issue !== null;
-                const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
-                const values = [];
-                if (hasContentNumber) values.push({ key: "content_number", value: output.content_number });
-                if (hasIssue) values.push({ key: "issue", value: output.issue });
-                if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
-                if (values.length > 1) {
-                  const uniqueValues = [...new Set(values.map(v => String(v.value)))];
-                  const list = values.map(v => `${v.key}=${v.value}`).join(", ");
-                  const descriptor = uniqueValues.length > 1 ? "different values" : `same value "${uniqueValues[0]}"`;
+                (core.info("✓ Project linked to repository"),
+                  core.info("[4/5] Processing content (issue/PR) if specified..."));
+                const hasContentNumber = void 0 !== output.content_number && null !== output.content_number,
+                  hasIssue = void 0 !== output.issue && null !== output.issue,
+                  hasPullRequest = void 0 !== output.pull_request && null !== output.pull_request,
+                  values = [];
+                if (
+                  (hasContentNumber && values.push({ key: "content_number", value: output.content_number }),
+                  hasIssue && values.push({ key: "issue", value: output.issue }),
+                  hasPullRequest && values.push({ key: "pull_request", value: output.pull_request }),
+                  values.length > 1)
+                ) {
+                  const uniqueValues = [...new Set(values.map(v => String(v.value)))],
+                    list = values.map(v => `${v.key}=${v.value}`).join(", "),
+                    descriptor = uniqueValues.length > 1 ? "different values" : `same value "${uniqueValues[0]}"`;
                   core.warning(`Multiple content number fields (${descriptor}): ${list}. Using priority content_number > issue > pull_request.`);
                 }
-                if (hasIssue) {
-                  core.warning('Field "issue" deprecated; use "content_number" instead.');
-                }
-                if (hasPullRequest) {
-                  core.warning('Field "pull_request" deprecated; use "content_number" instead.');
-                }
+                (hasIssue && core.warning('Field "issue" deprecated; use "content_number" instead.'), hasPullRequest && core.warning('Field "pull_request" deprecated; use "content_number" instead.'));
                 let contentNumber = null;
                 if (hasContentNumber || hasIssue || hasPullRequest) {
-                  const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
-                  const sanitizedContentNumber = rawContentNumber === undefined || rawContentNumber === null ? "" : typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
-                  if (!sanitizedContentNumber) {
-                    core.warning("Content number field provided but empty; skipping project item update.");
-                  } else if (!/^\d+$/.test(sanitizedContentNumber)) {
-                    throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer.`);
-                  } else {
+                  const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request,
+                    sanitizedContentNumber = null == rawContentNumber ? "" : "number" == typeof rawContentNumber ? rawContentNumber.toString() : String(rawContentNumber).trim();
+                  if (sanitizedContentNumber) {
+                    if (!/^\d+$/.test(sanitizedContentNumber)) throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer.`);
                     contentNumber = Number.parseInt(sanitizedContentNumber, 10);
-                  }
+                  } else core.warning("Content number field provided but empty; skipping project item update.");
                 }
-                if (contentNumber !== null) {
-                  const contentType = output.content_type === "pull_request" ? "PullRequest" : output.content_type === "issue" ? "Issue" : output.issue ? "Issue" : "PullRequest";
-                  const contentQuery =
-                    contentType === "Issue"
-                      ? `query($owner: String!, $repo: String!, $number: Int!) {
-                        repository(owner: $owner, name: $repo) {
-                          issue(number: $number) {
-                            id
-                          }
-                        }
-                      }`
-                      : `query($owner: String!, $repo: String!, $number: Int!) {
-                        repository(owner: $owner, name: $repo) {
-                          pullRequest(number: $number) {
-                            id
-                          }
-                        }
-                      }`;
-                  const contentResult = await github.graphql(contentQuery, {
-                    owner,
-                    repo,
-                    number: contentNumber,
-                  });
-                  const contentId = contentType === "Issue" ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id;
-                  async function findExistingProjectItem(projectId, contentId) {
-                    let hasNextPage = true;
-                    let endCursor = null;
-                    while (hasNextPage) {
-                      const result = await github.graphql(
-                        `query($projectId: ID!, $after: String) {
-                          node(id: $projectId) {
-                            ... on ProjectV2 {
-                              items(first: 100, after: $after) {
-                                nodes {
-                                  id
-                                  content {
-                                    ... on Issue {
-                                      id
-                                    }
-                                    ... on PullRequest {
-                                      id
-                                    }
-                                  }
-                                }
-                                pageInfo {
-                                  hasNextPage
-                                  endCursor
-                                }
-                              }
-                            }
-                          }
-                        }`,
-                        { projectId, after: endCursor }
-                      );
-                      const items = result.node.items.nodes;
-                      const found = items.find(item => item.content && item.content.id === contentId);
-                      if (found) {
-                        return found;
+                if (null !== contentNumber) {
+                  const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
+                    contentQuery =
+                      "Issue" === contentType
+                        ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
+                        : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
+                    contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
+                    contentId = "Issue" === contentType ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id;
+                  const existingItem =
+                    await (async function (projectId, contentId) {
+                      let hasNextPage = !0,
+                        endCursor = null;
+                      for (; hasNextPage; ) {
+                        const result = await github.graphql(
+                            "query($projectId: ID!, $after: String) {\n              node(id: $projectId) {\n                ... on ProjectV2 {\n                  items(first: 100, after: $after) {\n                    nodes {\n                      id\n                      content {\n                        ... on Issue {\n                          id\n                        }\n                        ... on PullRequest {\n                          id\n                        }\n                      }\n                    }\n                    pageInfo {\n                      hasNextPage\n                      endCursor\n                    }\n                  }\n                }\n              }\n            }",
+                            { projectId, after: endCursor }
+                          ),
+                          found = result.node.items.nodes.find(item => item.content && item.content.id === contentId);
+                        if (found) return found;
+                        ((hasNextPage = result.node.items.pageInfo.hasNextPage), (endCursor = result.node.items.pageInfo.endCursor));
                       }
-                      hasNextPage = result.node.items.pageInfo.hasNextPage;
-                      endCursor = result.node.items.pageInfo.endCursor;
-                    }
-                    return null;
-                  }
-                  const existingItem = await findExistingProjectItem(projectId, contentId);
+                      return null;
+                    })(projectId, contentId);
                   let itemId;
-                  if (existingItem) {
-                    itemId = existingItem.id;
-                    core.info("✓ Item already on board");
-                  } else {
-                    const addResult = await github.graphql(
-                      `mutation($projectId: ID!, $contentId: ID!) {
-                        addProjectV2ItemById(input: {
-                          projectId: $projectId,
-                          contentId: $contentId
-                        }) {
-                          item {
-                            id
-                          }
-                        }
-                      }`,
-                      { projectId, contentId }
-                    );
-                    itemId = addResult.addProjectV2ItemById.item.id;
+                  if (existingItem) ((itemId = existingItem.id), core.info("✓ Item already on board"));
+                  else {
+                    itemId = (
+                      await github.graphql(
+                        "mutation($projectId: ID!, $contentId: ID!) {\n            addProjectV2ItemById(input: {\n              projectId: $projectId,\n              contentId: $contentId\n            }) {\n              item {\n                id\n              }\n            }\n          }",
+                        { projectId, contentId }
+                      )
+                    ).addProjectV2ItemById.item.id;
                     try {
-                      await github.rest.issues.addLabels({
-                        owner,
-                        repo,
-                        issue_number: contentNumber,
-                        labels: [`campaign:${campaignId}`],
-                      });
+                      await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [`campaign:${campaignId}`] });
                     } catch (labelError) {
                       core.warning(`Failed to add campaign label: ${labelError.message}`);
                     }
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
-                    const fieldsResult = await github.graphql(
-                      `query($projectId: ID!) {
-                        node(id: $projectId) {
-                          ... on ProjectV2 {
-                            fields(first: 20) {
-                              nodes {
-                                ... on ProjectV2Field {
-                                  id
-                                  name
-                                }
-                                ... on ProjectV2SingleSelectField {
-                                  id
-                                  name
-                                  options {
-                                    id
-                                    name
-                                    color
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }`,
-                      { projectId }
-                    );
-                    const projectFields = fieldsResult.node.fields.nodes;
+                    const projectFields = (
+                      await github.graphql(
+                        "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+                        { projectId }
+                      )
+                    ).node.fields.nodes;
                     for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
                       const normalizedFieldName = fieldName
                         .split(/[\s_-]+/)
                         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                         .join(" ");
-                      let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+                      let valueToSet,
+                        field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
                       if (!field) {
-                        const isTextField = fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
-                        if (isTextField) {
+                        if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
                           try {
-                            const createFieldResult = await github.graphql(
-                              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
-                                createProjectV2Field(input: {
-                                  projectId: $projectId,
-                                  name: $name,
-                                  dataType: $dataType
-                                }) {
-                                  projectV2Field {
-                                    ... on ProjectV2Field {
-                                      id
-                                      name
-                                    }
-                                    ... on ProjectV2SingleSelectField {
-                                      id
-                                      name
-                                      options { id name }
-                                    }
-                                  }
-                                }
-                              }`,
-                              {
-                                projectId,
-                                name: normalizedFieldName,
-                                dataType: "TEXT",
-                              }
-                            );
-                            field = createFieldResult.createProjectV2Field.projectV2Field;
+                            field = (
+                              await github.graphql(
+                                "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
+                                { projectId, name: normalizedFieldName, dataType: "TEXT" }
+                              )
+                            ).createProjectV2Field.projectV2Field;
                           } catch (createError) {
                             core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                             continue;
                           }
-                        } else {
+                        else
                           try {
-                            const createFieldResult = await github.graphql(
-                              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
-                                createProjectV2Field(input: {
-                                  projectId: $projectId,
-                                  name: $name,
-                                  dataType: $dataType,
-                                  singleSelectOptions: $options
-                                }) {
-                                  projectV2Field {
-                                    ... on ProjectV2SingleSelectField {
-                                      id
-                                      name
-                                      options { id name }
-                                    }
-                                    ... on ProjectV2Field {
-                                      id
-                                      name
-                                    }
-                                  }
-                                }
-                              }`,
-                              {
-                                projectId,
-                                name: normalizedFieldName,
-                                dataType: "SINGLE_SELECT",
-                                options: [{ name: String(fieldValue), description: "", color: "GRAY" }],
-                              }
-                            );
-                            field = createFieldResult.createProjectV2Field.projectV2Field;
+                            field = (
+                              await github.graphql(
+                                "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
+                                { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                              )
+                            ).createProjectV2Field.projectV2Field;
                           } catch (createError) {
                             core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                             continue;
                           }
-                        }
                       }
-                      let valueToSet;
                       if (field.options) {
                         let option = field.options.find(o => o.name === fieldValue);
-                        if (!option) {
+                        if (!option)
                           try {
-                            const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }];
-                            const createOptionResult = await github.graphql(
-                              `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
-                                updateProjectV2Field(input: {
-                                  fieldId: $fieldId,
-                                  name: $fieldName,
-                                  singleSelectOptions: $options
-                                }) {
-                                  projectV2Field {
-                                    ... on ProjectV2SingleSelectField {
-                                      id
-                                      options {
-                                        id
-                                        name
-                                      }
-                                    }
-                                  }
-                                }
-                              }`,
-                              {
-                                fieldId: field.id,
-                                fieldName: field.name,
-                                options: allOptions,
-                              }
-                            );
-                            const updatedField = createOptionResult.updateProjectV2Field.projectV2Field;
-                            option = updatedField.options.find(o => o.name === fieldValue);
-                            field = updatedField; 
+                            const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }],
+                              updatedField = (
+                                await github.graphql(
+                                  "mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    updateProjectV2Field(input: {\n                      fieldId: $fieldId,\n                      name: $fieldName,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          options {\n                            id\n                            name\n                          }\n                        }\n                      }\n                    }\n                  }",
+                                  { fieldId: field.id, fieldName: field.name, options: allOptions }
+                                )
+                              ).updateProjectV2Field.projectV2Field;
+                            ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
                           } catch (createError) {
                             core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
                             continue;
                           }
-                        }
-                        if (option) {
-                          valueToSet = { singleSelectOptionId: option.id };
-                        } else {
+                        if (!option) {
                           core.warning(`Could not get option ID for "${fieldValue}" in field "${fieldName}"`);
                           continue;
                         }
-                      } else {
+                        valueToSet = { singleSelectOptionId: option.id };
+                      } else
                         valueToSet = { text: String(fieldValue) };
-                      }
                       await github.graphql(
-                        `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-                          updateProjectV2ItemFieldValue(input: {
-                            projectId: $projectId,
-                            itemId: $itemId,
-                            fieldId: $fieldId,
-                            value: $value
-                          }) {
-                            projectV2Item {
-                              id
-                            }
-                          }
-                        }`,
-                        {
-                          projectId,
-                          itemId,
-                          fieldId: field.id,
-                          value: valueToSet,
-                        }
+                        "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
+                        { projectId, itemId, fieldId: field.id, value: valueToSet }
                       );
                     }
                   }
@@ -8057,40 +7570,27 @@ jobs:
                 if (error.message && error.message.includes("does not have permission to create projects")) {
                   const usingCustomToken = !!process.env.GH_AW_PROJECT_GITHUB_TOKEN;
                   core.error(
-                    `Failed to manage project: ${error.message}\n\n` +
-                      `Troubleshooting:\n` +
-                      `  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n` +
-                      `  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n` +
-                      `  • Or use a GitHub App with Projects: Read+Write permission.\n` +
-                      `  • Ensure the workflow grants projects: write.\n\n` +
-                      `${usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN."}`
+                    `Failed to manage project: ${error.message}\n\nTroubleshooting:\n  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n  • Or use a GitHub App with Projects: Read+Write permission.\n  • Ensure the workflow grants projects: write.\n\n` +
+                      (usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN.")
                   );
-                } else {
-                  core.error(`Failed to manage project: ${error.message}`);
-                }
+                } else core.error(`Failed to manage project: ${error.message}`);
                 throw error;
               }
             }
             async function main() {
               const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const updateProjectItems = result.items.filter(item => item.type === "update_project");
-              if (updateProjectItems.length === 0) {
-                return;
-              }
-              for (let i = 0; i < updateProjectItems.length; i++) {
-                const output = updateProjectItems[i];
-                try {
-                  await updateProject(output);
-                } catch (error) {
-                  core.error(`Failed to process item ${i + 1}`);
-                  logGraphQLError(error, `Processing update_project item ${i + 1}`);
+              if (!result.success) return;
+              const updateProjectItems = result.items.filter(item => "update_project" === item.type);
+              if (0 !== updateProjectItems.length)
+                for (let i = 0; i < updateProjectItems.length; i++) {
+                  const output = updateProjectItems[i];
+                  try {
+                    await updateProject(output);
+                  } catch (error) {
+                    (core.error(`Failed to process item ${i + 1}`), logGraphQLError(error, `Processing update_project item ${i + 1}`));
+                  }
                 }
-              }
             }
-            if (typeof module === "undefined" || require.main === module) {
-              main();
-            }
+            ("undefined" != typeof module && module.exports && (module.exports = { updateProject, parseProjectInput, generateCampaignId, main }),
+              ("undefined" != typeof module && require.main !== module) || main());
 

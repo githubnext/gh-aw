@@ -657,6 +657,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Campaign validation: %v", err)))
 		}
 
+		// Collect and display workflow statistics if requested
+		if config.Stats && !noEmit && !jsonOutput {
+			var statsList []*WorkflowStats
+			for _, file := range markdownFiles {
+				resolvedFile, err := resolveWorkflowFile(file, false)
+				if err != nil {
+					continue // Skip files that couldn't be resolved
+				}
+				lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+				if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
+					statsList = append(statsList, workflowStats)
+				}
+			}
+			displayStatsTable(statsList)
+		}
+
 		// Output JSON if requested
 		if jsonOutput {
 			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
@@ -664,8 +680,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 			}
 			fmt.Println(string(jsonBytes))
-		} else {
-			// Print summary for text output
+		} else if !config.Stats {
+			// Print summary for text output (skip if stats mode)
 			printCompilationSummary(stats)
 		}
 
@@ -1014,6 +1030,18 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Campaign validation: %v", err)))
 	}
 
+	// Collect and display workflow statistics if requested
+	if config.Stats && !noEmit && !jsonOutput {
+		var statsList []*WorkflowStats
+		for _, file := range mdFiles {
+			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
+				statsList = append(statsList, workflowStats)
+			}
+		}
+		displayStatsTable(statsList)
+	}
+
 	// Output JSON if requested
 	if jsonOutput {
 		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
@@ -1021,8 +1049,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
-	} else {
-		// Print summary for text output
+	} else if !config.Stats {
+		// Print summary for text output (skip if stats mode)
 		printCompilationSummary(stats)
 	}
 

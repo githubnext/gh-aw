@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var workflowNameLog = logger.New("workflow:workflow_name")
+
 // SanitizeIdentifier sanitizes a workflow name to create a safe identifier
 // suitable for use as a user agent string or similar context.
 //
@@ -29,9 +33,14 @@ package workflow
 //
 // See package documentation for guidance on when to use sanitize vs normalize patterns.
 func SanitizeIdentifier(name string) string {
-	return SanitizeName(name, &SanitizeOptions{
+	workflowNameLog.Printf("Sanitizing workflow identifier: %s", name)
+	result := SanitizeName(name, &SanitizeOptions{
 		PreserveSpecialChars: []rune{},
 		TrimHyphens:          true,
 		DefaultValue:         "github-agentic-workflow",
 	})
+	if result != name {
+		workflowNameLog.Printf("Sanitized identifier: %s -> %s", name, result)
+	}
+	return result
 }

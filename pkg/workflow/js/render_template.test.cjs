@@ -3,336 +3,125 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Mock the core module
-const core = {
-  info: vi.fn(),
-  warning: vi.fn(),
-  setFailed: vi.fn(),
-  summary: {
-    addHeading: vi.fn().mockReturnThis(),
-    addRaw: vi.fn().mockReturnThis(),
-    write: vi.fn(),
-  },
-};
+const __filename = fileURLToPath(import.meta.url),
+  __dirname = path.dirname(__filename),
+  core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary: { addHeading: vi.fn().mockReturnThis(), addRaw: vi.fn().mockReturnThis(), write: vi.fn() } };
 global.core = core;
-
 // Import the template renderer functions
-const renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8");
-
+const renderTemplateScript = fs.readFileSync(path.join(__dirname, "render_template.cjs"), "utf8"),
+  isTruthyMatch = renderTemplateScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/),
+  renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 // Extract the functions from the script
-const isTruthyMatch = renderTemplateScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/);
-const renderMarkdownTemplateMatch = renderTemplateScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
-
-if (!isTruthyMatch || !renderMarkdownTemplateMatch) {
-  throw new Error("Could not extract functions from render_template.cjs");
-}
-
+if (!isTruthyMatch || !renderMarkdownTemplateMatch) throw new Error("Could not extract functions from render_template.cjs");
 // eslint-disable-next-line no-eval
-const isTruthy = eval(`(${isTruthyMatch[0]})`);
+const isTruthy = eval(`(${isTruthyMatch[0]})`),
+  renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 // eslint-disable-next-line no-eval
-const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
-
-describe("isTruthy", () => {
-  it("should return false for empty string", () => {
-    expect(isTruthy("")).toBe(false);
-  });
-
-  it('should return false for "false"', () => {
-    expect(isTruthy("false")).toBe(false);
-    expect(isTruthy("FALSE")).toBe(false);
-    expect(isTruthy("False")).toBe(false);
-  });
-
-  it('should return false for "0"', () => {
-    expect(isTruthy("0")).toBe(false);
-  });
-
-  it('should return false for "null"', () => {
-    expect(isTruthy("null")).toBe(false);
-    expect(isTruthy("NULL")).toBe(false);
-  });
-
-  it('should return false for "undefined"', () => {
-    expect(isTruthy("undefined")).toBe(false);
-    expect(isTruthy("UNDEFINED")).toBe(false);
-  });
-
-  it('should return true for "true"', () => {
-    expect(isTruthy("true")).toBe(true);
-    expect(isTruthy("TRUE")).toBe(true);
-  });
-
-  it("should return true for any non-falsy string", () => {
-    expect(isTruthy("yes")).toBe(true);
-    expect(isTruthy("1")).toBe(true);
-    expect(isTruthy("hello")).toBe(true);
-  });
-
-  it("should trim whitespace", () => {
-    expect(isTruthy("  false  ")).toBe(false);
-    expect(isTruthy("  true  ")).toBe(true);
-  });
-});
-
-describe("renderMarkdownTemplate", () => {
-  it("should keep content in truthy blocks", () => {
-    const input = "{{#if true}}\nHello\n{{/if}}";
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe("Hello\n");
-  });
-
-  it("should remove content in falsy blocks", () => {
-    const input = "{{#if false}}\nHello\n{{/if}}";
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe("");
-  });
-
-  it("should process multiple blocks", () => {
-    const input = "{{#if true}}\nKeep this\n{{/if}}\n{{#if false}}\nRemove this\n{{/if}}";
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe("Keep this\n");
-  });
-
-  it("should handle nested content", () => {
-    const input = `# Title
-
-{{#if true}}
-## Section 1
-This should be kept.
-{{/if}}
-
-{{#if false}}
-## Section 2
-This should be removed.
-{{/if}}
-
-## Section 3
-This is always visible.`;
-
-    // With empty line cleanup, we expect at most 2 consecutive newlines
-    const expected = `# Title
-
-## Section 1
-This should be kept.
-
-## Section 3
-This is always visible.`;
-
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should leave content without conditionals unchanged", () => {
-    const input = "# Normal Markdown\n\nNo conditionals here.";
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(input);
-  });
-
-  it("should handle conditionals with various expressions", () => {
-    const input1 = "{{#if 1}}\nKeep\n{{/if}}";
-    expect(renderMarkdownTemplate(input1)).toBe("Keep\n");
-
-    const input2 = "{{#if 0}}\nRemove\n{{/if}}";
-    expect(renderMarkdownTemplate(input2)).toBe("");
-
-    const input3 = "{{#if null}}\nRemove\n{{/if}}";
-    expect(renderMarkdownTemplate(input3)).toBe("");
-
-    const input4 = "{{#if undefined}}\nRemove\n{{/if}}";
-    expect(renderMarkdownTemplate(input4)).toBe("");
-  });
-
-  it("should preserve markdown formatting inside blocks", () => {
-    const input = `{{#if true}}
-## Header
-- List item 1
-- List item 2
-
-\`\`\`javascript
-const x = 1;
-\`\`\`
-{{/if}}`;
-
-    const expected = `## Header
-- List item 1
-- List item 2
-
-\`\`\`javascript
-const x = 1;
-\`\`\`
-`;
-
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should handle whitespace in conditionals", () => {
-    const input1 = "{{#if   true  }}\nKeep\n{{/if}}";
-    expect(renderMarkdownTemplate(input1)).toBe("Keep\n");
-
-    const input2 = "{{#if\ttrue\t}}\nKeep\n{{/if}}";
-    expect(renderMarkdownTemplate(input2)).toBe("Keep\n");
-  });
-
-  it("should clean up multiple consecutive empty lines", () => {
-    // When a false block is removed, it should not leave more than 2 consecutive newlines
-    const input = `# Title
-
-{{#if false}}
-## Hidden Section
-This should be removed.
-{{/if}}
-
-## Visible Section
-This is always visible.`;
-
-    const expected = `# Title
-
-## Visible Section
-This is always visible.`;
-
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should collapse multiple false blocks without excessive empty lines", () => {
-    const input = `Start
-
-{{#if false}}
-Block 1
-{{/if}}
-
-{{#if false}}
-Block 2
-{{/if}}
-
-{{#if false}}
-Block 3
-{{/if}}
-
-End`;
-
-    const output = renderMarkdownTemplate(input);
-    // Should not have more than 2 consecutive newlines anywhere
-    expect(output).not.toMatch(/\n{3,}/);
-    expect(output).toContain("Start");
-    expect(output).toContain("End");
-  });
-
-  it("should preserve leading spaces with truthy block", () => {
-    const input = `  {{#if true}}
-  Content with leading spaces
-  {{/if}}`;
-    const expected = `  Content with leading spaces
-`;
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should remove leading spaces when block is falsy", () => {
-    const input = `  {{#if false}}
-  Content that should be removed
-  {{/if}}`;
-    const expected = "";
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should handle mixed indentation levels", () => {
-    const input = `{{#if true}}
-No indent
-{{/if}}
-  {{#if true}}
-  Two space indent
-  {{/if}}
-    {{#if true}}
-    Four space indent
-    {{/if}}`;
-
-    const expected = `No indent
-  Two space indent
-    Four space indent
-`;
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should preserve indentation in content when using leading spaces", () => {
-    const input = `# Header
-
-  {{#if true}}
-  ## Indented subsection
-  This content has two leading spaces
-  {{/if}}
-
-Normal content`;
-
-    const expected = `# Header
-
-  ## Indented subsection
-  This content has two leading spaces
-
-Normal content`;
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should handle tabs as leading characters", () => {
-    const input = `\t{{#if true}}
-\tContent with tab
-\t{{/if}}`;
-    const expected = `\tContent with tab
-`;
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-
-  it("should handle realistic linter-formatted markdown", () => {
-    const input = `# Analysis
-
-  {{#if github.event.issue.number}}
-  ## Issue Analysis
-  
-  Analyzing issue #123
-  
-  - Check description
-  - Review labels
-  {{/if}}
-
-Continue with other tasks`;
-
-    // Note: The expression would normally be evaluated before this step,
-    // so we test with a truthy value
-    const inputWithValue = input.replace("github.event.issue.number", "123");
-
-    const expected = `# Analysis
-
-  ## Issue Analysis
-  
-  Analyzing issue #123
-  
-  - Check description
-  - Review labels
-
-Continue with other tasks`;
-
-    const output = renderMarkdownTemplate(inputWithValue);
-    expect(output).toBe(expected);
-  });
-
-  it("should preserve closing tag indentation", () => {
-    const input = `  {{#if true}}
-  Content
-  {{/if}}
-Next line`;
-
-    const expected = `  Content
-Next line`;
-    const output = renderMarkdownTemplate(input);
-    expect(output).toBe(expected);
-  });
-});
+(describe("isTruthy", () => {
+  (it("should return false for empty string", () => {
+    expect(isTruthy("")).toBe(!1);
+  }),
+    it('should return false for "false"', () => {
+      (expect(isTruthy("false")).toBe(!1), expect(isTruthy("FALSE")).toBe(!1), expect(isTruthy("False")).toBe(!1));
+    }),
+    it('should return false for "0"', () => {
+      expect(isTruthy("0")).toBe(!1);
+    }),
+    it('should return false for "null"', () => {
+      (expect(isTruthy("null")).toBe(!1), expect(isTruthy("NULL")).toBe(!1));
+    }),
+    it('should return false for "undefined"', () => {
+      (expect(isTruthy("undefined")).toBe(!1), expect(isTruthy("UNDEFINED")).toBe(!1));
+    }),
+    it('should return true for "true"', () => {
+      (expect(isTruthy("true")).toBe(!0), expect(isTruthy("TRUE")).toBe(!0));
+    }),
+    it("should return true for any non-falsy string", () => {
+      (expect(isTruthy("yes")).toBe(!0), expect(isTruthy("1")).toBe(!0), expect(isTruthy("hello")).toBe(!0));
+    }),
+    it("should trim whitespace", () => {
+      (expect(isTruthy("  false  ")).toBe(!1), expect(isTruthy("  true  ")).toBe(!0));
+    }));
+}),
+  describe("renderMarkdownTemplate", () => {
+    (it("should keep content in truthy blocks", () => {
+      const output = renderMarkdownTemplate("{{#if true}}\nHello\n{{/if}}");
+      expect(output).toBe("Hello\n");
+    }),
+      it("should remove content in falsy blocks", () => {
+        const output = renderMarkdownTemplate("{{#if false}}\nHello\n{{/if}}");
+        expect(output).toBe("");
+      }),
+      it("should process multiple blocks", () => {
+        const output = renderMarkdownTemplate("{{#if true}}\nKeep this\n{{/if}}\n{{#if false}}\nRemove this\n{{/if}}");
+        expect(output).toBe("Keep this\n");
+      }),
+      it("should handle nested content", () => {
+        const output = renderMarkdownTemplate("# Title\n\n{{#if true}}\n## Section 1\nThis should be kept.\n{{/if}}\n\n{{#if false}}\n## Section 2\nThis should be removed.\n{{/if}}\n\n## Section 3\nThis is always visible.");
+        // With empty line cleanup, we expect at most 2 consecutive newlines
+        expect(output).toBe("# Title\n\n## Section 1\nThis should be kept.\n\n## Section 3\nThis is always visible.");
+      }),
+      it("should leave content without conditionals unchanged", () => {
+        const input = "# Normal Markdown\n\nNo conditionals here.",
+          output = renderMarkdownTemplate(input);
+        expect(output).toBe(input);
+      }),
+      it("should handle conditionals with various expressions", () => {
+        expect(renderMarkdownTemplate("{{#if 1}}\nKeep\n{{/if}}")).toBe("Keep\n");
+        expect(renderMarkdownTemplate("{{#if 0}}\nRemove\n{{/if}}")).toBe("");
+        expect(renderMarkdownTemplate("{{#if null}}\nRemove\n{{/if}}")).toBe("");
+        expect(renderMarkdownTemplate("{{#if undefined}}\nRemove\n{{/if}}")).toBe("");
+      }),
+      it("should preserve markdown formatting inside blocks", () => {
+        const output = renderMarkdownTemplate("{{#if true}}\n## Header\n- List item 1\n- List item 2\n\n```javascript\nconst x = 1;\n```\n{{/if}}");
+        expect(output).toBe("## Header\n- List item 1\n- List item 2\n\n```javascript\nconst x = 1;\n```\n");
+      }),
+      it("should handle whitespace in conditionals", () => {
+        expect(renderMarkdownTemplate("{{#if   true  }}\nKeep\n{{/if}}")).toBe("Keep\n");
+        expect(renderMarkdownTemplate("{{#if\ttrue\t}}\nKeep\n{{/if}}")).toBe("Keep\n");
+      }),
+      it("should clean up multiple consecutive empty lines", () => {
+        // When a false block is removed, it should not leave more than 2 consecutive newlines
+        const output = renderMarkdownTemplate("# Title\n\n{{#if false}}\n## Hidden Section\nThis should be removed.\n{{/if}}\n\n## Visible Section\nThis is always visible.");
+        expect(output).toBe("# Title\n\n## Visible Section\nThis is always visible.");
+      }),
+      it("should collapse multiple false blocks without excessive empty lines", () => {
+        const output = renderMarkdownTemplate("Start\n\n{{#if false}}\nBlock 1\n{{/if}}\n\n{{#if false}}\nBlock 2\n{{/if}}\n\n{{#if false}}\nBlock 3\n{{/if}}\n\nEnd");
+        // Should not have more than 2 consecutive newlines anywhere
+        (expect(output).not.toMatch(/\n{3,}/), expect(output).toContain("Start"), expect(output).toContain("End"));
+      }),
+      it("should preserve leading spaces with truthy block", () => {
+        const output = renderMarkdownTemplate("  {{#if true}}\n  Content with leading spaces\n  {{/if}}");
+        expect(output).toBe("  Content with leading spaces\n");
+      }),
+      it("should remove leading spaces when block is falsy", () => {
+        const output = renderMarkdownTemplate("  {{#if false}}\n  Content that should be removed\n  {{/if}}");
+        expect(output).toBe("");
+      }),
+      it("should handle mixed indentation levels", () => {
+        const output = renderMarkdownTemplate("{{#if true}}\nNo indent\n{{/if}}\n  {{#if true}}\n  Two space indent\n  {{/if}}\n    {{#if true}}\n    Four space indent\n    {{/if}}");
+        expect(output).toBe("No indent\n  Two space indent\n    Four space indent\n");
+      }),
+      it("should preserve indentation in content when using leading spaces", () => {
+        const output = renderMarkdownTemplate("# Header\n\n  {{#if true}}\n  ## Indented subsection\n  This content has two leading spaces\n  {{/if}}\n\nNormal content");
+        expect(output).toBe("# Header\n\n  ## Indented subsection\n  This content has two leading spaces\n\nNormal content");
+      }),
+      it("should handle tabs as leading characters", () => {
+        const output = renderMarkdownTemplate("\t{{#if true}}\n\tContent with tab\n\t{{/if}}");
+        expect(output).toBe("\tContent with tab\n");
+      }),
+      it("should handle realistic linter-formatted markdown", () => {
+        const inputWithValue = "# Analysis\n\n  {{#if github.event.issue.number}}\n  ## Issue Analysis\n  \n  Analyzing issue #123\n  \n  - Check description\n  - Review labels\n  {{/if}}\n\nContinue with other tasks".replace(
+            "github.event.issue.number",
+            "123"
+          ),
+          output = renderMarkdownTemplate(inputWithValue);
+        // Note: The expression would normally be evaluated before this step,
+        // so we test with a truthy value
+        expect(output).toBe("# Analysis\n\n  ## Issue Analysis\n  \n  Analyzing issue #123\n  \n  - Check description\n  - Review labels\n\nContinue with other tasks");
+      }),
+      it("should preserve closing tag indentation", () => {
+        const output = renderMarkdownTemplate("  {{#if true}}\n  Content\n  {{/if}}\nNext line");
+        expect(output).toBe("  Content\nNext line");
+      }));
+  }));

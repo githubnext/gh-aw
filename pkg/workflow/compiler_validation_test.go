@@ -267,17 +267,6 @@ This is a test workflow.
 		}
 	}
 
-	// Verify that the Mermaid graph is present in the header (as comments)
-	if !strings.Contains(lockContent, "# Job Dependency Graph:") {
-		t.Error("Expected 'Job Dependency Graph:' comment not found in generated YAML")
-	}
-	if !strings.Contains(lockContent, "# ```mermaid") {
-		t.Error("Expected Mermaid code block not found in generated YAML")
-	}
-	if !strings.Contains(lockContent, "# graph LR") {
-		t.Error("Expected Mermaid graph directive not found in generated YAML")
-	}
-
 	// Find the first non-comment, non-empty line - this should be the workflow name
 	var firstContentLine string
 	for _, line := range lines {

@@ -179,19 +179,31 @@ This expression needs wrapping.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify already-wrapped expression is handled (may be converted to placeholder format)
-	if !strings.Contains(compiledStr, "__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__") && !strings.Contains(compiledStr, "${{ github.event.issue.number }}") {
-		t.Error("Already-wrapped expression should be preserved or converted to placeholder")
+	// After compilation, GitHub expressions are extracted and replaced with placeholders
+	// for security. The original ${{ ... }} expressions are not preserved in the compiled output.
+	// Instead, we verify that:
+	// 1. Placeholders are created for the expressions
+	// 2. Placeholders are not double-wrapped
+	// 3. Both expressions result in placeholder-based conditionals
+
+	// Verify that placeholder conditionals exist (not the original expressions)
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}") {
+		t.Error("Expected placeholder conditional for github.event.issue.number")
 	}
 
-	// Verify it's not double-wrapped
-	if strings.Contains(compiledStr, "${{ ${{ github.event.issue.number }}") {
-		t.Error("Already-wrapped expression should not be double-wrapped")
+	if !strings.Contains(compiledStr, "{{#if __GH_AW_GITHUB_ACTOR__ }}") {
+		t.Error("Expected placeholder conditional for github.actor")
 	}
 
-	// Verify unwrapped expression is wrapped (may be wrapped or converted to placeholder)
-	if !strings.Contains(compiledStr, "__GH_AW_GITHUB_ACTOR__") && !strings.Contains(compiledStr, "${{ github.actor }}") {
-		t.Error("Unwrapped expression should be wrapped or converted to placeholder")
+	// Verify that expressions are not double-wrapped with ${{ ${{ ... }}
+	if strings.Contains(compiledStr, "${{ ${{") {
+		t.Error("Expressions should not be double-wrapped")
+	}
+
+	// Verify that the original ${{ }} syntax doesn't appear in conditionals
+	// (it should have been extracted and replaced with placeholders)
+	if strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }}") {
+		t.Error("Original GitHub expression should have been extracted and replaced with placeholder")
 	}
 }
 
