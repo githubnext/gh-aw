@@ -1,9 +1,7 @@
 import { describe, it, expect } from "vitest";
-// Import the function to test
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 describe("remove_duplicate_title.cjs", () => {
   describe("removeDuplicateTitleFromDescription", () => {
-    // Basic functionality tests
     (describe("basic functionality", () => {
       (it("should remove H1 header matching title", () => {
         expect(removeDuplicateTitleFromDescription("Bug Report", "# Bug Report\n\nThis is the body of the report.")).toBe("This is the body of the report.");
@@ -24,7 +22,6 @@ describe("remove_duplicate_title.cjs", () => {
           expect(removeDuplicateTitleFromDescription("Note", "###### Note\n\nThis is the note content.")).toBe("This is the note content.");
         }));
     }),
-      // Case insensitivity tests
       describe("case insensitivity", () => {
         (it("should match title case-insensitively", () => {
           expect(removeDuplicateTitleFromDescription("Bug Report", "# bug report\n\nBody content.")).toBe("Body content.");
@@ -36,7 +33,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("feature request", "# Feature Request\n\nBody content.")).toBe("Body content.");
           }));
       }),
-      // Whitespace handling tests
       describe("whitespace handling", () => {
         (it("should handle extra spaces after hash", () => {
           expect(removeDuplicateTitleFromDescription("Title", "#    Title\n\nBody content.")).toBe("Body content.");
@@ -54,7 +50,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("  Title  ", "  # Title\n\nBody content.  ")).toBe("Body content.");
           }));
       }),
-      // Non-matching cases
       describe("non-matching cases", () => {
         (it("should not remove header when title doesn't match", () => {
           expect(removeDuplicateTitleFromDescription("Bug Report", "# Feature Request\n\nBody content.")).toBe("# Feature Request\n\nBody content.");
@@ -70,7 +65,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("Title", description)).toBe(description);
           }));
       }),
-      // Special characters in title
       describe("special characters in title", () => {
         (it("should handle title with parentheses", () => {
           expect(removeDuplicateTitleFromDescription("Bug Report (Important)", "# Bug Report (Important)\n\nBody content.")).toBe("Body content.");
@@ -97,7 +91,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("Path\\to\\file", "# Path\\to\\file\n\nBody content.")).toBe("Body content.");
           }));
       }),
-      // Edge cases
       describe("edge cases", () => {
         (it("should return empty string when both inputs are empty", () => {
           expect(removeDuplicateTitleFromDescription("", "")).toBe("");
@@ -127,7 +120,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("Title", 123)).toBe("");
           }));
       }),
-      // Complex scenarios
       describe("complex scenarios", () => {
         (it("should handle description with only the header", () => {
           expect(removeDuplicateTitleFromDescription("Title", "# Title")).toBe("");
@@ -161,7 +153,6 @@ describe("remove_duplicate_title.cjs", () => {
             expect(removeDuplicateTitleFromDescription("Прошу исправить ошибку", "# Прошу исправить ошибку\n\nОписание проблемы.")).toBe("Описание проблемы.");
           }));
       }),
-      // Real-world examples
       describe("real-world examples", () => {
         (it("should handle GitHub issue format", () => {
           expect(
@@ -179,7 +170,6 @@ describe("remove_duplicate_title.cjs", () => {
             );
           }));
       }),
-      // Performance considerations
       describe("performance", () => {
         (it("should handle large descriptions efficiently", () => {
           const largeBody = "Body content.\n".repeat(1e3),

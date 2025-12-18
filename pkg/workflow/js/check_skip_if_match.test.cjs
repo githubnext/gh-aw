@@ -1,32 +1,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-// Mock the global objects that GitHub Actions provides
 const mockCore = {
-    // Core logging functions
     debug: vi.fn(),
     info: vi.fn(),
     notice: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
-    // Core workflow functions
     setFailed: vi.fn(),
     setOutput: vi.fn(),
     exportVariable: vi.fn(),
     setSecret: vi.fn(),
     setCancelled: vi.fn(),
     setError: vi.fn(),
-    // Input/state functions
     getInput: vi.fn(),
     getBooleanInput: vi.fn(),
     getMultilineInput: vi.fn(),
     getState: vi.fn(),
     saveState: vi.fn(),
-    // Group functions
     startGroup: vi.fn(),
     endGroup: vi.fn(),
     group: vi.fn(),
-    // Other utility functions
     addPath: vi.fn(),
     setCommandEcho: vi.fn(),
     isDebug: vi.fn().mockReturnValue(!1),
@@ -34,28 +28,21 @@ const mockCore = {
     toPlatformPath: vi.fn(),
     toPosixPath: vi.fn(),
     toWin32Path: vi.fn(),
-    // Summary object with chainable methods
     summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
   },
   mockGithub = { rest: { search: { issuesAndPullRequests: vi.fn() } } },
   mockContext = { repo: { owner: "testowner", repo: "testrepo" } };
-// Set up global variables
 ((global.core = mockCore),
   (global.github = mockGithub),
   (global.context = mockContext),
   describe("check_skip_if_match.cjs", () => {
     let checkSkipIfMatchScript, originalEnv;
     (beforeEach(() => {
-      // Reset all mocks
-      (vi.clearAllMocks(),
-        // Store original environment
-        (originalEnv = { GH_AW_SKIP_QUERY: process.env.GH_AW_SKIP_QUERY, GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME, GH_AW_SKIP_MAX_MATCHES: process.env.GH_AW_SKIP_MAX_MATCHES }));
-      // Read the script content
+      (vi.clearAllMocks(), (originalEnv = { GH_AW_SKIP_QUERY: process.env.GH_AW_SKIP_QUERY, GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME, GH_AW_SKIP_MAX_MATCHES: process.env.GH_AW_SKIP_MAX_MATCHES }));
       const scriptPath = path.join(process.cwd(), "check_skip_if_match.cjs");
       checkSkipIfMatchScript = fs.readFileSync(scriptPath, "utf8");
     }),
       afterEach(() => {
-        // Restore original environment
         (void 0 !== originalEnv.GH_AW_SKIP_QUERY ? (process.env.GH_AW_SKIP_QUERY = originalEnv.GH_AW_SKIP_QUERY) : delete process.env.GH_AW_SKIP_QUERY,
           void 0 !== originalEnv.GH_AW_WORKFLOW_NAME ? (process.env.GH_AW_WORKFLOW_NAME = originalEnv.GH_AW_WORKFLOW_NAME) : delete process.env.GH_AW_WORKFLOW_NAME,
           void 0 !== originalEnv.GH_AW_SKIP_MAX_MATCHES ? (process.env.GH_AW_SKIP_MAX_MATCHES = originalEnv.GH_AW_SKIP_MAX_MATCHES) : delete process.env.GH_AW_SKIP_MAX_MATCHES);

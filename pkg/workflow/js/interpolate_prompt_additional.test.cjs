@@ -1,4 +1,3 @@
-// Additional comprehensive tests for renderMarkdownTemplate function
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
@@ -9,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url),
   interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8"),
   renderMarkdownTemplateMatch = interpolatePromptScript.match(/function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return result;[\s\S]*?}/);
 if (!renderMarkdownTemplateMatch) throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
-// eslint-disable-next-line no-eval
 const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 describe("renderMarkdownTemplate - Additional Edge Cases", () => {
   (describe("inline conditionals (tags not on their own lines)", () => {
@@ -59,7 +57,6 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
         }),
         it("should handle trailing spaces on tag lines", () => {
           const output = renderMarkdownTemplate("{{#if true}}   \nContent\n{{/if}}   ");
-          // The first pass should match this and preserve content
           expect(output.trim()).toBe("Content");
         }),
         it("should handle no newline after opening tag (inline)", () => {
@@ -68,8 +65,6 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
         }),
         it("should handle no newline before closing tag (inline)", () => {
           const output = renderMarkdownTemplate("{{#if true}}\nContent{{/if}}");
-          // The first-pass regex matches this because opening tag has newline after it
-          // It preserves the body without the leading newline (no leadNL before the tag)
           expect(output).toBe("Content");
         }));
     }),
@@ -83,17 +78,13 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
           expect(output).toBe("```javascript\nconst x = 1;\n```\n");
         }),
         it("should NOT handle nested conditionals (not supported)", () => {
-          // This test documents current behavior - nested conditionals are not supported
           const output = renderMarkdownTemplate("{{#if true}}\nOuter\n{{#if true}}\nInner\n{{/if}}\n{{/if}}");
-          // The regex will match the first {{#if}} with the first {{/if}}, leaving the rest
-          // Exact behavior depends on regex matching, but it won't handle nesting correctly
           expect(output).toContain("Outer");
         }));
     }),
     describe("edge cases with empty lines", () => {
       (it("should clean up multiple consecutive blank lines", () => {
         const output = renderMarkdownTemplate("Start\n\n\n{{#if false}}\nContent\n{{/if}}\n\n\nEnd");
-        // Should not have more than 2 consecutive newlines
         (expect(output).not.toMatch(/\n{3,}/), expect(output).toContain("Start"), expect(output).toContain("End"));
       }),
         it("should preserve single blank line", () => {
@@ -102,8 +93,6 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
         }),
         it("should clean up triple newlines in input", () => {
           const output = renderMarkdownTemplate("Line 1\n\n\nLine 2");
-          // The cleanup phase converts 3+ newlines to 2 newlines (one blank line)
-          // This is actually desirable behavior - triple newlines become double
           expect(output).toBe("Line 1\n\nLine 2");
         }),
         it("should collapse triple blank line to double", () => {
@@ -127,7 +116,6 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
               "true"
             )
           );
-          // With both conditions true
           (expect(result).toContain("## Issue Information"), expect(result).toContain("## Pull Request Information"), expect(result).toContain("## Instructions"));
         }));
     }),
@@ -141,26 +129,20 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
           expect(output).toBe("   \n\n   ");
         }),
         it("should handle unclosed conditional (malformed)", () => {
-          // This documents behavior with malformed input
           const input = "{{#if true}} Content",
             output = renderMarkdownTemplate(input);
-          // Without closing tag, nothing should be replaced
           expect(output).toBe(input);
         }),
         it("should handle closing tag without opening (malformed)", () => {
           const output = renderMarkdownTemplate("Content {{/if}}");
-          // Without opening tag, nothing should be replaced
           expect(output).toBe("Content {{/if}}");
         }),
         it("should handle empty condition expression (treated as false)", () => {
           const output = renderMarkdownTemplate("{{#if }}Content{{/if}}");
-          // The regex now allows empty expressions: [^}]*
-          // Empty expressions are treated as false by isTruthy
           expect(output).toBe("");
         }),
         it("should handle condition with only whitespace", () => {
           const output = renderMarkdownTemplate("{{#if   }}Content{{/if}}");
-          // Whitespace that trims to empty is falsy
           expect(output).toBe("");
         }));
     }),
@@ -206,8 +188,6 @@ describe("renderMarkdownTemplate - Additional Edge Cases", () => {
       }),
         it("should remove leading newline when condition is false", () => {
           const output = renderMarkdownTemplate("Line before\n\n{{#if false}}\nContent\n{{/if}}\nLine after");
-          // The leading newline before {{#if false}} should be preserved initially,
-          // but after cleanup, excessive blank lines are reduced
           (expect(output).toContain("Line before"), expect(output).toContain("Line after"), expect(output).not.toMatch(/\n{3,}/));
         }),
         it("should handle no leading newline with true condition", () => {

@@ -2,14 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 describe("safe_outputs_mcp_client.cjs", () => {
   (describe("JSONL parsing", () => {
     (it("should parse simple JSONL input", () => {
-      const result = (input =>
-        input
-          ? input
-              .split(/\r?\n/)
-              .map(l => l.trim())
-              .filter(Boolean)
-              .map(line => JSON.parse(line))
-          : [])('{"key":"value1"}\n{"key":"value2"}');
+      const result = '{"key":"value1"}\n{"key":"value2"}'
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
       (expect(result).toHaveLength(2), expect(result[0]).toEqual({ key: "value1" }), expect(result[1]).toEqual({ key: "value2" }));
     }),
       it("should handle empty input", () => {
@@ -24,36 +21,27 @@ describe("safe_outputs_mcp_client.cjs", () => {
         (expect(parseJsonl("")).toEqual([]), expect(parseJsonl(null)).toEqual([]), expect(parseJsonl(void 0)).toEqual([]));
       }),
       it("should skip empty lines", () => {
-        const result = (input =>
-          input
-            ? input
-                .split(/\r?\n/)
-                .map(l => l.trim())
-                .filter(Boolean)
-                .map(line => JSON.parse(line))
-            : [])('{"key":"value1"}\n\n\n{"key":"value2"}\n');
+        const result = '{"key":"value1"}\n\n\n{"key":"value2"}\n'
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean)
+          .map(line => JSON.parse(line));
         expect(result).toHaveLength(2);
       }),
       it("should handle Windows line endings", () => {
-        const result = (input =>
-          input
-            ? input
-                .split(/\r?\n/)
-                .map(l => l.trim())
-                .filter(Boolean)
-                .map(line => JSON.parse(line))
-            : [])('{"key":"value1"}\r\n{"key":"value2"}\r\n');
+        const result = '{"key":"value1"}\r\n{"key":"value2"}\r\n'
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean)
+          .map(line => JSON.parse(line));
         expect(result).toHaveLength(2);
       }),
       it("should handle whitespace in lines", () => {
-        const result = (input =>
-          input
-            ? input
-                .split(/\r?\n/)
-                .map(l => l.trim())
-                .filter(Boolean)
-                .map(line => JSON.parse(line))
-            : [])('  {"key":"value1"}  \n  {"key":"value2"}  ');
+        const result = '  {"key":"value1"}  \n  {"key":"value2"}  '
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean)
+          .map(line => JSON.parse(line));
         (expect(result).toHaveLength(2), expect(result[0]).toEqual({ key: "value1" }));
       }));
   }),

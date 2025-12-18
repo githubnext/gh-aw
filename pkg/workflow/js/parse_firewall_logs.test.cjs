@@ -84,17 +84,13 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               ]),
             },
             summary = generateFirewallSummary(analysis);
-          // Should have firewall activity header
           (expect(summary).toContain("🔥 Firewall Activity"),
-            // Should wrap entire summary in details tag
             expect(summary).toContain("<details>"),
             expect(summary).toContain("</details>"),
-            // Should have summary with basic stats
             expect(summary).toContain("<summary>📊 5 requests"),
             expect(summary).toContain("3 allowed"),
             expect(summary).toContain("2 blocked"),
             expect(summary).toContain("4 unique domains</summary>"),
-            // Should show domain table with all domains
             expect(summary).toContain("| Domain | Allowed | Denied |"),
             expect(summary).toContain("| api.github.com:443 | 2 | 0 |"),
             expect(summary).toContain("| api.npmjs.org:443 | 1 | 0 |"),
@@ -115,12 +111,9 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
                 ]),
               },
               summary = generateFirewallSummary(analysis);
-            // Should only count valid domains (2 unique: api.github.com and example.com)
             (expect(summary).toContain("2 unique domains"),
-              // Should show both allowed and denied counts for valid domains
               expect(summary).toContain("2 allowed"),
               expect(summary).toContain("1 blocked"),
-              // Should show api.github.com and example.com but not "-"
               expect(summary).toContain("| api.github.com:443 | 2 | 0 |"),
               expect(summary).toContain("| example.com:443 | 0 | 1 |"),
               expect(summary).not.toContain("| - |"));
@@ -148,7 +141,6 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
                 ]),
               },
               summary = generateFirewallSummary(analysis);
-            // Should only count valid domains and their stats
             (expect(summary).toContain("1 unique domain"), expect(summary).toContain("2 allowed"), expect(summary).toContain("0 blocked"), expect(summary).toContain("| api.github.com:443 | 2 | 0 |"));
           }),
           test("should show appropriate message when no valid domains", () => {

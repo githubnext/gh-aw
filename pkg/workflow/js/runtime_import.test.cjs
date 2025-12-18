@@ -1,21 +1,16 @@
-// Tests for runtime_import.cjs
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
-// Mock the core module
 const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn() };
 global.core = core;
-// Import the functions to test
 const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 describe("runtime_import", () => {
   let tempDir;
   (beforeEach(() => {
-    // Create a temporary directory for test files
     ((tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-import-test-"))), vi.clearAllMocks());
   }),
     afterEach(() => {
-      // Clean up temporary directory
       tempDir && fs.existsSync(tempDir) && fs.rmSync(tempDir, { recursive: !0, force: !0 });
     }),
     describe("hasFrontMatter", () => {
@@ -52,7 +47,6 @@ describe("runtime_import", () => {
           expect(removeXMLComments("No comments here")).toBe("No comments here");
         }),
         it("should handle nested-looking comments", () => {
-          // This should remove up to the first closing -->
           expect(removeXMLComments("\x3c!-- outer \x3c!-- inner --\x3e --\x3e")).toBe(" --\x3e");
         }),
         it("should handle empty content", () => {
@@ -116,8 +110,7 @@ describe("runtime_import", () => {
         }),
         it("should handle file in subdirectory", () => {
           const subdir = path.join(tempDir, "subdir");
-          fs.mkdirSync(subdir);
-          fs.writeFileSync(path.join(tempDir, "subdir/test.md"), "Subdirectory content");
+          (fs.mkdirSync(subdir), fs.writeFileSync(path.join(tempDir, "subdir/test.md"), "Subdirectory content"));
           const result = processRuntimeImport("subdir/test.md", !1, tempDir);
           expect(result).toBe("Subdirectory content");
         }),
@@ -166,8 +159,9 @@ describe("runtime_import", () => {
           expect(result).toBe("No imports here");
         }),
         it("should warn about duplicate imports", () => {
-          fs.writeFileSync(path.join(tempDir, "import.md"), "Content");
-          (processRuntimeImports("{{#runtime-import import.md}}\n{{#runtime-import import.md}}", tempDir), expect(core.warning).toHaveBeenCalledWith("File import.md is imported multiple times, which may indicate a circular reference"));
+          (fs.writeFileSync(path.join(tempDir, "import.md"), "Content"),
+            processRuntimeImports("{{#runtime-import import.md}}\n{{#runtime-import import.md}}", tempDir),
+            expect(core.warning).toHaveBeenCalledWith("File import.md is imported multiple times, which may indicate a circular reference"));
         }),
         it("should handle macros with extra whitespace", () => {
           fs.writeFileSync(path.join(tempDir, "import.md"), "Content");
@@ -191,8 +185,7 @@ describe("runtime_import", () => {
         }),
         it("should handle path with subdirectories", () => {
           const subdir = path.join(tempDir, "docs", "shared");
-          fs.mkdirSync(subdir, { recursive: !0 });
-          fs.writeFileSync(path.join(tempDir, "docs/shared/import.md"), "Subdir content");
+          (fs.mkdirSync(subdir, { recursive: !0 }), fs.writeFileSync(path.join(tempDir, "docs/shared/import.md"), "Subdir content"));
           const result = processRuntimeImports("{{#runtime-import docs/shared/import.md}}", tempDir);
           expect(result).toBe("Subdir content");
         }),
@@ -243,7 +236,6 @@ describe("runtime_import", () => {
         it("should not process runtime-import as a substring", () => {
           const content = "text{{#runtime-importnospace.md}}text",
             result = processRuntimeImports(content, tempDir);
-          // Should not match because there's no space after runtime-import
           expect(result).toBe(content);
         }),
         it("should handle front matter with varying formats", () => {
@@ -254,8 +246,7 @@ describe("runtime_import", () => {
     }),
     describe("Error Handling", () => {
       (it("should provide clear error for GitHub Actions macros", () => {
-        fs.writeFileSync(path.join(tempDir, "bad.md"), "${{ github.actor }}");
-        expect(() => processRuntimeImports("{{#runtime-import bad.md}}", tempDir)).toThrow("Failed to process runtime import for bad.md");
+        (fs.writeFileSync(path.join(tempDir, "bad.md"), "${{ github.actor }}"), expect(() => processRuntimeImports("{{#runtime-import bad.md}}", tempDir)).toThrow("Failed to process runtime import for bad.md"));
       }),
         it("should provide clear error for missing required files", () => {
           expect(() => processRuntimeImports("{{#runtime-import nonexistent.md}}", tempDir)).toThrow("Failed to process runtime import for nonexistent.md");

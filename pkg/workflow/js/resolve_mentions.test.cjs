@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-// Mock the global objects
 const mockCore = { info: vi.fn(), warning: vi.fn() },
   mockGithub = { rest: { repos: { listCollaborators: vi.fn(), getCollaboratorPermissionLevel: vi.fn() }, users: { getByUsername: vi.fn() } } };
 ((global.core = mockCore), (global.github = mockGithub));
@@ -127,15 +126,7 @@ describe("resolve_mentions.cjs", () => {
           (expect(result.totalMentions).toBe(60), expect(result.limitExceeded).toBe(!0), expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Mention limit exceeded")));
         }),
         it("should preserve case in allowed mentions", async () => {
-          mockGithub.rest.repos.listCollaborators.mockResolvedValue({
-            data: [
-              {
-                login: "maintainer1", // lowercase in API response
-                type: "User",
-                permissions: { maintain: !0, admin: !1, push: !1 },
-              },
-            ],
-          });
+          mockGithub.rest.repos.listCollaborators.mockResolvedValue({ data: [{ login: "maintainer1", type: "User", permissions: { maintain: !0, admin: !1, push: !1 } }] });
           const result = await resolveMentionsLazily("Hello @Maintainer1", [], "owner", "repo", mockGithub, mockCore);
           expect(result.allowedMentions).toEqual(["Maintainer1"]);
         }),

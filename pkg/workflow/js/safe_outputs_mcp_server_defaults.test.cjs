@@ -2,35 +2,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
-// Test defaults for safe outputs MCP server
 (describe.sequential("safe_outputs_mcp_server.cjs defaults handling", () => {
   let originalEnv, tempConfigFile, tempOutputDir;
   (beforeEach(() => {
     ((originalEnv = { ...process.env }),
-      // Create temporary directories for testing
       (tempOutputDir = path.join("/tmp", `test_safe_outputs_defaults_${Date.now()}`)),
       fs.mkdirSync(tempOutputDir, { recursive: !0 }),
-      (tempConfigFile = path.join(tempOutputDir, "config.json")));
-    fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 });
+      (tempConfigFile = path.join(tempOutputDir, "config.json")),
+      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
     const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
-    // Create a minimal default config
     fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
-    // Create tools.json file with all tools for tests
     const toolsJsonPath = path.join("/tmp/gh-aw/safeoutputs", "tools.json"),
       toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
     fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   }),
     afterEach(() => {
-      ((process.env = originalEnv),
-        // Clean up temporary files
-        fs.existsSync(tempConfigFile) && fs.unlinkSync(tempConfigFile),
-        fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
+      ((process.env = originalEnv), fs.existsSync(tempConfigFile) && fs.unlinkSync(tempConfigFile), fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
     }),
     it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
-      // Remove environment variables
-      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH);
-      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 });
-      // Write a default config file so the server can start
+      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
       const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
       fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -50,14 +40,11 @@ import { spawn } from "child_process";
           child.on("error", error => {
             (clearTimeout(timeout), reject(error));
           }));
-        // Send initialization message
         const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
         (child.stdin.write(initMessage),
-          // Wait for response
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              // Check that default paths are mentioned in debug output
               expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl"),
               expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json"),
               resolve());
@@ -65,12 +52,9 @@ import { spawn } from "child_process";
       });
     }),
     it("should read config from default file when config file exists", async () => {
-      // Remove environment variables
       (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH);
-      // Create default config file
       const defaultConfigFile = path.join("/tmp/gh-aw/safeoutputs", "config.json");
-      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 });
-      fs.writeFileSync(defaultConfigFile, JSON.stringify({ create_issue: { enabled: !0 }, add_comment: { enabled: !0, max: 3 } }));
+      (fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(defaultConfigFile, JSON.stringify({ create_issue: { enabled: !0 }, add_comment: { enabled: !0, max: 3 } })));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -84,16 +68,12 @@ import { spawn } from "child_process";
           child.on("error", error => {
             (clearTimeout(timeout), reject(error));
           }));
-        // Send initialization message
         const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
         (child.stdin.write(initMessage),
-          // Wait for response
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              // Clean up test config file
               fs.existsSync(defaultConfigFile) && fs.unlinkSync(defaultConfigFile),
-              // Check that config was read from file
               expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json"),
               expect(stderr).toContain("Successfully parsed config from file with 2 configuration keys"),
               expect(stderr).toContain("Final processed config:"),
@@ -103,9 +83,7 @@ import { spawn } from "child_process";
       });
     }),
     it("should use empty config when default file does not exist", async () => {
-      // Remove environment variables
-      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH);
-      fs.existsSync("/tmp/gh-aw/safeoutputs/config.json") && fs.unlinkSync("/tmp/gh-aw/safeoutputs/config.json");
+      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/tmp/gh-aw/safeoutputs/config.json") && fs.unlinkSync("/tmp/gh-aw/safeoutputs/config.json"));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -119,14 +97,11 @@ import { spawn } from "child_process";
           child.on("error", error => {
             (clearTimeout(timeout), reject(error));
           }));
-        // Send initialization message
         const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
         (child.stdin.write(initMessage),
-          // Wait for response
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              // Check that empty config is used when file doesn't exist
               expect(stderr).toContain("Config file does not exist at: /tmp/gh-aw/safeoutputs/config.json"),
               expect(stderr).toContain("Using minimal default configuration"),
               expect(stderr).toContain("Final processed config: {}"),
@@ -135,15 +110,12 @@ import { spawn } from "child_process";
       });
     }),
     it("should create output directory even when GH_AW_SAFE_OUTPUTS is set", async () => {
-      // Create a unique test directory path that doesn't exist yet
       const testOutputDir = path.join("/tmp", `test_safe_outputs_${Date.now()}_envset`),
         testOutputFile = path.join(testOutputDir, "outputs.jsonl");
-      // Set GH_AW_SAFE_OUTPUTS to a path that doesn't exist yet
       ((process.env.GH_AW_SAFE_OUTPUTS = testOutputFile),
         delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH,
-        // Ensure the directory does NOT exist before starting
-        fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }));
-      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 });
+        fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }),
+        fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
       const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
       fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -157,32 +129,19 @@ import { spawn } from "child_process";
           stderr += data.toString();
         }),
           child.on("error", error => {
-            (clearTimeout(timeout),
-              // Clean up
-              fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }),
-              reject(error));
+            (clearTimeout(timeout), fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }), reject(error));
           }));
-        // Send initialization message
         const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
         (child.stdin.write(initMessage),
-          // Wait for the server to initialize
           setTimeout(() => {
-            (child.kill(),
-              clearTimeout(timeout),
-              // Clean up
-              fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }),
-              // Verify that directory was created even though GH_AW_SAFE_OUTPUTS was set
-              expect(stderr).toContain(`Creating output directory: ${testOutputDir}`),
-              resolve());
+            (child.kill(), clearTimeout(timeout), fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }), expect(stderr).toContain(`Creating output directory: ${testOutputDir}`), resolve());
           }, 2e3));
       });
     }));
 }),
-  // Test that create_pull_request and push_to_pull_request_branch tools have optional branch parameter
   describe.sequential("safe_outputs_mcp_server.cjs branch parameter handling", () => {
     (it("should have optional branch parameter for create_pull_request", async () => {
       const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
-      // Write config to temporary file
       fs.writeFileSync(tempConfigPath, JSON.stringify({ create_pull_request: {} }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
@@ -200,37 +159,28 @@ import { spawn } from "child_process";
               try {
                 const msg = JSON.parse(line);
                 receivedMessages.push(msg);
-              } catch (e) {
-                // Ignore parse errors
-              }
+              } catch (e) {}
             });
         }),
           child.on("error", error => {
             (clearTimeout(timeout), reject(error));
           }),
-          // Send initialization message
           setTimeout(() => {
             const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
             child.stdin.write(initMessage);
           }, 100),
-          // Send tools/list request after initialization
           setTimeout(() => {
             const listToolsMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n";
             child.stdin.write(listToolsMessage);
           }, 200),
-          // Check results after a delay
           setTimeout(() => {
             (clearTimeout(timeout), child.kill());
-            // Find the tools/list response
             const listResponse = receivedMessages.find(m => 2 === m.id);
             (expect(listResponse).toBeDefined(), expect(listResponse.result).toBeDefined(), expect(listResponse.result.tools).toBeDefined());
-            // Find the create_pull_request tool
             const createPrTool = listResponse.result.tools.find(t => "create_pull_request" === t.name);
             (expect(createPrTool).toBeDefined(),
-              // Check that branch is NOT in required fields
               expect(createPrTool.inputSchema.required).toEqual(["title", "body"]),
               expect(createPrTool.inputSchema.required).not.toContain("branch"),
-              // Check that branch property exists and has the correct description
               expect(createPrTool.inputSchema.properties.branch).toBeDefined(),
               expect(createPrTool.inputSchema.properties.branch.description).toContain("If omitted"),
               expect(createPrTool.inputSchema.properties.branch.description).toContain("current"),
@@ -240,7 +190,6 @@ import { spawn } from "child_process";
     }),
       it("should have optional branch parameter for push_to_pull_request_branch", async () => {
         const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
-        // Write config to temporary file
         fs.writeFileSync(tempConfigPath, JSON.stringify({ push_to_pull_request_branch: {} }));
         const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
         return new Promise((resolve, reject) => {
@@ -258,37 +207,28 @@ import { spawn } from "child_process";
                 try {
                   const msg = JSON.parse(line);
                   receivedMessages.push(msg);
-                } catch (e) {
-                  // Ignore parse errors
-                }
+                } catch (e) {}
               });
           }),
             child.on("error", error => {
               (clearTimeout(timeout), reject(error));
             }),
-            // Send initialization message
             setTimeout(() => {
               const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
               child.stdin.write(initMessage);
             }, 100),
-            // Send tools/list request after initialization
             setTimeout(() => {
               const listToolsMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n";
               child.stdin.write(listToolsMessage);
             }, 200),
-            // Check results after a delay
             setTimeout(() => {
               (clearTimeout(timeout), child.kill());
-              // Find the tools/list response
               const listResponse = receivedMessages.find(m => 2 === m.id);
               (expect(listResponse).toBeDefined(), expect(listResponse.result).toBeDefined(), expect(listResponse.result.tools).toBeDefined());
-              // Find the push_to_pull_request_branch tool
               const pushTool = listResponse.result.tools.find(t => "push_to_pull_request_branch" === t.name);
               (expect(pushTool).toBeDefined(),
-                // Check that branch is NOT in required fields (only message is required)
                 expect(pushTool.inputSchema.required).toEqual(["message"]),
                 expect(pushTool.inputSchema.required).not.toContain("branch"),
-                // Check that branch property exists and has the correct description
                 expect(pushTool.inputSchema.properties.branch).toBeDefined(),
                 expect(pushTool.inputSchema.properties.branch.description).toContain("If omitted"),
                 expect(pushTool.inputSchema.properties.branch.description).toContain("current"),
@@ -297,11 +237,9 @@ import { spawn } from "child_process";
         });
       }));
   }),
-  // Test that tool call responses include the isError field
   describe.sequential("safe_outputs_mcp_server.cjs tool call response format", () => {
     (it("should include isError field in tool call responses", async () => {
       const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
-      // Write config to temporary file
       fs.writeFileSync(tempConfigPath, JSON.stringify({ create_issue: {} }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
@@ -319,35 +257,27 @@ import { spawn } from "child_process";
               try {
                 const msg = JSON.parse(line);
                 receivedMessages.push(msg);
-              } catch (e) {
-                // Ignore parse errors
-              }
+              } catch (e) {}
             });
         }),
           child.on("error", error => {
             (clearTimeout(timeout), reject(error));
           }),
-          // Send initialization message
           setTimeout(() => {
             const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
             child.stdin.write(initMessage);
           }, 100),
-          // Send tools/call request after initialization
           setTimeout(() => {
             const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body" } } }) + "\n";
             child.stdin.write(toolCallMessage);
           }, 200),
-          // Check results after a delay
           setTimeout(() => {
             (clearTimeout(timeout), child.kill());
-            // Find the tools/call response
             const toolCallResponse = receivedMessages.find(m => 2 === m.id);
             (expect(toolCallResponse).toBeDefined(),
               expect(toolCallResponse.result).toBeDefined(),
-              // Verify the response includes isError field
               expect(toolCallResponse.result.isError).toBeDefined(),
               expect(toolCallResponse.result.isError).toBe(!1),
-              // Verify the response includes content
               expect(toolCallResponse.result.content).toBeDefined(),
               expect(Array.isArray(toolCallResponse.result.content)).toBe(!0),
               resolve());
@@ -356,7 +286,6 @@ import { spawn } from "child_process";
     }),
       it("should return stringified JSON in text content", async () => {
         const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
-        // Write config to temporary file
         fs.writeFileSync(tempConfigPath, JSON.stringify({ create_issue: {} }));
         const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
         return new Promise((resolve, reject) => {
@@ -374,41 +303,30 @@ import { spawn } from "child_process";
                 try {
                   const msg = JSON.parse(line);
                   receivedMessages.push(msg);
-                } catch (e) {
-                  // Ignore parse errors
-                }
+                } catch (e) {}
               });
           }),
             child.on("error", error => {
               (clearTimeout(timeout), reject(error));
             }),
-            // Send initialization message
             setTimeout(() => {
               const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
               child.stdin.write(initMessage);
             }, 100),
-            // Send tools/call request after initialization
             setTimeout(() => {
               const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body" } } }) + "\n";
               child.stdin.write(toolCallMessage);
             }, 200),
-            // Check results after a delay
             setTimeout(() => {
               (clearTimeout(timeout), child.kill());
-              // Find the tools/call response
               const toolCallResponse = receivedMessages.find(m => 2 === m.id);
               (expect(toolCallResponse).toBeDefined(),
                 expect(toolCallResponse.result).toBeDefined(),
-                // Verify the response includes content
                 expect(toolCallResponse.result.content).toBeDefined(),
                 expect(Array.isArray(toolCallResponse.result.content)).toBe(!0),
                 expect(toolCallResponse.result.content.length).toBeGreaterThan(0));
-              // Verify the first content item is text type
               const firstContent = toolCallResponse.result.content[0];
-              (expect(firstContent.type).toBe("text"),
-                expect(firstContent.text).toBeDefined(),
-                // Verify the text is stringified JSON
-                expect(() => JSON.parse(firstContent.text)).not.toThrow());
+              (expect(firstContent.type).toBe("text"), expect(firstContent.text).toBeDefined(), expect(() => JSON.parse(firstContent.text)).not.toThrow());
               const parsedResult = JSON.parse(firstContent.text);
               (expect(parsedResult).toHaveProperty("result"), expect(parsedResult.result).toBe("success"), resolve());
             }, 500));

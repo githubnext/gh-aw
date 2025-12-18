@@ -1,36 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
-// Mock the global objects that GitHub Actions provides
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } },
   mockGithub = { rest: { repos: { getReleaseByTag: vi.fn(), updateRelease: vi.fn() } } },
   mockContext = { repo: { owner: "test-owner", repo: "test-repo" }, serverUrl: "https://github.com", runId: 123456 };
-// Set up global mocks before importing the module
 ((global.core = mockCore),
   (global.github = mockGithub),
   (global.context = mockContext),
   describe("update_release", () => {
     let updateReleaseScript, tempFilePath;
-    // Helper function to set agent output via file
     const setAgentOutput = data => {
       tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
       const content = "string" == typeof data ? data : JSON.stringify(data);
       (fs.writeFileSync(tempFilePath, content), (process.env.GH_AW_AGENT_OUTPUT = tempFilePath));
     };
     (beforeEach(() => {
-      // Reset mocks before each test
       (vi.clearAllMocks(), delete process.env.GH_AW_SAFE_OUTPUTS_STAGED, delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GH_AW_WORKFLOW_NAME);
-      // Read the script
       const scriptPath = path.join(__dirname, "update_release.cjs");
       updateReleaseScript = fs.readFileSync(scriptPath, "utf8");
     }),
       afterEach(() => {
-        // Clean up temporary file
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty agent output", async () => {
         (setAgentOutput({ items: [], errors: [] }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockCore.info).toHaveBeenCalledWith("No update-release items found in agent output"),
           expect(mockGithub.rest.repos.getReleaseByTag).not.toHaveBeenCalled());
@@ -42,7 +35,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }),
           setAgentOutput({ items: [{ type: "update_release", tag: "v1.0.0", operation: "replace", body: "New release notes" }], errors: [] }),
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.0.0" }),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 1, body: "New release notes" }),
@@ -59,7 +51,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }),
           setAgentOutput({ items: [{ type: "update_release", tag: "v2.0.0", operation: "append", body: "Additional notes" }], errors: [] }),
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 2, body: expectedBody }),
           expect(mockCore.info).toHaveBeenCalledWith("Operation: append (add to end with separator)"));
@@ -72,7 +63,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }),
           setAgentOutput({ items: [{ type: "update_release", tag: "v3.0.0", operation: "prepend", body: "Prepended notes" }], errors: [] }),
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 3, body: expectedBody }),
           expect(mockCore.info).toHaveBeenCalledWith("Operation: prepend (add to start with separator)"));
@@ -80,7 +70,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should handle staged mode", async () => {
         ((process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
           setAgentOutput({ items: [{ type: "update_release", tag: "v1.0.0", operation: "replace", body: "New notes" }], errors: [] }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockCore.summary.addRaw).toHaveBeenCalled(),
           expect(mockGithub.rest.repos.getReleaseByTag).not.toHaveBeenCalled(),
@@ -89,7 +78,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should handle release not found error", async () => {
         (mockGithub.rest.repos.getReleaseByTag.mockRejectedValue(new Error("Not Found")),
           setAgentOutput({ items: [{ type: "update_release", tag: "v99.99.99", operation: "replace", body: "New notes" }], errors: [] }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update release")),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not found")),
@@ -107,40 +95,31 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             ],
             errors: [],
           }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledTimes(2),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledTimes(2),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Updated 2 release(s)")));
       }),
       it("should infer tag from release event context", async () => {
-        // Set up release event context
         ((mockContext.eventName = "release"), (mockContext.payload = { release: { tag_name: "v1.5.0", name: "Version 1.5.0", body: "Original release body" } }));
         const mockRelease = { id: 1, tag_name: "v1.5.0", body: "Original release body", html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.5.0" };
         (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }),
           mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } }),
-          // Agent output without tag field
           setAgentOutput({ items: [{ type: "update_release", operation: "replace", body: "Updated body" }], errors: [] }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Inferred release tag from event context: v1.5.0")),
           expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.5.0" }),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 1, body: "Updated body" }),
-          // Clean up
           delete mockContext.eventName,
           delete mockContext.payload);
       }),
       it("should fail gracefully when tag is missing and cannot be inferred", async () => {
-        // Set up context without release info
         ((mockContext.eventName = "push"),
           (mockContext.payload = {}),
-          // Agent output without tag field
           setAgentOutput({ items: [{ type: "update_release", operation: "replace", body: "Updated body" }], errors: [] }),
-          // Execute the script
           await eval(`(async () => { ${updateReleaseScript} })()`),
           expect(mockCore.error).toHaveBeenCalledWith("No tag provided and unable to infer from event context"),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Release tag is required")),
-          // Clean up
           delete mockContext.eventName,
           delete mockContext.payload);
       }));

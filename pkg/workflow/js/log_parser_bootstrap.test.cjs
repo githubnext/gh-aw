@@ -7,9 +7,7 @@ const __filename = fileURLToPath(import.meta.url),
 describe("log_parser_bootstrap.cjs", () => {
   let mockCore, runLogParser, originalProcess;
   (beforeEach(() => {
-    // Save originals before mocking
     ((originalProcess = { ...process }),
-      // Mock core actions methods
       (mockCore = {
         debug: vi.fn(),
         info: vi.fn(),
@@ -22,12 +20,10 @@ describe("log_parser_bootstrap.cjs", () => {
         summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(void 0) },
       }),
       (global.core = mockCore));
-    // Import the module after setting up global.core
     const module = require("./log_parser_bootstrap.cjs");
     runLogParser = module.runLogParser;
   }),
     afterEach(() => {
-      // Restore originals
       ((process.env = originalProcess.env), vi.restoreAllMocks(), delete global.core);
     }),
     describe("runLogParser", () => {
@@ -42,18 +38,15 @@ describe("log_parser_bootstrap.cjs", () => {
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /non/existent/file.log"), expect(mockParseLog).not.toHaveBeenCalled());
         }),
         it("should read and parse a single log file", () => {
-          // Create a temporary log file
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");
           (fs.writeFileSync(logFile, "Test log content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue("## Parsed Log\n\nSuccess!");
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockParseLog).toHaveBeenCalledWith("Test log content"),
-            // When no logEntries are returned (string result), we log success message
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
             expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Parsed Log\n\nSuccess!"),
             expect(mockCore.summary.write).toHaveBeenCalled(),
-            // Cleanup
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
         }),
@@ -63,7 +56,6 @@ describe("log_parser_bootstrap.cjs", () => {
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: !1 });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
-            // When no logEntries are returned, we log success message
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
             expect(mockCore.summary.addRaw).toHaveBeenCalledWith("## Result\n"),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
@@ -85,10 +77,8 @@ describe("log_parser_bootstrap.cjs", () => {
             ],
           });
           runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
-          // Should generate plain text summary for core.info
           const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("=== TestParser Execution Summary ==="));
           (expect(infoCall).toBeDefined(), expect(infoCall[0]).toContain("Model: gpt-5"), expect(infoCall[0]).toContain("Turns: 2"));
-          // Should generate Copilot CLI style markdown for step summary
           const summaryCall = mockCore.summary.addRaw.mock.calls[0];
           (expect(summaryCall).toBeDefined(),
             expect(summaryCall[0]).toContain("```"),

@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-// Import the function to test
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 describe("sanitize_label_content.cjs", () => {
   describe("sanitizeLabelContent", () => {
@@ -79,12 +78,9 @@ describe("sanitize_label_content.cjs", () => {
         (expect(sanitizeLabelContent("start @user end")).toBe("start `@user` end"), expect(sanitizeLabelContent("@user at start")).toBe("`@user` at start"), expect(sanitizeLabelContent("at end @user")).toBe("at end `@user`"));
       }),
       it("should not treat email-like patterns as @mentions after alphanumerics", () => {
-        // The regex has [^\w`] which requires non-word character before @
-        // so 'email@' won't match because 'l' is a word character
         expect(sanitizeLabelContent("email@example.com")).toBe("email@example.com");
       }),
       it("should handle username edge cases", () => {
-        // Valid GitHub usernames can be 1-39 chars, alphanumeric + hyphens
         (expect(sanitizeLabelContent("@a")).toBe("`@a`"), expect(sanitizeLabelContent("@user-name-123")).toBe("`@user-name-123`"));
       }),
       it("should combine all sanitization rules correctly", () => {

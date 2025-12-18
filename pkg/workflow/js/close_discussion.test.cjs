@@ -1,26 +1,21 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-// Mock the global objects that GitHub Actions provides
 const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } },
   mockGithub = { rest: {}, graphql: vi.fn() },
   mockContext = { eventName: "discussion", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, payload: { discussion: { number: 42 }, repository: { html_url: "https://github.com/testowner/testrepo" } } };
-// Set up global mocks before importing the module
 ((global.core = mockCore),
   (global.github = mockGithub),
   (global.context = mockContext),
   describe("close_discussion", () => {
     let closeDiscussionScript, tempFilePath;
-    // Helper function to set agent output via file
     const setAgentOutput = data => {
       tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
       const content = "string" == typeof data ? data : JSON.stringify(data);
       (fs.writeFileSync(tempFilePath, content), (process.env.GH_AW_AGENT_OUTPUT = tempFilePath));
     };
     (beforeEach(() => {
-      // Reset all mocks
       (vi.clearAllMocks(),
-        // Reset environment variables
         delete process.env.GH_AW_SAFE_OUTPUTS_STAGED,
         delete process.env.GH_AW_AGENT_OUTPUT,
         delete process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS,
@@ -29,26 +24,18 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         delete process.env.GH_AW_CLOSE_DISCUSSION_TARGET,
         delete process.env.GH_AW_WORKFLOW_NAME,
         delete process.env.GITHUB_SERVER_URL,
-        // Reset context to default state
         (global.context.eventName = "discussion"),
         (global.context.payload.discussion = { number: 42 }));
-      // Read the script content
       const scriptPath = path.join(process.cwd(), "close_discussion.cjs");
       closeDiscussionScript = fs.readFileSync(scriptPath, "utf8");
     }),
       afterEach(() => {
-        // Clean up temp files
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput({ items: [], errors: [] }),
-          // Execute the script
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
-          expect(mockCore.info).toHaveBeenCalledWith("No close-discussion items found in agent output"));
+        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${closeDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No close-discussion items found in agent output"));
       }),
       it("should handle missing agent output", async () => {
-        // Don't set GH_AW_AGENT_OUTPUT
-        // Execute the script
         (await eval(`(async () => { ${closeDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should close discussion with comment in non-staged mode", async () => {
@@ -56,7 +43,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
           (process.env.GITHUB_SERVER_URL = "https://github.com"),
-          // Mock getDiscussionDetails
           mockGithub.graphql
             .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } } })
             .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABCDEF02", url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-123" } } })
@@ -85,7 +71,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const validatedOutput = { items: [{ type: "close_discussion", body: "Closing this discussion." }], errors: [] };
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS = "resolved,completed"),
-          // Mock discussion without required labels
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [{ name: "question" }] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
@@ -97,7 +82,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const validatedOutput = { items: [{ type: "close_discussion", body: "Closing this discussion." }], errors: [] };
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX = "[task]"),
-          // Mock discussion without required title prefix
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
@@ -109,7 +93,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const validatedOutput = { items: [{ type: "close_discussion", body: "Closing this discussion." }], errors: [] };
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY = "Announcements"),
-          // Mock discussion in different category
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
@@ -133,7 +116,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should skip if not in discussion context with triggering target", async () => {
         const validatedOutput = { items: [{ type: "close_discussion", body: "Closing this discussion." }], errors: [] };
         (setAgentOutput(validatedOutput),
-          // Change context to non-discussion
           (mockContext.eventName = "issues"),
           await eval(`(async () => { ${closeDiscussionScript} })()`),
           expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in discussion context, skipping discussion close'),
@@ -142,7 +124,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should handle GraphQL errors gracefully", async () => {
         const validatedOutput = { items: [{ type: "close_discussion", body: "This discussion is resolved." }], errors: [] };
         (setAgentOutput(validatedOutput),
-          // Mock GraphQL error
           mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Discussion not found")),
           await expect(async () => {
             await eval(`(async () => { ${closeDiscussionScript} })()`);

@@ -4,21 +4,12 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import os from "os";
-/**
- * Integration tests for safe_inputs_mcp_server_http.cjs
- *
- * These tests validate that the HTTP transport layer works correctly with the MCP protocol.
- * They spawn actual server processes and make real HTTP requests to test the integration.
- */ describe("safe_inputs_mcp_server_http.cjs integration", () => {
+describe("safe_inputs_mcp_server_http.cjs integration", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "http-mcp-test-"));
   let serverProcess = null,
     sessionId = null;
-  // Create test files before all tests
   const configPath = path.join(tempDir, "test-config.json"),
     handlerPath = path.join(tempDir, "echo-handler.cjs");
-  /**
-   * Helper to make HTTP requests to the MCP server
-   */
   async function makeRequest(payload, additionalHeaders = {}) {
     return new Promise((resolve, reject) => {
       const data = JSON.stringify(payload),
@@ -39,9 +30,7 @@ import os from "os";
       (req.on("error", reject), req.write(data), req.end());
     });
   }
-  /**
-   * Wait for server to be ready
-   */ (fs.writeFileSync(handlerPath, 'module.exports = function(args) {\n      return { echo: args.message || "empty", timestamp: Date.now() };\n    };'),
+  (fs.writeFileSync(handlerPath, 'module.exports = function(args) {\n      return { echo: args.message || "empty", timestamp: Date.now() };\n    };'),
     fs.writeFileSync(
       configPath,
       JSON.stringify({
@@ -52,9 +41,6 @@ import os from "os";
         ],
       })
     ),
-    /**
-     * Start the HTTP MCP server before running tests
-     */
     it("should start HTTP MCP server successfully", { timeout: 15e3 }, async () => {
       serverProcess = spawn("node", ["safe_inputs_mcp_server_http.cjs", configPath, "--port", (4100).toString()], { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] });
       let serverOutput = "";
@@ -64,17 +50,12 @@ import os from "os";
         serverProcess.on("error", error => {
           console.error("Server process error:", error);
         }));
-      // Wait for server to be ready
       const ready = await (async function (maxAttempts = 30) {
         for (let i = 0; i < maxAttempts; i++) {
           try {
             const response = await makeRequest({ jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion: "2024-11-05" } });
-            if (200 === response.status && response.data.result)
-              // Store session ID for later use
-              return ((sessionId = response.headers["mcp-session-id"]), !0);
-          } catch {
-            // Server not ready yet
-          }
+            if (200 === response.status && response.data.result) return ((sessionId = response.headers["mcp-session-id"]), !0);
+          } catch {}
           await new Promise(resolve => setTimeout(resolve, 200));
         }
         return !1;
@@ -92,7 +73,6 @@ import os from "os";
         expect(response.data.result.serverInfo.version).toBe("1.0.0"),
         expect(response.data.result.capabilities.tools).toBeDefined(),
         expect(response.headers["mcp-session-id"]).toBeDefined(),
-        // Store session ID for subsequent requests
         (sessionId = response.headers["mcp-session-id"]));
     }),
     it("should respond to GET /health endpoint", async () =>
@@ -164,19 +144,16 @@ import os from "os";
       (expect(response.status).toBe(200), expect(response.data.error).toBeDefined(), expect(response.data.error.message).toContain("missing"));
     }),
     afterAll(async () => {
-      // Clean up server process
       (serverProcess &&
         (serverProcess.kill("SIGTERM"),
         await new Promise(resolve => {
           (serverProcess.on("close", () => {
             resolve();
           }),
-            // Force kill after timeout
             setTimeout(() => {
               serverProcess && !serverProcess.killed && (serverProcess.kill("SIGKILL"), resolve());
             }, 2e3));
         })),
-        // Clean up temporary directory
         tempDir && fs.existsSync(tempDir) && fs.rmSync(tempDir, { recursive: !0, force: !0 }));
     }, 1e4));
 });
