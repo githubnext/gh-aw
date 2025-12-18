@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
@@ -17,6 +18,38 @@ import (
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
+
+// sanitizeErrorMessage removes or redacts sensitive information from error messages
+// before they are logged or included in JSON output. This prevents secrets, tokens,
+// and other sensitive data from being exposed in logs.
+func sanitizeErrorMessage(msg string) string {
+	// Patterns to sanitize (redact sensitive values while keeping context)
+	patterns := []struct {
+		regex       *regexp.Regexp
+		replacement string
+	}{
+		// Redact secret values that might appear after colons or equals signs
+		{regexp.MustCompile(`(?i)(secret[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+		{regexp.MustCompile(`(?i)(token[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+		{regexp.MustCompile(`(?i)(password[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+		{regexp.MustCompile(`(?i)(key[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+		{regexp.MustCompile(`(?i)(apikey[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+		{regexp.MustCompile(`(?i)(api_key[^:=]*[:=]\s*)([^\s,}]+)`), "${1}[REDACTED]"},
+
+		// Redact values that look like tokens (alphanumeric strings of certain lengths)
+		{regexp.MustCompile(`\b(ghp_[a-zA-Z0-9]{36})\b`), "[REDACTED_GH_TOKEN]"},
+		{regexp.MustCompile(`\b(gho_[a-zA-Z0-9]{36})\b`), "[REDACTED_GH_TOKEN]"},
+		{regexp.MustCompile(`\b(ghs_[a-zA-Z0-9]{36})\b`), "[REDACTED_GH_TOKEN]"},
+		{regexp.MustCompile(`\b(github_pat_[a-zA-Z0-9_]{82})\b`), "[REDACTED_GH_TOKEN]"},
+	}
+
+	sanitized := msg
+	for _, p := range patterns {
+		sanitized = p.regex.ReplaceAllString(sanitized, p.replacement)
+	}
+
+	return sanitized
+}
 
 // getRepositorySlug extracts the repository slug (owner/repo) from git config
 func getRepositorySlug() string {
@@ -427,7 +460,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "resolution_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -455,7 +488,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{
 						Type:    "campaign_validation_error",
-						Message: vErr.Error(),
+						Message: sanitizeErrorMessage(vErr.Error()),
 					})
 					validationResults = append(validationResults, result)
 					continue
@@ -474,7 +507,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 						result.Valid = false
 						result.Errors = append(result.Errors, ValidationError{
 							Type:    "campaign_validation_error",
-							Message: p,
+							Message: sanitizeErrorMessage(p),
 						})
 					}
 					errorMessages = append(errorMessages, problems[0])
@@ -507,7 +540,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 						stats.Errors++
 						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 						result.Valid = false
-						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
+						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: sanitizeErrorMessage(errMsg)})
 					}
 				}
 
@@ -553,7 +586,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "parse_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -575,7 +608,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "compilation_error",
-					Message: err.Error(),
+					Message: sanitizeErrorMessage(err.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -796,7 +829,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
 					Type:    "campaign_validation_error",
-					Message: vErr.Error(),
+					Message: sanitizeErrorMessage(vErr.Error()),
 				})
 				validationResults = append(validationResults, result)
 				continue
@@ -814,7 +847,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{
 						Type:    "campaign_validation_error",
-						Message: p,
+						Message: sanitizeErrorMessage(p),
 					})
 				}
 				// Treat campaign spec problems as compilation errors for this file
@@ -845,7 +878,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					stats.Errors++
 					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 					result.Valid = false
-					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: genErr.Error()})
+					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: sanitizeErrorMessage(genErr.Error())})
 				}
 			}
 
@@ -888,7 +921,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Type:    "parse_error",
-				Message: err.Error(),
+				Message: sanitizeErrorMessage(err.Error()),
 			})
 			validationResults = append(validationResults, result)
 			continue
@@ -908,7 +941,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Type:    "compilation_error",
-				Message: err.Error(),
+				Message: sanitizeErrorMessage(err.Error()),
 			})
 			validationResults = append(validationResults, result)
 			continue
