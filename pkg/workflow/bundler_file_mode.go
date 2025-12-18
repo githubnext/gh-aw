@@ -67,6 +67,9 @@ type ScriptFilesResult struct {
 //   - sources: Map of all available JavaScript sources (from GetJavaScriptSources())
 //
 // Returns a ScriptFilesResult with all files needed, or an error if a required file is missing.
+//
+// Note: This includes the main script in the output. Use CollectScriptDependencies if you
+// only want the dependencies (for when the main script is inlined in github-script).
 func CollectScriptFiles(scriptName string, mainContent string, sources map[string]string) (*ScriptFilesResult, error) {
 	fileModeLog.Printf("Collecting script files for: %s (%d bytes)", scriptName, len(mainContent))
 
@@ -108,6 +111,54 @@ func CollectScriptFiles(scriptName string, mainContent string, sources map[strin
 	})
 
 	fileModeLog.Printf("Collected %d files, total size: %d bytes", len(files), totalSize)
+
+	return &ScriptFilesResult{
+		Files:          files,
+		MainScriptPath: mainPath,
+		TotalSize:      totalSize,
+	}, nil
+}
+
+// CollectScriptDependencies collects only the dependencies of a script (not the main script itself).
+// This is used when the main script is inlined in github-script but its dependencies
+// need to be written to disk.
+//
+// Parameters:
+//   - scriptName: Name of the main script (e.g., "create_issue")
+//   - mainContent: The main script content
+//   - sources: Map of all available JavaScript sources (from GetJavaScriptSources())
+//
+// Returns a ScriptFilesResult with only the dependency files, or an error if a required file is missing.
+func CollectScriptDependencies(scriptName string, mainContent string, sources map[string]string) (*ScriptFilesResult, error) {
+	fileModeLog.Printf("Collecting dependencies for: %s (%d bytes)", scriptName, len(mainContent))
+
+	// Track collected files and avoid duplicates
+	collected := make(map[string]*ScriptFile)
+	processed := make(map[string]bool)
+
+	// Mark the main script as processed so we don't include it
+	mainPath := scriptName + ".cjs"
+	processed[mainPath] = true
+
+	// Recursively collect dependencies (but not the main script)
+	if err := collectDependencies(mainContent, "", sources, collected, processed); err != nil {
+		return nil, err
+	}
+
+	// Convert to sorted slice for deterministic output
+	var files []ScriptFile
+	totalSize := 0
+	for _, file := range collected {
+		files = append(files, *file)
+		totalSize += len(file.Content)
+	}
+
+	// Sort by path for consistent output
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+
+	fileModeLog.Printf("Collected %d dependency files, total size: %d bytes", len(files), totalSize)
 
 	return &ScriptFilesResult{
 		Files:          files,
@@ -261,6 +312,38 @@ func GenerateRequireScript(mainScriptPath string) string {
 	return fmt.Sprintf(`(async () => { await require('%s'); })();`, fullPath)
 }
 
+// GetInlinedScriptForFileMode gets the main script content and transforms it for inlining
+// in the github-script action while using file mode for dependencies.
+//
+// This function:
+// 1. Gets the script content from the registry
+// 2. Transforms relative require() calls to absolute paths (e.g., './helper.cjs' -> '/tmp/gh-aw/scripts/helper.cjs')
+// 3. Patches top-level await patterns to work in the execution context
+//
+// This is different from GenerateRequireScript which just generates a require() call.
+// Inlining the main script is necessary because:
+// - require() runs in a separate module context without the GitHub Script globals
+// - The main script needs access to github, context, core, etc. in its top-level scope
+//
+// Dependencies are still loaded from files using require().
+func GetInlinedScriptForFileMode(scriptName string) (string, error) {
+	// Get script content from registry
+	content := DefaultScriptRegistry.GetSource(scriptName)
+	if content == "" {
+		return "", fmt.Errorf("script not found in registry: %s", scriptName)
+	}
+
+	// Transform relative requires to absolute paths pointing to /tmp/gh-aw/scripts/
+	transformed := TransformRequiresToAbsolutePath(content, ScriptsBasePath)
+
+	// Patch top-level await patterns
+	patched := patchTopLevelAwaitForFileMode(transformed)
+
+	fileModeLog.Printf("Inlined script %s: %d bytes (transformed from %d)", scriptName, len(patched), len(content))
+
+	return patched, nil
+}
+
 // RewriteScriptForFileMode rewrites a script's require statements to use absolute
 // paths from /tmp/gh-aw/scripts/ instead of relative paths.
 //
@@ -377,10 +460,11 @@ func CollectAllJobScriptFiles(scriptNames []string, sources map[string]string) (
 			continue
 		}
 
-		// Collect this script's files
-		result, err := CollectScriptFiles(name, content, sources)
+		// Collect only this script's dependencies (not the main script itself)
+		// The main script is inlined in the github-script action
+		result, err := CollectScriptDependencies(name, content, sources)
 		if err != nil {
-			return nil, fmt.Errorf("failed to collect files for script %s: %w", name, err)
+			return nil, fmt.Errorf("failed to collect dependencies for script %s: %w", name, err)
 		}
 
 		// Merge into allFiles
@@ -412,7 +496,7 @@ func CollectAllJobScriptFiles(scriptNames []string, sources map[string]string) (
 		return files[i].Path < files[j].Path
 	})
 
-	fileModeLog.Printf("Total collected: %d unique files, %d bytes", len(files), totalSize)
+	fileModeLog.Printf("Total collected: %d unique dependency files, %d bytes", len(files), totalSize)
 
 	return &ScriptFilesResult{
 		Files:     files,

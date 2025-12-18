@@ -7281,1250 +7281,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/add_comment.cjs << 'EOF_5abe5c6a'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { generateFooterWithMessages } = require('/tmp/gh-aw/scripts/messages_footer.cjs');
-          const { getRepositoryUrl } = require('/tmp/gh-aw/scripts/get_repository_url.cjs');
-          const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-          const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-          
-          /**
-           * Hide/minimize a comment using the GraphQL API
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} nodeId - Comment node ID
-           * @param {string} reason - Reason for hiding (default: outdated)
-           * @returns {Promise<{id: string, isMinimized: boolean}>}
-           */
-          async function minimizeComment(github, nodeId, reason = "outdated") {
-            const query = /* GraphQL */ `
-              mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
-                minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
-                  minimizedComment {
-                    isMinimized
-                  }
-                }
-              }
-            `;
-          
-            const result = await github.graphql(query, { nodeId, classifier: reason });
-          
-            return {
-              id: nodeId,
-              isMinimized: result.minimizeComment.minimizedComment.isMinimized,
-            };
-          }
-          
-          /**
-           * Find comments on an issue/PR with a specific tracker-id
-           * @param {any} github - GitHub REST API instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {number} issueNumber - Issue/PR number
-           * @param {string} workflowId - Workflow ID to search for
-           * @returns {Promise<Array<{id: number, node_id: string, body: string}>>}
-           */
-          async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
-            const comments = [];
-            let page = 1;
-            const perPage = 100;
-          
-            // Paginate through all comments
-            while (true) {
-              const { data } = await github.rest.issues.listComments({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                per_page: perPage,
-                page,
-              });
-          
-              if (data.length === 0) {
-                break;
-              }
-          
-              // Filter comments that contain the workflow-id and are NOT reaction comments
-              const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
-          
-              comments.push(...filteredComments);
-          
-              if (data.length < perPage) {
-                break;
-              }
-          
-              page++;
-            }
-          
-            return comments;
-          }
-          
-          /**
-           * Find comments on a discussion with a specific workflow ID
-           * @param {any} github - GitHub GraphQL instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {number} discussionNumber - Discussion number
-           * @param {string} workflowId - Workflow ID to search for
-           * @returns {Promise<Array<{id: string, body: string}>>}
-           */
-          async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
-            const query = /* GraphQL */ `
-              query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $num) {
-                    comments(first: 100, after: $cursor) {
-                      nodes {
-                        id
-                        body
-                      }
-                      pageInfo {
-                        hasNextPage
-                        endCursor
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-          
-            const comments = [];
-            let cursor = null;
-          
-            while (true) {
-              const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
-          
-              if (!result.repository?.discussion?.comments?.nodes) {
-                break;
-              }
-          
-              const filteredComments = result.repository.discussion.comments.nodes
-                .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
-                .map(({ id, body }) => ({ id, body }));
-          
-              comments.push(...filteredComments);
-          
-              if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
-                break;
-              }
-          
-              cursor = result.repository.discussion.comments.pageInfo.endCursor;
-            }
-          
-            return comments;
-          }
-          
-          /**
-           * Hide all previous comments from the same workflow
-           * @param {any} github - GitHub API instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {number} itemNumber - Issue/PR/Discussion number
-           * @param {string} workflowId - Workflow ID to match
-           * @param {boolean} isDiscussion - Whether this is a discussion
-           * @param {string} reason - Reason for hiding (default: outdated)
-           * @param {string[] | null} allowedReasons - List of allowed reasons (default: null for all)
-           * @returns {Promise<number>} Number of comments hidden
-           */
-          async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
-            if (!workflowId) {
-              core.info("No workflow ID available, skipping hide-older-comments");
-              return 0;
-            }
-          
-            // Normalize reason to uppercase for GitHub API
-            const normalizedReason = reason.toUpperCase();
-          
-            // Validate reason against allowed reasons if specified (case-insensitive)
-            if (allowedReasons && allowedReasons.length > 0) {
-              const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
-              if (!normalizedAllowedReasons.includes(normalizedReason)) {
-                core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
-                return 0;
-              }
-            }
-          
-            core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
-          
-            let comments;
-            if (isDiscussion) {
-              comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
-            } else {
-              comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
-            }
-          
-            if (comments.length === 0) {
-              core.info("No previous comments found with matching workflow ID");
-              return 0;
-            }
-          
-            core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
-          
-            let hiddenCount = 0;
-            for (const comment of comments) {
-              // TypeScript can't narrow the union type here, but we know it's safe due to isDiscussion check
-              // @ts-expect-error - comment has node_id when not a discussion
-              const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
-              core.info(`Hiding comment: ${nodeId}`);
-          
-              const result = await minimizeComment(github, nodeId, normalizedReason);
-              hiddenCount++;
-              core.info(`✓ Hidden comment: ${nodeId}`);
-            }
-          
-            core.info(`Successfully hidden ${hiddenCount} comment(s)`);
-            return hiddenCount;
-          }
-          
-          /**
-           * Comment on a GitHub Discussion using GraphQL
-           * @param {any} github - GitHub REST API instance
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @param {number} discussionNumber - Discussion number
-           * @param {string} message - Comment body
-           * @param {string|undefined} replyToId - Optional comment node ID to reply to (for threaded comments)
-           * @returns {Promise<{id: string, html_url: string, discussion_url: string}>} Comment details
-           */
-          async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
-            // 1. Retrieve discussion node ID
-            const { repository } = await github.graphql(
-              `
-              query($owner: String!, $repo: String!, $num: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $num) { 
-                    id 
-                    url
-                  }
-                }
-              }`,
-              { owner, repo, num: discussionNumber }
-            );
-          
-            if (!repository || !repository.discussion) {
-              throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-            }
-          
-            const discussionId = repository.discussion.id;
-            const discussionUrl = repository.discussion.url;
-          
-            // 2. Add comment (with optional replyToId for threading)
-            const mutation = replyToId
-              ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                    comment { 
-                      id 
-                      body 
-                      createdAt 
-                      url
-                    }
-                  }
-                }`
-              : `mutation($dId: ID!, $body: String!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                    comment { 
-                      id 
-                      body 
-                      createdAt 
-                      url
-                    }
-                  }
-                }`;
-          
-            const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
-          
-            const result = await github.graphql(mutation, variables);
-          
-            const comment = result.addDiscussionComment.comment;
-          
-            return {
-              id: comment.id,
-              html_url: comment.url,
-              discussion_url: discussionUrl,
-            };
-          }
-          
-          async function main() {
-            // Check if we're in staged mode
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-            const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-            const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
-          
-            // Load the temporary ID map from create_issue job
-            const temporaryIdMap = loadTemporaryIdMap();
-            if (temporaryIdMap.size > 0) {
-              core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-            }
-          
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
-            }
-          
-            // Find all add-comment items
-            const commentItems = result.items.filter(/** @param {any} item */ item => item.type === "add_comment");
-            if (commentItems.length === 0) {
-              core.info("No add-comment items found in agent output");
-              return;
-            }
-          
-            core.info(`Found ${commentItems.length} add-comment item(s)`);
-          
-            // Helper function to get the target number (issue, discussion, or pull request)
-            function getTargetNumber(item) {
-              return item.item_number;
-            }
-          
-            // Get the target configuration from environment variable
-            const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
-            core.info(`Comment target configuration: ${commentTarget}`);
-          
-            // Check if we're in an issue, pull request, or discussion context
-            const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-            const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
-            const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-            const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-          
-            // Get workflow ID for hiding older comments
-            // Use GITHUB_WORKFLOW environment variable which is automatically set by GitHub Actions
-            const workflowId = process.env.GITHUB_WORKFLOW || "";
-          
-            // Parse allowed reasons from environment variable
-            const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
-              ? (() => {
-                  try {
-                    const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
-                    core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
-                    return parsed;
-                  } catch (error) {
-                    core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
-                    return null;
-                  }
-                })()
-              : null;
-          
-            if (hideOlderCommentsEnabled) {
-              core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
-            }
-          
-            // If in staged mode, emit step summary instead of creating comments
-            if (isStaged) {
-              let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-              summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-          
-              // Show created items references if available
-              const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-              const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-              const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-              const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-              const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-              const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-          
-              if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                summaryContent += "#### Related Items\n\n";
-                if (createdIssueUrl && createdIssueNumber) {
-                  summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                }
-                if (createdDiscussionUrl && createdDiscussionNumber) {
-                  summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                }
-                if (createdPullRequestUrl && createdPullRequestNumber) {
-                  summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                }
-                summaryContent += "\n";
-              }
-          
-              for (let i = 0; i < commentItems.length; i++) {
-                const item = commentItems[i];
-                summaryContent += `### Comment ${i + 1}\n`;
-                const targetNumber = getTargetNumber(item);
-                if (targetNumber) {
-                  const repoUrl = getRepositoryUrl();
-                  if (isDiscussion) {
-                    const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                    summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                  } else {
-                    const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                    summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                  }
-                } else {
-                  if (isDiscussion) {
-                    summaryContent += `**Target:** Current discussion\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue/PR\n\n`;
-                  }
-                }
-                summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                summaryContent += "---\n\n";
-              }
-          
-              // Write to step summary
-              await core.summary.addRaw(summaryContent).write();
-              core.info("📝 Comment creation preview written to step summary");
-              return;
-            }
-          
-            // Validate context based on target configuration
-            if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-              core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-              return;
-            }
-          
-            // Extract triggering context for footer generation
-            const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-            const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-            const triggeringDiscussionNumber = context.payload?.discussion?.number;
-          
-            const createdComments = [];
-          
-            // Process each comment item
-            for (let i = 0; i < commentItems.length; i++) {
-              const commentItem = commentItems[i];
-              core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-          
-              // Determine the issue/PR number and comment endpoint for this comment
-              let itemNumber;
-              let commentEndpoint;
-          
-              if (commentTarget === "*") {
-                // For target "*", we need an explicit number from the comment item
-                const targetNumber = getTargetNumber(commentItem);
-                if (targetNumber) {
-                  itemNumber = parseInt(targetNumber, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number specified: ${targetNumber}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  core.info(`Target is "*" but no number specified in comment item`);
-                  continue;
-                }
-              } else if (commentTarget && commentTarget !== "triggering") {
-                // Explicit number specified in target configuration
-                itemNumber = parseInt(commentTarget, 10);
-                if (isNaN(itemNumber) || itemNumber <= 0) {
-                  core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                  continue;
-                }
-                commentEndpoint = isDiscussion ? "discussions" : "issues";
-              } else {
-                // Default behavior: use triggering issue/PR/discussion
-                if (isIssueContext) {
-                  itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                  if (context.payload.issue) {
-                    commentEndpoint = "issues";
-                  } else {
-                    core.info("Issue context detected but no issue found in payload");
-                    continue;
-                  }
-                } else if (isPRContext) {
-                  itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                  if (context.payload.pull_request) {
-                    commentEndpoint = "issues"; // PR comments use the issues API endpoint
-                  } else {
-                    core.info("Pull request context detected but no pull request found in payload");
-                    continue;
-                  }
-                } else if (isDiscussionContext) {
-                  itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                  if (context.payload.discussion) {
-                    commentEndpoint = "discussions"; // Discussion comments use GraphQL via commentOnDiscussion
-                  } else {
-                    core.info("Discussion context detected but no discussion found in payload");
-                    continue;
-                  }
-                }
-              }
-          
-              if (!itemNumber) {
-                core.info("Could not determine issue, pull request, or discussion number");
-                continue;
-              }
-          
-              // Extract body from the JSON item and replace temporary ID references
-              let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
-          
-              // Append references to created issues, discussions, and pull requests if they exist
-              const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-              const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-              const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-              const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-              const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-              const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-          
-              // Add references section if any URLs are available
-              const references = [
-                createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
-                createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
-                createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
-              ].filter(Boolean);
-          
-              if (references.length > 0) {
-                body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
-              }
-          
-              // Add AI disclaimer with workflow name and run url
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-              const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-          
-              // Add workflow ID comment marker if present
-              if (workflowId) {
-                body += `\n\n<!-- workflow-id: ${workflowId} -->`;
-              }
-          
-              // Add tracker-id comment if present
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                body += trackerIDComment;
-              }
-          
-              // Add comment type marker to identify this as an add-comment
-              body += `\n\n<!-- comment-type: add-comment -->`;
-          
-              body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
-          
-              // Hide older comments from the same workflow if enabled
-              if (hideOlderCommentsEnabled && workflowId) {
-                core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
-              }
-          
-              let comment;
-          
-              // Use GraphQL API for discussions, REST API for issues/PRs
-              if (commentEndpoint === "discussions") {
-                core.info(`Creating comment on discussion #${itemNumber}`);
-                core.info(`Comment content length: ${body.length}`);
-          
-                // For discussion_comment events, extract the comment node_id to create a threaded reply
-                const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
-          
-                if (replyToId) {
-                  core.info(`Creating threaded reply to comment ${replyToId}`);
-                }
-          
-                // Create discussion comment using GraphQL
-                comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-          
-                // Add discussion_url to the comment object for consistency
-                comment.discussion_url = comment.discussion_url;
-              } else {
-                core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                core.info(`Comment content length: ${body.length}`);
-          
-                // Create regular issue/PR comment using REST API
-                const { data: restComment } = await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: itemNumber,
-                  body: body,
-                });
-          
-                comment = restComment;
-                core.info("Created comment #" + comment.id + ": " + comment.html_url);
-              }
-          
-              createdComments.push(comment);
-          
-              // Set output for the last created comment (for backward compatibility)
-              if (i === commentItems.length - 1) {
-                core.setOutput("comment_id", comment.id);
-                core.setOutput("comment_url", comment.html_url);
-              }
-            }
-          
-            // Write summary for all created comments
-            if (createdComments.length > 0) {
-              const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
-              await core.summary.addRaw(summaryContent).write();
-            }
-          
-            core.info(`Successfully created ${createdComments.length} comment(s)`);
-            return createdComments;
-          }
-          (async () => { await main(); })();
-          EOF_5abe5c6a
-          cat > /tmp/gh-aw/scripts/create_pull_request.cjs << 'EOF_fc9e192e'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /** @type {typeof import("fs")} */
-          const fs = require("fs");
-          /** @type {typeof import("crypto")} */
-          const crypto = require("crypto");
-          const { updateActivationComment } = require('/tmp/gh-aw/scripts/update_activation_comment.cjs');
-          const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-          const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
-          const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-          
-          /**
-           * Generate a patch preview with max 500 lines and 2000 chars for issue body
-           * @param {string} patchContent - The full patch content
-           * @returns {string} Formatted patch preview
-           */
-          function generatePatchPreview(patchContent) {
-            if (!patchContent || !patchContent.trim()) {
-              return "";
-            }
-          
-            const lines = patchContent.split("\n");
-            const maxLines = 500;
-            const maxChars = 2000;
-          
-            // Apply line limit first
-            let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-            const lineTruncated = lines.length > maxLines;
-          
-            // Apply character limit
-            const charTruncated = preview.length > maxChars;
-            if (charTruncated) {
-              preview = preview.slice(0, maxChars);
-            }
-          
-            const truncated = lineTruncated || charTruncated;
-            const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
-          
-            return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-          }
-          
-          async function main() {
-            // Initialize outputs to empty strings to ensure they're always set
-            core.setOutput("pull_request_number", "");
-            core.setOutput("pull_request_url", "");
-            core.setOutput("issue_number", "");
-            core.setOutput("issue_url", "");
-            core.setOutput("branch_name", "");
-            core.setOutput("fallback_used", "");
-          
-            // Check if we're in staged mode
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-          
-            // Environment validation - fail early if required variables are missing
-            const workflowId = process.env.GH_AW_WORKFLOW_ID;
-            if (!workflowId) {
-              throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-            }
-          
-            const baseBranch = process.env.GH_AW_BASE_BRANCH;
-            if (!baseBranch) {
-              throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-            }
-          
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-          
-            // Read agent output from file
-            let outputContent = "";
-            if (agentOutputFile.trim() !== "") {
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
-          
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-            }
-          
-            const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-            const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
-          
-            // Check if patch file exists and has valid content
-            if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-              // If allow-empty is enabled, we can proceed without a patch file
-              if (allowEmpty) {
-                core.info("No patch file found, but allow-empty is enabled - will create empty PR");
-              } else {
-                const message = "No patch file found - cannot create pull request without changes";
-          
-                // If in staged mode, still show preview
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-          
-                  // Write to step summary
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-          
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    // Silent success - no console output
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-            }
-          
-            let patchContent = "";
-            let isEmpty = true;
-          
-            if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-              patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              isEmpty = !patchContent || !patchContent.trim();
-            }
-          
-            // Check for actual error conditions (but allow empty patches as valid noop)
-            if (patchContent.includes("Failed to generate patch")) {
-              // If allow-empty is enabled, ignore patch errors and proceed
-              if (allowEmpty) {
-                core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
-                patchContent = "";
-                isEmpty = true;
-              } else {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-          
-                // If in staged mode, still show preview
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-          
-                  // Write to step summary
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-          
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    // Silent success - no console output
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-            }
-          
-            // Validate patch size (unless empty)
-            if (!isEmpty) {
-              // Get maximum patch size from environment (default: 1MB = 1024 KB)
-              const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-              const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-              const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-          
-              core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-          
-              if (patchSizeKb > maxSizeKb) {
-                const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-          
-                // If in staged mode, still show preview with error
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-          
-                  // Write to step summary
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                  return;
-                }
-          
-                throw new Error(message);
-              }
-          
-              core.info("Patch size validation passed");
-            }
-          
-            if (isEmpty && !isStaged && !allowEmpty) {
-              const message = "Patch file is empty - no changes to apply (noop operation)";
-          
-              switch (ifNoChanges) {
-                case "error":
-                  throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                case "ignore":
-                  // Silent success - no console output
-                  return;
-                case "warn":
-                default:
-                  core.warning(message);
-                  return;
-              }
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-            if (!isEmpty) {
-              core.info("Patch content validation passed");
-            } else if (allowEmpty) {
-              core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
-            } else {
-              core.info("Patch file is empty - processing noop operation");
-            }
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-          
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.warning("No valid items found in agent output");
-              return;
-            }
-          
-            // Find the create-pull-request item
-            const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
-            if (!pullRequestItem) {
-              core.warning("No create-pull-request item found in agent output");
-              return;
-            }
-          
-            core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-          
-            // If in staged mode, emit step summary instead of creating PR
-            if (isStaged) {
-              let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-              summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-          
-              summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-              summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-              summaryContent += `**Base:** ${baseBranch}\n\n`;
-          
-              if (pullRequestItem.body) {
-                summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-              }
-          
-              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                if (patchStats.trim()) {
-                  summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                  summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                } else {
-                  summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                }
-              }
-          
-              // Write to step summary
-              await core.summary.addRaw(summaryContent).write();
-              core.info("📝 Pull request creation preview written to step summary");
-              return;
-            }
-          
-            // Extract title, body, and branch from the JSON item
-            let title = pullRequestItem.title.trim();
-            let processedBody = pullRequestItem.body;
-          
-            // Remove duplicate title from description if it starts with a header matching the title
-            processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-          
-            let bodyLines = processedBody.split("\n");
-            let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-          
-            // If no title was found, use a default
-            if (!title) {
-              title = "Agent Output";
-            }
-          
-            // Apply title prefix if provided via environment variable
-            const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-            if (titlePrefix && !title.startsWith(titlePrefix)) {
-              title = titlePrefix + title;
-            }
-          
-            // Add AI disclaimer with workflow name and run url
-            const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-            const runId = context.runId;
-            const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-            const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-          
-            // Add fingerprint comment if present
-            const trackerIDComment = getTrackerID("markdown");
-            if (trackerIDComment) {
-              bodyLines.push(trackerIDComment);
-            }
-          
-            // Add expiration comment if expires is set (only for same-repo PRs)
-            addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
-          
-            bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-          
-            // Prepare the body content
-            const body = bodyLines.join("\n").trim();
-          
-            // Parse labels from environment variable (comma-separated string)
-            const labelsEnv = process.env.GH_AW_PR_LABELS;
-            const labels = labelsEnv
-              ? labelsEnv
-                  .split(",")
-                  .map(/** @param {string} label */ label => label.trim())
-                  .filter(/** @param {string} label */ label => label)
-              : [];
-          
-            // Parse draft setting from environment variable (defaults to true)
-            const draftEnv = process.env.GH_AW_PR_DRAFT;
-            const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-          
-            core.info(`Creating pull request with title: ${title}`);
-            core.info(`Labels: ${JSON.stringify(labels)}`);
-            core.info(`Draft: ${draft}`);
-            core.info(`Body length: ${body.length}`);
-          
-            const randomHex = crypto.randomBytes(8).toString("hex");
-            // Use branch name from JSONL if provided, otherwise generate unique branch name
-            if (!branchName) {
-              core.info("No branch name provided in JSONL, generating unique branch name");
-              // Generate unique branch name using cryptographic random hex
-              branchName = `${workflowId}-${randomHex}`;
-            } else {
-              branchName = `${branchName}-${randomHex}`;
-              core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-            }
-          
-            core.info(`Generated branch name: ${branchName}`);
-            core.info(`Base branch: ${baseBranch}`);
-          
-            // Create a new branch using git CLI, ensuring it's based on the correct base branch
-          
-            // First, fetch latest changes and checkout the base branch
-            core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-            await exec.exec("git fetch origin");
-            await exec.exec(`git checkout ${baseBranch}`);
-          
-            // Handle branch creation/checkout
-            core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-            await exec.exec(`git checkout -b ${branchName}`);
-            core.info(`Created new branch from base: ${branchName}`);
-          
-            // Apply the patch using git CLI (skip if empty)
-            if (!isEmpty) {
-              core.info("Applying patch...");
-          
-              // Log first 500 lines of patch for debugging
-              const patchLines = patchContent.split("\n");
-              const previewLineCount = Math.min(500, patchLines.length);
-              core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-              for (let i = 0; i < previewLineCount; i++) {
-                core.info(patchLines[i]);
-              }
-          
-              // Patches are created with git format-patch, so use git am to apply them
-              try {
-                await exec.exec("git am /tmp/gh-aw/aw.patch");
-                core.info("Patch applied successfully");
-              } catch (patchError) {
-                core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-          
-                // Investigate why the patch failed by logging git status and the failed patch
-                try {
-                  core.info("Investigating patch failure...");
-          
-                  // Log git status to see the current state
-                  const statusResult = await exec.getExecOutput("git", ["status"]);
-                  core.info("Git status output:");
-                  core.info(statusResult.stdout);
-          
-                  // Log the failed patch diff
-                  const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                  core.info("Failed patch content:");
-                  core.info(patchResult.stdout);
-                } catch (investigateError) {
-                  core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
-                }
-          
-                core.setFailed("Failed to apply patch");
-                return;
-              }
-          
-              // Push the applied commits to the branch (with fallback to issue creation on failure)
-              try {
-                // Check if remote branch already exists (optional precheck)
-                let remoteBranchExists = false;
-                try {
-                  const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                  if (stdout.trim()) {
-                    remoteBranchExists = true;
-                  }
-                } catch (checkError) {
-                  core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                }
-          
-                if (remoteBranchExists) {
-                  core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                  const extraHex = crypto.randomBytes(4).toString("hex");
-                  const oldBranch = branchName;
-                  branchName = `${branchName}-${extraHex}`;
-                  // Rename local branch
-                  await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                  core.info(`Renamed branch to ${branchName}`);
-                }
-          
-                await exec.exec(`git push origin ${branchName}`);
-                core.info("Changes pushed to branch");
-              } catch (pushError) {
-                // Push failed - create fallback issue instead of PR
-                core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                core.warning("Git push operation failed - creating fallback issue instead of pull request");
-          
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-          
-                // Read patch content for preview
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-          
-                const fallbackBody = `${body}
-          
-          ---
-          
-          > [!NOTE]
-          > This was originally intended as a pull request, but the git push operation failed.
-          >
-          > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-          >
-          > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-          
-          To apply the patch locally:
-          
-          \`\`\`sh
-          # Download the artifact from the workflow run ${runUrl}
-          # (Use GitHub MCP tools if gh CLI is not available)
-          gh run download ${runId} -n aw.patch
-          
-          # Apply the patch
-          git am aw.patch
-          \`\`\`
-          ${patchPreview}`;
-          
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-          
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          
-                  // Update the activation comment with issue link (if a comment was created)
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-          
-                  // Set outputs for push failure fallback
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  core.setOutput("push_failed", "true");
-          
-                  // Write summary to GitHub Actions summary
-                  await core.summary
-                    .addRaw(
-                      `
-          
-          ## Push Failure Fallback
-          - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-          - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-          - **Patch Artifact:** Available in workflow run artifacts
-          - **Note:** Push failed, created issue as fallback
-          `
-                    )
-                    .write();
-          
-                  return;
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            } else {
-              core.info("Skipping patch application (empty patch)");
-          
-              // For empty patches with allow-empty, we still need to push the branch
-              if (allowEmpty) {
-                core.info("allow-empty is enabled - will create branch and push with empty commit");
-                // Push the branch with an empty commit to allow PR creation
-                try {
-                  // Create an empty commit to ensure there's a commit difference
-                  await exec.exec(`git commit --allow-empty -m "Initialize"`);
-                  core.info("Created empty commit");
-          
-                  // Check if remote branch already exists (optional precheck)
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-          
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    // Rename local branch
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-          
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Empty branch pushed successfully");
-                } catch (pushError) {
-                  core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  return;
-                }
-              } else {
-                // For empty patches without allow-empty, handle if-no-changes configuration
-                const message = "No changes to apply - noop operation completed successfully";
-          
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    // Silent success - no console output
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-            }
-          
-            // Try to create the pull request, with fallback to issue creation
-            try {
-              const { data: pullRequest } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                head: branchName,
-                base: baseBranch,
-                draft: draft,
-              });
-          
-              core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-          
-              // Add labels if specified
-              if (labels.length > 0) {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pullRequest.number,
-                  labels: labels,
-                });
-                core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-              }
-          
-              // Set output for other jobs to use
-              core.setOutput("pull_request_number", pullRequest.number);
-              core.setOutput("pull_request_url", pullRequest.html_url);
-              core.setOutput("branch_name", branchName);
-          
-              // Update the activation comment with PR link (if a comment was created)
-              await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-          
-              // Write summary to GitHub Actions summary
-              await core.summary
-                .addRaw(
-                  `
-          
-          ## Pull Request
-          - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-          - **Branch**: \`${branchName}\`
-          - **Base Branch**: \`${baseBranch}\`
-          `
-                )
-                .write();
-            } catch (prError) {
-              core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-              core.info("Falling back to creating an issue instead");
-          
-              // Create issue as fallback with enhanced body content
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-          
-              // Read patch content for preview
-              let patchPreview = "";
-              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                patchPreview = generatePatchPreview(patchContent);
-              }
-          
-              const fallbackBody = `${body}
-          
-          ---
-          
-          **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-          
-          **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-          
-          You can manually create a pull request from the branch if needed.${patchPreview}`;
-          
-              try {
-                const { data: issue } = await github.rest.issues.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: fallbackBody,
-                  labels: labels,
-                });
-          
-                core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-          
-                // Update the activation comment with issue link (if a comment was created)
-                await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-          
-                // Set output for other jobs to use (issue instead of PR)
-                core.setOutput("issue_number", issue.number);
-                core.setOutput("issue_url", issue.html_url);
-                core.setOutput("branch_name", branchName);
-                core.setOutput("fallback_used", "true");
-          
-                // Write summary to GitHub Actions summary
-                await core.summary
-                  .addRaw(
-                    `
-          
-          ## Fallback Issue Created
-          - **Issue**: [#${issue.number}](${issue.html_url})
-          - **Branch**: [\`${branchName}\`](${branchUrl})
-          - **Base Branch**: \`${baseBranch}\`
-          - **Note**: Pull request creation failed, created issue as fallback
-          `
-                  )
-                  .write();
-              } catch (issueError) {
-                core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
-                return;
-              }
-            }
-          }
-          (async () => { await main(); })();
-          EOF_fc9e192e
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -9366,208 +8122,6 @@ jobs:
           };
           
           EOF_967a5011
-          cat > /tmp/gh-aw/scripts/upload_assets.cjs << 'EOF_cba24f31'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          const path = require("path");
-          const crypto = require("crypto");
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          
-          /**
-           * Normalizes a branch name to be a valid git branch name.
-           *
-           * IMPORTANT: Keep this function in sync with the normalizeBranchName function in safe_outputs_mcp_server.cjs
-           *
-           * Valid characters: alphanumeric (a-z, A-Z, 0-9), dash (-), underscore (_), forward slash (/), dot (.)
-           * Max length: 128 characters
-           *
-           * The normalization process:
-           * 1. Replaces invalid characters with a single dash
-           * 2. Collapses multiple consecutive dashes to a single dash
-           * 3. Removes leading and trailing dashes
-           * 4. Truncates to 128 characters
-           * 5. Removes trailing dashes after truncation
-           * 6. Converts to lowercase
-           *
-           * @param {string} branchName - The branch name to normalize
-           * @returns {string} The normalized branch name
-           */
-          function normalizeBranchName(branchName) {
-            if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-              return branchName;
-            }
-          
-            // Replace any sequence of invalid characters with a single dash
-            // Valid characters are: a-z, A-Z, 0-9, -, _, /, .
-            let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-          
-            // Collapse multiple consecutive dashes to a single dash
-            normalized = normalized.replace(/-+/g, "-");
-          
-            // Remove leading and trailing dashes
-            normalized = normalized.replace(/^-+|-+$/g, "");
-          
-            // Truncate to max 128 characters
-            if (normalized.length > 128) {
-              normalized = normalized.substring(0, 128);
-            }
-          
-            // Ensure it doesn't end with a dash after truncation
-            normalized = normalized.replace(/-+$/, "");
-          
-            // Convert to lowercase
-            normalized = normalized.toLowerCase();
-          
-            return normalized;
-          }
-          
-          async function main() {
-            // Check if we're in staged mode
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-          
-            // Get the branch name from environment variable (required)
-            const branchName = process.env.GH_AW_ASSETS_BRANCH;
-            if (!branchName || typeof branchName !== "string") {
-              core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
-              return;
-            }
-          
-            // Normalize the branch name to ensure it's a valid git branch name
-            const normalizedBranchName = normalizeBranchName(branchName);
-            core.info(`Using assets branch: ${normalizedBranchName}`);
-          
-            const result = loadAgentOutput();
-            if (!result.success) {
-              core.setOutput("upload_count", "0");
-              core.setOutput("branch_name", normalizedBranchName);
-              return;
-            }
-          
-            // Find all upload-assets items
-            const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_assets");
-          
-            // Also check for legacy upload-asset items
-            const uploadAssetItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
-          
-            const allUploadItems = [...uploadItems, ...uploadAssetItems];
-          
-            if (allUploadItems.length === 0) {
-              core.info("No upload-asset items found in agent output");
-              core.setOutput("upload_count", "0");
-              core.setOutput("branch_name", normalizedBranchName);
-              return;
-            }
-          
-            core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
-          
-            let uploadCount = 0;
-            let hasChanges = false;
-          
-            try {
-              // Check if orphaned branch already exists, if not create it
-              try {
-                await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
-                await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
-                core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
-              } catch (originError) {
-                // Validate that branch starts with "assets/" prefix before creating orphaned branch
-                if (!normalizedBranchName.startsWith("assets/")) {
-                  core.setFailed(
-                    `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
-                      `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
-                      `Please create the branch manually first, or use a branch name starting with 'assets/'.`
-                  );
-                  return;
-                }
-          
-                // Branch doesn't exist on origin and has valid prefix, create orphaned branch
-                core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-                await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
-                await exec.exec(`git rm -rf .`);
-                await exec.exec(`git clean -fdx`);
-              }
-          
-              // Process each asset
-              for (const asset of uploadAssetItems) {
-                try {
-                  const { fileName, sha, size, targetFileName } = asset;
-          
-                  if (!fileName || !sha || !targetFileName) {
-                    core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-                    continue;
-                  }
-          
-                  // Check if file exists in artifacts
-                  const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
-                  if (!fs.existsSync(assetSourcePath)) {
-                    core.warning(`Asset file not found: ${assetSourcePath}`);
-                    continue;
-                  }
-          
-                  // Verify SHA matches
-                  const fileContent = fs.readFileSync(assetSourcePath);
-                  const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-          
-                  if (computedSha !== sha) {
-                    core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-                    continue;
-                  }
-          
-                  // Check if file already exists in the branch
-                  if (fs.existsSync(targetFileName)) {
-                    core.info(`Asset ${targetFileName} already exists, skipping`);
-                    continue;
-                  }
-          
-                  // Copy file to branch with target filename
-                  fs.copyFileSync(assetSourcePath, targetFileName);
-          
-                  // Add to git
-                  await exec.exec(`git add "${targetFileName}"`);
-          
-                  uploadCount++;
-                  hasChanges = true;
-          
-                  core.info(`Added asset: ${targetFileName} (${size} bytes)`);
-                } catch (error) {
-                  core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
-          
-              // Commit and push if there are changes (skip if staged)
-              if (hasChanges) {
-                const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-                await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
-                if (isStaged) {
-                  core.summary.addRaw("## Staged Asset Publication");
-                } else {
-                  await exec.exec(`git push origin ${normalizedBranchName}`);
-                  core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
-                  core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
-                }
-          
-                for (const asset of uploadAssetItems) {
-                  if (asset.fileName && asset.sha && asset.size && asset.url) {
-                    core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-                  }
-                }
-                core.summary.write();
-              } else {
-                core.info("No new assets to upload");
-              }
-            } catch (error) {
-              core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-          
-            core.setOutput("upload_count", uploadCount.toString());
-            core.setOutput("branch_name", normalizedBranchName);
-          }
-          
-          (async () => { await main(); })();
-          EOF_cba24f31
       - name: Create Pull Request
         id: create_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
@@ -9584,7 +8138,486 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/create_pull_request.cjs'); })();
+            const fs = require("fs");
+            const crypto = require("crypto");
+            const { updateActivationComment } = require('/tmp/gh-aw/scripts/update_activation_comment.cjs');
+            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
+            const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
+            const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
+            function generatePatchPreview(patchContent) {
+              if (!patchContent || !patchContent.trim()) {
+                return "";
+              }
+              const lines = patchContent.split("\n");
+              const maxLines = 500;
+              const maxChars = 2000;
+              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+              const lineTruncated = lines.length > maxLines;
+              const charTruncated = preview.length > maxChars;
+              if (charTruncated) {
+                preview = preview.slice(0, maxChars);
+              }
+              const truncated = lineTruncated || charTruncated;
+              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+            }
+            async function main() {
+              core.setOutput("pull_request_number", "");
+              core.setOutput("pull_request_url", "");
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("branch_name", "");
+              core.setOutput("fallback_used", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GH_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
+              }
+              const baseBranch = process.env.GH_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
+              }
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              if (agentOutputFile.trim() !== "") {
+                try {
+                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+              }
+              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+              const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                if (allowEmpty) {
+                  core.info("No patch file found, but allow-empty is enabled - will create empty PR");
+                } else {
+                  const message = "No patch file found - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              let patchContent = "";
+              let isEmpty = true;
+              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                isEmpty = !patchContent || !patchContent.trim();
+              }
+              if (patchContent.includes("Failed to generate patch")) {
+                if (allowEmpty) {
+                  core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+                  patchContent = "";
+                  isEmpty = true;
+                } else {
+                  const message = "Patch file contains error message - cannot create pull request without changes";
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch error)");
+                    return;
+                  }
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error(message);
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty && !isStaged && !allowEmpty) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              } else if (allowEmpty) {
+                core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
+              }
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+                }
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Pull request creation preview written to step summary");
+                return;
+              }
+              let title = pullRequestItem.title.trim();
+              let processedBody = pullRequestItem.body;
+              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+              let bodyLines = processedBody.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
+              }
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const trackerIDComment = getTrackerID("markdown");
+              if (trackerIDComment) {
+                bodyLines.push(trackerIDComment);
+              }
+              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
+              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GH_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GH_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.info(`Labels: ${JSON.stringify(labels)}`);
+              core.info(`Draft: ${draft}`);
+              core.info(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.info("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
+              } else {
+                branchName = `${branchName}-${randomHex}`;
+                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.info(`Base branch: ${baseBranch}`);
+              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                const patchLines = patchContent.split("\n");
+                const previewLineCount = Math.min(500, patchLines.length);
+                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+                for (let i = 0; i < previewLineCount; i++) {
+                  core.info(patchLines[i]);
+                }
+                try {
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                } catch (patchError) {
+                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch content:");
+                    core.info(patchResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
+                  }
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+                try {
+                  let remoteBranchExists = false;
+                  try {
+                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                    if (stdout.trim()) {
+                      remoteBranchExists = true;
+                    }
+                  } catch (checkError) {
+                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  }
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Changes pushed to branch");
+                } catch (pushError) {
+                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
+                  const runId = context.runId;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  let patchPreview = "";
+                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchPreview = generatePatchPreview(patchContent);
+                  }
+                  const fallbackBody = `${body}
+            ---
+            > [!NOTE]
+            > This was originally intended as a pull request, but the git push operation failed.
+            >
+            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+            >
+            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            To apply the patch locally:
+            \`\`\`sh
+            # Download the artifact from the workflow run ${runUrl}
+            # (Use GitHub MCP tools if gh CLI is not available)
+            gh run download ${runId} -n aw.patch
+            # Apply the patch
+            git am aw.patch
+            \`\`\`
+            ${patchPreview}`;
+                  try {
+                    const { data: issue } = await github.rest.issues.create({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      title: title,
+                      body: fallbackBody,
+                      labels: labels,
+                    });
+                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput("branch_name", branchName);
+                    core.setOutput("fallback_used", "true");
+                    core.setOutput("push_failed", "true");
+                    await core.summary
+                      .addRaw(
+                        `
+            ## Push Failure Fallback
+            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+            - **Patch Artifact:** Available in workflow run artifacts
+            - **Note:** Push failed, created issue as fallback
+            `
+                      )
+                      .write();
+                    return;
+                  } catch (issueError) {
+                    core.setFailed(
+                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    );
+                    return;
+                  }
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                if (allowEmpty) {
+                  core.info("allow-empty is enabled - will create branch and push with empty commit");
+                  try {
+                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
+                    core.info("Created empty commit");
+                    let remoteBranchExists = false;
+                    try {
+                      const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                      if (stdout.trim()) {
+                        remoteBranchExists = true;
+                      }
+                    } catch (checkError) {
+                      core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                    }
+                    if (remoteBranchExists) {
+                      core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                      const extraHex = crypto.randomBytes(4).toString("hex");
+                      const oldBranch = branchName;
+                      branchName = `${branchName}-${extraHex}`;
+                      await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                      core.info(`Renamed branch to ${branchName}`);
+                    }
+                    await exec.exec(`git push origin ${branchName}`);
+                    core.info("Empty branch pushed successfully");
+                  } catch (pushError) {
+                    core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                    return;
+                  }
+                } else {
+                  const message = "No changes to apply - noop operation completed successfully";
+                  switch (ifNoChanges) {
+                    case "error":
+                      throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                    case "ignore":
+                      return;
+                    case "warn":
+                    default:
+                      core.warning(message);
+                      return;
+                  }
+                }
+              }
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
+                  return;
+                }
+              }
+            }
+            (async () => { await main(); })();
       - name: Add Comment
         id: add_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
@@ -9599,7 +8632,399 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/add_comment.cjs'); })();
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            const { generateFooterWithMessages } = require('/tmp/gh-aw/scripts/messages_footer.cjs');
+            const { getRepositoryUrl } = require('/tmp/gh-aw/scripts/get_repository_url.cjs');
+            const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
+            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
+            async function minimizeComment(github, nodeId, reason = "outdated") {
+              const query =  `
+                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `;
+              const result = await github.graphql(query, { nodeId, classifier: reason });
+              return {
+                id: nodeId,
+                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
+              };
+            }
+            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
+              const comments = [];
+              let page = 1;
+              const perPage = 100;
+              while (true) {
+                const { data } = await github.rest.issues.listComments({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: perPage,
+                  page,
+                });
+                if (data.length === 0) {
+                  break;
+                }
+                const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
+                comments.push(...filteredComments);
+                if (data.length < perPage) {
+                  break;
+                }
+                page++;
+              }
+              return comments;
+            }
+            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
+              const query =  `
+                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) {
+                      comments(first: 100, after: $cursor) {
+                        nodes {
+                          id
+                          body
+                        }
+                        pageInfo {
+                          hasNextPage
+                          endCursor
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              const comments = [];
+              let cursor = null;
+              while (true) {
+                const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
+                if (!result.repository?.discussion?.comments?.nodes) {
+                  break;
+                }
+                const filteredComments = result.repository.discussion.comments.nodes
+                  .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
+                  .map(({ id, body }) => ({ id, body }));
+                comments.push(...filteredComments);
+                if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
+                  break;
+                }
+                cursor = result.repository.discussion.comments.pageInfo.endCursor;
+              }
+              return comments;
+            }
+            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
+              if (!workflowId) {
+                core.info("No workflow ID available, skipping hide-older-comments");
+                return 0;
+              }
+              const normalizedReason = reason.toUpperCase();
+              if (allowedReasons && allowedReasons.length > 0) {
+                const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
+                if (!normalizedAllowedReasons.includes(normalizedReason)) {
+                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
+                  return 0;
+                }
+              }
+              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
+              let comments;
+              if (isDiscussion) {
+                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              } else {
+                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
+              }
+              if (comments.length === 0) {
+                core.info("No previous comments found with matching workflow ID");
+                return 0;
+              }
+              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
+              let hiddenCount = 0;
+              for (const comment of comments) {
+                const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
+                core.info(`Hiding comment: ${nodeId}`);
+                const result = await minimizeComment(github, nodeId, normalizedReason);
+                hiddenCount++;
+                core.info(`✓ Hidden comment: ${nodeId}`);
+              }
+              core.info(`Successfully hidden ${hiddenCount} comment(s)`);
+              return hiddenCount;
+            }
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              const discussionId = repository.discussion.id;
+              const discussionUrl = repository.discussion.url;
+              const mutation = replyToId
+                ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`
+                : `mutation($dId: ID!, $body: String!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`;
+              const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
+              const result = await github.graphql(mutation, variables);
+              const comment = result.addDiscussionComment.comment;
+              return {
+                id: comment.id,
+                html_url: comment.url,
+                discussion_url: discussionUrl,
+              };
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const commentItems = result.items.filter( item => item.type === "add_comment");
+              if (commentItems.length === 0) {
+                core.info("No add-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
+              function getTargetNumber(item) {
+                return item.item_number;
+              }
+              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
+              const workflowId = process.env.GITHUB_WORKFLOW || "";
+              const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                      core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
+                      return parsed;
+                    } catch (error) {
+                      core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                      return null;
+                    }
+                  })()
+                : null;
+              if (hideOlderCommentsEnabled) {
+                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
+              }
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                  summaryContent += "#### Related Items\n\n";
+                  if (createdIssueUrl && createdIssueNumber) {
+                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  }
+                  if (createdDiscussionUrl && createdDiscussionNumber) {
+                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  }
+                  if (createdPullRequestUrl && createdPullRequestNumber) {
+                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  }
+                  summaryContent += "\n";
+                }
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  const targetNumber = getTargetNumber(item);
+                  if (targetNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    if (isDiscussion) {
+                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+                    } else {
+                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+                    }
+                  } else {
+                    if (isDiscussion) {
+                      summaryContent += `**Target:** Current discussion\n\n`;
+                    } else {
+                      summaryContent += `**Target:** Current issue/PR\n\n`;
+                    }
+                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Comment creation preview written to step summary");
+                return;
+              }
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+                return;
+              }
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const createdComments = [];
+              for (let i = 0; i < commentItems.length; i++) {
+                const commentItem = commentItems[i];
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+                let itemNumber;
+                let commentEndpoint;
+                if (commentTarget === "*") {
+                  const targetNumber = getTargetNumber(commentItem);
+                  if (targetNumber) {
+                    itemNumber = parseInt(targetNumber, 10);
+                    if (isNaN(itemNumber) || itemNumber <= 0) {
+                      core.info(`Invalid target number specified: ${targetNumber}`);
+                      continue;
+                    }
+                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  } else {
+                    core.info(`Target is "*" but no number specified in comment item`);
+                    continue;
+                  }
+                } else if (commentTarget && commentTarget !== "triggering") {
+                  itemNumber = parseInt(commentTarget, 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
+                    continue;
+                  }
+                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                } else {
+                  if (isIssueContext) {
+                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+                    if (context.payload.issue) {
+                      commentEndpoint = "issues";
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else if (isPRContext) {
+                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+                    if (context.payload.pull_request) {
+                      commentEndpoint = "issues"; 
+                    } else {
+                      core.info("Pull request context detected but no pull request found in payload");
+                      continue;
+                    }
+                  } else if (isDiscussionContext) {
+                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+                    if (context.payload.discussion) {
+                      commentEndpoint = "discussions"; 
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  }
+                }
+                if (!itemNumber) {
+                  core.info("Could not determine issue, pull request, or discussion number");
+                  continue;
+                }
+                let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+                const references = [
+                  createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
+                  createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
+                  createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
+                ].filter(Boolean);
+                if (references.length > 0) {
+                  body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                if (workflowId) {
+                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  body += trackerIDComment;
+                }
+                body += `\n\n<!-- comment-type: add-comment -->`;
+                body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
+                if (hideOlderCommentsEnabled && workflowId) {
+                  core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+                  await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
+                }
+                let comment;
+                if (commentEndpoint === "discussions") {
+                  core.info(`Creating comment on discussion #${itemNumber}`);
+                  core.info(`Comment content length: ${body.length}`);
+                  const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
+                  if (replyToId) {
+                    core.info(`Creating threaded reply to comment ${replyToId}`);
+                  }
+                  comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
+                  core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                  comment.discussion_url = comment.discussion_url;
+                } else {
+                  core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+                  core.info(`Comment content length: ${body.length}`);
+                  const { data: restComment } = await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: itemNumber,
+                    body: body,
+                  });
+                  comment = restComment;
+                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                }
+                createdComments.push(comment);
+                if (i === commentItems.length - 1) {
+                  core.setOutput("comment_id", comment.id);
+                  core.setOutput("comment_url", comment.html_url);
+                }
+              }
+              if (createdComments.length > 0) {
+                const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
+              return createdComments;
+            }
+            (async () => { await main(); })();
       - name: Upload Assets
         id: upload_assets
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
@@ -9612,7 +9037,128 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/upload_assets.cjs'); })();
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadItems = result.items.filter( item => item.type === "upload_assets");
+              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
+              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              if (allUploadItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
+            }
+            (async () => { await main(); })();
 
   update_cache_memory:
     needs:

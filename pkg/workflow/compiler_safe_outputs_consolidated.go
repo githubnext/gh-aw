@@ -538,10 +538,20 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	// Add the formatted JavaScript script
 	// Use file mode if ScriptName is set, otherwise inline the bundled script
 	if config.ScriptName != "" {
-		// File mode: require from local filesystem
-		requireScript := GenerateRequireScript(config.ScriptName + ".cjs")
-		formattedScript := FormatJavaScriptForYAML(requireScript)
-		steps = append(steps, formattedScript...)
+		// File mode: inline the main script with requires transformed to absolute paths
+		// The script is inlined (not required) so it runs in the GitHub Script context
+		// with access to github, context, core, exec, io globals
+		inlinedScript, err := GetInlinedScriptForFileMode(config.ScriptName)
+		if err != nil {
+			// Fall back to require() mode if script not found in registry
+			consolidatedSafeOutputsLog.Printf("Script %s not in registry, using require: %v", config.ScriptName, err)
+			requireScript := GenerateRequireScript(config.ScriptName + ".cjs")
+			formattedScript := FormatJavaScriptForYAML(requireScript)
+			steps = append(steps, formattedScript...)
+		} else {
+			formattedScript := FormatJavaScriptForYAML(inlinedScript)
+			steps = append(steps, formattedScript...)
+		}
 	} else {
 		// Inline mode: embed the bundled script directly
 		formattedScript := FormatJavaScriptForYAML(config.Script)

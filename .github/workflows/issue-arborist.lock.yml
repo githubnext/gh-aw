@@ -6700,708 +6700,6 @@ jobs:
           };
           
           EOF_1a84cdd3
-          cat > /tmp/gh-aw/scripts/create_discussion.cjs << 'EOF_bc9dcdcf'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-          const { closeOlderDiscussions } = require('/tmp/gh-aw/scripts/close_older_discussions.cjs');
-          const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-          const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
-          const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
-          const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-          
-          /**
-           * Fetch repository ID and discussion categories for a repository
-           * @param {string} owner - Repository owner
-           * @param {string} repo - Repository name
-           * @returns {Promise<{repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}|null>}
-           */
-          async function fetchRepoDiscussionInfo(owner, repo) {
-            const repositoryQuery = `
-              query($owner: String!, $repo: String!) {
-                repository(owner: $owner, name: $repo) {
-                  id
-                  discussionCategories(first: 20) {
-                    nodes {
-                      id
-                      name
-                      slug
-                      description
-                    }
-                  }
-                }
-              }
-            `;
-            const queryResult = await github.graphql(repositoryQuery, {
-              owner: owner,
-              repo: repo,
-            });
-            if (!queryResult || !queryResult.repository) {
-              return null;
-            }
-            return {
-              repositoryId: queryResult.repository.id,
-              discussionCategories: queryResult.repository.discussionCategories.nodes || [],
-            };
-          }
-          
-          /**
-           * Resolve category ID for a repository
-           * @param {string} categoryConfig - Category ID, name, or slug from config
-           * @param {string} itemCategory - Category from agent output item (optional)
-           * @param {Array<{id: string, name: string, slug: string}>} categories - Available categories
-           * @returns {{id: string, matchType: string, name: string, requestedCategory?: string}|undefined} Resolved category info
-           */
-          function resolveCategoryId(categoryConfig, itemCategory, categories) {
-            // Use item category if provided, otherwise use config
-            const categoryToMatch = itemCategory || categoryConfig;
-          
-            if (categoryToMatch) {
-              // Try to match against category IDs first
-              const categoryById = categories.find(cat => cat.id === categoryToMatch);
-              if (categoryById) {
-                return { id: categoryById.id, matchType: "id", name: categoryById.name };
-              }
-              // Try to match against category names
-              const categoryByName = categories.find(cat => cat.name === categoryToMatch);
-              if (categoryByName) {
-                return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
-              }
-              // Try to match against category slugs (routes)
-              const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
-              if (categoryBySlug) {
-                return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
-              }
-            }
-          
-            // Fall back to first category if available
-            if (categories.length > 0) {
-              return {
-                id: categories[0].id,
-                matchType: "fallback",
-                name: categories[0].name,
-                requestedCategory: categoryToMatch,
-              };
-            }
-          
-            return undefined;
-          }
-          
-          async function main() {
-            // Initialize outputs to empty strings to ensure they're always set
-            core.setOutput("discussion_number", "");
-            core.setOutput("discussion_url", "");
-          
-            // Load the temporary ID map from create_issue job
-            const temporaryIdMap = loadTemporaryIdMap();
-            if (temporaryIdMap.size > 0) {
-              core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-            }
-          
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
-            }
-          
-            const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-            if (createDiscussionItems.length === 0) {
-              core.warning("No create-discussion items found in agent output");
-              return;
-            }
-            core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-          
-            // Parse allowed repos and default target
-            const allowedRepos = parseAllowedRepos();
-            const defaultTargetRepo = getDefaultTargetRepo();
-            core.info(`Default target repo: ${defaultTargetRepo}`);
-            if (allowedRepos.size > 0) {
-              core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-            }
-          
-            if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-              let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-              summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-              for (let i = 0; i < createDiscussionItems.length; i++) {
-                const item = createDiscussionItems[i];
-                summaryContent += `### Discussion ${i + 1}\n`;
-                summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                if (item.repo) {
-                  summaryContent += `**Repository:** ${item.repo}\n\n`;
-                }
-                if (item.body) {
-                  summaryContent += `**Body:**\n${item.body}\n\n`;
-                }
-                if (item.category) {
-                  summaryContent += `**Category:** ${item.category}\n\n`;
-                }
-                summaryContent += "---\n\n";
-              }
-              await core.summary.addRaw(summaryContent).write();
-              core.info("📝 Discussion creation preview written to step summary");
-              return;
-            }
-          
-            // Cache for repository info to avoid redundant API calls
-            /** @type {Map<string, {repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}>} */
-            const repoInfoCache = new Map();
-          
-            // Get configuration for close-older-discussions
-            const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
-            const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
-            const configCategory = process.env.GH_AW_DISCUSSION_CATEGORY || "";
-            const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
-            const labels = labelsEnvVar
-              ? labelsEnvVar
-                  .split(",")
-                  .map(l => l.trim())
-                  .filter(l => l.length > 0)
-              : [];
-            const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-            const runId = context.runId;
-            const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-            const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-          
-            const createdDiscussions = [];
-            const closedDiscussionsSummary = [];
-          
-            for (let i = 0; i < createDiscussionItems.length; i++) {
-              const createDiscussionItem = createDiscussionItems[i];
-          
-              // Determine target repository for this discussion
-              const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
-          
-              // Validate the repository is allowed
-              const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-              if (!repoValidation.valid) {
-                core.warning(`Skipping discussion: ${repoValidation.error}`);
-                continue;
-              }
-          
-              // Parse the repository slug
-              const repoParts = parseRepoSlug(itemRepo);
-              if (!repoParts) {
-                core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
-                continue;
-              }
-          
-              // Get repository info (cached)
-              let repoInfo = repoInfoCache.get(itemRepo);
-              if (!repoInfo) {
-                try {
-                  const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
-                  if (!fetchedInfo) {
-                    core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
-                    continue;
-                  }
-                  repoInfo = fetchedInfo;
-                  repoInfoCache.set(itemRepo, repoInfo);
-                  core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
-                    core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
-                    continue;
-                  }
-                  core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
-                  throw error;
-                }
-              }
-          
-              // Resolve category ID for this discussion
-              const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
-              if (!categoryInfo) {
-                core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
-                continue;
-              }
-          
-              // Log how the category was resolved
-              if (categoryInfo.matchType === "name") {
-                core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
-              } else if (categoryInfo.matchType === "slug") {
-                core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
-              } else if (categoryInfo.matchType === "fallback") {
-                if (categoryInfo.requestedCategory) {
-                  const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-                  core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
-                  core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
-                } else {
-                  core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
-                }
-              }
-          
-              const categoryId = categoryInfo.id;
-          
-              core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
-          
-              // Replace temporary ID references in title
-              let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
-              // Replace temporary ID references in body (with defensive null check)
-              const bodyText = createDiscussionItem.body || "";
-              let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
-          
-              // Remove duplicate title from description if it starts with a header matching the title
-              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-          
-              let bodyLines = processedBody.split("\n");
-              if (!title) {
-                title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
-              }
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-          
-              // Add tracker-id comment if present
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-          
-              // Add expiration comment if expires is set
-              addExpirationComment(bodyLines, "GH_AW_DISCUSSION_EXPIRES", "Discussion");
-          
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
-              core.info(`Category ID: ${categoryId}`);
-              core.info(`Body length: ${body.length}`);
-              try {
-                const createDiscussionMutation = `
-                  mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-                    createDiscussion(input: {
-                      repositoryId: $repositoryId,
-                      categoryId: $categoryId,
-                      title: $title,
-                      body: $body
-                    }) {
-                      discussion {
-                        id
-                        number
-                        title
-                        url
-                      }
-                    }
-                  }
-                `;
-                const mutationResult = await github.graphql(createDiscussionMutation, {
-                  repositoryId: repoInfo.repositoryId,
-                  categoryId: categoryId,
-                  title: title,
-                  body: body,
-                });
-                const discussion = mutationResult.createDiscussion.discussion;
-                if (!discussion) {
-                  core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
-                  continue;
-                }
-                core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
-                createdDiscussions.push({ ...discussion, _repo: itemRepo });
-                if (i === createDiscussionItems.length - 1) {
-                  core.setOutput("discussion_number", discussion.number);
-                  core.setOutput("discussion_url", discussion.url);
-                }
-          
-                // Close older discussions if enabled and title prefix or labels are set
-                // Note: close-older-discussions only works within the same repository
-                const hasMatchingCriteria = titlePrefix || labels.length > 0;
-                if (closeOlderEnabled && hasMatchingCriteria) {
-                  core.info("close-older-discussions is enabled, searching for older discussions to close...");
-                  try {
-                    const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
-          
-                    if (closedDiscussions.length > 0) {
-                      closedDiscussionsSummary.push(...closedDiscussions);
-                      core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
-                    }
-                  } catch (closeError) {
-                    // Log error but don't fail the workflow - closing older discussions is a nice-to-have
-                    core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
-                  }
-                } else if (closeOlderEnabled && !hasMatchingCriteria) {
-                  core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
-                }
-              } catch (error) {
-                core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
-                throw error;
-              }
-            }
-            if (createdDiscussions.length > 0) {
-              let summaryContent = "\n\n## GitHub Discussions\n";
-              for (const discussion of createdDiscussions) {
-                const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
-                summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
-              }
-          
-              // Add closed discussions to summary
-              if (closedDiscussionsSummary.length > 0) {
-                summaryContent += "\n### Closed Older Discussions\n";
-                for (const closed of closedDiscussionsSummary) {
-                  summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
-                }
-              }
-          
-              await core.summary.addRaw(summaryContent).write();
-            }
-            core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
-          }
-          (async () => { await main(); })();
-          EOF_bc9dcdcf
-          cat > /tmp/gh-aw/scripts/create_issue.cjs << 'EOF_71cfd09f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const { sanitizeLabelContent } = require('/tmp/gh-aw/scripts/sanitize_label_content.cjs');
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-          const { generateFooter } = require('/tmp/gh-aw/scripts/generate_footer.cjs');
-          const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-          const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences, serializeTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-          const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
-          const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
-          const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-          
-          async function main() {
-            // Initialize outputs to empty strings to ensure they're always set
-            core.setOutput("issue_number", "");
-            core.setOutput("issue_url", "");
-            core.setOutput("temporary_id_map", "{}");
-            core.setOutput("issues_to_assign_copilot", "");
-          
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-          
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
-            }
-          
-            const createIssueItems = result.items.filter(item => item.type === "create_issue");
-            if (createIssueItems.length === 0) {
-              core.info("No create-issue items found in agent output");
-              return;
-            }
-            core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-          
-            // Parse allowed repos and default target
-            const allowedRepos = parseAllowedRepos();
-            const defaultTargetRepo = getDefaultTargetRepo();
-            core.info(`Default target repo: ${defaultTargetRepo}`);
-            if (allowedRepos.size > 0) {
-              core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-            }
-          
-            if (isStaged) {
-              await generateStagedPreview({
-                title: "Create Issues",
-                description: "The following issues would be created if staged mode was disabled:",
-                items: createIssueItems,
-                renderItem: (item, index) => {
-                  let content = `### Issue ${index + 1}\n`;
-                  content += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.temporary_id) {
-                    content += `**Temporary ID:** ${item.temporary_id}\n\n`;
-                  }
-                  if (item.repo) {
-                    content += `**Repository:** ${item.repo}\n\n`;
-                  }
-                  if (item.body) {
-                    content += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    content += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  if (item.parent) {
-                    content += `**Parent:** ${item.parent}\n\n`;
-                  }
-                  return content;
-                },
-              });
-              return;
-            }
-            const parentIssueNumber = context.payload?.issue?.number;
-          
-            // Map to track temporary_id -> {repo, number} relationships
-            /** @type {Map<string, {repo: string, number: number}>} */
-            const temporaryIdMap = new Map();
-          
-            // Extract triggering context for footer generation
-            const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-            const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-            const triggeringDiscussionNumber = context.payload?.discussion?.number;
-          
-            const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
-            let envLabels = labelsEnv
-              ? labelsEnv
-                  .split(",")
-                  .map(label => label.trim())
-                  .filter(label => label)
-              : [];
-            const createdIssues = [];
-            for (let i = 0; i < createIssueItems.length; i++) {
-              const createIssueItem = createIssueItems[i];
-          
-              // Determine target repository for this issue
-              const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
-          
-              // Validate the repository is allowed
-              const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
-              if (!repoValidation.valid) {
-                core.warning(`Skipping issue: ${repoValidation.error}`);
-                continue;
-              }
-          
-              // Parse the repository slug
-              const repoParts = parseRepoSlug(itemRepo);
-              if (!repoParts) {
-                core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
-                continue;
-              }
-          
-              // Get or generate the temporary ID for this issue
-              const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-              core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
-          
-              // Debug logging for parent field
-              core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
-              core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-          
-              // Resolve parent: check if it's a temporary ID reference
-              let effectiveParentIssueNumber;
-              let effectiveParentRepo = itemRepo; // Default to same repo
-              if (createIssueItem.parent !== undefined) {
-                if (isTemporaryId(createIssueItem.parent)) {
-                  // It's a temporary ID, look it up in the map
-                  const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
-                  if (resolvedParent !== undefined) {
-                    effectiveParentIssueNumber = resolvedParent.number;
-                    effectiveParentRepo = resolvedParent.repo;
-                    core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-                  } else {
-                    core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
-                    effectiveParentIssueNumber = undefined;
-                  }
-                } else {
-                  // It's a real issue number
-                  effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
-                  if (isNaN(effectiveParentIssueNumber)) {
-                    core.warning(`Invalid parent value: ${createIssueItem.parent}`);
-                    effectiveParentIssueNumber = undefined;
-                  }
-                }
-              } else {
-                // Only use context parent if we're in the same repo as context
-                const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-                if (itemRepo === contextRepo) {
-                  effectiveParentIssueNumber = parentIssueNumber;
-                }
-              }
-              core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
-          
-              if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-              }
-              let labels = [...envLabels];
-              if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                labels = [...labels, ...createIssueItem.labels];
-              }
-              labels = labels
-                .filter(label => !!label)
-                .map(label => String(label).trim())
-                .filter(label => label)
-                .map(label => sanitizeLabelContent(label))
-                .filter(label => label)
-                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                .filter((label, index, arr) => arr.indexOf(label) === index);
-              let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-          
-              // Replace temporary ID references in the body using already-created issues
-              let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
-          
-              // Remove duplicate title from description if it starts with a header matching the title
-              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-          
-              let bodyLines = processedBody.split("\n");
-          
-              if (!title) {
-                title = createIssueItem.body || "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              if (effectiveParentIssueNumber) {
-                core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
-                // Use full repo reference if cross-repo, short reference if same repo
-                if (effectiveParentRepo === itemRepo) {
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                } else {
-                  bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
-                }
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-              const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-          
-              // Add tracker-id comment if present
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-          
-              // Add expiration comment if expires is set
-              addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-          
-              bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
-              const body = bodyLines.join("\n").trim();
-              core.info(`Creating issue in ${itemRepo} with title: ${title}`);
-              core.info(`Labels: ${labels}`);
-              core.info(`Body length: ${body.length}`);
-              try {
-                const { data: issue } = await github.rest.issues.create({
-                  owner: repoParts.owner,
-                  repo: repoParts.repo,
-                  title: title,
-                  body: body,
-                  labels: labels,
-                });
-                core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
-                createdIssues.push({ ...issue, _repo: itemRepo });
-          
-                // Store the mapping of temporary_id -> {repo, number}
-                temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
-                core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
-          
-                // Debug logging for sub-issue linking
-                core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-          
-                // Sub-issue linking only works within the same repository
-                if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
-                  core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
-                  try {
-                    // First, get the node IDs for both parent and child issues
-                    core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
-                    const getIssueNodeIdQuery = `
-                      query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                        repository(owner: $owner, name: $repo) {
-                          issue(number: $issueNumber) {
-                            id
-                          }
-                        }
-                      }
-                    `;
-          
-                    // Get parent issue node ID
-                    const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                      owner: repoParts.owner,
-                      repo: repoParts.repo,
-                      issueNumber: effectiveParentIssueNumber,
-                    });
-                    const parentNodeId = parentResult.repository.issue.id;
-                    core.info(`Parent issue node ID: ${parentNodeId}`);
-          
-                    // Get child issue node ID
-                    core.info(`Fetching node ID for child issue #${issue.number}...`);
-                    const childResult = await github.graphql(getIssueNodeIdQuery, {
-                      owner: repoParts.owner,
-                      repo: repoParts.repo,
-                      issueNumber: issue.number,
-                    });
-                    const childNodeId = childResult.repository.issue.id;
-                    core.info(`Child issue node ID: ${childNodeId}`);
-          
-                    // Link the child issue as a sub-issue of the parent
-                    core.info(`Executing addSubIssue mutation...`);
-                    const addSubIssueMutation = `
-                      mutation($issueId: ID!, $subIssueId: ID!) {
-                        addSubIssue(input: {
-                          issueId: $issueId,
-                          subIssueId: $subIssueId
-                        }) {
-                          subIssue {
-                            id
-                            number
-                          }
-                        }
-                      }
-                    `;
-          
-                    await github.graphql(addSubIssueMutation, {
-                      issueId: parentNodeId,
-                      subIssueId: childNodeId,
-                    });
-          
-                    core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                  } catch (error) {
-                    core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                    core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
-                    // Fallback: add a comment if sub-issue linking fails
-                    try {
-                      core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-                      await github.rest.issues.createComment({
-                        owner: repoParts.owner,
-                        repo: repoParts.repo,
-                        issue_number: effectiveParentIssueNumber,
-                        body: `Created related issue: #${issue.number}`,
-                      });
-                      core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                    } catch (commentError) {
-                      core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
-                    }
-                  }
-                } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
-                  core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
-                } else {
-                  core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
-                }
-                if (i === createIssueItems.length - 1) {
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                if (errorMessage.includes("Issues has been disabled in this repository")) {
-                  core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
-                  core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                  continue;
-                }
-                core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
-                throw error;
-              }
-            }
-            if (createdIssues.length > 0) {
-              let summaryContent = "\n\n## GitHub Issues\n";
-              for (const issue of createdIssues) {
-                const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
-                summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-            }
-          
-            // Output the temporary ID map as JSON for use by downstream jobs
-            const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
-            core.setOutput("temporary_id_map", tempIdMapOutput);
-            core.info(`Temporary ID map: ${tempIdMapOutput}`);
-          
-            // Output issues that need copilot assignment for assign_to_agent job
-            // This is used when create-issue has assignees: [copilot]
-            const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
-            if (assignCopilot && createdIssues.length > 0) {
-              // Format: repo:number for each issue (for cross-repo support)
-              const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
-              core.setOutput("issues_to_assign_copilot", issuesToAssign);
-              core.info(`Issues to assign copilot: ${issuesToAssign}`);
-            }
-          
-            core.info(`Successfully created ${createdIssues.length} issue(s)`);
-          }
-          (async () => {
-            await main();
-          })();
-          
-          EOF_71cfd09f
           cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -7552,369 +6850,6 @@ jobs:
           };
           
           EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/link_sub_issue.cjs << 'EOF_424fc277'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-          const { loadTemporaryIdMap, resolveIssueNumber } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-          
-          async function main() {
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
-            }
-          
-            const linkItems = result.items.filter(item => item.type === "link_sub_issue");
-            if (linkItems.length === 0) {
-              core.info("No link_sub_issue items found in agent output");
-              return;
-            }
-          
-            core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
-          
-            // Load the temporary ID map from create_issue job
-            const temporaryIdMap = loadTemporaryIdMap();
-            if (temporaryIdMap.size > 0) {
-              core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-            }
-          
-            // Check if we're in staged mode
-            if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-              await generateStagedPreview({
-                title: "Link Sub-Issue",
-                description: "The following sub-issue links would be created if staged mode was disabled:",
-                items: linkItems,
-                renderItem: item => {
-                  // Resolve temporary IDs for display
-                  const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
-                  const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
-          
-                  let parentDisplay = parentResolved.resolved ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}` : `${item.parent_issue_number} (unresolved)`;
-                  let subDisplay = subResolved.resolved ? `${subResolved.resolved.repo}#${subResolved.resolved.number}` : `${item.sub_issue_number} (unresolved)`;
-          
-                  if (parentResolved.wasTemporaryId && parentResolved.resolved) {
-                    parentDisplay += ` (from ${item.parent_issue_number})`;
-                  }
-                  if (subResolved.wasTemporaryId && subResolved.resolved) {
-                    subDisplay += ` (from ${item.sub_issue_number})`;
-                  }
-          
-                  let content = `**Parent Issue:** ${parentDisplay}\n`;
-                  content += `**Sub-Issue:** ${subDisplay}\n\n`;
-                  return content;
-                },
-              });
-              return;
-            }
-          
-            // Get filter configurations
-            const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
-            const parentRequiredLabels = parentRequiredLabelsEnv
-              ? parentRequiredLabelsEnv
-                  .split(",")
-                  .map(l => l.trim())
-                  .filter(l => l)
-              : [];
-          
-            const parentTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX?.trim() || "";
-          
-            const subRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS?.trim();
-            const subRequiredLabels = subRequiredLabelsEnv
-              ? subRequiredLabelsEnv
-                  .split(",")
-                  .map(l => l.trim())
-                  .filter(l => l)
-              : [];
-          
-            const subTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX?.trim() || "";
-          
-            if (parentRequiredLabels.length > 0) {
-              core.info(`Parent required labels: ${JSON.stringify(parentRequiredLabels)}`);
-            }
-            if (parentTitlePrefix) {
-              core.info(`Parent title prefix: ${parentTitlePrefix}`);
-            }
-            if (subRequiredLabels.length > 0) {
-              core.info(`Sub-issue required labels: ${JSON.stringify(subRequiredLabels)}`);
-            }
-            if (subTitlePrefix) {
-              core.info(`Sub-issue title prefix: ${subTitlePrefix}`);
-            }
-          
-            // Get max count configuration
-            const maxCountEnv = process.env.GH_AW_LINK_SUB_ISSUE_MAX_COUNT;
-            const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 5;
-            if (isNaN(maxCount) || maxCount < 1) {
-              core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-              return;
-            }
-            core.info(`Max count: ${maxCount}`);
-          
-            // Limit items to max count
-            const itemsToProcess = linkItems.slice(0, maxCount);
-            if (linkItems.length > maxCount) {
-              core.warning(`Found ${linkItems.length} link_sub_issue items, but max is ${maxCount}. Processing first ${maxCount}.`);
-            }
-          
-            // Process each link request
-            const results = [];
-            for (const item of itemsToProcess) {
-              // Resolve issue numbers, supporting temporary IDs from create_issue job
-              const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
-              const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
-          
-              // Check for resolution errors
-              if (parentResolved.errorMessage) {
-                core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
-                results.push({
-                  parent_issue_number: item.parent_issue_number,
-                  sub_issue_number: item.sub_issue_number,
-                  success: false,
-                  error: parentResolved.errorMessage,
-                });
-                continue;
-              }
-          
-              if (subResolved.errorMessage) {
-                core.warning(`Failed to resolve sub-issue: ${subResolved.errorMessage}`);
-                results.push({
-                  parent_issue_number: item.parent_issue_number,
-                  sub_issue_number: item.sub_issue_number,
-                  success: false,
-                  error: subResolved.errorMessage,
-                });
-                continue;
-              }
-          
-              const parentIssueNumber = parentResolved.resolved.number;
-              const subIssueNumber = subResolved.resolved.number;
-          
-              if (parentResolved.wasTemporaryId) {
-                core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
-              }
-              if (subResolved.wasTemporaryId) {
-                core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
-              }
-          
-              // Fetch parent issue to validate filters
-              let parentIssue;
-              try {
-                const parentResponse = await github.rest.issues.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: parentIssueNumber,
-                });
-                parentIssue = parentResponse.data;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: false,
-                  error: `Failed to fetch parent issue: ${errorMessage}`,
-                });
-                continue;
-              }
-          
-              // Validate parent issue filters
-              if (parentRequiredLabels.length > 0) {
-                const parentLabels = parentIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
-                const missingLabels = parentRequiredLabels.filter(required => !parentLabels.includes(required));
-                if (missingLabels.length > 0) {
-                  core.warning(`Parent issue #${parentIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
-                  results.push({
-                    parent_issue_number: parentIssueNumber,
-                    sub_issue_number: subIssueNumber,
-                    success: false,
-                    error: `Parent issue missing required labels: ${missingLabels.join(", ")}`,
-                  });
-                  continue;
-                }
-              }
-          
-              if (parentTitlePrefix && !parentIssue.title.startsWith(parentTitlePrefix)) {
-                core.warning(`Parent issue #${parentIssueNumber} title does not start with "${parentTitlePrefix}". Skipping.`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: false,
-                  error: `Parent issue title does not start with "${parentTitlePrefix}"`,
-                });
-                continue;
-              }
-          
-              // Fetch sub-issue to validate filters
-              let subIssue;
-              try {
-                const subResponse = await github.rest.issues.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: subIssueNumber,
-                });
-                subIssue = subResponse.data;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: false,
-                  error: `Failed to fetch sub-issue: ${errorMessage}`,
-                });
-                continue;
-              }
-          
-              // Check if the sub-issue already has a parent using GraphQL
-              try {
-                const parentCheckQuery = `
-                  query($owner: String!, $repo: String!, $number: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      issue(number: $number) {
-                        parent {
-                          number
-                          title
-                        }
-                      }
-                    }
-                  }
-                `;
-                const parentCheckResult = await github.graphql(parentCheckQuery, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  number: subIssueNumber,
-                });
-          
-                const existingParent = parentCheckResult?.repository?.issue?.parent;
-                if (existingParent) {
-                  core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
-                  results.push({
-                    parent_issue_number: parentIssueNumber,
-                    sub_issue_number: subIssueNumber,
-                    success: false,
-                    error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
-                  });
-                  continue;
-                }
-              } catch (error) {
-                // If the GraphQL query fails (e.g., parent field not available), log warning but continue
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Could not check if sub-issue #${subIssueNumber} has a parent: ${errorMessage}. Proceeding with link attempt.`);
-              }
-          
-              // Validate sub-issue filters
-              if (subRequiredLabels.length > 0) {
-                const subLabels = subIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
-                const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
-                if (missingLabels.length > 0) {
-                  core.warning(`Sub-issue #${subIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
-                  results.push({
-                    parent_issue_number: parentIssueNumber,
-                    sub_issue_number: subIssueNumber,
-                    success: false,
-                    error: `Sub-issue missing required labels: ${missingLabels.join(", ")}`,
-                  });
-                  continue;
-                }
-              }
-          
-              if (subTitlePrefix && !subIssue.title.startsWith(subTitlePrefix)) {
-                core.warning(`Sub-issue #${subIssueNumber} title does not start with "${subTitlePrefix}". Skipping.`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: false,
-                  error: `Sub-issue title does not start with "${subTitlePrefix}"`,
-                });
-                continue;
-              }
-          
-              // Link the sub-issue using GraphQL mutation
-              try {
-                // Get the parent issue's node ID for GraphQL
-                const parentNodeId = parentIssue.node_id;
-                const subNodeId = subIssue.node_id;
-          
-                // Use GraphQL mutation to add sub-issue
-                await github.graphql(
-                  `
-                  mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
-                    addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
-                      issue {
-                        id
-                        number
-                      }
-                      subIssue {
-                        id
-                        number
-                      }
-                    }
-                  }
-                `,
-                  {
-                    parentId: parentNodeId,
-                    subIssueId: subNodeId,
-                  }
-                );
-          
-                core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: true,
-                });
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
-                results.push({
-                  parent_issue_number: parentIssueNumber,
-                  sub_issue_number: subIssueNumber,
-                  success: false,
-                  error: errorMessage,
-                });
-              }
-            }
-          
-            // Generate step summary
-            const successCount = results.filter(r => r.success).length;
-            const failureCount = results.filter(r => !r.success).length;
-          
-            let summaryContent = "## Link Sub-Issue\n\n";
-          
-            if (successCount > 0) {
-              summaryContent += `✅ Successfully linked ${successCount} sub-issue(s):\n\n`;
-              for (const result of results.filter(r => r.success)) {
-                summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}\n`;
-              }
-              summaryContent += "\n";
-            }
-          
-            if (failureCount > 0) {
-              summaryContent += `⚠️ Failed to link ${failureCount} sub-issue(s):\n\n`;
-              for (const result of results.filter(r => !r.success)) {
-                summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
-              }
-            }
-          
-            await core.summary.addRaw(summaryContent).write();
-          
-            // Set outputs
-            const linkedIssues = results
-              .filter(r => r.success)
-              .map(r => `${r.parent_issue_number}:${r.sub_issue_number}`)
-              .join("\n");
-            core.setOutput("linked_issues", linkedIssues);
-          
-            // Warn if any linking failed (do not fail the job)
-            if (failureCount > 0) {
-              core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
-            }
-          }
-          
-          (async () => { await main(); })();
-          EOF_424fc277
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -8552,7 +7487,290 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/create_issue.cjs'); })();
+            const { sanitizeLabelContent } = require('/tmp/gh-aw/scripts/sanitize_label_content.cjs');
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
+            const { generateFooter } = require('/tmp/gh-aw/scripts/generate_footer.cjs');
+            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
+            const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences, serializeTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
+            const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
+            const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
+            const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
+            async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("temporary_id_map", "{}");
+              core.setOutput("issues_to_assign_copilot", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.temporary_id) {
+                      content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+                    }
+                    if (item.repo) {
+                      content += `**Repository:** ${item.repo}\n\n`;
+                    }
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    if (item.parent) {
+                      content += `**Parent:** ${item.parent}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const temporaryIdMap = new Map();
+              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping issue: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
+                const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
+                core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+                let effectiveParentIssueNumber;
+                let effectiveParentRepo = itemRepo; 
+                if (createIssueItem.parent !== undefined) {
+                  if (isTemporaryId(createIssueItem.parent)) {
+                    const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
+                    if (resolvedParent !== undefined) {
+                      effectiveParentIssueNumber = resolvedParent.number;
+                      effectiveParentRepo = resolvedParent.repo;
+                      core.info(`Resolved parent temporary ID '${createIssueItem.parent}' to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                    } else {
+                      core.warning(`Parent temporary ID '${createIssueItem.parent}' not found in map. Ensure parent issue is created before sub-issues.`);
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  } else {
+                    effectiveParentIssueNumber = parseInt(String(createIssueItem.parent), 10);
+                    if (isNaN(effectiveParentIssueNumber)) {
+                      core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+                      effectiveParentIssueNumber = undefined;
+                    }
+                  }
+                } else {
+                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
+                  if (itemRepo === contextRepo) {
+                    effectiveParentIssueNumber = parentIssueNumber;
+                  }
+                }
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
+                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                }
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
+                }
+                labels = labels
+                  .filter(label => !!label)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+                let bodyLines = processedBody.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (effectiveParentIssueNumber) {
+                  core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
+                  if (effectiveParentRepo === itemRepo) {
+                    bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                  } else {
+                    bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+                  }
+                }
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
+                }
+                addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
+                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue in ${itemRepo} with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: repoParts.owner,
+                    repo: repoParts.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
+                  createdIssues.push({ ...issue, _repo: itemRepo });
+                  temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
+                  core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+                  if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
+                    try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: effectiveParentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: repoParts.owner,
+                        repo: repoParts.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
+                      const addSubIssueMutation = `
+                        mutation($issueId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            issueId: $issueId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        issueId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
+                      try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
+                        await github.rest.issues.createComment({
+                          owner: repoParts.owner,
+                          repo: repoParts.repo,
+                          issue_number: effectiveParentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(`Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`);
+                      }
+                    }
+                  } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
+                    core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
+                  } else {
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
+                  throw error;
+                }
+              }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+                  summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+              core.setOutput("temporary_id_map", tempIdMapOutput);
+              core.info(`Temporary ID map: ${tempIdMapOutput}`);
+              const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+              if (assignCopilot && createdIssues.length > 0) {
+                const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+                core.setOutput("issues_to_assign_copilot", issuesToAssign);
+                core.info(`Issues to assign copilot: ${issuesToAssign}`);
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            (async () => {
+              await main();
+            })();
       - name: Create Discussion
         id: create_discussion
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
@@ -8564,7 +7782,276 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/create_discussion.cjs'); })();
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
+            const { closeOlderDiscussions } = require('/tmp/gh-aw/scripts/close_older_discussions.cjs');
+            const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
+            const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require('/tmp/gh-aw/scripts/repo_helpers.cjs');
+            const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
+            const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
+            async function fetchRepoDiscussionInfo(owner, repo) {
+              const repositoryQuery = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    id
+                    discussionCategories(first: 20) {
+                      nodes {
+                        id
+                        name
+                        slug
+                        description
+                      }
+                    }
+                  }
+                }
+              `;
+              const queryResult = await github.graphql(repositoryQuery, {
+                owner: owner,
+                repo: repo,
+              });
+              if (!queryResult || !queryResult.repository) {
+                return null;
+              }
+              return {
+                repositoryId: queryResult.repository.id,
+                discussionCategories: queryResult.repository.discussionCategories.nodes || [],
+              };
+            }
+            function resolveCategoryId(categoryConfig, itemCategory, categories) {
+              const categoryToMatch = itemCategory || categoryConfig;
+              if (categoryToMatch) {
+                const categoryById = categories.find(cat => cat.id === categoryToMatch);
+                if (categoryById) {
+                  return { id: categoryById.id, matchType: "id", name: categoryById.name };
+                }
+                const categoryByName = categories.find(cat => cat.name === categoryToMatch);
+                if (categoryByName) {
+                  return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
+                }
+                const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
+                if (categoryBySlug) {
+                  return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
+                }
+              }
+              if (categories.length > 0) {
+                return {
+                  id: categories[0].id,
+                  matchType: "fallback",
+                  name: categories[0].name,
+                  requestedCategory: categoryToMatch,
+                };
+              }
+              return undefined;
+            }
+            async function main() {
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
+                return;
+              }
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              const allowedRepos = parseAllowedRepos();
+              const defaultTargetRepo = getDefaultTargetRepo();
+              core.info(`Default target repo: ${defaultTargetRepo}`);
+              if (allowedRepos.size > 0) {
+                core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.repo) {
+                    summaryContent += `**Repository:** ${item.repo}\n\n`;
+                  }
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Discussion creation preview written to step summary");
+                return;
+              }
+              const repoInfoCache = new Map();
+              const closeOlderEnabled = process.env.GH_AW_CLOSE_OLDER_DISCUSSIONS === "true";
+              const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
+              const configCategory = process.env.GH_AW_DISCUSSION_CATEGORY || "";
+              const labelsEnvVar = process.env.GH_AW_DISCUSSION_LABELS || "";
+              const labels = labelsEnvVar
+                ? labelsEnvVar
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                : [];
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const createdDiscussions = [];
+              const closedDiscussionsSummary = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
+                const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
+                const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
+                if (!repoValidation.valid) {
+                  core.warning(`Skipping discussion: ${repoValidation.error}`);
+                  continue;
+                }
+                const repoParts = parseRepoSlug(itemRepo);
+                if (!repoParts) {
+                  core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+                  continue;
+                }
+                let repoInfo = repoInfoCache.get(itemRepo);
+                if (!repoInfo) {
+                  try {
+                    const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
+                    if (!fetchedInfo) {
+                      core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
+                      continue;
+                    }
+                    repoInfo = fetchedInfo;
+                    repoInfoCache.set(itemRepo, repoInfo);
+                    core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
+                      core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
+                      continue;
+                    }
+                    core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
+                    throw error;
+                  }
+                }
+                const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
+                if (!categoryInfo) {
+                  core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
+                  continue;
+                }
+                if (categoryInfo.matchType === "name") {
+                  core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "slug") {
+                  core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
+                } else if (categoryInfo.matchType === "fallback") {
+                  if (categoryInfo.requestedCategory) {
+                    const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
+                    core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
+                    core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  } else {
+                    core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
+                  }
+                }
+                const categoryId = categoryInfo.id;
+                core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
+                let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
+                const bodyText = createDiscussionItem.body || "";
+                let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
+                processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+                let bodyLines = processedBody.split("\n");
+                if (!title) {
+                  title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
+                }
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                const trackerIDComment = getTrackerID("markdown");
+                if (trackerIDComment) {
+                  bodyLines.push(trackerIDComment);
+                }
+                addExpirationComment(bodyLines, "GH_AW_DISCUSSION_EXPIRES", "Discussion");
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repoInfo.repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
+                    continue;
+                  }
+                  core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
+                  createdDiscussions.push({ ...discussion, _repo: itemRepo });
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                  const hasMatchingCriteria = titlePrefix || labels.length > 0;
+                  if (closeOlderEnabled && hasMatchingCriteria) {
+                    core.info("close-older-discussions is enabled, searching for older discussions to close...");
+                    try {
+                      const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
+                      if (closedDiscussions.length > 0) {
+                        closedDiscussionsSummary.push(...closedDiscussions);
+                        core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
+                      }
+                    } catch (closeError) {
+                      core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+                    }
+                  } else if (closeOlderEnabled && !hasMatchingCriteria) {
+                    core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
+                  summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
+                }
+                if (closedDiscussionsSummary.length > 0) {
+                  summaryContent += "\n### Closed Older Discussions\n";
+                  for (const closed of closedDiscussionsSummary) {
+                    summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+            }
+            (async () => { await main(); })();
       - name: Link Sub Issue
         id: link_sub_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'link_sub_issue'))
@@ -8578,5 +8065,302 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            (async () => { await require('/tmp/gh-aw/scripts/link_sub_issue.cjs'); })();
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
+            const { loadTemporaryIdMap, resolveIssueNumber } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const linkItems = result.items.filter(item => item.type === "link_sub_issue");
+              if (linkItems.length === 0) {
+                core.info("No link_sub_issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
+              const temporaryIdMap = loadTemporaryIdMap();
+              if (temporaryIdMap.size > 0) {
+                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
+              }
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Link Sub-Issue",
+                  description: "The following sub-issue links would be created if staged mode was disabled:",
+                  items: linkItems,
+                  renderItem: item => {
+                    const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+                    const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
+                    let parentDisplay = parentResolved.resolved ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}` : `${item.parent_issue_number} (unresolved)`;
+                    let subDisplay = subResolved.resolved ? `${subResolved.resolved.repo}#${subResolved.resolved.number}` : `${item.sub_issue_number} (unresolved)`;
+                    if (parentResolved.wasTemporaryId && parentResolved.resolved) {
+                      parentDisplay += ` (from ${item.parent_issue_number})`;
+                    }
+                    if (subResolved.wasTemporaryId && subResolved.resolved) {
+                      subDisplay += ` (from ${item.sub_issue_number})`;
+                    }
+                    let content = `**Parent Issue:** ${parentDisplay}\n`;
+                    content += `**Sub-Issue:** ${subDisplay}\n\n`;
+                    return content;
+                  },
+                });
+                return;
+              }
+              const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
+              const parentRequiredLabels = parentRequiredLabelsEnv
+                ? parentRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const parentTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX?.trim() || "";
+              const subRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS?.trim();
+              const subRequiredLabels = subRequiredLabelsEnv
+                ? subRequiredLabelsEnv
+                    .split(",")
+                    .map(l => l.trim())
+                    .filter(l => l)
+                : [];
+              const subTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX?.trim() || "";
+              if (parentRequiredLabels.length > 0) {
+                core.info(`Parent required labels: ${JSON.stringify(parentRequiredLabels)}`);
+              }
+              if (parentTitlePrefix) {
+                core.info(`Parent title prefix: ${parentTitlePrefix}`);
+              }
+              if (subRequiredLabels.length > 0) {
+                core.info(`Sub-issue required labels: ${JSON.stringify(subRequiredLabels)}`);
+              }
+              if (subTitlePrefix) {
+                core.info(`Sub-issue title prefix: ${subTitlePrefix}`);
+              }
+              const maxCountEnv = process.env.GH_AW_LINK_SUB_ISSUE_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 5;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = linkItems.slice(0, maxCount);
+              if (linkItems.length > maxCount) {
+                core.warning(`Found ${linkItems.length} link_sub_issue items, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const results = [];
+              for (const item of itemsToProcess) {
+                const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
+                const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
+                if (parentResolved.errorMessage) {
+                  core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
+                  results.push({
+                    parent_issue_number: item.parent_issue_number,
+                    sub_issue_number: item.sub_issue_number,
+                    success: false,
+                    error: parentResolved.errorMessage,
+                  });
+                  continue;
+                }
+                if (subResolved.errorMessage) {
+                  core.warning(`Failed to resolve sub-issue: ${subResolved.errorMessage}`);
+                  results.push({
+                    parent_issue_number: item.parent_issue_number,
+                    sub_issue_number: item.sub_issue_number,
+                    success: false,
+                    error: subResolved.errorMessage,
+                  });
+                  continue;
+                }
+                const parentIssueNumber = parentResolved.resolved.number;
+                const subIssueNumber = subResolved.resolved.number;
+                if (parentResolved.wasTemporaryId) {
+                  core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
+                }
+                if (subResolved.wasTemporaryId) {
+                  core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
+                }
+                let parentIssue;
+                try {
+                  const parentResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parentIssueNumber,
+                  });
+                  parentIssue = parentResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch parent issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                if (parentRequiredLabels.length > 0) {
+                  const parentLabels = parentIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = parentRequiredLabels.filter(required => !parentLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Parent issue #${parentIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Parent issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (parentTitlePrefix && !parentIssue.title.startsWith(parentTitlePrefix)) {
+                  core.warning(`Parent issue #${parentIssueNumber} title does not start with "${parentTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Parent issue title does not start with "${parentTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                let subIssue;
+                try {
+                  const subResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: subIssueNumber,
+                  });
+                  subIssue = subResponse.data;
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Failed to fetch sub-issue: ${errorMessage}`,
+                  });
+                  continue;
+                }
+                try {
+                  const parentCheckQuery = `
+                    query($owner: String!, $repo: String!, $number: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        issue(number: $number) {
+                          parent {
+                            number
+                            title
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const parentCheckResult = await github.graphql(parentCheckQuery, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    number: subIssueNumber,
+                  });
+                  const existingParent = parentCheckResult?.repository?.issue?.parent;
+                  if (existingParent) {
+                    core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
+                    });
+                    continue;
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Could not check if sub-issue #${subIssueNumber} has a parent: ${errorMessage}. Proceeding with link attempt.`);
+                }
+                if (subRequiredLabels.length > 0) {
+                  const subLabels = subIssue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+                  const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
+                  if (missingLabels.length > 0) {
+                    core.warning(`Sub-issue #${subIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
+                    results.push({
+                      parent_issue_number: parentIssueNumber,
+                      sub_issue_number: subIssueNumber,
+                      success: false,
+                      error: `Sub-issue missing required labels: ${missingLabels.join(", ")}`,
+                    });
+                    continue;
+                  }
+                }
+                if (subTitlePrefix && !subIssue.title.startsWith(subTitlePrefix)) {
+                  core.warning(`Sub-issue #${subIssueNumber} title does not start with "${subTitlePrefix}". Skipping.`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: `Sub-issue title does not start with "${subTitlePrefix}"`,
+                  });
+                  continue;
+                }
+                try {
+                  const parentNodeId = parentIssue.node_id;
+                  const subNodeId = subIssue.node_id;
+                  await github.graphql(
+                    `
+                    mutation AddSubIssue($parentId: ID!, $subIssueId: ID!) {
+                      addSubIssue(input: { issueId: $parentId, subIssueId: $subIssueId }) {
+                        issue {
+                          id
+                          number
+                        }
+                        subIssue {
+                          id
+                          number
+                        }
+                      }
+                    }
+                  `,
+                    {
+                      parentId: parentNodeId,
+                      subIssueId: subNodeId,
+                    }
+                  );
+                  core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: true,
+                  });
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
+                  results.push({
+                    parent_issue_number: parentIssueNumber,
+                    sub_issue_number: subIssueNumber,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Link Sub-Issue\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully linked ${successCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `⚠️ Failed to link ${failureCount} sub-issue(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const linkedIssues = results
+                .filter(r => r.success)
+                .map(r => `${r.parent_issue_number}:${r.sub_issue_number}`)
+                .join("\n");
+              core.setOutput("linked_issues", linkedIssues);
+              if (failureCount > 0) {
+                core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
+              }
+            }
+            (async () => { await main(); })();
 
