@@ -22,25 +22,6 @@
 #
 # Automatically updates GitHub Actions versions and creates a PR if changes are detected
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   create_pull_request --> conclusion
-#   detection --> conclusion
-#   detection --> create_pull_request
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

@@ -22,28 +22,6 @@
 #
 # Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   close_issue["close_issue"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> close_issue
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   close_issue --> conclusion
-#   create_issue --> conclusion
-#   detection --> close_issue
-#   detection --> conclusion
-#   detection --> create_issue
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

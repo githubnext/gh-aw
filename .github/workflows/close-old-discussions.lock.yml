@@ -27,28 +27,6 @@
 #     - shared/jqschema.md
 #     - shared/discussions-data-fetch.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   close_discussion["close_discussion"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   update_cache_memory["update_cache_memory"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> close_discussion
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> update_cache_memory
-#   close_discussion --> conclusion
-#   detection --> close_discussion
-#   detection --> conclusion
-#   detection --> update_cache_memory
-#   update_cache_memory --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

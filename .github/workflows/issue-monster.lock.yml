@@ -22,34 +22,6 @@
 #
 # The Cookie Monster of issues - assigns issues to Copilot agents one at a time
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   assign_to_agent["assign_to_agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   search_issues["search_issues"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> assign_to_agent
-#   agent --> conclusion
-#   agent --> detection
-#   assign_to_agent --> conclusion
-#   detection --> add_comment
-#   detection --> assign_to_agent
-#   detection --> conclusion
-#   pre_activation --> activation
-#   pre_activation --> search_issues
-#   search_issues --> activation
-#   search_issues --> agent
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

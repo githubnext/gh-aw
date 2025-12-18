@@ -26,26 +26,6 @@
 #   Imports:
 #     - shared/mcp/brave.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> detection
-#   detection --> add_comment
-#   detection --> conclusion
-#   pre_activation --> activation
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

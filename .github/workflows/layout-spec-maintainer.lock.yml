@@ -22,25 +22,6 @@
 #
 # Maintains specs/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   create_pull_request --> conclusion
-#   detection --> conclusion
-#   detection --> create_pull_request
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

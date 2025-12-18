@@ -26,24 +26,6 @@
 #   Imports:
 #     - shared/ffmpeg.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   create_issue --> conclusion
-#   detection --> conclusion
-#   detection --> create_issue
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

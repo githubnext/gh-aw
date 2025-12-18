@@ -26,26 +26,6 @@
 #   Imports:
 #     - shared/actions-ai-inference.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_labels["add_labels"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_labels --> conclusion
-#   agent --> add_labels
-#   agent --> conclusion
-#   agent --> detection
-#   detection --> add_labels
-#   detection --> conclusion
-#   pre_activation --> activation
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/ai-inference@v1 (b81b2afb8390ee6839b494a404766bef6493c7d9)
 #     https://github.com/actions/ai-inference/commit/b81b2afb8390ee6839b494a404766bef6493c7d9

@@ -41,36 +41,6 @@
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   notion_add_comment["notion_add_comment"]
-#   post_to_slack_channel["post_to_slack_channel"]
-#   update_cache_memory["update_cache_memory"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> notion_add_comment
-#   agent --> post_to_slack_channel
-#   agent --> update_cache_memory
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> notion_add_comment
-#   detection --> post_to_slack_channel
-#   detection --> update_cache_memory
-#   notion_add_comment --> conclusion
-#   post_to_slack_channel --> conclusion
-#   update_cache_memory --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

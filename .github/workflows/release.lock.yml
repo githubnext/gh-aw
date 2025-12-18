@@ -22,32 +22,6 @@
 #
 # Build, test, and release gh-aw extension, then generate and prepend release highlights
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   generate-sbom["generate-sbom"]
-#   pre_activation["pre_activation"]
-#   release["release"]
-#   update_release["update_release"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> release
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> update_release
-#   detection --> conclusion
-#   detection --> update_release
-#   generate-sbom --> agent
-#   pre_activation --> activation
-#   release --> agent
-#   release --> generate-sbom
-#   update_release --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

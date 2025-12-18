@@ -22,31 +22,6 @@
 #
 # Generates new agentic workflow markdown files based on user requests when invoked with /craft command
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   push_to_pull_request_branch["push_to_pull_request_branch"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> push_to_pull_request_branch
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> push_to_pull_request_branch
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> push_to_pull_request_branch
-#   pre_activation --> activation
-#   push_to_pull_request_branch --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

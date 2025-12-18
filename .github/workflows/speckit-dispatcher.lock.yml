@@ -26,36 +26,6 @@
 #   Imports:
 #     - ../agents/speckit-dispatcher.agent.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   link_sub_issue["link_sub_issue"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   agent --> link_sub_issue
-#   create_issue --> add_comment
-#   create_issue --> conclusion
-#   create_issue --> link_sub_issue
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> create_issue
-#   detection --> link_sub_issue
-#   link_sub_issue --> conclusion
-#   pre_activation --> activation
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

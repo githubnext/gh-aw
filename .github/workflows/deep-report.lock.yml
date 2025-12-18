@@ -29,36 +29,6 @@
 #     - shared/mcp/gh-aw.md
 #     - shared/reporting.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_discussion["create_discussion"]
-#   detection["detection"]
-#   push_repo_memory["push_repo_memory"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_discussion
-#   agent --> detection
-#   agent --> push_repo_memory
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_discussion --> conclusion
-#   detection --> conclusion
-#   detection --> create_discussion
-#   detection --> push_repo_memory
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   push_repo_memory --> conclusion
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

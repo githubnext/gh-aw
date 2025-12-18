@@ -22,30 +22,6 @@
 #
 # Campaign generator that updates issue status and assigns to Copilot agent for campaign design
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   assign_to_agent["assign_to_agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   update_issue["update_issue"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> assign_to_agent
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> update_issue
-#   assign_to_agent --> conclusion
-#   detection --> assign_to_agent
-#   detection --> conclusion
-#   detection --> update_issue
-#   pre_activation --> activation
-#   update_issue --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

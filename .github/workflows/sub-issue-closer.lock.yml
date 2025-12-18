@@ -22,28 +22,6 @@
 #
 # Scheduled workflow that recursively closes parent issues when all sub-issues are 100% complete
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   update_issue["update_issue"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> detection
-#   agent --> update_issue
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> update_issue
-#   update_issue --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

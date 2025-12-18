@@ -29,42 +29,6 @@
 #     - shared/trends.md
 #     - shared/python-dataviz.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   push_repo_memory["push_repo_memory"]
-#   update_cache_memory["update_cache_memory"]
-#   update_project["update_project"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   agent --> push_repo_memory
-#   agent --> update_cache_memory
-#   agent --> update_project
-#   agent --> upload_assets
-#   create_issue --> conclusion
-#   detection --> conclusion
-#   detection --> create_issue
-#   detection --> push_repo_memory
-#   detection --> update_cache_memory
-#   detection --> update_project
-#   detection --> upload_assets
-#   pre_activation --> activation
-#   push_repo_memory --> conclusion
-#   update_cache_memory --> conclusion
-#   update_project --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

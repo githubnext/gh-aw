@@ -22,18 +22,6 @@
 #
 # Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   post-issue["post-issue"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   agent --> post-issue
-#   pre_activation --> activation
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

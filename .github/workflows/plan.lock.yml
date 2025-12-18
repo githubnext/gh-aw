@@ -22,30 +22,6 @@
 #
 # Generates project plans and task breakdowns when invoked with /plan command in issues or PRs
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   close_discussion["close_discussion"]
-#   conclusion["conclusion"]
-#   create_issue["create_issue"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> close_discussion
-#   agent --> conclusion
-#   agent --> create_issue
-#   agent --> detection
-#   close_discussion --> conclusion
-#   create_issue --> conclusion
-#   detection --> close_discussion
-#   detection --> conclusion
-#   detection --> create_issue
-#   pre_activation --> activation
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

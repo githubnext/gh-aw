@@ -22,20 +22,6 @@
 #
 # Daily security scan that reviews code changes from the last 3 days for suspicious patterns indicating malicious agentic threats
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_code_scanning_alert["create_code_scanning_alert"]
-#   activation --> agent
-#   activation --> conclusion
-#   agent --> conclusion
-#   agent --> create_code_scanning_alert
-#   create_code_scanning_alert --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd

@@ -26,40 +26,6 @@
 #   Imports:
 #     - shared/reporting.md
 #
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_comment["add_comment"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   create_pull_request["create_pull_request"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   update_cache_memory["update_cache_memory"]
-#   upload_assets["upload_assets"]
-#   activation --> agent
-#   activation --> conclusion
-#   activation --> create_pull_request
-#   add_comment --> conclusion
-#   agent --> add_comment
-#   agent --> conclusion
-#   agent --> create_pull_request
-#   agent --> detection
-#   agent --> update_cache_memory
-#   agent --> upload_assets
-#   create_pull_request --> add_comment
-#   create_pull_request --> conclusion
-#   detection --> add_comment
-#   detection --> conclusion
-#   detection --> create_pull_request
-#   detection --> update_cache_memory
-#   detection --> upload_assets
-#   pre_activation --> activation
-#   update_cache_memory --> conclusion
-#   upload_assets --> conclusion
-# ```
-#
 # Pinned GitHub Actions:
 #   - actions/cache/restore@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830

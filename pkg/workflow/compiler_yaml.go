@@ -91,17 +91,6 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yaml.WriteString(fmt.Sprintf("# Manual approval required: environment '%s'\n", data.ManualApproval))
 	}
 
-	// Add Mermaid graph of job dependencies
-	mermaidGraph := c.jobManager.GenerateMermaidGraph()
-	if mermaidGraph != "" {
-		yaml.WriteString("#\n")
-		yaml.WriteString("# Job Dependency Graph:\n")
-		// Add each line of the mermaid graph as a comment
-		for _, line := range strings.Split(mermaidGraph, "\n") {
-			yaml.WriteString(fmt.Sprintf("# %s\n", line))
-		}
-	}
-
 	yaml.WriteString("\n")
 
 	// Write basic workflow structure
