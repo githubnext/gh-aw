@@ -325,7 +325,17 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	}
 
 	// Check that safe_outputs job depends on both agent and detection jobs
-	if len(safeOutputsJob.Needs) != 2 || safeOutputsJob.Needs[0] != constants.AgentJobName || safeOutputsJob.Needs[1] != constants.DetectionJobName {
+	hasAgent := false
+	hasDetection := false
+	for _, dep := range safeOutputsJob.Needs {
+		if dep == constants.AgentJobName {
+			hasAgent = true
+		}
+		if dep == constants.DetectionJobName {
+			hasDetection = true
+		}
+	}
+	if !hasAgent || !hasDetection {
 		t.Errorf("Expected safe_outputs job to depend on both agent and detection jobs, got dependencies: %v", safeOutputsJob.Needs)
 	}
 }

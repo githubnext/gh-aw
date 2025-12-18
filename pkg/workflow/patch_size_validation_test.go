@@ -96,23 +96,13 @@ This workflow tests custom 2MB patch size configuration.`,
 			}
 			lockContentStr := string(lockContent)
 
-			// Check that the environment variable is set correctly in push job
-			if tt.shouldContainPushJob {
-				if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
-					t.Errorf("Expected push_to_pull_request_branch job to be generated")
-				}
-				if !strings.Contains(lockContentStr, tt.expectedEnvValue) {
-					t.Errorf("Expected '%s' to be found in push job, got:\n%s", tt.expectedEnvValue, lockContentStr)
-				}
-			}
-
-			// Check that the environment variable is set correctly in create PR job
-			if tt.shouldContainPRJob {
+			// Check that the safe_outputs job is generated (consolidated mode)
+			if tt.shouldContainPushJob || tt.shouldContainPRJob {
 				if !strings.Contains(lockContentStr, "safe_outputs:") {
-					t.Errorf("Expected create_pull_request job to be generated")
+					t.Errorf("Expected safe_outputs job to be generated")
 				}
 				if !strings.Contains(lockContentStr, tt.expectedEnvValue) {
-					t.Errorf("Expected '%s' to be found in create PR job, got:\n%s", tt.expectedEnvValue, lockContentStr)
+					t.Errorf("Expected '%s' to be found in safe_outputs job, got:\n%s", tt.expectedEnvValue, lockContentStr)
 				}
 			}
 

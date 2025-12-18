@@ -8327,6 +8327,7 @@ jobs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
       add_labels_labels_added: ${{ steps.add_labels.outputs.labels_added }}
+      create_agent_task_task_number: ${{ steps.create_agent_task.outputs.task_number }}
       create_agent_task_task_url: ${{ steps.create_agent_task.outputs.task_url }}
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}

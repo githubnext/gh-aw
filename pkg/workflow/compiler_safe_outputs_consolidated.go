@@ -316,6 +316,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
+		outputs["create_agent_task_task_number"] = "${{ steps.create_agent_task.outputs.task_number }}"
 		outputs["create_agent_task_task_url"] = "${{ steps.create_agent_task.outputs.task_url }}"
 
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
@@ -823,6 +824,10 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
 	// Add labels if set
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
+	// Add commit title suffix if set
+	if cfg.CommitTitleSuffix != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", cfg.CommitTitleSuffix))
+	}
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("push_to_pull_request_branch")
