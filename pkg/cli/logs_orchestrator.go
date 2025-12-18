@@ -29,8 +29,8 @@ import (
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool) error {
-	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v", workflowName, count, startDate, endDate, outputDir, campaignOnly)
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
+	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -417,6 +417,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Build structured logs data
 	logsData := buildLogsData(processedRuns, outputDir, continuation)
+
+	// Write summary file if requested (default behavior unless disabled with empty string)
+	if summaryFile != "" {
+		summaryPath := filepath.Join(outputDir, summaryFile)
+		if err := writeSummaryFile(summaryPath, logsData, verbose); err != nil {
+			return fmt.Errorf("failed to write summary file: %w", err)
+		}
+	}
 
 	// Render output based on format preference
 	if jsonOutput {
