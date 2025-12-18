@@ -18,8 +18,6 @@ network:
     - defaults
     - node
     - github
-sandbox:
-  agent: false  # Firewall disabled (migrated from network.firewall)
 imports:
   - shared/gh.md
 tools:
@@ -31,8 +29,6 @@ tools:
 safe-outputs:
     add-comment:
       hide-older-comments: true
-    create-issue:
-      expires: 1d
     add-labels:
       allowed: [smoke-copilot]
 strict: true
