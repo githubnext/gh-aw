@@ -3012,7 +3012,7 @@
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
         "allowed-domains": {
           "type": "array",
@@ -3348,6 +3348,47 @@
             {
               "type": "null",
               "description": "Enable discussion closing with default configuration"
+            }
+          ]
+        },
+        "update-discussion": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for updating GitHub discussions from agentic workflow output",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "description": "Target for updates: 'triggering' (default), '*' (any discussion), or explicit discussion number"
+                },
+                "title": {
+                  "type": "null",
+                  "description": "Allow updating discussion title - presence of key indicates field can be updated"
+                },
+                "body": {
+                  "type": "null",
+                  "description": "Allow updating discussion body - presence of key indicates field can be updated"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of discussions to update (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository discussion updates. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable discussion updating with default configuration"
             }
           ]
         },
