@@ -425,7 +425,7 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: "42 8 * * *"
+  - cron: "29 21 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
