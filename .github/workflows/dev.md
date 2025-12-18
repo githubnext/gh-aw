@@ -9,7 +9,7 @@ engine: copilot
 
 permissions:
   contents: read
-  discussions: write
+  discussions: read
 
 tools:
   github:

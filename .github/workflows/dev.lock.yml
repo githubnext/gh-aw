@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      discussions: write
+      discussions: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
