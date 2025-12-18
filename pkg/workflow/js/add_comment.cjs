@@ -62,19 +62,14 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
     }
 
     // Filter comments that contain the workflow-id and are NOT reaction comments
-    for (const comment of data) {
-      if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
-        // Skip reaction comments - they should not be hidden
-        if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
-          continue;
-        }
-        comments.push({
-          id: comment.id,
-          node_id: comment.node_id,
-          body: comment.body,
-        });
-      }
-    }
+    const filteredComments = data
+      .filter(comment => 
+        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
+        !comment.body.includes(`<!-- comment-type: reaction -->`)
+      )
+      .map(({ id, node_id, body }) => ({ id, node_id, body }));
+    
+    comments.push(...filteredComments);
 
     if (data.length < perPage) {
       break;
@@ -125,19 +120,14 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
       break;
     }
 
-    const nodes = result.repository.discussion.comments.nodes;
-    for (const comment of nodes) {
-      if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
-        // Skip reaction comments - they should not be hidden
-        if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
-          continue;
-        }
-        comments.push({
-          id: comment.id,
-          body: comment.body,
-        });
-      }
-    }
+    const filteredComments = result.repository.discussion.comments.nodes
+      .filter(comment => 
+        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
+        !comment.body.includes(`<!-- comment-type: reaction -->`)
+      )
+      .map(({ id, body }) => ({ id, body }));
+    
+    comments.push(...filteredComments);
 
     if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
       break;
@@ -197,18 +187,14 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
 
   let hiddenCount = 0;
   for (const comment of comments) {
-    try {
-      // TypeScript can't narrow the union type here, but we know it's safe due to isDiscussion check
-      // @ts-expect-error - comment has node_id when not a discussion
-      const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
-      core.info(`Hiding comment: ${nodeId}`);
-      await minimizeComment(github, nodeId, normalizedReason);
-      hiddenCount++;
-      core.info(`✓ Hidden comment: ${nodeId}`);
-    } catch (error) {
-      core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
-      // Continue with other comments even if one fails
-    }
+    // TypeScript can't narrow the union type here, but we know it's safe due to isDiscussion check
+    // @ts-expect-error - comment has node_id when not a discussion
+    const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
+    core.info(`Hiding comment: ${nodeId}`);
+    
+    const result = await minimizeComment(github, nodeId, normalizedReason);
+    hiddenCount++;
+    core.info(`✓ Hidden comment: ${nodeId}`);
   }
 
   core.info(`Successfully hidden ${hiddenCount} comment(s)`);
@@ -248,12 +234,8 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   const discussionUrl = repository.discussion.url;
 
   // 2. Add comment (with optional replyToId for threading)
-  let result;
-  if (replyToId) {
-    // Create a threaded reply to an existing comment
-    result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+  const mutation = replyToId
+    ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
           comment { 
             id 
@@ -262,14 +244,8 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
             url
           }
         }
-      }`,
-      { dId: discussionId, body: message, replyToId }
-    );
-  } else {
-    // Create a top-level comment on the discussion
-    result = await github.graphql(
-      `
-      mutation($dId: ID!, $body: String!) {
+      }`
+    : `mutation($dId: ID!, $body: String!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body }) {
           comment { 
             id 
@@ -278,10 +254,13 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
             url
           }
         }
-      }`,
-      { dId: discussionId, body: message }
-    );
-  }
+      }`;
+
+  const variables = replyToId
+    ? { dId: discussionId, body: message, replyToId }
+    : { dId: discussionId, body: message };
+
+  const result = await github.graphql(mutation, variables);
 
   const comment = result.addDiscussionComment.comment;
 
@@ -338,15 +317,18 @@ async function main() {
   const workflowId = process.env.GITHUB_WORKFLOW || "";
 
   // Parse allowed reasons from environment variable
-  let allowedReasons = null;
-  if (process.env.GH_AW_ALLOWED_REASONS) {
-    try {
-      allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
-      core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
-    } catch (error) {
-      core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+  const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
+    ? (() => {
+        try {
+          const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+          core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
+          return parsed;
+        } catch (error) {
+          core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+          return null;
+        }
+      })()
+    : null;
 
   if (hideOlderCommentsEnabled) {
     core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
@@ -499,24 +481,14 @@ async function main() {
     const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
 
     // Add references section if any URLs are available
-    let hasReferences = false;
-    let referencesSection = "\n\n#### Related Items\n\n";
+    const references = [
+      createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
+      createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
+      createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`
+    ].filter(Boolean);
 
-    if (createdIssueUrl && createdIssueNumber) {
-      referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-      hasReferences = true;
-    }
-    if (createdDiscussionUrl && createdDiscussionNumber) {
-      referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-      hasReferences = true;
-    }
-    if (createdPullRequestUrl && createdPullRequestNumber) {
-      referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-      hasReferences = true;
-    }
-
-    if (hasReferences) {
-      body += referencesSection;
+    if (references.length > 0) {
+      body += `\n\n#### Related Items\n\n${references.join('\n')}\n`;
     }
 
     // Add AI disclaimer with workflow name and run url
@@ -543,68 +515,63 @@ async function main() {
 
     body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
 
-    try {
-      // Hide older comments from the same workflow if enabled
-      if (hideOlderCommentsEnabled && workflowId) {
-        core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-        await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
+    // Hide older comments from the same workflow if enabled
+    if (hideOlderCommentsEnabled && workflowId) {
+      core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+      await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
+    }
+
+    let comment;
+
+    // Use GraphQL API for discussions, REST API for issues/PRs
+    if (commentEndpoint === "discussions") {
+      core.info(`Creating comment on discussion #${itemNumber}`);
+      core.info(`Comment content length: ${body.length}`);
+
+      // For discussion_comment events, extract the comment node_id to create a threaded reply
+      const replyToId = (context.eventName === "discussion_comment" && context.payload?.comment?.node_id)
+        ? context.payload.comment.node_id
+        : undefined;
+
+      if (replyToId) {
+        core.info(`Creating threaded reply to comment ${replyToId}`);
       }
 
-      let comment;
+      // Create discussion comment using GraphQL
+      comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
+      core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
 
-      // Use GraphQL API for discussions, REST API for issues/PRs
-      if (commentEndpoint === "discussions") {
-        core.info(`Creating comment on discussion #${itemNumber}`);
-        core.info(`Comment content length: ${body.length}`);
+      // Add discussion_url to the comment object for consistency
+      comment.discussion_url = comment.discussion_url;
+    } else {
+      core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+      core.info(`Comment content length: ${body.length}`);
 
-        // For discussion_comment events, extract the comment node_id to create a threaded reply
-        let replyToId;
-        if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
-          replyToId = context.payload.comment.node_id;
-          core.info(`Creating threaded reply to comment ${replyToId}`);
-        }
+      // Create regular issue/PR comment using REST API
+      const { data: restComment } = await github.rest.issues.createComment({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: itemNumber,
+        body: body,
+      });
 
-        // Create discussion comment using GraphQL
-        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-        core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+      comment = restComment;
+      core.info("Created comment #" + comment.id + ": " + comment.html_url);
+    }
 
-        // Add discussion_url to the comment object for consistency
-        comment.discussion_url = comment.discussion_url;
-      } else {
-        core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-        core.info(`Comment content length: ${body.length}`);
+    createdComments.push(comment);
 
-        // Create regular issue/PR comment using REST API
-        const { data: restComment } = await github.rest.issues.createComment({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          issue_number: itemNumber,
-          body: body,
-        });
-
-        comment = restComment;
-        core.info("Created comment #" + comment.id + ": " + comment.html_url);
-      }
-
-      createdComments.push(comment);
-
-      // Set output for the last created comment (for backward compatibility)
-      if (i === commentItems.length - 1) {
-        core.setOutput("comment_id", comment.id);
-        core.setOutput("comment_url", comment.html_url);
-      }
-    } catch (error) {
-      core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+    // Set output for the last created comment (for backward compatibility)
+    if (i === commentItems.length - 1) {
+      core.setOutput("comment_id", comment.id);
+      core.setOutput("comment_url", comment.html_url);
     }
   }
 
   // Write summary for all created comments
   if (createdComments.length > 0) {
-    let summaryContent = "\n\n## GitHub Comments\n";
-    for (const comment of createdComments) {
-      summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-    }
+    const summaryContent = "\n\n## GitHub Comments\n" + 
+      createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join('\n');
     await core.summary.addRaw(summaryContent).write();
   }
 
