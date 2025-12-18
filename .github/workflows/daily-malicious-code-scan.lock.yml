@@ -6037,7 +6037,7 @@ jobs:
     needs:
       - activation
       - agent
-      - create_code_scanning_alert
+      - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6538,21 +6538,14 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_code_scanning_alert:
+  safe_outputs:
     needs: agent
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_code_scanning_alert'))
+    if: (!cancelled()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
-      actions: read
       contents: read
       security-events: write
-    timeout-minutes: 10
-    outputs:
-      artifact_uploaded: ${{ steps.create_code_scanning_alert.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_code_scanning_alert.outputs.findings_count }}
-      sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
+    timeout-minutes: 15
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -6565,61 +6558,123 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Setup JavaScript files
+        id: setup_scripts
+        shell: bash
+        run: |
+          mkdir -p /tmp/gh-aw/scripts
+          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
+          // @ts-check
+          /// <reference types="@actions/github-script" />
+          
+          const fs = require("fs");
+          
+          /**
+           * Maximum content length to log for debugging purposes
+           * @type {number}
+           */
+          const MAX_LOG_CONTENT_LENGTH = 10000;
+          
+          /**
+           * Truncate content for logging if it exceeds the maximum length
+           * @param {string} content - Content to potentially truncate
+           * @returns {string} Truncated content with indicator if truncated
+           */
+          function truncateForLogging(content) {
+            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+              return content;
+            }
+            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+          }
+          
+          /**
+           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
+           *
+           * This utility handles the common pattern of:
+           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
+           * 2. Loading the file content
+           * 3. Validating the JSON structure
+           * 4. Returning parsed items array
+           *
+           * @returns {{
+           *   success: true,
+           *   items: any[]
+           * } | {
+           *   success: false,
+           *   items?: undefined,
+           *   error?: string
+           * }} Result object with success flag and items array (if successful) or error message
+           */
+          function loadAgentOutput() {
+            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+          
+            // No agent output file specified
+            if (!agentOutputFile) {
+              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              return { success: false };
+            }
+          
+            // Read agent output from file
+            let outputContent;
+            try {
+              outputContent = fs.readFileSync(agentOutputFile, "utf8");
+            } catch (error) {
+              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+              core.error(errorMessage);
+              return { success: false, error: errorMessage };
+            }
+          
+            // Check for empty content
+            if (outputContent.trim() === "") {
+              core.info("Agent output content is empty");
+              return { success: false };
+            }
+          
+            core.info(`Agent output content length: ${outputContent.length}`);
+          
+            // Parse the validated output JSON
+            let validatedOutput;
+            try {
+              validatedOutput = JSON.parse(outputContent);
+            } catch (error) {
+              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+              core.error(errorMessage);
+              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+              return { success: false, error: errorMessage };
+            }
+          
+            // Validate items array exists
+            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+              core.info("No valid items found in agent output");
+              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+              return { success: false };
+            }
+          
+            return { success: true, items: validatedOutput.items };
+          }
+          
+          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
+          
+          EOF_b93f537f
       - name: Create Code Scanning Alert
         id: create_code_scanning_alert
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_code_scanning_alert'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SECURITY_REPORT_DRIVER: Malicious Code Scanner
-          GH_AW_WORKFLOW_FILENAME: daily-malicious-code-scan
+          GH_AW_WORKFLOW_FILENAME: "daily-malicious-code-scan"
           GH_AW_WORKFLOW_NAME: "Daily Malicious Code Scan Agent"
           GH_AW_TRACKER_ID: "malicious-code-scan"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -6804,16 +6859,5 @@ jobs:
                 findings: validFindings,
               };
             }
-            await main();
-      - name: Upload SARIF artifact
-        if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: code-scanning-alert.sarif
-          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
-      - name: Upload SARIF to GitHub Security
-        if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@c37a8b7cd97e31de3fcbd9d84c401870edeb8d34 # v3
-        with:
-          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
+            (async () => { await main(); })();
 

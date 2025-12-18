@@ -201,9 +201,9 @@ safe-outputs:
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
 	require.NoError(t, err, "Failed to parse workflow")
 
-	// Build the create_issue job
+	// Build the safe_outputs job
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main")
-	require.NoError(t, err, "Failed to build create_issue job")
+	require.NoError(t, err, "Failed to build safe_outputs job")
 	require.NotNil(t, job, "Job should not be nil")
 
 	// Convert steps to string

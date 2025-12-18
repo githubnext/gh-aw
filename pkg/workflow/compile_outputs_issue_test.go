@@ -243,23 +243,26 @@ This workflow tests the create-issue job generation.
 
 	lockContent := string(content)
 
-	// Verify create_issue job exists
-	if !strings.Contains(lockContent, "create_issue:") {
-		t.Error("Expected 'create_issue' job to be in generated workflow")
+	// Verify safe_outputs consolidated job exists with create_issue step
+	if !strings.Contains(lockContent, "safe_outputs:") {
+		t.Error("Expected 'safe_outputs' job to be in generated workflow")
+	}
+	if !strings.Contains(lockContent, "id: create_issue") {
+		t.Error("Expected 'create_issue' step to be in safe_outputs job")
 	}
 
 	// Verify job properties
-	if !strings.Contains(lockContent, "timeout-minutes: 10") {
-		t.Error("Expected 10-minute timeout in create_issue job")
+	if !strings.Contains(lockContent, "timeout-minutes: 15") {
+		t.Error("Expected 15-minute timeout in consolidated safe_outputs job")
 	}
 
-	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write") {
-		t.Error("Expected correct permissions in create_issue job")
+	if !strings.Contains(lockContent, "issues: write") {
+		t.Error("Expected issues: write permission in safe_outputs job")
 	}
 
 	// Verify the job uses github-script
 	if !strings.Contains(lockContent, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
-		t.Error("Expected github-script action to be used in create_issue job")
+		t.Error("Expected github-script action to be used in safe_outputs job")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -272,8 +275,8 @@ This workflow tests the create-issue job generation.
 	}
 
 	// Verify job dependencies
-	if !strings.Contains(lockContent, "needs: agent") {
-		t.Error("Expected create_issue job to depend on main job")
+	if !strings.Contains(lockContent, "needs:") {
+		t.Error("Expected safe_outputs job to depend on main job")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)

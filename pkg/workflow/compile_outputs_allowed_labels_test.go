@@ -242,14 +242,14 @@ This workflow tests that allowed-labels are passed to safe output jobs.
 	}
 	lockfileContent := string(lockBytes)
 
-	// Verify that GH_AW_ISSUE_ALLOWED_LABELS environment variable is present for create_issue job
+	// Verify that GH_AW_ISSUE_ALLOWED_LABELS environment variable is present for safe_outputs job
 	if !strings.Contains(lockfileContent, "GH_AW_ISSUE_ALLOWED_LABELS") {
 		t.Error("Expected GH_AW_ISSUE_ALLOWED_LABELS environment variable in compiled workflow")
 	}
 
 	// Verify the allowed labels are passed correctly for issues
 	if !strings.Contains(lockfileContent, `GH_AW_ISSUE_ALLOWED_LABELS: "bug,enhancement"`) {
-		t.Error("Expected allowed labels 'bug,enhancement' to be passed to create_issue job")
+		t.Error("Expected allowed labels 'bug,enhancement' to be passed to safe_outputs job")
 	}
 
 	// Verify that GH_AW_PR_ALLOWED_LABELS environment variable is present for create_pull_request job

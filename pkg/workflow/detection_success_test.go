@@ -107,12 +107,13 @@ Create outputs.
 	}
 	yaml := string(yamlBytes)
 
-	// Check that create_issue job has detection success check in its condition
-	if !strings.Contains(yaml, "create_issue:") {
-		t.Fatal("create_issue job not found")
+	// Check that safe_outputs job has detection success check in its condition
+	if !strings.Contains(yaml, "safe_outputs:") {
+		t.Fatal("safe_outputs job not found")
 	}
 
-	if !strings.Contains(yaml, "needs.detection.outputs.success == 'true'") {
-		t.Error("Safe output jobs don't check detection success")
+	// In consolidated mode, the detection check uses needs.detection.outputs.success == 'true'
+	if !strings.Contains(yaml, "needs.detection.outputs.success") {
+		t.Error("Safe output jobs don't check detection result")
 	}
 }

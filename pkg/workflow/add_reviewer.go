@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -13,61 +11,6 @@ type AddReviewerConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	Reviewers              []string `yaml:"reviewers,omitempty"` // Optional list of allowed reviewers. If omitted, any reviewers are allowed.
-}
-
-// buildAddReviewerJob creates the add_reviewer job
-func (c *Compiler) buildAddReviewerJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	addReviewerLog.Printf("Building add_reviewer job: workflow=%s, main_job=%s", data.Name, mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.AddReviewer == nil {
-		return nil, fmt.Errorf("safe-outputs configuration is required")
-	}
-
-	cfg := data.SafeOutputs.AddReviewer
-
-	// Handle max count with default of 3
-	maxCount := 3
-	if cfg.Max > 0 {
-		maxCount = cfg.Max
-	}
-	addReviewerLog.Printf("Configured max reviewers: %d", maxCount)
-
-	// Build custom environment variables using shared helpers
-	listJobConfig := ListJobConfig{
-		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
-		Allowed:                cfg.Reviewers,
-	}
-	customEnvVars := BuildListJobEnvVars("GH_AW_REVIEWERS", listJobConfig, maxCount)
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"reviewers_added": "${{ steps.add_reviewer.outputs.reviewers_added }}",
-	}
-
-	var jobCondition = BuildSafeOutputType("add_reviewer")
-	if cfg.Target == "" {
-		// Only run if in PR context when target is not specified
-		prCondition := BuildPropertyAccess("github.event.pull_request.number")
-		jobCondition = BuildAnd(jobCondition, prCondition)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "add_reviewer",
-		StepName:       "Add Reviewers",
-		StepID:         "add_reviewer",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getAddReviewerScript(),
-		Permissions:    NewPermissionsContentsReadPRWrite(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          cfg.GitHubToken,
-		TargetRepoSlug: cfg.TargetRepoSlug,
-	})
 }
 
 // parseAddReviewerConfig handles add-reviewer configuration

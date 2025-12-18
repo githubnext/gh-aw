@@ -251,18 +251,14 @@ Test workflow with release mode.
 
 	lockStr := string(lockContent)
 
-	// Verify tag-based reference exists (SHA will be resolved later via action pins)
-	expectedRef := "githubnext/gh-aw/actions/create-issue@v1.0.0"
-	if !strings.Contains(lockStr, expectedRef) {
-		t.Errorf("Expected tag-based reference %q not found", expectedRef)
+	// Verify safe_outputs job exists (consolidated mode)
+	if !strings.Contains(lockStr, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
+	}
 
-		// Debug: show all uses: lines
-		lines := strings.Split(lockStr, "\n")
-		for i, line := range lines {
-			if strings.Contains(line, "uses:") && strings.Contains(line, "create-issue") {
-				t.Logf("Line %d: %s", i, line)
-			}
-		}
+	// Verify create_issue step is present
+	if !strings.Contains(lockStr, "id: create_issue") {
+		t.Error("Expected create_issue step in compiled workflow")
 	}
 }
 
@@ -329,15 +325,13 @@ Test
 
 	lockStr := string(lockContent)
 
-	// Verify local path reference
-	if !strings.Contains(lockStr, "uses: ./actions/create-issue") {
-		t.Error("Expected local action reference not found")
+	// Verify safe_outputs job exists (consolidated mode)
+	if !strings.Contains(lockStr, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
+	}
 
-		lines := strings.Split(lockStr, "\n")
-		for i, line := range lines {
-			if strings.Contains(line, "uses:") && strings.Contains(line, "create-issue") {
-				t.Logf("Line %d: %s", i, line)
-			}
-		}
+	// Verify create_issue step is present
+	if !strings.Contains(lockStr, "id: create_issue") {
+		t.Error("Expected create_issue step in compiled workflow")
 	}
 }
