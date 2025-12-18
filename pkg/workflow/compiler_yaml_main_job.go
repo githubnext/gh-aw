@@ -1,0 +1,385 @@
+package workflow
+
+import (
+	"fmt"
+	"strings"
+)
+
+// generateMainJobSteps generates the complete sequence of steps for the main agent execution job
+// This is the heart of the workflow, orchestrating all steps from checkout through AI execution to artifact upload
+func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+	compilerYamlLog.Printf("Generating main job steps for workflow: %s", data.Name)
+
+	// Determine if we need to add a checkout step
+	needsCheckout := c.shouldAddCheckoutStep(data)
+	compilerYamlLog.Printf("Checkout step needed: %t", needsCheckout)
+
+	// Add checkout step first if needed
+	if needsCheckout {
+		yaml.WriteString("      - name: Checkout repository\n")
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+		// Always add with section for persist-credentials
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          persist-credentials: false\n")
+		// In trial mode without cloning, checkout the logical repo if specified
+		if c.trialMode {
+			if c.trialLogicalRepoSlug != "" {
+				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
+				// if len(trialTargetRepoName) == 2 {
+				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+				// }
+			}
+			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
+			yaml.WriteString(fmt.Sprintf("          token: %s\n", effectiveToken))
+		}
+	}
+
+	// Add automatic runtime setup steps if needed
+	// This detects runtimes from custom steps and MCP configs
+	runtimeRequirements := DetectRuntimeRequirements(data)
+
+	// Deduplicate runtime setup steps from custom steps
+	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
+	// since we're adding them. It also preserves user-customized setup actions and
+	// filters those runtimes from requirements so we don't generate duplicates.
+	if len(runtimeRequirements) > 0 && data.CustomSteps != "" {
+		deduplicatedCustomSteps, filteredRequirements, err := DeduplicateRuntimeSetupStepsFromCustomSteps(data.CustomSteps, runtimeRequirements)
+		if err != nil {
+			compilerYamlLog.Printf("Warning: failed to deduplicate runtime setup steps: %v", err)
+		} else {
+			data.CustomSteps = deduplicatedCustomSteps
+			runtimeRequirements = filteredRequirements
+		}
+	}
+
+	// Generate runtime setup steps (after filtering out user-customized ones)
+	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
+
+	// Decision logic for where to place runtime steps:
+	// 1. If we added checkout above (needsCheckout == true), add runtime steps now (after checkout, before custom steps)
+	// 2. If custom steps contain checkout, add runtime steps AFTER the first checkout in custom steps
+	// 3. Otherwise, add runtime steps now (before custom steps)
+
+	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
+	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
+
+	if needsCheckout || !customStepsContainCheckout {
+		// Case 1 or 3: Add runtime steps before custom steps
+		// This ensures checkout -> runtime -> custom steps order
+		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
+		for _, step := range runtimeSetupSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+
+		// Add Serena language service installation steps if Serena is configured
+		serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(data.ParsedTools)
+		if len(serenaLanguageSteps) > 0 {
+			compilerYamlLog.Printf("Adding %d Serena language service installation steps", len(serenaLanguageSteps))
+			for _, step := range serenaLanguageSteps {
+				for _, line := range step {
+					yaml.WriteString(line + "\n")
+				}
+			}
+		}
+	}
+
+	// Create /tmp/gh-aw/ base directory for all temporary files
+	// This must be created before custom steps so they can use the temp directory
+	yaml.WriteString("      - name: Create gh-aw temp directory\n")
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
+
+	// Add custom steps if present
+	if data.CustomSteps != "" {
+		if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
+			// Custom steps contain checkout and we have runtime steps to insert
+			// Insert runtime steps after the first checkout step
+			compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
+			c.addCustomStepsWithRuntimeInsertion(yaml, data.CustomSteps, runtimeSetupSteps, data.ParsedTools)
+		} else {
+			// No checkout in custom steps or no runtime steps, just add custom steps as-is
+			compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
+			c.addCustomStepsAsIs(yaml, data.CustomSteps)
+		}
+	}
+
+	// Add cache steps if cache configuration is present
+	generateCacheSteps(yaml, data, c.verbose)
+
+	// Add cache-memory steps if cache-memory configuration is present
+	generateCacheMemorySteps(yaml, data)
+
+	// Add repo-memory clone steps if repo-memory configuration is present
+	generateRepoMemorySteps(yaml, data)
+
+	// Configure git credentials for agentic workflows
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	for _, line := range gitConfigSteps {
+		yaml.WriteString(line)
+	}
+
+	// Add step to checkout PR branch if the event is pull_request
+	c.generatePRReadyForReviewCheckout(yaml, data)
+
+	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
+	engine, err := c.getAgenticEngine(data.AI)
+
+	if err != nil {
+		return
+	}
+
+	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)
+	installSteps := engine.GetInstallationSteps(data)
+	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
+	for _, step := range installSteps {
+		for _, line := range step {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
+	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
+
+	// Add MCP setup
+	c.generateMCPSetup(yaml, data.Tools, engine, data)
+
+	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// No longer generated in the main job steps
+
+	// Generate aw_info.json with agentic run metadata (must run before workflow overview)
+	c.generateCreateAwInfo(yaml, data, engine)
+
+	// Generate workflow overview to step summary early, before prompts
+	// This reads from aw_info.json for consistent data
+	c.generateWorkflowOverviewStep(yaml, data, engine)
+
+	// Add prompt creation step
+	c.generatePrompt(yaml, data)
+
+	// Upload prompt to artifact
+	c.generateUploadPrompt(yaml)
+
+	logFile := "agent-stdio"
+	logFileFull := "/tmp/gh-aw/agent-stdio.log"
+
+	// Upload info to artifact
+	c.generateUploadAwInfo(yaml)
+
+	// Add AI execution step using the agentic engine
+	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// Mark that we've completed agent execution - step order validation starts from here
+	c.stepOrderTracker.MarkAgentExecutionComplete()
+
+	// Collect firewall logs BEFORE secret redaction so secrets in logs can be redacted
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		collectionSteps := copilotEngine.GetFirewallLogsCollectionStep(data)
+		for _, step := range collectionSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
+	// Add secret redaction step BEFORE any artifact uploads
+	// This ensures all artifacts are scanned for secrets before being uploaded
+	c.generateSecretRedactionStep(yaml, yaml.String(), data)
+
+	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
+	if data.SafeOutputs != nil {
+		c.generateOutputCollectionStep(yaml, data)
+	}
+
+	// Add engine-declared output files collection (if any)
+	if len(engine.GetDeclaredOutputFiles()) > 0 {
+		c.generateEngineOutputCollection(yaml, engine)
+	}
+
+	// Extract and upload squid access logs (if any proxy tools were used)
+	c.generateExtractAccessLogs(yaml, data.Tools)
+	c.generateUploadAccessLogs(yaml, data.Tools)
+
+	// upload MCP logs (if any MCP tools were used)
+	c.generateUploadMCPLogs(yaml)
+
+	// upload SafeInputs logs (if safe-inputs is enabled)
+	if IsSafeInputsEnabled(data.SafeInputs, data) {
+		c.generateUploadSafeInputsLogs(yaml)
+	}
+
+	// parse agent logs for GITHUB_STEP_SUMMARY
+	c.generateLogParsing(yaml, engine)
+
+	// Add Squid logs upload and parsing steps for Copilot engine (collection happens before secret redaction)
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		squidSteps := copilotEngine.GetSquidLogsSteps(data)
+		for _, step := range squidSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
+	// upload agent logs
+	var _ string = logFile
+	c.generateUploadAgentLogs(yaml, logFileFull)
+
+	// Add post-execution cleanup step for Copilot engine
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		cleanupStep := copilotEngine.GetCleanupStep(data)
+		for _, line := range cleanupStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
+	// Add repo-memory artifact upload to save state for push job
+	generateRepoMemoryArtifactUpload(yaml, data)
+
+	// Add cache-memory artifact upload (after agent execution)
+	// This ensures artifacts are uploaded after the agent has finished modifying the cache
+	generateCacheMemoryArtifactUpload(yaml, data)
+
+	// upload assets if upload-asset is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
+		c.generateUploadAssets(yaml)
+	}
+
+	// Add error validation for AI execution logs
+	c.generateErrorValidation(yaml, engine, data)
+
+	// NOTE: Git patch generation has been moved to the safe-outputs MCP server
+	// The patch is now generated when create_pull_request or push_to_pull_request_branch
+	// tools are called, providing immediate error feedback if no changes are present.
+	// We still upload the patch artifact for processing jobs to download.
+	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
+		c.generateGitPatchUploadStep(yaml)
+	}
+
+	// Add post-steps (if any) after AI execution
+	c.generatePostSteps(yaml, data)
+
+	// Validate step ordering - this is a compiler check to ensure security
+	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
+		// This is a compiler bug if validation fails
+		panic(err)
+	}
+}
+
+// addCustomStepsAsIs adds custom steps without modification
+func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string) {
+	// Remove "steps:" line and adjust indentation
+	lines := strings.Split(customSteps, "\n")
+	if len(lines) > 1 {
+		for _, line := range lines[1:] {
+			// Skip empty lines
+			if strings.TrimSpace(line) == "" {
+				yaml.WriteString("\n")
+				continue
+			}
+
+			// Simply add 6 spaces for job context indentation
+			yaml.WriteString("      " + line + "\n")
+		}
+	}
+}
+
+// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
+	// Remove "steps:" line and adjust indentation
+	lines := strings.Split(customSteps, "\n")
+	if len(lines) <= 1 {
+		return
+	}
+
+	insertedRuntime := false
+	i := 1 // Start from index 1 to skip "steps:" line
+
+	for i < len(lines) {
+		line := lines[i]
+
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			yaml.WriteString("\n")
+			i++
+			continue
+		}
+
+		// Add the line with proper indentation
+		yaml.WriteString("      " + line + "\n")
+
+		// Check if this line starts a step with "- name:" or "- uses:"
+		trimmed := strings.TrimSpace(line)
+		isStepStart := strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
+
+		if isStepStart && !insertedRuntime {
+			// This is the start of a step, check if it's a checkout step
+			isCheckoutStep := false
+
+			// Look ahead to find "uses:" line with "checkout"
+			for j := i + 1; j < len(lines); j++ {
+				nextLine := lines[j]
+				nextTrimmed := strings.TrimSpace(nextLine)
+
+				// Stop if we hit the next step
+				if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+					break
+				}
+
+				// Check if this is a uses line with checkout
+				if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
+					isCheckoutStep = true
+					break
+				}
+			}
+
+			if isCheckoutStep {
+				// This is a checkout step, copy all its lines until the next step
+				i++
+				for i < len(lines) {
+					nextLine := lines[i]
+					nextTrimmed := strings.TrimSpace(nextLine)
+
+					// Stop if we hit the next step
+					if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+						break
+					}
+
+					// Add the line
+					if nextTrimmed == "" {
+						yaml.WriteString("\n")
+					} else {
+						yaml.WriteString("      " + nextLine + "\n")
+					}
+					i++
+				}
+
+				// Now insert runtime steps after the checkout step
+				compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
+				for _, step := range runtimeSetupSteps {
+					for _, stepLine := range step {
+						yaml.WriteString(stepLine + "\n")
+					}
+				}
+
+				// Also insert Serena language service steps if configured
+				serenaLanguageSteps := GenerateSerenaLanguageServiceSteps(tools)
+				if len(serenaLanguageSteps) > 0 {
+					compilerYamlLog.Printf("Inserting %d Serena language service steps after runtime setup", len(serenaLanguageSteps))
+					for _, step := range serenaLanguageSteps {
+						for _, stepLine := range step {
+							yaml.WriteString(stepLine + "\n")
+						}
+					}
+				}
+
+				insertedRuntime = true
+				continue // Continue with the next iteration (i is already advanced)
+			}
+		}
+
+		i++
+	}
+}
