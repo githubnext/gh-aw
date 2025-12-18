@@ -73,8 +73,10 @@ func getSafeOutputsDependencies() ([]string, error) {
 	return deps, nil
 }
 
-// getJavaScriptFileContent returns the bundled content for a JavaScript file by name.
-// It bundles the file with its local dependencies (inlining ./local.cjs requires).
+// getJavaScriptFileContent returns the content for a JavaScript file by name.
+// It transforms relative requires (./file.cjs) to absolute paths (/tmp/gh-aw/safeoutputs/file.cjs)
+// so that files can require each other from the filesystem.
+// Files are NOT inlined/bundled - they are written separately and require each other at runtime.
 func getJavaScriptFileContent(filename string) (string, error) {
 	// Get all sources
 	sources := GetJavaScriptSources()
@@ -85,15 +87,11 @@ func getJavaScriptFileContent(filename string) (string, error) {
 		return "", fmt.Errorf("JavaScript file not found: %s", filename)
 	}
 
-	// Bundle the content to inline local requires (e.g., ./get_base_branch.cjs)
-	// Use RuntimeModeNodeJS since these files run as Node.js scripts on the filesystem
-	bundled, err := BundleJavaScriptWithMode(content, sources, "", RuntimeModeNodeJS)
-	if err != nil {
-		mcpServersLog.Printf("Warning: failed to bundle %s: %v, using unbundled content", filename, err)
-		return content, nil
-	}
+	// Transform relative requires to absolute paths for /tmp/gh-aw/safeoutputs/
+	// This allows files to require each other at runtime from the filesystem
+	transformed := TransformRequiresToAbsolutePath(content, "/tmp/gh-aw/safeoutputs")
 
-	return bundled, nil
+	return transformed, nil
 }
 
 // hasMCPServers checks if the workflow has any MCP servers configured

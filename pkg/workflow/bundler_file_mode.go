@@ -284,6 +284,38 @@ func RewriteScriptForFileMode(content string, currentPath string) string {
 	})
 }
 
+// TransformRequiresToAbsolutePath rewrites all relative require statements in content
+// to use the specified absolute base path.
+//
+// This transforms:
+//
+//	const { helper } = require('./helper.cjs');
+//
+// Into:
+//
+//	const { helper } = require('/base/path/helper.cjs');
+//
+// Parameters:
+//   - content: The JavaScript content to transform
+//   - basePath: The absolute path to use for requires (e.g., "/tmp/gh-aw/safeoutputs")
+func TransformRequiresToAbsolutePath(content string, basePath string) string {
+	// Regular expression to match local require statements
+	requireRegex := regexp.MustCompile(`require\(['"](\.\.?/)([^'"]+)['"]\)`)
+
+	return requireRegex.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the path
+		submatches := requireRegex.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return match
+		}
+
+		requirePath := submatches[2]
+
+		// Return the rewritten require with the base path
+		return fmt.Sprintf("require('%s/%s')", basePath, requirePath)
+	})
+}
+
 // PrepareFilesForFileMode prepares all collected files for file mode by rewriting
 // their require statements to use absolute paths.
 func PrepareFilesForFileMode(files []ScriptFile) []ScriptFile {
