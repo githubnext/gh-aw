@@ -298,7 +298,7 @@ function createRenderStagedItem(config) {
   const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
 
   return function renderStagedItem(item, index) {
-    let content = `### ${entityName} Update ${index + 1}\n`;
+    let content = `#### ${entityName} Update ${index + 1}\n`;
     if (item[numberField]) {
       content += `**${targetLabel}** #${item[numberField]}\n\n`;
     } else {

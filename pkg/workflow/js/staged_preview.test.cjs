@@ -32,7 +32,7 @@ describe("staged_preview.cjs", () => {
           },
         ],
         renderItem: (item, index) => {
-          let content = `### Issue ${index + 1}\n`;
+          let content = `#### Issue ${index + 1}\n`;
           content += `**Title:** ${item.title || "No title provided"}\n\n`;
           if (item.body) {
             content += `**Body:**\n${item.body}\n\n`;
@@ -52,7 +52,7 @@ describe("staged_preview.cjs", () => {
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("## 🎭 Staged Mode: Create Issues Preview");
       expect(summaryContent).toContain("The following issues would be created if staged mode was disabled:");
-      expect(summaryContent).toContain("### Issue 1");
+      expect(summaryContent).toContain("#### Issue 1");
       expect(summaryContent).toContain("**Title:** Test Issue");
       expect(summaryContent).toContain("**Body:**\nTest body");
       expect(summaryContent).toContain("**Labels:** bug, enhancement");
@@ -73,7 +73,7 @@ describe("staged_preview.cjs", () => {
           { issue_number: 3, body: "New Body 3" },
         ],
         renderItem: (item, index) => {
-          let content = `### Issue Update ${index + 1}\n`;
+          let content = `#### Issue Update ${index + 1}\n`;
           if (item.issue_number) {
             content += `**Target Issue:** #${item.issue_number}\n\n`;
           }
@@ -94,14 +94,14 @@ describe("staged_preview.cjs", () => {
 
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("## 🎭 Staged Mode: Update Issues Preview");
-      expect(summaryContent).toContain("### Issue Update 1");
+      expect(summaryContent).toContain("#### Issue Update 1");
       expect(summaryContent).toContain("**Target Issue:** #1");
       expect(summaryContent).toContain("**New Title:** New Title 1");
       expect(summaryContent).toContain("**New Status:** open");
-      expect(summaryContent).toContain("### Issue Update 2");
+      expect(summaryContent).toContain("#### Issue Update 2");
       expect(summaryContent).toContain("**Target Issue:** #2");
       expect(summaryContent).toContain("**New Status:** closed");
-      expect(summaryContent).toContain("### Issue Update 3");
+      expect(summaryContent).toContain("#### Issue Update 3");
       expect(summaryContent).toContain("**New Body:**\nNew Body 3");
 
       // Check that all items are separated by dividers
@@ -163,7 +163,7 @@ describe("staged_preview.cjs", () => {
         ],
         renderItem: (item, index) => {
           const getRepositoryUrl = () => "https://github.com/test/repo";
-          let content = `### Review Comment ${index + 1}\n`;
+          let content = `#### Review Comment ${index + 1}\n`;
           if (item.pull_request_number) {
             const repoUrl = getRepositoryUrl();
             const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
@@ -186,14 +186,14 @@ describe("staged_preview.cjs", () => {
 
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("## 🎭 Staged Mode: Create PR Review Comments Preview");
-      expect(summaryContent).toContain("### Review Comment 1");
+      expect(summaryContent).toContain("#### Review Comment 1");
       expect(summaryContent).toContain("**Target PR:** [#123](https://github.com/test/repo/pull/123)");
       expect(summaryContent).toContain("**File:** src/main.js");
       expect(summaryContent).toContain("**Line:** 42");
       expect(summaryContent).toContain("**Start Line:** 40");
       expect(summaryContent).toContain("**Side:** RIGHT");
       expect(summaryContent).toContain("**Body:**\nThis needs improvement");
-      expect(summaryContent).toContain("### Review Comment 2");
+      expect(summaryContent).toContain("#### Review Comment 2");
       expect(summaryContent).toContain("**Target:** Current PR");
       expect(summaryContent).toContain("**File:** src/utils.js");
       expect(summaryContent).toContain("**Side:** LEFT");

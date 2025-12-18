@@ -38,6 +38,39 @@ Downloaded artifacts include:
 - agent-stdio.log: Agent standard output/error logs
 - aw.patch: Git patch of changes made during execution
 - workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
+- summary.json: Complete metrics and run data for all downloaded runs
+
+Campaign Orchestrator Usage:
+  In a campaign orchestrator workflow, use this command in a pre-step to download logs,
+  then access the data in subsequent steps without needing GitHub CLI access:
+
+    steps:
+      - name: Download logs from last 30 days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/portfolio-logs
+          gh aw logs <worker> --start-date -1mo -o /tmp/portfolio-logs
+
+  In your analysis step, reference the pre-downloaded data:
+    
+    **All workflow execution data has been pre-downloaded for you in the previous workflow step.**
+    
+    - **JSON Summary**: /tmp/portfolio-logs/summary.json - Contains all metrics and run data you need
+    - **Run Logs**: /tmp/portfolio-logs/run-{database-id}/ - Individual run logs (if needed for detailed analysis)
+    
+    **DO NOT call 'gh aw logs' or any GitHub CLI commands** - they will not work in your environment.
+    All data you need is in the summary.json file.
+
+  Live Tracking with Project Boards:
+    Use the summary.json data to update your campaign project board, treating issues/PRs (workers)
+    on the board as the real-time view of progress, ownership, and status. The orchestrator workflow
+    can use the 'update-project' safe output to sync status fields without modifying worker workflow
+    files. Workers remain unchanged while the campaign board reflects current execution state.
+    
+    For incremental updates, pull data for each worker based on the last pull time using --start-date
+    (e.g., --start-date -1d for daily updates) and align with existing board items. Compare run data
+    from summary.json with board status to update only changed workers, preserving board state.
 
 ` + WorkflowIDExplanation + `
 
@@ -123,6 +156,7 @@ Examples:
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			repoOverride, _ := cmd.Flags().GetString("repo")
 			campaignOnly, _ := cmd.Flags().GetBool("campaign")
+			summaryFile, _ := cmd.Flags().GetString("summary-file")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -150,7 +184,7 @@ Examples:
 				}
 			}
 
-			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly)
+			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
 		},
 	}
 
@@ -172,6 +206,7 @@ Examples:
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	addJSONFlag(logsCmd)
 	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
+	logsCmd.Flags().String("summary-file", "summary.json", "Path to write the summary JSON file relative to output directory (use empty string to disable)")
 	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
 
 	// Register completions for logs command

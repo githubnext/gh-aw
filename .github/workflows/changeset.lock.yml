@@ -8100,7 +8100,7 @@ jobs:
           };
           
           EOF_d0693c3b
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_1b5d3c1d'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8401,7 +8401,7 @@ jobs:
             const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
           
             return function renderStagedItem(item, index) {
-              let content = `### ${entityName} Update ${index + 1}\n`;
+              let content = `#### ${entityName} Update ${index + 1}\n`;
               if (item[numberField]) {
                 content += `**${targetLabel}** #${item[numberField]}\n\n`;
               } else {
@@ -8453,7 +8453,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_1b5d3c1d
+          EOF_006d32d7
       - name: Update Pull Request
         id: update_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_pull_request'))

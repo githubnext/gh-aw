@@ -259,7 +259,7 @@ const mockCore = {
           expect(mockCore.summary.write).toHaveBeenCalled());
         const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🎭 Staged Mode: Create Issues Preview"));
         (expect(infoCall).toBeDefined(),
-          expect(infoCall[0]).toContain("### Issue 1"),
+          expect(infoCall[0]).toContain("#### Issue 1"),
           expect(infoCall[0]).toContain("**Title:** Staged Issue Title"),
           expect(infoCall[0]).toContain("**Body:**"),
           expect(infoCall[0]).toContain("Staged issue body content"),
