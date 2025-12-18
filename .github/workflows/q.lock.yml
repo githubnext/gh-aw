@@ -1222,18 +1222,13 @@ jobs:
                 if (data.length === 0) {
                   break;
                 }
-                for (const comment of data) {
-                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
-                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
-                      continue;
-                    }
-                    comments.push({
-                      id: comment.id,
-                      node_id: comment.node_id,
-                      body: comment.body,
-                    });
-                  }
-                }
+                const filteredComments = data
+                  .filter(comment => 
+                    comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
+                    !comment.body.includes(`<!-- comment-type: reaction -->`)
+                  )
+                  .map(({ id, node_id, body }) => ({ id, node_id, body }));
+                comments.push(...filteredComments);
                 if (data.length < perPage) {
                   break;
                 }
@@ -1267,18 +1262,13 @@ jobs:
                 if (!result.repository?.discussion?.comments?.nodes) {
                   break;
                 }
-                const nodes = result.repository.discussion.comments.nodes;
-                for (const comment of nodes) {
-                  if (comment.body && comment.body.includes(`<!-- workflow-id: ${workflowId} -->`)) {
-                    if (comment.body.includes(`<!-- comment-type: reaction -->`)) {
-                      continue;
-                    }
-                    comments.push({
-                      id: comment.id,
-                      body: comment.body,
-                    });
-                  }
-                }
+                const filteredComments = result.repository.discussion.comments.nodes
+                  .filter(comment => 
+                    comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) &&
+                    !comment.body.includes(`<!-- comment-type: reaction -->`)
+                  )
+                  .map(({ id, body }) => ({ id, body }));
+                comments.push(...filteredComments);
                 if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
                   break;
                 }
@@ -1313,15 +1303,11 @@ jobs:
               core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
               let hiddenCount = 0;
               for (const comment of comments) {
-                try {
-                  const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
-                  core.info(`Hiding comment: ${nodeId}`);
-                  await minimizeComment(github, nodeId, normalizedReason);
-                  hiddenCount++;
-                  core.info(`✓ Hidden comment: ${nodeId}`);
-                } catch (error) {
-                  core.warning(`Failed to hide comment: ${error instanceof Error ? error.message : String(error)}`);
-                }
+                const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
+                core.info(`Hiding comment: ${nodeId}`);
+                const result = await minimizeComment(github, nodeId, normalizedReason);
+                hiddenCount++;
+                core.info(`✓ Hidden comment: ${nodeId}`);
               }
               core.info(`Successfully hidden ${hiddenCount} comment(s)`);
               return hiddenCount;
@@ -1344,11 +1330,8 @@ jobs:
               }
               const discussionId = repository.discussion.id;
               const discussionUrl = repository.discussion.url;
-              let result;
-              if (replyToId) {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+              const mutation = replyToId
+                ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
                     addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
                       comment { 
                         id 
@@ -1357,13 +1340,8 @@ jobs:
                         url
                       }
                     }
-                  }`,
-                  { dId: discussionId, body: message, replyToId }
-                );
-              } else {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!) {
+                  }`
+                : `mutation($dId: ID!, $body: String!) {
                     addDiscussionComment(input: { discussionId: $dId, body: $body }) {
                       comment { 
                         id 
@@ -1372,10 +1350,11 @@ jobs:
                         url
                       }
                     }
-                  }`,
-                  { dId: discussionId, body: message }
-                );
-              }
+                  }`;
+              const variables = replyToId
+                ? { dId: discussionId, body: message, replyToId }
+                : { dId: discussionId, body: message };
+              const result = await github.graphql(mutation, variables);
               const comment = result.addDiscussionComment.comment;
               return {
                 id: comment.id,
@@ -1411,15 +1390,18 @@ jobs:
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               const isDiscussion = isDiscussionContext || isDiscussionExplicit;
               const workflowId = process.env.GITHUB_WORKFLOW || "";
-              let allowedReasons = null;
-              if (process.env.GH_AW_ALLOWED_REASONS) {
-                try {
-                  allowedReasons = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
-                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
-                } catch (error) {
-                  core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
+              const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
+                      core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
+                      return parsed;
+                    } catch (error) {
+                      core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+                      return null;
+                    }
+                  })()
+                : null;
               if (hideOlderCommentsEnabled) {
                 core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
               }
@@ -1543,22 +1525,13 @@ jobs:
                 const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
                 const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
                 const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                let hasReferences = false;
-                let referencesSection = "\n\n#### Related Items\n\n";
-                if (createdIssueUrl && createdIssueNumber) {
-                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdDiscussionUrl && createdDiscussionNumber) {
-                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdPullRequestUrl && createdPullRequestNumber) {
-                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  hasReferences = true;
-                }
-                if (hasReferences) {
-                  body += referencesSection;
+                const references = [
+                  createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
+                  createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
+                  createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`
+                ].filter(Boolean);
+                if (references.length > 0) {
+                  body += `\n\n#### Related Items\n\n${references.join('\n')}\n`;
                 }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -1575,50 +1548,44 @@ jobs:
                 }
                 body += `\n\n<!-- comment-type: add-comment -->`;
                 body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
-                try {
-                  if (hideOlderCommentsEnabled && workflowId) {
-                    core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                    await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
+                if (hideOlderCommentsEnabled && workflowId) {
+                  core.info("Hide-older-comments is enabled, searching for previous comments to hide");
+                  await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
+                }
+                let comment;
+                if (commentEndpoint === "discussions") {
+                  core.info(`Creating comment on discussion #${itemNumber}`);
+                  core.info(`Comment content length: ${body.length}`);
+                  const replyToId = (context.eventName === "discussion_comment" && context.payload?.comment?.node_id)
+                    ? context.payload.comment.node_id
+                    : undefined;
+                  if (replyToId) {
+                    core.info(`Creating threaded reply to comment ${replyToId}`);
                   }
-                  let comment;
-                  if (commentEndpoint === "discussions") {
-                    core.info(`Creating comment on discussion #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    let replyToId;
-                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
-                      replyToId = context.payload.comment.node_id;
-                      core.info(`Creating threaded reply to comment ${replyToId}`);
-                    }
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: itemNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
+                  comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
+                  core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                  comment.discussion_url = comment.discussion_url;
+                } else {
+                  core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+                  core.info(`Comment content length: ${body.length}`);
+                  const { data: restComment } = await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: itemNumber,
+                    body: body,
+                  });
+                  comment = restComment;
+                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                }
+                createdComments.push(comment);
+                if (i === commentItems.length - 1) {
+                  core.setOutput("comment_id", comment.id);
+                  core.setOutput("comment_url", comment.html_url);
                 }
               }
               if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
+                const summaryContent = "\n\n## GitHub Comments\n" + 
+                  createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join('\n');
                 await core.summary.addRaw(summaryContent).write();
               }
               core.info(`Successfully created ${createdComments.length} comment(s)`);
@@ -3889,37 +3856,20 @@ jobs:
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
             const fs = require("fs"),
               substitutePlaceholders = async ({ file, substitutions }) => {
-                // Validate inputs
                 if (!file) throw new Error("file parameter is required");
                 if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                // Read the file content
                 let content;
                 try {
                   content = fs.readFileSync(file, "utf8");
                 } catch (error) {
                   throw new Error(`Failed to read file ${file}: ${error.message}`);
                 }
-                // Perform substitutions
-                // Each placeholder is in the format __VARIABLE_NAME__
-                // We replace it with the corresponding value from the substitutions object
                 for (const [key, value] of Object.entries(substitutions)) {
                   const placeholder = `__${key}__`;
-                  // Use a simple string replacement - no regex to avoid any potential issues
-                  // with special characters in the value
                   content = content.split(placeholder).join(value);
                 }
-                // Write the updated content back to the file
                 try {
                   fs.writeFileSync(file, content, "utf8");
                 } catch (error) {
@@ -4090,37 +4040,20 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
-            /**
-             * @fileoverview Safe template placeholder substitution for GitHub Actions workflows.
-             * Replaces __VAR__ placeholders in a file with environment variable values without
-             * allowing shell expansion, preventing template injection attacks.
-             *
-             * @param {object} params - The parameters object
-             * @param {string} params.file - Path to the file to process
-             * @param {object} params.substitutions - Map of placeholder names to values (without __ prefix/suffix)
-             */
             const fs = require("fs"),
               substitutePlaceholders = async ({ file, substitutions }) => {
-                // Validate inputs
                 if (!file) throw new Error("file parameter is required");
                 if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                // Read the file content
                 let content;
                 try {
                   content = fs.readFileSync(file, "utf8");
                 } catch (error) {
                   throw new Error(`Failed to read file ${file}: ${error.message}`);
                 }
-                // Perform substitutions
-                // Each placeholder is in the format __VARIABLE_NAME__
-                // We replace it with the corresponding value from the substitutions object
                 for (const [key, value] of Object.entries(substitutions)) {
                   const placeholder = `__${key}__`;
-                  // Use a simple string replacement - no regex to avoid any potential issues
-                  // with special characters in the value
                   content = content.split(placeholder).join(value);
                 }
-                // Write the updated content back to the file
                 try {
                   fs.writeFileSync(file, content, "utf8");
                 } catch (error) {
