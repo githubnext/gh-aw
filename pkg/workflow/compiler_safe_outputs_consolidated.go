@@ -554,8 +554,8 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 // buildDetectionSuccessCondition builds the condition to check if detection passed
 func buildDetectionSuccessCondition() ConditionNode {
 	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.detected", constants.DetectionJobName)),
-		BuildStringLiteral("false"),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		BuildStringLiteral("true"),
 	)
 }
 

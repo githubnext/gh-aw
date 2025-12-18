@@ -45,10 +45,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		return fmt.Errorf("failed to build consolidated safe outputs job: %w", err)
 	}
 	if consolidatedJob != nil {
-		// Add threat detection dependency if enabled
-		if threatDetectionEnabled {
-			consolidatedJob.Needs = append(consolidatedJob.Needs, constants.DetectionJobName)
-		}
 		if err := c.jobManager.AddJob(consolidatedJob); err != nil {
 			return fmt.Errorf("failed to add consolidated safe outputs job: %w", err)
 		}
