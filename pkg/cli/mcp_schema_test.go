@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
+
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 func TestGenerateOutputSchema(t *testing.T) {
@@ -200,6 +204,165 @@ func TestGenerateOutputSchema(t *testing.T) {
 			if _, ok := schema.Properties[prop]; !ok {
 				t.Errorf("Expected '%s' property to be defined", prop)
 			}
+		}
+	})
+}
+
+func TestGeneratedSchemasValidateRealOutput(t *testing.T) {
+	t.Run("validates LogsData schema against real data", func(t *testing.T) {
+		// Generate schema for LogsData
+		schema, err := GenerateOutputSchema[LogsData]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		// Resolve the schema to prepare it for validation
+		resolved, err := schema.Resolve(&jsonschema.ResolveOptions{})
+		if err != nil {
+			t.Fatalf("Schema.Resolve failed: %v", err)
+		}
+
+		// Create realistic test data
+		data := LogsData{
+			Summary: LogsSummary{
+				TotalRuns:     5,
+				TotalDuration: "10m30s",
+				TotalTokens:   15000,
+				TotalCost:     0.45,
+				TotalTurns:    25,
+			},
+			Runs: []RunData{
+				{
+					DatabaseID:    123456,
+					Number:        1,
+					WorkflowName:  "test-workflow",
+					Agent:         "copilot",
+					Status:        "completed",
+					Conclusion:    "success",
+					Duration:      "2m5s",
+					TokenUsage:    3000,
+					EstimatedCost: 0.09,
+					Turns:         5,
+				},
+			},
+			LogsLocation: "/path/to/logs",
+		}
+
+		// Marshal to JSON and then to map[string]any for validation
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			t.Fatalf("json.Marshal failed: %v", err)
+		}
+
+		var jsonValue map[string]any
+		if err := json.Unmarshal(jsonBytes, &jsonValue); err != nil {
+			t.Fatalf("json.Unmarshal failed: %v", err)
+		}
+
+		// Validate the data against the schema
+		err = resolved.Validate(jsonValue)
+		if err != nil {
+			t.Errorf("Schema should validate real LogsData output: %v", err)
+		}
+	})
+
+	t.Run("validates AuditData schema against real data", func(t *testing.T) {
+		// Generate schema for AuditData
+		schema, err := GenerateOutputSchema[AuditData]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		// Resolve the schema to prepare it for validation
+		resolved, err := schema.Resolve(&jsonschema.ResolveOptions{})
+		if err != nil {
+			t.Fatalf("Schema.Resolve failed: %v", err)
+		}
+
+		// Create realistic test data
+		data := AuditData{
+			Overview: OverviewData{
+				RunID:        789012,
+				WorkflowName: "audit-workflow",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Now(),
+			},
+			Metrics: MetricsData{
+				TokenUsage:    5000,
+				EstimatedCost: 0.15,
+				Turns:         10,
+				ErrorCount:    0,
+				WarningCount:  2,
+			},
+			DownloadedFiles: []FileInfo{
+				{
+					Path:        "/tmp/test.log",
+					Size:        1024,
+					Description: "Test log file",
+				},
+			},
+		}
+
+		// Marshal to JSON and then to map[string]any for validation
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			t.Fatalf("json.Marshal failed: %v", err)
+		}
+
+		var jsonValue map[string]any
+		if err := json.Unmarshal(jsonBytes, &jsonValue); err != nil {
+			t.Fatalf("json.Unmarshal failed: %v", err)
+		}
+
+		// Validate the data against the schema
+		err = resolved.Validate(jsonValue)
+		if err != nil {
+			t.Errorf("Schema should validate real AuditData output: %v", err)
+		}
+	})
+
+	t.Run("validates WorkflowStatus schema against real data", func(t *testing.T) {
+		// Generate schema for WorkflowStatus
+		schema, err := GenerateOutputSchema[WorkflowStatus]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		// Resolve the schema to prepare it for validation
+		resolved, err := schema.Resolve(&jsonschema.ResolveOptions{})
+		if err != nil {
+			t.Fatalf("Schema.Resolve failed: %v", err)
+		}
+
+		// Create realistic test data
+		data := WorkflowStatus{
+			Workflow:      "status-workflow",
+			EngineID:      "copilot",
+			Compiled:      "true",
+			Status:        "active",
+			TimeRemaining: "5m30s",
+			Labels:        []string{"production", "automated"},
+			On:            "push",
+			RunStatus:     "completed",
+			RunConclusion: "success",
+		}
+
+		// Marshal to JSON and then to map[string]any for validation
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			t.Fatalf("json.Marshal failed: %v", err)
+		}
+
+		var jsonValue map[string]any
+		if err := json.Unmarshal(jsonBytes, &jsonValue); err != nil {
+			t.Fatalf("json.Unmarshal failed: %v", err)
+		}
+
+		// Validate the data against the schema
+		err = resolved.Validate(jsonValue)
+		if err != nil {
+			t.Errorf("Schema should validate real WorkflowStatus output: %v", err)
 		}
 	})
 }
