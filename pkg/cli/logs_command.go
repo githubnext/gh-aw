@@ -16,12 +16,9 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
-
-var logsLog = logger.New("cli:logs")
 
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
