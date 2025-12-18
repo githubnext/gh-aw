@@ -19,8 +19,7 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 				CompletionGuidance: true,
 			},
 			shouldContain: []string{
-				"campaign orchestrator",
-				"Summarize campaign status",
+				"generate a concise status report",
 				"campaign is complete",
 				"normal terminal state",
 				"Do not report closed issues as blockers",
@@ -36,8 +35,7 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 				CompletionGuidance: false,
 			},
 			shouldContain: []string{
-				"campaign orchestrator",
-				"Summarize campaign status",
+				"generate a concise status report",
 				"highlight blockers",
 			},
 			shouldNotContain: []string{
@@ -52,8 +50,7 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 				CompletionGuidance: true,
 			},
 			shouldContain: []string{
-				"campaign orchestrator",
-				"Summarize campaign status",
+				"generate a concise status report",
 				"highlight blockers",
 				"campaign is complete",
 				"Do not report closed issues as blockers",
@@ -67,8 +64,7 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 				CompletionGuidance: false,
 			},
 			shouldContain: []string{
-				"campaign orchestrator",
-				"Summarize campaign status",
+				"generate a concise status report",
 			},
 			shouldNotContain: []string{
 				"highlight blockers",
