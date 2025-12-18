@@ -23,10 +23,8 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[file-diet] "
-    labels: [refactoring, code-health, automated-analysis, "campaign:go-file-size-reduction"]
+    labels: [refactoring, code-health, automated-analysis]
     max: 1
-  update-project:
-    max: 10
 
 tools:
   serena: ["go"]
@@ -63,12 +61,6 @@ Analyze the Go codebase daily to identify the largest source file and determine 
 - **Repository**: ${{ github.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 - **Workspace**: ${{ github.workspace }}
-
-## Campaign Context
-
-- **Campaign ID**: `go-file-size-reduction`
-- **Campaign Label**: `campaign:go-file-size-reduction`
-- **Memory Path Prefix**: `memory/campaigns/go-file-size-reduction-*/**`
 
 ## Analysis Process
 
@@ -245,35 +237,17 @@ To support enterprise reporting and visual trends for the
 `go-file-size-reduction` campaign:
 
 1. **Write a campaign metrics snapshot** to repo-memory on each run using
-   the `repo-memory` tool. Follow the `CampaignMetricsSnapshot` schema
-   used by the campaign system:
+   the `repo-memory` tool. Follow a simplified metrics schema:
 
    - `date`: analysis date (YYYY-MM-DD)
-   - `campaign_id`: `"go-file-size-reduction"`
-   - `tasks_total`: total number of refactor issues for this campaign
-     (open + closed) labeled `campaign:go-file-size-reduction`
-   - `tasks_completed`: number of closed refactor issues labeled
-     `campaign:go-file-size-reduction`
-   - `tasks_in_progress`: number of open refactor issues labeled
-     `campaign:go-file-size-reduction`
-   - `tasks_blocked`: number of campaign issues marked as blocked (for
-     example, with a `status:blocked` label, if present)
-   - `velocity_per_day`: approximate completion velocity based on recent
-     history (you can estimate this from the last 7–14 days of
-     completions)
-   - `estimated_completion`: optional human-readable ETA string
-
-   Also include additional file-diet specific fields in the same JSON
-   document:
-
    - `largest_file_path`: path of the largest file analyzed
    - `largest_file_loc`: line count of the largest file
-  - `files_over_threshold`: count of files over the 800-line threshold
+   - `files_over_threshold`: count of files over the 800-line threshold
+   - `issue_created`: boolean indicating if an issue was created this run
 
-   Store this snapshot under the campaign metrics path so it matches the
-   campaign spec `metrics-glob`:
+   Store this snapshot under the metrics path:
 
-  - `memory/campaigns/go-file-size-reduction-${{ github.run_id }}/metrics/<DATE>.json`
+   - `memory/campaigns/go-file-size-reduction-${{ github.run_id }}/metrics/<DATE>.json`
 
 2. **Aggregate historical snapshots** from repo-memory when generating a
    report:
@@ -281,8 +255,7 @@ To support enterprise reporting and visual trends for the
    - Read all existing JSON snapshots matching
      `memory/campaigns/go-file-size-reduction-*/metrics/*.json`.
    - Build a time-series table keyed by `date` with columns like:
-     `largest_file_loc`, `files_over_threshold`, `tasks_total`,
-     `tasks_completed`, `velocity_per_day`.
+     `largest_file_loc`, `files_over_threshold`, `issue_created`.
 
 3. **Generate trend charts using Python data viz** (provided via the
    `shared/trends.md` / `shared/python-dataviz.md` imports):
@@ -318,42 +291,6 @@ To support enterprise reporting and visual trends for the
    - When no issue is created (all files healthy), you may still update
      the metrics snapshot and generate charts so artifacts remain
      up-to-date for campaign-level intelligence workflows.
-
-## Project Board Integration
-
-Enterprises expect every campaign to have a GitHub Projects board as
-its primary dashboard. Use the `update-project` safe output to keep the
-board in sync with refactor issues:
-
-1. **Choose the board**:
-
-   - Prefer an organization or repository project named
-     `Code Health: Go File Size Reduction`.
-   - If it does not exist, humans should create the board once and
-     re-run the workflow. (Optional: with an elevated token and an
-     explicit opt-in like `create_if_missing: true`, the `update-project`
-     safe output can create it.)
-
-2. **Add each refactor issue to the board** when you create it:
-
-   - Call `update-project` with:
-     - `project`: the board name or URL (for example,
-       `"Code Health: Go File Size Reduction"`).
-     - `content_number`: the GitHub issue number of the refactor task
-       you just created.
-     - `content_type`: `"issue"`.
-     - `campaign_id`: `"go-file-size-reduction"` so the tooling can
-       apply consistent campaign metadata.
-   - Let the smart project updater handle adding the issue to the board
-     and avoiding duplicates.
-
-3. **Set fields or status columns** (if the board defines them):
-
-   - When supported by the project, use `fields` in the `update-project`
-     payload to set values like status (for example, `Todo`), priority,
-     or team ownership.
-   - Keep field usage simple and aligned with how your teams already
-     use project boards.
 
 ## Important Guidelines
 
