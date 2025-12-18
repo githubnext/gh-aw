@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -43,35 +41,4 @@ func (c *Compiler) parseAssignMilestoneConfig(outputMap map[string]any) *AssignM
 
 	assignMilestoneLog.Print("No assign-milestone configuration found")
 	return nil
-}
-
-// buildAssignMilestoneJob creates the assign_milestone job
-func (c *Compiler) buildAssignMilestoneJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	assignMilestoneLog.Printf("Building assign-milestone job: mainJobName=%s", mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.AssignMilestone == nil {
-		assignMilestoneLog.Print("No assign-milestone configuration in safe-outputs")
-		return nil, fmt.Errorf("safe-outputs.assign-milestone configuration is required")
-	}
-
-	cfg := data.SafeOutputs.AssignMilestone
-
-	// Build list job config
-	listJobConfig := ListJobConfig{
-		SafeOutputTargetConfig: cfg.SafeOutputTargetConfig,
-		Allowed:                cfg.Allowed,
-	}
-	assignMilestoneLog.Printf("Built list job config: allowed_count=%d", len(listJobConfig.Allowed))
-
-	// Use shared builder for list-based safe-output jobs
-	return c.BuildListSafeOutputJob(data, mainJobName, listJobConfig, cfg.BaseSafeOutputConfig, ListJobBuilderConfig{
-		JobName:     "assign_milestone",
-		StepName:    "Assign Milestone",
-		StepID:      "assign_milestone",
-		EnvPrefix:   "GH_AW_MILESTONE",
-		OutputName:  "assigned_milestones",
-		Script:      getAssignMilestoneScript(),
-		Permissions: NewPermissionsContentsReadIssuesWrite(),
-		DefaultMax:  1,
-	})
 }

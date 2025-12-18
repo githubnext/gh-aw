@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -85,66 +83,6 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 
 	logger.Printf("No configuration found for %s", params.ConfigKey)
 	return nil
-}
-
-// buildCloseEntityJob is a generic function to build close entity jobs
-func (c *Compiler) buildCloseEntityJob(data *WorkflowData, mainJobName string, config *CloseEntityConfig, params CloseEntityJobParams, logger *logger.Logger) (*Job, error) {
-	logger.Printf("Building %s job for workflow: %s", params.JobName, data.Name)
-
-	if config == nil {
-		return nil, fmt.Errorf("safe-outputs.%s configuration is required", params.ConfigKey)
-	}
-
-	// Build custom environment variables specific to this close entity
-	closeJobConfig := CloseJobConfig{
-		SafeOutputTargetConfig: config.SafeOutputTargetConfig,
-		SafeOutputFilterConfig: config.SafeOutputFilterConfig,
-	}
-	customEnvVars := BuildCloseJobEnvVars(params.EnvVarPrefix, closeJobConfig)
-
-	// Add required-category env var for discussions
-	if params.EntityType == CloseEntityDiscussion {
-		customEnvVars = append(customEnvVars, BuildRequiredCategoryEnvVar(params.EnvVarPrefix+"_REQUIRED_CATEGORY", config.RequiredCategory)...)
-	}
-
-	logger.Printf("Configured %d custom environment variables for %s close", len(customEnvVars), params.EntityType)
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, config.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		params.OutputNumberKey: fmt.Sprintf("${{ steps.%s.outputs.%s }}", params.JobName, params.OutputNumberKey),
-		params.OutputURLKey:    fmt.Sprintf("${{ steps.%s.outputs.%s }}", params.JobName, params.OutputURLKey),
-		"comment_url":          fmt.Sprintf("${{ steps.%s.outputs.comment_url }}", params.JobName),
-	}
-
-	// Build job condition with event check only for "triggering" target
-	// If target is "*" (any entity) or explicitly set, allow agent to provide the entity number
-	jobCondition := BuildSafeOutputType(params.JobName)
-	if config.Target == "" || config.Target == "triggering" {
-		// Only require event context for "triggering" target
-		eventCondition := BuildOr(
-			BuildPropertyAccess(params.EventNumberPath1),
-			BuildPropertyAccess(params.EventNumberPath2),
-		)
-		jobCondition = BuildAnd(jobCondition, eventCondition)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        params.JobName,
-		StepName:       params.StepName,
-		StepID:         params.JobName,
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         params.ScriptGetter(),
-		Permissions:    params.PermissionsFunc(),
-		Outputs:        outputs,
-		Condition:      jobCondition,
-		Token:          config.GitHubToken,
-		TargetRepoSlug: config.TargetRepoSlug,
-	})
 }
 
 // closeEntityDefinition holds all parameters for a close entity type
@@ -242,61 +180,4 @@ func (c *Compiler) parseCloseDiscussionsConfig(outputMap map[string]any) *CloseD
 		ConfigKey:  def.ConfigKey,
 	}
 	return c.parseCloseEntityConfig(outputMap, params, def.Logger)
-}
-
-// buildCreateOutputCloseIssueJob creates the close_issue job
-func (c *Compiler) buildCreateOutputCloseIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	def := closeEntityRegistry[0] // issue
-	params := CloseEntityJobParams{
-		EntityType:       def.EntityType,
-		ConfigKey:        def.ConfigKey,
-		EnvVarPrefix:     def.EnvVarPrefix,
-		JobName:          def.JobName,
-		StepName:         def.StepName,
-		OutputNumberKey:  def.OutputNumberKey,
-		OutputURLKey:     def.OutputURLKey,
-		EventNumberPath1: def.EventNumberPath1,
-		EventNumberPath2: def.EventNumberPath2,
-		ScriptGetter:     def.ScriptGetter,
-		PermissionsFunc:  def.PermissionsFunc,
-	}
-	return c.buildCloseEntityJob(data, mainJobName, data.SafeOutputs.CloseIssues, params, def.Logger)
-}
-
-// buildCreateOutputClosePullRequestJob creates the close_pull_request job
-func (c *Compiler) buildCreateOutputClosePullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	def := closeEntityRegistry[1] // pull request
-	params := CloseEntityJobParams{
-		EntityType:       def.EntityType,
-		ConfigKey:        def.ConfigKey,
-		EnvVarPrefix:     def.EnvVarPrefix,
-		JobName:          def.JobName,
-		StepName:         def.StepName,
-		OutputNumberKey:  def.OutputNumberKey,
-		OutputURLKey:     def.OutputURLKey,
-		EventNumberPath1: def.EventNumberPath1,
-		EventNumberPath2: def.EventNumberPath2,
-		ScriptGetter:     def.ScriptGetter,
-		PermissionsFunc:  def.PermissionsFunc,
-	}
-	return c.buildCloseEntityJob(data, mainJobName, data.SafeOutputs.ClosePullRequests, params, def.Logger)
-}
-
-// buildCreateOutputCloseDiscussionJob creates the close_discussion job
-func (c *Compiler) buildCreateOutputCloseDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	def := closeEntityRegistry[2] // discussion
-	params := CloseEntityJobParams{
-		EntityType:       def.EntityType,
-		ConfigKey:        def.ConfigKey,
-		EnvVarPrefix:     def.EnvVarPrefix,
-		JobName:          def.JobName,
-		StepName:         def.StepName,
-		OutputNumberKey:  def.OutputNumberKey,
-		OutputURLKey:     def.OutputURLKey,
-		EventNumberPath1: def.EventNumberPath1,
-		EventNumberPath2: def.EventNumberPath2,
-		ScriptGetter:     def.ScriptGetter,
-		PermissionsFunc:  def.PermissionsFunc,
-	}
-	return c.buildCloseEntityJob(data, mainJobName, data.SafeOutputs.CloseDiscussions, params, def.Logger)
 }

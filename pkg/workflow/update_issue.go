@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -14,44 +12,6 @@ type UpdateIssuesConfig struct {
 	Status             *bool `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
 	Title              *bool `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
 	Body               *bool `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
-}
-
-// buildCreateOutputUpdateIssueJob creates the update_issue job
-func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.UpdateIssues == nil {
-		return nil, fmt.Errorf("safe-outputs.update-issue configuration is required")
-	}
-
-	cfg := data.SafeOutputs.UpdateIssues
-
-	return c.buildStandardUpdateEntityJob(
-		data,
-		mainJobName,
-		&cfg.UpdateEntityConfig,
-		UpdateEntityIssue,
-		"update-issue",
-		"update_issue",
-		"Update Issue",
-		getUpdateIssueScript,
-		NewPermissionsContentsReadIssuesWrite,
-		func(config *UpdateEntityConfig) []string {
-			return []string{
-				fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", cfg.Status != nil),
-				fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", cfg.Title != nil),
-				fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", cfg.Body != nil),
-			}
-		},
-		func() map[string]string {
-			return map[string]string{
-				"issue_number": "${{ steps.update_issue.outputs.issue_number }}",
-				"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
-			}
-		},
-		func(target string) ConditionNode {
-			return BuildPropertyAccess("github.event.issue.number")
-		},
-		updateIssueLog,
-	)
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration
