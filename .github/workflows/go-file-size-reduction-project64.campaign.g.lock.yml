@@ -25,7 +25,6 @@ name: "Go File Size Reduction Campaign (Project 64)"
 "on":
   schedule:
   - cron: "0 18 * * *"
-    # Friendly format: daily (scattered)
   workflow_dispatch: null
 
 permissions: {}

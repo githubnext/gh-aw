@@ -116,7 +116,7 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		const maxSize = 500 * 1024
 		workflowName := stats.Workflow
 		fileSize := console.FormatFileSize(stats.FileSize)
-		
+
 		if stats.FileSize > maxSize {
 			// Apply red color and error icon for large workflows
 			if tty.IsStderrTerminal() {
@@ -127,7 +127,7 @@ func displayStatsTable(statsList []*WorkflowStats) {
 				workflowName = "✗ " + stats.Workflow
 			}
 		}
-		
+
 		rows = append(rows, []string{
 			workflowName,
 			fileSize,
