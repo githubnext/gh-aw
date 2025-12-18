@@ -71,8 +71,7 @@ Run ID: ${{ github.run_id }}
 		t.Error("Compiled workflow should contain GH_AW_* environment variables")
 	}
 
-	// Verify the original expressions appear in the comment header (Original Prompt section)
-	// but NOT in the actual prompt heredoc content
+	// Verify the original expressions have been replaced in the prompt heredoc content
 	// Find the heredoc section by looking for the "cat " line
 	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"")
 	if heredocStart == -1 {
@@ -88,15 +87,6 @@ Run ID: ${{ github.run_id }}
 			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
 				t.Error("Original GitHub expressions should be replaced with environment variable references in the prompt heredoc")
 			}
-		}
-	}
-
-	// Verify the original expressions DO appear in the comment header (this is expected)
-	commentSectionEnd := strings.Index(compiledStr, "\nname:")
-	if commentSectionEnd > 0 {
-		commentSection := compiledStr[:commentSectionEnd]
-		if !strings.Contains(commentSection, "Repository: ${{ github.repository }}") {
-			t.Error("Original GitHub expressions should appear in the Original Prompt comment section")
 		}
 	}
 

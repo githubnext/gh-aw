@@ -20,28 +20,6 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
 #
-# Original Frontmatter:
-# ```yaml
-# timeout-minutes: 10
-# strict: true
-# on:
-#   schedule: daily
-#   workflow_dispatch:
-# permissions:
-#   issues: read
-#   pull-requests: read
-#   contents: read
-# engine: copilot
-# tools:
-#   github:
-#     toolsets: [issues, pull_requests, repos]
-# safe-outputs:
-#   assign-to-user:
-#     target: "*"
-#   add-comment:
-#     target: "*"
-# ```
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -62,28 +40,6 @@
 #   detection --> add_comment
 #   detection --> assign_to_user
 #   detection --> conclusion
-# ```
-#
-# Original Prompt:
-# ```markdown
-# {{#runtime-import? .github/shared-instructions.md}}
-#
-# # Auto-Assign Issue
-#
-# Find ONE open issue that:
-# - Has no assignees
-# - Does not have label `ai-generated`
-# - Was not opened by `github-actions` or any bot
-#
-# Pick the oldest unassigned issue.
-#
-# Then list the 5 most recent contributors from merged PRs. Pick one who seems relevant based on the issue type.
-#
-# If you find a match:
-# 1. Use `assign-to-user` to assign the issue
-# 2. Use `add-comment` with a short explanation (1-2 sentences)
-#
-# If no unassigned issue exists, exit successfully without taking action.
 # ```
 #
 # Pinned GitHub Actions:
