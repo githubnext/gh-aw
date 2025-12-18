@@ -4600,6 +4600,7 @@ jobs:
           3. **Flag interesting activity** - Highlight noteworthy discoveries, improvements, or anomalies
           4. **Detect suspicious patterns** - Identify potential security concerns or concerning behaviors
           5. **Surface exciting developments** - Celebrate wins, improvements, and positive trends
+          6. **Extract actionable tasks** - Identify exactly 3 specific, high-impact tasks that can be assigned to agents for quick wins
           
           ## Data Sources
           
@@ -4717,6 +4718,38 @@ jobs:
           2. Identify agents that may be experiencing issues
           3. Find patterns that span multiple report types
           4. Track how identified patterns evolve over time
+          5. **Identify improvement opportunities** - Look for:
+             - Duplicate or inefficient patterns that can be consolidated
+             - Missing configurations (caching, error handling, documentation)
+             - High token usage in workflows that could be optimized
+             - Repetitive manual tasks that can be automated
+             - Issues or discussions that need attention (labeling, triage, responses)
+          
+          ### Step 3.5: Extract Actionable Agentic Tasks
+          
+          **CRITICAL**: Based on your analysis, identify exactly **3 actionable tasks** (quick wins):
+          
+          1. **Prioritize by impact and effort**: Look for high-impact, low-effort improvements
+          2. **Be specific**: Tasks should be concrete with clear success criteria
+          3. **Consider agent capabilities**: Tasks should be suitable for AI agent execution
+          4. **Base on data**: Use insights from discussions, workflows, and issues
+          5. **Focus on quick wins**: Tasks that can be completed quickly (< 4 hours of agent time)
+          
+          **Common quick win categories:**
+          - **Code/Configuration improvements**: Consolidate patterns, add missing configs, optimize settings
+          - **Documentation gaps**: Add or update missing documentation
+          - **Issue/Discussion triage**: Label, organize, or respond to backlog items
+          - **Workflow optimization**: Reduce token usage, improve caching, fix inefficiencies
+          - **Cleanup tasks**: Remove duplicates, archive stale items, organize files
+          
+          **Output format for each task:**
+          ```
+          Task 1: [Clear title]
+          - Description: [What needs to be done and why]
+          - Expected Impact: [Measurable benefit]
+          - Suggested Agent: [Which agent can do this]
+          - Estimated Effort: [Quick/Medium/Fast]
+          ```
           
           ### Step 4: Store Insights in Repo Memory
           
@@ -4766,6 +4799,12 @@ jobs:
           
           Highlight items that stand out from the normal:
           - **Exciting discoveries** - Major improvements, breakthroughs, positive developments
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - **Suspicious activity** - Unusual patterns that warrant investigation
           - **Anomalies** - Significant deviations from expected behavior
           
@@ -4776,6 +4815,31 @@ jobs:
           - Recommendations for workflow improvements
           - Suggestions for new agents or capabilities
           - Areas that need more monitoring
+          
+          ### ✅ Actionable Agentic Tasks (Quick Wins)
+          
+          **IMPORTANT**: Extract exactly **3 actionable tasks** that could be immediately assigned to an AI agent to improve the project. Focus on **quick wins** - tasks that are:
+          - **Specific and well-defined** - Clear scope with measurable outcome
+          - **Achievable by an agent** - Can be automated or assisted by AI
+          - **High impact, low effort** - Maximum benefit with minimal implementation time
+          - **Data-driven** - Based on patterns and insights from this analysis
+          - **Independent** - Can be completed without blocking dependencies
+          
+          For each task, provide:
+          1. **Task Title** - Clear, action-oriented name (e.g., "Reduce token usage in daily-news workflow")
+          2. **Description** - 2-3 sentences explaining what needs to be done and why
+          3. **Expected Impact** - What improvement or benefit this will deliver
+          4. **Suggested Agent** - Which existing agent could handle this, or suggest "New Agent" if needed
+          5. **Estimated Effort** - Quick (< 1 hour), Medium (1-4 hours), or Fast (< 30 min)
+          
+          **If no actionable tasks are identified** (the project is in excellent shape), explicitly state: "No actionable tasks identified - the project is operating optimally."
+          
+          **Examples of good actionable tasks:**
+          - "Consolidate duplicate error handling patterns in 5 workflow files"
+          - "Add missing cache configuration to 3 high-frequency workflows"
+          - "Create automated labels for 10 unlabeled issues based on content analysis"
+          - "Optimize token usage in verbose agent prompts (identified 4 candidates)"
+          - "Add missing documentation for 2 frequently-used MCP tools"
           
           ### 📚 Source Attribution
           
