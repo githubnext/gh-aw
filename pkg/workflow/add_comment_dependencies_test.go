@@ -110,7 +110,7 @@ func TestAddCommentJobDependencies(t *testing.T) {
 				tt.createPullRequestJobName,
 			)
 			if err != nil {
-				t.Fatalf("Failed to build add_comment job: %v", err)
+				t.Fatalf("Failed to build safe_outputs job: %v", err)
 			}
 
 			// Check job dependencies (needs)

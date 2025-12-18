@@ -77,7 +77,7 @@ This workflow tests how patches are generated automatically.
 	}
 
 	// Verify the workflow has both main job and create_pull_request job
-	if !strings.Contains(lockStr, "create_pull_request:") {
+	if !strings.Contains(lockStr, "safe_outputs:") {
 		t.Error("Expected create_pull_request job to be generated")
 	}
 

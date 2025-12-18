@@ -399,17 +399,13 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### 10. Create Go Job Builder (`pkg/workflow/your_new_type.go`)
+### 10. Create Go Step Config Builder (`pkg/workflow/compiler_safe_outputs_consolidated.go`)
 
-Use `buildSafeOutputJob()` helper and shared config types:
+Create a step config builder function that will be called from `buildConsolidatedSafeOutputsJob()`. All safe outputs now run as steps within a single consolidated job instead of individual jobs.
+
+**Step 1: Add Config Type** (if not already defined in `pkg/workflow/frontmatter_types.go` or `pkg/workflow/safe_output_builder.go`):
 
 ```go
-package workflow
-
-import (
-	"fmt"
-)
-
 // YourNewTypeConfig holds configuration for your new type from agent output
 // Embed shared config types for common fields to reduce duplication
 type YourNewTypeConfig struct {
@@ -418,67 +414,51 @@ type YourNewTypeConfig struct {
 	CustomOption           string           `yaml:"custom-option,omitempty"`  // Custom configuration option
 	AnotherOption          *bool            `yaml:"another-option,omitempty"` // Another optional configuration
 }
+```
 
-// buildCreateOutputYourNewTypeJob creates the your_new_type job using the shared builder
-func (c *Compiler) buildCreateOutputYourNewTypeJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.YourNewType == nil {
-		return nil, fmt.Errorf("safe-outputs.your-new-type configuration is required")
-	}
+**Step 2: Add Step Config Builder** in `pkg/workflow/compiler_safe_outputs_consolidated.go`:
 
-	config := data.SafeOutputs.YourNewType
+```go
+// buildYourNewTypeStepConfig creates the step configuration for your_new_type
+func (c *Compiler) buildYourNewTypeStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.YourNewType
 
 	// Build custom environment variables specific to your-new-type
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	
 	// Add your custom configuration options as environment variables
-	if config.CustomOption != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", config.CustomOption))
+	if cfg.CustomOption != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", cfg.CustomOption))
 	}
 	
-	if config.AnotherOption != nil && *config.AnotherOption {
+	if cfg.AnotherOption != nil && *cfg.AnotherOption {
 		customEnvVars = append(customEnvVars, "          GH_AW_ANOTHER_OPTION: \"true\"\n")
 	}
 
 	// Use shared env var builders for common fields
-	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_YOUR_NEW_TYPE_TARGET", config.Target)...)
-	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_YOUR_NEW_TYPE_MAX_COUNT", config.Max)...)
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_YOUR_NEW_TYPE_TARGET", cfg.Target)...)
+	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_YOUR_NEW_TYPE_MAX_COUNT", cfg.Max)...)
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		config.TargetRepoSlug,
-	)...)
+	// Add standard safe output environment variables
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
-	// Get token from config
-	var token string
-	if config.GitHubToken != "" {
-		token = config.GitHubToken
+	// Build step condition - step only runs when there are your_new_type items in the JSONL
+	condition := BuildSafeOutputType("your_new_type")
+
+	return SafeOutputStepConfig{
+		StepName:      "Execute Your New Type",
+		StepID:        "your_new_type",
+		ScriptName:    "your_new_type",       // For file mode (references your_new_type.cjs)
+		Script:        getYourNewTypeScript(), // For inline mode fallback
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
 	}
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"result_id":  "${{ steps.your_new_type.outputs.result_id }}",
-		"result_url": "${{ steps.your_new_type.outputs.result_url }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "your_new_type",
-		StepName:       "Execute Your New Type",
-		StepID:         "your_new_type",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getYourNewTypeScript(),
-		Permissions:    NewPermissionsContentsReadYourPermissions(),  // Adjust permissions as needed
-		Outputs:        outputs,
-		Token:          token,
-		TargetRepoSlug: config.TargetRepoSlug,
-	})
 }
 
+**Step 3: Add Config Parser** (typically in `pkg/workflow/safe_outputs.go` or alongside the step config builder):
+
+```go
 // parseYourNewTypeConfig handles your-new-type configuration using shared parsers
 func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewTypeConfig {
 	if configData, exists := outputMap["your-new-type"]; exists {
@@ -520,24 +500,82 @@ func getYourNewTypeScript() string {
 }
 ```
 
+**Step 4: Register Script** (in `pkg/workflow/scripts.go` if using file mode):
+
+```go
+// In pkg/workflow/scripts.go, add to script registry:
+registry.Register("your_new_type", ScriptInfo{
+	Source:     getYourNewTypeScript(),
+	ActionPath: "", // Leave empty if not using custom action
+})
+```
+
+**Step 5: Integrate into Consolidated Job** (in `pkg/workflow/compiler_safe_outputs_consolidated.go`):
+
+Add your step to the `buildConsolidatedSafeOutputsJob()` function:
+
+```go
+// Add to script collection section (around line 62-128)
+if data.SafeOutputs.YourNewType != nil {
+	scriptNames = append(scriptNames, "your_new_type")
+}
+
+// Add step building section (around line 163-435)
+// N. Your New Type step
+if data.SafeOutputs.YourNewType != nil {
+	stepConfig := c.buildYourNewTypeStepConfig(data, mainJobName, threatDetectionEnabled)
+	stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+	steps = append(steps, stepYAML...)
+	safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+	// Add outputs if needed
+	outputs["your_new_type_result_id"] = "${{ steps.your_new_type.outputs.result_id }}"
+	outputs["your_new_type_result_url"] = "${{ steps.your_new_type.outputs.result_url }}"
+
+	// Merge permissions - adjust as needed for your use case
+	permissions.Merge(NewPermissionsContentsReadYourPermissions())
+}
+```
+
+
 **Key Points**:
 
-1. **Use `buildSafeOutputJob()` helper** - Handles pre-steps, GitHub Script step with artifact download, post-steps, job creation
+1. **Single Job Architecture** - All safe outputs now run as steps within a single `safe_outputs` job instead of individual jobs
 
-2. **Embed shared config types** from `safe_output_builder.go`:
-   - `SafeOutputTargetConfig` - Target and TargetRepoSlug fields
-   - `SafeOutputFilterConfig` - RequiredLabels and RequiredTitlePrefix
-   - `SafeOutputDiscussionFilterConfig` - Adds RequiredCategory
-   - `CloseJobConfig` - Target + filter for close operations
-   - `ListJobConfig` - Target + allowed list
+2. **Step Config Pattern** - Use `SafeOutputStepConfig` struct to define step metadata, environment variables, conditions, and scripts
 
-3. **Use parsing helpers**: `ParseTargetConfig()`, `ParseFilterConfig()`, `ParseCloseJobConfig()`, `ParseListJobConfig()`, `ParseStringFromConfig()`, etc.
+3. **File Mode** - JavaScript files are written to `/tmp/gh-aw/scripts/` once and required by each step, maximizing code reuse
 
-4. **Use env var builders**: `BuildTargetEnvVar()`, `BuildRequiredLabelsEnvVar()`, `BuildCloseJobEnvVars()`, `BuildListJobEnvVars()`, etc.
+4. **Step Conditions** - Each step uses `BuildSafeOutputType("your_new_type")` to only run when relevant JSONL items exist
 
-5. **SafeOutputJobConfig struct** fields: `JobName`, `StepName`, `StepID`, `MainJobName`, `CustomEnvVars`, `Script`, `Permissions`, `Outputs`, `Token`, `PreSteps`, `PostSteps`, `Condition`, `Needs`
+5. **Integration Points**:
+   - Add config type to `SafeOutputsConfig` in `pkg/workflow/frontmatter_types.go`
+   - Add parser call in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
+   - Add script name to collection in `buildConsolidatedSafeOutputsJob()`
+   - Add step config builder function
+   - Integrate step into consolidated job build
+   - Merge required permissions into job permissions
 
-6. **Integration**: Add field to `SafeOutputsConfig` in `config.go`, call parser in `extractSafeOutputsConfig()` in `safe_outputs.go`, call builder in `compiler_jobs.go`
+6. **Shared Helpers Available**:
+   - Config types: `BaseSafeOutputConfig`, `SafeOutputTargetConfig`, `SafeOutputFilterConfig`, `SafeOutputDiscussionFilterConfig`, `CloseJobConfig`, `ListJobConfig`
+   - Parsers: `ParseTargetConfig()`, `ParseFilterConfig()`, `ParseCloseJobConfig()`, `ParseListJobConfig()`, `ParseStringFromConfig()`
+   - Env builders: `BuildTargetEnvVar()`, `BuildRequiredLabelsEnvVar()`, `BuildCloseJobEnvVars()`, `BuildListJobEnvVars()`, `buildStandardSafeOutputEnvVars()`
+   - Conditions: `BuildSafeOutputType()`, `BuildAnd()`, `BuildOr()`, `BuildNot()`
+   - Permissions: `NewPermissionsContentsRead()`, `NewPermissionsContentsReadIssuesWrite()`, etc.
+
+7. **SafeOutputStepConfig Struct Fields**:
+   - `StepName` - Human-readable step name (e.g., "Create Issue")
+   - `StepID` - Step ID for referencing outputs (e.g., "create_issue")
+   - `ScriptName` - Name for file mode (e.g., "create_issue")
+   - `Script` - JavaScript for inline mode fallback
+   - `CustomEnvVars` - Step-specific environment variables
+   - `Condition` - Step-level condition (when to run)
+   - `Token` - GitHub token for this step
+   - `UseCopilotToken` - Use Copilot token preference chain
+   - `UseAgentToken` - Use agent token preference chain
+   - `PreSteps` - Optional steps before the script
+   - `PostSteps` - Optional steps after the script
+   - `Outputs` - Not used in step config (added to job outputs separately)
 
 **Close Operations Example**:
 ```go
@@ -559,7 +597,6 @@ listConfig, isInvalid := ParseListJobConfig(configMap, "allowed")
 customEnvVars = append(customEnvVars, BuildListJobEnvVars("GH_AW_ADD_YOUR_TYPE", config.ListJobConfig, config.Max)...)
 ```
 
-**Permission Helpers**: Use from `pkg/workflow/permissions.go` - `NewPermissionsContentsRead()`, `NewPermissionsContentsReadIssuesWrite()`, etc.
 
 ### 11. Build and Test
 

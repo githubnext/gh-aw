@@ -58,14 +58,14 @@ This workflow uses the old format without assignees and should continue to work.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
-	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+	// Verify that safe_outputs job exists
+	if !strings.Contains(compiledStr, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
-	// Verify that JavaScript step is present
-	if !strings.Contains(compiledStr, "Create Output Issue") {
-		t.Error("Expected Create Output Issue step in compiled workflow")
+	// Verify that Create Issue step is present (consolidated mode uses "Create Issue" as step name)
+	if !strings.Contains(compiledStr, "name: Create Issue") && !strings.Contains(compiledStr, "id: create_issue") {
+		t.Error("Expected Create Issue step in compiled workflow")
 	}
 
 	// Verify that no assignee steps are present
@@ -73,11 +73,11 @@ This workflow uses the old format without assignees and should continue to work.
 		t.Error("Did not expect assignee steps in legacy workflow")
 	}
 
-	// Verify that outputs are still set correctly
-	if !strings.Contains(compiledStr, "issue_number: ${{ steps.create_issue.outputs.issue_number }}") {
+	// Verify that outputs are still set correctly - consolidated mode uses different output format
+	if !strings.Contains(compiledStr, "create_issue_issue_number") && !strings.Contains(compiledStr, "steps.create_issue.outputs.issue_number") {
 		t.Error("Expected issue_number output in compiled workflow")
 	}
-	if !strings.Contains(compiledStr, "issue_url: ${{ steps.create_issue.outputs.issue_url }}") {
+	if !strings.Contains(compiledStr, "create_issue_issue_url") && !strings.Contains(compiledStr, "steps.create_issue.outputs.issue_url") {
 		t.Error("Expected issue_url output in compiled workflow")
 	}
 }
@@ -127,9 +127,9 @@ Create an issue with minimal configuration.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that create_issue job exists
-	if !strings.Contains(compiledStr, "create_issue:") {
-		t.Error("Expected create_issue job in compiled workflow")
+	// Verify that safe_outputs job exists
+	if !strings.Contains(compiledStr, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
 	// Verify that no assignee steps are present
@@ -139,9 +139,9 @@ Create an issue with minimal configuration.
 
 	// Verify basic job structure
 	if !strings.Contains(compiledStr, "permissions:") {
-		t.Error("Expected permissions section in create_issue job")
+		t.Error("Expected permissions section in safe_outputs job")
 	}
 	if !strings.Contains(compiledStr, "issues: write") {
-		t.Error("Expected issues: write permission in create_issue job")
+		t.Error("Expected issues: write permission in safe_outputs job")
 	}
 }

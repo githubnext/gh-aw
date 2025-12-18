@@ -133,7 +133,7 @@ This is a test workflow.`
 	// Check specifically that the expected safe-outputs jobs use the custom runner
 	// Use a pattern that matches YAML job definitions at the correct indentation level
 	// to avoid matching JavaScript object properties inside bundled scripts
-	expectedJobs := []string{"create_issue:", "create_issue_comment:", "add_labels:", "update_issue:"}
+	expectedJobs := []string{"safe_outputs:"}
 	for _, jobName := range expectedJobs {
 		// Look for the job name at YAML indentation level (2 spaces under 'jobs:')
 		yamlJobPattern := "\n  " + jobName

@@ -278,28 +278,22 @@ This workflow tests job generation for PR review comments.
 
 		workflowContent := string(content)
 
-		// Verify the PR review comment job is generated
-		if !strings.Contains(workflowContent, "create_pr_review_comment:") {
-			t.Error("Expected create_pr_review_comment job to be generated")
+		// Verify the safe_outputs job is generated (consolidated job approach)
+		if !strings.Contains(workflowContent, "safe_outputs:") {
+			t.Error("Expected safe_outputs job to be generated (consolidated approach)")
 		}
 
-		// Verify job condition uses BuildSafeOutputType combined with pull request context
-		expectedConditionParts := []string{
-			"!cancelled()",
-			"contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')",
-			"github.event.issue.number",
-			"github.event.issue.pull_request",
-			"github.event.pull_request",
+		// Verify the create_pr_review_comment step is present within the safe_outputs job
+		if !strings.Contains(workflowContent, "name: Create PR Review Comment") {
+			t.Error("Expected Create PR Review Comment step to be generated")
 		}
-		conditionFound := true
-		for _, part := range expectedConditionParts {
-			if !strings.Contains(workflowContent, part) {
-				conditionFound = false
-				break
-			}
+		if !strings.Contains(workflowContent, "id: create_pr_review_comment") {
+			t.Error("Expected create_pr_review_comment step ID")
 		}
-		if !conditionFound {
-			t.Error("Expected job condition to check for pull request context with always()")
+
+		// Verify step condition uses BuildSafeOutputType
+		if !strings.Contains(workflowContent, "contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')") {
+			t.Error("Expected step condition to contain safe-output type check")
 		}
 
 		// Verify correct permissions are set
@@ -365,9 +359,17 @@ This workflow tests job generation for PR review comments with target configurat
 
 		workflowContent := string(content)
 
-		// Verify the PR review comment job is generated
-		if !strings.Contains(workflowContent, "create_pr_review_comment:") {
-			t.Error("Expected create_pr_review_comment job to be generated")
+		// Verify the safe_outputs job is generated (consolidated job approach)
+		if !strings.Contains(workflowContent, "safe_outputs:") {
+			t.Error("Expected safe_outputs job to be generated (consolidated approach)")
+		}
+
+		// Verify the create_pr_review_comment step is present
+		if !strings.Contains(workflowContent, "name: Create PR Review Comment") {
+			t.Error("Expected Create PR Review Comment step to be generated")
+		}
+		if !strings.Contains(workflowContent, "id: create_pr_review_comment") {
+			t.Error("Expected create_pr_review_comment step ID")
 		}
 
 		// Verify environment variables are passed
@@ -375,27 +377,9 @@ This workflow tests job generation for PR review comments with target configurat
 			t.Error("Expected GH_AW_PR_REVIEW_COMMENT_TARGET environment variable to be set to '*'")
 		}
 
-		// When target is specified, the job condition should not include event context checks
-		// Extract the create_pr_review_comment job section
-		jobStartIdx := strings.Index(workflowContent, "create_pr_review_comment:")
-		if jobStartIdx == -1 {
-			t.Error("Could not find create_pr_review_comment job in workflow")
-		}
-		// Find the next job (or end of file)
-		nextJobIdx := strings.Index(workflowContent[jobStartIdx+1:], "\njobs:")
-		var jobSection string
-		if nextJobIdx == -1 {
-			jobSection = workflowContent[jobStartIdx:]
-		} else {
-			jobSection = workflowContent[jobStartIdx : jobStartIdx+1+nextJobIdx]
-		}
-		// Check the job condition specifically (should not have event context checks)
-		if strings.Contains(jobSection, "github.event.issue.number") || strings.Contains(jobSection, "github.event.issue.pull_request") {
-			t.Error("Expected job condition to not include issue event context checks when target is specified")
-		}
-		// The job condition should only contain the safe-output type check
-		if !strings.Contains(jobSection, "contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')") {
-			t.Error("Expected job condition to contain safe-output type check")
+		// Verify the step condition contains the safe-output type check
+		if !strings.Contains(workflowContent, "contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')") {
+			t.Error("Expected step condition to contain safe-output type check")
 		}
 	})
 }

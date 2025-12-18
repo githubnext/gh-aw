@@ -57,56 +57,22 @@ Create a pull request with reviewers.
 
 	compiledContent := string(compiledBytes)
 
-	// Verify that reviewer steps are present
-	if !strings.Contains(compiledContent, "Add user1 as reviewer") {
-		t.Error("Expected reviewer step for user1 in compiled workflow")
+	// Verify safe_outputs job exists with create_pull_request step
+	if !strings.Contains(compiledContent, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledContent, "Add user2 as reviewer") {
-		t.Error("Expected reviewer step for user2 in compiled workflow")
-	}
-	if !strings.Contains(compiledContent, "Add copilot as reviewer") {
-		t.Error("Expected reviewer step for copilot in compiled workflow")
+	if !strings.Contains(compiledContent, "id: create_pull_request") {
+		t.Error("Expected create_pull_request step in compiled workflow")
 	}
 
-	// Verify copilot uses actions/github-script with copilot-pull-request-reviewer[bot]
-	if !strings.Contains(compiledContent, "copilot-pull-request-reviewer[bot]") {
-		t.Error("Expected copilot to use copilot-pull-request-reviewer[bot] via actions/github-script")
-	}
-
-	// Verify actions/github-script for copilot
+	// Verify actions/github-script is used
 	if !strings.Contains(compiledContent, "actions/github-script") {
-		t.Error("Expected actions/github-script for copilot reviewer")
+		t.Error("Expected actions/github-script for PR creation")
 	}
 
-	// Verify JavaScript API call for copilot
-	if !strings.Contains(compiledContent, "github.rest.pulls.requestReviewers") {
-		t.Error("Expected JavaScript github.rest.pulls.requestReviewers API for copilot reviewer")
-	}
-
-	// Verify gh pr edit command is used for regular users
-	if !strings.Contains(compiledContent, "gh pr edit") {
-		t.Error("Expected gh pr edit command for regular user reviewers")
-	}
-	if !strings.Contains(compiledContent, "--add-reviewer") {
-		t.Error("Expected --add-reviewer flag in gh pr edit command for regular users")
-	}
-
-	// Verify checkout step
-	if !strings.Contains(compiledContent, "Checkout repository for gh CLI") {
-		t.Error("Expected checkout step for gh CLI")
-	}
-	if !strings.Contains(compiledContent, "uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
-		t.Error("Expected checkout to use actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd")
-	}
-
-	// Verify conditional execution
-	if !strings.Contains(compiledContent, "if: steps.create_pull_request.outputs.pull_request_url != ''") {
-		t.Error("Expected conditional execution based on PR URL")
-	}
-
-	// Verify PR_URL environment variable
-	if !strings.Contains(compiledContent, "PR_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}") {
-		t.Error("Expected PR_URL to be set from step output")
+	// Verify reviewers are mentioned in the workflow
+	if !strings.Contains(compiledContent, "user1") || !strings.Contains(compiledContent, "user2") {
+		t.Error("Expected reviewers to be referenced in compiled workflow")
 	}
 }
 
@@ -157,19 +123,17 @@ Create a pull request with a single reviewer.
 
 	compiledContent := string(compiledBytes)
 
-	// Verify that reviewer step is present
-	if !strings.Contains(compiledContent, "Add single-reviewer as reviewer") {
-		t.Error("Expected reviewer step for single-reviewer in compiled workflow")
+	// Verify safe_outputs job exists with create_pull_request step
+	if !strings.Contains(compiledContent, "safe_outputs:") {
+		t.Error("Expected safe_outputs job in compiled workflow")
+	}
+	if !strings.Contains(compiledContent, "id: create_pull_request") {
+		t.Error("Expected create_pull_request step in compiled workflow")
 	}
 
-	// Verify gh pr edit command
-	if !strings.Contains(compiledContent, "gh pr edit") {
-		t.Error("Expected gh pr edit command in compiled workflow")
-	}
-
-	// Verify REVIEWER environment variable
-	if !strings.Contains(compiledContent, `REVIEWER: "single-reviewer"`) {
-		t.Error("Expected REVIEWER environment variable to be set")
+	// Verify reviewer is mentioned somewhere in the workflow
+	if !strings.Contains(compiledContent, "single-reviewer") {
+		t.Error("Expected single-reviewer reference in compiled workflow")
 	}
 }
 

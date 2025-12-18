@@ -406,7 +406,7 @@ describe("update_runner.cjs", () => {
 
       const result = render({ issue_number: 123, title: "New Title" }, 0);
 
-      expect(result).toContain("### Issue Update 1");
+      expect(result).toContain("#### Issue Update 1");
       expect(result).toContain("**Target Issue:** #123");
       expect(result).toContain("**New Title:** New Title");
     });
@@ -422,7 +422,7 @@ describe("update_runner.cjs", () => {
 
       const result = render({ title: "New Title" }, 0);
 
-      expect(result).toContain("### Issue Update 1");
+      expect(result).toContain("#### Issue Update 1");
       expect(result).toContain("**Target:** Current issue");
       expect(result).toContain("**New Title:** New Title");
     });
@@ -499,7 +499,7 @@ describe("update_runner.cjs", () => {
 
       const result = render({ title: "Title" }, 4);
 
-      expect(result).toContain("### Issue Update 5");
+      expect(result).toContain("#### Issue Update 5");
     });
   });
 

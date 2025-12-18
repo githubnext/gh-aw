@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -17,130 +16,6 @@ type PushToPullRequestBranchConfig struct {
 	Labels               []string `yaml:"labels,omitempty"`              // Required labels for pull request validation
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
-}
-
-// buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
-func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	pushToPullRequestBranchLog.Printf("Building push-to-pull-request-branch job: mainJob=%s", mainJobName)
-
-	if data.SafeOutputs == nil || data.SafeOutputs.PushToPullRequestBranch == nil {
-		return nil, fmt.Errorf("safe-outputs.push-to-pull-request-branch configuration is required")
-	}
-
-	var steps []string
-
-	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.App != nil {
-		pushToPullRequestBranchLog.Print("GitHub App configured, adding token minting step")
-		// Get permissions for the job to pass to the app token minting step
-		permissions := NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite()
-		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
-	}
-
-	// Step 1: Download patch artifact
-	steps = append(steps, "      - name: Download patch artifact\n")
-	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: aw.patch\n")
-	steps = append(steps, "          path: /tmp/gh-aw/\n")
-
-	// Step 2: Checkout repository
-	steps = buildCheckoutRepository(steps, c)
-
-	// Step 3: Configure Git credentials
-	// Use app token if configured, otherwise use github.token
-	if data.SafeOutputs.App != nil {
-		steps = append(steps, c.generateGitConfigurationStepsWithToken("${{ steps.app-token.outputs.token }}")...)
-	} else {
-		steps = append(steps, c.generateGitConfigurationSteps()...)
-	}
-
-	// Build custom environment variables specific to push-to-pull-request-branch
-	var customEnvVars []string
-	// Add GH_TOKEN for authentication, because we shell out to 'gh' commands
-	// Use app token if configured, otherwise use github.token
-	if data.SafeOutputs.App != nil {
-		customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ steps.app-token.outputs.token }}\n")
-	} else {
-		customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ github.token }}\n")
-	}
-	// Pass the target configuration
-	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
-	}
-	// Pass the if-no-changes configuration
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
-	// Pass the title prefix configuration using shared helper
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix)...)
-	// Pass the labels configuration using shared helper
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.PushToPullRequestBranch.Labels)...)
-	// Pass the commit title suffix configuration
-	if data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix))
-	}
-	// Pass the maximum patch size configuration
-	maxPatchSize := 1024 // Default value
-	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
-		maxPatchSize = data.SafeOutputs.MaximumPatchSize
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-
-	// Pass activation comment information if available (for updating the comment with commit link)
-	// These outputs are only available when reaction is configured in the workflow
-	if data.AIReaction != "" && data.AIReaction != "none" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
-	}
-
-	// Add workflow metadata for consistency
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
-
-	// Step 4: Push to Branch using buildGitHubScriptStep
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Push to Branch",
-		StepID:        "push_to_pull_request_branch",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getPushToPullRequestBranchScript(),
-		Token:         data.SafeOutputs.PushToPullRequestBranch.GitHubToken,
-	})
-	steps = append(steps, scriptSteps...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"branch_name": "${{ steps.push_to_pull_request_branch.outputs.branch_name }}",
-		"commit_sha":  "${{ steps.push_to_pull_request_branch.outputs.commit_sha }}",
-		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
-		"commit_url":  "${{ steps.push_to_pull_request_branch.outputs.commit_url }}",
-	}
-
-	safeOutputCondition := BuildSafeOutputType("push_to_pull_request_branch")
-	issueWithPR := &AndNode{
-		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
-	}
-	baseCondition := &OrNode{
-		Left:  issueWithPR,
-		Right: &ExpressionNode{Expression: "github.event.pull_request"},
-	}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
-	}
-
-	job := &Job{
-		Name:           "push_to_pull_request_branch",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsWriteIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
 }
 
 func buildCheckoutRepository(steps []string, c *Compiler) []string {
