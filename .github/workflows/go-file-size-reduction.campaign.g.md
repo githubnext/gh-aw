@@ -38,32 +38,25 @@ Each time this orchestrator runs on its daily schedule (or when manually dispatc
 1. **Query GitHub Actions API for recent workflow runs** using the GitHub MCP server:
    - Use `list_workflow_runs` with the worker's workflow file (e.g., `daily-file-diet.lock.yml`)
    - Filter for recent completed runs (last 24-48 hours) to find worker activity
-   - Use `get_workflow_run` to get detailed information about specific runs
+   - Use `get_workflow_run` to get detailed information about specific runs, including run status, conclusion, and timestamps
    
-2. **Inspect workflow runs and retrieve logs** (using GitHub CLI or API):
-   - Use `gh run list` to find recent workflow runs for workers
-   - Use `gh run view <run-id>` to get detailed information about specific runs
-   - Use `gh run view <run-id> --log` to retrieve logs from worker executions
-   - Parse logs to understand what actions the worker took and what outputs were generated
-   - Look for safe-output action results in the logs (e.g., issue URLs, PR URLs)
-   
-3. **Extract issue URLs from workflow run artifacts**:
+2. **Extract issue URLs from workflow run artifacts**:
    - Use `list_workflow_run_artifacts` to list artifacts from each workflow run
    - Download the `agent-output` artifact which contains workflow outputs
    - Parse the artifact to extract issue URLs created by safe-output actions
    - Look for outputs like: `GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL` in the run logs
    
-4. **Alternative: Use GitHub Issues search** as a fallback:
+3. **Alternative: Use GitHub Issues search** as a fallback:
    - Search for recently created issues with labels matching the worker's output patterns
    - Filter by creation date (within the worker's run time window)
    - Cross-reference with workflow run timestamps to confirm correlation
    
-5. **Add discovered issues to the project board**:
+4. **Add discovered issues to the project board**:
    - Use `update-project` safe-output to add issue URLs to the project board
    - Set appropriate status fields (e.g., "Todo", "In Progress", "Done")
    - Preserve any existing project item metadata
    
-6. **Generate comprehensive status reports**:
+5. **Generate comprehensive status reports**:
    - Count total issues discovered from worker runs
    - Track open vs closed issues
    - Calculate progress percentage
