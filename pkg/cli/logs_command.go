@@ -1,0 +1,232 @@
+// Package cli provides command-line interface functionality for gh-aw.
+// This file (logs_command.go) contains the CLI command definition for the logs command.
+//
+// Key responsibilities:
+//   - Defining the Cobra command structure and flags for gh aw logs
+//   - Parsing command-line arguments and flags
+//   - Validating inputs (workflow names, dates, engine parameters)
+//   - Delegating execution to the orchestrator (DownloadWorkflowLogs)
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/spf13/cobra"
+)
+
+var logsLog = logger.New("cli:logs")
+
+// NewLogsCommand creates the logs command
+func NewLogsCommand() *cobra.Command {
+	logsCmd := &cobra.Command{
+		Use:   "logs [workflow-id]",
+		Short: "Download and analyze agentic workflow logs with aggregated metrics",
+		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
+
+This command fetches workflow runs, downloads their artifacts, and extracts them into
+organized folders named by run ID. It also provides an overview table with aggregate
+metrics including duration, token usage, and cost information.
+
+Downloaded artifacts include:
+- aw_info.json: Engine configuration and workflow metadata
+- safe_output.jsonl: Agent's final output content (available when non-empty)
+- agent_output/: Agent logs directory (if the workflow produced logs)
+- agent-stdio.log: Agent standard output/error logs
+- aw.patch: Git patch of changes made during execution
+- workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
+
+` + WorkflowIDExplanation + `
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific workflow
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research.md        # Download logs (alternative format)
+  ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
+  ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
+  ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Download all runs from last week
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
+  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Download all runs until yesterday
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Download all runs from last month
+  ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
+  ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
+  ` + constants.CLIExtensionPrefix + ` logs --engine copilot          # Filter logs by copilot engine
+  ` + constants.CLIExtensionPrefix + ` logs --firewall                # Filter logs with firewall enabled
+  ` + constants.CLIExtensionPrefix + ` logs --no-firewall             # Filter logs without firewall
+  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
+  ` + constants.CLIExtensionPrefix + ` logs --ref main                # Filter logs by branch or tag
+  ` + constants.CLIExtensionPrefix + ` logs --ref feature-xyz         # Filter logs by feature branch
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
+  ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
+  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
+  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate Markdown reports
+  ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
+  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both Markdown and JSON
+  ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var workflowName string
+			if len(args) > 0 && args[0] != "" {
+				// Convert workflow ID to GitHub Actions workflow name
+				// First try to resolve as a workflow ID
+				resolvedName, err := workflow.ResolveWorkflowName(args[0])
+				if err != nil {
+					// If that fails, check if it's already a GitHub Actions workflow name
+					// by checking if any .lock.yml files have this as their name
+					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
+					if nameErr == nil && contains(agenticWorkflowNames, args[0]) {
+						// It's already a valid GitHub Actions workflow name
+						workflowName = args[0]
+					} else {
+						// Neither workflow ID nor valid GitHub Actions workflow name
+						suggestions := []string{
+							fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+							"Check for typos in the workflow name",
+							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
+						}
+
+						// Add fuzzy match suggestions
+						similarNames := suggestWorkflowNames(args[0])
+						if len(similarNames) > 0 {
+							suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+						}
+
+						return errors.New(console.FormatErrorWithSuggestions(
+							fmt.Sprintf("workflow '%s' not found", args[0]),
+							suggestions,
+						))
+					}
+				} else {
+					workflowName = resolvedName
+				}
+			}
+
+			count, _ := cmd.Flags().GetInt("count")
+			startDate, _ := cmd.Flags().GetString("start-date")
+			endDate, _ := cmd.Flags().GetString("end-date")
+			outputDir, _ := cmd.Flags().GetString("output")
+			engine, _ := cmd.Flags().GetString("engine")
+			ref, _ := cmd.Flags().GetString("ref")
+			beforeRunID, _ := cmd.Flags().GetInt64("before-run-id")
+			afterRunID, _ := cmd.Flags().GetInt64("after-run-id")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
+			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			firewallOnly, _ := cmd.Flags().GetBool("firewall")
+			noFirewall, _ := cmd.Flags().GetBool("no-firewall")
+			parse, _ := cmd.Flags().GetBool("parse")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
+			timeout, _ := cmd.Flags().GetInt("timeout")
+			repoOverride, _ := cmd.Flags().GetString("repo")
+			campaignOnly, _ := cmd.Flags().GetBool("campaign")
+
+			// Resolve relative dates to absolute dates for GitHub CLI
+			now := time.Now()
+			if startDate != "" {
+				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
+				if err != nil {
+					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
+				}
+				startDate = resolvedStartDate
+			}
+			if endDate != "" {
+				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
+				if err != nil {
+					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
+				}
+				endDate = resolvedEndDate
+			}
+
+			// Validate engine parameter using the engine registry
+			if engine != "" {
+				registry := workflow.GetGlobalEngineRegistry()
+				if !registry.IsValidEngine(engine) {
+					supportedEngines := registry.GetSupportedEngines()
+					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
+				}
+			}
+
+			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly)
+		},
+	}
+
+	// Add flags to logs command
+	logsCmd.Flags().IntP("count", "c", 10, "Maximum number of matching workflow runs to return (after applying filters)")
+	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
+	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
+	addOutputFlag(logsCmd, defaultLogsOutputDir)
+	addEngineFilterFlag(logsCmd)
+	logsCmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
+	logsCmd.Flags().Int64("before-run-id", 0, "Filter runs with database ID before this value (exclusive)")
+	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
+	addRepoFlag(logsCmd)
+	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
+	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
+	logsCmd.Flags().Bool("firewall", false, "Filter to only runs with firewall enabled")
+	logsCmd.Flags().Bool("no-firewall", false, "Filter to only runs without firewall enabled")
+	logsCmd.Flags().Bool("campaign", false, "Filter to only campaign orchestrator workflows")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	addJSONFlag(logsCmd)
+	logsCmd.Flags().Int("timeout", 0, "Download timeout in seconds (0 = no timeout)")
+	logsCmd.MarkFlagsMutuallyExclusive("firewall", "no-firewall")
+
+	// Register completions for logs command
+	logsCmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterEngineFlagCompletion(logsCmd)
+	RegisterDirFlagCompletion(logsCmd, "output")
+
+	return logsCmd
+}
+
+// flattenSingleFileArtifacts applies the artifact unfold rule to downloaded artifacts
+// Unfold rule: If an artifact download folder contains a single file, move the file to root and delete the folder
+// This simplifies artifact access by removing unnecessary nesting for single-file artifacts
+
+// downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
+
+// unzipFile extracts a zip file to a destination directory
+
+// extractZipFile extracts a single file from a zip archive
+
+// loadRunSummary attempts to load a run summary from disk
+// Returns the summary and a boolean indicating if it was successfully loaded and is valid
+// displayToolCallReport displays a table of tool usage statistics across all runs
+// ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
+
+// findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
+// Returns the first path found (depth-first) and a boolean indicating success.
+
+// findAgentLogFile searches for agent logs within the logDir.
+// It uses engine.GetLogFileForParsing() to determine which log file to use:
+//   - If GetLogFileForParsing() returns a non-empty value that doesn't point to agent-stdio.log,
+//     look for files in the "agent_output" artifact directory
+//   - Otherwise, look for the "agent-stdio.log" artifact file
+//
+// Returns the first path found and a boolean indicating success.
+
+// fileExists checks if a file exists
+
+// copyFileSimple copies a file from src to dst using buffered IO.
+
+// dirExists checks if a directory exists
+
+// isDirEmpty checks if a directory is empty
+
+// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
+
+// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
+
+// extractMCPFailuresFromLogFile parses a single log file for MCP server failures
+
+// MCPFailureSummary aggregates MCP server failures across runs
+// displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
+// parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
+
+// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
