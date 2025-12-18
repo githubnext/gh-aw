@@ -1850,6 +1850,8 @@ jobs:
               writeLargeContentToFile,
             };
           EOF_WRITE_LARGE_CONTENT_TO_FILE
+      - name: Write MCP Server Entry Point
+        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
             if (require.main === module) {
