@@ -16,7 +16,8 @@ var consolidatedSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_cons
 type SafeOutputStepConfig struct {
 	StepName        string            // Human-readable step name (e.g., "Create Issue")
 	StepID          string            // Step ID for referencing outputs (e.g., "create_issue")
-	Script          string            // JavaScript script to execute
+	Script          string            // JavaScript script to execute (for inline mode)
+	ScriptName      string            // Name of the script in the registry (for file mode)
 	CustomEnvVars   []string          // Environment variables specific to this step
 	Condition       ConditionNode     // Step-level condition (if clause)
 	Token           string            // GitHub token for this step
@@ -30,13 +31,18 @@ type SafeOutputStepConfig struct {
 // buildConsolidatedSafeOutputsJob builds a single job containing all safe output operations
 // as separate steps within that job. This reduces the number of jobs in the workflow
 // while maintaining observability through distinct step names, IDs, and outputs.
+//
+// File mode: Instead of inlining bundled JavaScript in YAML, this function:
+// 1. Collects all JavaScript files needed by enabled safe outputs
+// 2. Generates a "Setup JavaScript files" step to write them to /tmp/gh-aw/scripts/
+// 3. Each safe output step requires from the local filesystem
 func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobName, markdownPath string) (*Job, []string, error) {
 	if data.SafeOutputs == nil {
 		consolidatedSafeOutputsLog.Print("No safe outputs configured, skipping consolidated job")
 		return nil, nil, nil
 	}
 
-	consolidatedSafeOutputsLog.Print("Building consolidated safe outputs job")
+	consolidatedSafeOutputsLog.Print("Building consolidated safe outputs job with file mode")
 
 	var steps []string
 	var outputs = make(map[string]string)
@@ -51,6 +57,94 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	var createDiscussionEnabled bool
 	var createPullRequestEnabled bool
 
+	// Collect all script names that will be used in this job
+	var scriptNames []string
+	if data.SafeOutputs.CreateIssues != nil {
+		scriptNames = append(scriptNames, "create_issue")
+	}
+	if data.SafeOutputs.CreateDiscussions != nil {
+		scriptNames = append(scriptNames, "create_discussion")
+	}
+	if data.SafeOutputs.CreatePullRequests != nil {
+		scriptNames = append(scriptNames, "create_pull_request")
+	}
+	if data.SafeOutputs.AddComments != nil {
+		scriptNames = append(scriptNames, "add_comment")
+	}
+	if data.SafeOutputs.CloseDiscussions != nil {
+		scriptNames = append(scriptNames, "close_discussion")
+	}
+	if data.SafeOutputs.CloseIssues != nil {
+		scriptNames = append(scriptNames, "close_issue")
+	}
+	if data.SafeOutputs.ClosePullRequests != nil {
+		scriptNames = append(scriptNames, "close_pull_request")
+	}
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		scriptNames = append(scriptNames, "create_pr_review_comment")
+	}
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+		scriptNames = append(scriptNames, "create_code_scanning_alert")
+	}
+	if data.SafeOutputs.AddLabels != nil {
+		scriptNames = append(scriptNames, "add_labels")
+	}
+	if data.SafeOutputs.AddReviewer != nil {
+		scriptNames = append(scriptNames, "add_reviewer")
+	}
+	if data.SafeOutputs.AssignMilestone != nil {
+		scriptNames = append(scriptNames, "assign_milestone")
+	}
+	if data.SafeOutputs.AssignToAgent != nil {
+		scriptNames = append(scriptNames, "assign_to_agent")
+	}
+	if data.SafeOutputs.AssignToUser != nil {
+		scriptNames = append(scriptNames, "assign_to_user")
+	}
+	if data.SafeOutputs.UpdateIssues != nil {
+		scriptNames = append(scriptNames, "update_issue")
+	}
+	if data.SafeOutputs.UpdatePullRequests != nil {
+		scriptNames = append(scriptNames, "update_pull_request")
+	}
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		scriptNames = append(scriptNames, "push_to_pull_request_branch")
+	}
+	if data.SafeOutputs.UploadAssets != nil {
+		scriptNames = append(scriptNames, "upload_assets")
+	}
+	if data.SafeOutputs.UpdateRelease != nil {
+		scriptNames = append(scriptNames, "update_release")
+	}
+	if data.SafeOutputs.LinkSubIssue != nil {
+		scriptNames = append(scriptNames, "link_sub_issue")
+	}
+	if data.SafeOutputs.HideComment != nil {
+		scriptNames = append(scriptNames, "hide_comment")
+	}
+	if data.SafeOutputs.CreateAgentTasks != nil {
+		// create_agent_task is not in the registry with this name, use direct source
+		// Skip for now - handled separately
+	}
+	if data.SafeOutputs.UpdateProjects != nil {
+		scriptNames = append(scriptNames, "update_project")
+	}
+
+	// Collect all JavaScript files for file mode
+	var scriptFilesResult *ScriptFilesResult
+	if len(scriptNames) > 0 {
+		sources := GetJavaScriptSources()
+		var err error
+		scriptFilesResult, err = CollectAllJobScriptFiles(scriptNames, sources)
+		if err != nil {
+			consolidatedSafeOutputsLog.Printf("Failed to collect script files: %v, falling back to inline mode", err)
+			scriptFilesResult = nil
+		} else {
+			consolidatedSafeOutputsLog.Printf("File mode: collected %d files, %d bytes total",
+				len(scriptFilesResult.Files), scriptFilesResult.TotalSize)
+		}
+	}
+
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		consolidatedSafeOutputsLog.Print("Adding GitHub App token minting step")
@@ -59,6 +153,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Add artifact download steps once at the beginning
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
+	// Add JavaScript files setup step if using file mode
+	if scriptFilesResult != nil && len(scriptFilesResult.Files) > 0 {
+		// Prepare files with rewritten require paths
+		preparedFiles := PrepareFilesForFileMode(scriptFilesResult.Files)
+		setupSteps := GenerateWriteScriptsStep(preparedFiles)
+		steps = append(steps, setupSteps...)
+		consolidatedSafeOutputsLog.Printf("Added setup_scripts step with %d files", len(preparedFiles))
+	}
 
 	// === Build individual safe output steps ===
 
@@ -436,8 +539,17 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	steps = append(steps, "          script: |\n")
 
 	// Add the formatted JavaScript script
-	formattedScript := FormatJavaScriptForYAML(config.Script)
-	steps = append(steps, formattedScript...)
+	// Use file mode if ScriptName is set, otherwise inline the bundled script
+	if config.ScriptName != "" {
+		// File mode: require from local filesystem
+		requireScript := GenerateRequireScript(config.ScriptName + ".cjs")
+		formattedScript := FormatJavaScriptForYAML(requireScript)
+		steps = append(steps, formattedScript...)
+	} else {
+		// Inline mode: embed the bundled script directly
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
 
 	return steps
 }
@@ -471,6 +583,7 @@ func (c *Compiler) buildCreateIssueStepConfig(data *WorkflowData, mainJobName st
 	return SafeOutputStepConfig{
 		StepName:      "Create Issue",
 		StepID:        "create_issue",
+		ScriptName:    "create_issue",
 		Script:        getCreateIssueScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -489,6 +602,7 @@ func (c *Compiler) buildCreateDiscussionStepConfig(data *WorkflowData, mainJobNa
 	return SafeOutputStepConfig{
 		StepName:      "Create Discussion",
 		StepID:        "create_discussion",
+		ScriptName:    "create_discussion",
 		Script:        getCreateDiscussionScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -531,6 +645,7 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	return SafeOutputStepConfig{
 		StepName:      "Create Pull Request",
 		StepID:        "create_pull_request",
+		ScriptName:    "create_pull_request",
 		Script:        getCreatePullRequestScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -574,6 +689,7 @@ func (c *Compiler) buildAddCommentStepConfig(data *WorkflowData, mainJobName str
 	return SafeOutputStepConfig{
 		StepName:      "Add Comment",
 		StepID:        "add_comment",
+		ScriptName:    "add_comment",
 		Script:        getAddCommentScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -592,6 +708,7 @@ func (c *Compiler) buildCloseDiscussionStepConfig(data *WorkflowData, mainJobNam
 	return SafeOutputStepConfig{
 		StepName:      "Close Discussion",
 		StepID:        "close_discussion",
+		ScriptName:    "close_discussion",
 		Script:        getCloseDiscussionScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -610,6 +727,7 @@ func (c *Compiler) buildCloseIssueStepConfig(data *WorkflowData, mainJobName str
 	return SafeOutputStepConfig{
 		StepName:      "Close Issue",
 		StepID:        "close_issue",
+		ScriptName:    "close_issue",
 		Script:        getCloseIssueScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -628,6 +746,7 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	return SafeOutputStepConfig{
 		StepName:      "Close Pull Request",
 		StepID:        "close_pull_request",
+		ScriptName:    "close_pull_request",
 		Script:        getClosePullRequestScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -654,6 +773,7 @@ func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, main
 	return SafeOutputStepConfig{
 		StepName:      "Create PR Review Comment",
 		StepID:        "create_pr_review_comment",
+		ScriptName:    "create_pr_review_comment",
 		Script:        getCreatePRReviewCommentScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -673,6 +793,7 @@ func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, ma
 	return SafeOutputStepConfig{
 		StepName:      "Create Code Scanning Alert",
 		StepID:        "create_code_scanning_alert",
+		ScriptName:    "create_code_scanning_alert",
 		Script:        getCreateCodeScanningAlertScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -698,6 +819,7 @@ func (c *Compiler) buildAddLabelsStepConfig(data *WorkflowData, mainJobName stri
 	return SafeOutputStepConfig{
 		StepName:      "Add Labels",
 		StepID:        "add_labels",
+		ScriptName:    "add_labels",
 		Script:        getAddLabelsScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -716,6 +838,7 @@ func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName st
 	return SafeOutputStepConfig{
 		StepName:      "Add Reviewer",
 		StepID:        "add_reviewer",
+		ScriptName:    "add_reviewer",
 		Script:        getAddReviewerScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -734,6 +857,7 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 	return SafeOutputStepConfig{
 		StepName:      "Assign Milestone",
 		StepID:        "assign_milestone",
+		ScriptName:    "assign_milestone",
 		Script:        getAssignMilestoneScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -752,6 +876,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	return SafeOutputStepConfig{
 		StepName:      "Assign To Agent",
 		StepID:        "assign_to_agent",
+		ScriptName:    "assign_to_agent",
 		Script:        getAssignToAgentScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -771,6 +896,7 @@ func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName s
 	return SafeOutputStepConfig{
 		StepName:      "Assign To User",
 		StepID:        "assign_to_user",
+		ScriptName:    "assign_to_user",
 		Script:        getAssignToUserScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -789,6 +915,7 @@ func (c *Compiler) buildUpdateIssueStepConfig(data *WorkflowData, mainJobName st
 	return SafeOutputStepConfig{
 		StepName:      "Update Issue",
 		StepID:        "update_issue",
+		ScriptName:    "update_issue",
 		Script:        getUpdateIssueScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -807,6 +934,7 @@ func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobN
 	return SafeOutputStepConfig{
 		StepName:      "Update Pull Request",
 		StepID:        "update_pull_request",
+		ScriptName:    "update_pull_request",
 		Script:        getUpdatePullRequestScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -850,6 +978,7 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 	return SafeOutputStepConfig{
 		StepName:      "Push To Pull Request Branch",
 		StepID:        "push_to_pull_request_branch",
+		ScriptName:    "push_to_pull_request_branch",
 		Script:        getPushToPullRequestBranchScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -869,6 +998,7 @@ func (c *Compiler) buildUploadAssetsStepConfig(data *WorkflowData, mainJobName s
 	return SafeOutputStepConfig{
 		StepName:      "Upload Assets",
 		StepID:        "upload_assets",
+		ScriptName:    "upload_assets",
 		Script:        getUploadAssetsScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -887,6 +1017,7 @@ func (c *Compiler) buildUpdateReleaseStepConfig(data *WorkflowData, mainJobName 
 	return SafeOutputStepConfig{
 		StepName:      "Update Release",
 		StepID:        "update_release",
+		ScriptName:    "update_release",
 		Script:        getUpdateReleaseScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -909,6 +1040,7 @@ func (c *Compiler) buildLinkSubIssueStepConfig(data *WorkflowData, mainJobName s
 	return SafeOutputStepConfig{
 		StepName:      "Link Sub Issue",
 		StepID:        "link_sub_issue",
+		ScriptName:    "link_sub_issue",
 		Script:        getLinkSubIssueScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -927,6 +1059,7 @@ func (c *Compiler) buildHideCommentStepConfig(data *WorkflowData, mainJobName st
 	return SafeOutputStepConfig{
 		StepName:      "Hide Comment",
 		StepID:        "hide_comment",
+		ScriptName:    "hide_comment",
 		Script:        getHideCommentScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
@@ -964,6 +1097,7 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 	return SafeOutputStepConfig{
 		StepName:      "Update Project",
 		StepID:        "update_project",
+		ScriptName:    "update_project",
 		Script:        getUpdateProjectScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,

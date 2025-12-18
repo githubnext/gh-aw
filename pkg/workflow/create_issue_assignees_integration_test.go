@@ -76,7 +76,7 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected assignees to be referenced in compiled workflow")
 	}
 
-	// Verify GH_TOKEN is set with proper token expression  
+	// Verify GH_TOKEN is set with proper token expression
 	if !strings.Contains(compiledStr, "github-token:") {
 		t.Error("Expected github-token to be set in compiled workflow")
 	}
