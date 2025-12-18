@@ -358,6 +358,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle consolidated flag
+			if consolidated, exists := outputMap["consolidated"]; exists {
+				if consolidatedBool, ok := consolidated.(bool); ok {
+					config.Consolidated = consolidatedBool
+				}
+			}
+
 			// Handle env configuration
 			if env, exists := outputMap["env"]; exists {
 				if envMap, ok := env.(map[string]any); ok {

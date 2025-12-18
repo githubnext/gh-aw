@@ -274,7 +274,8 @@ Test content`
 	// custom_build has explicit needs so should keep that
 }
 
-// TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output jobs are created correctly
+// TestBuildSafeOutputsJobsCreatesExpectedJobs tests that safe output steps are created correctly
+// in the consolidated safe_outputs job
 func TestBuildSafeOutputsJobsCreatesExpectedJobs(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "safe-outputs-jobs-test")
 
@@ -316,18 +317,29 @@ Test content`
 
 	yamlStr := string(content)
 
-	// Check that expected safe output jobs are created
-	expectedJobs := []string{"create_issue:", "add_comment:", "add_labels:"}
-	for _, job := range expectedJobs {
-		if !containsInNonCommentLines(yamlStr, job) {
-			t.Errorf("Expected job %q not found in output", job)
+	// Check that the consolidated safe_outputs job is created
+	if !containsInNonCommentLines(yamlStr, "safe_outputs:") {
+		t.Error("Expected safe_outputs job not found in output")
+	}
+
+	// Check that expected safe output steps are created within the consolidated job
+	expectedSteps := []string{
+		"name: Create Issue",
+		"id: create_issue",
+		"name: Add Comment",
+		"id: add_comment",
+		"name: Add Labels",
+		"id: add_labels",
+	}
+	for _, step := range expectedSteps {
+		if !strings.Contains(yamlStr, step) {
+			t.Errorf("Expected step %q not found in output", step)
 		}
 	}
 
-	// Check that jobs have correct timeout
-	// Each safe output job should have timeout-minutes: 10
-	if !strings.Contains(yamlStr, "timeout-minutes: 10") {
-		t.Error("Expected timeout-minutes: 10 for safe output jobs")
+	// Check that the consolidated job has correct timeout (15 minutes for consolidated job)
+	if !strings.Contains(yamlStr, "timeout-minutes: 15") {
+		t.Error("Expected timeout-minutes: 15 for consolidated safe_outputs job")
 	}
 }
 
