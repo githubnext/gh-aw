@@ -346,3 +346,38 @@ func TestTimeoutConstants(t *testing.T) {
 		}
 	})
 }
+
+func TestFeatureFlagConstants(t *testing.T) {
+	// Test that feature flag constants have the correct type and values
+	tests := []struct {
+		name     string
+		value    FeatureFlag
+		expected string
+	}{
+		{"SafeInputsFeatureFlag", SafeInputsFeatureFlag, "safe-inputs"},
+		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
+		{"SandboxRuntimeFeatureFlag", SandboxRuntimeFeatureFlag, "sandbox-runtime"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if string(tt.value) != tt.expected {
+				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFeatureFlagType(t *testing.T) {
+	// Test that FeatureFlag type can be used as expected
+	var flag FeatureFlag = "test-flag"
+	if string(flag) != "test-flag" {
+		t.Errorf("FeatureFlag conversion failed: got %q, want %q", flag, "test-flag")
+	}
+
+	// Test that constants can be assigned to FeatureFlag variables
+	safeInputsFlag := SafeInputsFeatureFlag
+	if safeInputsFlag != "safe-inputs" {
+		t.Errorf("SafeInputsFeatureFlag assignment failed: got %q, want %q", safeInputsFlag, "safe-inputs")
+	}
+}
