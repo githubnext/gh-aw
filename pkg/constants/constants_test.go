@@ -376,7 +376,7 @@ func TestFeatureFlagType(t *testing.T) {
 	}
 
 	// Test that constants can be assigned to FeatureFlag variables
-	var safeInputsFlag FeatureFlag = SafeInputsFeatureFlag
+	safeInputsFlag := SafeInputsFeatureFlag
 	if safeInputsFlag != "safe-inputs" {
 		t.Errorf("SafeInputsFeatureFlag assignment failed: got %q, want %q", safeInputsFlag, "safe-inputs")
 	}
