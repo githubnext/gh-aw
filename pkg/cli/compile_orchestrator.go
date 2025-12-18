@@ -745,14 +745,21 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		fmt.Printf("Found %d markdown files to compile\n", len(mdFiles))
 	}
 
-	// Handle purge logic: collect existing .lock.yml files before compilation
+	// Handle purge logic: collect existing .lock.yml and .invalid.yml files before compilation
 	var existingLockFiles []string
+	var existingInvalidFiles []string
 	var expectedLockFiles []string
 	if purge {
 		// Find all existing .lock.yml files
 		existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to find existing lock files: %w", err)
+		}
+
+		// Find all existing .invalid.yml files
+		existingInvalidFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to find existing invalid files: %w", err)
 		}
 
 		// Create expected lock files list based on markdown files
@@ -763,6 +770,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		if verbose && len(existingLockFiles) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+		}
+		if verbose && len(existingInvalidFiles) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
 		}
 	}
 
@@ -963,6 +973,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
+		}
+	}
+
+	// Handle purge logic: delete all .invalid.yml files (these should always be cleaned up)
+	if purge && len(existingInvalidFiles) > 0 {
+		// Delete all .invalid.yml files since these are temporary debugging artifacts
+		// that should not persist after compilation
+		for _, invalidFile := range existingInvalidFiles {
+			if err := os.Remove(invalidFile); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed invalid file: %s", filepath.Base(invalidFile))))
+			}
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
 		}
 	}
 
