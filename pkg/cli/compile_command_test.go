@@ -791,8 +791,8 @@ Test workflow content`
 	// Run compilation with purge flag
 	config := CompileConfig{
 		MarkdownFiles: []string{}, // Empty to compile all files
-		Verbose:       true, // Enable verbose to see what's happening
-		NoEmit:        false, // Actually compile to test full purge logic
+		Verbose:       true,       // Enable verbose to see what's happening
+		NoEmit:        false,      // Actually compile to test full purge logic
 		Purge:         true,
 		WorkflowDir:   "",
 		Validate:      false, // Skip validation to avoid test failures
