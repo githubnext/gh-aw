@@ -253,6 +253,13 @@ The maximum duration a workflow can run before being automatically cancelled. Co
 timeout-minutes: 45
 ```
 
+### Tracker ID
+A unique identifier assigned to workflows that enables external monitoring and coordination without bidirectional coupling. Campaign orchestrators use tracker IDs to query the GitHub Actions API for workflow runs and discover outputs without workers needing to know about the campaign. This enables tracker-based monitoring where campaigns have knowledge of their workers, but workers operate independently.
+
+```yaml
+tracker-id: daily-file-diet-v1
+```
+
 ### Toolsets
 Predefined collections of related MCP tools that can be enabled together. Used with the GitHub MCP server to group capabilities like `repos` (repository operations), `issues` (issue operations), and `pull_requests` (PR operations). Configured in the `toolsets:` field under tool configuration.
 
