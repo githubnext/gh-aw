@@ -7855,6 +7855,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_COMMIT_TITLE_SUFFIX: " [skip-ci]"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Changeset Generator"
           GH_AW_ENGINE_ID: "codex"
           GH_AW_ENGINE_MODEL: "gpt-5-mini"

@@ -6851,6 +6851,7 @@ jobs:
           GH_AW_PR_TITLE_PREFIX: "[actions] "
           GH_AW_PR_LABELS: "dependencies,automation"
           GH_AW_PR_DRAFT: "false"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Daily Workflow Updater"
           GH_AW_TRACKER_ID: "daily-workflow-updater"
           GH_AW_ENGINE_ID: "copilot"

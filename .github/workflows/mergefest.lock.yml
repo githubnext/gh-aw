@@ -7687,6 +7687,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Mergefest"
           GH_AW_ENGINE_ID: "copilot"
         with:

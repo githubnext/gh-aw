@@ -8187,6 +8187,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_LABELS: "campaign-pr,org-rollout"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
           GH_AW_ENGINE_ID: "copilot"
         with:

@@ -7473,6 +7473,7 @@ jobs:
           GH_AW_PR_TITLE_PREFIX: "[tidy] "
           GH_AW_PR_LABELS: "automation,maintenance"
           GH_AW_PR_DRAFT: "false"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Tidy"
           GH_AW_ENGINE_ID: "copilot"
         with:
@@ -8101,6 +8102,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Tidy"
           GH_AW_ENGINE_ID: "copilot"
         with:

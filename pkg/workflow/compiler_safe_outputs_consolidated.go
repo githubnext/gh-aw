@@ -515,6 +515,12 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	if cfg.IfNoChanges != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
 	}
+	// Add max patch size setting
+	maxPatchSize := 1024 // default 1024 KB
+	if data.SafeOutputs.MaximumPatchSize > 0 {
+		maxPatchSize = data.SafeOutputs.MaximumPatchSize
+	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_pull_request")
@@ -828,6 +834,12 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 	if cfg.CommitTitleSuffix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", cfg.CommitTitleSuffix))
 	}
+	// Add max patch size setting
+	maxPatchSize := 1024 // default 1024 KB
+	if data.SafeOutputs.MaximumPatchSize > 0 {
+		maxPatchSize = data.SafeOutputs.MaximumPatchSize
+	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("push_to_pull_request_branch")

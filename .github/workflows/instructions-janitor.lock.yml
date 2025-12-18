@@ -6345,6 +6345,7 @@ jobs:
           GH_AW_PR_TITLE_PREFIX: "[instructions] "
           GH_AW_PR_LABELS: "documentation,automation,instructions"
           GH_AW_PR_DRAFT: "false"
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Instructions Janitor"
           GH_AW_ENGINE_ID: "claude"
         with:

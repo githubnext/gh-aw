@@ -7107,6 +7107,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_TITLE_PREFIX: "[ca] "
+          GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Hourly CI Cleaner"
           GH_AW_TRACKER_ID: "hourly-ci-cleaner"
           GH_AW_ENGINE_ID: "copilot"
