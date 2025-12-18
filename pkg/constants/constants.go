@@ -9,11 +9,39 @@ import (
 const CLIExtensionPrefix = "gh aw"
 
 // Semantic types for measurements and identifiers
+//
+// These type aliases provide meaningful names for primitive types, improving code clarity
+// and type safety. They follow the semantic type alias pattern where the type name
+// indicates both what the value represents and how it should be used.
+//
+// Benefits of semantic type aliases:
+//   - Self-documenting: The type name explains the purpose
+//   - Type safety: Prevents mixing different concepts with the same underlying type
+//   - Clear intent: Signals to readers what the value represents
+//   - Easy refactoring: Can change implementation without affecting API
+//
+// See specs/go-type-patterns.md for detailed guidance on type patterns.
 
-// LineLength represents a line length in characters for expression formatting
+// LineLength represents a line length in characters for expression formatting.
+// This semantic type distinguishes line lengths from arbitrary integers,
+// making formatting code more readable and preventing accidental misuse.
+//
+// Example usage:
+//
+//	if len(expression) > int(constants.MaxExpressionLineLength) {
+//	    // Break into multiple lines
+//	}
 type LineLength int
 
-// Version represents a software version string
+// Version represents a software version string.
+// This semantic type distinguishes version strings from arbitrary strings,
+// enabling future validation logic (e.g., semver parsing) and making
+// version requirements explicit in function signatures.
+//
+// Example usage:
+//
+//	const DefaultCopilotVersion Version = "0.0.369"
+//	func InstallTool(name string, version Version) error { ... }
 type Version string
 
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline

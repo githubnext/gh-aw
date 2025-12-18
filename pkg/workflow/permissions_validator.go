@@ -93,6 +93,20 @@ type PermissionsValidationResult struct {
 // This is the general-purpose permission validator used during workflow compilation to check
 // that the declared permissions are sufficient for the GitHub MCP toolsets being used.
 //
+// Parameters:
+//   - permissions: The workflow's declared permissions
+//   - githubTool: The GitHub tool configuration (uses any type because the structure varies
+//     based on the engine and toolsets being used. This is an appropriate use of any for
+//     dynamic configuration data that cannot be known at compile time.)
+//
+// Returns:
+//   - A validation result indicating any missing permissions and which toolsets require them
+//
+// Type Pattern Note: githubTool uses 'any' because tool configuration structure is dynamic
+// and varies based on engine (copilot, claude, codex) and mode (local, remote). This is
+// parsed from YAML frontmatter where the structure is not known until runtime.
+// See specs/go-type-patterns.md for guidance on when to use 'any' types.
+//
 // Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
 // Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
 func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsValidationResult {
