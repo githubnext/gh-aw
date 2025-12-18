@@ -2708,9 +2708,10 @@ jobs:
              - Filter for recent completed runs (last 24-48 hours) to find worker activity
              - Use `get_workflow_run` to get detailed information about specific runs
              
-          2. **Inspect workflow jobs and logs**:
-             - Use `list_workflow_jobs` with the workflow run ID to get all jobs in a run
-             - Use `get_job_logs` with specific job IDs to retrieve logs from worker executions
+          2. **Inspect workflow runs and retrieve logs** (using GitHub CLI or API):
+             - Use `gh run list` to find recent workflow runs for workers
+             - Use `gh run view <run-id>` to get detailed information about specific runs
+             - Use `gh run view <run-id> --log` to retrieve logs from worker executions
              - Parse logs to understand what actions the worker took and what outputs were generated
              - Look for safe-output action results in the logs (e.g., issue URLs, PR URLs)
              
