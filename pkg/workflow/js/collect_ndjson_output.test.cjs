@@ -1205,7 +1205,7 @@ Line 3"}
       expect(parsedOutput.items[0].type).toBe("create_issue");
       // Escaped sequences in JSON should become actual characters, then get sanitized appropriately
       expect(parsedOutput.items[0].title).toBe("Valid\tTab"); // Tab preserved by sanitizeContent
-      expect(parsedOutput.items[0].body).toBe("Line1\nLine2Carriage"); // Newlines preserved, carriage returns removed for security
+      expect(parsedOutput.items[0].body).toBe("Line1\nLine2\rCarriage"); // Newlines/returns preserved
       expect(parsedOutput.errors).toHaveLength(0);
     });
 

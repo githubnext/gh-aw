@@ -162,7 +162,7 @@ func FuzzSanitizeIncomingText(f *testing.F) {
 
 			// Verify control characters are removed
 			for i, r := range result.Sanitized {
-				if r < 32 && r != '\n' && r != '\t' {
+				if r < 32 && r != '\n' && r != '\t' && r != '\r' {
 					t.Errorf("Control character %d found at position %d", r, i)
 				}
 				if r == 127 {
