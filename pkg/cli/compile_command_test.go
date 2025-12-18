@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -712,5 +713,121 @@ This is a test workflow.
 				t.Logf("Compilation result (expected in test env): %v", err)
 			}
 		})
+	}
+}
+
+// TestCompileWorkflows_PurgeInvalidYml tests that --purge also removes .invalid.yml files
+func TestCompileWorkflows_PurgeInvalidYml(t *testing.T) {
+	// Create temporary directory structure for testing
+	tempDir := testutil.TempDir(t, "test-purge-invalid-*")
+	workflowsDir := filepath.Join(tempDir, ".github/workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Change to temp directory to simulate being in a git repo
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .git directory and initialize it properly
+	gitCmd := exec.Command("git", "init")
+	gitCmd.Dir = tempDir
+	if err := gitCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+
+	// Configure git for the test
+	exec.Command("git", "-C", tempDir, "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "-C", tempDir, "config", "user.name", "Test User").Run()
+
+	// Create a valid test workflow markdown file
+	testWorkflowMd := filepath.Join(workflowsDir, "test.md")
+	testWorkflowContent := `---
+name: Test Workflow
+engine: copilot
+on:
+  workflow_dispatch:
+---
+
+Test workflow content`
+
+	if err := os.WriteFile(testWorkflowMd, []byte(testWorkflowContent), 0644); err != nil {
+		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	// Create some orphaned .invalid.yml files that should be purged
+	invalidFile1 := filepath.Join(workflowsDir, "old1.invalid.yml")
+	invalidFile2 := filepath.Join(workflowsDir, "old2.invalid.yml")
+	if err := os.WriteFile(invalidFile1, []byte("invalid yaml content 1"), 0644); err != nil {
+		t.Fatalf("Failed to create invalid file 1: %v", err)
+	}
+	if err := os.WriteFile(invalidFile2, []byte("invalid yaml content 2"), 0644); err != nil {
+		t.Fatalf("Failed to create invalid file 2: %v", err)
+	}
+
+	// Create an orphaned .lock.yml file that should also be purged
+	orphanedLockFile := filepath.Join(workflowsDir, "orphaned.lock.yml")
+	if err := os.WriteFile(orphanedLockFile, []byte("orphaned lock content"), 0644); err != nil {
+		t.Fatalf("Failed to create orphaned lock file: %v", err)
+	}
+
+	// Verify files exist before purge
+	if _, err := os.Stat(invalidFile1); os.IsNotExist(err) {
+		t.Fatal("Invalid file 1 should exist before purge")
+	}
+	if _, err := os.Stat(invalidFile2); os.IsNotExist(err) {
+		t.Fatal("Invalid file 2 should exist before purge")
+	}
+	if _, err := os.Stat(orphanedLockFile); os.IsNotExist(err) {
+		t.Fatal("Orphaned lock file should exist before purge")
+	}
+
+	// Run compilation with purge flag
+	config := CompileConfig{
+		MarkdownFiles: []string{}, // Empty to compile all files
+		Verbose:       true, // Enable verbose to see what's happening
+		NoEmit:        false, // Actually compile to test full purge logic
+		Purge:         true,
+		WorkflowDir:   "",
+		Validate:      false, // Skip validation to avoid test failures
+	}
+
+	// Compile workflows with purge enabled
+	result, err := CompileWorkflows(config)
+	if err != nil {
+		t.Logf("Compilation error (expected): %v", err)
+	}
+	if result != nil {
+		t.Logf("Compilation completed with %d results", len(result))
+	}
+
+	// Verify .invalid.yml files were deleted
+	if _, err := os.Stat(invalidFile1); !os.IsNotExist(err) {
+		t.Error("Invalid file 1 should have been purged")
+	}
+	if _, err := os.Stat(invalidFile2); !os.IsNotExist(err) {
+		t.Error("Invalid file 2 should have been purged")
+	}
+
+	// Verify orphaned .lock.yml file was also deleted
+	if _, err := os.Stat(orphanedLockFile); !os.IsNotExist(err) {
+		t.Error("Orphaned lock file should have been purged")
+	}
+
+	// Verify the test.md file still exists (it should not be purged)
+	if _, err := os.Stat(testWorkflowMd); os.IsNotExist(err) {
+		t.Error("Test workflow markdown should still exist")
+	}
+
+	// Verify the test.lock.yml was created
+	testLockFile := filepath.Join(workflowsDir, "test.lock.yml")
+	if _, err := os.Stat(testLockFile); os.IsNotExist(err) {
+		t.Log("Test lock file was not created (this is ok if validation failed)")
 	}
 }
