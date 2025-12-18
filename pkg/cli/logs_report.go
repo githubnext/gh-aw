@@ -731,6 +731,17 @@ func renderLogsJSON(data LogsData) error {
 }
 
 // writeSummaryFile writes the logs data to a JSON file
+// This file contains complete metrics and run data for all downloaded workflow runs.
+// It's primarily designed for campaign orchestrators to access workflow execution data
+// in subsequent steps without needing GitHub CLI access.
+//
+// The summary file includes:
+//   - Aggregate metrics (total runs, tokens, costs, errors, warnings)
+//   - Individual run details with metrics and metadata
+//   - Tool usage statistics
+//   - Error and warning summaries
+//   - Network access logs (if available)
+//   - Firewall logs (if available)
 func writeSummaryFile(path string, data LogsData, verbose bool) error {
 	reportLog.Printf("Writing summary file: path=%s, runs=%d", path, data.Summary.TotalRuns)
 
