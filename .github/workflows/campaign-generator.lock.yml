@@ -27,23 +27,19 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   assign_to_agent["assign_to_agent"]
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   update_issue["update_issue"]
+#   safe_outputs["safe_outputs"]
 #   activation --> agent
 #   activation --> conclusion
-#   agent --> assign_to_agent
 #   agent --> conclusion
 #   agent --> detection
-#   agent --> update_issue
-#   assign_to_agent --> conclusion
-#   detection --> assign_to_agent
+#   agent --> safe_outputs
 #   detection --> conclusion
-#   detection --> update_issue
+#   detection --> safe_outputs
 #   pre_activation --> activation
-#   update_issue --> conclusion
+#   safe_outputs --> conclusion
 # ```
 #
 # Pinned GitHub Actions:
@@ -6052,565 +6048,12 @@ jobs:
               main();
             }
 
-  assign_to_agent:
-    needs:
-      - agent
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))) &&
-      (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      actions: write
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      assigned_agents: ${{ steps.assign_to_agent.outputs.assigned_agents }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Assign to Agent
-        id: assign_to_agent
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_AGENT_DEFAULT: "copilot"
-          GH_AW_AGENT_MAX_COUNT: 1
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
-          GH_AW_ENGINE_ID: "copilot"
-        with:
-          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function generateStagedPreview(options) {
-              const { title, description, items, renderItem } = options;
-              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-              summaryContent += `${description}\n\n`;
-              for (let i = 0; i < items.length; i++) {
-                const item = items[i];
-                summaryContent += renderItem(item, i);
-                summaryContent += "---\n\n";
-              }
-              try {
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info(`📝 ${title} preview written to step summary`);
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            const AGENT_LOGIN_NAMES = {
-              copilot: "copilot-swe-agent",
-            };
-            function getAgentName(assignee) {
-              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
-              if (AGENT_LOGIN_NAMES[normalized]) {
-                return normalized;
-              }
-              return null;
-            }
-            async function getAvailableAgentLogins(owner, repo) {
-              const query = `
-                query($owner: String!, $repo: String!) {
-                  repository(owner: $owner, name: $repo) {
-                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-                      nodes { ... on Bot { login __typename } }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo });
-                const actors = response.repository?.suggestedActors?.nodes || [];
-                const knownValues = Object.values(AGENT_LOGIN_NAMES);
-                const available = [];
-                for (const actor of actors) {
-                  if (actor && actor.login && knownValues.includes(actor.login)) {
-                    available.push(actor.login);
-                  }
-                }
-                return available.sort();
-              } catch (e) {
-                const msg = e instanceof Error ? e.message : String(e);
-                core.debug(`Failed to list available agent logins: ${msg}`);
-                return [];
-              }
-            }
-            async function findAgent(owner, repo, agentName) {
-              const query = `
-                query($owner: String!, $repo: String!) {
-                  repository(owner: $owner, name: $repo) {
-                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-                      nodes {
-                        ... on Bot {
-                          id
-                          login
-                          __typename
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo });
-                const actors = response.repository.suggestedActors.nodes;
-                const loginName = AGENT_LOGIN_NAMES[agentName];
-                if (!loginName) {
-                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-                  return null;
-                }
-                for (const actor of actors) {
-                  if (actor.login === loginName) {
-                    return actor.id;
-                  }
-                }
-                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
-                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
-                if (available.length > 0) {
-                  core.info(`Available assignable coding agents: ${available.join(", ")}`);
-                } else {
-                  core.info("No coding agents are currently assignable in this repository.");
-                }
-                if (agentName === "copilot") {
-                  core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
-                }
-                return null;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
-                return null;
-              }
-            }
-            async function getIssueDetails(owner, repo, issueNumber) {
-              const query = `
-                query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    issue(number: $issueNumber) {
-                      id
-                      assignees(first: 100) {
-                        nodes {
-                          id
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-              try {
-                const response = await github.graphql(query, { owner, repo, issueNumber });
-                const issue = response.repository.issue;
-                if (!issue || !issue.id) {
-                  core.error("Could not get issue data");
-                  return null;
-                }
-                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
-                return {
-                  issueId: issue.id,
-                  currentAssignees: currentAssignees,
-                };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to get issue details: ${errorMessage}`);
-                return null;
-              }
-            }
-            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
-              const actorIds = [agentId];
-              for (const assigneeId of currentAssignees) {
-                if (assigneeId !== agentId) {
-                  actorIds.push(assigneeId);
-                }
-              }
-              const mutation = `
-                mutation($assignableId: ID!, $actorIds: [ID!]!) {
-                  replaceActorsForAssignable(input: {
-                    assignableId: $assignableId,
-                    actorIds: $actorIds
-                  }) {
-                    __typename
-                  }
-                }
-              `;
-              try {
-                core.info("Using built-in github object for mutation");
-                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
-                const response = await github.graphql(mutation, {
-                  assignableId: issueId,
-                  actorIds: actorIds,
-                });
-                if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
-                  return true;
-                } else {
-                  core.error("Unexpected response from GitHub API");
-                  return false;
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                try {
-                  core.debug(`Raw GraphQL error message: ${errorMessage}`);
-                  if (error && typeof error === "object") {
-                    const details = {};
-                    if (error.errors) details.errors = error.errors;
-                    if (error.response) details.response = error.response;
-                    if (error.data) details.data = error.data;
-                    if (Array.isArray(error.errors)) {
-                      details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
-                    }
-                    const serialized = JSON.stringify(details, (_k, v) => v, 2);
-                    if (serialized && serialized !== "{}") {
-                      core.debug(`Raw GraphQL error details: ${serialized}`);
-                      core.error("Raw GraphQL error details (for troubleshooting):");
-                      for (const line of serialized.split(/\n/)) {
-                        if (line.trim()) core.error(line);
-                      }
-                    }
-                  }
-                } catch (loggingErr) {
-                  core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
-                }
-                if (errorMessage.includes("Resource not accessible by personal access token") || errorMessage.includes("Resource not accessible by integration") || errorMessage.includes("Insufficient permissions to assign")) {
-                  core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
-                  try {
-                    const fallbackMutation = `
-                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-                        addAssigneesToAssignable(input: {
-                          assignableId: $assignableId,
-                          assigneeIds: $assigneeIds
-                        }) {
-                          clientMutationId
-                        }
-                      }
-                    `;
-                    core.info("Using built-in github object for fallback mutation");
-                    core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
-                    const fallbackResp = await github.graphql(fallbackMutation, {
-                      assignableId: issueId,
-                      assigneeIds: [agentId],
-                    });
-                    if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
-                      core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
-                      return true;
-                    } else {
-                      core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
-                    }
-                  } catch (fallbackError) {
-                    const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-                    core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
-                  }
-                  logPermissionError(agentName);
-                } else {
-                  core.error(`Failed to assign ${agentName}: ${errorMessage}`);
-                }
-                return false;
-              }
-            }
-            function logPermissionError(agentName) {
-              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
-              core.error("");
-              core.error("Assigning Copilot agents requires:");
-              core.error("  1. All four workflow permissions:");
-              core.error("     - actions: write");
-              core.error("     - contents: write");
-              core.error("     - issues: write");
-              core.error("     - pull-requests: write");
-              core.error("");
-              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
-              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
-              core.error("");
-              core.error("  3. Repository settings:");
-              core.error("     - Actions must have write permissions");
-              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
-              core.error("     - Select: 'Read and write permissions'");
-              core.error("");
-              core.error("  4. Organization/Enterprise settings:");
-              core.error("     - Check if your org restricts bot assignments");
-              core.error("     - Verify Copilot is enabled for your repository");
-              core.error("");
-              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
-            }
-            function generatePermissionErrorSummary() {
-              let content = "\n### ⚠️ Permission Requirements\n\n";
-              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
-              content += "```yaml\n";
-              content += "permissions:\n";
-              content += "  actions: write\n";
-              content += "  contents: write\n";
-              content += "  issues: write\n";
-              content += "  pull-requests: write\n";
-              content += "```\n\n";
-              content += "**Token capability note:**\n";
-              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
-              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
-              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
-              content += "**Recommended remediation paths:**\n";
-              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
-              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
-              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
-              content += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
-              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
-              return content;
-            }
-            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
-              if (!AGENT_LOGIN_NAMES[agentName]) {
-                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
-                core.warning(error);
-                return { success: false, error };
-              }
-              try {
-                core.info(`Looking for ${agentName} coding agent...`);
-                const agentId = await findAgent(owner, repo, agentName);
-                if (!agentId) {
-                  const error = `${agentName} coding agent is not available for this repository`;
-                  const available = await getAvailableAgentLogins(owner, repo);
-                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
-                  return { success: false, error: enrichedError };
-                }
-                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-                core.info("Getting issue details...");
-                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
-                if (!issueDetails) {
-                  return { success: false, error: "Failed to get issue details" };
-                }
-                core.info(`Issue ID: ${issueDetails.issueId}`);
-                if (issueDetails.currentAssignees.includes(agentId)) {
-                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                  return { success: true };
-                }
-                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-                if (!success) {
-                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
-                }
-                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                return { success: true };
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return { success: false, error: errorMessage };
-              }
-            }
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
-              if (assignItems.length === 0) {
-                core.info("No assign_to_agent items found in agent output");
-                return;
-              }
-              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                await generateStagedPreview({
-                  title: "Assign to Agent",
-                  description: "The following agent assignments would be made if staged mode was disabled:",
-                  items: assignItems,
-                  renderItem: item => {
-                    let content = `**Issue:** #${item.issue_number}\n`;
-                    content += `**Agent:** ${item.agent || "copilot"}\n`;
-                    content += "\n";
-                    return content;
-                  },
-                });
-                return;
-              }
-              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
-              core.info(`Default agent: ${defaultAgent}`);
-              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.info(`Max count: ${maxCount}`);
-              const itemsToProcess = assignItems.slice(0, maxCount);
-              if (assignItems.length > maxCount) {
-                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
-              }
-              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
-              let targetOwner = context.repo.owner;
-              let targetRepo = context.repo.repo;
-              if (targetRepoEnv) {
-                const parts = targetRepoEnv.split("/");
-                if (parts.length === 2) {
-                  targetOwner = parts[0];
-                  targetRepo = parts[1];
-                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
-                } else {
-                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
-                }
-              }
-              const agentCache = {};
-              const results = [];
-              for (const item of itemsToProcess) {
-                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-                const agentName = item.agent || defaultAgent;
-                if (isNaN(issueNumber) || issueNumber <= 0) {
-                  core.error(`Invalid issue_number: ${item.issue_number}`);
-                  continue;
-                }
-                if (!AGENT_LOGIN_NAMES[agentName]) {
-                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: `Unsupported agent: ${agentName}`,
-                  });
-                  continue;
-                }
-                try {
-                  let agentId = agentCache[agentName];
-                  if (!agentId) {
-                    core.info(`Looking for ${agentName} coding agent...`);
-                    agentId = await findAgent(targetOwner, targetRepo, agentName);
-                    if (!agentId) {
-                      throw new Error(`${agentName} coding agent is not available for this repository`);
-                    }
-                    agentCache[agentName] = agentId;
-                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
-                  }
-                  core.info("Getting issue details...");
-                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
-                  if (!issueDetails) {
-                    throw new Error("Failed to get issue details");
-                  }
-                  core.info(`Issue ID: ${issueDetails.issueId}`);
-                  if (issueDetails.currentAssignees.includes(agentId)) {
-                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
-                    results.push({
-                      issue_number: issueNumber,
-                      agent: agentName,
-                      success: true,
-                    });
-                    continue;
-                  }
-                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
-                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
-                  if (!success) {
-                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
-                  }
-                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: true,
-                  });
-                } catch (error) {
-                  let errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("coding agent is not available for this repository")) {
-                    try {
-                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
-                      if (available.length > 0) {
-                        errorMessage += ` (available agents: ${available.join(", ")})`;
-                      }
-                    } catch (e) {
-                      core.debug("Failed to enrich unavailable agent message with available list");
-                    }
-                  }
-                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
-                  results.push({
-                    issue_number: issueNumber,
-                    agent: agentName,
-                    success: false,
-                    error: errorMessage,
-                  });
-                }
-              }
-              const successCount = results.filter(r => r.success).length;
-              const failureCount = results.filter(r => !r.success).length;
-              let summaryContent = "## Agent Assignment\n\n";
-              if (successCount > 0) {
-                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
-                for (const result of results.filter(r => r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
-                }
-                summaryContent += "\n";
-              }
-              if (failureCount > 0) {
-                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
-                for (const result of results.filter(r => !r.success)) {
-                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
-                }
-                const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
-                if (hasPermissionError) {
-                  summaryContent += generatePermissionErrorSummary();
-                }
-              }
-              await core.summary.addRaw(summaryContent).write();
-              const assignedAgents = results
-                .filter(r => r.success)
-                .map(r => `${r.issue_number}:${r.agent}`)
-                .join("\n");
-              core.setOutput("assigned_agents", assignedAgents);
-              if (failureCount > 0) {
-                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
-              }
-            }
-            (async () => {
-              await main();
-            })();
-
   conclusion:
     needs:
       - activation
       - agent
-      - assign_to_agent
       - detection
-      - update_issue
+      - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -7558,21 +7001,18 @@ jobs:
             }
             await main();
 
-  update_issue:
+  safe_outputs:
     needs:
       - agent
       - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))) &&
-      (needs.detection.outputs.success == 'true')
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
-    timeout-minutes: 10
+    timeout-minutes: 15
     outputs:
-      issue_number: ${{ steps.update_issue.outputs.issue_number }}
-      issue_url: ${{ steps.update_issue.outputs.issue_url }}
+      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -7585,15 +7025,534 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Update Issue
-        id: update_issue
+      - name: Assign To Agent
+        id: assign_to_agent
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_UPDATE_STATUS: true
-          GH_AW_UPDATE_TITLE: false
-          GH_AW_UPDATE_BODY: true
-          GH_AW_UPDATE_TARGET: "${{ github.event.issue.number }}"
+          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_ENGINE_ID: "copilot"
+        with:
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            const AGENT_LOGIN_NAMES = {
+              copilot: "copilot-swe-agent",
+            };
+            function getAgentName(assignee) {
+              const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+              if (AGENT_LOGIN_NAMES[normalized]) {
+                return normalized;
+              }
+              return null;
+            }
+            async function getAvailableAgentLogins(owner, repo) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes { ... on Bot { login __typename } }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository?.suggestedActors?.nodes || [];
+                const knownValues = Object.values(AGENT_LOGIN_NAMES);
+                const available = [];
+                for (const actor of actors) {
+                  if (actor && actor.login && knownValues.includes(actor.login)) {
+                    available.push(actor.login);
+                  }
+                }
+                return available.sort();
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                core.debug(`Failed to list available agent logins: ${msg}`);
+                return [];
+              }
+            }
+            async function findAgent(owner, repo, agentName) {
+              const query = `
+                query($owner: String!, $repo: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                      nodes {
+                        ... on Bot {
+                          id
+                          login
+                          __typename
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo });
+                const actors = response.repository.suggestedActors.nodes;
+                const loginName = AGENT_LOGIN_NAMES[agentName];
+                if (!loginName) {
+                  core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  return null;
+                }
+                for (const actor of actors) {
+                  if (actor.login === loginName) {
+                    return actor.id;
+                  }
+                }
+                const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
+                core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+                if (available.length > 0) {
+                  core.info(`Available assignable coding agents: ${available.join(", ")}`);
+                } else {
+                  core.info("No coding agents are currently assignable in this repository.");
+                }
+                if (agentName === "copilot") {
+                  core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
+                }
+                return null;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function getIssueDetails(owner, repo, issueNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      id
+                      assignees(first: 100) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              try {
+                const response = await github.graphql(query, { owner, repo, issueNumber });
+                const issue = response.repository.issue;
+                if (!issue || !issue.id) {
+                  core.error("Could not get issue data");
+                  return null;
+                }
+                const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+                return {
+                  issueId: issue.id,
+                  currentAssignees: currentAssignees,
+                };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to get issue details: ${errorMessage}`);
+                return null;
+              }
+            }
+            async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+              const actorIds = [agentId];
+              for (const assigneeId of currentAssignees) {
+                if (assigneeId !== agentId) {
+                  actorIds.push(assigneeId);
+                }
+              }
+              const mutation = `
+                mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                  replaceActorsForAssignable(input: {
+                    assignableId: $assignableId,
+                    actorIds: $actorIds
+                  }) {
+                    __typename
+                  }
+                }
+              `;
+              try {
+                core.info("Using built-in github object for mutation");
+                core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+                const response = await github.graphql(mutation, {
+                  assignableId: issueId,
+                  actorIds: actorIds,
+                });
+                if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                  return true;
+                } else {
+                  core.error("Unexpected response from GitHub API");
+                  return false;
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                try {
+                  core.debug(`Raw GraphQL error message: ${errorMessage}`);
+                  if (error && typeof error === "object") {
+                    const details = {};
+                    if (error.errors) details.errors = error.errors;
+                    if (error.response) details.response = error.response;
+                    if (error.data) details.data = error.data;
+                    if (Array.isArray(error.errors)) {
+                      details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+                    }
+                    const serialized = JSON.stringify(details, (_k, v) => v, 2);
+                    if (serialized && serialized !== "{}") {
+                      core.debug(`Raw GraphQL error details: ${serialized}`);
+                      core.error("Raw GraphQL error details (for troubleshooting):");
+                      for (const line of serialized.split(/\n/)) {
+                        if (line.trim()) core.error(line);
+                      }
+                    }
+                  }
+                } catch (loggingErr) {
+                  core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
+                }
+                if (errorMessage.includes("Resource not accessible by personal access token") || errorMessage.includes("Resource not accessible by integration") || errorMessage.includes("Insufficient permissions to assign")) {
+                  core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
+                  try {
+                    const fallbackMutation = `
+                      mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        addAssigneesToAssignable(input: {
+                          assignableId: $assignableId,
+                          assigneeIds: $assigneeIds
+                        }) {
+                          clientMutationId
+                        }
+                      }
+                    `;
+                    core.info("Using built-in github object for fallback mutation");
+                    core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+                    const fallbackResp = await github.graphql(fallbackMutation, {
+                      assignableId: issueId,
+                      assigneeIds: [agentId],
+                    });
+                    if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                      core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+                      return true;
+                    } else {
+                      core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
+                    }
+                  } catch (fallbackError) {
+                    const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                    core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
+                  }
+                  logPermissionError(agentName);
+                } else {
+                  core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+                }
+                return false;
+              }
+            }
+            function logPermissionError(agentName) {
+              core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+              core.error("");
+              core.error("Assigning Copilot agents requires:");
+              core.error("  1. All four workflow permissions:");
+              core.error("     - actions: write");
+              core.error("     - contents: write");
+              core.error("     - issues: write");
+              core.error("     - pull-requests: write");
+              core.error("");
+              core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+              core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+              core.error("");
+              core.error("  3. Repository settings:");
+              core.error("     - Actions must have write permissions");
+              core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+              core.error("     - Select: 'Read and write permissions'");
+              core.error("");
+              core.error("  4. Organization/Enterprise settings:");
+              core.error("     - Check if your org restricts bot assignments");
+              core.error("     - Verify Copilot is enabled for your repository");
+              core.error("");
+              core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+            }
+            function generatePermissionErrorSummary() {
+              let content = "\n### ⚠️ Permission Requirements\n\n";
+              content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+              content += "```yaml\n";
+              content += "permissions:\n";
+              content += "  actions: write\n";
+              content += "  contents: write\n";
+              content += "  issues: write\n";
+              content += "  pull-requests: write\n";
+              content += "```\n\n";
+              content += "**Token capability note:**\n";
+              content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+              content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+              content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+              content += "**Recommended remediation paths:**\n";
+              content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+              content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+              content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+              content += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+              content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+              return content;
+            }
+            async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+              if (!AGENT_LOGIN_NAMES[agentName]) {
+                const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+                core.warning(error);
+                return { success: false, error };
+              }
+              try {
+                core.info(`Looking for ${agentName} coding agent...`);
+                const agentId = await findAgent(owner, repo, agentName);
+                if (!agentId) {
+                  const error = `${agentName} coding agent is not available for this repository`;
+                  const available = await getAvailableAgentLogins(owner, repo);
+                  const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+                  return { success: false, error: enrichedError };
+                }
+                core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                core.info("Getting issue details...");
+                const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+                if (!issueDetails) {
+                  return { success: false, error: "Failed to get issue details" };
+                }
+                core.info(`Issue ID: ${issueDetails.issueId}`);
+                if (issueDetails.currentAssignees.includes(agentId)) {
+                  core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                  return { success: true };
+                }
+                core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                if (!success) {
+                  return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
+                }
+                core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                return { success: true };
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return { success: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
+              if (assignItems.length === 0) {
+                core.info("No assign_to_agent items found in agent output");
+                return;
+              }
+              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Assign to Agent",
+                  description: "The following agent assignments would be made if staged mode was disabled:",
+                  items: assignItems,
+                  renderItem: item => {
+                    let content = `**Issue:** #${item.issue_number}\n`;
+                    content += `**Agent:** ${item.agent || "copilot"}\n`;
+                    content += "\n";
+                    return content;
+                  },
+                });
+                return;
+              }
+              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
+              core.info(`Default agent: ${defaultAgent}`);
+              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = assignItems.slice(0, maxCount);
+              if (assignItems.length > maxCount) {
+                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
+              let targetOwner = context.repo.owner;
+              let targetRepo = context.repo.repo;
+              if (targetRepoEnv) {
+                const parts = targetRepoEnv.split("/");
+                if (parts.length === 2) {
+                  targetOwner = parts[0];
+                  targetRepo = parts[1];
+                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+                } else {
+                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
+                }
+              }
+              const agentCache = {};
+              const results = [];
+              for (const item of itemsToProcess) {
+                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
+                const agentName = item.agent || defaultAgent;
+                if (isNaN(issueNumber) || issueNumber <= 0) {
+                  core.error(`Invalid issue_number: ${item.issue_number}`);
+                  continue;
+                }
+                if (!AGENT_LOGIN_NAMES[agentName]) {
+                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Unsupported agent: ${agentName}`,
+                  });
+                  continue;
+                }
+                try {
+                  let agentId = agentCache[agentName];
+                  if (!agentId) {
+                    core.info(`Looking for ${agentName} coding agent...`);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName);
+                    if (!agentId) {
+                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                    }
+                    agentCache[agentName] = agentId;
+                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  }
+                  core.info("Getting issue details...");
+                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
+                  }
+                  core.info(`Issue ID: ${issueDetails.issueId}`);
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: true,
+                    });
+                    continue;
+                  }
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  if (!success) {
+                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                  }
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: true,
+                  });
+                } catch (error) {
+                  let errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("coding agent is not available for this repository")) {
+                    try {
+                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+                      if (available.length > 0) {
+                        errorMessage += ` (available agents: ${available.join(", ")})`;
+                      }
+                    } catch (e) {
+                      core.debug("Failed to enrich unavailable agent message with available list");
+                    }
+                  }
+                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Agent Assignment\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
+                }
+                const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
+                if (hasPermissionError) {
+                  summaryContent += generatePermissionErrorSummary();
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const assignedAgents = results
+                .filter(r => r.success)
+                .map(r => `${r.issue_number}:${r.agent}`)
+                .join("\n");
+              core.setOutput("assigned_agents", assignedAgents);
+              if (failureCount > 0) {
+                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
+              }
+            }
+            (async () => {
+              await main();
+            })();
+      - name: Update Issue
+        id: update_issue
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Campaign Generator"
           GH_AW_ENGINE_ID: "copilot"
         with:

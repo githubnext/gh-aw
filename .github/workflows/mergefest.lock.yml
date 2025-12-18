@@ -30,17 +30,17 @@
 #   conclusion["conclusion"]
 #   detection["detection"]
 #   pre_activation["pre_activation"]
-#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   safe_outputs["safe_outputs"]
 #   activation --> agent
 #   activation --> conclusion
-#   activation --> push_to_pull_request_branch
+#   activation --> safe_outputs
 #   agent --> conclusion
 #   agent --> detection
-#   agent --> push_to_pull_request_branch
+#   agent --> safe_outputs
 #   detection --> conclusion
-#   detection --> push_to_pull_request_branch
+#   detection --> safe_outputs
 #   pre_activation --> activation
-#   push_to_pull_request_branch --> conclusion
+#   safe_outputs --> conclusion
 # ```
 #
 # Pinned GitHub Actions:
@@ -6689,7 +6689,7 @@ jobs:
       - activation
       - agent
       - detection
-      - push_to_pull_request_branch
+      - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6936,8 +6936,6 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Mergefest"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"push_to_pull_request_branch\":\"commit_url\"}"
-          GH_AW_OUTPUT_PUSH_TO_PULL_REQUEST_BRANCH_COMMIT_URL: ${{ needs.push_to_pull_request_branch.outputs.commit_url }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7654,50 +7652,21 @@ jobs:
             }
             await main();
 
-  push_to_pull_request_branch:
+  safe_outputs:
     needs:
       - activation
       - agent
       - detection
-    if: >
-      ((((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
-      (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))) &&
-      (needs.detection.outputs.success == 'true')
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.detected == 'false')
     runs-on: ubuntu-slim
     permissions:
       contents: write
-      discussions: write
       issues: write
       pull-requests: write
-    timeout-minutes: 10
+    timeout-minutes: 15
     outputs:
-      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
-      commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
-      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
+      push_to_pull_request_branch_commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
     steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
@@ -7709,17 +7678,14 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Push to Branch
+      - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_TOKEN: ${{ github.token }}
-          GH_AW_PUSH_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Mergefest"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

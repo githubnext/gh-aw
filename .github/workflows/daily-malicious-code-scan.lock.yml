@@ -28,12 +28,12 @@
 #   activation["activation"]
 #   agent["agent"]
 #   conclusion["conclusion"]
-#   create_code_scanning_alert["create_code_scanning_alert"]
+#   safe_outputs["safe_outputs"]
 #   activation --> agent
 #   activation --> conclusion
 #   agent --> conclusion
-#   agent --> create_code_scanning_alert
-#   create_code_scanning_alert --> conclusion
+#   agent --> safe_outputs
+#   safe_outputs --> conclusion
 # ```
 #
 # Pinned GitHub Actions:
@@ -45,8 +45,6 @@
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
-#   - github/codeql-action/upload-sarif@v3 (c37a8b7cd97e31de3fcbd9d84c401870edeb8d34)
-#     https://github.com/github/codeql-action/commit/c37a8b7cd97e31de3fcbd9d84c401870edeb8d34
 
 name: "Daily Malicious Code Scan Agent"
 "on":
@@ -6240,7 +6238,7 @@ jobs:
     needs:
       - activation
       - agent
-      - create_code_scanning_alert
+      - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6741,21 +6739,14 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  create_code_scanning_alert:
+  safe_outputs:
     needs: agent
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_code_scanning_alert'))
+    if: (!cancelled()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
-      actions: read
       contents: read
       security-events: write
-    timeout-minutes: 10
-    outputs:
-      artifact_uploaded: ${{ steps.create_code_scanning_alert.outputs.artifact_uploaded }}
-      codeql_uploaded: ${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}
-      findings_count: ${{ steps.create_code_scanning_alert.outputs.findings_count }}
-      sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
+    timeout-minutes: 15
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -6770,13 +6761,14 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Code Scanning Alert
         id: create_code_scanning_alert
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_code_scanning_alert'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SECURITY_REPORT_DRIVER: Malicious Code Scanner
-          GH_AW_WORKFLOW_FILENAME: daily-malicious-code-scan
+          GH_AW_WORKFLOW_FILENAME: "daily-malicious-code-scan"
           GH_AW_WORKFLOW_NAME: "Daily Malicious Code Scan Agent"
           GH_AW_TRACKER_ID: "malicious-code-scan"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7008,15 +7000,4 @@ jobs:
               };
             }
             await main();
-      - name: Upload SARIF artifact
-        if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: code-scanning-alert.sarif
-          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
-      - name: Upload SARIF to GitHub Security
-        if: steps.create_code_scanning_alert.outputs.sarif_file
-        uses: github/codeql-action/upload-sarif@c37a8b7cd97e31de3fcbd9d84c401870edeb8d34 # v3
-        with:
-          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}
 
