@@ -15,10 +15,12 @@ This feature will be implemented as a simple proof-of-concept to validate the sp
 ### Component Design
 
 ```
-pkg/test/
-├── test_feature.go      # Core implementation
-└── test_feature_test.go # Unit tests
+pkg/testutil/
+├── speckit_test_feature.go      # Core implementation
+└── speckit_test_feature_test.go # Unit tests
 ```
+
+**Note**: Using existing `pkg/testutil/` directory due to workspace permission constraints.
 
 ## Implementation Steps
 
