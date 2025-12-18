@@ -62,6 +62,12 @@ Campaign Orchestrator Usage:
     **DO NOT call 'gh aw logs' or any GitHub CLI commands** - they will not work in your environment.
     All data you need is in the summary.json file.
 
+  Live Tracking with Project Boards:
+    Use the summary.json data to update your campaign project board, treating issues/PRs (workers)
+    on the board as the real-time view of progress, ownership, and status. The orchestrator workflow
+    can use the 'update-project' safe output to sync status fields without modifying worker workflow
+    files. Workers remain unchanged while the campaign board reflects current execution state.
+
 ` + WorkflowIDExplanation + `
 
 Examples:
