@@ -245,8 +245,13 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	}
 
 	// Inline the JavaScript code with proper indentation
+	// FormatJavaScriptForYAML returns lines with trailing \n, but GitHubActionStep lines
+	// go through generateEngineExecutionSteps which adds \n to each line.
+	// Strip trailing \n to avoid double newlines in the output.
 	scriptLines := FormatJavaScriptForYAML(parserScript)
-	stepLines = append(stepLines, scriptLines...)
+	for _, line := range scriptLines {
+		stepLines = append(stepLines, strings.TrimSuffix(line, "\n"))
+	}
 
 	return GitHubActionStep(stepLines)
 }
