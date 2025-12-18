@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -240,61 +239,32 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 
 // getCurrentRepoName gets the current repository name from git remote in owner/repo format
 func getCurrentRepoName() string {
-	// Try to get the repository name from git remote
-	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
-		// Fallback to directory name
-		gitRoot, err := findGitRoot()
-		if err != nil {
-			return ""
-		}
-		return filepath.Base(gitRoot)
+	// Try to get the repository name from git remote using centralized helper
+	slug := getRepositorySlugFromRemote()
+	if slug != "" {
+		return slug
 	}
 
-	remoteURL := strings.TrimSpace(string(output))
-	return parseGitHubRepoFromURL(remoteURL)
+	// Fallback to directory name
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return ""
+	}
+	return filepath.Base(gitRoot)
 }
 
 // getRepoOwner extracts the owner from the git remote URL
 func getRepoOwner() string {
-	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
+	// Use centralized helper to get full repo slug
+	fullRepo := getRepositorySlugFromRemote()
+	if fullRepo == "" {
 		return ""
 	}
-
-	remoteURL := strings.TrimSpace(string(output))
-	fullRepo := parseGitHubRepoFromURL(remoteURL)
 
 	// Extract owner from "owner/repo" format
 	parts := strings.Split(fullRepo, "/")
 	if len(parts) >= 1 {
 		return parts[0]
 	}
-	return ""
-}
-
-// parseGitHubRepoFromURL extracts owner/repo from a GitHub URL
-func parseGitHubRepoFromURL(url string) string {
-	// Remove .git suffix if present
-	url = strings.TrimSuffix(url, ".git")
-
-	// Handle HTTPS URLs: https://github.com/owner/repo
-	if strings.Contains(url, "github.com/") {
-		parts := strings.Split(url, "github.com/")
-		if len(parts) == 2 {
-			return parts[1]
-		}
-	}
-
-	// Handle SSH URLs: git@github.com:owner/repo
-	if strings.Contains(url, "git@github.com:") {
-		parts := strings.Split(url, "git@github.com:")
-		if len(parts) == 2 {
-			return parts[1]
-		}
-	}
-
 	return ""
 }

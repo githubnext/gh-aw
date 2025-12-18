@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -19,107 +18,30 @@ import (
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
 
 // getRepositorySlug extracts the repository slug (owner/repo) from git config
+// Deprecated: Use getRepositorySlugFromRemote from git.go instead
 func getRepositorySlug() string {
-	// Try to get from git remote URL
-	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	url := strings.TrimSpace(string(output))
-
-	// Parse GitHub URL patterns:
-	// - https://github.com/owner/repo.git
-	// - git@github.com:owner/repo.git
-	// - https://github.com/owner/repo
-
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
-
-	// Extract owner/repo from URL
-	if strings.HasPrefix(url, "https://github.com/") {
-		slug := strings.TrimPrefix(url, "https://github.com/")
-		return slug
-	} else if strings.HasPrefix(url, "git@github.com:") {
-		slug := strings.TrimPrefix(url, "git@github.com:")
-		return slug
-	}
-
-	return ""
+	return getRepositorySlugFromRemote()
 }
 
 // getRepositorySlugForPath extracts the repository slug (owner/repo) from the git config
 // of the repository containing the specified file path
+// Deprecated: Use getRepositorySlugFromRemoteForPath from git.go instead
 func getRepositorySlugForPath(path string) string {
-	// Get absolute path first
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return ""
-	}
-
-	// Use the directory containing the file
-	dir := filepath.Dir(absPath)
-
-	// Try to get from git remote URL in the file's repository
-	cmd := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	url := strings.TrimSpace(string(output))
-
-	// Parse GitHub URL patterns:
-	// - https://github.com/owner/repo.git
-	// - git@github.com:owner/repo.git
-	// - https://github.com/owner/repo
-
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
-
-	// Extract owner/repo from URL
-	if strings.HasPrefix(url, "https://github.com/") {
-		slug := strings.TrimPrefix(url, "https://github.com/")
-		return slug
-	} else if strings.HasPrefix(url, "git@github.com:") {
-		slug := strings.TrimPrefix(url, "git@github.com:")
-		return slug
-	}
-
-	return ""
+	return getRepositorySlugFromRemoteForPath(path)
 }
 
 // getRepositoryRoot returns the absolute path to the git repository root
 // It looks for the git repository containing the current directory
+// Deprecated: Use findGitRoot from git.go instead
 func getRepositoryRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get repository root: %w", err)
-	}
-	return strings.TrimSpace(string(output)), nil
+	return findGitRoot()
 }
 
 // getRepositoryRootForPath returns the absolute path to the git repository root
 // containing the specified file path
+// Deprecated: Use findGitRootForPath from git.go instead
 func getRepositoryRootForPath(path string) (string, error) {
-	// Get absolute path first
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	// Use the directory containing the file
-	dir := filepath.Dir(absPath)
-
-	// Run git command in the file's directory
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
-	}
-	return strings.TrimSpace(string(output)), nil
+	return findGitRootForPath(path)
 }
 
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
