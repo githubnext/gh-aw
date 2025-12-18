@@ -109,9 +109,19 @@ func displayStatsTable(statsList []*WorkflowStats) {
 		totalScriptSize += stats.ScriptSize
 	}
 
+	// Limit display to top 10 workflows by size
+	displayCount := len(statsList)
+	const maxDisplay = 10
+	if displayCount > maxDisplay {
+		displayCount = maxDisplay
+	}
+
 	// Build table rows
-	rows := make([][]string, 0, len(statsList))
-	for _, stats := range statsList {
+	rows := make([][]string, 0, displayCount)
+	for i, stats := range statsList {
+		if i >= maxDisplay {
+			break
+		}
 		// Check if workflow is above 500KB (512000 bytes)
 		const maxSize = 500 * 1024
 		workflowName := stats.Workflow
@@ -149,6 +159,9 @@ func displayStatsTable(statsList []*WorkflowStats) {
 
 	// Print summary
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary:"))
+	if len(statsList) > maxDisplay {
+		fmt.Fprintf(os.Stderr, "  Showing top %d of %d workflows (sorted by size)\n", maxDisplay, len(statsList))
+	}
 	fmt.Fprintf(os.Stderr, "  Total workflows: %d\n", len(statsList))
 	fmt.Fprintf(os.Stderr, "  Total size:      %s\n", console.FormatFileSize(totalSize))
 	fmt.Fprintf(os.Stderr, "  Total jobs:      %d\n", totalJobs)
