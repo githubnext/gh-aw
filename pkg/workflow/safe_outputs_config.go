@@ -33,6 +33,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	enabled := safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentTasks != nil ||
 		safeOutputs.CreateDiscussions != nil ||
+		safeOutputs.UpdateDiscussions != nil ||
 		safeOutputs.CloseDiscussions != nil ||
 		safeOutputs.CloseIssues != nil ||
 		safeOutputs.AddComments != nil ||
@@ -79,6 +80,9 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 	}
 	if safeOutputs.CreateDiscussions != nil {
 		tools = append(tools, "create_discussion")
+	}
+	if safeOutputs.UpdateDiscussions != nil {
+		tools = append(tools, "update_discussion")
 	}
 	if safeOutputs.CloseDiscussions != nil {
 		tools = append(tools, "close_discussion")
@@ -289,6 +293,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
 			if updateIssuesConfig != nil {
 				config.UpdateIssues = updateIssuesConfig
+			}
+
+			// Handle update-discussion
+			updateDiscussionsConfig := c.parseUpdateDiscussionsConfig(outputMap)
+			if updateDiscussionsConfig != nil {
+				config.UpdateDiscussions = updateDiscussionsConfig
 			}
 
 			// Handle update-pull-request
@@ -1036,6 +1046,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
 		enabledTools["create_discussion"] = true
+	}
+	if data.SafeOutputs.UpdateDiscussions != nil {
+		enabledTools["update_discussion"] = true
 	}
 	if data.SafeOutputs.CloseDiscussions != nil {
 		enabledTools["close_discussion"] = true

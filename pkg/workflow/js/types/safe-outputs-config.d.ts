@@ -110,6 +110,15 @@ interface UpdateIssueConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for updating discussions
+ */
+interface UpdateDiscussionConfig extends SafeOutputConfig {
+  target?: string;
+  title?: boolean;
+  body?: boolean;
+}
+
+/**
  * Configuration for updating pull requests
  */
 interface UpdatePullRequestConfig extends SafeOutputConfig {
@@ -223,6 +232,7 @@ interface SafeJobConfig {
 type SpecificSafeOutputConfig =
   | CreateIssueConfig
   | CreateDiscussionConfig
+  | UpdateDiscussionConfig
   | CloseDiscussionConfig
   | CloseIssueConfig
   | ClosePullRequestConfig
@@ -252,6 +262,7 @@ export {
   // Specific configuration types
   CreateIssueConfig,
   CreateDiscussionConfig,
+  UpdateDiscussionConfig,
   CloseDiscussionConfig,
   CloseIssueConfig,
   ClosePullRequestConfig,

@@ -279,6 +279,7 @@ type BaseSafeOutputConfig struct {
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
+	UpdateDiscussions               *UpdateDiscussionsConfig               `yaml:"update-discussions,omitempty"`
 	CloseDiscussions                *CloseDiscussionsConfig                `yaml:"close-discussions,omitempty"`
 	CloseIssues                     *CloseIssuesConfig                     `yaml:"close-issue,omitempty"`
 	ClosePullRequests               *ClosePullRequestsConfig               `yaml:"close-pull-request,omitempty"`

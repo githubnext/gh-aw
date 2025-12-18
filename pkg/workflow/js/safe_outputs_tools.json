@@ -72,6 +72,28 @@
     }
   },
   {
+    "name": "update_discussion",
+    "description": "Update an existing GitHub discussion's title or body. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "New discussion title to replace the existing title."
+        },
+        "body": {
+          "type": "string",
+          "description": "New discussion body to replace the existing content. Use Markdown formatting."
+        },
+        "discussion_number": {
+          "type": ["number", "string"],
+          "description": "Discussion number to update. Required when the workflow target is '*' (any discussion)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "close_discussion",
     "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed.",
     "inputSchema": {

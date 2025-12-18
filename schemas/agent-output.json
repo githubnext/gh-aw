@@ -37,6 +37,7 @@
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
+        {"$ref": "#/$defs/UpdateDiscussionOutput"},
         {"$ref": "#/$defs/CloseDiscussionOutput"},
         {"$ref": "#/$defs/CloseIssueOutput"},
         {"$ref": "#/$defs/ClosePullRequestOutput"},
@@ -325,6 +326,33 @@
         }
       },
       "required": ["type", "title", "body"],
+      "additionalProperties": false
+    },
+    "UpdateDiscussionOutput": {
+      "title": "Update Discussion Output",
+      "description": "Output for updating an existing GitHub discussion's title and/or body. Note: The JavaScript validation ensures at least one of title or body is provided.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update_discussion"
+        },
+        "title": {
+          "type": "string",
+          "description": "New discussion title to replace the existing title"
+        },
+        "body": {
+          "type": "string",
+          "description": "New discussion body to replace the existing content"
+        },
+        "discussion_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Discussion number to update (for target '*')"
+        }
+      },
+      "required": ["type"],
       "additionalProperties": false
     },
     "CloseDiscussionOutput": {
