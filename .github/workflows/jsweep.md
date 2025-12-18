@@ -11,6 +11,7 @@ permissions:
 tracker-id: jsweep-daily
 engine: copilot
 tools:
+  serena: ["typescript"]
   github:
     toolsets: [default]
   edit:
