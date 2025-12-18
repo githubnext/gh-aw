@@ -128,10 +128,7 @@ describe("hide_comment", () => {
     expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)");
     expect(mockCore.info).toHaveBeenCalledWith(`Hiding comment: ${commentNodeId} (reason: SPAM)`);
     expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId}`);
-    expect(mockGithub.graphql).toHaveBeenCalledWith(
-      expect.stringContaining("minimizeComment"),
-      expect.objectContaining({ nodeId: commentNodeId })
-    );
+    expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: commentNodeId }));
     expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", commentNodeId);
     expect(mockCore.setOutput).toHaveBeenCalledWith("is_hidden", "true");
   });

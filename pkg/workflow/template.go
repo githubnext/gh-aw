@@ -15,9 +15,13 @@ var templateLog = logger.New("workflow:template")
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
 func wrapExpressionsInTemplateConditionals(markdown string) string {
 	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
-	// This regex captures the entire {{#if ...}} block
-	// Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
-	re := regexp.MustCompile(`\{\{#if\s+(.*?)\s*\}\}`)
+	// This regex captures the entire {{#if ...}} block and handles nested }} within ${{ }} expressions
+	// The pattern (?:\$\{\{[^\}]*\}\}|[^\}])* matches either:
+	//   - A complete ${{ ... }} expression (where ... has no })
+	//   - OR any character that's not }
+	// This allows matching ${{ github.event.issue.number }} as a unit while stopping at the
+	// closing }} of the conditional
+	re := regexp.MustCompile(`\{\{#if\s+((?:\$\{\{[^\}]*\}\}|[^\}])*)\s*\}\}`)
 
 	templateLog.Print("Wrapping expressions in template conditionals")
 

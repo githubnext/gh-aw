@@ -35,19 +35,7 @@
     "packages.cloud.google.com",
     "packages.microsoft.com"
   ],
-  "containers": [
-    "ghcr.io",
-    "registry.hub.docker.com",
-    "*.docker.io",
-    "*.docker.com",
-    "production.cloudflare.docker.com",
-    "dl.k8s.io",
-    "pkgs.k8s.io",
-    "quay.io",
-    "mcr.microsoft.com",
-    "gcr.io",
-    "auth.docker.io"
-  ],
+  "containers": ["ghcr.io", "registry.hub.docker.com", "*.docker.io", "*.docker.com", "production.cloudflare.docker.com", "dl.k8s.io", "pkgs.k8s.io", "quay.io", "mcr.microsoft.com", "gcr.io", "auth.docker.io"],
   "dotnet": [
     "nuget.org",
     "dist.nuget.org",
@@ -156,17 +144,7 @@
     "repo.continuum.io",
     "repo.anaconda.com"
   ],
-  "ruby": [
-    "rubygems.org",
-    "api.rubygems.org",
-    "rubygems.pkg.github.com",
-    "bundler.rubygems.org",
-    "gems.rubyforge.org",
-    "gems.rubyonrails.org",
-    "index.rubygems.org",
-    "cache.ruby-lang.org",
-    "*.rvm.io"
-  ],
+  "ruby": ["rubygems.org", "api.rubygems.org", "rubygems.pkg.github.com", "bundler.rubygems.org", "gems.rubyforge.org", "gems.rubyonrails.org", "index.rubygems.org", "cache.ruby-lang.org", "*.rvm.io"],
   "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
   "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "github-actions": [

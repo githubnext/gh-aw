@@ -4,9 +4,12 @@
   "singleQuote": false,
   "tabWidth": 2,
   "trailingComma": "es5",
-  "printWidth": 140,
+  "printWidth": 240,
   "bracketSpacing": true,
   "arrowParens": "avoid",
+  "proseWrap": "never",
+  "bracketSameLine": true,
+  "singleAttributePerLine": false,
   "overrides": [
     {
       "files": "*.cjs",

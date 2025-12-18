@@ -4,14 +4,7 @@
 async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
-  const {
-    validateItem,
-    getMaxAllowedForType,
-    getMinRequiredForType,
-    hasValidationConfig,
-    MAX_BODY_LENGTH: maxBodyLength,
-    resetValidationConfigCache,
-  } = require("./safe_output_type_validator.cjs");
+  const { validateItem, getMaxAllowedForType, getMinRequiredForType, hasValidationConfig, MAX_BODY_LENGTH: maxBodyLength, resetValidationConfigCache } = require("./safe_output_type_validator.cjs");
   const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 
   // Load validation config from file and set it in environment for the validator to read
@@ -26,9 +19,7 @@ async function main() {
       core.info(`Loaded validation config from ${validationConfigPath}`);
     }
   } catch (error) {
-    core.warning(
-      `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   // Extract mentions configuration from validation config
@@ -257,9 +248,7 @@ async function main() {
       // Update item.type to normalized value
       item.type = itemType;
       if (!expectedOutputTypes[itemType]) {
-        core.warning(
-          `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-        );
+        core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
         errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
         continue;
       }
@@ -351,10 +340,7 @@ async function main() {
   let allowEmptyPR = false;
   if (safeOutputsConfig) {
     // Check if create-pull-request has allow-empty enabled
-    if (
-      safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-      safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-    ) {
+    if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
       allowEmptyPR = true;
       core.info(`allow-empty is enabled for create-pull-request`);
     }

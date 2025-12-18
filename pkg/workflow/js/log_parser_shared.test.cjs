@@ -546,13 +546,7 @@ describe("log_parser_shared.cjs", () => {
       const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
 
       const initEntry = {
-        tools: [
-          "safeoutputs-create_discussion",
-          "safeoutputs-close_discussion",
-          "safeoutputs-upload_asset",
-          "safeoutputs-missing_tool",
-          "safeoutputs-noop",
-        ],
+        tools: ["safeoutputs-create_discussion", "safeoutputs-close_discussion", "safeoutputs-upload_asset", "safeoutputs-missing_tool", "safeoutputs-noop"],
       };
 
       const result = formatInitializationSummary(initEntry);
@@ -593,13 +587,7 @@ describe("log_parser_shared.cjs", () => {
       const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
 
       const initEntry = {
-        tools: [
-          "add-safe-output-type",
-          "cli-consistency-checker",
-          "create-agentic-workflow",
-          "debug-agentic-workflow",
-          "technical-doc-writer",
-        ],
+        tools: ["add-safe-output-type", "cli-consistency-checker", "create-agentic-workflow", "debug-agentic-workflow", "technical-doc-writer"],
       };
 
       const result = formatInitializationSummary(initEntry);
@@ -838,11 +826,7 @@ describe("log_parser_shared.cjs", () => {
     it("should parse JSONL format (newline-separated JSON objects)", async () => {
       const { parseLogEntries } = await import("./log_parser_shared.cjs");
 
-      const logContent = [
-        '{"type": "system", "subtype": "init"}',
-        '{"type": "assistant", "message": {"content": []}}',
-        '{"type": "result", "num_turns": 1}',
-      ].join("\n");
+      const logContent = ['{"type": "system", "subtype": "init"}', '{"type": "assistant", "message": {"content": []}}', '{"type": "result", "num_turns": 1}'].join("\n");
 
       const result = parseLogEntries(logContent);
 
@@ -855,12 +839,7 @@ describe("log_parser_shared.cjs", () => {
     it("should handle mixed format with debug logs", async () => {
       const { parseLogEntries } = await import("./log_parser_shared.cjs");
 
-      const logContent = [
-        "2024-01-01T12:00:00.000Z [DEBUG] Starting...",
-        '{"type": "system", "subtype": "init"}',
-        "2024-01-01T12:00:01.000Z [INFO] Processing...",
-        '{"type": "assistant", "message": {"content": []}}',
-      ].join("\n");
+      const logContent = ["2024-01-01T12:00:00.000Z [DEBUG] Starting...", '{"type": "system", "subtype": "init"}', "2024-01-01T12:00:01.000Z [INFO] Processing...", '{"type": "assistant", "message": {"content": []}}'].join("\n");
 
       const result = parseLogEntries(logContent);
 
@@ -884,11 +863,7 @@ describe("log_parser_shared.cjs", () => {
     it("should handle lines starting with array notation", async () => {
       const { parseLogEntries } = await import("./log_parser_shared.cjs");
 
-      const logContent = [
-        "Some debug output",
-        '[{"type": "system", "subtype": "init"}]',
-        '[{"type": "assistant", "message": {"content": []}}]',
-      ].join("\n");
+      const logContent = ["Some debug output", '[{"type": "system", "subtype": "init"}]', '[{"type": "assistant", "message": {"content": []}}]'].join("\n");
 
       const result = parseLogEntries(logContent);
 
@@ -900,9 +875,7 @@ describe("log_parser_shared.cjs", () => {
     it("should skip empty lines", async () => {
       const { parseLogEntries } = await import("./log_parser_shared.cjs");
 
-      const logContent = ['{"type": "system", "subtype": "init"}', "", "   ", '{"type": "assistant", "message": {"content": []}}'].join(
-        "\n"
-      );
+      const logContent = ['{"type": "system", "subtype": "init"}', "", "   ", '{"type": "assistant", "message": {"content": []}}'].join("\n");
 
       const result = parseLogEntries(logContent);
 
@@ -912,11 +885,7 @@ describe("log_parser_shared.cjs", () => {
     it("should skip invalid JSON lines", async () => {
       const { parseLogEntries } = await import("./log_parser_shared.cjs");
 
-      const logContent = [
-        '{"type": "system", "subtype": "init"}',
-        '{"invalid json here',
-        '{"type": "assistant", "message": {"content": []}}',
-      ].join("\n");
+      const logContent = ['{"type": "system", "subtype": "init"}', '{"invalid json here', '{"type": "assistant", "message": {"content": []}}'].join("\n");
 
       const result = parseLogEntries(logContent);
 

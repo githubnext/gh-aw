@@ -316,17 +316,14 @@ describe("remove_duplicate_title.cjs", () => {
     describe("real-world examples", () => {
       it("should handle GitHub issue format", () => {
         const title = "Feature: Add dark mode";
-        const description =
-          "# Feature: Add dark mode\n\n## Description\n\nWe need dark mode support.\n\n## Acceptance Criteria\n\n- [ ] Dark mode toggle\n- [ ] Persistent preference";
-        const expected =
-          "## Description\n\nWe need dark mode support.\n\n## Acceptance Criteria\n\n- [ ] Dark mode toggle\n- [ ] Persistent preference";
+        const description = "# Feature: Add dark mode\n\n## Description\n\nWe need dark mode support.\n\n## Acceptance Criteria\n\n- [ ] Dark mode toggle\n- [ ] Persistent preference";
+        const expected = "## Description\n\nWe need dark mode support.\n\n## Acceptance Criteria\n\n- [ ] Dark mode toggle\n- [ ] Persistent preference";
         expect(removeDuplicateTitleFromDescription(title, description)).toBe(expected);
       });
 
       it("should handle pull request format", () => {
         const title = "Fix authentication bug";
-        const description =
-          "# Fix authentication bug\n\n## Changes\n\n- Updated auth flow\n- Added tests\n\n## Testing\n\nManually tested all scenarios.";
+        const description = "# Fix authentication bug\n\n## Changes\n\n- Updated auth flow\n- Added tests\n\n## Testing\n\nManually tested all scenarios.";
         const expected = "## Changes\n\n- Updated auth flow\n- Added tests\n\n## Testing\n\nManually tested all scenarios.";
         expect(removeDuplicateTitleFromDescription(title, description)).toBe(expected);
       });

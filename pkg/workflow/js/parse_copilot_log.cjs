@@ -2,13 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const {
-  generateConversationMarkdown,
-  generateInformationSection,
-  formatInitializationSummary,
-  formatToolUse,
-  parseLogEntries,
-} = require("./log_parser_shared.cjs");
+const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
@@ -25,11 +19,7 @@ function main() {
  */
 function extractPremiumRequestCount(logContent) {
   // Try various patterns that might appear in the Copilot CLI output
-  const patterns = [
-    /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-    /(\d+)\s+premium\s+requests?\s+consumed/i,
-    /consumed\s+(\d+)\s+premium\s+requests?/i,
-  ];
+  const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
 
   for (const pattern of patterns) {
     const match = logContent.match(pattern);
@@ -131,8 +121,7 @@ function parseCopilotLog(logContent) {
     markdown += generateInformationSection(lastEntry, {
       additionalInfoCallback: entry => {
         // Display premium request consumption if using a premium model
-        const isPremiumModel =
-          initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+        const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
         if (isPremiumModel) {
           const premiumRequestCount = extractPremiumRequestCount(logContent);
           return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;

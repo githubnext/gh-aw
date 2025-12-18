@@ -145,21 +145,7 @@ function buildUpdateData(params) {
  * @returns {Promise<any[]|undefined>} Array of updated items or undefined
  */
 async function runUpdateWorkflow(config) {
-  const {
-    itemType,
-    displayName,
-    displayNamePlural,
-    numberField,
-    outputNumberKey,
-    outputUrlKey,
-    isValidContext,
-    getContextNumber,
-    supportsStatus,
-    supportsOperation,
-    renderStagedItem,
-    executeUpdate,
-    getSummaryLine,
-  } = config;
+  const { itemType, displayName, displayNamePlural, numberField, outputNumberKey, outputUrlKey, isValidContext, getContextNumber, supportsStatus, supportsOperation, renderStagedItem, executeUpdate, getSummaryLine } = config;
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";

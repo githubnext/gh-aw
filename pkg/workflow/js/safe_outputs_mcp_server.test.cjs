@@ -59,12 +59,7 @@ describe("safe_outputs_mcp_server.cjs", () => {
   describe("tool definition structure", () => {
     it("should validate tool schema", () => {
       const isValidTool = tool => {
-        return (
-          typeof tool.name === "string" &&
-          tool.description !== undefined &&
-          tool.inputSchema !== undefined &&
-          typeof tool.inputSchema === "object"
-        );
+        return typeof tool.name === "string" && tool.description !== undefined && tool.inputSchema !== undefined && typeof tool.inputSchema === "object";
       };
 
       const validTool = {

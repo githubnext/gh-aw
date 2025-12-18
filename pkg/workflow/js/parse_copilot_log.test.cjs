@@ -109,10 +109,7 @@ describe("parse_copilot_log.cjs", () => {
 
     try {
       // Create a new function context to execute the script
-      const scriptWithExports = parseCopilotLogScript.replace(
-        "main();",
-        "global.testParseCopilotLog = parseCopilotLog; global.testMain = main; main();"
-      );
+      const scriptWithExports = parseCopilotLogScript.replace("main();", "global.testParseCopilotLog = parseCopilotLog; global.testMain = main; main();");
       const scriptFunction = new Function(scriptWithExports);
       await scriptFunction();
     } finally {
@@ -852,10 +849,7 @@ More log content
 
     beforeEach(() => {
       const parseCopilotLogScript = fs.readFileSync(path.join(__dirname, "parse_copilot_log.cjs"), "utf8");
-      const scriptWithExport = parseCopilotLogScript.replace(
-        "main();",
-        "global.testExtractPremiumRequestCount = extractPremiumRequestCount;"
-      );
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testExtractPremiumRequestCount = extractPremiumRequestCount;");
       const scriptFunction = new Function(scriptWithExport);
       scriptFunction();
       extractPremiumRequestCount = global.testExtractPremiumRequestCount;

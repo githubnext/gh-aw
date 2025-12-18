@@ -68,17 +68,13 @@ function logGraphQLError(error, operation) {
 function parseProjectInput(projectUrl) {
   // Validate input
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(
-      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
-    );
+    throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
   // Parse GitHub project URL
   const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (!urlMatch) {
-    throw new Error(
-      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
-    );
+    throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
 
   return urlMatch[1];
@@ -91,16 +87,12 @@ function parseProjectInput(projectUrl) {
  */
 function parseProjectUrl(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
-    throw new Error(
-      `Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`
-    );
+    throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
   const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
-    throw new Error(
-      `Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`
-    );
+    throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
 
   return { scope: match[1], ownerLogin: match[2], projectNumber: match[3] };
@@ -390,9 +382,7 @@ async function updateProject(output) {
 
     // Step 2: Resolve project using org/user + number parsed from URL
     // Note: GitHub GraphQL `resource(url:)` does not support Projects v2 URLs.
-    core.info(
-      `[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`
-    );
+    core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
     let projectId;
     let resolvedProjectNumber = projectNumberFromUrl;
     try {
@@ -461,12 +451,7 @@ async function updateProject(output) {
     if (hasContentNumber || hasIssue || hasPullRequest) {
       const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request;
 
-      const sanitizedContentNumber =
-        rawContentNumber === undefined || rawContentNumber === null
-          ? ""
-          : typeof rawContentNumber === "number"
-            ? rawContentNumber.toString()
-            : String(rawContentNumber).trim();
+      const sanitizedContentNumber = rawContentNumber === undefined || rawContentNumber === null ? "" : typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
 
       if (!sanitizedContentNumber) {
         core.warning("Content number field provided but empty; skipping project item update.");
@@ -477,14 +462,7 @@ async function updateProject(output) {
       }
     }
     if (contentNumber !== null) {
-      const contentType =
-        output.content_type === "pull_request"
-          ? "PullRequest"
-          : output.content_type === "issue"
-            ? "Issue"
-            : output.issue
-              ? "Issue"
-              : "PullRequest";
+      const contentType = output.content_type === "pull_request" ? "PullRequest" : output.content_type === "issue" ? "Issue" : output.issue ? "Issue" : "PullRequest";
 
       // Get content ID
       const contentQuery =
@@ -633,8 +611,7 @@ async function updateProject(output) {
           let field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
           if (!field) {
             // Try to create the field - determine type based on field name or value
-            const isTextField =
-              fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
+            const isTextField = fieldName.toLowerCase() === "classification" || (typeof fieldValue === "string" && fieldValue.includes("|"));
 
             if (isTextField) {
               // Create text field
@@ -718,10 +695,7 @@ async function updateProject(output) {
               // Option doesn't exist, try to create it
               try {
                 // Build options array with existing options plus the new one
-                const allOptions = [
-                  ...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })),
-                  { name: String(fieldValue), description: "", color: "GRAY" },
-                ];
+                const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }];
 
                 const createOptionResult = await github.graphql(
                   `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {

@@ -19,44 +19,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
 # Automatically classifies and labels issues based on content analysis and predefined categories
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/actions-ai-inference.md
-#
-# Job Dependency Graph:
-# ```mermaid
-# graph LR
-#   activation["activation"]
-#   add_labels["add_labels"]
-#   agent["agent"]
-#   conclusion["conclusion"]
-#   detection["detection"]
-#   pre_activation["pre_activation"]
-#   activation --> agent
-#   activation --> conclusion
-#   add_labels --> conclusion
-#   agent --> add_labels
-#   agent --> conclusion
-#   agent --> detection
-#   detection --> add_labels
-#   detection --> conclusion
-#   pre_activation --> activation
-# ```
-#
-# Pinned GitHub Actions:
-#   - actions/ai-inference@v1 (b81b2afb8390ee6839b494a404766bef6493c7d9)
-#     https://github.com/actions/ai-inference/commit/b81b2afb8390ee6839b494a404766bef6493c7d9
-#   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
-#     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
-#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
-#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
-#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
-#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
-#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Issue Classifier"
 "on":
@@ -158,9 +125,7 @@ jobs:
                   .addRaw("**Files:**\n")
                   .addRaw(`- Source: \`${workflowMdPath}\`\n`)
                   .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(
-                    `  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`
-                  )
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
                   .addRaw(`- Lock: \`${lockFilePath}\`\n`)
                   .addRaw(`  - Last commit: ${lockTimestamp}\n`)
                   .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
@@ -306,36 +271,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -357,37 +319,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -589,18 +521,14 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             async function main() {
               const reaction = process.env.GH_AW_REACTION || "eyes";
               const command = process.env.GH_AW_COMMAND; 
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               core.info(`Reaction type: ${reaction}`);
               core.info(`Command name: ${command || "none"}`);
               core.info(`Run ID: ${runId}`);
@@ -930,9 +858,7 @@ jobs:
                 core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
+                core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
               }
             }
             await main();
@@ -1062,10 +988,7 @@ jobs:
             function resolveTarget(params) {
               const { targetConfig, item, context, itemType, supportsPR = false } = params;
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
+              const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
               const target = targetConfig || "triggering";
               if (target === "triggering") {
                 if (supportsPR) {
@@ -1162,10 +1085,7 @@ jobs:
               let sanitized = content.trim();
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
+              sanitized = sanitized.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
@@ -1257,16 +1177,7 @@ jobs:
               return { valid: true, value: parsed };
             }
             async function processSafeOutput(config, stagedPreviewOptions) {
-              const {
-                itemType,
-                configKey,
-                displayName,
-                itemTypeName,
-                supportsPR = false,
-                supportsIssue = false,
-                findMultiple = false,
-                envVars,
-              } = config;
+              const { itemType, configKey, displayName, itemTypeName, supportsPR = false, supportsIssue = false, findMultiple = false, envVars } = config;
               const result = loadAgentOutput();
               if (!result.success) {
                 return { success: false, reason: "Agent output not available" };
@@ -1889,9 +1800,7 @@ jobs:
                 server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
                 server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
                 const inputJson = JSON.stringify(args || {});
-                server.debug(
-                  `  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`
-                );
+                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
                 return new Promise((resolve, reject) => {
                   server.debug(`  [${toolName}] Executing Python script...`);
                   const child = execFile(
@@ -1999,9 +1908,7 @@ jobs:
                       try {
                         if (fs.existsSync(outputFile)) {
                           const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(
-                            `  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`
-                          );
+                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
                           const lines = outputContent.split("\n");
                           for (const line of lines) {
                             const trimmed = line.trim();
@@ -2059,10 +1966,7 @@ jobs:
                   fs.mkdirSync(server.logDir, { recursive: true });
                 }
                 const timestamp = new Date().toISOString();
-                fs.writeFileSync(
-                  server.logFilePath,
-                  `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`
-                );
+                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
                 server.logFileInitialized = true;
               } catch {
               }
@@ -2722,10 +2626,7 @@ jobs:
                 const isInWorkspace = absolutePath.startsWith(path.resolve(workspaceDir));
                 const isInTmp = absolutePath.startsWith(tmpDir);
                 if (!isInWorkspace && !isInTmp) {
-                  throw new Error(
-                    `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-                      `Provided path: ${filePath} (resolved to: ${absolutePath})`
-                  );
+                  throw new Error(`File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` + `Provided path: ${filePath} (resolved to: ${absolutePath})`);
                 }
                 if (!fs.existsSync(filePath)) {
                   throw new Error(`File not found: ${filePath}`);
@@ -2984,10 +2885,7 @@ jobs:
                       };
                       const entryJSON = JSON.stringify(entry);
                       fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText =
-                        jobConfig && jobConfig.output
-                          ? jobConfig.output
-                          : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
                       return {
                         content: [
                           {
@@ -3584,16 +3482,13 @@ jobs:
               return result;
             }
             function renderMarkdownTemplate(markdown) {
-              let result = markdown.replace(
-                /(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g,
-                (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
-                  if (isTruthy(cond)) {
-                    return leadNL + body;
-                  } else {
-                    return "";
-                  }
+              let result = markdown.replace(/(\n?)([ \t]*{{#if\s+([^}]*)}}[ \t]*\n)([\s\S]*?)([ \t]*{{\/if}}[ \t]*)(\n?)/g, (match, leadNL, openLine, cond, body, closeLine, trailNL) => {
+                if (isTruthy(cond)) {
+                  return leadNL + body;
+                } else {
+                  return "";
                 }
-              );
+              });
               result = result.replace(/{{#if\s+([^}]*)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
               result = result.replace(/\n{3,}/g, "\n\n");
               return result;
@@ -3953,36 +3848,33 @@ jobs:
                 });
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4004,37 +3896,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4146,36 +4008,33 @@ jobs:
                 return result;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(
-                  /\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi,
-                  (match, _fullMatch, domain) => {
-                    if (domain) {
-                      const domainLower = domain.toLowerCase();
-                      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                  if (domain) {
+                    const domainLower = domain.toLowerCase();
+                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(domainLower);
+                  } else {
+                    const protocolMatch = match.match(/^([^:]+):/);
+                    if (protocolMatch) {
+                      const protocol = protocolMatch[1] + ":";
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
                       if (typeof core !== "undefined" && core.info) {
                         core.info(`Redacted URL: ${truncated}`);
                       }
                       if (typeof core !== "undefined" && core.debug) {
                         core.debug(`Redacted URL (full): ${match}`);
                       }
-                      addRedactedDomain(domainLower);
-                    } else {
-                      const protocolMatch = match.match(/^([^:]+):/);
-                      if (protocolMatch) {
-                        const protocol = protocolMatch[1] + ":";
-                        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                        if (typeof core !== "undefined" && core.info) {
-                          core.info(`Redacted URL: ${truncated}`);
-                        }
-                        if (typeof core !== "undefined" && core.debug) {
-                          core.debug(`Redacted URL (full): ${match}`);
-                        }
-                        addRedactedDomain(protocol);
-                      }
+                      addRedactedDomain(protocol);
                     }
-                    return "(redacted)";
                   }
-                );
+                  return "(redacted)";
+                });
               }
               function neutralizeCommands(s) {
                 const commandName = process.env.GH_AW_COMMAND;
@@ -4201,37 +4060,7 @@ jobs:
                 return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
               }
               function convertXmlTags(s) {
-                const allowedTags = [
-                  "b",
-                  "blockquote",
-                  "br",
-                  "code",
-                  "details",
-                  "em",
-                  "h1",
-                  "h2",
-                  "h3",
-                  "h4",
-                  "h5",
-                  "h6",
-                  "hr",
-                  "i",
-                  "li",
-                  "ol",
-                  "p",
-                  "pre",
-                  "strong",
-                  "sub",
-                  "summary",
-                  "sup",
-                  "table",
-                  "tbody",
-                  "td",
-                  "th",
-                  "thead",
-                  "tr",
-                  "ul",
-                ];
+                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
                 s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
                   const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
                   return `(![CDATA[${convertedContent}]])`;
@@ -4923,9 +4752,7 @@ jobs:
                   core.info(`Loaded validation config from ${validationConfigPath}`);
                 }
               } catch (error) {
-                core.warning(
-                  `Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`
-                );
+                core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
               }
               const mentionsConfig = validationConfig?.mentions || null;
               const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
@@ -5138,9 +4965,7 @@ jobs:
                   core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
                   item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
-                    core.warning(
-                      `[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`
-                    );
+                    core.warning(`[INGESTION] Line ${i + 1}: Type '${itemType}' not found in expected types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
                   }
@@ -5222,10 +5047,7 @@ jobs:
               core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
               let allowEmptyPR = false;
               if (safeOutputsConfig) {
-                if (
-                  safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true ||
-                  safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true
-                ) {
+                if (safeOutputsConfig["create-pull-request"]?.["allow-empty"] === true || safeOutputsConfig["create_pull_request"]?.["allow_empty"] === true) {
                   allowEmptyPR = true;
                   core.info(`allow-empty is enabled for create-pull-request`);
                 }
@@ -5476,9 +5298,7 @@ jobs:
               core.setOutput("total_count", missingTools.length.toString());
               if (missingTools.length > 0) {
                 core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 3)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
                 missingTools.forEach((tool, index) => {
                   core.info(`${index + 1}. Tool: ${tool.tool}`);
                   core.info(`   Reason: ${tool.reason}`);
@@ -5609,9 +5429,7 @@ jobs:
               const messages = getMessages();
               const templateContext = toSnakeCase(ctx);
               const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure
-                ? renderTemplate(messages.detectionFailure, templateContext)
-                : renderTemplate(defaultMessage, templateContext);
+              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
             }
             function collectGeneratedAssets() {
               const assets = [];
@@ -6116,10 +5934,7 @@ jobs:
                 core.setOutput("is_team_member", "false");
                 core.setOutput("result", "insufficient_permissions");
                 core.setOutput("user_permission", result.permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
+                core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
               }
             }
             await main();

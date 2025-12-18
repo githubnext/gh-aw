@@ -13,13 +13,7 @@ const core = {
 global.core = core;
 
 // Import the functions to test
-const {
-  processRuntimeImports,
-  processRuntimeImport,
-  hasFrontMatter,
-  removeXMLComments,
-  hasGitHubActionsMacros,
-} = require("./runtime_import.cjs");
+const { processRuntimeImports, processRuntimeImport, hasFrontMatter, removeXMLComments, hasGitHubActionsMacros } = require("./runtime_import.cjs");
 
 describe("runtime_import", () => {
   let tempDir;
@@ -178,9 +172,7 @@ describe("runtime_import", () => {
       const content = "# Title\n\nActor: ${{ github.actor }}\n";
       fs.writeFileSync(path.join(tempDir, filepath), content);
 
-      expect(() => processRuntimeImport(filepath, false, tempDir)).toThrow(
-        `File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`
-      );
+      expect(() => processRuntimeImport(filepath, false, tempDir)).toThrow(`File ${filepath} contains GitHub Actions macros ($\{{ ... }}) which are not allowed in runtime imports`);
     });
 
     it("should handle file in subdirectory", () => {

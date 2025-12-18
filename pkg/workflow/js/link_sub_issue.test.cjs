@@ -149,9 +149,7 @@ describe("link_sub_issue.cjs", () => {
     await runScript();
 
     // Verify warning was logged about existing parent
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Existing Parent Issue"). Skipping.')
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Existing Parent Issue"). Skipping.'));
 
     // Verify no addSubIssue mutation was called (only the parent check query was called)
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);

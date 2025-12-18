@@ -215,9 +215,7 @@ function validateErrors(logContent, patterns) {
 
         // Warn if iteration count is getting high
         if (iterationCount === ITERATION_WARNING_THRESHOLD) {
-          core.warning(
-            `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
-          );
+          core.warning(`High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`);
           core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
         }
 

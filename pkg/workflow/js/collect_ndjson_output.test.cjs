@@ -679,9 +679,7 @@ describe("collect_ndjson_output.cjs", () => {
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(5); // Only first 5 items should be allowed
     expect(parsedOutput.errors).toHaveLength(7); // 7 items exceeding max
-    expect(
-      parsedOutput.errors.every(e => e.includes("Too many items of type 'create_pull_request_review_comment'. Maximum allowed: 5"))
-    ).toBe(true);
+    expect(parsedOutput.errors.every(e => e.includes("Too many items of type 'create_pull_request_review_comment'. Maximum allowed: 5"))).toBe(true);
   });
 
   describe("JSON repair functionality", () => {
@@ -1404,8 +1402,7 @@ Line 3"}
 
     it("should repair very long strings with multiple issues", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const longBody =
-        'This is a very long body text that contains "quotes" and other\\nspecial characters including tabs\\t and newlines\\r\\n and more text that goes on and on.';
+      const longBody = 'This is a very long body text that contains "quotes" and other\\nspecial characters including tabs\\t and newlines\\r\\n and more text that goes on and on.';
       const ndjsonContent = `{type: 'create_issue', title: 'Long string test', body: '${longBody}',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1902,9 +1899,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'severity' must be one of: error, warning, info, note"))
-      ).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'severity' must be one of: error, warning, info, note"))).toBe(true);
     });
 
     it("should reject code scanning alert entries with invalid optional fields", async () => {
@@ -1934,15 +1929,9 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)"))
-      ).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)"))).toBe(true);
       expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'ruleIdSuffix' must be a string"))).toBe(true);
-      expect(
-        parsedOutput.errors.some(e =>
-          e.includes("create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores")
-        )
-      ).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"))).toBe(true);
     });
 
     it("should handle mixed valid and invalid code scanning alert entries", async () => {
@@ -2002,21 +1991,11 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0);
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)"))
-      ).toBe(true);
-      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)"))).toBe(
-        true
-      );
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)"))
-      ).toBe(true);
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)"))
-      ).toBe(true);
-      expect(
-        parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)"))
-      ).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)"))).toBe(true);
+      expect(parsedOutput.errors.some(e => e.includes("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)"))).toBe(true);
     });
   });
 
@@ -2059,9 +2038,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"
-      );
+      expect(parsedOutput.items[0].body).toBe("Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192");
     });
 
     it("should redact non-https protocols while preserving command flags", async () => {
@@ -2080,9 +2057,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work"
-      );
+      expect(parsedOutput.items[0].body).toBe("Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work");
     });
 
     it("should handle mixed protocols and command flags in complex text", async () => {
@@ -2101,9 +2076,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)"
-      );
+      expect(parsedOutput.items[0].body).toBe("Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)");
     });
 
     it("should preserve allowed domains while redacting unknown ones", async () => {
@@ -2122,9 +2095,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)"
-      );
+      expect(parsedOutput.items[0].body).toBe("GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)");
     });
 
     it("should handle @mentions neutralization", async () => {
@@ -2215,9 +2186,7 @@ Line 3"}
       const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
       const parsedOutput = JSON.parse(outputCall[1]);
 
-      expect(parsedOutput.items[0].body).toBe(
-        "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)"
-      );
+      expect(parsedOutput.items[0].body).toBe("Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)");
 
       // Clean up
       delete process.env.GH_AW_ALLOWED_DOMAINS;
@@ -2244,9 +2213,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
 
       // All these should be preserved since they don't match the protocol:// pattern
-      expect(parsedOutput.items[0].body).toBe(
-        "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"
-      );
+      expect(parsedOutput.items[0].body).toBe("Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function");
     });
 
     it("should truncate excessively long content", async () => {

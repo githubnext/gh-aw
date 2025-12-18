@@ -122,13 +122,7 @@ async function main() {
         const errorMessage = execError instanceof Error ? execError.message : String(execError);
 
         // Check for authentication/permission errors
-        if (
-          errorMessage.includes("authentication") ||
-          errorMessage.includes("permission") ||
-          errorMessage.includes("forbidden") ||
-          errorMessage.includes("401") ||
-          errorMessage.includes("403")
-        ) {
+        if (errorMessage.includes("authentication") || errorMessage.includes("permission") || errorMessage.includes("forbidden") || errorMessage.includes("401") || errorMessage.includes("403")) {
           core.error(`Task ${index + 1}: Failed to create agent task due to authentication/permission error.`);
           core.error(`The default GITHUB_TOKEN does not have permission to create agent tasks.`);
           core.error(`You must configure a Personal Access Token (PAT) as COPILOT_GITHUB_TOKEN or GH_AW_GITHUB_TOKEN.`);

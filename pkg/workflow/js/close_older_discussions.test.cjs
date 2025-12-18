@@ -315,15 +315,7 @@ describe("close_older_discussions.cjs", () => {
         },
       });
 
-      const result = await searchOlderDiscussions(
-        mockGithub,
-        "testowner",
-        "testrepo",
-        "[weekly-report] ",
-        ["automation"],
-        "DIC_test123",
-        10
-      );
+      const result = await searchOlderDiscussions(mockGithub, "testowner", "testrepo", "[weekly-report] ", ["automation"], "DIC_test123", 10);
 
       // Only discussion #5 has both the title prefix AND the label
       expect(result).toHaveLength(1);
@@ -437,9 +429,7 @@ describe("close_older_discussions.cjs", () => {
       );
 
       expect(result).toHaveLength(MAX_CLOSE_COUNT);
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining(`Found 15 older discussions, but only closing the first ${MAX_CLOSE_COUNT}`)
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining(`Found 15 older discussions, but only closing the first ${MAX_CLOSE_COUNT}`));
     });
 
     it("should return empty array when no older discussions found", async () => {
