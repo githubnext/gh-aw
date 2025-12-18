@@ -1,10 +1,5 @@
 name: "Smoke Copilot No Firewall"
 "on":
-  pull_request:
-    # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
-    types:
-    - labeled
   schedule:
   - cron: "0 0,6,12,18 * * *"
   workflow_dispatch: null
