@@ -9637,7 +9637,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_issue.cjs'); })();
       - name: Add Comment
         id: add_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
@@ -9654,7 +9654,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/add_comment.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/add_comment.cjs'); })();
       - name: Add Labels
         id: add_labels
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))
@@ -9668,7 +9668,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/add_labels.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/add_labels.cjs'); })();
       - name: Hide Comment
         id: hide_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'hide_comment'))
@@ -9681,7 +9681,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/hide_comment.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/hide_comment.cjs'); })();
 
   update_cache_memory:
     needs:

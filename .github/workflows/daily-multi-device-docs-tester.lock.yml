@@ -7520,7 +7520,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_issue.cjs'); })();
       - name: Upload Assets
         id: upload_assets
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
@@ -7533,5 +7533,5 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/upload_assets.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/upload_assets.cjs'); })();
 

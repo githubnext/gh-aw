@@ -8966,7 +8966,7 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            require('/tmp/gh-aw/scripts/update_pull_request.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/update_pull_request.cjs'); })();
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
@@ -8982,7 +8982,7 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            require('/tmp/gh-aw/scripts/push_to_pull_request_branch.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/push_to_pull_request_branch.cjs'); })();
       - name: Invalidate GitHub App token
         if: always() && steps.app-token.outputs.token != ''
         env:

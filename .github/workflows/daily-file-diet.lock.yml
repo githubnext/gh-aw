@@ -9192,7 +9192,7 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            require('/tmp/gh-aw/scripts/create_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_issue.cjs'); })();
       - name: Upload Assets
         id: upload_assets
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
@@ -9205,7 +9205,7 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            require('/tmp/gh-aw/scripts/upload_assets.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/upload_assets.cjs'); })();
       - name: Invalidate GitHub App token
         if: always() && steps.app-token.outputs.token != ''
         env:

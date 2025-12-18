@@ -8776,7 +8776,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/add_comment.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/add_comment.cjs'); })();
       - name: Assign To Agent
         id: assign_to_agent
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
@@ -8789,7 +8789,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/assign_to_agent.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/assign_to_agent.cjs'); })();
 
   search_issues:
     needs: pre_activation

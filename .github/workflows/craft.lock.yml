@@ -9558,7 +9558,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/add_comment.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/add_comment.cjs'); })();
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
@@ -9573,5 +9573,5 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/push_to_pull_request_branch.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/push_to_pull_request_branch.cjs'); })();
 

@@ -8234,7 +8234,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_issue.cjs'); })();
       - name: Close Issue
         id: close_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_issue'))
@@ -8246,5 +8246,5 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/close_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/close_issue.cjs'); })();
 

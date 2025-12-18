@@ -8841,7 +8841,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_discussion.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_discussion.cjs'); })();
       - name: Create Pull Request
         id: create_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
@@ -8857,7 +8857,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/create_pull_request.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/create_pull_request.cjs'); })();
 
   update_cache_memory:
     needs:

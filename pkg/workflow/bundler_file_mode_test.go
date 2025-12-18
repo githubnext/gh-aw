@@ -143,9 +143,14 @@ func TestGenerateRequireScript(t *testing.T) {
 		t.Error("Expected script to contain require()")
 	}
 
-	// Should just require the file, not call a main function
-	if strings.Contains(script, "await main(") {
-		t.Error("Should not call main function - file executes on require")
+	// Should be wrapped in async IIFE to support top-level await
+	if !strings.Contains(script, "(async () =>") {
+		t.Error("Should be wrapped in async IIFE to support top-level await")
+	}
+
+	// Should have the closing IIFE parentheses
+	if !strings.Contains(script, ")()") {
+		t.Error("Should have IIFE invocation")
 	}
 }
 

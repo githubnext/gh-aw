@@ -229,12 +229,14 @@ func GenerateWriteScriptsStep(files []ScriptFile) []string {
 // GenerateRequireScript generates the JavaScript code that requires the main script
 // from the filesystem instead of inlining the bundled code.
 //
-// For GitHub Script mode, this simply requires the file which executes it.
+// For GitHub Script mode, the script is wrapped in an async IIFE to support
+// top-level await patterns used in the JavaScript files (e.g., `await main();`).
 // The globals (github, context, core, exec, io) are automatically available
 // in the GitHub Script execution context.
 func GenerateRequireScript(mainScriptPath string) string {
 	fullPath := fmt.Sprintf("%s/%s", ScriptsBasePath, mainScriptPath)
-	return fmt.Sprintf(`require('%s');`, fullPath)
+	// Wrap in async IIFE to support top-level await in the required module
+	return fmt.Sprintf(`(async () => { await require('%s'); })();`, fullPath)
 }
 
 // RewriteScriptForFileMode rewrites a script's require statements to use absolute

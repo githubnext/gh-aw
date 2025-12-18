@@ -8151,7 +8151,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/assign_to_agent.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/assign_to_agent.cjs'); })();
       - name: Update Issue
         id: update_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
@@ -8163,5 +8163,5 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            require('/tmp/gh-aw/scripts/update_issue.cjs');
+            (async () => { await require('/tmp/gh-aw/scripts/update_issue.cjs'); })();
 
