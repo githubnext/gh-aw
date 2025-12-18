@@ -49,6 +49,109 @@ func getRepositorySlug() string {
 	return ""
 }
 
+// getRepositorySlugForPath extracts the repository slug (owner/repo) from the git config
+// of the repository containing the specified file path
+func getRepositorySlugForPath(path string) string {
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return ""
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+	
+	// Try to get from git remote URL in the file's repository
+	cmd := exec.Command("git", "-C", dir, "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	url := strings.TrimSpace(string(output))
+
+	// Parse GitHub URL patterns:
+	// - https://github.com/owner/repo.git
+	// - git@github.com:owner/repo.git
+	// - https://github.com/owner/repo
+
+	// Remove .git suffix
+	url = strings.TrimSuffix(url, ".git")
+
+	// Extract owner/repo from URL
+	if strings.HasPrefix(url, "https://github.com/") {
+		slug := strings.TrimPrefix(url, "https://github.com/")
+		return slug
+	} else if strings.HasPrefix(url, "git@github.com:") {
+		slug := strings.TrimPrefix(url, "git@github.com:")
+		return slug
+	}
+
+	return ""
+}
+
+// getRepositoryRoot returns the absolute path to the git repository root
+// It looks for the git repository containing the current directory
+func getRepositoryRoot() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get repository root: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getRepositoryRootForPath returns the absolute path to the git repository root
+// containing the specified file path
+func getRepositoryRootForPath(path string) (string, error) {
+	// Get absolute path first
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Use the directory containing the file
+	dir := filepath.Dir(absPath)
+	
+	// Run git command in the file's directory
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get repository root for path %s: %w", path, err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getRepositoryRelativePath converts an absolute file path to a repository-relative path
+// This ensures stable workflow identifiers regardless of where the repository is cloned
+func getRepositoryRelativePath(absPath string) (string, error) {
+	// Get the repository root for the specific file
+	repoRoot, err := getRepositoryRootForPath(absPath)
+	if err != nil {
+		// If we can't get the repo root, just use the basename as fallback
+		compileOrchestratorLog.Printf("Warning: could not get repository root for %s: %v, using basename", absPath, err)
+		return filepath.Base(absPath), nil
+	}
+
+	// Convert both paths to absolute to ensure they can be compared
+	absPath, err = filepath.Abs(absPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Get the relative path from repo root
+	relPath, err := filepath.Rel(repoRoot, absPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	// Normalize path separators to forward slashes for consistency across platforms
+	// This ensures the same hash value on Windows, Linux, and macOS
+	relPath = filepath.ToSlash(relPath)
+
+	return relPath, nil
+}
+
 func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, sourceCampaignPath string) string {
 	// Produce a conventional gh-aw workflow markdown file so users can review
 	// the generated orchestrator and recompile it like any other workflow.
@@ -419,8 +522,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 			// Parse workflow file to get data
 			compileOrchestratorLog.Printf("Parsing workflow file: %s", resolvedFile)
-			// Set workflow identifier for schedule scattering (use the file path as unique identifier)
-			compiler.SetWorkflowIdentifier(resolvedFile)
+			// Set workflow identifier for schedule scattering (use repository-relative path for stability)
+			relPath, err := getRepositoryRelativePath(resolvedFile)
+			if err != nil {
+				compileOrchestratorLog.Printf("Warning: failed to get repository-relative path for %s: %v", resolvedFile, err)
+				// Fallback to basename if we can't get relative path
+				relPath = filepath.Base(resolvedFile)
+			}
+			compiler.SetWorkflowIdentifier(relPath)
+			
+			// Set repository slug for this specific file (may differ from CWD's repo)
+			fileRepoSlug := getRepositorySlugForPath(resolvedFile)
+			if fileRepoSlug != "" {
+				compiler.SetRepositorySlug(fileRepoSlug)
+				compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+			}
+			
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
@@ -726,8 +843,22 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 
 		// Parse workflow file to get data
-		// Set workflow identifier for schedule scattering (use the file path as unique identifier)
-		compiler.SetWorkflowIdentifier(file)
+		// Set workflow identifier for schedule scattering (use repository-relative path for stability)
+		relPath, err := getRepositoryRelativePath(file)
+		if err != nil {
+			compileOrchestratorLog.Printf("Warning: failed to get repository-relative path for %s: %v", file, err)
+			// Fallback to basename if we can't get relative path
+			relPath = filepath.Base(file)
+		}
+		compiler.SetWorkflowIdentifier(relPath)
+		
+		// Set repository slug for this specific file (may differ from CWD's repo)
+		fileRepoSlug := getRepositorySlugForPath(file)
+		if fileRepoSlug != "" {
+			compiler.SetRepositorySlug(fileRepoSlug)
+			compileOrchestratorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+		}
+		
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
 			if !jsonOutput {
