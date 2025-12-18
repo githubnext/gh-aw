@@ -4,7 +4,7 @@ This document provides guidance on file organization patterns and best practices
 
 ## Table of Contents
 
-- [Excellent Patterns to Follow](#excellent-patterns-to-follow)
+- [Recommended Patterns to Follow](#recommended-patterns-to-follow)
 - [File Organization Principles](#file-organization-principles)
 - [When to Create New Files](#when-to-create-new-files)
 - [File Size Guidelines](#file-size-guidelines)
@@ -12,7 +12,7 @@ This document provides guidance on file organization patterns and best practices
 - [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
 - [Decision Trees](#decision-trees)
 
-## Excellent Patterns to Follow
+## Recommended Patterns to Follow
 
 The codebase exhibits several well-organized patterns that should be emulated:
 
@@ -30,7 +30,7 @@ The codebase exhibits several well-organized patterns that should be emulated:
 
 **Why it works**:
 - Clear separation of concerns
-- Easy to locate specific functionality
+- Enables quick location of specific functionality
 - Prevents files from becoming too large
 - Facilitates parallel development
 - Makes testing straightforward
@@ -55,7 +55,7 @@ The codebase exhibits several well-organized patterns that should be emulated:
 **Why it works**:
 - Engine-specific logic is isolated
 - Shared code is centralized in `engine_helpers.go`
-- Easy to add new engines without affecting existing ones
+- Allows addition of new engines without affecting existing ones
 - Clear boundaries reduce merge conflicts
 
 **When to use**:
@@ -75,7 +75,7 @@ The codebase exhibits several well-organized patterns that should be emulated:
 
 **Why it works**:
 - All related functionality in one place
-- Easy to understand the complete feature
+- Provides clear view of the complete feature
 - Reduces navigation between files
 - Promotes cohesive design
 
@@ -99,7 +99,7 @@ The codebase exhibits several well-organized patterns that should be emulated:
 - `engine_helpers.go` + `engine_helpers_test.go` + `engine_helpers_shared_test.go`
 
 **Why it works**:
-- Tests are easy to find
+- Tests are co-located with implementation
 - Clear test purpose from filename
 - Encourages comprehensive testing
 - Separates integration from unit tests
@@ -401,7 +401,7 @@ Is it a create operation for GitHub entity?
 
 ## Examples from the Codebase
 
-### Excellent: Create Functions
+### Recommended: Create Functions
 ```
 pkg/workflow/
 ├── create_issue.go                    (160 lines)
@@ -413,7 +413,7 @@ pkg/workflow/
 └── create_agent_task.go               (120 lines)
 ```
 
-### Excellent: Engine Organization
+### Recommended: Engine Organization
 ```
 pkg/workflow/
 ├── agentic_engine.go                  (450 lines) - Base interface
@@ -424,7 +424,7 @@ pkg/workflow/
 └── engine_helpers.go                  (424 lines) - Shared utilities
 ```
 
-### Excellent: Focused Utilities
+### Recommended: Focused Utilities
 ```
 pkg/workflow/
 ├── strings.go                         (153 lines) - String utilities
