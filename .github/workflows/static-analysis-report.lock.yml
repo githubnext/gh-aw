@@ -523,7 +523,7 @@
 name: "Static Analysis Report"
 "on":
   schedule:
-  - cron: "49 16 * * *"
+  - cron: "17 22 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 

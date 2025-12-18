@@ -251,7 +251,7 @@
 name: "Documentation Noob Tester"
 "on":
   schedule:
-  - cron: "13 7 * * *"
+  - cron: "29 0 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch: null
 
