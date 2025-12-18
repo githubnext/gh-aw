@@ -57,9 +57,6 @@ type SafeInputParam struct {
 	Default     any    // Default value
 }
 
-// SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
-const SafeInputsFeatureFlag = "safe-inputs"
-
 // SafeInputsMode constants define the available transport modes
 const (
 	SafeInputsModeHTTP  = "http"

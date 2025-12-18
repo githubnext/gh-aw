@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -14,8 +15,8 @@ var featuresLog = logger.New("workflow:features")
 // Features from frontmatter take precedence over environment variables.
 //
 // If workflowData is nil or has no features, it falls back to checking the environment variable only.
-func isFeatureEnabled(flag string, workflowData *WorkflowData) bool {
-	flagLower := strings.ToLower(strings.TrimSpace(flag))
+func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bool {
+	flagLower := strings.ToLower(strings.TrimSpace(string(flag)))
 	featuresLog.Printf("Checking if feature is enabled: %s", flagLower)
 
 	// First, check if the feature is explicitly set in frontmatter
