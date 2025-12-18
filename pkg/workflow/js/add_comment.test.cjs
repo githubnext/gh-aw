@@ -225,11 +225,9 @@ const mockCore = {
           delete global.context.payload.issue,
           delete global.context.payload.pull_request);
         const mockGraphqlResponse = vi.fn();
-        (mockGraphqlResponse
-          .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOPc1QR84BpqRs", url: "https://github.com/testowner/testrepo/discussions/1993" } } })
-          .mockResolvedValueOnce({
-            addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRt", body: "Test discussion comment", createdAt: "2025-10-19T22:00:00Z", url: "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123" } },
-          }),
+        (mockGraphqlResponse.mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOPc1QR84BpqRs", url: "https://github.com/testowner/testrepo/discussions/1993" } } }).mockResolvedValueOnce({
+          addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRt", body: "Test discussion comment", createdAt: "2025-10-19T22:00:00Z", url: "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123" } },
+        }),
           (global.github.graphql = mockGraphqlResponse),
           await eval(`(async () => { ${createCommentScript} })()`),
           expect(mockGraphqlResponse).toHaveBeenCalledTimes(2),
@@ -257,11 +255,9 @@ const mockCore = {
           delete global.context.payload.discussion,
           delete global.context.payload.pull_request);
         const mockGraphqlResponse = vi.fn();
-        (mockGraphqlResponse
-          .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOPc1QR84BpqRu", url: "https://github.com/testowner/testrepo/discussions/2001" } } })
-          .mockResolvedValueOnce({
-            addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRv", body: "Test explicit discussion comment", createdAt: "2025-10-22T12:00:00Z", url: "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456" } },
-          }),
+        (mockGraphqlResponse.mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOPc1QR84BpqRu", url: "https://github.com/testowner/testrepo/discussions/2001" } } }).mockResolvedValueOnce({
+          addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRv", body: "Test explicit discussion comment", createdAt: "2025-10-22T12:00:00Z", url: "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456" } },
+        }),
           (global.github.graphql = mockGraphqlResponse),
           await eval(`(async () => { ${createCommentScript} })()`),
           expect(mockGraphqlResponse).toHaveBeenCalledTimes(2),
