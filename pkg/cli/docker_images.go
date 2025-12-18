@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -81,22 +82,49 @@ func StartDockerImageDownload(image string) bool {
 	pullState.downloading[image] = true
 	pullState.mu.Unlock()
 
-	// Start the download in a goroutine
+	// Start the download in a goroutine with retry logic
 	go func() {
 		dockerImagesLog.Printf("Starting download of image %s", image)
-		cmd := exec.Command("docker", "pull", image)
-		// Capture output for logging but don't display
-		output, err := cmd.CombinedOutput()
+
+		// Retry configuration
+		maxAttempts := 3
+		waitTime := 5 // seconds
+
+		var lastErr error
+		var lastOutput []byte
+
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			dockerImagesLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
+
+			cmd := exec.Command("docker", "pull", image)
+			output, err := cmd.CombinedOutput()
+
+			if err == nil {
+				// Success
+				dockerImagesLog.Printf("Successfully downloaded image %s", image)
+				pullState.mu.Lock()
+				delete(pullState.downloading, image)
+				pullState.mu.Unlock()
+				return
+			}
+
+			lastErr = err
+			lastOutput = output
+
+			// If not the last attempt, wait and retry
+			if attempt < maxAttempts {
+				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
+				time.Sleep(time.Duration(waitTime) * time.Second)
+				waitTime *= 2 // Exponential backoff
+			}
+		}
+
+		// All attempts failed
+		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
 
 		pullState.mu.Lock()
 		delete(pullState.downloading, image)
 		pullState.mu.Unlock()
-
-		if err != nil {
-			dockerImagesLog.Printf("Failed to download image %s: %v\nOutput: %s", image, err, string(output))
-		} else {
-			dockerImagesLog.Printf("Successfully downloaded image %s", image)
-		}
 	}()
 
 	return true

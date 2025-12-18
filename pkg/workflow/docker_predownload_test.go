@@ -133,9 +133,14 @@ Test workflow with custom MCP container.`,
 
 			// If we expect a step, verify the images are present
 			if tt.expectStep {
+				// Verify the retry helper function is present
+				if !strings.Contains(string(yaml), "docker_pull_with_retry()") {
+					t.Error("Expected to find 'docker_pull_with_retry()' function in generated YAML")
+				}
 				for _, expectedImage := range tt.expectedImages {
-					if !strings.Contains(string(yaml), "docker pull "+expectedImage) {
-						t.Errorf("Expected to find 'docker pull %s' in generated YAML", expectedImage)
+					// Check that the image is being pulled using the retry function
+					if !strings.Contains(string(yaml), "docker_pull_with_retry "+expectedImage) {
+						t.Errorf("Expected to find 'docker_pull_with_retry %s' in generated YAML", expectedImage)
 					}
 				}
 			}
