@@ -112,7 +112,8 @@ Create outputs.
 		t.Fatal("safe_outputs job not found")
 	}
 
-	if !strings.Contains(yaml, "needs.detection.outputs.success == 'true'") {
-		t.Error("Safe output jobs don't check detection success")
+	// In consolidated mode, the detection check uses needs.detection.outputs.detected == 'false'
+	if !strings.Contains(yaml, "needs.detection.outputs.detected") {
+		t.Error("Safe output jobs don't check detection result")
 	}
 }

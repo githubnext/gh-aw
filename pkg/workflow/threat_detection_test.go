@@ -300,14 +300,14 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 	// Check that both detection and safe_outputs jobs were created
 	jobs := compiler.jobManager.GetAllJobs()
-	var detectionJob, createIssueJob *Job
+	var detectionJob, safeOutputsJob *Job
 
 	for _, job := range jobs {
 		switch job.Name {
 		case constants.DetectionJobName:
 			detectionJob = job
-		case "create_issue":
-			createIssueJob = job
+		case "safe_outputs":
+			safeOutputsJob = job
 		}
 	}
 
@@ -315,7 +315,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 		t.Fatal("Expected detection job to be created")
 	}
 
-	if createIssueJob == nil {
+	if safeOutputsJob == nil {
 		t.Fatal("Expected safe_outputs job to be created")
 	}
 
@@ -325,8 +325,8 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	}
 
 	// Check that safe_outputs job depends on both agent and detection jobs
-	if len(createIssueJob.Needs) != 2 || createIssueJob.Needs[0] != constants.AgentJobName || createIssueJob.Needs[1] != constants.DetectionJobName {
-		t.Errorf("Expected safe_outputs job to depend on both agent and detection jobs, got dependencies: %v", createIssueJob.Needs)
+	if len(safeOutputsJob.Needs) != 2 || safeOutputsJob.Needs[0] != constants.AgentJobName || safeOutputsJob.Needs[1] != constants.DetectionJobName {
+		t.Errorf("Expected safe_outputs job to depend on both agent and detection jobs, got dependencies: %v", safeOutputsJob.Needs)
 	}
 }
 

@@ -218,7 +218,7 @@ func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
 		{
 			name:          "Both safe outputs",
 			safeOutputs:   "create-pull-request, create-issue",
-			shouldContain: []string{"safe_outputs:", "create_issue:"},
+			shouldContain: []string{"safe_outputs:"},
 		},
 		{
 			name:          "No safe outputs",

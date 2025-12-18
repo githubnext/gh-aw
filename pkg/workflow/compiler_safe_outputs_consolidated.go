@@ -811,6 +811,18 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 	cfg := data.SafeOutputs.PushToPullRequestBranch
 
 	var customEnvVars []string
+	// Add target config if set
+	if cfg.Target != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_TARGET: %q\n", cfg.Target))
+	}
+	// Add if-no-changes config if set
+	if cfg.IfNoChanges != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
+	}
+	// Add title prefix if set (using same env var as create-pull-request)
+	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
+	// Add labels if set
+	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("push_to_pull_request_branch")

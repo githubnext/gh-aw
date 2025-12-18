@@ -231,7 +231,7 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			expectedJob:    "create_discussion:",
+			expectedJob:    "safe_outputs:",
 			expectedPerms:  "contents: read",
 			expectedOutput: "discussion_number:",
 		},
@@ -250,7 +250,7 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			expectedJob:    "update_issue:",
+			expectedJob:    "safe_outputs:",
 			expectedPerms:  "contents: read",
 			expectedOutput: "issue_number:",
 		},
