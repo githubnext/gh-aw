@@ -73,8 +73,7 @@ Actor: ${{ github.actor }}
 		t.Error("Prompt content should contain ${GH_AW_...} references for JavaScript interpolation")
 	}
 
-	// Verify the original expressions appear in the comment header (Original Prompt section)
-	// but NOT in the actual prompt heredoc content
+	// Verify the original expressions have been replaced in the prompt heredoc content
 	// Find the heredoc section by looking for the "cat " line and the PROMPT_EOF delimiter
 	heredocStart := strings.Index(compiledStr, "cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"")
 	if heredocStart == -1 {
@@ -90,15 +89,6 @@ Actor: ${{ github.actor }}
 			if strings.Contains(heredocContent, "Repository: ${{ github.repository }}") {
 				t.Error("Original GitHub expressions should be replaced with ${GH_AW_...} references in prompt heredoc")
 			}
-		}
-	}
-
-	// Verify the original expressions DO appear in the comment header (this is expected)
-	commentSectionEnd := strings.Index(compiledStr, "\nname:")
-	if commentSectionEnd > 0 {
-		commentSection := compiledStr[:commentSectionEnd]
-		if !strings.Contains(commentSection, "Repository: ${{ github.repository }}") {
-			t.Error("Original GitHub expressions should appear in the Original Prompt comment section")
 		}
 	}
 

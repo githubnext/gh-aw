@@ -19,6 +19,42 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
+#
+# Smoke Copilot Safe Inputs
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/gh.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   activation["activation"]
+#   add_comment["add_comment"]
+#   add_labels["add_labels"]
+#   agent["agent"]
+#   conclusion["conclusion"]
+#   create_issue["create_issue"]
+#   detection["detection"]
+#   pre_activation["pre_activation"]
+#   activation --> agent
+#   activation --> conclusion
+#   add_comment --> conclusion
+#   add_labels --> conclusion
+#   agent --> add_comment
+#   agent --> add_labels
+#   agent --> conclusion
+#   agent --> create_issue
+#   agent --> detection
+#   create_issue --> add_comment
+#   create_issue --> conclusion
+#   detection --> add_comment
+#   detection --> add_labels
+#   detection --> conclusion
+#   detection --> create_issue
+#   pre_activation --> activation
+# ```
+#
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (93cb6efe18208431cddfb8368fd83d5badbf9bfd)
 #     https://github.com/actions/checkout/commit/93cb6efe18208431cddfb8368fd83d5badbf9bfd
@@ -36,13 +72,15 @@
 #     https://github.com/astral-sh/setup-uv/commit/e58605a9b6da7c637471fab8847a5e5a6b8df081
 
 name: "Smoke Copilot Safe Inputs"
-on:
+"on":
   pull_request:
+    # names: # Label filtering applied via job conditions
+    # - smoke # Label filtering applied via job conditions
     types:
     - labeled
   schedule:
-  - cron: "2 23 * * *"
-  workflow_dispatch:
+  - cron: "25 15 * * *"
+  workflow_dispatch: null
 
 permissions: {}
 

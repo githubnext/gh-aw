@@ -22,37 +22,6 @@
 #
 # Create an empty pull request for agent to push changes to
 #
-# Original Frontmatter:
-# ```yaml
-# on: 
-#   workflow_dispatch:
-# name: Dev
-# description: Create an empty pull request for agent to push changes to
-# timeout-minutes: 5
-# strict: false
-# engine: copilot
-#
-# permissions:
-#   contents: read
-#   pull-requests: read
-#
-# tools:
-#   github: false
-#   edit:
-#   bash: ["*"]
-# imports:
-#   - shared/gh.md
-# safe-outputs:
-#   create-pull-request:
-#     allow-empty: true
-# steps:
-#   - name: Download issues data
-#     run: |
-#       gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
-#     env:
-#       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# ```
-#
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
@@ -74,32 +43,6 @@
 #   create_pull_request --> conclusion
 #   detection --> conclusion
 #   detection --> create_pull_request
-# ```
-#
-# Original Prompt:
-# ```markdown
-# **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
-#
-# **Correct**:
-# ```
-# Use the safeinputs-gh tool with args: "pr list --limit 5"
-# Use the safeinputs-gh tool with args: "issue view 123"
-# ```
-#
-# **Incorrect**:
-# ```
-# Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
-# Run: gh pr list --limit 5  ❌ (No authentication in bash)
-# Execute bash: gh issue view 123  ❌ (No authentication in bash)
-# ```
-#
-#
-#
-# Create an empty pull request that prepares a branch for future changes.
-# The pull request should have:
-# - Title: "Feature: Prepare branch for agent updates"
-# - Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-# - Branch name: "feature/agent-updates"
 # ```
 #
 # Pinned GitHub Actions:
