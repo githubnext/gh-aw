@@ -7501,7 +7501,7 @@ jobs:
           };
           
           EOF_95d23c7d
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_1b5d3c1d'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7802,7 +7802,7 @@ jobs:
             const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
           
             return function renderStagedItem(item, index) {
-              let content = `### ${entityName} Update ${index + 1}\n`;
+              let content = `#### ${entityName} Update ${index + 1}\n`;
               if (item[numberField]) {
                 content += `**${targetLabel}** #${item[numberField]}\n\n`;
               } else {
@@ -7854,7 +7854,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_1b5d3c1d
+          EOF_006d32d7
       - name: Assign To Agent
         id: assign_to_agent
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))

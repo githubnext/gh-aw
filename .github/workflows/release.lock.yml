@@ -7045,7 +7045,7 @@ jobs:
                   description: "The following release updates would be applied if staged mode was disabled:",
                   items: updateItems,
                   renderItem: (item, index) => {
-                    let content = `### Release Update ${index + 1}\n`;
+                    let content = `#### Release Update ${index + 1}\n`;
                     content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
                     content += `**Operation:** ${item.operation}\n\n`;
                     content += `**Body Content:**\n${item.body}\n\n`;

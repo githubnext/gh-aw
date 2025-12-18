@@ -10612,7 +10612,7 @@ jobs:
           };
           
           EOF_95d23c7d
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_1b5d3c1d'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -10913,7 +10913,7 @@ jobs:
             const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
           
             return function renderStagedItem(item, index) {
-              let content = `### ${entityName} Update ${index + 1}\n`;
+              let content = `#### ${entityName} Update ${index + 1}\n`;
               if (item[numberField]) {
                 content += `**${targetLabel}** #${item[numberField]}\n\n`;
               } else {
@@ -10965,7 +10965,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_1b5d3c1d
+          EOF_006d32d7
       - name: Create Issue
         id: create_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
@@ -11024,7 +11024,7 @@ jobs:
                   description: "The following issues would be created if staged mode was disabled:",
                   items: createIssueItems,
                   renderItem: (item, index) => {
-                    let content = `### Issue ${index + 1}\n`;
+                    let content = `#### Issue ${index + 1}\n`;
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
                     if (item.temporary_id) {
                       content += `**Temporary ID:** ${item.temporary_id}\n\n`;
@@ -12582,7 +12582,7 @@ jobs:
                   description: "The following review comments would be created if staged mode was disabled:",
                   items: reviewCommentItems,
                   renderItem: (item, index) => {
-                    let content = `### Review Comment ${index + 1}\n`;
+                    let content = `#### Review Comment ${index + 1}\n`;
                     if (item.pull_request_number) {
                       const repoUrl = getRepositoryUrl();
                       const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
