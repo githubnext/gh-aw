@@ -1,8 +1,7 @@
 ---
 description: Daily JavaScript unbloater that cleans one .cjs file per day using modern JavaScript patterns
 on:
-  schedule:
-    - cron: daily
+  schedule: daily
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,9 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: jsweep-daily
-engine:
-  id: copilot
-  model: gpt-5
+engine: copilot
 tools:
   github:
     toolsets: [default]
