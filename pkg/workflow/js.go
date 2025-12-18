@@ -704,16 +704,24 @@ func isDigit(r rune) bool {
 }
 
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
+// The script is minified before formatting if minification is enabled.
 func FormatJavaScriptForYAML(script string) []string {
 	if jsLog.Enabled() {
 		jsLog.Printf("Formatting JavaScript for YAML: %d bytes", len(script))
 	}
 	var formattedLines []string
 
-	// Remove JavaScript comments first
-	cleanScript := removeJavaScriptComments(script)
+	// Minify the script first (if minification is enabled)
+	minifiedScript, err := MinifyJavaScript(script)
+	if err != nil || !IsMinificationEnabled() {
+		// Minification failed or is disabled, use original with comments removed
+		if err != nil {
+			jsLog.Printf("Minification failed, using original: %v", err)
+		}
+		minifiedScript = removeJavaScriptComments(script)
+	}
 
-	scriptLines := strings.Split(cleanScript, "\n")
+	scriptLines := strings.Split(minifiedScript, "\n")
 	for _, line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
@@ -727,11 +735,19 @@ func FormatJavaScriptForYAML(script string) []string {
 }
 
 // WriteJavaScriptToYAML writes a JavaScript script with proper indentation to a strings.Builder
+// The script is minified before formatting if minification is enabled.
 func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
-	// Remove JavaScript comments first
-	cleanScript := removeJavaScriptComments(script)
+	// Minify the script first (if minification is enabled)
+	minifiedScript, err := MinifyJavaScript(script)
+	if err != nil || !IsMinificationEnabled() {
+		// Minification failed or is disabled, use original with comments removed
+		if err != nil {
+			jsLog.Printf("Minification failed, using original: %v", err)
+		}
+		minifiedScript = removeJavaScriptComments(script)
+	}
 
-	scriptLines := strings.Split(cleanScript, "\n")
+	scriptLines := strings.Split(minifiedScript, "\n")
 	for _, line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {

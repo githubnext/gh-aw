@@ -152,7 +152,8 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 		// Note: We still bundle what we can, but don't fail on remaining requires
 	}
 
-	// Log size information about the bundled output
+	// Log size information before minification
+	originalSize := len(bundled)
 	lines := strings.Split(bundled, "\n")
 	var maxLineLength int
 	for _, line := range lines {
@@ -162,7 +163,20 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 	}
 
 	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes, output_lines=%d, max_line_length=%d chars",
-		len(processed), len(bundled), len(lines), maxLineLength)
+		len(processed), originalSize, len(lines), maxLineLength)
+
+	// Minify the bundled JavaScript for GitHub Script mode
+	// This reduces workflow file size significantly
+	if mode == RuntimeModeGitHubScript {
+		minified, err := MinifyJavaScript(bundled)
+		if err != nil {
+			// Minification errors are not fatal - return original bundled code
+			bundlerLog.Printf("Minification warning (using original): %v", err)
+			return bundled, nil
+		}
+		return minified, nil
+	}
+
 	return bundled, nil
 }
 

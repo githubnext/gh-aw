@@ -133,6 +133,10 @@ func TestFormatJavaScriptForYAML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Disable minification for these tests since they test formatting behavior
+			SetMinificationEnabled(false)
+			defer SetMinificationEnabled(true)
+
 			result := FormatJavaScriptForYAML(tt.script)
 
 			if len(result) != len(tt.expected) {
@@ -221,6 +225,10 @@ func TestWriteJavaScriptToYAML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Disable minification for these tests since they test formatting behavior
+			SetMinificationEnabled(false)
+			defer SetMinificationEnabled(true)
+
 			var yaml strings.Builder
 			WriteJavaScriptToYAML(&yaml, tt.script)
 			result := yaml.String()
@@ -262,6 +270,10 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 }
 
 func TestFormatJavaScriptForYAMLProducesValidIndentation(t *testing.T) {
+	// Disable minification for this test since it tests formatting behavior
+	SetMinificationEnabled(false)
+	defer SetMinificationEnabled(true)
+
 	script := "const x = 1;\nif (x > 0) {\n  console.log('positive');\n}"
 	result := FormatJavaScriptForYAML(script)
 
@@ -277,6 +289,10 @@ func TestFormatJavaScriptForYAMLProducesValidIndentation(t *testing.T) {
 }
 
 func TestWriteJavaScriptToYAMLProducesValidIndentation(t *testing.T) {
+	// Disable minification for this test since it tests formatting behavior
+	SetMinificationEnabled(false)
+	defer SetMinificationEnabled(true)
+
 	script := "const x = 1;\nif (x > 0) {\n  console.log('positive');\n}"
 	var yaml strings.Builder
 	WriteJavaScriptToYAML(&yaml, script)
@@ -297,6 +313,10 @@ func TestWriteJavaScriptToYAMLProducesValidIndentation(t *testing.T) {
 }
 
 func TestJavaScriptFormattingConsistency(t *testing.T) {
+	// Disable minification for this test since it tests formatting behavior
+	SetMinificationEnabled(false)
+	defer SetMinificationEnabled(true)
+
 	// Test that both functions produce equivalent output
 	testScript := "const x = 1;\n\nconsole.log(x);\n\nreturn x;"
 
