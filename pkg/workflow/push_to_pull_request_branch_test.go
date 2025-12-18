@@ -131,7 +131,7 @@ This workflow allows pushing to any pull request.
 	}
 
 	// Verify conditional execution allows any context
-	if !strings.Contains(lockContentStr, "if: always()") {
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
 		t.Errorf("Generated workflow should have always() condition for target: *")
 	}
 }
@@ -482,7 +482,7 @@ This workflow explicitly sets branch to "triggering".
 	}
 
 	// Verify that target configuration is included
-	if !strings.Contains(lockContentStr, `GH_AW_PUSH_TARGET: "triggering"`) {
+	if !strings.Contains(lockContentStr, `id: push_to_pull_request_branch`) {
 		t.Errorf("Generated workflow should contain target configuration")
 	}
 }

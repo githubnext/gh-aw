@@ -36,7 +36,7 @@ jobs:
         run: echo "test"
         env:
           NODE_ENV: test
-        timeout-minutes: 5
+        timeout-minutes: 15
         continue-on-error: false
         shell: bash
         working-directory: ./src
@@ -60,7 +60,7 @@ jobs:
 				"run: echo \"test\"",
 				"env:",
 				"NODE_ENV: test",
-				"timeout-minutes: 5",
+				"timeout-minutes: 15",
 				"continue-on-error: false",
 				"shell: bash",
 				"working-directory: ./src",
