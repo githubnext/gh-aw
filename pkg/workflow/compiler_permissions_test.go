@@ -136,14 +136,14 @@ This is a test workflow without network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// When no network is specified, firewall is NOT enabled (defaults to full access)
-		// AWF is only enabled when network restrictions are configured
-		if strings.Contains(string(lockContent), "sudo -E awf") {
-			t.Error("Should NOT contain AWF wrapper when no network field specified (defaults to full access)")
+		// AWF is enabled by default for all engines (copilot, claude, codex) even without explicit network config
+		// This ensures sandbox.agent: awf is the default behavior
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper by default for Claude engine")
 		}
 	})
 
-	t.Run("network: defaults should not enable AWF for Claude without firewall config", func(t *testing.T) {
+	t.Run("network: defaults enables AWF by default for Claude", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -173,14 +173,13 @@ This is a test workflow with explicit defaults network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// network: defaults without explicit firewall config does NOT enable AWF
-		// (firewall must be explicitly enabled or network.allowed must be specified)
-		if strings.Contains(string(lockContent), "sudo -E awf") {
-			t.Error("Should NOT contain AWF wrapper for network: defaults without firewall config")
+		// AWF is enabled by default for Claude engine with network: defaults
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper for Claude engine with network: defaults")
 		}
 	})
 
-	t.Run("network: {} should not enable AWF without firewall config", func(t *testing.T) {
+	t.Run("network: {} enables AWF by default for Claude", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -210,9 +209,9 @@ This is a test workflow with empty network permissions (deny all).
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Empty network config without explicit firewall config does NOT enable AWF
-		if strings.Contains(string(lockContent), "sudo -E awf") {
-			t.Error("Should NOT contain AWF wrapper for network: {} without firewall config")
+		// AWF is enabled by default for Claude engine with network: {}
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper for Claude engine with network: {}")
 		}
 	})
 
