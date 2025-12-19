@@ -267,7 +267,7 @@ gh aw compile --strict --zizmor        # Strict mode with security scanning
 gh aw compile --validate --strict      # Validate schema and enforce strict mode
 ```
 
-**Campaign specs and orchestrators:** When campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction.campaign.md` → `go-file-size-reduction.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. See the [`campaign` command](#campaign) for management and inspection.
+**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction.campaign.md` → `go-file-size-reduction.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. See the [`campaign` command](#campaign) for management and inspection.
 
 See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for frontmatter configuration and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for best practices.
 
@@ -378,27 +378,27 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-### Campaigns
+### Agentic campaigns
 
 #### `campaign`
 
-Inspect and validate first-class campaign definitions declared as `.github/workflows/*.campaign.md` files.
+Inspect and validate first-class agentic campaign definitions declared as `.github/workflows/*.campaign.md` files.
 
 ```bash wrap
-gh aw campaign                         # List all campaigns
+gh aw campaign                         # List all agentic campaigns
 gh aw campaign security                # Filter by ID or name substring
 gh aw campaign --json                  # JSON output
 
-gh aw campaign status                  # Live status for all campaigns
+gh aw campaign status                  # Live status for all agentic campaigns
 gh aw campaign status incident         # Filter by ID or name substring
 gh aw campaign status --json           # JSON status output
 
-gh aw campaign new my-campaign-id      # Scaffold a new campaign spec
-gh aw campaign validate                # Validate campaign specs (fails on problems)
+gh aw campaign new my-campaign-id      # Scaffold a new agentic campaign spec
+gh aw campaign validate                # Validate agentic campaign specs (fails on problems)
 gh aw campaign validate --no-strict    # Report problems without failing
 ```
 
-**Alternative approach**: For a low-code/no-code method, use the "🚀 Start a Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Campaigns guide](/gh-aw/guides/campaigns/#start-a-campaign-with-github-issue-forms) for details.
+**Alternative approach**: For a low-code/no-code method, use the "🚀 Start an Agentic Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Agentic campaigns guide](/gh-aw/guides/campaigns/#start-an-agentic-campaign-with-github-issue-forms) for details.
 
 ### Management
 
