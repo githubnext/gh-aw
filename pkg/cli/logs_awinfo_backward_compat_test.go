@@ -8,11 +8,11 @@ import (
 // TestAwInfoBackwardCompatibility verifies that AwInfo can parse both old and new field names
 func TestAwInfoBackwardCompatibility(t *testing.T) {
 	tests := []struct {
-		name                     string
-		jsonData                 string
-		expectedFirewallVersion  string
-		expectedCLIVersion       string
-		description              string
+		name                    string
+		jsonData                string
+		expectedFirewallVersion string
+		expectedCLIVersion      string
+		description             string
 	}{
 		{
 			name: "new field name awf_version",
