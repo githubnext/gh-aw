@@ -682,7 +682,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.73.0
+        run: npm install -g @openai/codex@0.75.0
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.7.0"
@@ -720,7 +720,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
           docker_pull_with_retry mcr.microsoft.com/playwright/mcp
       - name: Write Safe Outputs Config
         run: |
@@ -2362,7 +2362,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-            "ghcr.io/github/github-mcp-server:v0.25.0"
+            "ghcr.io/github/github-mcp-server:v0.26.3"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -2414,7 +2414,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.73.0",
+              agent_version: "0.75.0",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6829,7 +6829,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.73.0
+        run: npm install -g @openai/codex@0.75.0
       - name: Run Codex
         run: |
           set -o pipefail
