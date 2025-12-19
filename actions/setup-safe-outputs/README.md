@@ -47,10 +47,10 @@ steps:
 
 ## Development
 
-This action is built from source files in `src/` using the build tooling:
+This action uses a bash script to copy JavaScript files from the `js/` directory. The files are generated during the build process:
 
 ```bash
 make actions-build
 ```
 
-The build process embeds all required JavaScript files into the bundled `index.js`.
+The build process copies all required JavaScript files from `pkg/workflow/js/` to `actions/setup-safe-outputs/js/`, and the bash script (`copy-files.sh`) copies them to the destination at runtime.
