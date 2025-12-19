@@ -362,13 +362,25 @@ func GetToolchainPATHAdditions(toolchains []string) []string {
 				pathDir = binPath
 			} else if strings.Contains(binPath, "/bin/") {
 				// It's a file like /usr/local/bin/node, add directory
-				pathDir = binPath[:strings.LastIndex(binPath, "/")]
+				lastSlash := strings.LastIndex(binPath, "/")
+				if lastSlash > 0 {
+					pathDir = binPath[:lastSlash]
+				} else {
+					// Fallback: use as-is if no slash found
+					continue
+				}
 			} else if strings.HasSuffix(binPath, "/") {
 				// It's explicitly a directory
 				pathDir = strings.TrimSuffix(binPath, "/")
 			} else {
 				// Assume it's a file, add parent directory
-				pathDir = binPath[:strings.LastIndex(binPath, "/")]
+				lastSlash := strings.LastIndex(binPath, "/")
+				if lastSlash > 0 {
+					pathDir = binPath[:lastSlash]
+				} else {
+					// Fallback: skip invalid paths without slashes
+					continue
+				}
 			}
 
 			// Avoid duplicate path additions
