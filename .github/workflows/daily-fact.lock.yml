@@ -244,7 +244,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g @openai/codex@0.73.0
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.7.0"
@@ -282,7 +282,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1783,7 +1783,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions",
-            "ghcr.io/github/github-mcp-server:v0.26.3"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -1806,7 +1806,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.75.0",
+              agent_version: "0.73.0",
               workflow_name: "Daily Fact About gh-aw",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1823,7 +1823,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults"],
               firewall_enabled: true,
-              awf_version: "v0.7.0",
+              firewall_version: "",
               steps: {
                 firewall: "squid"
               },
@@ -1870,7 +1870,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -5248,9 +5248,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "";
+              let summary = "### 🔥 Firewall Activity\n\n";
               summary += "<details>\n";
-              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -6203,7 +6203,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g @openai/codex@0.73.0
       - name: Run Codex
         run: |
           set -o pipefail

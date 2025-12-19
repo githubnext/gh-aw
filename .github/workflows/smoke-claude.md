@@ -16,7 +16,7 @@ name: Smoke Claude
 engine:
   id: claude
   max-turns: 15
-strict: false
+strict: true
 imports:
   - shared/mcp-pagination.md
 network:

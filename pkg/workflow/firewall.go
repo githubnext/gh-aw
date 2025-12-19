@@ -87,6 +87,35 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		return
 	}
 
+	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
+}
+
+// enableFirewallByDefaultForClaude enables firewall by default for Claude engine
+// when network restrictions are present but no explicit firewall configuration exists
+// and sandbox.agent is not explicitly set to false
+//
+// The firewall is enabled by default for Claude UNLESS:
+// - allowed contains "*" (unrestricted network access)
+// - sandbox.agent is explicitly set to false
+func enableFirewallByDefaultForClaude(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
+	// Only apply to claude engine
+	if engineID != "claude" {
+		return
+	}
+
+	enableFirewallByDefaultForEngine(engineID, networkPermissions, sandboxConfig)
+}
+
+// enableFirewallByDefaultForEngine enables firewall by default for a given engine
+// when network restrictions are present but no explicit firewall configuration exists
+// and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
+// and sandbox.agent is not explicitly set to false
+//
+// The firewall is enabled by default for the engine UNLESS:
+// - allowed contains "*" (unrestricted network access)
+// - sandbox.agent is explicitly set to false
+// - SRT sandbox is configured (Copilot only)
+func enableFirewallByDefaultForEngine(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
 	// Check if network permissions exist
 	if networkPermissions == nil {
 		return
@@ -99,8 +128,8 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		return
 	}
 
-	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured
-	if sandboxConfig != nil {
+	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured (Copilot only)
+	if engineID == "copilot" && sandboxConfig != nil {
 		// Check legacy Type field
 		if sandboxConfig.Type == SandboxTypeRuntime {
 			firewallLog.Print("SRT sandbox is enabled (via Type), skipping AWF auto-enablement")
@@ -131,7 +160,7 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		}
 	}
 
-	// Enable firewall by default for copilot and codex engines
+	// Enable firewall by default for the engine (copilot, claude, codex)
 	// This applies to all cases EXCEPT when allowed = "*"
 	networkPermissions.Firewall = &FirewallConfig{
 		Enabled: true,

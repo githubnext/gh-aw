@@ -22,12 +22,12 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 		{
 			name:           "custom timeout of 30 seconds",
 			toolsTimeout:   30,
-			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: \"30\"", // env var in seconds
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 30", // env var in seconds
 		},
 		{
 			name:           "custom timeout of 120 seconds",
 			toolsTimeout:   120,
-			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: \"120\"", // env var in seconds
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 120", // env var in seconds
 		},
 	}
 
@@ -55,25 +55,25 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 			}
 
 			// Check for MCP_TIMEOUT (uses startup timeout, defaults to 120s)
-			expectedMcpTimeout := fmt.Sprintf("MCP_TIMEOUT: \"%d\"", startupTimeoutMs)
+			expectedMcpTimeout := fmt.Sprintf("MCP_TIMEOUT: %d", startupTimeoutMs)
 			if !strings.Contains(stepContent, expectedMcpTimeout) {
 				t.Errorf("Expected '%s' in execution step", expectedMcpTimeout)
 			}
 
 			// Check for MCP_TOOL_TIMEOUT (uses tool timeout)
-			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: \"%d\"", toolTimeoutMs)
+			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: %d", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedMcpToolTimeout) {
 				t.Errorf("Expected '%s' in execution step", expectedMcpToolTimeout)
 			}
 
 			// Check for BASH_DEFAULT_TIMEOUT_MS (uses tool timeout)
-			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: \"%d\"", toolTimeoutMs)
+			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: %d", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedBashDefault) {
 				t.Errorf("Expected '%s' in execution step", expectedBashDefault)
 			}
 
 			// Check for BASH_MAX_TIMEOUT_MS (uses tool timeout)
-			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: \"%d\"", toolTimeoutMs)
+			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: %d", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedBashMax) {
 				t.Errorf("Expected '%s' in execution step", expectedBashMax)
 			}
