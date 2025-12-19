@@ -96,7 +96,13 @@ export default defineConfig({
 				},
 				{
 					label: 'Agentic campaigns',
-					link: '/guides/campaigns/',
+					items: [
+						{ label: 'Overview', link: '/guides/campaigns/' },
+						{ label: 'Campaign Specs', link: '/guides/campaigns/specs/' },
+						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },
+						{ label: 'Project Management', link: '/guides/campaigns/project-management/' },
+						{ label: 'CLI Commands', link: '/guides/campaigns/cli-commands/' },
+					],
 				},
 				{
 					label: 'Guides',

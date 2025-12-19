@@ -398,7 +398,7 @@ gh aw campaign validate                # Validate agentic campaign specs (fails 
 gh aw campaign validate --no-strict    # Report problems without failing
 ```
 
-**Alternative approach**: For a low-code/no-code method, use the "🚀 Start an Agentic Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Agentic campaigns guide](/gh-aw/guides/campaigns/#start-an-agentic-campaign-with-github-issue-forms) for details.
+**Alternative approach**: For a low-code/no-code method, use the "🚀 Start an Agentic Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Getting Started guide](/gh-aw/guides/campaigns/getting-started/#start-an-agentic-campaign-with-github-issue-forms) for details.
 
 ### Management
 
