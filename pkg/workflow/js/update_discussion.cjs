@@ -51,13 +51,25 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 
   const discussionId = queryResult.repository.discussion.id;
 
-  // Build the update mutation with only the fields we want to update
+  // Ensure at least one field is being updated
+  if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined) {
+    throw new Error("At least one field (title or body) must be provided for update");
+  }
+
+  // Build the update mutation dynamically based on which fields are being updated
+  const mutationFields = [];
+  if (fieldsToUpdate.title !== undefined) {
+    mutationFields.push("title: $title");
+  }
+  if (fieldsToUpdate.body !== undefined) {
+    mutationFields.push("body: $body");
+  }
+
   const updateDiscussionMutation = `
-    mutation($discussionId: ID!, $title: String, $body: String) {
+    mutation($discussionId: ID!${fieldsToUpdate.title !== undefined ? ", $title: String!" : ""}${fieldsToUpdate.body !== undefined ? ", $body: String!" : ""}) {
       updateDiscussion(input: {
         discussionId: $discussionId
-        ${fieldsToUpdate.title !== undefined ? "title: $title" : ""}
-        ${fieldsToUpdate.body !== undefined ? "body: $body" : ""}
+        ${mutationFields.join("\n        ")}
       }) {
         discussion {
           id

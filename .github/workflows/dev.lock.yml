@@ -8539,12 +8539,21 @@ jobs:
                 throw new Error(`Discussion #${discussionNumber} not found`);
               }
               const discussionId = queryResult.repository.discussion.id;
+              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined) {
+                throw new Error("At least one field (title or body) must be provided for update");
+              }
+              const mutationFields = [];
+              if (fieldsToUpdate.title !== undefined) {
+                mutationFields.push("title: $title");
+              }
+              if (fieldsToUpdate.body !== undefined) {
+                mutationFields.push("body: $body");
+              }
               const updateDiscussionMutation = `
-                mutation($discussionId: ID!, $title: String, $body: String) {
+                mutation($discussionId: ID!${fieldsToUpdate.title !== undefined ? ", $title: String!" : ""}${fieldsToUpdate.body !== undefined ? ", $body: String!" : ""}) {
                   updateDiscussion(input: {
                     discussionId: $discussionId
-                    ${fieldsToUpdate.title !== undefined ? "title: $title" : ""}
-                    ${fieldsToUpdate.body !== undefined ? "body: $body" : ""}
+                    ${mutationFields.join("\n        ")}
                   }) {
                     discussion {
                       id
