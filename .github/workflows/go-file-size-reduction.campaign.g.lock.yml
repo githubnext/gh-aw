@@ -1909,7 +1909,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "04e6a38-dirty",
               workflow_name: "Go File Size Reduction Campaign",
               experimental: false,
               supports_tools_allowlist: true,
@@ -8008,9 +8007,7 @@ jobs:
                             core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                             continue;
                           }
-                      if (field.dataType === "DATE") {
-                        valueToSet = { date: String(fieldValue) };
-                      } else if (field.options) {
+                      if (field.options) {
                         let option = field.options.find(o => o.name === fieldValue);
                         if (!option)
                           try {
@@ -8031,6 +8028,8 @@ jobs:
                           continue;
                         }
                         valueToSet = { singleSelectOptionId: option.id };
+                      } else if (field.dataType === "DATE") {
+                        valueToSet = { date: String(fieldValue) };
                       } else valueToSet = { text: String(fieldValue) };
                       await github.graphql(
                         "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
