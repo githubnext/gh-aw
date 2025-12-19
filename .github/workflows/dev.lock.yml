@@ -3221,7 +3221,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "03fc035",
+              cli_version: "842229a33-dirty",
               workflow_name: "Dev",
               experimental: false,
               supports_tools_allowlist: true,
@@ -8789,7 +8789,7 @@ jobs:
               includeOperation: false,
             });
             async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
-              const { _operation, _rawBody, ...fieldsToUpdate } = updateData;
+              const { _operation, _rawBody, labels, ...fieldsToUpdate } = updateData;
               const getDiscussionQuery = `
                 query($owner: String!, $repo: String!, $number: Int!) {
                   repository(owner: $owner, name: $repo) {
@@ -8798,6 +8798,12 @@ jobs:
                       title
                       body
                       url
+                      labels(first: 100) {
+                        nodes {
+                          id
+                          name
+                        }
+                      }
                     }
                   }
                 }
@@ -8810,9 +8816,11 @@ jobs:
               if (!queryResult?.repository?.discussion) {
                 throw new Error(`Discussion #${discussionNumber} not found`);
               }
-              const discussionId = queryResult.repository.discussion.id;
-              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined) {
-                throw new Error("At least one field (title or body) must be provided for update");
+              const discussion = queryResult.repository.discussion;
+              const discussionId = discussion.id;
+              const currentLabels = discussion.labels?.nodes || [];
+              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && labels === undefined) {
+                throw new Error("At least one field (title, body, or labels) must be provided for update");
               }
               if (fieldsToUpdate.body !== undefined) {
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
@@ -8827,46 +8835,115 @@ jobs:
                 const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
                 fieldsToUpdate.body = fieldsToUpdate.body + footer;
               }
-              const mutationFields = [];
-              if (fieldsToUpdate.title !== undefined) {
-                mutationFields.push("title: $title");
-              }
-              if (fieldsToUpdate.body !== undefined) {
-                mutationFields.push("body: $body");
-              }
-              const updateDiscussionMutation = `
-                mutation($discussionId: ID!${fieldsToUpdate.title !== undefined ? ", $title: String!" : ""}${fieldsToUpdate.body !== undefined ? ", $body: String!" : ""}) {
-                  updateDiscussion(input: {
-                    discussionId: $discussionId
-                    ${mutationFields.join("\n        ")}
-                  }) {
-                    discussion {
-                      id
-                      number
-                      title
-                      body
-                      url
+              if (fieldsToUpdate.title !== undefined || fieldsToUpdate.body !== undefined) {
+                const mutationFields = [];
+                if (fieldsToUpdate.title !== undefined) {
+                  mutationFields.push("title: $title");
+                }
+                if (fieldsToUpdate.body !== undefined) {
+                  mutationFields.push("body: $body");
+                }
+                const updateDiscussionMutation = `
+                  mutation($discussionId: ID!${fieldsToUpdate.title !== undefined ? ", $title: String!" : ""}${fieldsToUpdate.body !== undefined ? ", $body: String!" : ""}) {
+                    updateDiscussion(input: {
+                      discussionId: $discussionId
+                      ${mutationFields.join("\n          ")}
+                    }) {
+                      discussion {
+                        id
+                        number
+                        title
+                        body
+                        url
+                      }
                     }
                   }
+                `;
+                const variables = {
+                  discussionId: discussionId,
+                };
+                if (fieldsToUpdate.title !== undefined) {
+                  variables.title = fieldsToUpdate.title;
                 }
-              `;
-              const variables = {
-                discussionId: discussionId,
-              };
-              if (fieldsToUpdate.title !== undefined) {
-                variables.title = fieldsToUpdate.title;
+                if (fieldsToUpdate.body !== undefined) {
+                  variables.body = fieldsToUpdate.body;
+                }
+                const mutationResult = await github.graphql(updateDiscussionMutation, variables);
+                if (!mutationResult?.updateDiscussion?.discussion) {
+                  throw new Error("Failed to update discussion");
+                }
               }
-              if (fieldsToUpdate.body !== undefined) {
-                variables.body = fieldsToUpdate.body;
+              if (labels !== undefined && Array.isArray(labels)) {
+                const repoQuery = `
+                  query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      labels(first: 100) {
+                        nodes {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                `;
+                const repoResult = await github.graphql(repoQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                if (!repoResult?.repository) {
+                  throw new Error(`Repository ${context.repo.owner}/${context.repo.repo} not found`);
+                }
+                const repoLabels = repoResult.repository.labels?.nodes || [];
+                const labelIds = labels.map(labelName => {
+                  const label = repoLabels.find(l => l.name === labelName);
+                  if (!label) {
+                    throw new Error(`Label "${labelName}" not found in repository`);
+                  }
+                  return label.id;
+                });
+                if (currentLabels.length > 0) {
+                  const removeLabelsMutation = `
+                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+                      removeLabelsFromLabelable(input: {
+                        labelableId: $labelableId
+                        labelIds: $labelIds
+                      }) {
+                        clientMutationId
+                      }
+                    }
+                  `;
+                  await github.graphql(removeLabelsMutation, {
+                    labelableId: discussionId,
+                    labelIds: currentLabels.map(l => l.id),
+                  });
+                }
+                if (labelIds.length > 0) {
+                  const addLabelsMutation = `
+                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
+                      addLabelsToLabelable(input: {
+                        labelableId: $labelableId
+                        labelIds: $labelIds
+                      }) {
+                        clientMutationId
+                      }
+                    }
+                  `;
+                  await github.graphql(addLabelsMutation, {
+                    labelableId: discussionId,
+                    labelIds: labelIds,
+                  });
+                }
               }
-              const mutationResult = await github.graphql(updateDiscussionMutation, variables);
-              if (!mutationResult?.updateDiscussion?.discussion) {
-                throw new Error("Failed to update discussion");
-              }
-              const discussion = mutationResult.updateDiscussion.discussion;
+              const finalQueryResult = await github.graphql(getDiscussionQuery, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: discussionNumber,
+              });
+              const updatedDiscussion = finalQueryResult.repository.discussion;
               return {
-                ...discussion,
-                html_url: discussion.url,
+                ...updatedDiscussion,
+                html_url: updatedDiscussion.url,
               };
             }
             const getSummaryLine = createGetSummaryLine({

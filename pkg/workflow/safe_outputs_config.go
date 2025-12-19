@@ -861,6 +861,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				maxValue = data.SafeOutputs.UpdateDiscussions.Max
 			}
 			updateDiscussionConfig["max"] = maxValue
+			if len(data.SafeOutputs.UpdateDiscussions.AllowedLabels) > 0 {
+				updateDiscussionConfig["allowed_labels"] = data.SafeOutputs.UpdateDiscussions.AllowedLabels
+			}
 			safeOutputsConfig["update_discussion"] = updateDiscussionConfig
 		}
 		if data.SafeOutputs.UpdatePullRequests != nil {
