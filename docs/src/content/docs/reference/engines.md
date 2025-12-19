@@ -16,7 +16,9 @@ Claude and Codex engines are available but marked as experimental. They can be u
 - Model picker for easy model selection
 - Enhanced skills support with SYSTEM skills
 
-For Codex usage, consult the [Codex CLI documentation](https://github.com/openai/codex) for available commands and configuration options.
+:::note
+For detailed Codex usage and configuration, refer to the Codex CLI documentation and release notes. The Codex engine is experimental and may have different configuration requirements than the Copilot CLI.
+:::
 :::
 
 ### GitHub Copilot CLI
