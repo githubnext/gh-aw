@@ -194,7 +194,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build the command string with proper argument formatting
 	// Use npx to execute Claude Code package directly (no PATH manipulation needed)
-	commandParts := []string{"npx", "--yes", "@anthropic-ai/claude-code"}
+	// Pin the version to match the installed version for security and reproducibility
+	claudePackage := fmt.Sprintf("@anthropic-ai/claude-code@%s", claudeVersion)
+	commandParts := []string{"npx", "--yes", claudePackage}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
