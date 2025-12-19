@@ -30,6 +30,12 @@ var CopilotDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// CodexDefaultDomains are the minimal default domains required for Codex CLI operation
+var CodexDefaultDomains = []string{
+	"api.openai.com",
+	"openai.com",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -157,21 +163,13 @@ func matchesDomain(domain, pattern string) bool {
 	return false
 }
 
-// GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
+// mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-func GetCopilotAllowedDomains(network *NetworkPermissions) string {
-	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
-}
-
-// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
-// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
-// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
-// since host.docker.internal is now in CopilotDefaultDomains
-func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
+func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
 	domainMap := make(map[string]bool)
 
-	// Add Copilot default domains (includes host.docker.internal)
-	for _, domain := range CopilotDefaultDomains {
+	// Add default domains
+	for _, domain := range defaultDomains {
 		domainMap[domain] = true
 	}
 
@@ -195,6 +193,26 @@ func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafe
 	return strings.Join(domains, ",")
 }
 
+// GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	return GetCopilotAllowedDomainsWithSafeInputs(network, false)
+}
+
+// GetCopilotAllowedDomainsWithSafeInputs merges Copilot default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+// The hasSafeInputs parameter is maintained for backward compatibility but is no longer used
+// since host.docker.internal is now in CopilotDefaultDomains
+func GetCopilotAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeInputs bool) string {
+	return mergeDomainsWithNetwork(CopilotDefaultDomains, network)
+}
+
+// GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCodexAllowedDomains(network *NetworkPermissions) string {
+	return mergeDomainsWithNetwork(CodexDefaultDomains, network)
+}
+
 // computeAllowedDomainsForSanitization computes the allowed domains for sanitization
 // based on the engine and network configuration, matching what's provided to the firewall
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
@@ -209,12 +227,17 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) stri
 	// Compute domains based on engine type
 	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
 	// Copilot defaults with network permissions
+	// For Codex with firewall support, use GetCodexAllowedDomains which merges
+	// Codex defaults with network permissions
 	// For other engines, use GetAllowedDomains which uses network permissions only
 	if engineID == "copilot" {
 		return GetCopilotAllowedDomains(data.NetworkPermissions)
 	}
+	if engineID == "codex" {
+		return GetCodexAllowedDomains(data.NetworkPermissions)
+	}
 
-	// For Claude, Codex, and other engines, use network permissions
+	// For Claude and other engines, use network permissions
 	domains := GetAllowedDomains(data.NetworkPermissions)
 	return strings.Join(domains, ",")
 }
