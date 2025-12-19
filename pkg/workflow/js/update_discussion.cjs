@@ -3,6 +3,7 @@
 
 const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
+const { generateFooter } = require("./generate_footer.cjs");
 
 // Use shared helper for staged preview rendering
 const renderStagedItem = createRenderStagedItem({
@@ -54,6 +55,25 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   // Ensure at least one field is being updated
   if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined) {
     throw new Error("At least one field (title or body) must be provided for update");
+  }
+
+  // Add footer to body if body is being updated
+  if (fieldsToUpdate.body !== undefined) {
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+    const runId = context.runId;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+    // Get triggering context numbers
+    const triggeringIssueNumber = context.payload.issue?.number;
+    const triggeringPRNumber = context.payload.pull_request?.number;
+    const triggeringDiscussionNumber = context.payload.discussion?.number;
+
+    // Append footer to the body
+    const footer = generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
+    fieldsToUpdate.body = fieldsToUpdate.body + footer;
   }
 
   // Build the update mutation dynamically based on which fields are being updated
