@@ -10,6 +10,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+  discussions: read
 roles: [admin, maintainer, write]
 engine: copilot
 imports:
@@ -21,6 +22,7 @@ tools:
     toolsets:
       - default
       - actions
+      - discussions
   edit:
   bash:
   cache-memory: true
@@ -97,10 +99,11 @@ This workflow was triggered from a comment on discussion #${{ github.event.discu
 
 **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
 
-1. Use GitHub tools to fetch discussion #${{ github.event.discussion.number }}
+1. Use the bash tool to run `./skills/github-discussion-query/query-discussions.sh --jq '.[] | select(.number == ${{ github.event.discussion.number }})'` to fetch discussion #${{ github.event.discussion.number }}
 2. Review the discussion title and body to understand the topic being discussed
-3. Consider the discussion context when planning your workflow optimizations
-4. Use this discussion context to inform your investigation and recommendations
+3. Read any recent comments in the discussion for additional context
+4. Consider the discussion context when planning your workflow optimizations
+5. Use this discussion context to inform your investigation and recommendations
 {{/if}}
 </current_context>
 
