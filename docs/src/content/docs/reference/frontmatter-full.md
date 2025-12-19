@@ -1941,6 +1941,17 @@ safe-outputs:
     # (optional)
     body: null
 
+    # Allow updating discussion labels - presence of key indicates field can be
+    # updated
+    # (optional)
+    labels: null
+
+    # Optional list of allowed labels. If omitted, any labels are allowed (including
+    # creating new ones).
+    # (optional)
+    allowed-labels: []
+      # Array of strings
+
     # Maximum number of discussions to update (default: 1)
     # (optional)
     max: 1
