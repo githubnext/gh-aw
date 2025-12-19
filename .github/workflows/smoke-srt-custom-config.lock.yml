@@ -332,6 +332,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
+              cli_version: "9212dde",
               workflow_name: "Smoke SRT Custom Config",
               experimental: false,
               supports_tools_allowlist: true,
