@@ -25,8 +25,6 @@ safe-outputs:
     labels: [refactoring, code-quality, automated-analysis]
     max: 1
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default, issues]

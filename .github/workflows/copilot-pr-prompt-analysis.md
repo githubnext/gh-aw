@@ -22,7 +22,6 @@ network:
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
-strict: true
 safe-outputs:
   create-discussion:
     title-prefix: "[prompt-analysis] "

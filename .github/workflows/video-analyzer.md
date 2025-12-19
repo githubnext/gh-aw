@@ -18,8 +18,6 @@ engine: copilot
 imports:
   - shared/ffmpeg.md
 
-sandbox:
-  agent: awf
 tools:
   bash:
 

@@ -59,8 +59,6 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: npm run build
 
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:
@@ -69,7 +67,6 @@ tools:
   bash:
 
 timeout-minutes: 10
-strict: true
 
 ---
 

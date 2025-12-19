@@ -33,8 +33,6 @@ imports:
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
 
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:

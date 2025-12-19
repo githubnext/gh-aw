@@ -15,8 +15,6 @@ network:
     - github
 imports:
   - shared/jqschema.md
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets:

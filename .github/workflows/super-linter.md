@@ -16,7 +16,6 @@ safe-outputs:
 engine: copilot
 name: Super Linter Report
 timeout-minutes: 15
-strict: true
 imports:
   - shared/reporting.md
 jobs:
@@ -73,8 +72,6 @@ steps:
     with:
       name: super-linter-log
       path: /tmp/gh-aw/
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   edit:

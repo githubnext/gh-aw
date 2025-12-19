@@ -12,8 +12,6 @@ permissions:
   repository-projects: read
   security-events: read
 engine: claude
-sandbox:
-  agent: awf
 tools:
   github:
     mode: "remote"
@@ -31,7 +29,6 @@ safe-outputs:
     reviewers: copilot
     draft: false
 timeout-minutes: 15
-strict: true
 imports:
   - shared/reporting.md
 ---
@@ -283,8 +280,6 @@ Based on the analysis of available tools and their usage patterns, the following
 When configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:
 
 ```yaml
-sandbox:
-  agent: awf
 tools:
   github:
     mode: "remote"  # or "local"

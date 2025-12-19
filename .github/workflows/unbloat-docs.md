@@ -37,8 +37,6 @@ network:
     - github
 
 # Tools configuration
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:

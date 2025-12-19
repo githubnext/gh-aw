@@ -11,8 +11,6 @@ permissions:
 
 engine: copilot
 
-sandbox:
-  agent: awf
 tools:
   edit:
   bash:
@@ -25,7 +23,6 @@ safe-outputs:
     close-older-discussions: true
 
 timeout-minutes: 5
-strict: true
 imports:
   - shared/reporting.md
 ---

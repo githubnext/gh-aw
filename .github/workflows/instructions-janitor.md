@@ -24,8 +24,6 @@ safe-outputs:
     labels: [documentation, automation, instructions]
     draft: false
 
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:

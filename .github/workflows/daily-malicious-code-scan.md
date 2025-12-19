@@ -9,8 +9,6 @@ permissions:
   security-events: read
 tracker-id: malicious-code-scan
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [repos, code_security]

@@ -52,8 +52,6 @@ timeout-minutes: 10
 imports:
   - shared/mcp/ast-grep.md
 
-sandbox:
-  agent: awf
 safe-outputs:
   create-issue:
     title-prefix: "[ast-grep] "

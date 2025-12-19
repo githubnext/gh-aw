@@ -33,8 +33,6 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
-sandbox:
-  agent: awf
 tools:
   repo-memory:
     branch-name: memory/deep-report

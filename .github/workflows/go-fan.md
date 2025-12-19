@@ -32,8 +32,6 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
-sandbox:
-  agent: awf
 tools:
   serena: ["go"]
   cache-memory: true

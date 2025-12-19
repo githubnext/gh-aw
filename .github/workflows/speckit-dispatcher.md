@@ -18,8 +18,6 @@ strict: true
 imports:
   - ../agents/speckit-dispatcher.agent.md
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default]

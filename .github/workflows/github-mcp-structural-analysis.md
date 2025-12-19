@@ -15,8 +15,6 @@ permissions:
   security-events: read
 engine: claude
 strict: true
-sandbox:
-  agent: awf
 tools:
   github:
     mode: local

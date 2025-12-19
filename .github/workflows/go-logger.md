@@ -34,8 +34,6 @@ steps:
     run: npm ci
     working-directory: ./pkg/workflow/js
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default]
@@ -52,7 +50,6 @@ tools:
   cache-memory:
 
 timeout-minutes: 15
-strict: true
 ---
 
 # Go Logger Enhancement

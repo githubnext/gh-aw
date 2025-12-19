@@ -12,8 +12,6 @@ permissions:
 engine: codex
 strict: true
 tracker-id: daily-performance-summary
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default, discussions]

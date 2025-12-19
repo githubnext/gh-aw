@@ -8,8 +8,6 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   bash:

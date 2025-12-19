@@ -11,8 +11,6 @@ permissions:
   pull-requests: read
 tracker-id: daily-copilot-token-report
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   cache-memory:
     - id: token-metrics
@@ -43,7 +41,6 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 timeout-minutes: 20
-strict: true
 imports:
   - shared/reporting.md
   - shared/python-dataviz.md

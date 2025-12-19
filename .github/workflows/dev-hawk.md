@@ -15,8 +15,6 @@ permissions:
   actions: read
   pull-requests: read
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [pull_requests, actions, repos]

@@ -2279,8 +2279,6 @@ jobs:
           When configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:
           
           ```yaml
-          sandbox:
-            agent: awf
           tools:
             github:
               mode: "remote"  # or "local"

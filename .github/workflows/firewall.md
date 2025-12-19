@@ -21,7 +21,6 @@ tools:
   web-fetch:
 
 timeout-minutes: 5
-strict: true
 ---
 
 # Firewall Test Agent

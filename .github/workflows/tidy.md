@@ -28,8 +28,6 @@ timeout-minutes: 10
 
 network: {}
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default]

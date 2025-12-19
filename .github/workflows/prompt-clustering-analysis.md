@@ -39,8 +39,6 @@ cache:
     restore-keys: |
       prompt-clustering-cache-
 
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:

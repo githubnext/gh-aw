@@ -15,8 +15,6 @@ network:
     - defaults
     - githubnext.com
     - www.githubnext.com
-sandbox:
-  agent: awf
 tools:
   playwright:
     allowed_domains:

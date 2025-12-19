@@ -31,8 +31,6 @@ safe-outputs:
     labels: [documentation, automation]
     draft: false
 
-sandbox:
-  agent: awf
 tools:
   serena: ["go"]
   cache-memory:

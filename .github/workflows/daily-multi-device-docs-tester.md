@@ -19,8 +19,6 @@ engine:
   max-turns: 30  # Prevent runaway token usage
 strict: true
 timeout-minutes: 30
-sandbox:
-  agent: awf
 tools:
   playwright:
     version: "v1.56.1"

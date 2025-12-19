@@ -2890,15 +2890,12 @@ jobs:
             contents: read
             issues: write
           engine: copilot
-          sandbox:
-            agent: awf
           tools:
             github:
               toolsets: [default]
           safe-outputs:
             add-comment:
           timeout-minutes: 10
-          strict: true
           ---
           
           # My Workflow Title

@@ -10,8 +10,6 @@ permissions:
   pull-requests: read
   actions: read
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   bash:
     - "git fetch"

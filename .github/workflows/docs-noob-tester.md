@@ -10,9 +10,6 @@ permissions:
   pull-requests: read
 engine: copilot
 timeout-minutes: 30
-strict: true
-sandbox:
-  agent: awf
 tools:
   playwright:
   edit:

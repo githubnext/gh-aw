@@ -22,8 +22,6 @@ safe-outputs:
     reviewers: copilot
     draft: false
 
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   repo-memory: true

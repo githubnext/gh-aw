@@ -13,8 +13,6 @@ permissions:
   actions: read
 engine: copilot
 strict: true
-sandbox:
-  agent: awf
 tools:
   serena: ["go"]
   github:

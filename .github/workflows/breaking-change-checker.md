@@ -9,8 +9,6 @@ permissions:
   actions: read
 engine: copilot
 tracker-id: breaking-change-checker
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [repos]
@@ -33,7 +31,6 @@ safe-outputs:
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋"
     run-failure: "🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown..."
 timeout-minutes: 10
-strict: true
 ---
 
 # Breaking Change Checker

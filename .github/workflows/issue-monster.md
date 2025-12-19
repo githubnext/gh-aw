@@ -15,10 +15,7 @@ permissions:
 
 engine: copilot
 timeout-minutes: 30
-strict: true
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default, pull_requests]

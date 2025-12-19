@@ -24,8 +24,6 @@ imports:
   - shared/mcp/context7.md
   - shared/mcp/markitdown.md
   - shared/jqschema.md
-sandbox:
-  agent: awf
 tools:
   edit:
   cache-memory: true

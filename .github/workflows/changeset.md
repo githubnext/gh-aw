@@ -28,8 +28,6 @@ network:
   allowed:
     - defaults
     - node
-sandbox:
-  agent: awf
 tools:
   bash:
     - "*"

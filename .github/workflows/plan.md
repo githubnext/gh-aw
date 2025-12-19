@@ -11,8 +11,6 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default, discussions]
@@ -24,7 +22,6 @@ safe-outputs:
   close-discussion:
     required-category: "Ideas"
 timeout-minutes: 10
-strict: true
 ---
 
 # Planning Assistant

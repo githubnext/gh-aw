@@ -11,8 +11,6 @@ permissions:
   contents: read
   discussions: read
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [discussions]

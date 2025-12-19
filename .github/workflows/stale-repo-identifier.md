@@ -43,8 +43,6 @@ safe-outputs:
     run-success: "✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories."
     run-failure: "⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}."
 
-sandbox:
-  agent: awf
 tools:
   github:
     read-only: true

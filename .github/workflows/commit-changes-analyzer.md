@@ -15,8 +15,6 @@ permissions:
 engine:
   id: claude
   max-turns: 100
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default]
@@ -28,7 +26,6 @@ safe-outputs:
     category: "dev"
     max: 1
 timeout-minutes: 30
-strict: true
 imports:
   - shared/reporting.md
 ---

@@ -9,8 +9,6 @@ permissions:
   pull-requests: read
 tracker-id: daily-code-metrics
 engine: claude
-sandbox:
-  agent: awf
 tools:
   cache-memory:
     - id: metrics

@@ -9,8 +9,6 @@ permissions:
   pull-requests: read
   contents: read
 engine: copilot
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [issues, pull_requests, repos]

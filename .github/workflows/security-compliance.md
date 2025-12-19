@@ -30,8 +30,6 @@ safe-outputs:
     max: 100  # 1 epic + vulnerability tasks
     labels: [security, campaign-tracker]
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [repos, search, code_security]

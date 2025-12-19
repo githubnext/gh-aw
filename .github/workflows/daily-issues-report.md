@@ -12,8 +12,6 @@ permissions:
 engine: codex
 strict: true
 tracker-id: daily-issues-report
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [default, discussions]

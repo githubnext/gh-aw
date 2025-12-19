@@ -16,8 +16,6 @@ engine: copilot
 imports:
   - shared/mcp/gh-aw.md
   - shared/mcp/tavily.md
-sandbox:
-  agent: awf
 tools:
   serena: ["go"]
   github:
@@ -183,8 +181,6 @@ If logs show missing tool reports:
 
 Example:
 ```yaml
-sandbox:
-  agent: awf
 tools:
   github:
     allowed: 

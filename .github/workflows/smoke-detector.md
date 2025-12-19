@@ -52,8 +52,6 @@ engine: claude
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   github:

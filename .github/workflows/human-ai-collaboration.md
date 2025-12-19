@@ -24,8 +24,6 @@ safe-outputs:
   create-issue:
     max: 1  # Only epic for human review
 
-sandbox:
-  agent: awf
 tools:
   github:
     toolsets: [repos, issues, search]

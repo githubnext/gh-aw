@@ -18,9 +18,6 @@ permissions:
 tracker-id: slide-deck-maintainer
 engine: copilot
 timeout-minutes: 45
-strict: true
-sandbox:
-  agent: awf
 tools:
   cache-memory: true
   playwright:

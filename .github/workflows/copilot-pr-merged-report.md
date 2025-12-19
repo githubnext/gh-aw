@@ -16,8 +16,6 @@ permissions:
 engine: copilot
 strict: true
 
-sandbox:
-  agent: awf
 tools:
   github: false
   edit:

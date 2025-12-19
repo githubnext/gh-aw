@@ -13,8 +13,6 @@ network:
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
-sandbox:
-  agent: awf
 tools:
   web-fetch:
   cache-memory: true
