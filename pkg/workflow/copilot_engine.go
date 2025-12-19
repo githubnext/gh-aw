@@ -1131,7 +1131,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		"      - name: Install awf binary",
 		"        run: |",
 		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
-		"          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash",
+		fmt.Sprintf("          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=%s bash", version),
 		"          which awf",
 		"          awf --version",
 	}

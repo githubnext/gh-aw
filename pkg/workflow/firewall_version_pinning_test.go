@@ -14,7 +14,7 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		expectedVersion := string(constants.DefaultFirewallVersion)
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash"
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + expectedVersion + " bash"
 
 		if !strings.Contains(stepStr, expectedInstaller) {
 			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
@@ -30,7 +30,7 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash"
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + customVersion + " bash"
 
 		if !strings.Contains(stepStr, customVersion) {
 			t.Errorf("Expected to log custom version %s in installation step", customVersion)

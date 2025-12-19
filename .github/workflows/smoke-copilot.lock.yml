@@ -677,7 +677,7 @@ jobs:
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
           which awf
           awf --version
       - name: Downloading container images
