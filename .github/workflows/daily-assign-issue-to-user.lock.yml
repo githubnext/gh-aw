@@ -1877,7 +1877,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "842229a33-dirty",
+              cli_version: "dev",
               workflow_name: "Auto-Assign Issue",
               experimental: false,
               supports_tools_allowlist: true,

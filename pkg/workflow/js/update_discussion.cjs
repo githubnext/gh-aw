@@ -26,8 +26,11 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   // Remove internal fields used for operation handling
   const { _operation, _rawBody, labels, ...fieldsToUpdate } = updateData;
 
+  // Check if labels should be updated based on environment variable
+  const shouldUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true" && labels !== undefined;
+
   // First, fetch the discussion node ID using its number
-  const getDiscussionQuery = `
+  const getDiscussionQuery = shouldUpdateLabels ? `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {
@@ -41,6 +44,17 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
               name
             }
           }
+        }
+      }
+    }
+  ` : `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          id
+          title
+          body
+          url
         }
       }
     }
@@ -58,10 +72,10 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 
   const discussion = queryResult.repository.discussion;
   const discussionId = discussion.id;
-  const currentLabels = discussion.labels?.nodes || [];
+  const currentLabels = shouldUpdateLabels ? (discussion.labels?.nodes || []) : [];
 
   // Ensure at least one field is being updated
-  if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && labels === undefined) {
+  if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && !shouldUpdateLabels) {
     throw new Error("At least one field (title, body, or labels) must be provided for update");
   }
 
@@ -131,8 +145,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     }
   }
 
-  // Update labels if provided
-  if (labels !== undefined && Array.isArray(labels)) {
+  // Update labels if provided and enabled
+  if (shouldUpdateLabels && Array.isArray(labels)) {
     // Get the repository ID to look up label IDs
     const repoQuery = `
       query($owner: String!, $repo: String!) {
@@ -208,7 +222,37 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   }
 
   // Fetch the updated discussion to return
-  const finalQueryResult = await github.graphql(getDiscussionQuery, {
+  const finalQuery = shouldUpdateLabels ? `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          id
+          title
+          body
+          url
+          labels(first: 100) {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+      }
+    }
+  ` : `
+    query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $number) {
+          id
+          title
+          body
+          url
+        }
+      }
+    }
+  `;
+
+  const finalQueryResult = await github.graphql(finalQuery, {
     owner: context.repo.owner,
     repo: context.repo.repo,
     number: discussionNumber,
