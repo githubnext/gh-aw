@@ -68,6 +68,9 @@ var checkCommandPositionScript string
 //go:embed js/check_workflow_timestamp_api.cjs
 var checkWorkflowTimestampAPIScript string
 
+//go:embed js/compute_text.cjs
+var computeTextScript string
+
 //go:embed js/log_parser_bootstrap.cjs
 var logParserBootstrapScript string
 
@@ -366,6 +369,7 @@ func GetJavaScriptSources() map[string]string {
 		"check_stop_time.cjs":               checkStopTimeScript,
 		"check_workflow_timestamp_api.cjs":  checkWorkflowTimestampAPIScript,
 		"checkout_pr_branch.cjs":            checkoutPRBranchScript,
+		"compute_text.cjs":                  computeTextScript,
 		"create_agent_task.cjs":             createAgentTaskScript,
 		"interpolate_prompt.cjs":            interpolatePromptScript,
 		"runtime_import.cjs":                runtimeImportScript,

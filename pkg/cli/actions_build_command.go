@@ -267,6 +267,20 @@ func getActionDependencies(actionName string) []string {
 			"mcp_server_core.cjs",
 			"mcp_logger.cjs",
 		},
+		"setup-activation": {
+			"check_stop_time.cjs",
+			"check_skip_if_match.cjs",
+			"check_command_position.cjs",
+			"check_workflow_timestamp_api.cjs",
+			"lock-issue.cjs",
+			"compute_text.cjs",
+			"add_reaction_and_edit_comment.cjs",
+			// Dependencies for compute_text.cjs and add_reaction_and_edit_comment.cjs
+			"sanitize_incoming_text.cjs",
+			"messages_run_status.cjs",
+			"messages_core.cjs",
+			"sanitize_content_core.cjs",
+		},
 		"noop": {
 			"load_agent_output.cjs",
 		},

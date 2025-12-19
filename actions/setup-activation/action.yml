@@ -1,0 +1,21 @@
+name: 'Setup Activation'
+description: 'Copy activation job files to the agent environment'
+author: 'GitHub Next'
+
+inputs:
+  destination:
+    description: 'Destination directory for activation files (default: /tmp/gh-aw/actions/activation)'
+    required: false
+    default: '/tmp/gh-aw/actions/activation'
+
+outputs:
+  files-copied:
+    description: 'Number of files copied'
+  
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'play'
+  color: 'blue'
