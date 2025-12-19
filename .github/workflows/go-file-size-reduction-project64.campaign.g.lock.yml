@@ -7715,29 +7715,29 @@ jobs:
             globalThis.io = io;
             const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
             function logGraphQLError(error, operation) {
-              (core.error(`GraphQL Error during: ${operation}`), core.error(`Message: ${error.message}`));
+              (core.info(`GraphQL Error during: ${operation}`), core.info(`Message: ${error.message}`));
               const errorList = Array.isArray(error.errors) ? error.errors : [],
                 hasInsufficientScopes = errorList.some(e => e && "INSUFFICIENT_SCOPES" === e.type),
                 hasNotFound = errorList.some(e => e && "NOT_FOUND" === e.type);
               (hasInsufficientScopes
-                ? core.error(
+                ? core.info(
                     "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
                   )
                 : hasNotFound &&
                   /projectV2\b/.test(error.message) &&
-                  core.error(
+                  core.info(
                     "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project."
                   ),
                 error.errors &&
-                  (core.error(`Errors array (${error.errors.length} error(s)):`),
+                  (core.info(`Errors array (${error.errors.length} error(s)):`),
                   error.errors.forEach((err, idx) => {
-                    (core.error(`  [${idx + 1}] ${err.message}`),
-                      err.type && core.error(`      Type: ${err.type}`),
-                      err.path && core.error(`      Path: ${JSON.stringify(err.path)}`),
-                      err.locations && core.error(`      Locations: ${JSON.stringify(err.locations)}`));
+                    (core.info(`  [${idx + 1}] ${err.message}`),
+                      err.type && core.info(`      Type: ${err.type}`),
+                      err.path && core.info(`      Path: ${JSON.stringify(err.path)}`),
+                      err.locations && core.info(`      Locations: ${JSON.stringify(err.locations)}`));
                   })),
-                error.request && core.error(`Request: ${JSON.stringify(error.request, null, 2)}`),
-                error.data && core.error(`Response data: ${JSON.stringify(error.data, null, 2)}`));
+                error.request && core.info(`Request: ${JSON.stringify(error.request, null, 2)}`),
+                error.data && core.info(`Response data: ${JSON.stringify(error.data, null, 2)}`));
             }
             function parseProjectInput(projectUrl) {
               if (!projectUrl || "string" != typeof projectUrl) throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
