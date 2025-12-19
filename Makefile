@@ -167,8 +167,32 @@ test-coverage:
 # Clean build artifacts
 .PHONY: clean
 clean:
-	rm -f $(BINARY_NAME) $(BINARY_NAME)-* coverage.out coverage.html
-	go clean
+	@echo "Cleaning build artifacts..."
+	@# Remove main binary and platform-specific binaries
+	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
+	@# Remove bundle-js binary
+	rm -f bundle-js
+	@# Remove coverage files
+	rm -f coverage.out coverage.html
+	@# Remove benchmark results
+	rm -f bench_results.txt
+	@# Remove SBOM files
+	rm -f sbom.spdx.json sbom.cdx.json
+	@# Remove security scan reports
+	rm -f gosec-report.json gosec-results.sarif govulncheck-results.sarif trivy-results.sarif
+	@# Remove downloaded logs (but keep .gitignore)
+	@if [ -d .github/aw/logs ]; then \
+		find .github/aw/logs -type f ! -name '.gitignore' -delete 2>/dev/null || true; \
+		find .github/aw/logs -type d -empty -delete 2>/dev/null || true; \
+	fi
+	@# Remove installed gh extension if it exists
+	@if [ -d "$$HOME/.local/share/gh/extensions/gh-aw" ]; then \
+		echo "Removing installed gh-aw extension..."; \
+		gh extension remove gh-aw 2>/dev/null || rm -rf "$$HOME/.local/share/gh/extensions/gh-aw"; \
+	fi
+	@# Clean Go build cache, module cache, and test cache
+	go clean -cache -modcache -testcache
+	@echo "✓ Clean complete"
 
 # Actions management targets
 .PHONY: actions-build
