@@ -143,7 +143,7 @@ func TestInitRepositoryBasic(t *testing.T) {
 	if _, err := os.Stat(logsGitignorePath); os.IsNotExist(err) {
 		t.Error("Expected .github/aw/logs/.gitignore to be created")
 	}
-	
+
 	// Verify MCP files were created by default
 	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
 	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
@@ -240,7 +240,7 @@ func TestInitRepositoryWithNoMCP(t *testing.T) {
 	if _, err := os.Stat(setupStepsPath); err == nil {
 		t.Error("Expected .github/workflows/copilot-setup-steps.yml to NOT be created with --no-mcp flag")
 	}
-	
+
 	// Verify basic files were still created
 	if _, err := os.Stat(".gitattributes"); os.IsNotExist(err) {
 		t.Error("Expected .gitattributes to be created even with --no-mcp flag")

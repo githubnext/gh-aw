@@ -69,7 +69,7 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
-			
+
 			// MCP is enabled by default, unless --no-mcp is specified
 			mcp := !noMcp
 
