@@ -60,11 +60,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
-	// Validate permission scopes are valid for GitHub Actions
-	if err := validatePermissionScopes(result.Frontmatter); err != nil {
-		return nil, err
-	}
-
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
 	markdownDir := filepath.Dir(markdownPath)
