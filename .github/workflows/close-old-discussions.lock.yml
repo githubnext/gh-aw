@@ -1863,7 +1863,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
               agent_version: "0.73.0",
-              cli_version: "04d808f",
+              cli_version: "04e6a38-dirty",
               workflow_name: "Close Outdated Discussions",
               experimental: true,
               supports_tools_allowlist: true,

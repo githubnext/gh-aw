@@ -287,7 +287,14 @@ async function updateProject(output) {
                 core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
                 continue;
               }
-          if (field.options) {
+          // Check dataType first to properly handle DATE fields before checking for options
+          // This prevents date fields from being misidentified as single-select fields
+          if (field.dataType === "DATE") {
+            // Date fields use ProjectV2FieldValue input type with date property
+            // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
+            // Unlike other field types that may require IDs, date fields accept the date string directly
+            valueToSet = { date: String(fieldValue) };
+          } else if (field.options) {
             let option = field.options.find(o => o.name === fieldValue);
             if (!option)
               try {
@@ -308,11 +315,6 @@ async function updateProject(output) {
               continue;
             }
             valueToSet = { singleSelectOptionId: option.id };
-          } else if (field.dataType === "DATE") {
-            // Date fields use ProjectV2FieldValue input type with date property
-            // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
-            // Unlike other field types that may require IDs, date fields accept the date string directly
-            valueToSet = { date: String(fieldValue) };
           } else valueToSet = { text: String(fieldValue) };
           await github.graphql(
             "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",

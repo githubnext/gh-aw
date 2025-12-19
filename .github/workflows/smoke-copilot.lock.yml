@@ -2368,7 +2368,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "04d808f",
+              cli_version: "04e6a38-dirty",
               workflow_name: "Smoke Copilot",
               experimental: false,
               supports_tools_allowlist: true,
