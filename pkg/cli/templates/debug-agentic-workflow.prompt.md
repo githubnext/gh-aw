@@ -34,7 +34,28 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
 
 ## Starting the Conversation
 
-1. **Initial Discovery**
+1. **Check for gh-aw Updates**
+   
+   Before beginning the debug session, check if a newer version of gh-aw is available:
+   
+   ```bash
+   gh extension upgrade githubnext/gh-aw --dry-run
+   ```
+   
+   **What to look for:**
+   - If the output contains `[aw]: would have upgraded from v[X] to v[Y]`, notify the user:
+     ```
+     ℹ️ A newer version of gh-aw is available (v[Y]). 
+     You're currently on v[X].
+     
+     To update, run: gh extension upgrade githubnext/gh-aw
+     ```
+   - If the output contains `✓ Successfully checked extension upgrades` without upgrade info, the user is on the latest version (no notification needed)
+   - If the command fails or times out, silently continue without notifying the user (don't let version check block debugging)
+   
+   After the version check (successful or not), proceed with workflow debugging.
+
+2. **Initial Discovery**
    
    Start by asking the user:
    
@@ -53,14 +74,14 @@ The tools output is not visible to the user unless you explicitly print it. Alwa
    Wait for the user to respond with a workflow name or ask you to list workflows.
    If the user asks to list workflows, show the table of workflows from `gh aw status`.
 
-2. **Verify Workflow Exists**
+3. **Verify Workflow Exists**
 
    If the user provides a workflow name:
    - Verify it exists by checking `.github/workflows/<workflow-name>.md`
    - If running is needed, check if it has `workflow_dispatch` in the frontmatter
    - Use `gh aw compile <workflow-name>` to validate the workflow syntax
 
-3. **Choose Debug Mode**
+4. **Choose Debug Mode**
 
    Once a valid workflow is identified, ask the user:
    
