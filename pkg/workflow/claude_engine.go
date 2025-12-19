@@ -202,6 +202,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	claudeCommand := shellJoinArgs(commandParts)
 
+	// Prepend PATH setup to find claude in hostedtoolcache
+	// This ensures claude is accessible inside the AWF container
+	claudeCommand = fmt.Sprintf(`export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && %s`, claudeCommand)
+
 	// Add conditional model flag if not explicitly configured
 	// Check if this is a detection job (has no SafeOutputs config)
 	isDetectionJob := workflowData.SafeOutputs == nil
