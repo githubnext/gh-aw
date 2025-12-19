@@ -2411,7 +2411,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "dev",
+              cli_version: "f27cb48",
               workflow_name: "PR Nitpick Reviewer 🔍",
               experimental: false,
               supports_tools_allowlist: true,

@@ -3118,7 +3118,7 @@ jobs:
               model: "gpt-5",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "dev",
+              cli_version: "f27cb48",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
