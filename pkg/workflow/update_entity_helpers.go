@@ -79,3 +79,44 @@ func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params Upda
 
 	return nil
 }
+
+// parseUpdateEntityBase is a helper that reduces scaffolding duplication across update entity parsers.
+// It handles the common pattern of:
+//  1. Building UpdateEntityJobParams
+//  2. Calling parseUpdateEntityConfig
+//  3. Checking for nil result
+//  4. Returning the base config and config map for entity-specific field parsing
+//
+// Returns:
+//   - baseConfig: The parsed base configuration (nil if parsing failed)
+//   - configMap: The entity-specific config map for additional field parsing (nil if not present)
+//
+// Callers should check if baseConfig is nil before proceeding with entity-specific parsing.
+func (c *Compiler) parseUpdateEntityBase(
+	outputMap map[string]any,
+	entityType UpdateEntityType,
+	configKey string,
+	logger *logger.Logger,
+) (*UpdateEntityConfig, map[string]any) {
+	// Build params for base config parsing
+	params := UpdateEntityJobParams{
+		EntityType: entityType,
+		ConfigKey:  configKey,
+	}
+
+	// Parse the base config (common fields like max, target, target-repo)
+	baseConfig := c.parseUpdateEntityConfig(outputMap, params, logger, nil)
+	if baseConfig == nil {
+		return nil, nil
+	}
+
+	// Extract the config map for entity-specific field parsing
+	var configMap map[string]any
+	if configData, exists := outputMap[configKey]; exists {
+		if cm, ok := configData.(map[string]any); ok {
+			configMap = cm
+		}
+	}
+
+	return baseConfig, configMap
+}

@@ -13,7 +13,7 @@ permissions:
 
 tracker-id: spec-kit-execute
 engine: copilot
-strict: false
+strict: true
 
 safe-outputs:
   create-pull-request:

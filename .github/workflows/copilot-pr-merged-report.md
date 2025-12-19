@@ -14,7 +14,7 @@ permissions:
   actions: read
 
 engine: copilot
-strict: false
+strict: true
 
 tools:
   github: false

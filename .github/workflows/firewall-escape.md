@@ -15,7 +15,7 @@ permissions:
   issues: read
   pull-requests: read
 
-strict: false
+strict: true
 
 engine: copilot
 
