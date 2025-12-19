@@ -10,6 +10,7 @@ safe-outputs:
     add-comment:
         max: 10
     update-project:
+        github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         max: 10
 runs-on: ubuntu-latest
 roles:

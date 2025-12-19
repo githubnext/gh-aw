@@ -5,6 +5,7 @@ name: "Go File Size Reduction Campaign (Project 64)"
 description: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
 
 project-url: "https://github.com/orgs/githubnext/projects/64"
+project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 
 workflows:
   - daily-file-diet
