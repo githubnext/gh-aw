@@ -160,3 +160,76 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Errorf("expected markdown to contain Phase 4: Report, got: %q", data.MarkdownContent)
 	}
 }
+
+func TestBuildOrchestrator_GitHubToken(t *testing.T) {
+	t.Run("with custom github token", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:                 "test-campaign-with-token",
+			Name:               "Test Campaign",
+			Description:        "A test campaign with custom GitHub token",
+			ProjectURL:         "https://github.com/orgs/test/projects/1",
+			Workflows:          []string{"test-workflow"},
+			TrackerLabel:       "campaign:test",
+			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that UpdateProjects is configured
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected UpdateProjects to be configured")
+		}
+
+		// Verify that the GitHubToken is set
+		if data.SafeOutputs.UpdateProjects.GitHubToken != "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}" {
+			t.Errorf("expected GitHubToken to be %q, got %q",
+				"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				data.SafeOutputs.UpdateProjects.GitHubToken)
+		}
+	})
+
+	t.Run("without custom github token", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:           "test-campaign-no-token",
+			Name:         "Test Campaign",
+			Description:  "A test campaign without custom GitHub token",
+			ProjectURL:   "https://github.com/orgs/test/projects/1",
+			Workflows:    []string{"test-workflow"},
+			TrackerLabel: "campaign:test",
+			// ProjectGitHubToken is intentionally omitted
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that UpdateProjects is configured
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected UpdateProjects to be configured")
+		}
+
+		// Verify that the GitHubToken is empty when not specified
+		if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
+			t.Errorf("expected GitHubToken to be empty when not specified, got %q",
+				data.SafeOutputs.UpdateProjects.GitHubToken)
+		}
+	})
+}

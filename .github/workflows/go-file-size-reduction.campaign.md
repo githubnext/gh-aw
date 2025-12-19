@@ -5,6 +5,7 @@ name: "Go File Size Reduction Campaign"
 description: "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors, with daily metrics snapshots and a GitHub Projects dashboard."
 
 project-url: "https://github.com/orgs/githubnext/projects/60"
+project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 
 workflows:
   - daily-file-diet
