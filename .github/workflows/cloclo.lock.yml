@@ -2824,7 +2824,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.73",
-              cli_version: "91fdc70",
+              cli_version: "8c6dfe4",
               workflow_name: "/cloclo",
               experimental: true,
               supports_tools_allowlist: true,
