@@ -24,11 +24,11 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           true,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Claude supports both stdio and HTTP transport
-			supportsMaxTurns:       true,  // Claude supports max-turns feature
-			supportsWebFetch:       true,  // Claude has built-in WebFetch support
-			supportsWebSearch:      true,  // Claude has built-in WebSearch support
-			supportsFirewall:       true,  // Claude supports network firewalling via AWF
+			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			supportsFirewall:       true, // Claude supports network firewalling via AWF
 		},
 	}
 }
@@ -338,13 +338,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build environment variables map
 	env := map[string]string{
-		"ANTHROPIC_API_KEY":        "${{ secrets.ANTHROPIC_API_KEY }}",
-		"CLAUDE_CODE_OAUTH_TOKEN":  "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
-		"DISABLE_TELEMETRY":        "1",
-		"DISABLE_ERROR_REPORTING":  "1",
-		"DISABLE_BUG_COMMAND":      "1",
-		"GH_AW_PROMPT":             "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_WORKSPACE":         "${{ github.workspace }}",
+		"ANTHROPIC_API_KEY":       "${{ secrets.ANTHROPIC_API_KEY }}",
+		"CLAUDE_CODE_OAUTH_TOKEN": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+		"DISABLE_TELEMETRY":       "1",
+		"DISABLE_ERROR_REPORTING": "1",
+		"DISABLE_BUG_COMMAND":     "1",
+		"GH_AW_PROMPT":            "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_WORKSPACE":        "${{ github.workspace }}",
 	}
 
 	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
