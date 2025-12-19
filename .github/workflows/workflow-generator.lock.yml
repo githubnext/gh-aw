@@ -19,36 +19,40 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Add a poem to the latest discussion
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/gh.md
+# Workflow generator that updates issue status and assigns to Copilot agent for workflow design
 
-name: "Dev"
+name: "Workflow Generator"
 "on":
-  workflow_dispatch: null
+  issues:
+    lock-for-agent: true
+    types:
+    - opened
+    - labeled
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Dev"
+run-name: "Workflow Generator"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: (needs.pre_activation.outputs.activated == 'true') && (startsWith(github.event.issue.title, '[Workflow]'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: write
     outputs:
       comment_id: ""
       comment_repo: ""
+      issue_locked: ${{ steps.lock-issue.outputs.locked }}
     steps:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "dev.lock.yml"
+          GH_AW_WORKFLOW_FILE: "workflow-generator.lock.yml"
         with:
           script: |
             async function main() {
@@ -130,15 +134,58 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Lock issue for agent workflow
+        id: lock-issue
+        if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            async function main() {
+              core.info(`Lock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
+              const issueNumber = context.issue.number;
+              if (!issueNumber) {
+                core.setFailed("Issue number not found in context");
+                return;
+              }
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              core.info(`Lock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
+              try {
+                core.info(`Checking if issue #${issueNumber} is already locked`);
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                if (issue.locked) {
+                  core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
+                core.info(`Locking issue #${issueNumber} for agent workflow execution`);
+                await github.rest.issues.lock({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                core.info(`✅ Successfully locked issue #${issueNumber}`);
+                core.setOutput("locked", "true");
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to lock issue: ${errorMessage}`);
+                core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+                core.setOutput("locked", "false");
+              }
+            }
+            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      discussions: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      issues: read
+      pull-requests: read
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -290,34 +337,66 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{"max":0},"noop":{"max":1},"update_discussion":{"max":1}}
+          {"assign_to_agent":{},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Update an existing GitHub discussion's title or body. Use this to modify discussion properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
+                    "type": "string"
+                  },
+                  "issue_number": {
+                    "description": "Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "issue_number"
+                ],
+                "type": "object"
+              },
+              "name": "assign_to_agent"
+            },
+            {
+              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated. Target: ${{ github.event.issue.number }}.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "New discussion body to replace the existing content. Use Markdown formatting.",
+                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
                     "type": "string"
                   },
-                  "discussion_number": {
-                    "description": "Discussion number to update. Required when the workflow target is '*' (any discussion).",
+                  "issue_number": {
+                    "description": "Issue number to update. Required when the workflow target is '*' (any issue).",
                     "type": [
                       "number",
                       "string"
                     ]
                   },
+                  "status": {
+                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
+                    "enum": [
+                      "open",
+                      "closed"
+                    ],
+                    "type": "string"
+                  },
                   "title": {
-                    "description": "New discussion title to replace the existing title.",
+                    "description": "New issue title to replace the existing title.",
                     "type": "string"
                   }
                 },
                 "type": "object"
               },
-              "name": "update_discussion"
+              "name": "update_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -366,6 +445,20 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
+            "assign_to_agent": {
+              "defaultMax": 1,
+              "fields": {
+                "agent": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "issue_number": {
+                  "required": true,
+                  "positiveInteger": true
+                }
+              }
+            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -398,6 +491,32 @@ jobs:
                   "maxLength": 65000
                 }
               }
+            },
+            "update_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "issue_number": {
+                  "issueOrPRNumber": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                }
+              },
+              "customValidation": "requiresOneOf:status,title,body"
             }
           }
           EOF
@@ -1745,1399 +1864,10 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Setup Safe Inputs JavaScript and Config
-        run: |
-          mkdir -p /tmp/gh-aw/safe-inputs/logs
-          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'
-            class ReadBuffer {
-              constructor() {
-                this._buffer = null;
-              }
-              append(chunk) {
-                this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
-              }
-              readMessage() {
-                if (!this._buffer) {
-                  return null;
-                }
-                const index = this._buffer.indexOf("\n");
-                if (index === -1) {
-                  return null;
-                }
-                const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
-                this._buffer = this._buffer.subarray(index + 1);
-                if (line.trim() === "") {
-                  return this.readMessage(); 
-                }
-                try {
-                  return JSON.parse(line);
-                } catch (error) {
-                  throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
-            }
-            module.exports = {
-              ReadBuffer,
-            };
-          EOF_READ_BUFFER
-          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'
-            const fs = require("fs");
-            const path = require("path");
-            const { ReadBuffer } = require("./read_buffer.cjs");
-            const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
-            const encoder = new TextEncoder();
-            function initLogFile(server) {
-              if (server.logFileInitialized || !server.logDir || !server.logFilePath) return;
-              try {
-                if (!fs.existsSync(server.logDir)) {
-                  fs.mkdirSync(server.logDir, { recursive: true });
-                }
-                const timestamp = new Date().toISOString();
-                fs.writeFileSync(server.logFilePath, `# ${server.serverInfo.name} MCP Server Log\n# Started: ${timestamp}\n# Version: ${server.serverInfo.version}\n\n`);
-                server.logFileInitialized = true;
-              } catch {
-              }
-            }
-            function createDebugFunction(server) {
-              return msg => {
-                const timestamp = new Date().toISOString();
-                const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${msg}\n`;
-                process.stderr.write(formattedMsg);
-                if (server.logDir && server.logFilePath) {
-                  if (!server.logFileInitialized) {
-                    initLogFile(server);
-                  }
-                  if (server.logFileInitialized) {
-                    try {
-                      fs.appendFileSync(server.logFilePath, formattedMsg);
-                    } catch {
-                    }
-                  }
-                }
-              };
-            }
-            function createDebugErrorFunction(server) {
-              return (prefix, error) => {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                server.debug(`${prefix}${errorMessage}`);
-                if (error instanceof Error && error.stack) {
-                  server.debug(`${prefix}Stack trace: ${error.stack}`);
-                }
-              };
-            }
-            function createWriteMessageFunction(server) {
-              return obj => {
-                const json = JSON.stringify(obj);
-                server.debug(`send: ${json}`);
-                const message = json + "\n";
-                const bytes = encoder.encode(message);
-                fs.writeSync(1, bytes);
-              };
-            }
-            function createReplyResultFunction(server) {
-              return (id, result) => {
-                if (id === undefined || id === null) return; 
-                const res = { jsonrpc: "2.0", id, result };
-                server.writeMessage(res);
-              };
-            }
-            function createReplyErrorFunction(server) {
-              return (id, code, message) => {
-                if (id === undefined || id === null) {
-                  server.debug(`Error for notification: ${message}`);
-                  return;
-                }
-                const error = { code, message };
-                const res = {
-                  jsonrpc: "2.0",
-                  id,
-                  error,
-                };
-                server.writeMessage(res);
-              };
-            }
-            function createServer(serverInfo, options = {}) {
-              const logDir = options.logDir || undefined;
-              const logFilePath = logDir ? path.join(logDir, "server.log") : undefined;
-              const server = {
-                serverInfo,
-                tools: {},
-                debug: () => {}, 
-                debugError: () => {}, 
-                writeMessage: () => {}, 
-                replyResult: () => {}, 
-                replyError: () => {}, 
-                readBuffer: new ReadBuffer(),
-                logDir,
-                logFilePath,
-                logFileInitialized: false,
-              };
-              server.debug = createDebugFunction(server);
-              server.debugError = createDebugErrorFunction(server);
-              server.writeMessage = createWriteMessageFunction(server);
-              server.replyResult = createReplyResultFunction(server);
-              server.replyError = createReplyErrorFunction(server);
-              return server;
-            }
-            function createWrappedHandler(server, toolName, handlerFn) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking handler with args: ${JSON.stringify(args)}`);
-                try {
-                  const result = await Promise.resolve(handlerFn(args));
-                  server.debug(`  [${toolName}] Handler returned result type: ${typeof result}`);
-                  if (result && typeof result === "object" && Array.isArray(result.content)) {
-                    server.debug(`  [${toolName}] Result is already in MCP format`);
-                    return result;
-                  }
-                  let serializedResult;
-                  try {
-                    serializedResult = JSON.stringify(result);
-                  } catch (serializationError) {
-                    server.debugError(`  [${toolName}] Serialization error: `, serializationError);
-                    serializedResult = String(result);
-                  }
-                  server.debug(`  [${toolName}] Serialized result: ${serializedResult.substring(0, 200)}${serializedResult.length > 200 ? "..." : ""}`);
-                  return {
-                    content: [
-                      {
-                        type: "text",
-                        text: serializedResult,
-                      },
-                    ],
-                  };
-                } catch (error) {
-                  server.debugError(`  [${toolName}] Handler threw error: `, error);
-                  throw error;
-                }
-              };
-            }
-            function loadToolHandlers(server, tools, basePath) {
-              server.debug(`Loading tool handlers...`);
-              server.debug(`  Total tools to process: ${tools.length}`);
-              server.debug(`  Base path: ${basePath || "(not specified)"}`);
-              let loadedCount = 0;
-              let skippedCount = 0;
-              let errorCount = 0;
-              for (const tool of tools) {
-                const toolName = tool.name || "(unnamed)";
-                if (!tool.handler) {
-                  server.debug(`  [${toolName}] No handler path specified, skipping handler load`);
-                  skippedCount++;
-                  continue;
-                }
-                const handlerPath = tool.handler;
-                server.debug(`  [${toolName}] Handler path specified: ${handlerPath}`);
-                let resolvedPath = handlerPath;
-                if (basePath && !path.isAbsolute(handlerPath)) {
-                  resolvedPath = path.resolve(basePath, handlerPath);
-                  server.debug(`  [${toolName}] Resolved relative path to: ${resolvedPath}`);
-                  const normalizedBase = path.resolve(basePath);
-                  const normalizedResolved = path.resolve(resolvedPath);
-                  if (!normalizedResolved.startsWith(normalizedBase + path.sep) && normalizedResolved !== normalizedBase) {
-                    server.debug(`  [${toolName}] ERROR: Handler path escapes base directory: ${resolvedPath} is not within ${basePath}`);
-                    errorCount++;
-                    continue;
-                  }
-                } else if (path.isAbsolute(handlerPath)) {
-                  server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
-                }
-                tool.handlerPath = handlerPath;
-                try {
-                  server.debug(`  [${toolName}] Loading handler from: ${resolvedPath}`);
-                  if (!fs.existsSync(resolvedPath)) {
-                    server.debug(`  [${toolName}] ERROR: Handler file does not exist: ${resolvedPath}`);
-                    errorCount++;
-                    continue;
-                  }
-                  const ext = path.extname(resolvedPath).toLowerCase();
-                  server.debug(`  [${toolName}] Handler file extension: ${ext}`);
-                  if (ext === ".sh") {
-                    server.debug(`  [${toolName}] Detected shell script handler`);
-                    try {
-                      fs.accessSync(resolvedPath, fs.constants.X_OK);
-                      server.debug(`  [${toolName}] Shell script is executable`);
-                    } catch {
-                      try {
-                        fs.chmodSync(resolvedPath, 0o755);
-                        server.debug(`  [${toolName}] Made shell script executable`);
-                      } catch (chmodError) {
-                        server.debugError(`  [${toolName}] Warning: Could not make shell script executable: `, chmodError);
-                      }
-                    }
-                    const { createShellHandler } = require("./mcp_handler_shell.cjs");
-                    const timeout = tool.timeout || 60; 
-                    tool.handler = createShellHandler(server, toolName, resolvedPath, timeout);
-                    loadedCount++;
-                    server.debug(`  [${toolName}] Shell handler created successfully with timeout: ${timeout}s`);
-                  } else if (ext === ".py") {
-                    server.debug(`  [${toolName}] Detected Python script handler`);
-                    try {
-                      fs.accessSync(resolvedPath, fs.constants.X_OK);
-                      server.debug(`  [${toolName}] Python script is executable`);
-                    } catch {
-                      try {
-                        fs.chmodSync(resolvedPath, 0o755);
-                        server.debug(`  [${toolName}] Made Python script executable`);
-                      } catch (chmodError) {
-                        server.debugError(`  [${toolName}] Warning: Could not make Python script executable: `, chmodError);
-                      }
-                    }
-                    const { createPythonHandler } = require("./mcp_handler_python.cjs");
-                    const timeout = tool.timeout || 60; 
-                    tool.handler = createPythonHandler(server, toolName, resolvedPath, timeout);
-                    loadedCount++;
-                    server.debug(`  [${toolName}] Python handler created successfully with timeout: ${timeout}s`);
-                  } else {
-                    server.debug(`  [${toolName}] Loading JavaScript handler module`);
-                    const handlerModule = require(resolvedPath);
-                    server.debug(`  [${toolName}] Handler module loaded successfully`);
-                    server.debug(`  [${toolName}] Module type: ${typeof handlerModule}`);
-                    let handlerFn = handlerModule;
-                    if (handlerModule && typeof handlerModule === "object" && typeof handlerModule.default === "function") {
-                      handlerFn = handlerModule.default;
-                      server.debug(`  [${toolName}] Using module.default export`);
-                    }
-                    if (typeof handlerFn !== "function") {
-                      server.debug(`  [${toolName}] ERROR: Handler is not a function, got: ${typeof handlerFn}`);
-                      server.debug(`  [${toolName}] Module keys: ${Object.keys(handlerModule || {}).join(", ") || "(none)"}`);
-                      errorCount++;
-                      continue;
-                    }
-                    server.debug(`  [${toolName}] Handler function validated successfully`);
-                    server.debug(`  [${toolName}] Handler function name: ${handlerFn.name || "(anonymous)"}`);
-                    tool.handler = createWrappedHandler(server, toolName, handlerFn);
-                    loadedCount++;
-                    server.debug(`  [${toolName}] JavaScript handler loaded and wrapped successfully`);
-                  }
-                } catch (error) {
-                  server.debugError(`  [${toolName}] ERROR loading handler: `, error);
-                  errorCount++;
-                }
-              }
-              server.debug(`Handler loading complete:`);
-              server.debug(`  Loaded: ${loadedCount}`);
-              server.debug(`  Skipped (no handler path): ${skippedCount}`);
-              server.debug(`  Errors: ${errorCount}`);
-              return tools;
-            }
-            function registerTool(server, tool) {
-              const normalizedName = normalizeTool(tool.name);
-              server.tools[normalizedName] = {
-                ...tool,
-                name: normalizedName,
-              };
-              server.debug(`Registered tool: ${normalizedName}`);
-            }
-            function normalizeTool(name) {
-              return name.replace(/-/g, "_").toLowerCase();
-            }
-            async function handleRequest(server, request, defaultHandler) {
-              const { id, method, params } = request;
-              try {
-                if (!("id" in request)) {
-                  return null;
-                }
-                let result;
-                if (method === "initialize") {
-                  const protocolVersion = params?.protocolVersion || "2024-11-05";
-                  result = {
-                    protocolVersion,
-                    serverInfo: server.serverInfo,
-                    capabilities: {
-                      tools: {},
-                    },
-                  };
-                } else if (method === "ping") {
-                  result = {};
-                } else if (method === "tools/list") {
-                  const list = [];
-                  Object.values(server.tools).forEach(tool => {
-                    const toolDef = {
-                      name: tool.name,
-                      description: tool.description,
-                      inputSchema: tool.inputSchema,
-                    };
-                    list.push(toolDef);
-                  });
-                  result = { tools: list };
-                } else if (method === "tools/call") {
-                  const name = params?.name;
-                  const args = params?.arguments ?? {};
-                  if (!name || typeof name !== "string") {
-                    throw {
-                      code: -32602,
-                      message: "Invalid params: 'name' must be a string",
-                    };
-                  }
-                  const tool = server.tools[normalizeTool(name)];
-                  if (!tool) {
-                    throw {
-                      code: -32602,
-                      message: `Tool '${name}' not found`,
-                    };
-                  }
-                  let handler = tool.handler;
-                  if (!handler && defaultHandler) {
-                    handler = defaultHandler(tool.name);
-                  }
-                  if (!handler) {
-                    throw {
-                      code: -32603,
-                      message: `No handler for tool: ${name}`,
-                    };
-                  }
-                  const missing = validateRequiredFields(args, tool.inputSchema);
-                  if (missing.length) {
-                    throw {
-                      code: -32602,
-                      message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
-                    };
-                  }
-                  const handlerResult = await Promise.resolve(handler(args));
-                  const content = handlerResult && handlerResult.content ? handlerResult.content : [];
-                  result = { content, isError: false };
-                } else if (/^notifications\//.test(method)) {
-                  return null;
-                } else {
-                  throw {
-                    code: -32601,
-                    message: `Method not found: ${method}`,
-                  };
-                }
-                return {
-                  jsonrpc: "2.0",
-                  id,
-                  result,
-                };
-              } catch (error) {
-                const err = error;
-                return {
-                  jsonrpc: "2.0",
-                  id,
-                  error: {
-                    code: err.code || -32603,
-                    message: err.message || "Internal error",
-                  },
-                };
-              }
-            }
-            async function handleMessage(server, req, defaultHandler) {
-              if (!req || typeof req !== "object") {
-                server.debug(`Invalid message: not an object`);
-                return;
-              }
-              if (req.jsonrpc !== "2.0") {
-                server.debug(`Invalid message: missing or invalid jsonrpc field`);
-                return;
-              }
-              const { id, method, params } = req;
-              if (!method || typeof method !== "string") {
-                server.replyError(id, -32600, "Invalid Request: method must be a string");
-                return;
-              }
-              try {
-                if (method === "initialize") {
-                  const clientInfo = params?.clientInfo ?? {};
-                  server.debug(`client info: ${JSON.stringify(clientInfo)}`);
-                  const protocolVersion = params?.protocolVersion ?? undefined;
-                  const result = {
-                    serverInfo: server.serverInfo,
-                    ...(protocolVersion ? { protocolVersion } : {}),
-                    capabilities: {
-                      tools: {},
-                    },
-                  };
-                  server.replyResult(id, result);
-                } else if (method === "tools/list") {
-                  const list = [];
-                  Object.values(server.tools).forEach(tool => {
-                    const toolDef = {
-                      name: tool.name,
-                      description: tool.description,
-                      inputSchema: tool.inputSchema,
-                    };
-                    list.push(toolDef);
-                  });
-                  server.replyResult(id, { tools: list });
-                } else if (method === "tools/call") {
-                  const name = params?.name;
-                  const args = params?.arguments ?? {};
-                  if (!name || typeof name !== "string") {
-                    server.replyError(id, -32602, "Invalid params: 'name' must be a string");
-                    return;
-                  }
-                  const tool = server.tools[normalizeTool(name)];
-                  if (!tool) {
-                    server.replyError(id, -32601, `Tool not found: ${name} (${normalizeTool(name)})`);
-                    return;
-                  }
-                  let handler = tool.handler;
-                  if (!handler && defaultHandler) {
-                    handler = defaultHandler(tool.name);
-                  }
-                  if (!handler) {
-                    server.replyError(id, -32603, `No handler for tool: ${name}`);
-                    return;
-                  }
-                  const missing = validateRequiredFields(args, tool.inputSchema);
-                  if (missing.length) {
-                    server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                    return;
-                  }
-                  server.debug(`Calling handler for tool: ${name}`);
-                  const result = await Promise.resolve(handler(args));
-                  server.debug(`Handler returned for tool: ${name}`);
-                  const content = result && result.content ? result.content : [];
-                  server.replyResult(id, { content, isError: false });
-                } else if (/^notifications\//.test(method)) {
-                  server.debug(`ignore ${method}`);
-                } else {
-                  server.replyError(id, -32601, `Method not found: ${method}`);
-                }
-              } catch (e) {
-                server.replyError(id, -32603, e instanceof Error ? e.message : String(e));
-              }
-            }
-            async function processReadBuffer(server, defaultHandler) {
-              while (true) {
-                try {
-                  const message = server.readBuffer.readMessage();
-                  if (!message) {
-                    break;
-                  }
-                  server.debug(`recv: ${JSON.stringify(message)}`);
-                  await handleMessage(server, message, defaultHandler);
-                } catch (error) {
-                  server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
-            }
-            function start(server, options = {}) {
-              const { defaultHandler } = options;
-              server.debug(`v${server.serverInfo.version} ready on stdio`);
-              server.debug(`  tools: ${Object.keys(server.tools).join(", ")}`);
-              if (!Object.keys(server.tools).length) {
-                throw new Error("No tools registered");
-              }
-              const onData = async chunk => {
-                server.readBuffer.append(chunk);
-                await processReadBuffer(server, defaultHandler);
-              };
-              process.stdin.on("data", onData);
-              process.stdin.on("error", err => server.debug(`stdin error: ${err}`));
-              process.stdin.resume();
-              server.debug(`listening...`);
-            }
-            module.exports = {
-              createServer,
-              registerTool,
-              normalizeTool,
-              handleRequest,
-              handleMessage,
-              processReadBuffer,
-              start,
-              loadToolHandlers,
-            };
-          EOF_MCP_CORE
-          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'
-            const http = require("http");
-            const { randomUUID } = require("crypto");
-            const { createServer, registerTool, handleRequest } = require("./mcp_server_core.cjs");
-            class MCPServer {
-              constructor(serverInfo, options = {}) {
-                this._coreServer = createServer(serverInfo, options);
-                this.serverInfo = serverInfo;
-                this.capabilities = options.capabilities || { tools: {} };
-                this.tools = new Map();
-                this.transport = null;
-                this.initialized = false;
-              }
-              tool(name, description, inputSchema, handler) {
-                this.tools.set(name, {
-                  name,
-                  description,
-                  inputSchema,
-                  handler,
-                });
-                registerTool(this._coreServer, {
-                  name,
-                  description,
-                  inputSchema,
-                  handler,
-                });
-              }
-              async connect(transport) {
-                this.transport = transport;
-                transport.setServer(this);
-                await transport.start();
-              }
-              async handleRequest(request) {
-                if (request.method === "initialize") {
-                  this.initialized = true;
-                }
-                return handleRequest(this._coreServer, request);
-              }
-            }
-            class MCPHTTPTransport {
-              constructor(options = {}) {
-                this.sessionIdGenerator = options.sessionIdGenerator;
-                this.enableJsonResponse = options.enableJsonResponse !== false; 
-                this.enableDnsRebindingProtection = options.enableDnsRebindingProtection || false;
-                this.server = null;
-                this.sessionId = null;
-                this.started = false;
-              }
-              setServer(server) {
-                this.server = server;
-              }
-              async start() {
-                if (this.started) {
-                  throw new Error("Transport already started");
-                }
-                this.started = true;
-              }
-              async handleRequest(req, res, parsedBody) {
-                res.setHeader("Access-Control-Allow-Origin", "*");
-                res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Mcp-Session-Id");
-                if (req.method === "OPTIONS") {
-                  res.writeHead(200);
-                  res.end();
-                  return;
-                }
-                if (req.method !== "POST") {
-                  res.writeHead(405, { "Content-Type": "application/json" });
-                  res.end(JSON.stringify({ error: "Method not allowed" }));
-                  return;
-                }
-                try {
-                  let body = parsedBody;
-                  if (!body) {
-                    const chunks = [];
-                    for await (const chunk of req) {
-                      chunks.push(chunk);
-                    }
-                    const bodyStr = Buffer.concat(chunks).toString();
-                    try {
-                      body = bodyStr ? JSON.parse(bodyStr) : null;
-                    } catch (parseError) {
-                      res.writeHead(400, { "Content-Type": "application/json" });
-                      res.end(
-                        JSON.stringify({
-                          jsonrpc: "2.0",
-                          error: {
-                            code: -32700,
-                            message: "Parse error: Invalid JSON in request body",
-                          },
-                          id: null,
-                        })
-                      );
-                      return;
-                    }
-                  }
-                  if (!body) {
-                    res.writeHead(400, { "Content-Type": "application/json" });
-                    res.end(
-                      JSON.stringify({
-                        jsonrpc: "2.0",
-                        error: {
-                          code: -32600,
-                          message: "Invalid Request: Empty request body",
-                        },
-                        id: null,
-                      })
-                    );
-                    return;
-                  }
-                  if (!body.jsonrpc || body.jsonrpc !== "2.0") {
-                    res.writeHead(400, { "Content-Type": "application/json" });
-                    res.end(
-                      JSON.stringify({
-                        jsonrpc: "2.0",
-                        error: {
-                          code: -32600,
-                          message: "Invalid Request: jsonrpc must be '2.0'",
-                        },
-                        id: body.id || null,
-                      })
-                    );
-                    return;
-                  }
-                  if (this.sessionIdGenerator) {
-                    if (body.method === "initialize") {
-                      this.sessionId = this.sessionIdGenerator();
-                    } else {
-                      const requestSessionId = req.headers["mcp-session-id"];
-                      if (!requestSessionId) {
-                        res.writeHead(400, { "Content-Type": "application/json" });
-                        res.end(
-                          JSON.stringify({
-                            jsonrpc: "2.0",
-                            error: {
-                              code: -32600,
-                              message: "Invalid Request: Missing Mcp-Session-Id header",
-                            },
-                            id: body.id || null,
-                          })
-                        );
-                        return;
-                      }
-                      if (requestSessionId !== this.sessionId) {
-                        res.writeHead(404, { "Content-Type": "application/json" });
-                        res.end(
-                          JSON.stringify({
-                            jsonrpc: "2.0",
-                            error: {
-                              code: -32001,
-                              message: "Session not found",
-                            },
-                            id: body.id || null,
-                          })
-                        );
-                        return;
-                      }
-                    }
-                  }
-                  const response = await this.server.handleRequest(body);
-                  if (response === null) {
-                    res.writeHead(204); 
-                    res.end();
-                    return;
-                  }
-                  const headers = { "Content-Type": "application/json" };
-                  if (this.sessionId) {
-                    headers["mcp-session-id"] = this.sessionId;
-                  }
-                  res.writeHead(200, headers);
-                  res.end(JSON.stringify(response));
-                } catch (error) {
-                  if (!res.headersSent) {
-                    res.writeHead(500, { "Content-Type": "application/json" });
-                    res.end(
-                      JSON.stringify({
-                        jsonrpc: "2.0",
-                        error: {
-                          code: -32603,
-                          message: error instanceof Error ? error.message : String(error),
-                        },
-                        id: null,
-                      })
-                    );
-                  }
-                }
-              }
-            }
-            module.exports = {
-              MCPServer,
-              MCPHTTPTransport,
-            };
-          EOF_MCP_HTTP_TRANSPORT
-          cat > /tmp/gh-aw/safe-inputs/mcp_logger.cjs << 'EOF_MCP_LOGGER'
-            function createLogger(serverName) {
-              const logger = {
-                debug: msg => {
-                  const timestamp = new Date().toISOString();
-                  process.stderr.write(`[${timestamp}] [${serverName}] ${msg}\n`);
-                },
-                debugError: (prefix, error) => {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  logger.debug(`${prefix}${errorMessage}`);
-                  if (error instanceof Error && error.stack) {
-                    logger.debug(`${prefix}Stack trace: ${error.stack}`);
-                  }
-                },
-              };
-              return logger;
-            }
-            module.exports = {
-              createLogger,
-            };
-          EOF_MCP_LOGGER
-          cat > /tmp/gh-aw/safe-inputs/mcp_handler_shell.cjs << 'EOF_HANDLER_SHELL'
-            const fs = require("fs");
-            const path = require("path");
-            const { execFile } = require("child_process");
-            const os = require("os");
-            function createShellHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking shell handler: ${scriptPath}`);
-                server.debug(`  [${toolName}] Shell handler args: ${JSON.stringify(args)}`);
-                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
-                const env = { ...process.env };
-                for (const [key, value] of Object.entries(args || {})) {
-                  const envKey = `INPUT_${key.toUpperCase().replace(/-/g, "_")}`;
-                  env[envKey] = String(value);
-                  server.debug(`  [${toolName}] Set env: ${envKey}=${String(value).substring(0, 100)}${String(value).length > 100 ? "..." : ""}`);
-                }
-                const outputFile = path.join(os.tmpdir(), `mcp-shell-output-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
-                env.GITHUB_OUTPUT = outputFile;
-                server.debug(`  [${toolName}] Output file: ${outputFile}`);
-                fs.writeFileSync(outputFile, "");
-                return new Promise((resolve, reject) => {
-                  server.debug(`  [${toolName}] Executing shell script...`);
-                  execFile(
-                    scriptPath,
-                    [],
-                    {
-                      env,
-                      timeout: timeoutSeconds * 1000, 
-                      maxBuffer: 10 * 1024 * 1024, 
-                    },
-                    (error, stdout, stderr) => {
-                      if (stdout) {
-                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-                      }
-                      if (stderr) {
-                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-                      }
-                      if (error) {
-                        server.debugError(`  [${toolName}] Shell script error: `, error);
-                        try {
-                          if (fs.existsSync(outputFile)) {
-                            fs.unlinkSync(outputFile);
-                          }
-                        } catch {
-                        }
-                        reject(error);
-                        return;
-                      }
-                      const outputs = {};
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          const outputContent = fs.readFileSync(outputFile, "utf-8");
-                          server.debug(`  [${toolName}] Output file content: ${outputContent.substring(0, 500)}${outputContent.length > 500 ? "..." : ""}`);
-                          const lines = outputContent.split("\n");
-                          for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (trimmed && trimmed.includes("=")) {
-                              const eqIndex = trimmed.indexOf("=");
-                              const key = trimmed.substring(0, eqIndex);
-                              const value = trimmed.substring(eqIndex + 1);
-                              outputs[key] = value;
-                              server.debug(`  [${toolName}] Parsed output: ${key}=${value.substring(0, 100)}${value.length > 100 ? "..." : ""}`);
-                            }
-                          }
-                        }
-                      } catch (readError) {
-                        server.debugError(`  [${toolName}] Error reading output file: `, readError);
-                      }
-                      try {
-                        if (fs.existsSync(outputFile)) {
-                          fs.unlinkSync(outputFile);
-                        }
-                      } catch {
-                      }
-                      const result = {
-                        stdout: stdout || "",
-                        stderr: stderr || "",
-                        outputs,
-                      };
-                      server.debug(`  [${toolName}] Shell handler completed, outputs: ${Object.keys(outputs).join(", ") || "(none)"}`);
-                      resolve({
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify(result),
-                          },
-                        ],
-                      });
-                    }
-                  );
-                });
-              };
-            }
-            module.exports = {
-              createShellHandler,
-            };
-          EOF_HANDLER_SHELL
-          cat > /tmp/gh-aw/safe-inputs/mcp_handler_python.cjs << 'EOF_HANDLER_PYTHON'
-            const { execFile } = require("child_process");
-            function createPythonHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
-              return async args => {
-                server.debug(`  [${toolName}] Invoking Python handler: ${scriptPath}`);
-                server.debug(`  [${toolName}] Python handler args: ${JSON.stringify(args)}`);
-                server.debug(`  [${toolName}] Timeout: ${timeoutSeconds}s`);
-                const inputJson = JSON.stringify(args || {});
-                server.debug(`  [${toolName}] Input JSON (${inputJson.length} bytes): ${inputJson.substring(0, 200)}${inputJson.length > 200 ? "..." : ""}`);
-                return new Promise((resolve, reject) => {
-                  server.debug(`  [${toolName}] Executing Python script...`);
-                  const child = execFile(
-                    "python3",
-                    [scriptPath],
-                    {
-                      env: process.env,
-                      timeout: timeoutSeconds * 1000, 
-                      maxBuffer: 10 * 1024 * 1024, 
-                    },
-                    (error, stdout, stderr) => {
-                      if (stdout) {
-                        server.debug(`  [${toolName}] stdout: ${stdout.substring(0, 500)}${stdout.length > 500 ? "..." : ""}`);
-                      }
-                      if (stderr) {
-                        server.debug(`  [${toolName}] stderr: ${stderr.substring(0, 500)}${stderr.length > 500 ? "..." : ""}`);
-                      }
-                      if (error) {
-                        server.debugError(`  [${toolName}] Python script error: `, error);
-                        reject(error);
-                        return;
-                      }
-                      let result;
-                      try {
-                        if (stdout && stdout.trim()) {
-                          result = JSON.parse(stdout.trim());
-                        } else {
-                          result = { stdout: stdout || "", stderr: stderr || "" };
-                        }
-                      } catch (parseError) {
-                        server.debug(`  [${toolName}] Output is not JSON, returning as text`);
-                        result = { stdout: stdout || "", stderr: stderr || "" };
-                      }
-                      server.debug(`  [${toolName}] Python handler completed successfully`);
-                      resolve({
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify(result),
-                          },
-                        ],
-                      });
-                    }
-                  );
-                  if (child.stdin) {
-                    child.stdin.write(inputJson);
-                    child.stdin.end();
-                  }
-                });
-              };
-            }
-            module.exports = {
-              createPythonHandler,
-            };
-          EOF_HANDLER_PYTHON
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_config_loader.cjs << 'EOF_CONFIG_LOADER'
-            const fs = require("fs");
-            function loadConfig(configPath) {
-              if (!fs.existsSync(configPath)) {
-                throw new Error(`Configuration file not found: ${configPath}`);
-              }
-              const configContent = fs.readFileSync(configPath, "utf-8");
-              const config = JSON.parse(configContent);
-              if (!config.tools || !Array.isArray(config.tools)) {
-                throw new Error("Configuration must contain a 'tools' array");
-              }
-              return config;
-            }
-            module.exports = {
-              loadConfig,
-            };
-          EOF_CONFIG_LOADER
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'
-            function createToolConfig(name, description, inputSchema, handlerPath) {
-              return {
-                name,
-                description,
-                inputSchema,
-                handler: handlerPath,
-              };
-            }
-            module.exports = {
-              createToolConfig,
-            };
-          EOF_TOOL_FACTORY
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_validation.cjs << 'EOF_VALIDATION'
-            function validateRequiredFields(args, inputSchema) {
-              const requiredFields = inputSchema && Array.isArray(inputSchema.required) ? inputSchema.required : [];
-              if (!requiredFields.length) {
-                return [];
-              }
-              const missing = requiredFields.filter(f => {
-                const value = args[f];
-                return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-              });
-              return missing;
-            }
-            module.exports = {
-              validateRequiredFields,
-            };
-          EOF_VALIDATION
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_bootstrap.cjs << 'EOF_BOOTSTRAP'
-            const path = require("path");
-            const fs = require("fs");
-            const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { loadToolHandlers } = require("./mcp_server_core.cjs");
-            function bootstrapSafeInputsServer(configPath, logger) {
-              logger.debug(`Loading safe-inputs configuration from: ${configPath}`);
-              const config = loadConfig(configPath);
-              const basePath = path.dirname(configPath);
-              logger.debug(`Base path for handlers: ${basePath}`);
-              logger.debug(`Tools to load: ${config.tools.length}`);
-              const tools = loadToolHandlers(logger, config.tools, basePath);
-              return { config, basePath, tools };
-            }
-            function cleanupConfigFile(configPath, logger) {
-              try {
-                if (fs.existsSync(configPath)) {
-                  fs.unlinkSync(configPath);
-                  logger.debug(`Deleted configuration file: ${configPath}`);
-                }
-              } catch (error) {
-                logger.debugError(`Warning: Could not delete configuration file: `, error);
-              }
-            }
-            module.exports = {
-              bootstrapSafeInputsServer,
-              cleanupConfigFile,
-            };
-          EOF_BOOTSTRAP
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'
-            const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
-            const { loadConfig } = require("./safe_inputs_config_loader.cjs");
-            const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
-            const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
-            function startSafeInputsServer(configPath, options = {}) {
-              const logDir = options.logDir || undefined;
-              const server = createServer({ name: "safeinputs", version: "1.0.0" }, { logDir });
-              const { config, tools } = bootstrapSafeInputsServer(configPath, server);
-              server.serverInfo.name = config.serverName || "safeinputs";
-              server.serverInfo.version = config.version || "1.0.0";
-              if (!options.logDir && config.logDir) {
-                server.logDir = config.logDir;
-              }
-              for (const tool of tools) {
-                registerTool(server, tool);
-              }
-              if (!options.skipCleanup) {
-                cleanupConfigFile(configPath, server);
-              }
-              start(server);
-            }
-            if (require.main === module) {
-              const args = process.argv.slice(2);
-              if (args.length < 1) {
-                console.error("Usage: node safe_inputs_mcp_server.cjs <config.json> [--log-dir <path>]");
-                process.exit(1);
-              }
-              const configPath = args[0];
-              const options = {};
-              for (let i = 1; i < args.length; i++) {
-                if (args[i] === "--log-dir" && args[i + 1]) {
-                  options.logDir = args[i + 1];
-                  i++;
-                }
-              }
-              try {
-                startSafeInputsServer(configPath, options);
-              } catch (error) {
-                console.error(`Error starting safe-inputs server: ${error instanceof Error ? error.message : String(error)}`);
-                process.exit(1);
-              }
-            }
-            module.exports = {
-              startSafeInputsServer,
-              loadConfig,
-              createToolConfig,
-            };
-          EOF_SAFE_INPUTS_SERVER
-          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server_http.cjs << 'EOF_SAFE_INPUTS_SERVER_HTTP'
-            const http = require("http");
-            const { randomUUID } = require("crypto");
-            const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-            const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
-            const { createLogger } = require("./mcp_logger.cjs");
-            const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
-            function createMCPServer(configPath, options = {}) {
-              const logger = createLogger("safeinputs");
-              logger.debug(`=== Creating MCP Server ===`);
-              logger.debug(`Configuration file: ${configPath}`);
-              const { config, tools } = bootstrapSafeInputsServer(configPath, logger);
-              const serverName = config.serverName || "safeinputs";
-              const version = config.version || "1.0.0";
-              logger.debug(`Server name: ${serverName}`);
-              logger.debug(`Server version: ${version}`);
-              const server = new MCPServer(
-                {
-                  name: serverName,
-                  version: version,
-                },
-                {
-                  capabilities: {
-                    tools: {},
-                  },
-                }
-              );
-              logger.debug(`Registering tools with MCP server...`);
-              let registeredCount = 0;
-              let skippedCount = 0;
-              for (const tool of tools) {
-                if (!tool.handler) {
-                  logger.debug(`Skipping tool ${tool.name} - no handler loaded`);
-                  skippedCount++;
-                  continue;
-                }
-                logger.debug(`Registering tool: ${tool.name}`);
-                server.tool(tool.name, tool.description || "", tool.inputSchema || { type: "object", properties: {} }, async args => {
-                  logger.debug(`Calling handler for tool: ${tool.name}`);
-                  const missing = validateRequiredFields(args, tool.inputSchema);
-                  if (missing.length) {
-                    throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
-                  }
-                  const result = await Promise.resolve(tool.handler(args));
-                  logger.debug(`Handler returned for tool: ${tool.name}`);
-                  const content = result && result.content ? result.content : [];
-                  return { content, isError: false };
-                });
-                registeredCount++;
-              }
-              logger.debug(`Tool registration complete: ${registeredCount} registered, ${skippedCount} skipped`);
-              logger.debug(`=== MCP Server Creation Complete ===`);
-              cleanupConfigFile(configPath, logger);
-              return { server, config, logger };
-            }
-            async function startHttpServer(configPath, options = {}) {
-              const port = options.port || 3000;
-              const stateless = options.stateless || false;
-              const logger = createLogger("safe-inputs-startup");
-              logger.debug(`=== Starting Safe Inputs MCP HTTP Server ===`);
-              logger.debug(`Configuration file: ${configPath}`);
-              logger.debug(`Port: ${port}`);
-              logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
-              logger.debug(`Environment: NODE_VERSION=${process.version}, PLATFORM=${process.platform}`);
-              try {
-                const { server, config, logger: mcpLogger } = createMCPServer(configPath, { logDir: options.logDir });
-                Object.assign(logger, mcpLogger);
-                logger.debug(`MCP server created successfully`);
-                logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
-                logger.debug(`Server version: ${config.version || "1.0.0"}`);
-                logger.debug(`Tools configured: ${config.tools.length}`);
-                logger.debug(`Creating HTTP transport...`);
-                const transport = new MCPHTTPTransport({
-                  sessionIdGenerator: stateless ? undefined : () => randomUUID(),
-                  enableJsonResponse: true,
-                  enableDnsRebindingProtection: false, 
-                });
-                logger.debug(`HTTP transport created`);
-                logger.debug(`Connecting server to transport...`);
-                await server.connect(transport);
-                logger.debug(`Server connected to transport successfully`);
-                logger.debug(`Creating HTTP server...`);
-                const httpServer = http.createServer(async (req, res) => {
-                  res.setHeader("Access-Control-Allow-Origin", "*");
-                  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
-                  if (req.method === "OPTIONS") {
-                    res.writeHead(200);
-                    res.end();
-                    return;
-                  }
-                  if (req.method === "GET" && req.url === "/health") {
-                    res.writeHead(200, { "Content-Type": "application/json" });
-                    res.end(
-                      JSON.stringify({
-                        status: "ok",
-                        server: config.serverName || "safeinputs",
-                        version: config.version || "1.0.0",
-                        tools: config.tools.length,
-                      })
-                    );
-                    return;
-                  }
-                  if (req.method !== "POST") {
-                    res.writeHead(405, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "Method not allowed" }));
-                    return;
-                  }
-                  try {
-                    let body = null;
-                    if (req.method === "POST") {
-                      const chunks = [];
-                      for await (const chunk of req) {
-                        chunks.push(chunk);
-                      }
-                      const bodyStr = Buffer.concat(chunks).toString();
-                      try {
-                        body = bodyStr ? JSON.parse(bodyStr) : null;
-                      } catch (parseError) {
-                        res.writeHead(400, { "Content-Type": "application/json" });
-                        res.end(
-                          JSON.stringify({
-                            jsonrpc: "2.0",
-                            error: {
-                              code: -32700,
-                              message: "Parse error: Invalid JSON in request body",
-                            },
-                            id: null,
-                          })
-                        );
-                        return;
-                      }
-                    }
-                    await transport.handleRequest(req, res, body);
-                  } catch (error) {
-                    logger.debugError("Error handling request: ", error);
-                    if (!res.headersSent) {
-                      res.writeHead(500, { "Content-Type": "application/json" });
-                      res.end(
-                        JSON.stringify({
-                          jsonrpc: "2.0",
-                          error: {
-                            code: -32603,
-                            message: error instanceof Error ? error.message : String(error),
-                          },
-                          id: null,
-                        })
-                      );
-                    }
-                  }
-                });
-                logger.debug(`Attempting to bind to port ${port}...`);
-                httpServer.listen(port, () => {
-                  logger.debug(`=== Safe Inputs MCP HTTP Server Started Successfully ===`);
-                  logger.debug(`HTTP server listening on http://localhost:${port}`);
-                  logger.debug(`MCP endpoint: POST http://localhost:${port}/`);
-                  logger.debug(`Server name: ${config.serverName || "safeinputs"}`);
-                  logger.debug(`Server version: ${config.version || "1.0.0"}`);
-                  logger.debug(`Tools available: ${config.tools.length}`);
-                  logger.debug(`Server is ready to accept requests`);
-                });
-                httpServer.on("error", error => {
-                  if (error.code === "EADDRINUSE") {
-                    logger.debugError(`ERROR: Port ${port} is already in use. `, error);
-                  } else if (error.code === "EACCES") {
-                    logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
-                  } else {
-                    logger.debugError(`ERROR: Failed to start HTTP server: `, error);
-                  }
-                  process.exit(1);
-                });
-                process.on("SIGINT", () => {
-                  logger.debug("Received SIGINT, shutting down...");
-                  httpServer.close(() => {
-                    logger.debug("HTTP server closed");
-                    process.exit(0);
-                  });
-                });
-                process.on("SIGTERM", () => {
-                  logger.debug("Received SIGTERM, shutting down...");
-                  httpServer.close(() => {
-                    logger.debug("HTTP server closed");
-                    process.exit(0);
-                  });
-                });
-                return httpServer;
-              } catch (error) {
-                const errorLogger = createLogger("safe-inputs-startup-error");
-                errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
-                errorLogger.debug(`Error type: ${error.constructor.name}`);
-                errorLogger.debug(`Error message: ${error.message}`);
-                if (error.stack) {
-                  errorLogger.debug(`Stack trace:\n${error.stack}`);
-                }
-                if (error.code) {
-                  errorLogger.debug(`Error code: ${error.code}`);
-                }
-                errorLogger.debug(`Configuration file: ${configPath}`);
-                errorLogger.debug(`Port: ${port}`);
-                throw error;
-              }
-            }
-            if (require.main === module) {
-              const args = process.argv.slice(2);
-              if (args.length < 1) {
-                console.error("Usage: node safe_inputs_mcp_server_http.cjs <config.json> [--port <number>] [--stateless] [--log-dir <path>]");
-                process.exit(1);
-              }
-              const configPath = args[0];
-              const options = {
-                port: 3000,
-                stateless: false,
-                logDir: undefined,
-              };
-              for (let i = 1; i < args.length; i++) {
-                if (args[i] === "--port" && args[i + 1]) {
-                  options.port = parseInt(args[i + 1], 10);
-                  i++;
-                } else if (args[i] === "--stateless") {
-                  options.stateless = true;
-                } else if (args[i] === "--log-dir" && args[i + 1]) {
-                  options.logDir = args[i + 1];
-                  i++;
-                }
-              }
-              startHttpServer(configPath, options).catch(error => {
-                console.error(`Error starting HTTP server: ${error instanceof Error ? error.message : String(error)}`);
-                process.exit(1);
-              });
-            }
-            module.exports = {
-              startHttpServer,
-              createMCPServer,
-            };
-          EOF_SAFE_INPUTS_SERVER_HTTP
-          cat > /tmp/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
-          {
-            "serverName": "safeinputs",
-            "version": "1.0.0",
-            "logDir": "/tmp/gh-aw/safe-inputs/logs",
-            "tools": [
-              {
-                "name": "gh",
-                "description": "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
-                "inputSchema": {
-                  "properties": {
-                    "args": {
-                      "description": "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "args"
-                  ],
-                  "type": "object"
-                },
-                "handler": "gh.sh",
-                "env": {
-                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
-                  "GH_DEBUG": "GH_DEBUG"
-                },
-                "timeout": 60
-              }
-            ]
-          }
-          EOF_TOOLS_JSON
-          cat > /tmp/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
-            const path = require("path");
-            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
-            const configPath = path.join(__dirname, "tools.json");
-            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
-            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
-            startHttpServer(configPath, {
-              port: port,
-              stateless: false,
-              logDir: "/tmp/gh-aw/safe-inputs/logs"
-            }).catch(error => {
-              console.error("Failed to start safe-inputs HTTP server:", error);
-              process.exit(1);
-            });
-          EOFSI
-          chmod +x /tmp/gh-aw/safe-inputs/mcp-server.cjs
-          
-      - name: Setup Safe Inputs Tool Files
-        run: |
-          cat > /tmp/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
-          #!/bin/bash
-          # Auto-generated safe-input tool: gh
-          # Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
-          
-          set -euo pipefail
-          
-          echo "gh $INPUT_ARGS"
-          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
-          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
-          
-          EOFSH_gh
-          chmod +x /tmp/gh-aw/safe-inputs/gh.sh
-          
-      - name: Generate Safe Inputs MCP Server Config
-        id: safe-inputs-config
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        with:
-          script: |
-            function generateSafeInputsConfig({ core, crypto }) {
-              const apiKeyBuffer = crypto.randomBytes(45);
-              const apiKey = apiKeyBuffer.toString("base64").replace(/[/+=]/g, "");
-              const port = 3000;
-              core.setOutput("safe_inputs_api_key", apiKey);
-              core.setOutput("safe_inputs_port", port.toString());
-              core.info(`Safe Inputs MCP server will run on port ${port}`);
-              return { apiKey, port };
-            }
-            
-            // Execute the function
-            const crypto = require('crypto');
-            generateSafeInputsConfig({ core, crypto });
-          
-      - name: Start Safe Inputs MCP HTTP Server
-        id: safe-inputs-start
-        run: |
-          # Set environment variables for the server
-          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
-          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
-          
-          export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
-          export GH_DEBUG="${GH_DEBUG}"
-          
-          cd /tmp/gh-aw/safe-inputs
-          # Verify required files exist
-          echo "Verifying safe-inputs setup..."
-          if [ ! -f mcp-server.cjs ]; then
-            echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          if [ ! -f tools.json ]; then
-            echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          echo "Configuration files verified"
-          # Log environment configuration
-          echo "Server configuration:"
-          echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
-          echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
-          echo "  Working directory: $(pwd)"
-          # Ensure logs directory exists
-          mkdir -p /tmp/gh-aw/safe-inputs/logs
-          # Create initial server.log file for artifact upload
-          {
-            echo "Safe Inputs MCP Server Log"
-            echo "Start time: $(date)"
-            echo "==========================================="
-            echo ""
-          } > /tmp/gh-aw/safe-inputs/logs/server.log
-          # Start the HTTP server in the background
-          echo "Starting safe-inputs MCP HTTP server..."
-          node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
-          SERVER_PID=$!
-          echo "Started safe-inputs MCP server with PID $SERVER_PID"
-          # Wait for server to be ready (max 10 seconds)
-          echo "Waiting for server to become ready..."
-          for i in {1..10}; do
-            # Check if process is still running
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-              echo "ERROR: Server process $SERVER_PID has died"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              exit 1
-            fi
-            # Check if server is responding
-            if curl -s -f "http://localhost:$GH_AW_SAFE_INPUTS_PORT/health" > /dev/null 2>&1; then
-              echo "Safe Inputs MCP server is ready (attempt $i/10)"
-              break
-            fi
-            if [ "$i" -eq 10 ]; then
-              echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
-              echo "Process status: $(pgrep -f 'mcp-server.cjs' || echo 'not running')"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              echo "Checking port availability:"
-              netstat -tuln | grep "$GH_AW_SAFE_INPUTS_PORT" || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
-              exit 1
-            fi
-            echo "Waiting for server... (attempt $i/10)"
-            sleep 1
-          done
-          # Output the configuration for the MCP client
-          echo "port=$GH_AW_SAFE_INPUTS_PORT" >> "$GITHUB_OUTPUT"
-          echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> "$GITHUB_OUTPUT"
-          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_DEBUG: 1
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -3156,26 +1886,12 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=discussions",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
-              },
-              "safeinputs": {
-                "type": "http",
-                "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
-                "headers": {
-                  "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
-                },
-                "tools": ["*"],
-                "env": {
-                  "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}",
-                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
-                  "GH_DEBUG": "\${GH_DEBUG}"
                 }
               },
               "safeoutputs": {
@@ -3221,7 +1937,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              workflow_name: "Dev",
+              workflow_name: "Workflow Generator",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3235,7 +1951,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["api.github.com"],
+              allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.7.0",
               steps: {
@@ -3295,38 +2011,113 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          {{#runtime-import? .github/shared-instructions.md}}
           
-          **Correct**:
+          # Workflow Generator
+          
+          You are a workflow coordinator for GitHub Agentic Workflows.
+          
+          ## Your Task
+          
+          A user has submitted a workflow creation request via GitHub issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__.
+          
+          Your job is to:
+          
+          1. **Update the issue** using the `update-issue` safe output to:
+             - Set the status to "In progress"
+             - Append clear instructions to the issue body for the agent that will pick it up
+          
+          2. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the workflow design work
+             - The Copilot agent will follow the create-agentic-workflow instructions from `.github/agents/create-agentic-workflow.agent.md`
+             - The agent will parse the issue, design the workflow content, and create a PR with the `.md` workflow file
+          
+          ## Instructions to Append
+          
+          When updating the issue body, append the following instructions to make it clear what the agent needs to do:
+          
+          ```markdown
+          ---
+          
+          ## 🤖 AI Agent Instructions
+          
+          This issue has been assigned to an AI agent for workflow design. The agent will:
+          
+          1. **Parse the workflow requirements** from the information provided above
+          2. **Generate a NEW workflow specification file** (`.md`) with appropriate triggers, tools, and safe outputs
+          3. **Create a pull request** with the new workflow file at `.github/workflows/<workflow-name>.md`
+          
+          **IMPORTANT**: The agent will create a NEW workflow file following best practices for:
+          - Security (minimal permissions, safe outputs for write operations)
+          - Appropriate triggers (issues, pull requests, schedule, workflow_dispatch, etc.)
+          - Necessary tools and MCP servers
+          - Network restrictions when needed
+          - Proper safe output configuration for GitHub operations
+          
+          The workflow specification will include:
+          - Frontmatter with triggers, permissions, engine, and tools
+          - Clear prompt instructions for the AI agent
+          - Safe output configuration for any write operations
+          - Security best practices (network restrictions, minimal permissions)
+          
+          **Next Steps:**
+          - The AI agent will analyze your requirements and create a comprehensive workflow
+          - The workflow will be compiled automatically to ensure validity
+          - Review the generated PR when it's ready
+          - Merge the PR to activate your workflow
           ```
-          Use the safeinputs-gh tool with args: "pr list --limit 5"
-          Use the safeinputs-gh tool with args: "issue view 123"
-          ```
           
-          **Incorrect**:
-          ```
-          Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
-          Run: gh pr list --limit 5  ❌ (No authentication in bash)
-          Execute bash: gh issue view 123  ❌ (No authentication in bash)
-          ```
+          ## Workflow
           
+          1. Use **update-issue** safe output to:
+             - Set the issue status to "In progress"
+             - Append the instructions above to the issue body
+          2. Use **assign-to-agent** safe output to assign the Copilot agent who will design and implement the workflow
           
-          
-          Find the latest discussion in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
-          
-          The poem should:
-          - Be 4-8 lines long
-          - Mention automation, AI agents, or workflow concepts
-          - Be uplifting and inspiring
-          - Be added to the existing discussion body
-          
-          You MUST use the update_discussion tool to update a discussion with a poem in the body. This is required.
+          The workflow designer agent will have clear instructions in the issue body about what it needs to do.
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          script: |
+            const fs = require("fs"),
+              substitutePlaceholders = async ({ file, substitutions }) => {
+                if (!file) throw new Error("file parameter is required");
+                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
+                let content;
+                try {
+                  content = fs.readFileSync(file, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to read file ${file}: ${error.message}`);
+                }
+                for (const [key, value] of Object.entries(substitutions)) {
+                  const placeholder = `__${key}__`;
+                  content = content.split(placeholder).join(value);
+                }
+                try {
+                  fs.writeFileSync(file, content, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to write file ${file}: ${error.message}`);
+                }
+                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              };
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER
+              }
+            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3373,7 +2164,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: missing_tool, noop, update_discussion
+          **Available tools**: assign_to_agent, missing_tool, noop, update_issue
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3476,6 +2267,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
         with:
           script: |
             const fs = require("fs");
@@ -3660,23 +2452,20 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
-        # --allow-tool safeinputs
         # --allow-tool safeoutputs
         timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_DEBUG: 1
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -3811,7 +2600,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -5176,13 +3965,6 @@ jobs:
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
-          if-no-files-found: ignore
-      - name: Upload SafeInputs logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: safeinputs
-          path: /tmp/gh-aw/safe-inputs/logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
@@ -6666,7 +5448,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-dev
+          name: firewall-logs-workflow-generator
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7110,7 +5892,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Workflow Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7202,7 +5984,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Workflow Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7313,10 +6095,9 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Workflow Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 Poetry generated by [{workflow_name}]({run_url})\",\"footerInstall\":\"\\u003e Want to add poems to your discussions? Install with `gh aw add {workflow_source}`\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7568,14 +6349,53 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Unlock issue after agent workflow
+        id: unlock-issue
+        if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            async function main() {
+              core.info(`Unlock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
+              const issueNumber = context.issue.number;
+              if (!issueNumber) {
+                core.setFailed("Issue number not found in context");
+                return;
+              }
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              core.info(`Unlock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
+              try {
+                core.info(`Checking if issue #${issueNumber} is locked`);
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                if (!issue.locked) {
+                  core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
+                  return;
+                }
+                core.info(`Unlocking issue #${issueNumber} after agent workflow execution`);
+                await github.rest.issues.unlock({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                core.info(`✅ Successfully unlocked issue #${issueNumber}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to unlock issue: ${errorMessage}`);
+                core.setFailed(`Failed to unlock issue #${issueNumber}: ${errorMessage}`);
+              }
+            }
+            await main();
 
   detection:
     needs: agent
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -7607,8 +6427,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Dev"
-          WORKFLOW_DESCRIPTION: "Add a poem to the latest discussion"
+          WORKFLOW_NAME: "Workflow Generator"
+          WORKFLOW_DESCRIPTION: "Workflow generator that updates issue status and assigns to Copilot agent for workflow design"
         with:
           script: |
             const fs = require('fs');
@@ -7829,6 +6649,156 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  pre_activation:
+    if: startsWith(github.event.issue.title, '[Workflow]')
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            function parseRequiredPermissions() {
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+            }
+            function parseAllowedBots() {
+              const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
+              return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
+            }
+            async function checkBotStatus(actor, owner, repo) {
+              try {
+                const isBot = actor.endsWith("[bot]");
+                if (!isBot) {
+                  return { isBot: false, isActive: false };
+                }
+                core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
+                try {
+                  const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner: owner,
+                    repo: repo,
+                    username: actor,
+                  });
+                  core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
+                  return { isBot: true, isActive: true };
+                } catch (botError) {
+                  if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
+                    core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
+                    return { isBot: true, isActive: false };
+                  }
+                  const errorMessage = botError instanceof Error ? botError.message : String(botError);
+                  core.warning(`Failed to check bot status: ${errorMessage}`);
+                  return { isBot: true, isActive: false, error: errorMessage };
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(`Error checking bot status: ${errorMessage}`);
+                return { isBot: false, isActive: false, error: errorMessage };
+              }
+            }
+            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    return { authorized: true, permission: permission };
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                return { authorized: false, permission: permission };
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                return { authorized: false, error: errorMessage };
+              }
+            }
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissions = parseRequiredPermissions();
+              const allowedBots = parseAllowedBots();
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+              if (result.error) {
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
+                return;
+              }
+              if (result.authorized) {
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "authorized");
+                core.setOutput("user_permission", result.permission);
+              } else {
+                if (allowedBots && allowedBots.length > 0) {
+                  core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
+                  if (allowedBots.includes(actor)) {
+                    core.info(`Actor '${actor}' is in the allowed bots list`);
+                    const botStatus = await checkBotStatus(actor, owner, repo);
+                    if (botStatus.isBot && botStatus.isActive) {
+                      core.info(`✅ Bot '${actor}' is active on the repository and authorized`);
+                      core.setOutput("is_team_member", "true");
+                      core.setOutput("result", "authorized_bot");
+                      core.setOutput("user_permission", "bot");
+                      return;
+                    } else if (botStatus.isBot && !botStatus.isActive) {
+                      core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
+                      core.setOutput("is_team_member", "false");
+                      core.setOutput("result", "bot_not_active");
+                      core.setOutput("user_permission", result.permission);
+                      core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
+                      return;
+                    } else {
+                      core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
+                    }
+                  }
+                }
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", result.permission);
+                core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
+              }
+            }
+            await main();
+
   safe_outputs:
     needs:
       - agent
@@ -7837,11 +6807,10 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
+      issues: write
     timeout-minutes: 15
     outputs:
-      update_discussion_discussion_number: ${{ steps.update_discussion.outputs.discussion_number }}
-      update_discussion_discussion_url: ${{ steps.update_discussion.outputs.discussion_url }}
+      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -7859,6 +6828,428 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/gh-aw/scripts
+          cat > /tmp/gh-aw/scripts/assign_agent_helpers.cjs << 'EOF_b5665d23'
+          // @ts-check
+          /// <reference types="@actions/github-script" />
+          
+          /**
+           * Shared helper functions for assigning coding agents (like Copilot) to issues
+           * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
+           *
+           * NOTE: All functions use the built-in `github` global object for authentication.
+           * The token must be set at the step level via the `github-token` parameter in GitHub Actions.
+           * This approach is required for compatibility with actions/github-script@v8.
+           */
+          
+          /**
+           * Map agent names to their GitHub bot login names
+           * @type {Record<string, string>}
+           */
+          const AGENT_LOGIN_NAMES = {
+            copilot: "copilot-swe-agent",
+          };
+          
+          /**
+           * Check if an assignee is a known coding agent (bot)
+           * @param {string} assignee - Assignee name (may include @ prefix)
+           * @returns {string|null} Agent name if it's a known agent, null otherwise
+           */
+          function getAgentName(assignee) {
+            // Normalize: remove @ prefix if present
+            const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+          
+            // Check if it's a known agent
+            if (AGENT_LOGIN_NAMES[normalized]) {
+              return normalized;
+            }
+          
+            return null;
+          }
+          
+          /**
+           * Return list of coding agent bot login names that are currently available as assignable actors
+           * (intersection of suggestedActors and known AGENT_LOGIN_NAMES values)
+           * @param {string} owner
+           * @param {string} repo
+           * @returns {Promise<string[]>}
+           */
+          async function getAvailableAgentLogins(owner, repo) {
+            const query = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                    nodes { ... on Bot { login __typename } }
+                  }
+                }
+              }
+            `;
+            try {
+              const response = await github.graphql(query, { owner, repo });
+              const actors = response.repository?.suggestedActors?.nodes || [];
+              const knownValues = Object.values(AGENT_LOGIN_NAMES);
+              const available = [];
+              for (const actor of actors) {
+                if (actor && actor.login && knownValues.includes(actor.login)) {
+                  available.push(actor.login);
+                }
+              }
+              return available.sort();
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              core.debug(`Failed to list available agent logins: ${msg}`);
+              return [];
+            }
+          }
+          
+          /**
+           * Find an agent in repository's suggested actors using GraphQL
+           * @param {string} owner - Repository owner
+           * @param {string} repo - Repository name
+           * @param {string} agentName - Agent name (copilot)
+           * @returns {Promise<string|null>} Agent ID or null if not found
+           */
+          async function findAgent(owner, repo, agentName) {
+            const query = `
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+                    nodes {
+                      ... on Bot {
+                        id
+                        login
+                        __typename
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+          
+            try {
+              const response = await github.graphql(query, { owner, repo });
+              const actors = response.repository.suggestedActors.nodes;
+          
+              const loginName = AGENT_LOGIN_NAMES[agentName];
+              if (!loginName) {
+                core.error(`Unknown agent: ${agentName}. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                return null;
+              }
+          
+              for (const actor of actors) {
+                if (actor.login === loginName) {
+                  return actor.id;
+                }
+              }
+          
+              const available = actors.filter(a => a && a.login && Object.values(AGENT_LOGIN_NAMES).includes(a.login)).map(a => a.login);
+          
+              core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
+              if (available.length > 0) {
+                core.info(`Available assignable coding agents: ${available.join(", ")}`);
+              } else {
+                core.info("No coding agents are currently assignable in this repository.");
+              }
+              if (agentName === "copilot") {
+                core.info("Please visit https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/about-assigning-tasks-to-copilot");
+              }
+              return null;
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+              return null;
+            }
+          }
+          
+          /**
+           * Get issue details (ID and current assignees) using GraphQL
+           * @param {string} owner - Repository owner
+           * @param {string} repo - Repository name
+           * @param {number} issueNumber - Issue number
+           * @returns {Promise<{issueId: string, currentAssignees: string[]}|null>}
+           */
+          async function getIssueDetails(owner, repo, issueNumber) {
+            const query = `
+              query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issueNumber) {
+                    id
+                    assignees(first: 100) {
+                      nodes {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+          
+            try {
+              const response = await github.graphql(query, { owner, repo, issueNumber });
+              const issue = response.repository.issue;
+          
+              if (!issue || !issue.id) {
+                core.error("Could not get issue data");
+                return null;
+              }
+          
+              const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
+          
+              return {
+                issueId: issue.id,
+                currentAssignees: currentAssignees,
+              };
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              core.error(`Failed to get issue details: ${errorMessage}`);
+              return null;
+            }
+          }
+          
+          /**
+           * Assign agent to issue using GraphQL replaceActorsForAssignable mutation
+           * @param {string} issueId - GitHub issue ID
+           * @param {string} agentId - Agent ID
+           * @param {string[]} currentAssignees - List of current assignee IDs
+           * @param {string} agentName - Agent name for error messages
+           * @returns {Promise<boolean>} True if successful
+           */
+          async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName) {
+            // Build actor IDs array - include agent and preserve other assignees
+            const actorIds = [agentId];
+            for (const assigneeId of currentAssignees) {
+              if (assigneeId !== agentId) {
+                actorIds.push(assigneeId);
+              }
+            }
+          
+            const mutation = `
+              mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                replaceActorsForAssignable(input: {
+                  assignableId: $assignableId,
+                  actorIds: $actorIds
+                }) {
+                  __typename
+                }
+              }
+            `;
+          
+            try {
+              core.info("Using built-in github object for mutation");
+          
+              core.debug(`GraphQL mutation with variables: assignableId=${issueId}, actorIds=${JSON.stringify(actorIds)}`);
+              const response = await github.graphql(mutation, {
+                assignableId: issueId,
+                actorIds: actorIds,
+              });
+          
+              if (response && response.replaceActorsForAssignable && response.replaceActorsForAssignable.__typename) {
+                return true;
+              } else {
+                core.error("Unexpected response from GitHub API");
+                return false;
+              }
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+          
+              // Debug: surface the raw GraphQL error structure for troubleshooting fine-grained permission issues
+              try {
+                core.debug(`Raw GraphQL error message: ${errorMessage}`);
+                if (error && typeof error === "object") {
+                  // Common GraphQL error shapes: error.errors (array), error.data, error.response
+                  const details = {};
+                  if (error.errors) details.errors = error.errors;
+                  // Some libraries wrap the payload under 'response' or 'response.data'
+                  if (error.response) details.response = error.response;
+                  if (error.data) details.data = error.data;
+                  // If GitHub returns an array of errors with 'type'/'message'
+                  if (Array.isArray(error.errors)) {
+                    details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+                  }
+                  const serialized = JSON.stringify(details, (_k, v) => v, 2);
+                  if (serialized && serialized !== "{}") {
+                    core.debug(`Raw GraphQL error details: ${serialized}`);
+                    // Also emit non-debug version so users without ACTIONS_STEP_DEBUG can see it
+                    core.error("Raw GraphQL error details (for troubleshooting):");
+                    // Split large JSON for readability
+                    for (const line of serialized.split(/\n/)) {
+                      if (line.trim()) core.error(line);
+                    }
+                  }
+                }
+              } catch (loggingErr) {
+                // Never fail assignment because of debug logging
+                core.debug(`Failed to serialize GraphQL error details: ${loggingErr instanceof Error ? loggingErr.message : String(loggingErr)}`);
+              }
+          
+              // Check for permission-related errors
+              if (errorMessage.includes("Resource not accessible by personal access token") || errorMessage.includes("Resource not accessible by integration") || errorMessage.includes("Insufficient permissions to assign")) {
+                // Attempt fallback mutation addAssigneesToAssignable when replaceActorsForAssignable is forbidden
+                core.info("Primary mutation replaceActorsForAssignable forbidden. Attempting fallback addAssigneesToAssignable...");
+                try {
+                  const fallbackMutation = `
+                    mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                      addAssigneesToAssignable(input: {
+                        assignableId: $assignableId,
+                        assigneeIds: $assigneeIds
+                      }) {
+                        clientMutationId
+                      }
+                    }
+                  `;
+                  core.info("Using built-in github object for fallback mutation");
+                  core.debug(`Fallback GraphQL mutation with variables: assignableId=${issueId}, assigneeIds=[${agentId}]`);
+                  const fallbackResp = await github.graphql(fallbackMutation, {
+                    assignableId: issueId,
+                    assigneeIds: [agentId],
+                  });
+                  if (fallbackResp && fallbackResp.addAssigneesToAssignable) {
+                    core.info(`Fallback succeeded: agent '${agentName}' added via addAssigneesToAssignable.`);
+                    return true;
+                  } else {
+                    core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
+                  }
+                } catch (fallbackError) {
+                  const fbMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                  core.error(`Fallback addAssigneesToAssignable failed: ${fbMsg}`);
+                }
+                logPermissionError(agentName);
+              } else {
+                core.error(`Failed to assign ${agentName}: ${errorMessage}`);
+              }
+              return false;
+            }
+          }
+          
+          /**
+           * Log detailed permission error guidance
+           * @param {string} agentName - Agent name for error messages
+           */
+          function logPermissionError(agentName) {
+            core.error(`Failed to assign ${agentName}: Insufficient permissions`);
+            core.error("");
+            core.error("Assigning Copilot agents requires:");
+            core.error("  1. All four workflow permissions:");
+            core.error("     - actions: write");
+            core.error("     - contents: write");
+            core.error("     - issues: write");
+            core.error("     - pull-requests: write");
+            core.error("");
+            core.error("  2. A classic PAT with 'repo' scope OR fine-grained PAT with explicit Write permissions above:");
+            core.error("     (Fine-grained PATs must grant repository access + write for Issues, Pull requests, Contents, Actions)");
+            core.error("");
+            core.error("  3. Repository settings:");
+            core.error("     - Actions must have write permissions");
+            core.error("     - Go to: Settings > Actions > General > Workflow permissions");
+            core.error("     - Select: 'Read and write permissions'");
+            core.error("");
+            core.error("  4. Organization/Enterprise settings:");
+            core.error("     - Check if your org restricts bot assignments");
+            core.error("     - Verify Copilot is enabled for your repository");
+            core.error("");
+            core.info("For more information, see: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr");
+          }
+          
+          /**
+           * Generate permission error summary content for step summary
+           * @returns {string} Markdown content for permission error guidance
+           */
+          function generatePermissionErrorSummary() {
+            let content = "\n### ⚠️ Permission Requirements\n\n";
+            content += "Assigning Copilot agents requires **ALL** of these permissions:\n\n";
+            content += "```yaml\n";
+            content += "permissions:\n";
+            content += "  actions: write\n";
+            content += "  contents: write\n";
+            content += "  issues: write\n";
+            content += "  pull-requests: write\n";
+            content += "```\n\n";
+            content += "**Token capability note:**\n";
+            content += "- Current token (PAT or GITHUB_TOKEN) lacks assignee mutation capability for this repository.\n";
+            content += "- Both `replaceActorsForAssignable` and fallback `addAssigneesToAssignable` returned FORBIDDEN/Resource not accessible.\n";
+            content += "- This typically means bot/user assignment requires an elevated OAuth or GitHub App installation token.\n\n";
+            content += "**Recommended remediation paths:**\n";
+            content += "1. Create & install a GitHub App with: Issues/Pull requests/Contents/Actions (write) → use installation token in job.\n";
+            content += "2. Manual assignment: add the agent through the UI until broader token support is available.\n";
+            content += "3. Open a support ticket referencing failing mutation `replaceActorsForAssignable` and repository slug.\n\n";
+            content += "**Why this failed:** Fine-grained and classic PATs can update issue title (verified) but not modify assignees in this environment.\n\n";
+            content += "📖 Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr (general agent docs)\n";
+            return content;
+          }
+          
+          /**
+           * Assign an agent to an issue using GraphQL
+           * This is the main entry point for assigning agents from other scripts
+           * @param {string} owner - Repository owner
+           * @param {string} repo - Repository name
+           * @param {number} issueNumber - Issue number
+           * @param {string} agentName - Agent name (e.g., "copilot")
+           * @returns {Promise<{success: boolean, error?: string}>}
+           */
+          async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
+            // Check if agent is supported
+            if (!AGENT_LOGIN_NAMES[agentName]) {
+              const error = `Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`;
+              core.warning(error);
+              return { success: false, error };
+            }
+          
+            try {
+              // Find agent using the github object authenticated via step-level github-token
+              core.info(`Looking for ${agentName} coding agent...`);
+              const agentId = await findAgent(owner, repo, agentName);
+              if (!agentId) {
+                const error = `${agentName} coding agent is not available for this repository`;
+                // Enrich with available agent logins
+                const available = await getAvailableAgentLogins(owner, repo);
+                const enrichedError = available.length > 0 ? `${error} (available agents: ${available.join(", ")})` : error;
+                return { success: false, error: enrichedError };
+              }
+              core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+          
+              // Get issue details (ID and current assignees) via GraphQL
+              core.info("Getting issue details...");
+              const issueDetails = await getIssueDetails(owner, repo, issueNumber);
+              if (!issueDetails) {
+                return { success: false, error: "Failed to get issue details" };
+              }
+          
+              core.info(`Issue ID: ${issueDetails.issueId}`);
+          
+              // Check if agent is already assigned
+              if (issueDetails.currentAssignees.includes(agentId)) {
+                core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                return { success: true };
+              }
+          
+              // Assign agent using GraphQL mutation
+              core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+              const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+          
+              if (!success) {
+                return { success: false, error: `Failed to assign ${agentName} via GraphQL` };
+              }
+          
+              core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+              return { success: true };
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              return { success: false, error: errorMessage };
+            }
+          }
+          
+          module.exports = {
+            AGENT_LOGIN_NAMES,
+            getAgentName,
+            getAvailableAgentLogins,
+            findAgent,
+            getIssueDetails,
+            assignAgentToIssue,
+            logPermissionError,
+            generatePermissionErrorSummary,
+            assignAgentToIssueByName,
+          };
+          
+          EOF_b5665d23
           cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
           // @ts-check
           /// <reference types="@actions/github-script" />
@@ -7952,274 +7343,6 @@ jobs:
           module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
           
           EOF_b93f537f
-          cat > /tmp/gh-aw/scripts/messages_core.cjs << 'EOF_6cdb27e0'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Core Message Utilities Module
-           *
-           * This module provides shared utilities for message template processing.
-           * It includes configuration parsing and template rendering functions.
-           *
-           * Supported placeholders:
-           * - {workflow_name} - Name of the workflow
-           * - {run_url} - URL to the workflow run
-           * - {workflow_source} - Source specification (owner/repo/path@ref)
-           * - {workflow_source_url} - GitHub URL for the workflow source
-           * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
-           * - {operation} - Operation name (for staged mode titles/descriptions)
-           * - {event_type} - Event type description (for run-started messages)
-           * - {status} - Workflow status text (for run-failure messages)
-           *
-           * Both camelCase and snake_case placeholder formats are supported.
-           */
-          
-          /**
-           * @typedef {Object} SafeOutputMessages
-           * @property {string} [footer] - Custom footer message template
-           * @property {string} [footerInstall] - Custom installation instructions template
-           * @property {string} [stagedTitle] - Custom staged mode title template
-           * @property {string} [stagedDescription] - Custom staged mode description template
-           * @property {string} [runStarted] - Custom workflow activation message template
-           * @property {string} [runSuccess] - Custom workflow success message template
-           * @property {string} [runFailure] - Custom workflow failure message template
-           * @property {string} [detectionFailure] - Custom detection job failure message template
-           * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
-           */
-          
-          /**
-           * Get the safe-output messages configuration from environment variable.
-           * @returns {SafeOutputMessages|null} Parsed messages config or null if not set
-           */
-          function getMessages() {
-            const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-            if (!messagesEnv) {
-              return null;
-            }
-          
-            try {
-              // Parse JSON with camelCase keys from Go struct (using json struct tags)
-              return JSON.parse(messagesEnv);
-            } catch (error) {
-              core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-              return null;
-            }
-          }
-          
-          /**
-           * Replace placeholders in a template string with values from context.
-           * Supports {key} syntax for placeholder replacement.
-           * @param {string} template - Template string with {key} placeholders
-           * @param {Record<string, string|number|undefined>} context - Key-value pairs for replacement
-           * @returns {string} Template with placeholders replaced
-           */
-          function renderTemplate(template, context) {
-            return template.replace(/\{(\w+)\}/g, (match, key) => {
-              const value = context[key];
-              return value !== undefined && value !== null ? String(value) : match;
-            });
-          }
-          
-          /**
-           * Convert context object keys to snake_case for template rendering
-           * @param {Record<string, any>} obj - Object with camelCase keys
-           * @returns {Record<string, any>} Object with snake_case keys
-           */
-          function toSnakeCase(obj) {
-            /** @type {Record<string, any>} */
-            const result = {};
-            for (const [key, value] of Object.entries(obj)) {
-              // Convert camelCase to snake_case
-              const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-              result[snakeKey] = value;
-              // Also keep original key for backwards compatibility
-              result[key] = value;
-            }
-            return result;
-          }
-          
-          module.exports = {
-            getMessages,
-            renderTemplate,
-            toSnakeCase,
-          };
-          
-          EOF_6cdb27e0
-          cat > /tmp/gh-aw/scripts/messages_footer.cjs << 'EOF_c14886c6'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Footer Message Module
-           *
-           * This module provides footer and installation instructions generation
-           * for safe-output workflows.
-           */
-          
-          const { getMessages, renderTemplate, toSnakeCase } = require('/tmp/gh-aw/scripts/messages_core.cjs');
-          
-          /**
-           * @typedef {Object} FooterContext
-           * @property {string} workflowName - Name of the workflow
-           * @property {string} runUrl - URL of the workflow run
-           * @property {string} [workflowSource] - Source of the workflow (owner/repo/path@ref)
-           * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
-           * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
-           */
-          
-          /**
-           * Get the footer message, using custom template if configured.
-           * @param {FooterContext} ctx - Context for footer generation
-           * @returns {string} Footer message
-           */
-          function getFooterMessage(ctx) {
-            const messages = getMessages();
-          
-            // Create context with both camelCase and snake_case keys
-            const templateContext = toSnakeCase(ctx);
-          
-            // Default footer template - pirate themed! 🏴‍☠️
-            const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
-          
-            // Use custom footer if configured
-            let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-          
-            // Add triggering reference if available
-            if (ctx.triggeringNumber) {
-              footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-            }
-          
-            return footer;
-          }
-          
-          /**
-           * Get the footer installation instructions, using custom template if configured.
-           * @param {FooterContext} ctx - Context for footer generation
-           * @returns {string} Footer installation message or empty string if no source
-           */
-          function getFooterInstallMessage(ctx) {
-            if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-              return "";
-            }
-          
-            const messages = getMessages();
-          
-            // Create context with both camelCase and snake_case keys
-            const templateContext = toSnakeCase(ctx);
-          
-            // Default installation template - pirate themed! 🏴‍☠️
-            const defaultInstall = "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
-          
-            // Use custom installation message if configured
-            return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
-          }
-          
-          /**
-           * Generates an XML comment marker with agentic workflow metadata for traceability.
-           * This marker enables searching and tracing back items generated by an agentic workflow.
-           *
-           * The marker format is:
-           * <!-- agentic-workflow: workflow-name, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/... -->
-           *
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @returns {string} XML comment marker with workflow metadata
-           */
-          function generateXMLMarker(workflowName, runUrl) {
-            // Read engine metadata from environment variables
-            const engineId = process.env.GH_AW_ENGINE_ID || "";
-            const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
-            const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
-            const trackerId = process.env.GH_AW_TRACKER_ID || "";
-          
-            // Build the key-value pairs for the marker
-            const parts = [];
-          
-            // Always include agentic-workflow name
-            parts.push(`agentic-workflow: ${workflowName}`);
-          
-            // Add tracker-id if available (for searchability and tracing)
-            if (trackerId) {
-              parts.push(`tracker-id: ${trackerId}`);
-            }
-          
-            // Add engine ID if available
-            if (engineId) {
-              parts.push(`engine: ${engineId}`);
-            }
-          
-            // Add version if available
-            if (engineVersion) {
-              parts.push(`version: ${engineVersion}`);
-            }
-          
-            // Add model if available
-            if (engineModel) {
-              parts.push(`model: ${engineModel}`);
-            }
-          
-            // Always include run URL
-            parts.push(`run: ${runUrl}`);
-          
-            // Return the XML comment marker
-            return `<!-- ${parts.join(", ")} -->`;
-          }
-          
-          /**
-           * Generate the complete footer with AI attribution and optional installation instructions.
-           * This is a drop-in replacement for the original generateFooter function.
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @param {string} workflowSource - Source of the workflow (owner/repo/path@ref)
-           * @param {string} workflowSourceURL - GitHub URL for the workflow source
-           * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
-           * @param {number|undefined} triggeringPRNumber - Pull request number that triggered this workflow
-           * @param {number|undefined} triggeringDiscussionNumber - Discussion number that triggered this workflow
-           * @returns {string} Complete footer text
-           */
-          function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
-            // Determine triggering number (issue takes precedence, then PR, then discussion)
-            let triggeringNumber;
-            if (triggeringIssueNumber) {
-              triggeringNumber = triggeringIssueNumber;
-            } else if (triggeringPRNumber) {
-              triggeringNumber = triggeringPRNumber;
-            } else if (triggeringDiscussionNumber) {
-              triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-            }
-          
-            const ctx = {
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceUrl: workflowSourceURL,
-              triggeringNumber,
-            };
-          
-            let footer = "\n\n" + getFooterMessage(ctx);
-          
-            // Add installation instructions if source is available
-            const installMessage = getFooterInstallMessage(ctx);
-            if (installMessage) {
-              footer += "\n>\n" + installMessage;
-            }
-          
-            // Add XML comment marker for traceability
-            footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
-          
-            footer += "\n";
-            return footer;
-          }
-          
-          module.exports = {
-            getFooterMessage,
-            getFooterInstallMessage,
-            generateFooterWithMessages,
-            generateXMLMarker,
-          };
-          
-          EOF_c14886c6
           cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
           // @ts-check
           /**
@@ -8772,17 +7895,194 @@ jobs:
           };
           
           EOF_60283df2
-      - name: Update Discussion
-        id: update_discussion
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_discussion'))
+      - name: Assign To Agent
+        id: assign_to_agent
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Dev"
+          GH_AW_WORKFLOW_NAME: "Workflow Generator"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 Poetry generated by [{workflow_name}]({run_url})\",\"footerInstall\":\"\\u003e Want to add poems to your discussions? Install with `gh aw add {workflow_source}`\"}"
-          GH_AW_UPDATE_TARGET: "*"
-          GH_AW_UPDATE_BODY: "true"
+        with:
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
+          script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
+            const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require('/tmp/gh-aw/scripts/assign_agent_helpers.cjs');
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const assignItems = result.items.filter(item => item.type === "assign_to_agent");
+              if (assignItems.length === 0) {
+                core.info("No assign_to_agent items found in agent output");
+                return;
+              }
+              core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                await generateStagedPreview({
+                  title: "Assign to Agent",
+                  description: "The following agent assignments would be made if staged mode was disabled:",
+                  items: assignItems,
+                  renderItem: item => {
+                    let content = `**Issue:** #${item.issue_number}\n`;
+                    content += `**Agent:** ${item.agent || "copilot"}\n`;
+                    content += "\n";
+                    return content;
+                  },
+                });
+                return;
+              }
+              const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
+              core.info(`Default agent: ${defaultAgent}`);
+              const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const itemsToProcess = assignItems.slice(0, maxCount);
+              if (assignItems.length > maxCount) {
+                core.warning(`Found ${assignItems.length} agent assignments, but max is ${maxCount}. Processing first ${maxCount}.`);
+              }
+              const targetRepoEnv = process.env.GH_AW_TARGET_REPO?.trim();
+              let targetOwner = context.repo.owner;
+              let targetRepo = context.repo.repo;
+              if (targetRepoEnv) {
+                const parts = targetRepoEnv.split("/");
+                if (parts.length === 2) {
+                  targetOwner = parts[0];
+                  targetRepo = parts[1];
+                  core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+                } else {
+                  core.warning(`Invalid target-repo format: ${targetRepoEnv}. Expected owner/repo. Using current repository.`);
+                }
+              }
+              const agentCache = {};
+              const results = [];
+              for (const item of itemsToProcess) {
+                const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
+                const agentName = item.agent || defaultAgent;
+                if (isNaN(issueNumber) || issueNumber <= 0) {
+                  core.error(`Invalid issue_number: ${item.issue_number}`);
+                  continue;
+                }
+                if (!AGENT_LOGIN_NAMES[agentName]) {
+                  core.warning(`Agent "${agentName}" is not supported. Supported agents: ${Object.keys(AGENT_LOGIN_NAMES).join(", ")}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: `Unsupported agent: ${agentName}`,
+                  });
+                  continue;
+                }
+                try {
+                  let agentId = agentCache[agentName];
+                  if (!agentId) {
+                    core.info(`Looking for ${agentName} coding agent...`);
+                    agentId = await findAgent(targetOwner, targetRepo, agentName);
+                    if (!agentId) {
+                      throw new Error(`${agentName} coding agent is not available for this repository`);
+                    }
+                    agentCache[agentName] = agentId;
+                    core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+                  }
+                  core.info("Getting issue details...");
+                  const issueDetails = await getIssueDetails(targetOwner, targetRepo, issueNumber);
+                  if (!issueDetails) {
+                    throw new Error("Failed to get issue details");
+                  }
+                  core.info(`Issue ID: ${issueDetails.issueId}`);
+                  if (issueDetails.currentAssignees.includes(agentId)) {
+                    core.info(`${agentName} is already assigned to issue #${issueNumber}`);
+                    results.push({
+                      issue_number: issueNumber,
+                      agent: agentName,
+                      success: true,
+                    });
+                    continue;
+                  }
+                  core.info(`Assigning ${agentName} coding agent to issue #${issueNumber}...`);
+                  const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
+                  if (!success) {
+                    throw new Error(`Failed to assign ${agentName} via GraphQL`);
+                  }
+                  core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: true,
+                  });
+                } catch (error) {
+                  let errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("coding agent is not available for this repository")) {
+                    try {
+                      const available = await getAvailableAgentLogins(targetOwner, targetRepo);
+                      if (available.length > 0) {
+                        errorMessage += ` (available agents: ${available.join(", ")})`;
+                      }
+                    } catch (e) {
+                      core.debug("Failed to enrich unavailable agent message with available list");
+                    }
+                  }
+                  core.error(`Failed to assign agent "${agentName}" to issue #${issueNumber}: ${errorMessage}`);
+                  results.push({
+                    issue_number: issueNumber,
+                    agent: agentName,
+                    success: false,
+                    error: errorMessage,
+                  });
+                }
+              }
+              const successCount = results.filter(r => r.success).length;
+              const failureCount = results.filter(r => !r.success).length;
+              let summaryContent = "## Agent Assignment\n\n";
+              if (successCount > 0) {
+                summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
+                for (const result of results.filter(r => r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
+                }
+                summaryContent += "\n";
+              }
+              if (failureCount > 0) {
+                summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
+                for (const result of results.filter(r => !r.success)) {
+                  summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
+                }
+                const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
+                if (hasPermissionError) {
+                  summaryContent += generatePermissionErrorSummary();
+                }
+              }
+              await core.summary.addRaw(summaryContent).write();
+              const assignedAgents = results
+                .filter(r => r.success)
+                .map(r => `${r.issue_number}:${r.agent}`)
+                .join("\n");
+              core.setOutput("assigned_agents", assignedAgents);
+              if (failureCount > 0) {
+                core.setFailed(`Failed to assign ${failureCount} agent(s)`);
+              }
+            }
+            (async () => {
+              await main();
+            })();
+      - name: Update Issue
+        id: update_issue
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Workflow Generator"
+          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8792,235 +8092,41 @@ jobs:
             globalThis.exec = exec;
             globalThis.io = io;
             const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
-            const { isDiscussionContext, getDiscussionNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
-            const { generateFooterWithMessages } = require('/tmp/gh-aw/scripts/messages_footer.cjs');
+            const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
             const renderStagedItem = createRenderStagedItem({
-              entityName: "Discussion",
-              numberField: "discussion_number",
-              targetLabel: "Target Discussion:",
-              currentTargetText: "Current discussion",
+              entityName: "Issue",
+              numberField: "issue_number",
+              targetLabel: "Target Issue:",
+              currentTargetText: "Current issue",
               includeOperation: false,
             });
-            async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
-              const { _operation, _rawBody, labels, ...fieldsToUpdate } = updateData;
-              const shouldUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true" && labels !== undefined;
-              const getDiscussionQuery = shouldUpdateLabels
-                ? `
-                query($owner: String!, $repo: String!, $number: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $number) {
-                      id
-                      title
-                      body
-                      url
-                      labels(first: 100) {
-                        nodes {
-                          id
-                          name
-                        }
-                      }
-                    }
-                  }
-                }
-              `
-                : `
-                query($owner: String!, $repo: String!, $number: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $number) {
-                      id
-                      title
-                      body
-                      url
-                    }
-                  }
-                }
-              `;
-              const queryResult = await github.graphql(getDiscussionQuery, {
+            async function executeIssueUpdate(github, context, issueNumber, updateData) {
+              const { _operation, _rawBody, ...apiData } = updateData;
+              const { data: issue } = await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                number: discussionNumber,
+                issue_number: issueNumber,
+                ...apiData,
               });
-              if (!queryResult?.repository?.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found`);
-              }
-              const discussion = queryResult.repository.discussion;
-              const discussionId = discussion.id;
-              const currentLabels = shouldUpdateLabels ? discussion.labels?.nodes || [] : [];
-              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && !shouldUpdateLabels) {
-                throw new Error("At least one field (title, body, or labels) must be provided for update");
-              }
-              if (fieldsToUpdate.body !== undefined) {
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const triggeringIssueNumber = context.payload.issue?.number;
-                const triggeringPRNumber = context.payload.pull_request?.number;
-                const triggeringDiscussionNumber = context.payload.discussion?.number;
-                const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
-                fieldsToUpdate.body = fieldsToUpdate.body + footer;
-              }
-              if (fieldsToUpdate.title !== undefined || fieldsToUpdate.body !== undefined) {
-                const mutationFields = [];
-                if (fieldsToUpdate.title !== undefined) {
-                  mutationFields.push("title: $title");
-                }
-                if (fieldsToUpdate.body !== undefined) {
-                  mutationFields.push("body: $body");
-                }
-                const updateDiscussionMutation = `
-                  mutation($discussionId: ID!${fieldsToUpdate.title !== undefined ? ", $title: String!" : ""}${fieldsToUpdate.body !== undefined ? ", $body: String!" : ""}) {
-                    updateDiscussion(input: {
-                      discussionId: $discussionId
-                      ${mutationFields.join("\n          ")}
-                    }) {
-                      discussion {
-                        id
-                        number
-                        title
-                        body
-                        url
-                      }
-                    }
-                  }
-                `;
-                const variables = {
-                  discussionId: discussionId,
-                };
-                if (fieldsToUpdate.title !== undefined) {
-                  variables.title = fieldsToUpdate.title;
-                }
-                if (fieldsToUpdate.body !== undefined) {
-                  variables.body = fieldsToUpdate.body;
-                }
-                const mutationResult = await github.graphql(updateDiscussionMutation, variables);
-                if (!mutationResult?.updateDiscussion?.discussion) {
-                  throw new Error("Failed to update discussion");
-                }
-              }
-              if (shouldUpdateLabels && Array.isArray(labels)) {
-                const repoQuery = `
-                  query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      id
-                      labels(first: 100) {
-                        nodes {
-                          id
-                          name
-                        }
-                      }
-                    }
-                  }
-                `;
-                const repoResult = await github.graphql(repoQuery, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
-                if (!repoResult?.repository) {
-                  throw new Error(`Repository ${context.repo.owner}/${context.repo.repo} not found`);
-                }
-                const repoLabels = repoResult.repository.labels?.nodes || [];
-                const labelIds = labels.map(labelName => {
-                  const label = repoLabels.find(l => l.name === labelName);
-                  if (!label) {
-                    throw new Error(`Label "${labelName}" not found in repository`);
-                  }
-                  return label.id;
-                });
-                if (currentLabels.length > 0) {
-                  const removeLabelsMutation = `
-                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
-                      removeLabelsFromLabelable(input: {
-                        labelableId: $labelableId
-                        labelIds: $labelIds
-                      }) {
-                        clientMutationId
-                      }
-                    }
-                  `;
-                  await github.graphql(removeLabelsMutation, {
-                    labelableId: discussionId,
-                    labelIds: currentLabels.map(l => l.id),
-                  });
-                }
-                if (labelIds.length > 0) {
-                  const addLabelsMutation = `
-                    mutation($labelableId: ID!, $labelIds: [ID!]!) {
-                      addLabelsToLabelable(input: {
-                        labelableId: $labelableId
-                        labelIds: $labelIds
-                      }) {
-                        clientMutationId
-                      }
-                    }
-                  `;
-                  await github.graphql(addLabelsMutation, {
-                    labelableId: discussionId,
-                    labelIds: labelIds,
-                  });
-                }
-              }
-              const finalQuery = shouldUpdateLabels
-                ? `
-                query($owner: String!, $repo: String!, $number: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $number) {
-                      id
-                      title
-                      body
-                      url
-                      labels(first: 100) {
-                        nodes {
-                          id
-                          name
-                        }
-                      }
-                    }
-                  }
-                }
-              `
-                : `
-                query($owner: String!, $repo: String!, $number: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $number) {
-                      id
-                      title
-                      body
-                      url
-                    }
-                  }
-                }
-              `;
-              const finalQueryResult = await github.graphql(finalQuery, {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                number: discussionNumber,
-              });
-              const updatedDiscussion = finalQueryResult.repository.discussion;
-              return {
-                ...updatedDiscussion,
-                html_url: updatedDiscussion.url,
-              };
+              return issue;
             }
             const getSummaryLine = createGetSummaryLine({
-              entityPrefix: "Discussion",
+              entityPrefix: "Issue",
             });
             async function main() {
               return await runUpdateWorkflow({
-                itemType: "update_discussion",
-                displayName: "discussion",
-                displayNamePlural: "discussions",
-                numberField: "discussion_number",
-                outputNumberKey: "discussion_number",
-                outputUrlKey: "discussion_url",
-                isValidContext: isDiscussionContext,
-                getContextNumber: getDiscussionNumber,
-                supportsStatus: false,
+                itemType: "update_issue",
+                displayName: "issue",
+                displayNamePlural: "issues",
+                numberField: "issue_number",
+                outputNumberKey: "issue_number",
+                outputUrlKey: "issue_url",
+                isValidContext: isIssueContext,
+                getContextNumber: getIssueNumber,
+                supportsStatus: true,
                 supportsOperation: false,
                 renderStagedItem,
-                executeUpdate: executeDiscussionUpdate,
+                executeUpdate: executeIssueUpdate,
                 getSummaryLine,
               });
             }
