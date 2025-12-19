@@ -2035,7 +2035,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "f27cb48",
+              cli_version: "95d2097",
               workflow_name: "Agentic Workflow Audit Agent",
               experimental: true,
               supports_tools_allowlist: true,

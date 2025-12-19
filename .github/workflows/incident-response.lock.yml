@@ -2047,7 +2047,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "f27cb48",
+              cli_version: "95d2097",
               workflow_name: "Campaign - Incident Response",
               experimental: false,
               supports_tools_allowlist: true,

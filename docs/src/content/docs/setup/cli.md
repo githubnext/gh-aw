@@ -378,6 +378,8 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
+### Campaigns
+
 #### `campaign`
 
 Inspect and validate first-class campaign definitions declared as `.github/workflows/*.campaign.md` files.
