@@ -193,8 +193,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use claude command directly (installed via npm install -g)
-	commandParts := []string{"claude"}
+	// Invoke Claude CLI directly via Node.js (avoids needing to mount the claude binary symlink)
+	commandParts := []string{"node", "/usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js"}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
@@ -254,13 +254,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeLog.Print("Added workspace mount to AWF")
 
 		// Mount minimal binaries needed to run Claude CLI
+		// We invoke Claude via: node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js
 		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/node:/usr/local/bin/node:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/claude:/usr/local/bin/claude:ro")
-
-		// Mount only the Claude Code package (not all node_modules)
 		awfArgs = append(awfArgs, "--mount", "/usr/local/lib/node_modules/@anthropic-ai:/usr/local/lib/node_modules/@anthropic-ai:ro")
 
-		claudeLog.Print("Added minimal Node.js and Claude CLI mounts to AWF container")
+		claudeLog.Print("Added minimal Node.js and Claude package mounts to AWF container")
 
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
