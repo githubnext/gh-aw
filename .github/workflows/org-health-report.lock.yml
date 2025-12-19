@@ -1925,7 +1925,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              cli_version: "98a7cdf",
               workflow_name: "Organization Health Report",
               experimental: false,
               supports_tools_allowlist: true,
