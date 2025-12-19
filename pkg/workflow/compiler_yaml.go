@@ -338,6 +338,66 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	}
 }
 
+// isReleasedVersion checks if a version string represents a released build.
+// It validates that the version matches semantic versioning format (x.y.z or x.y.z-prerelease)
+// and excludes development builds (containing "dev", "dirty", or "test").
+func isReleasedVersion(version string) bool {
+	if version == "" {
+		return false
+	}
+	// Filter out development/test versions
+	excludePatterns := []string{"dev", "dirty", "test"}
+	for _, pattern := range excludePatterns {
+		if strings.Contains(version, pattern) {
+			return false
+		}
+	}
+
+	// Validate semantic version format: must start with digit and contain at least one dot
+	// Examples: "1.2.3", "1.2.3-beta.1", "0.1.0-rc.2+build.123"
+	// Non-examples: "e63fd5a", "abc", "v1.2.3" (should start with digit)
+	if len(version) == 0 {
+		return false
+	}
+
+	// Must start with a digit
+	if version[0] < '0' || version[0] > '9' {
+		return false
+	}
+
+	// Must contain at least one dot (to have major.minor.patch)
+	if !strings.Contains(version, ".") {
+		return false
+	}
+
+	// Extract the version core (before any prerelease or metadata)
+	versionCore := version
+	if idx := strings.IndexAny(version, "-+"); idx != -1 {
+		versionCore = version[:idx]
+	}
+
+	// Validate that the core contains only digits and dots
+	// Split by dots and ensure at least 2 parts (major.minor at minimum)
+	parts := strings.Split(versionCore, ".")
+	if len(parts) < 2 {
+		return false
+	}
+
+	// Each part should be numeric
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		for _, ch := range part {
+			if ch < '0' || ch > '9' {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
@@ -398,6 +458,12 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	agentVersion := getInstallationVersion(data, engine)
 	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
+	// CLI version - only include for released builds
+	// Excludes development builds containing "dev", "dirty", or "test"
+	if isReleasedVersion(c.version) {
+		fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
+	}
+
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
 	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
@@ -435,6 +501,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		if data.NetworkPermissions.Firewall != nil {
 			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
 			firewallVersion = data.NetworkPermissions.Firewall.Version
+			// Use default firewall version when enabled but not explicitly set
+			if firewallEnabled && firewallVersion == "" {
+				firewallVersion = string(constants.DefaultFirewallVersion)
+			}
 		}
 	}
 
@@ -449,7 +519,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
-	fmt.Fprintf(yaml, "              firewall_version: \"%s\",\n", firewallVersion)
+	fmt.Fprintf(yaml, "              awf_version: \"%s\",\n", firewallVersion)
 
 	// Add steps object with firewall information
 	yaml.WriteString("              steps: {\n")
@@ -518,7 +588,7 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("              '|----------|-------|\\n' +\n")
 	yaml.WriteString("              `| Mode | ${awInfo.network_mode || 'defaults'} |\\n` +\n")
 	yaml.WriteString("              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
-	yaml.WriteString("              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\\n` +\n")
 	yaml.WriteString("              '\\n' +\n")
 	yaml.WriteString("              (networkDetails ? `##### Allowed Domains\\n${networkDetails}\\n` : '') +\n")
 	yaml.WriteString("              '</details>';\n")

@@ -58,7 +58,7 @@ This workflow tests that firewall type is empty when disabled.
 			description:    "Should have empty firewall type when firewall is disabled",
 		},
 		{
-			name: "no firewall configuration",
+			name: "no firewall configuration - claude defaults",
 			workflowContent: `---
 on: push
 permissions:
@@ -70,10 +70,10 @@ engine: claude
 
 # Test no firewall
 
-This workflow tests that firewall type is empty when not configured.
+This workflow tests that Claude has firewall enabled by default when network is not configured.
 `,
 			expectFirewall: "",
-			description:    "Should have empty firewall type when firewall is not configured",
+			description:    "Should have empty firewall type when no network is configured (firewall only applies with network restrictions)",
 		},
 	}
 

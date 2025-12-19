@@ -81,12 +81,9 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
 
 	// Render orchestrator instructions using templates
-	// By default, we enable completion guidance and disable blocker reporting for closed issues
-	// This treats closed issues as a sign of completion, not as blockers
+	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{
-		ReportBlockers:     false, // Don't report closed issues as blockers
-		CompletionGuidance: true,  // Include completion guidance
-		ProjectURL:         strings.TrimSpace(spec.ProjectURL),
+		ProjectURL: strings.TrimSpace(spec.ProjectURL),
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
@@ -107,7 +104,14 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Always allow commenting on tracker issues (or other issues/PRs if needed).
 	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
 	// Allow updating the campaign's GitHub Project dashboard.
-	safeOutputs.UpdateProjects = &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+	// If the campaign spec specifies a custom GitHub token for Projects v2 operations,
+	// pass it to the update-project configuration.
+	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
+		updateProjectConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
+		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for update-project", spec.ID)
+	}
+	safeOutputs.UpdateProjects = updateProjectConfig
 
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 

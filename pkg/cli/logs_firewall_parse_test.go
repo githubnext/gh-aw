@@ -58,7 +58,7 @@ func TestParseFirewallLogs(t *testing.T) {
 
 	// The content should contain markdown formatting
 	contentStr := string(content)
-	if !strings.Contains(contentStr, "### 🔥 Firewall Activity") {
+	if !strings.Contains(contentStr, "sandbox agent:") {
 		t.Errorf("firewall.md doesn't contain expected header")
 	}
 

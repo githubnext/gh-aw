@@ -73,22 +73,22 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	}
 
 	// Verify that the prompt includes completion instructions
-	if !strings.Contains(data.MarkdownContent, "campaign is complete") {
+	if !strings.Contains(data.MarkdownContent, "Campaign complete") {
 		t.Errorf("expected markdown to mention campaign completion, got: %q", data.MarkdownContent)
 	}
 
-	if !strings.Contains(data.MarkdownContent, "normal terminal state") {
-		t.Errorf("expected markdown to mention normal terminal state, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "terminal state") {
+		t.Errorf("expected markdown to mention terminal state, got: %q", data.MarkdownContent)
 	}
 
-	// Verify that the prompt explicitly states not to report closed issues as blockers
-	if !strings.Contains(data.MarkdownContent, "Do not report closed issues as blockers") {
-		t.Errorf("expected markdown to explicitly state not to report closed issues as blockers, got: %q", data.MarkdownContent)
+	// Verify that the prompt uses system-agnostic completion logic
+	if !strings.Contains(data.MarkdownContent, "Decide completion") {
+		t.Errorf("expected markdown to include decision phase for completion, got: %q", data.MarkdownContent)
 	}
 
-	// Verify that "highlight blockers" is not in the prompt
-	if strings.Contains(data.MarkdownContent, "highlight blockers") {
-		t.Errorf("expected markdown to NOT contain 'highlight blockers', but it does: %q", data.MarkdownContent)
+	// Verify explicit completion criteria
+	if !strings.Contains(data.MarkdownContent, "all discovered issues are closed") {
+		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
 	}
 }
 
@@ -115,8 +115,13 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	}
 
 	// Verify that it searches for issues containing tracker-id
-	if !strings.Contains(data.MarkdownContent, "<!-- tracker-id:") {
-		t.Errorf("expected markdown to mention searching for tracker-id HTML comments, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "tracker-id") {
+		t.Errorf("expected markdown to mention searching for tracker-id, got: %q", data.MarkdownContent)
+	}
+
+	// Verify it explains the XML comment correlation mechanism
+	if !strings.Contains(data.MarkdownContent, "XML comment") || !strings.Contains(data.MarkdownContent, "Correlation Mechanism") {
+		t.Errorf("expected markdown to explain correlation mechanism with XML comments, got: %q", data.MarkdownContent)
 	}
 
 	// Verify that orchestrator does NOT monitor workflow runs by file name
@@ -128,8 +133,103 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Errorf("expected markdown to NOT reference .lock.yml files for monitoring, but it does: %q", data.MarkdownContent)
 	}
 
-	// Verify that it uses github-search_issues
-	if !strings.Contains(data.MarkdownContent, "github-search_issues") {
-		t.Errorf("expected markdown to use github-search_issues for discovering worker output, got: %q", data.MarkdownContent)
+	// Verify that it uses tracker-id based discovery
+	if !strings.Contains(data.MarkdownContent, "tracker-id") {
+		t.Errorf("expected markdown to use tracker-id for discovering worker output, got: %q", data.MarkdownContent)
 	}
+
+	// Verify it follows system-agnostic rules
+	if !strings.Contains(data.MarkdownContent, "Campaign Orchestrator Rules") {
+		t.Errorf("expected markdown to contain Campaign Orchestrator Rules section, got: %q", data.MarkdownContent)
+	}
+
+	// Verify separation of phases
+	if !strings.Contains(data.MarkdownContent, "Phase 1: Read State") {
+		t.Errorf("expected markdown to contain Phase 1: Read State, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 2: Make Decisions") {
+		t.Errorf("expected markdown to contain Phase 2: Make Decisions, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 3: Write State") {
+		t.Errorf("expected markdown to contain Phase 3: Write State, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 4: Report") {
+		t.Errorf("expected markdown to contain Phase 4: Report, got: %q", data.MarkdownContent)
+	}
+}
+
+func TestBuildOrchestrator_GitHubToken(t *testing.T) {
+	t.Run("with custom github token", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:                 "test-campaign-with-token",
+			Name:               "Test Campaign",
+			Description:        "A test campaign with custom GitHub token",
+			ProjectURL:         "https://github.com/orgs/test/projects/1",
+			Workflows:          []string{"test-workflow"},
+			TrackerLabel:       "campaign:test",
+			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that UpdateProjects is configured
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected UpdateProjects to be configured")
+		}
+
+		// Verify that the GitHubToken is set
+		if data.SafeOutputs.UpdateProjects.GitHubToken != "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}" {
+			t.Errorf("expected GitHubToken to be %q, got %q",
+				"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				data.SafeOutputs.UpdateProjects.GitHubToken)
+		}
+	})
+
+	t.Run("without custom github token", func(t *testing.T) {
+		spec := &CampaignSpec{
+			ID:           "test-campaign-no-token",
+			Name:         "Test Campaign",
+			Description:  "A test campaign without custom GitHub token",
+			ProjectURL:   "https://github.com/orgs/test/projects/1",
+			Workflows:    []string{"test-workflow"},
+			TrackerLabel: "campaign:test",
+			// ProjectGitHubToken is intentionally omitted
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that SafeOutputs is configured
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be configured")
+		}
+
+		// Verify that UpdateProjects is configured
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected UpdateProjects to be configured")
+		}
+
+		// Verify that the GitHubToken is empty when not specified
+		if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
+			t.Errorf("expected GitHubToken to be empty when not specified, got %q",
+				data.SafeOutputs.UpdateProjects.GitHubToken)
+		}
+	})
 }

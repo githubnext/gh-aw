@@ -1,5 +1,11 @@
 {
     "github.copilot.enable": {
         "markdown": true
-    }
+    },
+    "yaml.schemas": {
+        "./pkg/parsers/schemas/main_workflow_schema.json": ".github/workflows/*.md"
+    },
+    "yaml.validate": true,
+    "yaml.hover": true,
+    "yaml.completion": true
 }

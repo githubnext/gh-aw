@@ -136,13 +136,14 @@ This is a test workflow without network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults to allow-list)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup when no network field specified (defaults to allow-list)")
+		// When no network is specified, firewall is NOT enabled (defaults to full access)
+		// AWF is only enabled when network restrictions are configured
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT contain AWF wrapper when no network field specified (defaults to full access)")
 		}
 	})
 
-	t.Run("network: defaults should enforce allow-list restrictions", func(t *testing.T) {
+	t.Run("network: defaults should not enable AWF for Claude without firewall config", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -172,13 +173,14 @@ This is a test workflow with explicit defaults network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults mode uses allow-list)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup for network: defaults (uses allow-list)")
+		// network: defaults without explicit firewall config does NOT enable AWF
+		// (firewall must be explicitly enabled or network.allowed must be specified)
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT contain AWF wrapper for network: defaults without firewall config")
 		}
 	})
 
-	t.Run("network: {} should enforce deny-all", func(t *testing.T) {
+	t.Run("network: {} should not enable AWF without firewall config", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -208,17 +210,13 @@ This is a test workflow with empty network permissions (deny all).
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (deny-all enforcement)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup for network: {}")
-		}
-		// Should have empty ALLOWED_DOMAINS array for deny-all
-		if !strings.Contains(string(lockContent), "json.loads('''[]''')") {
-			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
+		// Empty network config without explicit firewall config does NOT enable AWF
+		if strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should NOT contain AWF wrapper for network: {} without firewall config")
 		}
 	})
 
-	t.Run("network with allowed domains should enforce restrictions", func(t *testing.T) {
+	t.Run("network with allowed domains and firewall enabled should use AWF", func(t *testing.T) {
 		testContent := `---
 on: push
 strict: false
@@ -226,6 +224,7 @@ engine:
   id: claude
 network:
   allowed: ["example.com", "api.github.com"]
+  firewall: true
 ---
 
 # Test Workflow
@@ -250,14 +249,17 @@ This is a test workflow with explicit network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup with specified domains
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup with explicit network permissions")
+		// Should contain AWF wrapper with --allow-domains
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper with explicit network permissions and firewall: true")
 		}
-		if !strings.Contains(string(lockContent), `"example.com"`) {
+		if !strings.Contains(string(lockContent), "--allow-domains") {
+			t.Error("Should contain --allow-domains flag in AWF command")
+		}
+		if !strings.Contains(string(lockContent), "example.com") {
 			t.Error("Should contain example.com in allowed domains")
 		}
-		if !strings.Contains(string(lockContent), `"api.github.com"`) {
+		if !strings.Contains(string(lockContent), "api.github.com") {
 			t.Error("Should contain api.github.com in allowed domains")
 		}
 	})

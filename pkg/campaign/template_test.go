@@ -7,68 +7,47 @@ import (
 
 func TestRenderOrchestratorInstructions(t *testing.T) {
 	tests := []struct {
-		name             string
-		data             CampaignPromptData
-		shouldContain    []string
-		shouldNotContain []string
+		name          string
+		data          CampaignPromptData
+		shouldContain []string
 	}{
 		{
-			name: "completion guidance enabled, blockers disabled",
-			data: CampaignPromptData{
-				ReportBlockers:     false,
-				CompletionGuidance: true,
-			},
+			name: "system-agnostic rules",
+			data: CampaignPromptData{},
 			shouldContain: []string{
-				"generate a concise status report",
-				"campaign is complete",
-				"normal terminal state",
-				"Do not report closed issues as blockers",
-			},
-			shouldNotContain: []string{
-				"highlight blockers",
+				"Campaign Orchestrator Rules",
+				"Workers are immutable",
+				"Workers are campaign-agnostic",
+				"Campaign logic is external",
+				"Phase 1: Read State",
+				"Phase 2: Make Decisions",
+				"Phase 3: Write State",
+				"Phase 4: Report",
+				"Predefined Project Fields",
+				"Correlation Mechanism",
+				"Idempotent operations",
 			},
 		},
 		{
-			name: "blockers enabled, completion guidance disabled",
-			data: CampaignPromptData{
-				ReportBlockers:     true,
-				CompletionGuidance: false,
-			},
+			name: "explicit state management",
+			data: CampaignPromptData{},
 			shouldContain: []string{
-				"generate a concise status report",
-				"highlight blockers",
-			},
-			shouldNotContain: []string{
-				"campaign is complete",
-				"Do not report closed issues as blockers",
+				"Query worker-created issues",
+				"Query current project state",
+				"Compare and identify gaps",
+				"Decide additions",
+				"Decide updates",
+				"Execute additions",
+				"Execute updates",
+				"Generate status report",
 			},
 		},
 		{
-			name: "both enabled",
-			data: CampaignPromptData{
-				ReportBlockers:     true,
-				CompletionGuidance: true,
-			},
+			name: "separation of concerns",
+			data: CampaignPromptData{},
 			shouldContain: []string{
-				"generate a concise status report",
-				"highlight blockers",
-				"campaign is complete",
-				"Do not report closed issues as blockers",
-			},
-			shouldNotContain: []string{},
-		},
-		{
-			name: "both disabled",
-			data: CampaignPromptData{
-				ReportBlockers:     false,
-				CompletionGuidance: false,
-			},
-			shouldContain: []string{
-				"generate a concise status report",
-			},
-			shouldNotContain: []string{
-				"highlight blockers",
-				"campaign is complete",
+				"State reads and state writes are separate operations",
+				"Explicit outcomes",
 			},
 		},
 	}
@@ -80,12 +59,6 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 			for _, expected := range tt.shouldContain {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected result to contain %q, but it didn't. Result: %s", expected, result)
-				}
-			}
-
-			for _, unexpected := range tt.shouldNotContain {
-				if strings.Contains(result, unexpected) {
-					t.Errorf("Expected result NOT to contain %q, but it did. Result: %s", unexpected, result)
 				}
 			}
 		})
@@ -105,8 +78,13 @@ func TestRenderProjectUpdateInstructions(t *testing.T) {
 				ProjectURL: "https://github.com/orgs/test/projects/1",
 			},
 			shouldContain: []string{
+				"Project Board Integration",
 				"update-project",
 				"https://github.com/orgs/test/projects/1",
+				"Adding New Issues",
+				"Updating Existing Items",
+				"Idempotency",
+				"Write Operation Rules",
 			},
 			shouldBeEmpty: false,
 		},
@@ -141,8 +119,13 @@ func TestRenderClosingInstructions(t *testing.T) {
 	result := RenderClosingInstructions()
 
 	expectedPhrases := []string{
-		"coordinate workers",
-		"track progress",
+		"Execute all four phases",
+		"Read State",
+		"Make Decisions",
+		"Write State",
+		"Report",
+		"Workers are immutable and campaign-agnostic",
+		"GitHub Project board is the single source of truth",
 	}
 
 	for _, expected := range expectedPhrases {

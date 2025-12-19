@@ -75,9 +75,13 @@ Test workflow with network permissions.
 			expectedDomains: []string{
 				"example.com",
 				"test.org",
+				// Claude now has its own default domains with AWF support
+				"api.github.com",
+				"anthropic.com",
+				"api.anthropic.com",
 			},
-			// Claude doesn't get Copilot defaults
-			unexpectedDomain: "api.github.com",
+			// No unexpected domains - Claude has its own defaults
+			unexpectedDomain: "",
 		},
 		{
 			name: "Copilot with defaults network mode",

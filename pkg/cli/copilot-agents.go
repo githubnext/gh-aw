@@ -106,6 +106,28 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 	return nil
 }
 
+// cleanupOldAgentFile removes an old agent file from .github/agents/ if it exists
+func cleanupOldAgentFile(agentFileName string, verbose bool) error {
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return nil // Not in a git repository, skip
+	}
+
+	oldPath := filepath.Join(gitRoot, ".github", "agents", agentFileName)
+
+	// Check if the old file exists and remove it
+	if _, err := os.Stat(oldPath); err == nil {
+		if err := os.Remove(oldPath); err != nil {
+			return fmt.Errorf("failed to remove old agent file: %w", err)
+		}
+		if verbose {
+			fmt.Printf("Removed old agent file: %s\n", oldPath)
+		}
+	}
+
+	return nil
+}
+
 // ensureCopilotInstructions ensures that .github/aw/github-agentic-workflows.md contains the copilot instructions
 func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 	// First, clean up the old file location if it exists
@@ -155,16 +177,6 @@ func ensureAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("create-agentic-workflow.agent.md", agenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSharedAgenticWorkflowAgent ensures that .github/agents/create-shared-agentic-workflow.agent.md contains the shared workflow creation agent
-func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
-	// First, clean up the old prompt file if it exists
-	if err := cleanupOldPromptFile("create-shared-agentic-workflow.prompt.md", verbose); err != nil {
-		return err
-	}
-
-	return ensureAgentFromTemplate("create-shared-agentic-workflow.agent.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
-}
-
 // ensureDebugAgenticWorkflowAgent ensures that .github/agents/debug-agentic-workflow.agent.md contains the debug workflow agent
 func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	// First, clean up the old prompt file if it exists
@@ -177,6 +189,11 @@ func ensureDebugAgenticWorkflowAgent(verbose bool, skipInstructions bool) error 
 
 // ensureAgenticCampaignDesignerAgent ensures that .github/agents/agentic-campaign-designer.agent.md contains the agentic campaign designer agent
 func ensureAgenticCampaignDesignerAgent(verbose bool, skipInstructions bool) error {
+	// First, clean up the old agent file in .github/agents/ if it has the old name
+	if err := cleanupOldAgentFile("campaign-designer.agent.md", verbose); err != nil {
+		return err
+	}
+
 	return ensureAgentFromTemplate("agentic-campaign-designer.agent.md", agenticCampaignDesignerAgentTemplate, verbose, skipInstructions)
 }
 

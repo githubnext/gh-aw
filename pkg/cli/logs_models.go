@@ -191,18 +191,31 @@ type AwInfoSteps struct {
 
 // AwInfo represents the structure of aw_info.json files
 type AwInfo struct {
-	EngineID     string      `json:"engine_id"`
-	EngineName   string      `json:"engine_name"`
-	Model        string      `json:"model"`
-	Version      string      `json:"version"`
-	WorkflowName string      `json:"workflow_name"`
-	Staged       bool        `json:"staged"`
-	Steps        AwInfoSteps `json:"steps,omitempty"` // Steps metadata
-	CreatedAt    string      `json:"created_at"`
+	EngineID        string      `json:"engine_id"`
+	EngineName      string      `json:"engine_name"`
+	Model           string      `json:"model"`
+	Version         string      `json:"version"`
+	CLIVersion      string      `json:"cli_version,omitempty"` // gh-aw CLI version
+	WorkflowName    string      `json:"workflow_name"`
+	Staged          bool        `json:"staged"`
+	AwfVersion      string      `json:"awf_version,omitempty"`      // AWF firewall version (new name)
+	FirewallVersion string      `json:"firewall_version,omitempty"` // AWF firewall version (old name, for backward compatibility)
+	Steps           AwInfoSteps `json:"steps,omitempty"`            // Steps metadata
+	CreatedAt       string      `json:"created_at"`
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`
 	Repository string `json:"repository,omitempty"`
+}
+
+// GetFirewallVersion returns the AWF firewall version, preferring the new field name
+// (awf_version) but falling back to the old field name (firewall_version) for
+// backward compatibility with older aw_info.json files.
+func (a *AwInfo) GetFirewallVersion() string {
+	if a.AwfVersion != "" {
+		return a.AwfVersion
+	}
+	return a.FirewallVersion
 }
 
 // isFailureConclusion returns true if the conclusion represents a failure state

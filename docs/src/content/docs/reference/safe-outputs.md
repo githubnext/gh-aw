@@ -874,9 +874,9 @@ safe-outputs:
   threat-detection: true              # explicit enable (default)
 ```
 
-## Campaign Workflows
+## Agentic Campaign Workflows
 
-Combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps boards synchronized. See [Campaign Workflows](/gh-aw/guides/campaigns/).
+Combine `create-issue` with `update-project` to launch coordinated initiatives. The project job returns a campaign identifier, applies `campaign:<id>` labels, and keeps boards synchronized. See [Agentic Campaign Workflows](/gh-aw/guides/campaigns/).
 
 ## Custom Messages (`messages:`)
 

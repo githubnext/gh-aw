@@ -22,12 +22,14 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "add command in setup group", commandName: "add", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "remove command in setup group", commandName: "remove", expectedGroup: "setup", shouldHaveGroup: true},
 		{name: "update command in setup group", commandName: "update", expectedGroup: "setup", shouldHaveGroup: true},
+		{name: "secrets command in setup group", commandName: "secrets", expectedGroup: "setup", shouldHaveGroup: true},
 
 		// Development Commands
 		{name: "compile command in development group", commandName: "compile", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "mcp command in development group", commandName: "mcp", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "status command in development group", commandName: "status", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "mcp-server command in development group", commandName: "mcp-server", expectedGroup: "development", shouldHaveGroup: true},
+		{name: "fix command in development group", commandName: "fix", expectedGroup: "development", shouldHaveGroup: true},
 
 		// Execution Commands
 		{name: "run command in execution group", commandName: "run", expectedGroup: "execution", shouldHaveGroup: true},
@@ -38,6 +40,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 		// Analysis Commands
 		{name: "logs command in analysis group", commandName: "logs", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "audit command in analysis group", commandName: "audit", expectedGroup: "analysis", shouldHaveGroup: true},
+		{name: "campaign command in analysis group", commandName: "campaign", expectedGroup: "analysis", shouldHaveGroup: true},
 
 		// Utilities
 		{name: "pr command in utilities group", commandName: "pr", expectedGroup: "utilities", shouldHaveGroup: true},

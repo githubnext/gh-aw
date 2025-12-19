@@ -48,6 +48,7 @@ Provides network access to Node.js package registries.
 	}
 
 	// Create a workflow file that imports both shared files and has its own network config
+	// With firewall enabled to trigger AWF integration
 	workflowPath := filepath.Join(tempDir, "test-workflow.md")
 	workflowContent := `---
 on: issues
@@ -61,6 +62,7 @@ network:
   allowed:
     - defaults
     - github.com
+  firewall: true
 imports:
   - shared-python.md
   - shared-node.md
@@ -89,9 +91,9 @@ This workflow should have merged network domains from multiple sources.
 
 	workflowData := string(lockFileContent)
 
-	// Check for presence of ALLOWED_DOMAINS
-	if !strings.Contains(workflowData, "ALLOWED_DOMAINS") {
-		t.Fatal("Expected ALLOWED_DOMAINS to be present in compiled workflow")
+	// Check for presence of --allow-domains (AWF integration)
+	if !strings.Contains(workflowData, "--allow-domains") {
+		t.Fatal("Expected --allow-domains to be present in compiled workflow (AWF)")
 	}
 
 	// Should contain github.com from top-level

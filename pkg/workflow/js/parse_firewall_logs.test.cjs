@@ -84,10 +84,10 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               ]),
             },
             summary = generateFirewallSummary(analysis);
-          (expect(summary).toContain("🔥 Firewall Activity"),
+          (expect(summary).toContain("sandbox agent:"),
             expect(summary).toContain("<details>"),
             expect(summary).toContain("</details>"),
-            expect(summary).toContain("<summary>📊 5 requests"),
+            expect(summary).toContain("<summary>sandbox agent: 5 requests"),
             expect(summary).toContain("3 allowed"),
             expect(summary).toContain("2 blocked"),
             expect(summary).toContain("4 unique domains</summary>"),
@@ -121,7 +121,7 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
           test("should show appropriate message when no firewall activity", () => {
             const analysis = { totalRequests: 3, allowedRequests: 3, deniedRequests: 0, allowedDomains: ["api.github.com:443"], deniedDomains: [], requestsByDomain: new Map([["api.github.com:443", { allowed: 3, denied: 0 }]]) },
               summary = generateFirewallSummary(analysis);
-            (expect(summary).toContain("🔥 Firewall Activity"),
+            (expect(summary).toContain("sandbox agent:"),
               expect(summary).toContain("3 requests"),
               expect(summary).toContain("3 allowed"),
               expect(summary).toContain("0 blocked"),
@@ -146,7 +146,7 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
           test("should show appropriate message when no valid domains", () => {
             const analysis = { totalRequests: 0, allowedRequests: 0, deniedRequests: 0, allowedDomains: [], deniedDomains: [], requestsByDomain: new Map() },
               summary = generateFirewallSummary(analysis);
-            (expect(summary).toContain("🔥 Firewall Activity"),
+            (expect(summary).toContain("sandbox agent:"),
               expect(summary).toContain("0 requests"),
               expect(summary).toContain("0 allowed"),
               expect(summary).toContain("0 blocked"),

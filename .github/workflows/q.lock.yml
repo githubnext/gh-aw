@@ -903,6 +903,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
     env:
@@ -2649,7 +2650,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,discussions",
                   "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
@@ -2863,10 +2864,11 @@ jobs:
           
           **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
           
-          1. Use GitHub tools to fetch discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          1. Use the `list_discussions` tool to fetch discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           2. Review the discussion title and body to understand the topic being discussed
-          3. Consider the discussion context when planning your workflow optimizations
-          4. Use this discussion context to inform your investigation and recommendations
+          3. Read any recent comments in the discussion for additional context
+          4. Consider the discussion context when planning your workflow optimizations
+          5. Use this discussion context to inform your investigation and recommendations
           {{/if}}
           </current_context>
           

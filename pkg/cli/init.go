@@ -62,16 +62,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agent for workflow creation"))
 	}
 
-	// Write shared agentic workflow agent
-	initLog.Print("Writing shared agentic workflow agent")
-	if err := ensureSharedAgenticWorkflowAgent(verbose, false); err != nil {
-		initLog.Printf("Failed to write shared agentic workflow agent: %v", err)
-		return fmt.Errorf("failed to write shared agentic workflow agent: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow agent"))
-	}
-
 	// Delete existing setup agentic workflows agent if it exists
 	initLog.Print("Cleaning up setup agentic workflows agent")
 	if err := deleteSetupAgenticWorkflowsAgent(verbose); err != nil {
