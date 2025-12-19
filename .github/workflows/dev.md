@@ -8,6 +8,7 @@ permissions:
 tools:
   bash:
     - "*"
+  edit:
   github:
     toolsets: [default]
 timeout-minutes: 10
