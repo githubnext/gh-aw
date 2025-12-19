@@ -17,7 +17,7 @@ permissions:
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 engine: codex
-strict: false
+strict: true
 
 network:
   allowed:

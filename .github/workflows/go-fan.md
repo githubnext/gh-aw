@@ -48,7 +48,7 @@ tools:
     - "cat specs/mods/*"
 
 timeout-minutes: 30
-strict: false
+strict: true
 ---
 
 # Go Fan 🐹 - Daily Go Module Reviewer
