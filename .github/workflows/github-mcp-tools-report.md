@@ -9,7 +9,6 @@ permissions:
   discussions: read
   issues: read
   pull-requests: read
-  repository-projects: read
   security-events: read
 engine: claude
 tools:

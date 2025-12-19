@@ -735,11 +735,6 @@
               "enum": ["read", "write", "none"],
               "description": "Permission for pull requests"
             },
-            "repository-projects": {
-              "type": "string",
-              "enum": ["read", "write", "none"],
-              "description": "Permission for repository projects"
-            },
             "security-events": {
               "type": "string",
               "enum": ["read", "write", "none"],
