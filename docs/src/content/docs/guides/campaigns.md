@@ -187,7 +187,7 @@ The simplest, least-permissions way to run a campaign is:
 
 When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `gh aw compile` will also generate an orchestrator workflow named `.github/workflows/<id>.campaign.g.md` and compile it to a corresponding `.lock.yml`.
 
-See [Campaign specs and orchestrators](/gh-aw/setup/cli/#campaign-specs-and-orchestrators) for details.
+See the [`campaign` command](/gh-aw/setup/cli/#agentic-campaigns) for management and inspection.
 
 ## Using Project Roadmap Views with Custom Date Fields
 

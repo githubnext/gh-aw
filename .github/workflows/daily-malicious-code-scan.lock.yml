@@ -1886,7 +1886,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              cli_version: "1a9de7b",
+              cli_version: "280c9eb",
               workflow_name: "Daily Malicious Code Scan Agent",
               experimental: false,
               supports_tools_allowlist: true,
