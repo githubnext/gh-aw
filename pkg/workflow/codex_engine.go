@@ -138,16 +138,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// Build the Codex command
-	var codexCommand string
-	if firewallEnabled {
-		// When firewall is enabled, use the binary path inside AWF container
-		codexCommand = fmt.Sprintf("/usr/local/bin/codex %sexec%s%s%s\"$INSTRUCTION\"",
-			modelParam, webSearchParam, fullAutoParam, customArgsParam)
-	} else {
-		// When firewall is disabled, use the regular codex command
-		codexCommand = fmt.Sprintf("codex %sexec%s%s%s\"$INSTRUCTION\"",
-			modelParam, webSearchParam, fullAutoParam, customArgsParam)
-	}
+	// Use regular codex command regardless of firewall status
+	// PATH will be set to find codex in hostedtoolcache when firewall is enabled
+	codexCommand := fmt.Sprintf("codex %sexec%s%s%s\"$INSTRUCTION\"",
+		modelParam, webSearchParam, fullAutoParam, customArgsParam)
 
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
@@ -179,14 +173,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		codexEngineLog.Print("Added workspace mount to AWF")
 
-		// Mount common utilities from host
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/date:/usr/bin/date:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
+		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
+		// This includes node binary, npm, and all global packages including Codex
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
 
-		// Mount Codex binary (npm install -g places it at /usr/local/bin/codex)
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/codex:/usr/local/bin/codex:ro")
-		codexEngineLog.Print("Added Codex binary mount to AWF container")
+		codexEngineLog.Print("Added hostedtoolcache node mount to AWF container")
 
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
@@ -227,6 +218,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			codexEngineLog.Print("Using standard AWF command")
 		}
 
+		// Prepend PATH setup to find codex in hostedtoolcache
+		// This ensures codex and all its dependencies (including MCP servers) are accessible
+		pathSetup := `export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH"`
+		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
+
 		// Build the command with agent file handling if specified
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
@@ -236,14 +232,14 @@ INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
 %s %s \
   -- %s \
-  2>&1 | tee %s`, agentPath, awfCommand, shellJoinArgs(awfArgs), codexCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, agentPath, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), codexCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
 		}
 	} else {
 		// Build the command without AWF wrapping
