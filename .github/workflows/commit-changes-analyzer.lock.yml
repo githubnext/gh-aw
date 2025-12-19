@@ -257,7 +257,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.71
+        run: npm install -g @anthropic-ai/claude-code@2.0.73
       - name: Downloading container images
         run: |
           set -e
@@ -287,7 +287,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1796,7 +1796,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.25.0"
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
@@ -1835,7 +1835,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.71",
+              agent_version: "2.0.73",
               workflow_name: "Commit Changes Analyzer",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1852,7 +1852,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -1899,7 +1899,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -5393,9 +5393,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -6344,7 +6344,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.71
+        run: npm install -g @anthropic-ai/claude-code@2.0.73
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
