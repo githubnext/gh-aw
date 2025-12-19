@@ -338,6 +338,22 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	}
 }
 
+// isReleasedVersion checks if a version string represents a released build.
+// It excludes development builds (containing "dev", "dirty", or "test").
+func isReleasedVersion(version string) bool {
+	if version == "" {
+		return false
+	}
+	// Filter out development/test versions
+	excludePatterns := []string{"dev", "dirty", "test"}
+	for _, pattern := range excludePatterns {
+		if strings.Contains(version, pattern) {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
@@ -397,6 +413,12 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	// This matches what BuildStandardNpmEngineInstallSteps uses
 	agentVersion := getInstallationVersion(data, engine)
 	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
+
+	// CLI version - only include for released builds
+	// Excludes development builds containing "dev", "dirty", or "test"
+	if isReleasedVersion(c.version) {
+		fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
+	}
 
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
