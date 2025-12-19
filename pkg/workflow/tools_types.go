@@ -1,11 +1,5 @@
 package workflow
 
-import (
-	"github.com/githubnext/gh-aw/pkg/logger"
-)
-
-var toolsTypesLog = logger.New("workflow:tools_types")
-
 // ToolsConfig represents the unified configuration for all tools in a workflow.
 // This type provides a structured alternative to the pervasive map[string]any pattern.
 // It includes strongly-typed fields for built-in tools and a flexible Custom map for
@@ -247,8 +241,6 @@ type MCPGatewayConfig struct {
 	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
 }
-
-
 
 // HasTool checks if a tool is present in the configuration
 func (t *Tools) HasTool(name string) bool {
