@@ -1,30 +1,30 @@
-name: 🚀 Start a Campaign
-description: Create a new campaign with AI assistance - just tell us your goal and we'll generate the details
-title: "[Campaign] "
+name: 🚀 Start an Agentic Campaign
+description: Create a new agentic campaign with AI assistance - just tell us your goal and we'll generate the details
+title: "[Agentic Campaign] "
 labels: ["campaign", "campaign-tracker"]
 body:
   - type: markdown
     attributes:
       value: |
-        ## Start a Campaign with AI Assistance
+        ## Start an Agentic Campaign with AI Assistance
         
-        Our AI campaign expert will help you create a comprehensive campaign specification. Just provide:
+        Our AI campaign expert will help you create a comprehensive agentic campaign specification. Just provide:
         1. Your project board URL (for tracking)
         2. A simple description of what you want to achieve
         
         The AI will generate all the technical details, best practices, and governance policies for you.
         
         **What happens next:**
-        1. An AI agent analyzes your goal and generates a complete campaign spec
+        1. An AI agent analyzes your goal and generates a complete agentic campaign spec
         2. The spec includes recommended workflows, memory paths, approval policies, and more
         3. A pull request is created automatically with the generated files
-        4. Review and merge the PR to activate your campaign
+        4. Review and merge the PR to activate your agentic campaign
 
   - type: input
     id: project_url
     attributes:
       label: Project Board URL
-      description: URL of your GitHub Project board for tracking this campaign
+      description: URL of your GitHub Project board for tracking this agentic campaign
       placeholder: https://github.com/orgs/your-org/projects/123
     validations:
       required: true
@@ -32,9 +32,9 @@ body:
   - type: textarea
     id: campaign_goal
     attributes:
-      label: Campaign Goal
+      label: Agentic Campaign Goal
       description: |
-        What do you want this campaign to accomplish? Be as specific or as high-level as you'd like.
+        What do you want this agentic campaign to accomplish? Be as specific or as high-level as you'd like.
         
         Examples:
         - "Migrate all services from Node.js 16 to Node.js 20"
@@ -42,7 +42,7 @@ body:
         - "Refactor legacy authentication code to use our new auth library"
         - "Upgrade React from v17 to v18 in all frontend projects"
       placeholder: |
-        Describe your campaign goal...
+        Describe your agentic campaign goal...
     validations:
       required: true
 
@@ -65,9 +65,9 @@ body:
         ### How it works
         
         After submitting:
-        1. **This issue becomes your campaign hub** - Track everything here
+        1. **This issue becomes your agentic campaign hub** - Track everything here
         2. **AI generates a comprehensive spec** - Including workflows, governance, and metrics
-        3. **A PR is created automatically** - Contains campaign spec and orchestrator files
-        4. **Review and merge** - Activate your campaign once you're satisfied
+        3. **A PR is created automatically** - Contains agentic campaign spec and orchestrator files
+        4. **Review and merge** - Activate your agentic campaign once you're satisfied
         
         The AI will handle all the technical details and best practices for you!

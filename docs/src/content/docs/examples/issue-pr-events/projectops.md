@@ -126,7 +126,7 @@ For each task:
 The campaign board provides a visual dashboard showing all related work.
 ```
 
-See the [Campaign Workflows Guide](/gh-aw/guides/campaigns/) for comprehensive campaign patterns and coordination strategies.
+See the [Agentic Campaign Workflows Guide](/gh-aw/guides/campaigns/) for comprehensive campaign patterns and coordination strategies.
 
 ### Content-Based Priority Assignment
 
@@ -206,7 +206,7 @@ Project boards can span multiple repositories, but the `update-project` tool ope
 
 ## Additional Resources
 
-- [Campaign Workflows Guide](/gh-aw/guides/campaigns/) - Comprehensive campaign pattern documentation
+- [Agentic Campaign Workflows Guide](/gh-aw/guides/campaigns/) - Comprehensive campaign pattern documentation
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Update Project API](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed API reference
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration

@@ -202,7 +202,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.71
+        run: npm install -g @anthropic-ai/claude-code@2.0.73
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -341,7 +341,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1860,7 +1860,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,code_security,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.25.0"
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
@@ -1899,7 +1899,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.71",
+              agent_version: "2.0.73",
               workflow_name: "Security Fix PR",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6126,7 +6126,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.71
+        run: npm install -g @anthropic-ai/claude-code@2.0.73
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
