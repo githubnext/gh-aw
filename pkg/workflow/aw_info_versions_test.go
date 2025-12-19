@@ -9,22 +9,32 @@ import (
 
 func TestCLIVersionInAwInfo(t *testing.T) {
 	tests := []struct {
-		name        string
-		cliVersion  string
-		engineID    string
-		description string
+		name          string
+		cliVersion    string
+		engineID      string
+		description   string
+		shouldInclude bool
 	}{
 		{
-			name:        "CLI version is stored in aw_info.json",
-			cliVersion:  "1.2.3",
-			engineID:    "copilot",
-			description: "Should include cli_version field with correct value",
+			name:          "Released CLI version is stored in aw_info.json",
+			cliVersion:    "1.2.3",
+			engineID:      "copilot",
+			description:   "Should include cli_version field with correct value for released builds",
+			shouldInclude: true,
 		},
 		{
-			name:        "CLI version with semver prerelease",
-			cliVersion:  "1.2.3-beta.1",
-			engineID:    "claude",
-			description: "Should handle prerelease versions",
+			name:          "CLI version with semver prerelease",
+			cliVersion:    "1.2.3-beta.1",
+			engineID:      "claude",
+			description:   "Should handle prerelease versions",
+			shouldInclude: true,
+		},
+		{
+			name:          "Development CLI version is excluded",
+			cliVersion:    "dev",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for development builds",
+			shouldInclude: false,
 		},
 	}
 
@@ -46,9 +56,19 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			output := yaml.String()
 
 			expectedLine := `cli_version: "` + tt.cliVersion + `"`
-			if !strings.Contains(output, expectedLine) {
-				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
-					tt.description, expectedLine, output)
+			containsVersion := strings.Contains(output, expectedLine)
+
+			if tt.shouldInclude {
+				if !containsVersion {
+					t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+						tt.description, expectedLine, output)
+				}
+			} else {
+				// For dev builds, cli_version should not appear at all
+				if strings.Contains(output, "cli_version:") {
+					t.Errorf("%s: Expected output to NOT contain 'cli_version:' field, got:\n%s",
+						tt.description, output)
+				}
 			}
 		})
 	}

@@ -398,8 +398,11 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	agentVersion := getInstallationVersion(data, engine)
 	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
-	// CLI version - the version of the gh-aw CLI tool
-	fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
+	// CLI version - only include for released builds (version != "dev")
+	// This prevents development/unreleased builds from cluttering the metadata
+	if c.version != "dev" {
+		fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
+	}
 
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
