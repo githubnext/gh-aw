@@ -2863,10 +2863,7 @@ strict: true
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
-  # Transport mode for the safe-inputs MCP server. Only 'http' mode is supported,
-  # which starts the server as a separate step.
-  # (optional)
-  mode: "http"
+
 
 # Runtime environment version overrides. Allows customizing runtime versions
 # (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared
