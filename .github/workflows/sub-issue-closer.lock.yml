@@ -248,8 +248,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.6.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.6.0/awf-linux-x64 -o awf
+          echo "Installing awf from release: v0.7.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.7.0/awf-linux-x64 -o awf
           chmod +x awf
           sudo mv awf /usr/local/bin/
           which awf
@@ -7335,7 +7335,7 @@ jobs:
           };
           
           EOF_795429aa
-          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_95d23c7d'
+          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_4d21ccbd'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7399,14 +7399,35 @@ jobs:
             return undefined;
           }
           
+          /**
+           * Check if the current context is a valid discussion context
+           * @param {string} eventName - GitHub event name
+           * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
+           * @returns {boolean} Whether context is valid for discussion updates
+           */
+          function isDiscussionContext(eventName, _payload) {
+            return eventName === "discussion" || eventName === "discussion_comment";
+          }
+          
+          /**
+           * Get discussion number from the context payload
+           * @param {any} payload - GitHub event payload
+           * @returns {number|undefined} Discussion number or undefined
+           */
+          function getDiscussionNumber(payload) {
+            return payload?.discussion?.number;
+          }
+          
           module.exports = {
             isIssueContext,
             getIssueNumber,
             isPRContext,
             getPRNumber,
+            isDiscussionContext,
+            getDiscussionNumber,
           };
           
-          EOF_95d23c7d
+          EOF_4d21ccbd
           cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />
