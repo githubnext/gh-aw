@@ -67,6 +67,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "daily-team-status.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
 
   agent:
@@ -6479,6 +6484,11 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Daily Team Status"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_stop_time.cjs');
 
   safe_outputs:

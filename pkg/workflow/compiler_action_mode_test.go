@@ -144,7 +144,7 @@ func TestActionModeDetection(t *testing.T) {
 			}
 
 			// Test detection
-			mode := DetectActionMode()
+			mode := DetectActionMode("dev")
 			if mode != tt.expectedMode {
 				t.Errorf("%s: expected mode %s, got %s", tt.description, tt.expectedMode, mode)
 			}
@@ -231,7 +231,7 @@ Test workflow with release mode.
 	// Compile - should auto-detect release mode from GITHUB_REF
 	compiler := NewCompiler(false, "", "1.0.0")
 	// Don't set action mode explicitly - let it auto-detect
-	compiler.SetActionMode(DetectActionMode())
+	compiler.SetActionMode(DetectActionMode("1.0.0"))
 	compiler.SetNoEmit(false)
 
 	if compiler.GetActionMode() != ActionModeRelease {
@@ -306,7 +306,7 @@ Test
 	}()
 
 	compiler := NewCompiler(false, "", "1.0.0")
-	compiler.SetActionMode(DetectActionMode())
+	compiler.SetActionMode(DetectActionMode("dev"))
 	compiler.SetNoEmit(false)
 
 	if compiler.GetActionMode() != ActionModeDev {
