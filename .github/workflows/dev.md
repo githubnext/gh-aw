@@ -2,34 +2,32 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Create an empty pull request for agent to push changes to
+description: Add a poem to the latest discussion
 timeout-minutes: 5
 strict: false
 engine: copilot
 
 permissions:
   contents: read
-  pull-requests: read
+  discussions: read
 
 tools:
-  github: false
-  edit:
-  bash: ["*"]
+  github:
+    toolsets: [discussions]
 imports:
   - shared/gh.md
 safe-outputs:
-  create-pull-request:
-    allow-empty: true
-steps:
-  - name: Download issues data
-    run: |
-      gh pr list --limit 1 --json number,title,body,author,createdAt,mergedAt,state,url
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  update-discussion:
+    target: "*"
+    body:
 ---
 
-Create an empty pull request that prepares a branch for future changes.
-The pull request should have:
-- Title: "Feature: Prepare branch for agent updates"
-- Body: "This is an empty pull request created to prepare a feature branch that an agent can push changes to later."
-- Branch name: "feature/agent-updates"
+Find the latest discussion in this repository and update its body by appending a short, creative poem about GitHub Agentic Workflows.
+
+The poem should:
+- Be 4-8 lines long
+- Mention automation, AI agents, or workflow concepts
+- Be uplifting and inspiring
+- Be added to the existing discussion body
+
+You MUST use the update_discussion tool to update a discussion with a poem in the body. This is required.

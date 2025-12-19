@@ -42,6 +42,19 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating a GitHub discussion
+ */
+interface UpdateDiscussionItem extends BaseSafeOutputItem {
+  type: "update_discussion";
+  /** Optional new discussion title */
+  title?: string;
+  /** Optional new discussion body */
+  body?: string;
+  /** Optional discussion number for target "*" */
+  discussion_number?: number | string;
+}
+
+/**
  * JSONL item for closing a GitHub discussion
  */
 interface CloseDiscussionItem extends BaseSafeOutputItem {
@@ -293,6 +306,7 @@ interface HideCommentItem extends BaseSafeOutputItem {
 type SafeOutputItem =
   | CreateIssueItem
   | CreateDiscussionItem
+  | UpdateDiscussionItem
   | CloseDiscussionItem
   | CloseIssueItem
   | ClosePullRequestItem
@@ -327,6 +341,7 @@ export {
   BaseSafeOutputItem,
   CreateIssueItem,
   CreateDiscussionItem,
+  UpdateDiscussionItem,
   CloseDiscussionItem,
   CloseIssueItem,
   ClosePullRequestItem,

@@ -65,6 +65,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.CreateDiscussions != nil {
 		scriptNames = append(scriptNames, "create_discussion")
 	}
+	if data.SafeOutputs.UpdateDiscussions != nil {
+		scriptNames = append(scriptNames, "update_discussion")
+	}
 	if data.SafeOutputs.CreatePullRequests != nil {
 		scriptNames = append(scriptNames, "create_pull_request")
 	}
@@ -189,6 +192,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		outputs["create_discussion_discussion_number"] = "${{ steps.create_discussion.outputs.discussion_number }}"
 		outputs["create_discussion_discussion_url"] = "${{ steps.create_discussion.outputs.discussion_url }}"
+
+		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+	}
+
+	// 2a. Update Discussion step
+	if data.SafeOutputs.UpdateDiscussions != nil {
+		stepConfig := c.buildUpdateDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		outputs["update_discussion_discussion_number"] = "${{ steps.update_discussion.outputs.discussion_number }}"
+		outputs["update_discussion_discussion_url"] = "${{ steps.update_discussion.outputs.discussion_url }}"
 
 		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
 	}
@@ -943,6 +959,38 @@ func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobN
 		StepID:        "update_pull_request",
 		ScriptName:    "update_pull_request",
 		Script:        getUpdatePullRequestScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
+
+func (c *Compiler) buildUpdateDiscussionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.UpdateDiscussions
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+
+	// Add target environment variable if set
+	if cfg.Target != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", cfg.Target))
+	}
+
+	// Add field update flags - presence of pointer indicates field can be updated
+	if cfg.Title != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_TITLE: \"true\"\n")
+	}
+	if cfg.Body != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_BODY: \"true\"\n")
+	}
+
+	condition := BuildSafeOutputType("update_discussion")
+
+	return SafeOutputStepConfig{
+		StepName:      "Update Discussion",
+		StepID:        "update_discussion",
+		ScriptName:    "update_discussion",
+		Script:        getUpdateDiscussionScript(),
 		CustomEnvVars: customEnvVars,
 		Condition:     condition,
 		Token:         cfg.GitHubToken,

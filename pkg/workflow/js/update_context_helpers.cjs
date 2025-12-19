@@ -61,9 +61,30 @@ function getPRNumber(payload) {
   return undefined;
 }
 
+/**
+ * Check if the current context is a valid discussion context
+ * @param {string} eventName - GitHub event name
+ * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
+ * @returns {boolean} Whether context is valid for discussion updates
+ */
+function isDiscussionContext(eventName, _payload) {
+  return eventName === "discussion" || eventName === "discussion_comment";
+}
+
+/**
+ * Get discussion number from the context payload
+ * @param {any} payload - GitHub event payload
+ * @returns {number|undefined} Discussion number or undefined
+ */
+function getDiscussionNumber(payload) {
+  return payload?.discussion?.number;
+}
+
 module.exports = {
   isIssueContext,
   getIssueNumber,
   isPRContext,
   getPRNumber,
+  isDiscussionContext,
+  getDiscussionNumber,
 };
