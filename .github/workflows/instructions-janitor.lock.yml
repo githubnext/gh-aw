@@ -1956,7 +1956,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "15f4415",
               workflow_name: "Instructions Janitor",
               experimental: true,
               supports_tools_allowlist: true,
