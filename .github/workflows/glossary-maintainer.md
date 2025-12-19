@@ -16,6 +16,8 @@ permissions:
 engine:
   id: copilot
 
+tracker-id: glossary-maintainer
+
 network:
   allowed:
     - defaults

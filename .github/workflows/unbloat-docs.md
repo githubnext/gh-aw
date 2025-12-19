@@ -20,6 +20,7 @@ permissions:
   issues: read
 
 strict: false
+tracker-id: unbloat-docs
 
 # AI engine configuration
 engine:

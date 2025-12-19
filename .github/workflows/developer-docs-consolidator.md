@@ -15,6 +15,7 @@ permissions:
 
 engine: claude
 strict: false
+tracker-id: developer-docs-consolidator
 
 network:
   allowed:

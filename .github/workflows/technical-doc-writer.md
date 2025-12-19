@@ -17,6 +17,8 @@ permissions:
 engine:
   id: copilot
 
+tracker-id: technical-doc-writer
+
 network:
   allowed:
     - defaults

@@ -9,6 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+tracker-id: docs-noob-tester
 timeout-minutes: 30
 tools:
   playwright:

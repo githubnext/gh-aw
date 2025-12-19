@@ -6204,6 +6204,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
+          GH_AW_TRACKER_ID: "developer-docs-consolidator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6296,6 +6297,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
+          GH_AW_TRACKER_ID: "developer-docs-consolidator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6407,6 +6409,7 @@ jobs:
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
+          GH_AW_TRACKER_ID: "developer-docs-consolidator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -8002,6 +8005,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
+          GH_AW_TRACKER_ID: "developer-docs-consolidator"
           GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -8292,6 +8296,7 @@ jobs:
           GH_AW_PR_DRAFT: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_WORKFLOW_NAME: "Developer Documentation Consolidator"
+          GH_AW_TRACKER_ID: "developer-docs-consolidator"
           GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
