@@ -104,8 +104,12 @@ func FuzzSanitizeLabelContent(f *testing.F) {
 
 		// Basic sanity checks on the result
 		if result != nil {
-			// Result should not be longer than input + some overhead for backticks
-			expectedMaxLen := len(text) + len(text)/2
+			// Result can be longer than input due to backtick wrapping and escaping
+			// Allow up to 3x the input length to account for:
+			// - Backtick wrapping of mentions (adds 2 chars per mention)
+			// - HTML entity escaping
+			// - Other sanitization operations
+			expectedMaxLen := len(text) * 3
 			if len(result.Sanitized) > expectedMaxLen {
 				t.Errorf("Sanitized result is unexpectedly longer than input (input: %d, result: %d)",
 					len(text), len(result.Sanitized))

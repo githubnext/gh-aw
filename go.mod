@@ -9,7 +9,7 @@ require (
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/goccy/go-yaml v1.19.0
+	github.com/goccy/go-yaml v1.19.1
 	github.com/google/jsonschema-go v0.4.0
 	github.com/modelcontextprotocol/go-sdk v1.1.1-0.20251212184941-875d1d30c2af
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
