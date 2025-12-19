@@ -2612,7 +2612,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "dev",
+              cli_version: "18f485f",
               workflow_name: "Resource Summarizer Agent",
               experimental: false,
               supports_tools_allowlist: true,
