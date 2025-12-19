@@ -3803,6 +3803,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
+              cli_version: "6b5021d",
               workflow_name: "Smoke Copilot Playwright",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3819,7 +3820,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["accounts.google.com","android.clients.google.com","api.github.com","clients2.google.com","defaults","github","node","playwright","www.google.com"],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -3866,7 +3867,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
