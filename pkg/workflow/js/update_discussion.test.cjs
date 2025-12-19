@@ -291,4 +291,53 @@ describe("update_discussion.cjs", () => {
     expect(mockCore.info).toHaveBeenCalledWith("No valid updates to apply for this item");
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
+
+  it("should use custom footer message when configured", async () => {
+    setAgentOutput({
+      items: [{ type: "update_discussion", body: "New discussion body" }],
+    });
+    process.env.GH_AW_UPDATE_BODY = "true";
+    process.env.GH_AW_WORKFLOW_NAME = "Custom Workflow";
+    process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+      footer: "> Custom footer by [{workflow_name}]({run_url})",
+    });
+    global.context.eventName = "discussion";
+    global.context.runId = 789;
+
+    const mockDiscussion = {
+      id: "D_kwDOABCD123",
+      number: 123,
+      title: "Test Discussion",
+      body: "Old body",
+      url: "https://github.com/testowner/testrepo/discussions/123",
+    };
+
+    // Mock the query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: mockDiscussion,
+      },
+    });
+
+    // Mock the update and capture the body parameter
+    let capturedBody;
+    mockGithub.graphql.mockImplementationOnce((query, variables) => {
+      capturedBody = variables.body;
+      return Promise.resolve({
+        updateDiscussion: {
+          discussion: {
+            ...mockDiscussion,
+            body: variables.body,
+          },
+        },
+      });
+    });
+
+    await eval(`(async () => { ${updateDiscussionScript} })()`);
+
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    // Verify the custom footer was used
+    expect(capturedBody).toContain("Custom footer by");
+    expect(capturedBody).toContain("Custom Workflow");
+  });
 });

@@ -3,7 +3,7 @@
 
 const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 
 // Use shared helper for staged preview rendering
 const renderStagedItem = createRenderStagedItem({
@@ -72,7 +72,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     const triggeringDiscussionNumber = context.payload.discussion?.number;
 
     // Append footer to the body
-    const footer = generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
+    const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
     fieldsToUpdate.body = fieldsToUpdate.body + footer;
   }
 
