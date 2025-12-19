@@ -36,6 +36,27 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			description:   "Should NOT include cli_version field for development builds",
 			shouldInclude: false,
 		},
+		{
+			name:          "Dirty CLI version is excluded",
+			cliVersion:    "1.2.3-dirty",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for dirty builds",
+			shouldInclude: false,
+		},
+		{
+			name:          "Test CLI version is excluded",
+			cliVersion:    "1.0.0-test",
+			engineID:      "claude",
+			description:   "Should NOT include cli_version field for test builds",
+			shouldInclude: false,
+		},
+		{
+			name:          "Git hash with dirty suffix is excluded",
+			cliVersion:    "708d3ee-dirty",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for git hash with dirty suffix",
+			shouldInclude: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -142,7 +163,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 
 func TestBothVersionsInAwInfo(t *testing.T) {
 	// Test that both CLI version and AWF version are present simultaneously
-	compiler := NewCompiler(false, "", "2.0.0-test")
+	compiler := NewCompiler(false, "", "2.0.0-beta.5")
 	registry := GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine("copilot")
 	if err != nil {
@@ -164,7 +185,7 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 	output := yaml.String()
 
 	// Check for cli_version
-	expectedCLILine := `cli_version: "2.0.0-test"`
+	expectedCLILine := `cli_version: "2.0.0-beta.5"`
 	if !strings.Contains(output, expectedCLILine) {
 		t.Errorf("Expected output to contain cli_version '%s', got:\n%s", expectedCLILine, output)
 	}
