@@ -25,14 +25,17 @@ This command:
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
 - Removes old prompt files from .github/prompts/ if they exist
 
+By default (without --no-mcp):
+- Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
+- Creates .vscode/mcp.json with gh-aw MCP server configuration
+
+With --no-mcp flag:
+- Skips creating GitHub Copilot Agent MCP server configuration files
+
 With --tokens flag:
 - Validates which required and optional secrets are configured
 - Provides commands to set up missing secrets for the specified engine
 - Use with --engine flag to check engine-specific tokens (copilot, claude, codex)
-
-With --mcp flag:
-- Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
-- Creates .vscode/mcp.json with gh-aw MCP server configuration
 
 With --codespaces flag:
 - Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
@@ -54,18 +57,21 @@ After running this command, you can:
 Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
-  ` + constants.CLIExtensionPrefix + ` init --mcp
+  ` + constants.CLIExtensionPrefix + ` init --no-mcp
   ` + constants.CLIExtensionPrefix + ` init --tokens --engine copilot
   ` + constants.CLIExtensionPrefix + ` init --codespaces
   ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			mcp, _ := cmd.Flags().GetBool("mcp")
+			noMcp, _ := cmd.Flags().GetBool("no-mcp")
 			campaign, _ := cmd.Flags().GetBool("campaign")
 			tokens, _ := cmd.Flags().GetBool("tokens")
 			engine, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
+			
+			// MCP is enabled by default, unless --no-mcp is specified
+			mcp := !noMcp
 
 			// Trim the codespace repos string (NoOptDefVal uses a space)
 			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
@@ -90,7 +96,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
+	cmd.Flags().Bool("no-mcp", false, "Skip configuring GitHub Copilot Agent MCP server integration")
 	cmd.Flags().Bool("campaign", false, "Install the Campaign Designer agent for gh-aw campaigns in this repository")
 	cmd.Flags().Bool("tokens", false, "Validate required secrets for agentic workflows")
 	cmd.Flags().String("engine", "", "AI engine to check tokens for (copilot, claude, codex) - requires --tokens flag")
