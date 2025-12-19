@@ -398,6 +398,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	agentVersion := getInstallationVersion(data, engine)
 	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
+	// CLI version - the version of the gh-aw CLI tool
+	fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
+
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
 	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
@@ -435,6 +438,10 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		if data.NetworkPermissions.Firewall != nil {
 			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
 			firewallVersion = data.NetworkPermissions.Firewall.Version
+			// Use default firewall version when enabled but not explicitly set
+			if firewallEnabled && firewallVersion == "" {
+				firewallVersion = string(constants.DefaultFirewallVersion)
+			}
 		}
 	}
 
@@ -449,7 +456,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	fmt.Fprintf(yaml, "              firewall_enabled: %t,\n", firewallEnabled)
-	fmt.Fprintf(yaml, "              firewall_version: \"%s\",\n", firewallVersion)
+	fmt.Fprintf(yaml, "              awf_version: \"%s\",\n", firewallVersion)
 
 	// Add steps object with firewall information
 	yaml.WriteString("              steps: {\n")
@@ -518,7 +525,7 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("              '|----------|-------|\\n' +\n")
 	yaml.WriteString("              `| Mode | ${awInfo.network_mode || 'defaults'} |\\n` +\n")
 	yaml.WriteString("              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
-	yaml.WriteString("              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\\n` +\n")
+	yaml.WriteString("              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\\n` +\n")
 	yaml.WriteString("              '\\n' +\n")
 	yaml.WriteString("              (networkDetails ? `##### Allowed Domains\\n${networkDetails}\\n` : '') +\n")
 	yaml.WriteString("              '</details>';\n")
