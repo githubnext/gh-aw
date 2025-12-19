@@ -3647,6 +3647,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
               agent_version: "0.73.0",
+              cli_version: "15f4415",
               workflow_name: "Daily Project Performance Summary Generator (Using Safe Inputs)",
               experimental: true,
               supports_tools_allowlist: true,
