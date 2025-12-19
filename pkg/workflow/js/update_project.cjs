@@ -309,6 +309,9 @@ async function updateProject(output) {
             }
             valueToSet = { singleSelectOptionId: option.id };
           } else if (field.dataType === "DATE") {
+            // Date fields use ProjectV2FieldValue input type with date property
+            // The date value must be in ISO 8601 format (YYYY-MM-DD) with no time component
+            // Unlike other field types that may require IDs, date fields accept the date string directly
             valueToSet = { date: String(fieldValue) };
           } else valueToSet = { text: String(fieldValue) };
           await github.graphql(
