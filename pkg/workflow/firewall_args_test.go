@@ -176,8 +176,8 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with default version
-		expectedImageTag := "--image-tag " + string(constants.DefaultFirewallVersion)
+		// Check that --image-tag is included with default version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
@@ -207,15 +207,15 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with custom version
-		expectedImageTag := "--image-tag " + customVersion
+		// Check that --image-tag is included with custom version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
 
 		// Ensure default version is not used when custom version is specified
-		defaultImageTag := "--image-tag " + string(constants.DefaultFirewallVersion)
-		if customVersion != string(constants.DefaultFirewallVersion) && strings.Contains(stepContent, defaultImageTag) {
+		defaultImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		if strings.TrimPrefix(customVersion, "v") != strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") && strings.Contains(stepContent, defaultImageTag) {
 			t.Error("Should use custom version, not default version")
 		}
 	})

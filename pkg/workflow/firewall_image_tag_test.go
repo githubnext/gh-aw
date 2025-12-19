@@ -9,28 +9,42 @@ import (
 
 // TestGetAWFImageTag tests the getAWFImageTag helper function
 func TestGetAWFImageTag(t *testing.T) {
-	t.Run("returns default version when firewall config is nil", func(t *testing.T) {
+	t.Run("returns default version without v prefix when firewall config is nil", func(t *testing.T) {
 		result := getAWFImageTag(nil)
-		expected := string(constants.DefaultFirewallVersion)
+		// DefaultFirewallVersion is "v0.7.0", but getAWFImageTag strips the "v" prefix
+		expected := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if result != expected {
 			t.Errorf("Expected %s, got %s", expected, result)
 		}
 	})
 
-	t.Run("returns default version when version is empty", func(t *testing.T) {
+	t.Run("returns default version without v prefix when version is empty", func(t *testing.T) {
 		config := &FirewallConfig{
 			Enabled: true,
 			Version: "",
 		}
 		result := getAWFImageTag(config)
-		expected := string(constants.DefaultFirewallVersion)
+		expected := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if result != expected {
 			t.Errorf("Expected %s, got %s", expected, result)
 		}
 	})
 
-	t.Run("returns custom version when specified", func(t *testing.T) {
+	t.Run("returns custom version without v prefix when specified", func(t *testing.T) {
 		customVersion := "v0.5.0"
+		config := &FirewallConfig{
+			Enabled: true,
+			Version: customVersion,
+		}
+		result := getAWFImageTag(config)
+		expected := "0.5.0" // v prefix stripped
+		if result != expected {
+			t.Errorf("Expected %s, got %s", expected, result)
+		}
+	})
+
+	t.Run("returns version unchanged when no v prefix present", func(t *testing.T) {
+		customVersion := "0.6.0"
 		config := &FirewallConfig{
 			Enabled: true,
 			Version: customVersion,
@@ -66,8 +80,8 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with default version
-		expectedImageTag := "--image-tag " + string(constants.DefaultFirewallVersion)
+		// Check that --image-tag is included with default version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
@@ -97,8 +111,8 @@ func TestClaudeEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with custom version
-		expectedImageTag := "--image-tag " + customVersion
+		// Check that --image-tag is included with custom version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
@@ -129,8 +143,8 @@ func TestCodexEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with default version
-		expectedImageTag := "--image-tag " + string(constants.DefaultFirewallVersion)
+		// Check that --image-tag is included with default version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
@@ -160,8 +174,8 @@ func TestCodexEngineAWFImageTag(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// Check that --image-tag is included with custom version
-		expectedImageTag := "--image-tag " + customVersion
+		// Check that --image-tag is included with custom version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
 		if !strings.Contains(stepContent, expectedImageTag) {
 			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
 		}
