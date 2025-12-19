@@ -2130,6 +2130,12 @@ jobs:
             status: "Todo"  # or "Done" if issue is already closed
           ```
           
+          **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
+          - `Start Date` is set from the issue's `createdAt` timestamp
+          - `End Date` is set from the issue's `closedAt` timestamp (if closed)
+          
+          No additional configuration is needed. The dates are extracted in ISO format (YYYY-MM-DD) and only populate if the fields exist and aren't already set. This enables roadmap timeline visualization.
+          
           #### Updating Existing Items
           
           When updating status for an existing board item:
