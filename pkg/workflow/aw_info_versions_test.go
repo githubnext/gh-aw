@@ -9,10 +9,10 @@ import (
 
 func TestCLIVersionInAwInfo(t *testing.T) {
 	tests := []struct {
-		name           string
-		cliVersion     string
-		engineID       string
-		description    string
+		name        string
+		cliVersion  string
+		engineID    string
+		description string
 	}{
 		{
 			name:        "CLI version is stored in aw_info.json",
@@ -56,11 +56,11 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 
 func TestAwfVersionInAwInfo(t *testing.T) {
 	tests := []struct {
-		name                 string
-		firewallEnabled      bool
-		firewallVersion      string
-		expectedAwfVersion   string
-		description          string
+		name               string
+		firewallEnabled    bool
+		firewallVersion    string
+		expectedAwfVersion string
+		description        string
 	}{
 		{
 			name:               "Firewall enabled with explicit version",
