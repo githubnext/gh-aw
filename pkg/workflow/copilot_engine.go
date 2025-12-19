@@ -385,6 +385,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/copilot:/usr/local/bin/copilot:ro")
 		copilotLog.Print("Added gh CLI and copilot binary mounts to AWF container")
 
+		// Add toolchain mounts if specified
+		if agentConfig != nil && len(agentConfig.Toolchains) > 0 {
+			toolchainMounts := GetToolchainMounts(agentConfig.Toolchains)
+			// Sort mounts for consistent output
+			sort.Strings(toolchainMounts)
+
+			for _, mount := range toolchainMounts {
+				awfArgs = append(awfArgs, "--mount", mount)
+			}
+			copilotLog.Printf("Added %d toolchain mounts from agent config", len(toolchainMounts))
+		}
+
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 			// Sort mounts for consistent output
@@ -517,6 +529,19 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 			env[key] = value
 		}
 		copilotLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+	}
+
+	// Add PATH modifications for toolchains
+	if agentConfig != nil && len(agentConfig.Toolchains) > 0 {
+		pathAdditions := GetToolchainPATHAdditions(agentConfig.Toolchains)
+		if len(pathAdditions) > 0 {
+			// Sort for consistent output
+			sort.Strings(pathAdditions)
+			// Prepend toolchain paths to the existing PATH
+			// Use shell expansion to preserve existing PATH
+			env["PATH"] = strings.Join(pathAdditions, ":") + ":$PATH"
+			copilotLog.Printf("Added %d toolchain PATH additions", len(pathAdditions))
+		}
 	}
 
 	// Add HTTP MCP header secrets to env for passthrough

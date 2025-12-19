@@ -143,6 +143,53 @@ Custom mounts are useful for:
 - Making custom tools available in the container
 - Sharing cache directories between host and container
 
+##### Toolchains
+
+Add programming language toolchains to the AWF container:
+
+```yaml wrap
+sandbox:
+  agent:
+    id: awf
+    toolchains:
+      - go
+      - node
+```
+
+Toolchains automatically mount the necessary binaries and add them to PATH. This is a simpler alternative to manually configuring mounts and environment variables.
+
+Supported toolchains:
+- `go` - Go compiler (`/usr/local/go/bin`)
+- `node` - Node.js runtime (`node`, `npm`, `npx`)
+- `python` - Python 3 interpreter (`python3`, `pip3`)
+- `ruby` - Ruby runtime (`ruby`, `gem`, `bundle`)
+- `rust` - Rust toolchain (`~/.cargo/bin`)
+- `java` - Java JDK (`java`, `javac`)
+- `dotnet` - .NET SDK (`dotnet`)
+
+Example with Go toolchain:
+```yaml wrap
+sandbox:
+  agent:
+    id: awf
+    toolchains:
+      - go
+network:
+  allowed:
+    - defaults
+```
+
+This is equivalent to manually configuring:
+```yaml wrap
+sandbox:
+  agent:
+    id: awf
+    mounts:
+      - "/usr/local/go/bin:/usr/local/go/bin:ro"
+    env:
+      PATH: "/usr/local/go/bin:$PATH"
+```
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `string` | Agent identifier: `awf` or `srt` |
@@ -150,6 +197,7 @@ Custom mounts are useful for:
 | `args` | `string[]` | Additional arguments appended to the command |
 | `env` | `object` | Environment variables set on the execution step |
 | `mounts` | `string[]` | Container mounts using syntax `source:destination:mode` |
+| `toolchains` | `string[]` | Toolchains to mount (e.g., `go`, `node`, `python`) |
 
 When `command` is specified, the standard AWF installation is skipped and your custom command is used instead.
 

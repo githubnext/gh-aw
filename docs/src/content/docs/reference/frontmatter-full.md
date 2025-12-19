@@ -1005,6 +1005,14 @@ sandbox:
     mounts: []
       # Array of Mount specification in format 'source:destination:mode'
 
+    # Toolchains to mount into the AWF container. Each toolchain automatically mounts
+    # the necessary binaries and adds them to PATH. Supported toolchains: 'go' (Go
+    # compiler), 'node' (Node.js runtime), 'python' (Python 3 interpreter), 'ruby'
+    # (Ruby runtime), 'rust' (Rust toolchain), 'java' (Java JDK), 'dotnet' (.NET SDK).
+    # (optional)
+    toolchains: []
+      # Array of Toolchain identifier
+
     # Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note:
     # Network configuration is controlled by the top-level 'network' field, not here.
     # (optional)

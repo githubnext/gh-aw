@@ -36,14 +36,46 @@ type SandboxConfig struct {
 
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
-	ID       string                `yaml:"id,omitempty"`      // Agent ID: "awf" or "srt" (replaces Type in new object format)
-	Type     SandboxType           `yaml:"type,omitempty"`    // Sandbox type: "awf" or "srt" (legacy, use ID instead)
-	Disabled bool                  `yaml:"-"`                 // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	Config   *SandboxRuntimeConfig `yaml:"config,omitempty"`  // Custom SRT config (optional)
-	Command  string                `yaml:"command,omitempty"` // Custom command to replace AWF or SRT installation
-	Args     []string              `yaml:"args,omitempty"`    // Additional arguments to append to the command
-	Env      map[string]string     `yaml:"env,omitempty"`     // Environment variables to set on the step
-	Mounts   []string              `yaml:"mounts,omitempty"`  // Container mounts to add for AWF (format: "source:dest:mode")
+	ID         string                `yaml:"id,omitempty"`         // Agent ID: "awf" or "srt" (replaces Type in new object format)
+	Type       SandboxType           `yaml:"type,omitempty"`       // Sandbox type: "awf" or "srt" (legacy, use ID instead)
+	Disabled   bool                  `yaml:"-"`                    // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
+	Config     *SandboxRuntimeConfig `yaml:"config,omitempty"`     // Custom SRT config (optional)
+	Command    string                `yaml:"command,omitempty"`    // Custom command to replace AWF or SRT installation
+	Args       []string              `yaml:"args,omitempty"`       // Additional arguments to append to the command
+	Env        map[string]string     `yaml:"env,omitempty"`        // Environment variables to set on the step
+	Mounts     []string              `yaml:"mounts,omitempty"`     // Container mounts to add for AWF (format: "source:dest:mode")
+	Toolchains []string              `yaml:"toolchains,omitempty"` // Toolchains to mount into the container (e.g., "go", "node", "python")
+}
+
+// ToolchainConfig defines the mount configuration for a toolchain
+type ToolchainConfig struct {
+	BinPaths []string // Paths containing binaries to mount (read-only)
+}
+
+// SupportedToolchains maps toolchain names to their configurations
+// These are the standard toolchain paths available on GitHub Actions runners
+var SupportedToolchains = map[string]ToolchainConfig{
+	"go": {
+		BinPaths: []string{"/usr/local/go/bin"},
+	},
+	"node": {
+		BinPaths: []string{"/usr/local/bin/node", "/usr/local/bin/npm", "/usr/local/bin/npx"},
+	},
+	"python": {
+		BinPaths: []string{"/usr/bin/python3", "/usr/bin/pip3"},
+	},
+	"ruby": {
+		BinPaths: []string{"/usr/bin/ruby", "/usr/bin/gem", "/usr/bin/bundle"},
+	},
+	"rust": {
+		BinPaths: []string{"/home/runner/.cargo/bin"},
+	},
+	"java": {
+		BinPaths: []string{"/usr/bin/java", "/usr/bin/javac"},
+	},
+	"dotnet": {
+		BinPaths: []string{"/usr/bin/dotnet"},
+	},
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
@@ -264,6 +296,93 @@ func validateMountsSyntax(mounts []string) error {
 	return nil
 }
 
+// validateToolchains validates that the specified toolchains are supported
+func validateToolchains(toolchains []string) error {
+	for i, toolchain := range toolchains {
+		if _, exists := SupportedToolchains[toolchain]; !exists {
+			supportedList := make([]string, 0, len(SupportedToolchains))
+			for name := range SupportedToolchains {
+				supportedList = append(supportedList, name)
+			}
+			SortStrings(supportedList)
+			return fmt.Errorf("unsupported toolchain at index %d: '%s'. Supported toolchains: %s", i, toolchain, strings.Join(supportedList, ", "))
+		}
+		sandboxLog.Printf("Validated toolchain %d: %s", i, toolchain)
+	}
+	return nil
+}
+
+// GetToolchainMounts returns the mount specifications for the given toolchains
+// Each mount is in the format "source:destination:ro"
+func GetToolchainMounts(toolchains []string) []string {
+	var mounts []string
+	seen := make(map[string]bool)
+
+	for _, toolchain := range toolchains {
+		config, exists := SupportedToolchains[toolchain]
+		if !exists {
+			continue
+		}
+
+		for _, binPath := range config.BinPaths {
+			// Avoid duplicate mounts
+			if seen[binPath] {
+				continue
+			}
+			seen[binPath] = true
+
+			// Mount the path read-only (same path in container as on host)
+			mount := fmt.Sprintf("%s:%s:ro", binPath, binPath)
+			mounts = append(mounts, mount)
+			sandboxLog.Printf("Adding toolchain mount: %s", mount)
+		}
+	}
+
+	return mounts
+}
+
+// GetToolchainPATHAdditions returns the PATH additions for the given toolchains
+// Returns a slice of directory paths to prepend to PATH
+func GetToolchainPATHAdditions(toolchains []string) []string {
+	var pathAdditions []string
+	seen := make(map[string]bool)
+
+	for _, toolchain := range toolchains {
+		config, exists := SupportedToolchains[toolchain]
+		if !exists {
+			continue
+		}
+
+		for _, binPath := range config.BinPaths {
+			// For directories, add them directly to PATH
+			// For files, add the parent directory
+			var pathDir string
+			if strings.HasSuffix(binPath, "/bin") || strings.HasSuffix(binPath, "/sbin") {
+				// It's a directory like /usr/local/go/bin
+				pathDir = binPath
+			} else if strings.Contains(binPath, "/bin/") {
+				// It's a file like /usr/local/bin/node, add directory
+				pathDir = binPath[:strings.LastIndex(binPath, "/")]
+			} else if strings.HasSuffix(binPath, "/") {
+				// It's explicitly a directory
+				pathDir = strings.TrimSuffix(binPath, "/")
+			} else {
+				// Assume it's a file, add parent directory
+				pathDir = binPath[:strings.LastIndex(binPath, "/")]
+			}
+
+			// Avoid duplicate path additions
+			if seen[pathDir] {
+				continue
+			}
+			seen[pathDir] = true
+			pathAdditions = append(pathAdditions, pathDir)
+		}
+	}
+
+	return pathAdditions
+}
+
 // validateSandboxConfig validates the sandbox configuration
 // Returns an error if the configuration is invalid
 func validateSandboxConfig(workflowData *WorkflowData) error {
@@ -277,6 +396,13 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	agentConfig := getAgentConfig(workflowData)
 	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
+			return err
+		}
+	}
+
+	// Validate toolchains if specified
+	if agentConfig != nil && len(agentConfig.Toolchains) > 0 {
+		if err := validateToolchains(agentConfig.Toolchains); err != nil {
 			return err
 		}
 	}

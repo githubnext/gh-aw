@@ -873,6 +873,17 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract toolchains (toolchains to mount into the container)
+	if toolchainsVal, hasToolchains := agentObj["toolchains"]; hasToolchains {
+		if toolchainsSlice, ok := toolchainsVal.([]any); ok {
+			for _, toolchain := range toolchainsSlice {
+				if toolchainStr, ok := toolchain.(string); ok {
+					agentConfig.Toolchains = append(agentConfig.Toolchains, toolchainStr)
+				}
+			}
+		}
+	}
+
 	return agentConfig
 }
 
