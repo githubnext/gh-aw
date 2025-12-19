@@ -2027,7 +2027,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.73",
-              cli_version: "91fdc70",
+              cli_version: "e63fd5a",
               workflow_name: "Copilot Agent Prompt Clustering Analysis",
               experimental: true,
               supports_tools_allowlist: true,

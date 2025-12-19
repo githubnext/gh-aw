@@ -2415,7 +2415,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
               agent_version: "0.75.0",
-              cli_version: "91fdc70",
+              cli_version: "e63fd5a",
               workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
