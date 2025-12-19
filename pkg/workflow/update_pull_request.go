@@ -16,44 +16,34 @@ type UpdatePullRequestsConfig struct {
 // parseUpdatePullRequestsConfig handles update-pull-request configuration
 func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *UpdatePullRequestsConfig {
 	updatePullRequestLog.Print("Parsing update pull request configuration")
-	params := UpdateEntityJobParams{
-		EntityType: UpdateEntityPullRequest,
-		ConfigKey:  "update-pull-request",
-	}
 
-	parseSpecificFields := func(configMap map[string]any, baseConfig *UpdateEntityConfig) {
-		// This will be called during parsing to handle PR-specific fields
-		// The actual UpdatePullRequestsConfig fields are handled separately since they're not in baseConfig
-	}
-
-	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updatePullRequestLog, parseSpecificFields)
+	// Parse base configuration using helper
+	baseConfig, configMap := c.parseUpdateEntityBase(outputMap, UpdateEntityPullRequest, "update-pull-request", updatePullRequestLog)
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdatePullRequestsConfig and populate it
+	// Create UpdatePullRequestsConfig with base fields
 	updatePullRequestsConfig := &UpdatePullRequestsConfig{
 		UpdateEntityConfig: *baseConfig,
 	}
 
-	// Parse PR-specific fields
-	if configData, exists := outputMap["update-pull-request"]; exists {
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title - boolean to enable/disable (defaults to true if nil or not set)
-			if titleVal, exists := configMap["title"]; exists {
-				if titleBool, ok := titleVal.(bool); ok {
-					updatePullRequestsConfig.Title = &titleBool
-				}
-				// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
+	// Parse PR-specific fields from config map
+	if configMap != nil {
+		// Parse title - boolean to enable/disable (defaults to true if nil or not set)
+		if titleVal, exists := configMap["title"]; exists {
+			if titleBool, ok := titleVal.(bool); ok {
+				updatePullRequestsConfig.Title = &titleBool
 			}
+			// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
+		}
 
-			// Parse body - boolean to enable/disable (defaults to true if nil or not set)
-			if bodyVal, exists := configMap["body"]; exists {
-				if bodyBool, ok := bodyVal.(bool); ok {
-					updatePullRequestsConfig.Body = &bodyBool
-				}
-				// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
+		// Parse body - boolean to enable/disable (defaults to true if nil or not set)
+		if bodyVal, exists := configMap["body"]; exists {
+			if bodyBool, ok := bodyVal.(bool); ok {
+				updatePullRequestsConfig.Body = &bodyBool
 			}
+			// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
 		}
 	}
 
