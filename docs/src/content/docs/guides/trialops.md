@@ -289,7 +289,7 @@ gh aw trial ./workflow.md --clone-repo myorg/production --trigger-context "https
 
 - [SideRepoOps](/gh-aw/guides/siderepoops/) - Run workflows from separate repositories
 - [MultiRepoOps](/gh-aw/guides/multirepoops/) - Coordinate across multiple repositories
-- [Campaigns](/gh-aw/guides/campaigns/) - Orchestrate multi-issue initiatives
+- [Agentic campaigns](/gh-aw/guides/campaigns/) - Orchestrate multi-issue initiatives
 - [CLI Commands](/gh-aw/setup/cli/) - Complete CLI reference
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Configuration options
 - [Workflow Triggers](/gh-aw/reference/triggers/) - Including workflow_dispatch
