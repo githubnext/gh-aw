@@ -428,7 +428,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("strict mode allows sandbox.agent: false for non-copilot engines", func(t *testing.T) {
+	t.Run("strict mode refuses sandbox.agent: false for all engines", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.SetStrictMode(true)
 
@@ -444,10 +444,14 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 			},
 		}
 
-		// Non-copilot engines should still allow sandbox.agent: false
+		// All engines should refuse sandbox.agent: false in strict mode
 		err := compiler.validateStrictFirewall("claude", networkPerms, sandboxConfig)
-		if err != nil {
-			t.Errorf("Expected no error for non-copilot engine with sandbox.agent: false, got: %v", err)
+		if err == nil {
+			t.Error("Expected error for non-copilot engine with sandbox.agent: false in strict mode")
+		}
+		expectedMsg := "sandbox.agent: false"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 		}
 	})
 
