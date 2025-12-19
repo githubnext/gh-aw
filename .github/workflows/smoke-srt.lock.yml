@@ -1740,6 +1740,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
+              cli_version: "dev",
               workflow_name: "Smoke SRT",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1756,7 +1757,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","github","node","*.githubcopilot.com","example.com"],
               firewall_enabled: false,
-              firewall_version: "",
+              awf_version: "",
               steps: {
                 firewall: ""
               },
@@ -1803,7 +1804,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';

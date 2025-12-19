@@ -100,6 +100,23 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 		}
 	})
 
+	t.Run("codex engine with network restrictions enables firewall by default", func(t *testing.T) {
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"api.openai.com"},
+			ExplicitlyDefined: true,
+		}
+
+		enableFirewallByDefaultForCopilot("codex", networkPerms, nil)
+
+		if networkPerms.Firewall == nil {
+			t.Error("Expected firewall to be enabled by default for codex engine with network restrictions")
+		}
+
+		if !networkPerms.Firewall.Enabled {
+			t.Error("Expected firewall.Enabled to be true")
+		}
+	})
+
 	t.Run("nil network permissions does not cause error", func(t *testing.T) {
 		// Should not panic
 		enableFirewallByDefaultForCopilot("copilot", nil, nil)

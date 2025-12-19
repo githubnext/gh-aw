@@ -10,6 +10,7 @@ type UpdateEntityType string
 const (
 	UpdateEntityIssue       UpdateEntityType = "issue"
 	UpdateEntityPullRequest UpdateEntityType = "pull_request"
+	UpdateEntityDiscussion  UpdateEntityType = "discussion"
 	UpdateEntityRelease     UpdateEntityType = "release"
 )
 

@@ -1,3 +1,41 @@
 {{if .ProjectURL}}
-Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: {{.ProjectURL}}
+### Project Board Integration
+
+Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
+
+**Project URL**: {{.ProjectURL}}
+
+#### Adding New Issues
+
+When adding an issue to the project board:
+```
+update-project:
+  project: "{{.ProjectURL}}"
+  item_url: "ISSUE_URL"
+  status: "Todo"  # or "Done" if issue is already closed
+```
+
+#### Updating Existing Items
+
+When updating status for an existing board item:
+```
+update-project:
+  project: "{{.ProjectURL}}"
+  item_url: "ISSUE_URL"
+  status: "Done"  # or "In Progress", "Todo"
+```
+
+#### Idempotency
+
+- If an issue is already on the board with matching status → Skip (no-op)
+- If an issue is already on the board with different status → Update status field only
+- If an issue URL is invalid or deleted → Record failure, continue with remaining items
+
+#### Write Operation Rules
+
+1. **Batch writes separately** - Do not mix reads and writes in the same operation
+2. **Validate before writing** - Confirm issue URL exists and is accessible
+3. **Record all outcomes** - Log success/failure for each write operation
+4. **Never infer state** - Only update based on explicit issue state (open/closed)
+5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
 {{end}}

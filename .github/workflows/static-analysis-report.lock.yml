@@ -1908,6 +1908,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
+              cli_version: "dev",
               workflow_name: "Static Analysis Report",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1924,7 +1925,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: false,
-              firewall_version: "",
+              awf_version: "",
               steps: {
                 firewall: ""
               },
@@ -1971,7 +1972,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';

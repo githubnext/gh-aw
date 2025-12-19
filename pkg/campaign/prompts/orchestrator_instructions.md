@@ -1,37 +1,113 @@
-Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics{{if .ReportBlockers}}, highlight blockers,{{end}} and monitor the progress of associated worker workflows.
+## Campaign Orchestrator Rules
 
-**Tracking Worker Output**: The campaign has knowledge of its workers (listed in the `workflows` field) and monitors their output directly. For each worker workflow:
+This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination:
 
-1. **Query GitHub Actions API for recent workflow runs** using the GitHub MCP server:
-   - Use `github-list_workflow_runs` with the worker's workflow file (e.g., `daily-file-diet.lock.yml`)
-   - Filter for recent completed runs (last 24-48 hours) to find worker activity
-   
-2. **Extract issue URLs from workflow run artifacts**:
-   - Use `github-list_workflow_run_artifacts` to list artifacts from each workflow run
-   - Download the `agent-output` artifact which contains workflow outputs
-   - Parse the artifact to extract issue URLs created by safe-output actions
-   - Look for outputs like: `GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL` in the run logs
-   
-3. **Alternative: Use GitHub Issues search** as a fallback:
-   - Search for recently created issues with labels matching the worker's output patterns
-   - Filter by creation date (within the worker's run time window)
-   - Cross-reference with workflow run timestamps to confirm correlation
-   
-4. **Add discovered issues to the project board**:
-   - Use `update-project` safe-output to add issue URLs to the project board
-   - Set appropriate status fields (e.g., "Todo", "In Progress", "Done")
-   - Preserve any existing project item metadata
-   
-5. **Report on campaign progress**:
-   - Count total issues discovered from worker runs
-   - Track open vs closed issues
-   - Calculate progress percentage
-   - Highlight any issues that need attention
+### Core Principles
 
-Workers operate independently without knowledge of the campaign. The orchestrator discovers their work by monitoring workflow runs, parsing artifacts, and extracting issue URLs from workflow outputs.
+1. **Workers are immutable** - Worker workflows never change based on campaign state
+2. **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
+3. **Campaign logic is external** - All orchestration, sequencing, and decision-making happens here
+4. **Workers only execute work** - No progress tracking or campaign-aware decisions in workers
+5. **Campaign owns all coordination** - Sequencing, retries, continuation, and termination are campaign responsibilities
+6. **State is external** - Campaign state lives in GitHub Projects, not in worker execution
+7. **Single source of truth** - The GitHub Project board is the authoritative campaign state
+8. **Correlation is explicit** - All work shares the campaign's tracker-id for correlation
+9. **Separation of concerns** - State reads and state writes are separate operations
+10. **Predefined fields only** - Only update explicitly defined project board fields
+11. **Explicit outcomes** - Record actual outcomes, never infer status
+12. **Idempotent operations** - Re-execution produces the same result without corruption
 
-**Understanding Empty Boards**: If you find zero items on the project board, this is normal when a campaign is just starting or when all work has been completed. This is not an error condition - simply report the current state. Worker workflows will create issues as they discover work to be done, and the orchestrator will add them to the board on subsequent runs.
+### Orchestration Workflow
 
-{{if .CompletionGuidance}}
-If all issues tracked by the campaign are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
-{{end}}
+Execute these steps in sequence each time this orchestrator runs:
+
+#### Phase 1: Read State (Discovery)
+
+1. **Query worker-created issues** - Search for issues containing the worker's tracker-id
+   - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
+   - Collect all matching issue URLs
+   - Record issue metadata: number, title, state (open/closed), created date, updated date
+
+2. **Query current project state** - Read the GitHub Project board
+   - Retrieve all items currently on the project board
+   - For each item, record: issue URL, status field value, other predefined field values
+   - Create a snapshot of current board state
+
+3. **Compare and identify gaps** - Determine what needs updating
+   - Issues found in step 1 but not on board = **new work to add**
+   - Issues on board with state mismatch = **status to update**
+   - Issues on board but no longer found = **check if archived/deleted**
+
+#### Phase 2: Make Decisions (Planning)
+
+4. **Decide additions** - For each new issue discovered:
+   - Decision: Add to board? (Default: yes for all issues with tracker-id)
+   - Determine initial status field value based on issue state:
+     - Open issue → "Todo" status
+     - Closed issue → "Done" status
+
+5. **Decide updates** - For each existing board item with mismatched state:
+   - Decision: Update status field? (Default: yes if issue state changed)
+   - Determine new status field value:
+     - Open issue → "In Progress" or "Todo"
+     - Closed issue → "Done"
+
+6. **Decide completion** - Check campaign completion criteria:
+   - If all discovered issues are closed AND all board items are "Done" → Campaign complete
+   - Otherwise → Campaign in progress
+
+#### Phase 3: Write State (Execution)
+
+7. **Execute additions** - Add new issues to project board
+   - Use `update-project` safe-output for each new issue
+   - Set predefined fields: `status` (required), optionally `priority`, `size`
+   - Record outcome: success or failure with error details
+
+8. **Execute updates** - Update existing board items
+   - Use `update-project` safe-output for each status change
+   - Update only predefined fields: `status` and related metadata
+   - Record outcome: success or failure with error details
+
+9. **Record completion state** - If campaign is complete:
+   - Mark project metadata field `campaign_status` as "completed"
+   - Do NOT create new work or modify existing items
+   - This is a terminal state
+
+#### Phase 4: Report (Output)
+
+10. **Generate status report** - Summarize execution results:
+    - Total issues discovered via tracker-id
+    - Issues added to board this run (count and URLs)
+    - Issues updated on board this run (count and status changes)
+    - Current campaign metrics: open vs closed, progress percentage
+    - Any failures encountered during writes
+    - Campaign completion status
+
+### Predefined Project Fields
+
+Only these fields may be updated on the project board:
+
+- `status` (required) - Values: "Todo", "In Progress", "Done"
+- `priority` (optional) - Values: "High", "Medium", "Low"
+- `size` (optional) - Values: "Small", "Medium", "Large"
+- `campaign_status` (metadata) - Values: "active", "completed"
+
+Do NOT update any other fields or create custom fields.
+
+### Correlation Mechanism
+
+Workers embed a tracker-id in all created assets via XML comment:
+```
+<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->
+```
+
+The orchestrator uses this tracker-id to discover worker output by searching issue bodies. This correlation is explicit and does not require workers to be aware of the campaign.
+
+### Idempotency Guarantee
+
+All operations must be idempotent:
+- Adding an issue already on the board → No-op (do not duplicate)
+- Updating a status that matches current value → No-op (no change recorded)
+- Marking a completed campaign as completed → No-op (terminal state preserved)
+
+Re-running the orchestrator produces consistent results regardless of how many times it executes.

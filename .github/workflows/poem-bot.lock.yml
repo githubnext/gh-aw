@@ -2358,6 +2358,7 @@ jobs:
               model: "gpt-5",
               version: "",
               agent_version: "0.0.369",
+              cli_version: "dev",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2374,7 +2375,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -2421,7 +2422,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -6074,9 +6075,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -9747,7 +9748,7 @@ jobs:
           };
           
           EOF_967a5011
-          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_95d23c7d'
+          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_4d21ccbd'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -9811,14 +9812,35 @@ jobs:
             return undefined;
           }
           
+          /**
+           * Check if the current context is a valid discussion context
+           * @param {string} eventName - GitHub event name
+           * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
+           * @returns {boolean} Whether context is valid for discussion updates
+           */
+          function isDiscussionContext(eventName, _payload) {
+            return eventName === "discussion" || eventName === "discussion_comment";
+          }
+          
+          /**
+           * Get discussion number from the context payload
+           * @param {any} payload - GitHub event payload
+           * @returns {number|undefined} Discussion number or undefined
+           */
+          function getDiscussionNumber(payload) {
+            return payload?.discussion?.number;
+          }
+          
           module.exports = {
             isIssueContext,
             getIssueNumber,
             isPRContext,
             getPRNumber,
+            isDiscussionContext,
+            getDiscussionNumber,
           };
           
-          EOF_95d23c7d
+          EOF_4d21ccbd
           cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />

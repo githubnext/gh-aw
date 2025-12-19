@@ -1744,6 +1744,7 @@ jobs:
               model: process.env. || "",
               version: "",
               agent_version: "",
+              cli_version: "dev",
               workflow_name: "Issue Classifier",
               experimental: false,
               supports_tools_allowlist: false,
@@ -1760,7 +1761,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: false,
-              firewall_version: "",
+              awf_version: "",
               steps: {
                 firewall: ""
               },
@@ -1807,7 +1808,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';

@@ -143,6 +143,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
       issues: read
       pull-requests: read
     env:
@@ -1891,7 +1892,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,discussions",
                   "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
@@ -1961,6 +1962,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
+              cli_version: "dev",
               workflow_name: "Q",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1977,7 +1979,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -2024,7 +2026,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -2105,10 +2107,11 @@ jobs:
           
           **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
           
-          1. Use GitHub tools to fetch discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
+          1. Use the `list_discussions` tool to fetch discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__
           2. Review the discussion title and body to understand the topic being discussed
-          3. Consider the discussion context when planning your workflow optimizations
-          4. Use this discussion context to inform your investigation and recommendations
+          3. Read any recent comments in the discussion for additional context
+          4. Consider the discussion context when planning your workflow optimizations
+          5. Use this discussion context to inform your investigation and recommendations
           {{/if}}
           </current_context>
           
@@ -5995,9 +5998,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;

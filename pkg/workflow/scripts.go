@@ -79,6 +79,9 @@ var updateIssueScriptSource string
 //go:embed js/update_pull_request.cjs
 var updatePullRequestScriptSource string
 
+//go:embed js/update_discussion.cjs
+var updateDiscussionScriptSource string
+
 //go:embed js/update_pr_description_helpers.cjs
 var updatePRDescriptionHelpersScriptSource string
 
@@ -176,6 +179,7 @@ func init() {
 	DefaultScriptRegistry.Register("close_pull_request", closePullRequestScriptSource)
 	DefaultScriptRegistry.Register("update_issue", updateIssueScriptSource)
 	DefaultScriptRegistry.Register("update_pull_request", updatePullRequestScriptSource)
+	DefaultScriptRegistry.Register("update_discussion", updateDiscussionScriptSource)
 	DefaultScriptRegistry.Register("update_pr_description_helpers", updatePRDescriptionHelpersScriptSource)
 	DefaultScriptRegistry.Register("update_release", updateReleaseScriptSource)
 	DefaultScriptRegistry.Register("create_code_scanning_alert", createCodeScanningAlertScriptSource)
@@ -310,6 +314,11 @@ func getUpdateIssueScript() string {
 // getUpdatePullRequestScript returns the bundled update_pull_request script
 func getUpdatePullRequestScript() string {
 	return DefaultScriptRegistry.GetWithMode("update_pull_request", RuntimeModeGitHubScript)
+}
+
+// getUpdateDiscussionScript returns the bundled update_discussion script
+func getUpdateDiscussionScript() string {
+	return DefaultScriptRegistry.GetWithMode("update_discussion", RuntimeModeGitHubScript)
 }
 
 // getUpdateReleaseScript returns the bundled update_release script
