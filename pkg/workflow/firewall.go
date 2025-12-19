@@ -160,7 +160,7 @@ func enableFirewallByDefaultForEngine(engineID string, networkPermissions *Netwo
 		}
 	}
 
-	// Enable firewall by default for the engine
+	// Enable firewall by default for the engine (copilot, claude, codex)
 	// This applies to all cases EXCEPT when allowed = "*"
 	networkPermissions.Firewall = &FirewallConfig{
 		Enabled: true,

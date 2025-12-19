@@ -390,3 +390,71 @@ func TestGetClaudeAllowedDomains(t *testing.T) {
 		}
 	})
 }
+
+func TestCodexDefaultDomains(t *testing.T) {
+	// Verify that expected Codex domains are present
+	expectedDomains := []string{
+		"api.openai.com",
+		"openai.com",
+	}
+
+	// Create a map for O(1) lookups
+	domainMap := make(map[string]bool)
+	for _, domain := range CodexDefaultDomains {
+		domainMap[domain] = true
+	}
+
+	for _, expected := range expectedDomains {
+		if !domainMap[expected] {
+			t.Errorf("Expected domain %q not found in CodexDefaultDomains", expected)
+		}
+	}
+
+	// Verify the count matches (no extra domains)
+	if len(CodexDefaultDomains) != len(expectedDomains) {
+		t.Errorf("CodexDefaultDomains has %d domains, expected %d", len(CodexDefaultDomains), len(expectedDomains))
+	}
+}
+
+func TestGetCodexAllowedDomains(t *testing.T) {
+	t.Run("nil network permissions returns only defaults", func(t *testing.T) {
+		result := GetCodexAllowedDomains(nil)
+		// Should contain default Codex domains, sorted
+		if result != "api.openai.com,openai.com" {
+			t.Errorf("Expected 'api.openai.com,openai.com', got %q", result)
+		}
+	})
+
+	t.Run("with network permissions merges domains", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{"example.com"},
+		}
+		result := GetCodexAllowedDomains(network)
+		// Should contain both default Codex domains and user-specified domain
+		if result != "api.openai.com,example.com,openai.com" {
+			t.Errorf("Expected 'api.openai.com,example.com,openai.com', got %q", result)
+		}
+	})
+
+	t.Run("deduplicates domains", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{"api.openai.com", "example.com"},
+		}
+		result := GetCodexAllowedDomains(network)
+		// api.openai.com should not appear twice
+		if result != "api.openai.com,example.com,openai.com" {
+			t.Errorf("Expected 'api.openai.com,example.com,openai.com', got %q", result)
+		}
+	})
+
+	t.Run("empty allowed list returns only defaults", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{},
+		}
+		result := GetCodexAllowedDomains(network)
+		// Empty allowed list should still return Codex defaults
+		if result != "api.openai.com,openai.com" {
+			t.Errorf("Expected 'api.openai.com,openai.com', got %q", result)
+		}
+	})
+}
