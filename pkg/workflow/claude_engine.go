@@ -110,12 +110,6 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
-	// Determine Claude version for pinning in npx invocation
-	claudeVersion := string(constants.DefaultClaudeCodeVersion)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		claudeVersion = workflowData.EngineConfig.Version
-	}
-
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
@@ -199,16 +193,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Use npx to execute Claude Code package directly (no PATH manipulation needed)
-	// Pin the version to match the installed version for security and reproducibility
-	claudePackage := fmt.Sprintf("@anthropic-ai/claude-code@%s", claudeVersion)
-	commandParts := []string{"npx", "--yes", claudePackage}
+	// Use claude command directly (available in PATH from hostedtoolcache mount)
+	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
 	// Join command parts with proper escaping using shellJoinArgs helper
 	// This handles already-quoted arguments correctly and prevents double-escaping
 	claudeCommand := shellJoinArgs(commandParts)
+
+	// Prepend PATH setup to find claude in hostedtoolcache
+	// This ensures claude and all its dependencies (including MCP servers) are accessible
+	claudeCommand = fmt.Sprintf(`export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && %s`, claudeCommand)
 
 	// Add conditional model flag if not explicitly configured
 	// Check if this is a detection job (has no SafeOutputs config)
