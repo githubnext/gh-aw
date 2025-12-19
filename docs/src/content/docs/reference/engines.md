@@ -8,7 +8,15 @@ sidebar:
 GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 :::note[Experimental Engines]
-Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
+Claude and Codex engines are available but marked as experimental. They can be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
+
+**Codex CLI Features (v0.74.0+):**
+- New `/experimental` command for accessing experimental features
+- Support for gpt-5.2-codex model with improved reasoning and coding capabilities
+- Model picker for easy model selection
+- Enhanced skills support with SYSTEM skills
+
+For Codex usage, consult the [Codex CLI documentation](https://github.com/openai/codex) for available commands and configuration options.
 :::
 
 ### GitHub Copilot CLI
@@ -30,6 +38,49 @@ engine:
 ```
 
 Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI version), `args` (command-line arguments). Alternatively set model via `COPILOT_MODEL` environment variable.
+
+#### Tool Permission Control (v0.0.370+)
+
+GitHub Copilot CLI provides two layers of tool access control:
+
+**Permission Control** - Controls which tools the CLI itself has permission to use:
+- `--allow-tool <tool>` - Grant permission to use a specific tool (no prompt)
+- `--deny-tool <tool>` - Deny permission to use a specific tool (no prompt, takes precedence over `--allow-tool`)
+
+**Model Availability** - Controls which tools are available to the AI model:
+- `--available-tools <tool>` - Only these tools will be available to the model
+- `--excluded-tools <tool>` - These tools will not be available to the model
+
+This separation enables fine-grained control: you can grant the CLI permission to use certain tools while limiting which ones the AI model can select.
+
+**Example:**
+```yaml wrap
+engine:
+  id: copilot
+  args:
+    - "--allow-tool"
+    - "github-cli"
+    - "--available-tools"
+    - "file_editing,bash"
+```
+
+#### Additional CLI Flags (v0.0.370+)
+
+**Disable Auto-Updates:**
+```yaml wrap
+engine:
+  id: copilot
+  args: ["--no-auto-update"]  # Prevent automatic CLI updates
+```
+
+**Plain Diff Rendering:**
+```yaml wrap
+engine:
+  id: copilot
+  args: ["--plain-diff"]  # Use git-configured diff tool instead of rich rendering
+```
+
+The `--plain-diff` flag disables syntax highlighting and uses the diff tool specified in your git configuration.
 
 #### Required Secrets
 

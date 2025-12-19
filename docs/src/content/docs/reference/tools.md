@@ -118,6 +118,30 @@ tools:
     lockdown: true
 ```
 
+### GitHub MCP Server Feature Flags (v0.26.0+)
+
+Enable experimental or optional features using feature flags:
+
+```yaml wrap
+tools:
+  github:
+    features:
+      - "consolidated-actions"  # Enable consolidated actions toolsets
+      - "enhanced-icons"        # Enable Octicon icons for tools
+```
+
+**Configuration Methods:**
+1. **Workflow frontmatter** - Use `features` field in GitHub tools configuration
+2. **Environment variable** - Set `GITHUB_MCP_FEATURES=feature1,feature2` for the MCP server
+3. **CLI flag** - Pass `--features feature1,feature2` when starting the MCP server directly
+
+Feature flags allow gradual rollout of new capabilities while maintaining backward compatibility. Consult the [GitHub MCP Server releases](https://github.com/github/github-mcp-server/releases) for available feature flags in each version.
+
+**Version v0.26.0+ Changes:**
+- **Octicon Icons**: MCP clients that support icons now display GitHub's Octicon icons alongside tools, resources, and prompts for easier identification
+- **Inventory Pattern**: New internal architecture with builder, filtering, and per-request optimization
+- **Feature Flag Infrastructure**: Systematic support for feature-flagged tool enablement
+
 ## Playwright Tool (`playwright:`)
 
 Enables containerized browser automation with domain-based access control:
