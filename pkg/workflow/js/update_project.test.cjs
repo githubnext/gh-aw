@@ -659,4 +659,39 @@ describe("updateProject", () => {
     expect(updateCalls[0][1].value).toEqual({ date: "2025-12-01" });
     expect(updateCalls[1][1].value).toEqual({ date: "2025-12-20" });
   });
+
+  it("correctly identifies DATE fields and uses date format (not singleSelectOptionId)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 75,
+      fields: {
+        deadline: "2025-12-31",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-date-field"),
+      linkResponse,
+      issueResponse("issue-id-75"),
+      existingItemResponse("issue-id-75", "item-date-field"),
+      // DATE field with dataType explicitly set to "DATE"
+      // This tests that the code checks dataType before checking for options
+      fieldsResponse([{ id: "field-deadline", name: "Deadline", dataType: "DATE" }]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify the field value is set using date format, not singleSelectOptionId
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ date: "2025-12-31" });
+    // Explicitly verify it's NOT using singleSelectOptionId
+    expect(updateCall[1].value).not.toHaveProperty("singleSelectOptionId");
+  });
 });
