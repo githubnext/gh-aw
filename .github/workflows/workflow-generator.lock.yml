@@ -287,7 +287,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -331,7 +331,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1887,7 +1887,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.25.0"
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -1936,7 +1936,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.369",
+              agent_version: "0.0.371",
               workflow_name: "Workflow Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1953,7 +1953,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -2000,7 +2000,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -2047,26 +2047,39 @@ jobs:
           
           This issue has been assigned to an AI agent for workflow design. The agent will:
           
-          1. **Parse the workflow requirements** from the information provided above
-          2. **Generate a NEW workflow specification file** (`.md`) with appropriate triggers, tools, and safe outputs
-          3. **Create a pull request** with the new workflow file at `.github/workflows/<workflow-name>.md`
+          1. **Parse the workflow requirements** from the issue form fields above:
+             - Workflow Name
+             - Workflow Description
+             - Additional Context (if provided)
           
-          **IMPORTANT**: The agent will create a NEW workflow file following best practices for:
-          - Security (minimal permissions, safe outputs for write operations)
-          - Appropriate triggers (issues, pull requests, schedule, workflow_dispatch, etc.)
-          - Necessary tools and MCP servers
-          - Network restrictions when needed
-          - Proper safe output configuration for GitHub operations
+          2. **Generate a NEW workflow specification file** (`.md`) with:
+             - Kebab-case workflow ID derived from the name
+             - Complete YAML frontmatter (triggers, permissions, engine, tools, safe-outputs)
+             - Clear prompt body with instructions for the AI agent
+             - Security best practices applied
           
-          The workflow specification will include:
-          - Frontmatter with triggers, permissions, engine, and tools
-          - Clear prompt instructions for the AI agent
-          - Safe output configuration for any write operations
-          - Security best practices (network restrictions, minimal permissions)
+          3. **Compile the workflow** using `gh aw compile <workflow-id>` to generate the `.lock.yml` file
+          
+          4. **Create a pull request** with BOTH files:
+             - `.github/workflows/<workflow-id>.md` (source)
+             - `.github/workflows/<workflow-id>.lock.yml` (compiled)
+          
+          **IMPORTANT - Issue Form Mode**: The agent operates in non-interactive mode and will:
+          - Parse the issue form data directly
+          - Make intelligent decisions about triggers, tools, and permissions based on the description
+          - Create a complete, working workflow without back-and-forth conversation
+          - Follow the same pattern as the campaign generator
+          
+          **Best Practices Applied:**
+          - Security: minimal permissions, safe outputs for write operations
+          - Triggers: inferred from description (issues, pull_requests, schedule, workflow_dispatch)
+          - Tools: only include what's needed (github, web-fetch, playwright, etc.)
+          - Network: restricted to required domains/ecosystems
+          - Safe Outputs: for all GitHub write operations
           
           **Next Steps:**
-          - The AI agent will analyze your requirements and create a comprehensive workflow
-          - The workflow will be compiled automatically to ensure validity
+          - The AI agent will parse your requirements and generate a complete workflow
+          - Both `.md` and `.lock.yml` files will be included in the PR
           - Review the generated PR when it's ready
           - Merge the PR to activate your workflow
           ```
@@ -5579,9 +5592,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -6566,7 +6579,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -7434,7 +7447,7 @@ jobs:
           module.exports = { generateStagedPreview };
           
           EOF_8386ee20
-          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_95d23c7d'
+          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_4d21ccbd'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7498,15 +7511,36 @@ jobs:
             return undefined;
           }
           
+          /**
+           * Check if the current context is a valid discussion context
+           * @param {string} eventName - GitHub event name
+           * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
+           * @returns {boolean} Whether context is valid for discussion updates
+           */
+          function isDiscussionContext(eventName, _payload) {
+            return eventName === "discussion" || eventName === "discussion_comment";
+          }
+          
+          /**
+           * Get discussion number from the context payload
+           * @param {any} payload - GitHub event payload
+           * @returns {number|undefined} Discussion number or undefined
+           */
+          function getDiscussionNumber(payload) {
+            return payload?.discussion?.number;
+          }
+          
           module.exports = {
             isIssueContext,
             getIssueNumber,
             isPRContext,
             getPRNumber,
+            isDiscussionContext,
+            getDiscussionNumber,
           };
           
-          EOF_95d23c7d
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
+          EOF_4d21ccbd
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7591,11 +7625,12 @@ jobs:
            * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
            * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
            * @param {boolean} params.canUpdateBody - Whether body updates are allowed
+           * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
            * @param {boolean} params.supportsStatus - Whether this type supports status
            * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
            */
           function buildUpdateData(params) {
-            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
           
             /** @type {any} */
             const updateData = {};
@@ -7645,6 +7680,17 @@ jobs:
               }
             }
           
+            // Handle labels update
+            if (canUpdateLabels && item.labels !== undefined) {
+              if (Array.isArray(item.labels)) {
+                updateData.labels = item.labels;
+                hasUpdates = true;
+                logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
+              } else {
+                logMessages.push("Invalid labels value: must be an array");
+              }
+            }
+          
             return { hasUpdates, updateData, logMessages };
           }
           
@@ -7689,12 +7735,13 @@ jobs:
             const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
             const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
             const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+            const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
           
             core.info(`Update target configuration: ${updateTarget}`);
             if (supportsStatus) {
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             } else {
-              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             }
           
             // Check context validity
@@ -7738,6 +7785,7 @@ jobs:
                 canUpdateStatus,
                 canUpdateTitle,
                 canUpdateBody,
+                canUpdateLabels,
                 supportsStatus,
               });
           
@@ -7859,7 +7907,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_006d32d7
+          EOF_60283df2
       - name: Assign To Agent
         id: assign_to_agent
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
