@@ -34,10 +34,22 @@ func TestNewInitCommand(t *testing.T) {
 	}
 
 	// Verify flags
+	noMcpFlag := cmd.Flags().Lookup("no-mcp")
+	if noMcpFlag == nil {
+		t.Error("Expected 'no-mcp' flag to be defined")
+		return
+	}
+
+	// Verify hidden --mcp flag still exists for backward compatibility
 	mcpFlag := cmd.Flags().Lookup("mcp")
 	if mcpFlag == nil {
-		t.Error("Expected 'mcp' flag to be defined")
+		t.Error("Expected 'mcp' flag to be defined (for backward compatibility)")
 		return
+	}
+
+	// Verify --mcp flag is hidden
+	if !mcpFlag.Hidden {
+		t.Error("Expected 'mcp' flag to be hidden")
 	}
 
 	campaignFlag := cmd.Flags().Lookup("campaign")
@@ -48,6 +60,10 @@ func TestNewInitCommand(t *testing.T) {
 
 	if campaignFlag.DefValue != "false" {
 		t.Errorf("Expected campaign flag default to be 'false', got %q", campaignFlag.DefValue)
+	}
+
+	if noMcpFlag.DefValue != "false" {
+		t.Errorf("Expected no-mcp flag default to be 'false', got %q", noMcpFlag.DefValue)
 	}
 
 	if mcpFlag.DefValue != "false" {
@@ -115,8 +131,8 @@ func TestInitRepositoryBasic(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test basic init without MCP or campaign agent
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	// Test basic init with MCP enabled by default (mcp=true, noMcp=false behavior)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -142,6 +158,17 @@ func TestInitRepositoryBasic(t *testing.T) {
 	logsGitignorePath := filepath.Join(".github", "aw", "logs", ".gitignore")
 	if _, err := os.Stat(logsGitignorePath); os.IsNotExist(err) {
 		t.Error("Expected .github/aw/logs/.gitignore to be created")
+	}
+
+	// Verify MCP files were created by default
+	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
+		t.Error("Expected .vscode/mcp.json to be created by default")
+	}
+
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
+		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created by default")
 	}
 }
 
@@ -169,7 +196,7 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test init with MCP flag
+	// Test init with MCP explicitly enabled (same as default)
 	err = InitRepository(false, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() with MCP failed: %v", err)
@@ -185,6 +212,97 @@ func TestInitRepositoryWithMCP(t *testing.T) {
 	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
 	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
 		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created")
+	}
+}
+
+func TestInitRepositoryWithNoMCP(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test init with --no-mcp flag (mcp=false)
+	err = InitRepository(false, false, false, false, "", []string{}, false)
+	if err != nil {
+		t.Fatalf("InitRepository() with --no-mcp failed: %v", err)
+	}
+
+	// Verify .vscode/mcp.json was NOT created
+	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	if _, err := os.Stat(mcpConfigPath); err == nil {
+		t.Error("Expected .vscode/mcp.json to NOT be created with --no-mcp flag")
+	}
+
+	// Verify copilot-setup-steps.yml was NOT created
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	if _, err := os.Stat(setupStepsPath); err == nil {
+		t.Error("Expected .github/workflows/copilot-setup-steps.yml to NOT be created with --no-mcp flag")
+	}
+
+	// Verify basic files were still created
+	if _, err := os.Stat(".gitattributes"); os.IsNotExist(err) {
+		t.Error("Expected .gitattributes to be created even with --no-mcp flag")
+	}
+}
+
+func TestInitRepositoryWithMCPBackwardCompatibility(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test init with deprecated --mcp flag for backward compatibility (mcp=true)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
+	if err != nil {
+		t.Fatalf("InitRepository() with deprecated --mcp flag failed: %v", err)
+	}
+
+	// Verify .vscode/mcp.json was created
+	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
+		t.Error("Expected .vscode/mcp.json to be created with --mcp flag (backward compatibility)")
+	}
+
+	// Verify copilot-setup-steps.yml was created
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
+		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created with --mcp flag (backward compatibility)")
 	}
 }
 
@@ -212,8 +330,8 @@ func TestInitRepositoryVerbose(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test verbose mode (should not error, just produce more output)
-	err = InitRepository(true, false, false, false, "", []string{}, false)
+	// Test verbose mode with MCP enabled by default (should not error, just produce more output)
+	err = InitRepository(true, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() in verbose mode failed: %v", err)
 	}
@@ -240,7 +358,7 @@ func TestInitRepositoryNotInGitRepo(t *testing.T) {
 	}
 
 	// Don't initialize git repo - should fail for some operations
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 
 	// The function should handle this gracefully or return an error
 	// Based on the implementation, ensureGitAttributes requires git
@@ -273,14 +391,14 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Run init twice
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	// Run init twice with MCP enabled by default
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("First InitRepository() failed: %v", err)
 	}
 
 	// Second run should be idempotent
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("Second InitRepository() failed: %v", err)
 	}
@@ -400,14 +518,14 @@ func TestInitCommandFlagValidation(t *testing.T) {
 
 	cmd := NewInitCommand()
 
-	// Test that mcp flag is a boolean
-	mcpFlag := cmd.Flags().Lookup("mcp")
-	if mcpFlag == nil {
-		t.Fatal("Expected 'mcp' flag to exist")
+	// Test that no-mcp flag is a boolean
+	noMcpFlag := cmd.Flags().Lookup("no-mcp")
+	if noMcpFlag == nil {
+		t.Fatal("Expected 'no-mcp' flag to exist")
 	}
 
-	if mcpFlag.Value.Type() != "bool" {
-		t.Errorf("Expected mcp flag to be bool, got %s", mcpFlag.Value.Type())
+	if noMcpFlag.Value.Type() != "bool" {
+		t.Errorf("Expected no-mcp flag to be bool, got %s", noMcpFlag.Value.Type())
 	}
 
 	// Test that campaign flag is a boolean
@@ -439,8 +557,8 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Test init without git repo
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	// Test init without git repo (with MCP enabled by default)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 
 	// Should handle error gracefully or return error
 	// The actual behavior depends on implementation
@@ -482,8 +600,8 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 		t.Fatalf("Failed to create existing .gitattributes: %v", err)
 	}
 
-	// Run init
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	// Run init with MCP enabled by default
+	err = InitRepository(false, true, false, false, "", []string{}, false)
 	if err != nil {
 		t.Fatalf("InitRepository() failed: %v", err)
 	}
@@ -531,9 +649,9 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test init with --codespaces flag (with additional repos)
+	// Test init with --codespaces flag (with MCP enabled by default and additional repos)
 	additionalRepos := []string{"org/repo1", "owner/repo2"}
-	err = InitRepository(false, false, false, false, "", additionalRepos, true)
+	err = InitRepository(false, true, false, false, "", additionalRepos, true)
 	if err != nil {
 		t.Fatalf("InitRepository() with codespaces failed: %v", err)
 	}
@@ -597,8 +715,8 @@ func TestInitCommandWithCodespacesNoArgs(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Test init with --codespaces flag (no additional repos)
-	err = InitRepository(false, false, false, false, "", []string{}, true)
+	// Test init with --codespaces flag (no additional repos, MCP enabled by default)
+	err = InitRepository(false, true, false, false, "", []string{}, true)
 	if err != nil {
 		t.Fatalf("InitRepository() with codespaces (no args) failed: %v", err)
 	}

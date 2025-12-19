@@ -47,7 +47,7 @@ tools:
 
 This workflow validates that the Codex engine works correctly with AWF (Application-level Firewall) network sandboxing enabled.
 
-1. **OpenAI Domain Access**: The workflow should successfully connect to OpenAI APIs (api.openai.com, openai.com) which are in the default allowed domains
+1. **OpenAI Domain Access**: Test that direct curl access to OpenAI APIs (api.openai.com, openai.com) is BLOCKED by the firewall - the Codex CLI itself can access OpenAI (it adds these domains automatically), but raw curl commands should fail since OpenAI is not in the `defaults` or `github` network ecosystems
 2. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }} to verify GitHub MCP server works through the firewall
 3. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-firewall-${{ github.run_id }}.txt` with content "Firewall smoke test passed for Codex at $(date)"
 4. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
