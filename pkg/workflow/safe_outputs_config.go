@@ -853,6 +853,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			updateConfig["max"] = maxValue
 			safeOutputsConfig["update_issue"] = updateConfig
 		}
+		if data.SafeOutputs.UpdateDiscussions != nil {
+			updateDiscussionConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.UpdateDiscussions.Max > 0 {
+				maxValue = data.SafeOutputs.UpdateDiscussions.Max
+			}
+			updateDiscussionConfig["max"] = maxValue
+			safeOutputsConfig["update_discussion"] = updateDiscussionConfig
+		}
 		if data.SafeOutputs.UpdatePullRequests != nil {
 			updatePRConfig := map[string]any{}
 			// Always include max (use configured value or default)
