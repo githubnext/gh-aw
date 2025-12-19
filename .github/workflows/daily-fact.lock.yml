@@ -1807,6 +1807,7 @@ jobs:
               model: "gpt-5-mini",
               version: "",
               agent_version: "0.75.0",
+              cli_version: "bc3f0ff",
               workflow_name: "Daily Fact About gh-aw",
               experimental: true,
               supports_tools_allowlist: true,
