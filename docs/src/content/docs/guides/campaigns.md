@@ -49,7 +49,9 @@ You can track campaigns with just labels and issues, but campaigns become much m
 
 ### Orchestrator and Worker Coordination
 
-Campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers:
+Campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers. This architecture maintains clean separation of concerns: workers execute tasks without campaign awareness, while orchestrators manage coordination and tracking.
+
+#### The Coordination Pattern
 
 1. **Worker workflows** include a `tracker-id` in their frontmatter (e.g., `tracker-id: "daily-file-diet"`). This identifier is automatically embedded in all assets created by the workflow (issues, PRs, discussions, comments) as an XML comment marker: `<!-- agentic-workflow: WorkflowName, tracker-id: daily-file-diet, ... -->`
 
@@ -61,6 +63,42 @@ Campaigns use a **tracker-id** mechanism to coordinate between orchestrators and
 3. The orchestrator then adds discovered issues to the campaign's GitHub Project board and updates their status as work progresses.
 
 This design allows workers to operate independently without knowledge of the campaign, while orchestrators maintain a centralized view of all campaign work by searching for tracker-id markers.
+
+#### Orchestrator Workflow Phases
+
+Generated orchestrator workflows follow a four-phase execution model each time they run:
+
+**Phase 1: Read State (Discovery)**
+- Query for worker-created issues using tracker-id search
+- Read current state of the GitHub Project board
+- Compare discovered issues against board state to identify gaps
+
+**Phase 2: Make Decisions (Planning)**
+- Decide which new issues to add to the board
+- Determine status updates for existing items
+- Check campaign completion criteria
+
+**Phase 3: Write State (Execution)**
+- Add new issues to project board via `update-project` safe output
+- Update status fields for existing board items
+- Record completion state if campaign is done
+
+**Phase 4: Report (Output)**
+- Generate status report summarizing execution
+- Record metrics: issues discovered, added, updated
+- Report any failures encountered
+
+#### Core Design Principles
+
+The orchestrator/worker pattern enforces these principles:
+
+- **Workers are immutable** - Worker workflows never change based on campaign state
+- **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
+- **Campaign logic is external** - All orchestration happens in the orchestrator, not workers
+- **Single source of truth** - The GitHub Project board is the authoritative campaign state
+- **Idempotent operations** - Re-execution produces the same result without corruption
+
+These principles ensure workers can be reused across campaigns and remain simple, while orchestrators handle all coordination complexity.
 
 
 Next: how gh-aw represents that “initiative layer” as a file you can review and version.
@@ -106,6 +144,7 @@ To keep campaigns consistent and easy to read, most teams use a predictable set 
 - **Repo-memory metrics** (daily JSON snapshots) to compute velocity/ETAs and enable trend reporting.
 - **Tracker IDs in worker workflows** (e.g., `tracker-id: "worker-name"`) to enable orchestrator discovery of worker-created assets.
 - **Monitor/orchestrator** to aggregate and post periodic updates.
+- **Custom date fields** (optional, for roadmap views) like `Start Date` and `End Date` to visualize campaign timeline.
 
 If you want to try this end-to-end quickly, start with the minimal steps below.
 
@@ -149,6 +188,112 @@ The simplest, least-permissions way to run a campaign is:
 When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `gh aw compile` will also generate an orchestrator workflow named `.github/workflows/<id>.campaign.g.md` and compile it to a corresponding `.lock.yml`.
 
 See [Campaign specs and orchestrators](/gh-aw/setup/cli/#campaign-specs-and-orchestrators) for details.
+
+## Using Project Roadmap Views with Custom Date Fields
+
+GitHub Projects offers a [Roadmap view](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/customizing-the-roadmap-layout) that visualizes work items along a timeline. To use this view with campaigns, you need to add custom date fields to track when work items start and end.
+
+### Setting Up Custom Date Fields
+
+**One-time manual setup** (in the GitHub Projects UI):
+
+1. Open your campaign's Project board
+2. Click the **+** button in the header row to add a new field
+3. Create a **Date** field named `Start Date`
+4. Create another **Date** field named `End Date`
+5. Create a **Roadmap** view from the view dropdown
+6. Configure the roadmap to use your date fields
+
+Once these fields exist, orchestrator workflows can automatically populate them when adding or updating project items.
+
+### Orchestrator Configuration for Date Fields
+
+To have orchestrators set date fields automatically, modify the orchestrator's instructions or use the `fields` parameter in `update-project` outputs.
+
+**Example workflow instruction:**
+
+```markdown
+When adding issues to the project board, set these custom fields:
+- `Start Date`: Set to the issue's creation date
+- `End Date`: Set to estimated completion date based on issue size and priority
+  - Small issues: 3 days from start
+  - Medium issues: 1 week from start
+  - Large issues: 2 weeks from start
+```
+
+**Example agent output for update-project:**
+
+```yaml
+update-project:
+  project: "https://github.com/orgs/myorg/projects/42"
+  item_url: "https://github.com/myorg/myrepo/issues/123"
+  fields:
+    status: "In Progress"
+    priority: "High"
+    start_date: "2025-12-19"
+    end_date: "2025-12-26"
+```
+
+### Best Practices for Campaign Date Fields
+
+**Recommended field names:**
+- `Start Date` or `start_date` - When work begins
+- `End Date` or `end_date` - Expected or actual completion date
+- `Target Date` - Optional milestone or deadline
+
+**Date assignment strategies:**
+
+- **For new issues**: Set `start_date` to current date, calculate `end_date` based on estimated effort
+- **For in-progress work**: Keep original `start_date`, adjust `end_date` if needed
+- **For completed work**: Update `end_date` to actual completion date
+
+**Roadmap view benefits:**
+
+- **Visual timeline**: See all campaign work laid out chronologically
+- **Dependency identification**: Spot overlapping or sequential work items
+- **Capacity planning**: Identify periods with too much concurrent work
+- **Progress tracking**: Compare planned vs actual completion dates
+
+### Example: Campaign with Roadmap Tracking
+
+```yaml
+# .github/workflows/migration-q1.campaign.md
+id: migration-q1
+name: "Q1 Migration Campaign"
+project-url: "https://github.com/orgs/myorg/projects/15"
+workflows:
+  - migration-worker
+tracker-label: "campaign:migration-q1"
+```
+
+The orchestrator can set date fields when adding issues:
+
+```markdown
+## Campaign Orchestrator
+
+When adding discovered issues to the project board:
+
+1. Query issues with tracker-id: "migration-worker"
+2. For each issue:
+   - Add to project board
+   - Set `status` to "Todo" (or "Done" if closed)
+   - Set `start_date` to the issue creation date
+   - Set `end_date` based on labels:
+     - `size:small` → 3 days from start
+     - `size:medium` → 1 week from start  
+     - `size:large` → 2 weeks from start
+   - Set `priority` based on issue labels
+
+Generate a report showing timeline distribution of all work items.
+```
+
+### Limitations and Considerations
+
+- **Manual field creation**: Workflows cannot create custom fields; they must exist before workflows can update them
+- **Field name matching**: Custom field names are case-sensitive; use exact names as defined in the project
+- **Date format**: Use ISO 8601 format (YYYY-MM-DD) for date values
+- **No automatic recalculation**: Date fields don't auto-update; orchestrators must explicitly update them
+- **View configuration**: Roadmap views must be configured manually in the GitHub UI
 
 ## Try it with the CLI
 
