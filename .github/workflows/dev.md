@@ -6,7 +6,6 @@ permissions:
   contents: read
   actions: read
 tools:
-  bash: [":*"]
   github:
     toolsets: [default]
 timeout-minutes: 10
@@ -14,6 +13,9 @@ timeout-minutes: 10
 
 # Dev
 
+## Current Context
+- **Repository**: ${{ github.repository }}
+
 ## Rule Definition
 
-Analyze the codebase in repository ${{ github.repository }} for compliance.
+Analyze the codebase in repository for compliance.
