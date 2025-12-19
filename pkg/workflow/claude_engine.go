@@ -253,24 +253,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		claudeLog.Print("Added workspace mount to AWF")
 
-		// Mount essential binaries from host so they're available inside the container
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/date:/usr/bin/date:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
-
-		// Mount Node.js and npm-related binaries for npx to work
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/node:/usr/local/bin/node:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/npm:/usr/local/bin/npm:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/npx:/usr/local/bin/npx:ro")
-
-		// Mount npm global directories where claude is installed
-		awfArgs = append(awfArgs, "--mount", "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro")
-
-		// Mount npm cache directories
-		awfArgs = append(awfArgs, "--mount", "/home/runner/.npm:/home/runner/.npm:rw")
-
-		claudeLog.Print("Added Node.js, npm, and Claude CLI mounts to AWF container")
-
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 			// Sort mounts for consistent output
