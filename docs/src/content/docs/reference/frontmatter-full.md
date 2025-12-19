@@ -2863,9 +2863,8 @@ strict: true
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
-  # Transport mode for the safe-inputs MCP server. 'http' starts the server as a
-  # separate step (default), 'stdio' starts the server directly by the agent within
-  # the firewall.
+  # Transport mode for the safe-inputs MCP server. Only 'http' mode is supported,
+  # which starts the server as a separate step.
   # (optional)
   mode: "http"
 

@@ -44,6 +44,7 @@ func GetAllCodemods() []Codemod {
 		getTimeoutMinutesCodemod(),
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
+		getSafeInputsModeCodemod(),
 	}
 }
 
@@ -395,6 +396,94 @@ func getCommandToSlashCommandCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied on.command to on.slash_command migration")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getSafeInputsModeCodemod creates a codemod for removing the deprecated safe-inputs.mode field
+func getSafeInputsModeCodemod() Codemod {
+	return Codemod{
+		ID:           "safe-inputs-mode-removal",
+		Name:         "Remove deprecated safe-inputs.mode field",
+		Description:  "Removes the deprecated 'safe-inputs.mode' field (HTTP is now the only supported mode)",
+		IntroducedIn: "0.2.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if safe-inputs.mode exists
+			safeInputsValue, hasSafeInputs := frontmatter["safe-inputs"]
+			if !hasSafeInputs {
+				return content, false, nil
+			}
+
+			safeInputsMap, ok := safeInputsValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if mode field exists in safe-inputs
+			_, hasMode := safeInputsMap["mode"]
+			if !hasMode {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and remove the mode line within the safe-inputs block
+			var modified bool
+			var inSafeInputsBlock bool
+			var safeInputsIndent string
+
+			frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the safe-inputs block
+				if strings.HasPrefix(trimmedLine, "safe-inputs:") {
+					inSafeInputsBlock = true
+					safeInputsIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines = append(frontmatterLines, line)
+					continue
+				}
+
+				// Check if we've left the safe-inputs block (new top-level key with same or less indentation)
+				if inSafeInputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(safeInputsIndent) && strings.Contains(line, ":") {
+						inSafeInputsBlock = false
+					}
+				}
+
+				// Remove mode line if in safe-inputs block
+				if inSafeInputsBlock && strings.HasPrefix(trimmedLine, "mode:") {
+					modified = true
+					codemodsLog.Printf("Removed safe-inputs.mode on line %d", i+1)
+					continue
+				}
+
+				frontmatterLines = append(frontmatterLines, line)
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied safe-inputs.mode removal")
 			return newContent, true, nil
 		},
 	}
