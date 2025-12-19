@@ -1937,7 +1937,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              cli_version: "5634d5b",
               workflow_name: "Workflow Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2048,26 +2047,39 @@ jobs:
           
           This issue has been assigned to an AI agent for workflow design. The agent will:
           
-          1. **Parse the workflow requirements** from the information provided above
-          2. **Generate a NEW workflow specification file** (`.md`) with appropriate triggers, tools, and safe outputs
-          3. **Create a pull request** with the new workflow file at `.github/workflows/<workflow-name>.md`
+          1. **Parse the workflow requirements** from the issue form fields above:
+             - Workflow Name
+             - Workflow Description
+             - Additional Context (if provided)
           
-          **IMPORTANT**: The agent will create a NEW workflow file following best practices for:
-          - Security (minimal permissions, safe outputs for write operations)
-          - Appropriate triggers (issues, pull requests, schedule, workflow_dispatch, etc.)
-          - Necessary tools and MCP servers
-          - Network restrictions when needed
-          - Proper safe output configuration for GitHub operations
+          2. **Generate a NEW workflow specification file** (`.md`) with:
+             - Kebab-case workflow ID derived from the name
+             - Complete YAML frontmatter (triggers, permissions, engine, tools, safe-outputs)
+             - Clear prompt body with instructions for the AI agent
+             - Security best practices applied
           
-          The workflow specification will include:
-          - Frontmatter with triggers, permissions, engine, and tools
-          - Clear prompt instructions for the AI agent
-          - Safe output configuration for any write operations
-          - Security best practices (network restrictions, minimal permissions)
+          3. **Compile the workflow** using `gh aw compile <workflow-id>` to generate the `.lock.yml` file
+          
+          4. **Create a pull request** with BOTH files:
+             - `.github/workflows/<workflow-id>.md` (source)
+             - `.github/workflows/<workflow-id>.lock.yml` (compiled)
+          
+          **IMPORTANT - Issue Form Mode**: The agent operates in non-interactive mode and will:
+          - Parse the issue form data directly
+          - Make intelligent decisions about triggers, tools, and permissions based on the description
+          - Create a complete, working workflow without back-and-forth conversation
+          - Follow the same pattern as the campaign generator
+          
+          **Best Practices Applied:**
+          - Security: minimal permissions, safe outputs for write operations
+          - Triggers: inferred from description (issues, pull_requests, schedule, workflow_dispatch)
+          - Tools: only include what's needed (github, web-fetch, playwright, etc.)
+          - Network: restricted to required domains/ecosystems
+          - Safe Outputs: for all GitHub write operations
           
           **Next Steps:**
-          - The AI agent will analyze your requirements and create a comprehensive workflow
-          - The workflow will be compiled automatically to ensure validity
+          - The AI agent will parse your requirements and generate a complete workflow
+          - Both `.md` and `.lock.yml` files will be included in the PR
           - Review the generated PR when it's ready
           - Merge the PR to activate your workflow
           ```
