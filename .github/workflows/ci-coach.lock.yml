@@ -1914,7 +1914,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              cli_version: "e63fd5a",
               workflow_name: "CI Optimization Coach",
               experimental: false,
               supports_tools_allowlist: true,

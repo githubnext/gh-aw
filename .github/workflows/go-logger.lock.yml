@@ -1972,7 +1972,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.73",
-              cli_version: "e63fd5a",
               workflow_name: "Go Logger Enhancement",
               experimental: true,
               supports_tools_allowlist: true,
