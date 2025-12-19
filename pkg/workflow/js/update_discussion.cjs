@@ -30,7 +30,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   const shouldUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true" && labels !== undefined;
 
   // First, fetch the discussion node ID using its number
-  const getDiscussionQuery = shouldUpdateLabels ? `
+  const getDiscussionQuery = shouldUpdateLabels
+    ? `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {
@@ -47,7 +48,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
         }
       }
     }
-  ` : `
+  `
+    : `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {
@@ -72,7 +74,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 
   const discussion = queryResult.repository.discussion;
   const discussionId = discussion.id;
-  const currentLabels = shouldUpdateLabels ? (discussion.labels?.nodes || []) : [];
+  const currentLabels = shouldUpdateLabels ? discussion.labels?.nodes || [] : [];
 
   // Ensure at least one field is being updated
   if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && !shouldUpdateLabels) {
@@ -172,7 +174,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
     }
 
     const repoLabels = repoResult.repository.labels?.nodes || [];
-    
+
     // Map label names to IDs
     const labelIds = labels.map(labelName => {
       const label = repoLabels.find(l => l.name === labelName);
@@ -222,7 +224,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   }
 
   // Fetch the updated discussion to return
-  const finalQuery = shouldUpdateLabels ? `
+  const finalQuery = shouldUpdateLabels
+    ? `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {
@@ -239,7 +242,8 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
         }
       }
     }
-  ` : `
+  `
+    : `
     query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $number) {

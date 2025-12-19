@@ -1956,7 +1956,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "dev",
               workflow_name: "Daily Documentation Updater",
               experimental: true,
               supports_tools_allowlist: true,

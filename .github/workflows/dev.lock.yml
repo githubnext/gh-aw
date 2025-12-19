@@ -3221,7 +3221,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "dev",
               workflow_name: "Dev",
               experimental: false,
               supports_tools_allowlist: true,
@@ -8405,7 +8404,7 @@ jobs:
           };
           
           EOF_4d21ccbd
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8490,11 +8489,12 @@ jobs:
            * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
            * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
            * @param {boolean} params.canUpdateBody - Whether body updates are allowed
+           * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
            * @param {boolean} params.supportsStatus - Whether this type supports status
            * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
            */
           function buildUpdateData(params) {
-            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
           
             /** @type {any} */
             const updateData = {};
@@ -8544,6 +8544,17 @@ jobs:
               }
             }
           
+            // Handle labels update
+            if (canUpdateLabels && item.labels !== undefined) {
+              if (Array.isArray(item.labels)) {
+                updateData.labels = item.labels;
+                hasUpdates = true;
+                logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
+              } else {
+                logMessages.push("Invalid labels value: must be an array");
+              }
+            }
+          
             return { hasUpdates, updateData, logMessages };
           }
           
@@ -8588,12 +8599,13 @@ jobs:
             const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
             const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
             const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+            const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
           
             core.info(`Update target configuration: ${updateTarget}`);
             if (supportsStatus) {
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             } else {
-              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             }
           
             // Check context validity
@@ -8637,6 +8649,7 @@ jobs:
                 canUpdateStatus,
                 canUpdateTitle,
                 canUpdateBody,
+                canUpdateLabels,
                 supportsStatus,
               });
           
@@ -8758,7 +8771,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_006d32d7
+          EOF_60283df2
       - name: Update Discussion
         id: update_discussion
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_discussion'))
@@ -8790,7 +8803,9 @@ jobs:
             });
             async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
               const { _operation, _rawBody, labels, ...fieldsToUpdate } = updateData;
-              const getDiscussionQuery = `
+              const shouldUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true" && labels !== undefined;
+              const getDiscussionQuery = shouldUpdateLabels
+                ? `
                 query($owner: String!, $repo: String!, $number: Int!) {
                   repository(owner: $owner, name: $repo) {
                     discussion(number: $number) {
@@ -8807,6 +8822,18 @@ jobs:
                     }
                   }
                 }
+              `
+                : `
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $number) {
+                      id
+                      title
+                      body
+                      url
+                    }
+                  }
+                }
               `;
               const queryResult = await github.graphql(getDiscussionQuery, {
                 owner: context.repo.owner,
@@ -8818,8 +8845,8 @@ jobs:
               }
               const discussion = queryResult.repository.discussion;
               const discussionId = discussion.id;
-              const currentLabels = discussion.labels?.nodes || [];
-              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && labels === undefined) {
+              const currentLabels = shouldUpdateLabels ? discussion.labels?.nodes || [] : [];
+              if (fieldsToUpdate.title === undefined && fieldsToUpdate.body === undefined && !shouldUpdateLabels) {
                 throw new Error("At least one field (title, body, or labels) must be provided for update");
               }
               if (fieldsToUpdate.body !== undefined) {
@@ -8873,7 +8900,7 @@ jobs:
                   throw new Error("Failed to update discussion");
                 }
               }
-              if (labels !== undefined && Array.isArray(labels)) {
+              if (shouldUpdateLabels && Array.isArray(labels)) {
                 const repoQuery = `
                   query($owner: String!, $repo: String!) {
                     repository(owner: $owner, name: $repo) {
@@ -8935,7 +8962,38 @@ jobs:
                   });
                 }
               }
-              const finalQueryResult = await github.graphql(getDiscussionQuery, {
+              const finalQuery = shouldUpdateLabels
+                ? `
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $number) {
+                      id
+                      title
+                      body
+                      url
+                      labels(first: 100) {
+                        nodes {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              `
+                : `
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $number) {
+                      id
+                      title
+                      body
+                      url
+                    }
+                  }
+                }
+              `;
+              const finalQueryResult = await github.graphql(finalQuery, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 number: discussionNumber,

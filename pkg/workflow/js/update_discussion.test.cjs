@@ -410,9 +410,7 @@ describe("update_discussion.cjs", () => {
       body: "Test body",
       url: "https://github.com/testowner/testrepo/discussions/123",
       labels: {
-        nodes: [
-          { id: "L_kwDOABCD001", name: "old-label" },
-        ],
+        nodes: [{ id: "L_kwDOABCD001", name: "old-label" }],
       },
     };
 
@@ -496,9 +494,7 @@ describe("update_discussion.cjs", () => {
       },
     };
 
-    const mockLabels = [
-      { id: "L_kwDOABCD004", name: "question" },
-    ];
+    const mockLabels = [{ id: "L_kwDOABCD004", name: "question" }];
 
     // Mock the first query to get discussion
     mockGithub.graphql.mockResolvedValueOnce({
