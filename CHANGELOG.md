@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.6 - 2025-12-19
+
+### Bug Fixes
+
+#### Update github.com/goccy/go-yaml from v1.19.0 to v1.19.1
+
+This patch update includes:
+- Fixed decoding of integer keys of map type
+- Added support for line comment for flow sequence or flow map
+
+No breaking changes or behavior modifications.
+
+
 ## v0.33.5 - 2025-12-19
 
 Maintenance release with dependency updates and minor improvements.
