@@ -63,6 +63,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			mcpFlag, _ := cmd.Flags().GetBool("mcp")
 			noMcp, _ := cmd.Flags().GetBool("no-mcp")
 			campaign, _ := cmd.Flags().GetBool("campaign")
 			tokens, _ := cmd.Flags().GetBool("tokens")
@@ -70,8 +71,13 @@ Examples:
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 
-			// MCP is enabled by default, unless --no-mcp is specified
+			// Determine MCP state: default true, unless --no-mcp is specified
+			// --mcp flag is kept for backward compatibility (hidden from help)
 			mcp := !noMcp
+			if cmd.Flags().Changed("mcp") {
+				// If --mcp is explicitly set, use it (backward compatibility)
+				mcp = mcpFlag
+			}
 
 			// Trim the codespace repos string (NoOptDefVal uses a space)
 			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
@@ -97,12 +103,16 @@ Examples:
 	}
 
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring GitHub Copilot Agent MCP server integration")
+	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
 	cmd.Flags().Bool("campaign", false, "Install the Campaign Designer agent for gh-aw campaigns in this repository")
 	cmd.Flags().Bool("tokens", false, "Validate required secrets for agentic workflows")
 	cmd.Flags().String("engine", "", "AI engine to check tokens for (copilot, claude, codex) - requires --tokens flag")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
+
+	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
+	_ = cmd.Flags().MarkHidden("mcp")
 
 	return cmd
 }

@@ -40,6 +40,18 @@ func TestNewInitCommand(t *testing.T) {
 		return
 	}
 
+	// Verify hidden --mcp flag still exists for backward compatibility
+	mcpFlag := cmd.Flags().Lookup("mcp")
+	if mcpFlag == nil {
+		t.Error("Expected 'mcp' flag to be defined (for backward compatibility)")
+		return
+	}
+
+	// Verify --mcp flag is hidden
+	if !mcpFlag.Hidden {
+		t.Error("Expected 'mcp' flag to be hidden")
+	}
+
 	campaignFlag := cmd.Flags().Lookup("campaign")
 	if campaignFlag == nil {
 		t.Error("Expected 'campaign' flag to be defined")
@@ -52,6 +64,10 @@ func TestNewInitCommand(t *testing.T) {
 
 	if noMcpFlag.DefValue != "false" {
 		t.Errorf("Expected no-mcp flag default to be 'false', got %q", noMcpFlag.DefValue)
+	}
+
+	if mcpFlag.DefValue != "false" {
+		t.Errorf("Expected mcp flag default to be 'false', got %q", mcpFlag.DefValue)
 	}
 
 	codespaceFlag := cmd.Flags().Lookup("codespaces")
@@ -244,6 +260,49 @@ func TestInitRepositoryWithNoMCP(t *testing.T) {
 	// Verify basic files were still created
 	if _, err := os.Stat(".gitattributes"); os.IsNotExist(err) {
 		t.Error("Expected .gitattributes to be created even with --no-mcp flag")
+	}
+}
+
+func TestInitRepositoryWithMCPBackwardCompatibility(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+
+	// Test init with deprecated --mcp flag for backward compatibility (mcp=true)
+	err = InitRepository(false, true, false, false, "", []string{}, false)
+	if err != nil {
+		t.Fatalf("InitRepository() with deprecated --mcp flag failed: %v", err)
+	}
+
+	// Verify .vscode/mcp.json was created
+	mcpConfigPath := filepath.Join(".vscode", "mcp.json")
+	if _, err := os.Stat(mcpConfigPath); os.IsNotExist(err) {
+		t.Error("Expected .vscode/mcp.json to be created with --mcp flag (backward compatibility)")
+	}
+
+	// Verify copilot-setup-steps.yml was created
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
+		t.Error("Expected .github/workflows/copilot-setup-steps.yml to be created with --mcp flag (backward compatibility)")
 	}
 }
 
