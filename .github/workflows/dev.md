@@ -5,6 +5,7 @@ permissions:
   pull-requests: read
   contents: read
   actions: read
+engine: claude
 tools:
   github:
     toolsets: [default]
