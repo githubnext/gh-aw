@@ -12,7 +12,6 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-  repository-projects: read
   security-events: read
 
 tracker-id: deep-report-intel-agent
