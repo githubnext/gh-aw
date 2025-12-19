@@ -89,7 +89,7 @@ const DefaultCodexVersion Version = "0.73.0"
 const DefaultGitHubMCPServerVersion Version = "v0.25.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.6.0"
+const DefaultFirewallVersion Version = "v0.7.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.52"
