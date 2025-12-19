@@ -3,7 +3,7 @@
 
 const { SafeOutputHandlerManager } = require("./safe_output_handler_manager.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { serializeTemporaryIdMap } = require("./temporary_id.cjs");
+const { serializeTemporaryIdMap, loadTemporaryIdMap } = require("./temporary_id.cjs");
 const { handleCreateIssue } = require("./create_issue_handler.cjs");
 
 /**
@@ -26,6 +26,8 @@ async function main() {
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
   core.setOutput("issues_to_assign_copilot", "");
+  core.setOutput("comment_id", "");
+  core.setOutput("comment_url", "");
   
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -39,20 +41,44 @@ async function main() {
   
   core.info(`Loaded ${result.items.length} item(s) from agent output`);
   
+  // Load any existing temporary ID map (from previous steps or jobs)
+  const existingTempIdMap = loadTemporaryIdMap();
+  
   // Create handler manager
   const manager = new SafeOutputHandlerManager();
   
   // Register all handlers
   core.info("Registering safe output handlers...");
   manager.registerHandler("create_issue", handleCreateIssue);
-  // TODO: Register other handlers as they are converted
-  // manager.registerHandler("create_pull_request", handleCreatePullRequest);
-  // manager.registerHandler("create_discussion", handleCreateDiscussion);
-  // manager.registerHandler("add_comment", handleAddComment);
-  // etc.
+  
+  // Note: Other handlers will be registered here as they are converted.
+  // For now, unregistered types will be skipped with an info message.
+  // TODO: Register remaining handlers:
+  // - create_pull_request
+  // - create_discussion  
+  // - add_comment
+  // - close_issue, close_discussion, close_pull_request
+  // - update_issue, update_pull_request
+  // - add_labels, add_reviewer
+  // - assign_milestone, assign_to_agent, assign_to_user
+  // - create_pr_review_comment
+  // - create_code_scanning_alert
+  // - push_to_pull_request_branch
+  // - upload_assets
+  // - update_release
+  // - link_sub_issue
+  // - hide_comment
+  // - update_project
   
   const registeredTypes = manager.getRegisteredTypes();
   core.info(`Registered handlers for: ${registeredTypes.join(", ")}`);
+  
+  // Count items by type
+  const typeCount = new Map();
+  for (const item of result.items) {
+    typeCount.set(item.type, (typeCount.get(item.type) || 0) + 1);
+  }
+  core.info(`Items by type: ${Array.from(typeCount.entries()).map(([type, count]) => `${type}(${count})`).join(", ")}`);
   
   // If in staged mode, show preview for all items
   if (isStaged) {
@@ -90,7 +116,7 @@ async function main() {
           const bodyPreview = item.body.length > 500 ? item.body.substring(0, 500) + "..." : item.body;
           summaryContent += `**Body:**\n${bodyPreview}\n\n`;
         }
-        if (item.labels && item.labels.length > 0) {
+        if (item.labels && Array.isArray(item.labels) && item.labels.length > 0) {
           summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
         }
         
@@ -103,14 +129,18 @@ async function main() {
     return;
   }
   
-  // Create handler context
+  // Create handler context with existing temporary IDs
   const handlerContext = {
     core,
     github,
     context,
     exec,
-    temporaryIdMap: new Map(),
+    temporaryIdMap: existingTempIdMap,
   };
+  
+  if (existingTempIdMap.size > 0) {
+    core.info(`Loaded ${existingTempIdMap.size} existing temporary ID mapping(s)`);
+  }
   
   // Process all items
   core.info("Processing all safe output items...");
@@ -120,16 +150,19 @@ async function main() {
   if (processResult.success) {
     core.info(`✓ Successfully processed all items`);
   } else {
-    core.error(`✗ Processing completed with ${processResult.errors.length} error(s)`);
+    core.warning(`⚠ Processing completed with ${processResult.errors.length} error(s)`);
     for (const error of processResult.errors) {
       core.error(`  - ${error}`);
     }
+    // Don't fail the workflow for handler errors - they may be non-critical
   }
   
   // Output temporary ID map
   const tempIdMapOutput = serializeTemporaryIdMap(processResult.temporaryIdMap);
   core.setOutput("temporary_id_map", tempIdMapOutput);
-  core.info(`Temporary ID map: ${tempIdMapOutput}`);
+  if (processResult.temporaryIdMap.size > 0) {
+    core.info(`Temporary ID map: ${tempIdMapOutput}`);
+  }
   
   // Set outputs from last item of each type
   // This maintains compatibility with existing workflows that expect these outputs
@@ -143,7 +176,7 @@ async function main() {
         const resolved = processResult.temporaryIdMap.get(normalized);
         if (resolved) {
           core.setOutput("issue_number", resolved.number);
-          // Reconstruct URL (this is a simplification)
+          // Reconstruct URL
           const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
           const issueUrl = `${githubServer}/${resolved.repo}/issues/${resolved.number}`;
           core.setOutput("issue_url", issueUrl);
@@ -157,10 +190,13 @@ async function main() {
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
   if (assignCopilot && processResult.temporaryIdMap.size > 0) {
     const issuesToAssign = Array.from(processResult.temporaryIdMap.values())
+      .filter(value => value.repo && value.number) // Filter valid entries
       .map(value => `${value.repo}:${value.number}`)
       .join(",");
-    core.setOutput("issues_to_assign_copilot", issuesToAssign);
-    core.info(`Issues to assign copilot: ${issuesToAssign}`);
+    if (issuesToAssign) {
+      core.setOutput("issues_to_assign_copilot", issuesToAssign);
+      core.info(`Issues to assign copilot: ${issuesToAssign}`);
+    }
   }
   
   // Add summary
@@ -170,7 +206,9 @@ async function main() {
     // Group by type
     const issuesCreated = [];
     for (const [tempId, value] of processResult.temporaryIdMap.entries()) {
-      issuesCreated.push({ tempId, ...value });
+      if (value.repo && value.number) {
+        issuesCreated.push({ tempId, ...value });
+      }
     }
     
     if (issuesCreated.length > 0) {
@@ -190,5 +228,9 @@ async function main() {
 
 // Execute main function
 (async () => {
-  await main();
+  try {
+    await main();
+  } catch (error) {
+    core.setFailed(`Safe outputs processor failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 })();
