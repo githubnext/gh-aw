@@ -84,12 +84,11 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
 
 **Scheduling Best Practices:**
-   - 📅 When creating a **daily scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
-   - ✨ **Recommended**: `cron: daily` (fuzzy schedule - time will be scattered deterministically)
+   - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
+   - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
    - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
-   - 🚫 **Avoid weekend scheduling**: For daily workflows that should only run on weekdays, use `cron: "0 <hour> * * 1-5"` pattern after discussing with the user if weekend execution is needed.
-   - Example fuzzy daily schedule: `cron: daily` (compiler will scatter to something like `43 5 * * *`)
-   - Example daily schedule avoiding weekends: `cron: "0 14 * * 1-5"` (2 PM UTC, weekdays only - use this only if user specifically wants to avoid weekends)
+   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *`)
+   - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately)
 
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
@@ -222,10 +221,10 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    ```
 
 4. **Generate Workflows** (Both Modes)
-   - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `engine:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
+   - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
    - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
-   - ⚙️ Default to **`engine: copilot`** unless the user requests another engine.
+   - ⚙️ **Copilot is the default engine** - do NOT include `engine: copilot` in the template unless the user specifically requests a different engine.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`) over granting write perms.
@@ -262,10 +261,10 @@ Based on the parsed requirements, determine:
 
 1. **Workflow ID**: Convert the workflow name to kebab-case (e.g., "Issue Classifier" → "issue-classifier")
 2. **Triggers**: Infer appropriate triggers from the description:
-   - Issue automation → `on: issues: types: [opened, edited]`
-   - PR automation → `on: pull_request: types: [opened, synchronize]`
-   - Scheduled tasks → `on: schedule: cron: daily` (use fuzzy scheduling)
-   - Manual runs → `on: workflow_dispatch`
+   - Issue automation → `on: issues: types: [opened, edited] workflow_dispatch:`
+   - PR automation → `on: pull_request: types: [opened, synchronize] workflow_dispatch:`
+   - Scheduled tasks → `on: schedule: daily workflow_dispatch:` (use fuzzy scheduling)
+   - **ALWAYS include** `workflow_dispatch:` to allow manual runs
 3. **Tools**: Determine required tools:
    - GitHub API reads → `tools: github: toolsets: [default]`
    - Web access → `tools: web-fetch:` and `network: allowed: [<domains>]`
@@ -274,6 +273,8 @@ Based on the parsed requirements, determine:
    - Creating issues → `safe-outputs: create-issue:`
    - Commenting → `safe-outputs: add-comment:`
    - Creating PRs → `safe-outputs: create-pull-request:`
+   - **Daily reporting workflows** (creates issues/discussions): Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter
+   - **Daily improver workflows** (creates PRs): Add `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`)
 5. **Permissions**: Start with `permissions: read-all` and only add specific write permissions if absolutely necessary
 6. **Prompt Body**: Write clear, actionable instructions for the AI agent
 
@@ -293,10 +294,10 @@ description: <Brief description of what this workflow does>
 on:
   issues:
     types: [opened, edited]
+  workflow_dispatch:
 permissions:
   contents: read
   issues: read
-engine: copilot
 tools:
   github:
     toolsets: [default]

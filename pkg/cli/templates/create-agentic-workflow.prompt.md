@@ -49,9 +49,11 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
 
 **Scheduling Best Practices:**
-   - 📅 When creating a **daily scheduled workflow**, pick a random hour.
-   - 🚫 **Avoid weekend scheduling**: For daily workflows, use `cron: "0 <hour> * * 1-5"` to run only on weekdays (Monday-Friday) instead of `* * *` which includes weekends.
-   - Example daily schedule avoiding weekends: `cron: "0 14 * * 1-5"` (2 PM UTC, weekdays only)
+   - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
+   - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
+   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *`)
+   - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately)
 
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
@@ -71,15 +73,20 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
    ### Correct tool snippets (reference)
 
-   **GitHub tool with fine-grained allowances**:
+   **GitHub tool with fine-grained allowances (read-only)**:
    ```yaml
    tools:
      github:
        allowed:
-         - add_issue_comment
-         - update_issue
-         - create_issue
+         - get_repository
+         - list_commits
+         - get_issue
    ```
+   
+   ⚠️ **IMPORTANT**: 
+   - **Never recommend GitHub mutation tools** like `create_issue`, `add_issue_comment`, `update_issue`, etc.
+   - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
+   - **Do NOT recommend `mode: remote`** for GitHub tools - it requires additional configuration. Use `mode: local` (default) instead.
 
    **General tools (editing, fetching, searching, bash patterns, Playwright)**:
    ```yaml
@@ -106,13 +113,17 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
    ```
 
 5. **Generate Workflows**
-   - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `engine:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
+   - Author workflows in the **agentic markdown format** (frontmatter: `on:`, `permissions:`, `tools:`, `mcp-servers:`, `safe-outputs:`, `network:`, etc.).
+   - **ALWAYS create workflows in the `.github/workflows/` folder** with the `.md` extension.
    - Compile with `gh aw compile` to produce `.github/workflows/<name>.lock.yml`.
    - 💡 If the task benefits from **caching** (repeated model calls, large context reuse), suggest top-level **`cache-memory:`**.
-   - ⚙️ Default to **`engine: copilot`** unless the user requests another engine.
+   - ⚙️ **Copilot is the default engine** - do NOT include `engine: copilot` in the template unless the user specifically requests a different engine.
+   - **ALWAYS include `workflow_dispatch:`** trigger to allow manual runs.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
      - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`) over granting write perms.
+     - **For daily reporting workflows** that create issues/discussions: Add `close-older-issues: true` or `close-older-discussions: true` to prevent clutter.
+     - **For daily improver workflows** that create PRs: Use `skip-if-match:` with a filter to avoid opening duplicate PRs (e.g., `'is:pr is:open in:title "[workflow-name]"'`).
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
 
