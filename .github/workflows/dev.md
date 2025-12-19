@@ -6,9 +6,7 @@ permissions:
   contents: read
   actions: read
 tools:
-  bash:
-    - "*"
-  edit:
+  bash: [":*"]
   github:
     toolsets: [default]
 timeout-minutes: 10
