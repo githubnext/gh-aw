@@ -990,7 +990,7 @@ func TestUpdateWorkflowsWithExtensionCheck_FixNonFatal(t *testing.T) {
 
 	// The fix should handle missing workflows gracefully
 	err := RunFix(fixConfig)
-	
+
 	// The error might be about no workflows found, which is acceptable
 	if err != nil {
 		if !strings.Contains(err.Error(), "No workflow files found") {
@@ -1000,4 +1000,3 @@ func TestUpdateWorkflowsWithExtensionCheck_FixNonFatal(t *testing.T) {
 		}
 	}
 }
-
