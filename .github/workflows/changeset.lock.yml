@@ -988,7 +988,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g @openai/codex@0.73.0
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.7.0"
@@ -1026,7 +1026,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2600,7 +2600,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-            "ghcr.io/github/github-mcp-server:v0.26.3"
+            "ghcr.io/github/github-mcp-server:v0.25.0"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -2623,7 +2623,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.75.0",
+              agent_version: "0.73.0",
               workflow_name: "Changeset Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -2640,7 +2640,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","node"],
               firewall_enabled: true,
-              awf_version: "v0.7.0",
+              firewall_version: "",
               steps: {
                 firewall: "squid"
               },
@@ -2687,7 +2687,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -6244,9 +6244,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "";
+              let summary = "### 🔥 Firewall Activity\n\n";
               summary += "<details>\n";
-              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -8269,7 +8269,7 @@ jobs:
           };
           
           EOF_d0693c3b
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8354,12 +8354,11 @@ jobs:
            * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
            * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
            * @param {boolean} params.canUpdateBody - Whether body updates are allowed
-           * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
            * @param {boolean} params.supportsStatus - Whether this type supports status
            * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
            */
           function buildUpdateData(params) {
-            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
+            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
           
             /** @type {any} */
             const updateData = {};
@@ -8409,17 +8408,6 @@ jobs:
               }
             }
           
-            // Handle labels update
-            if (canUpdateLabels && item.labels !== undefined) {
-              if (Array.isArray(item.labels)) {
-                updateData.labels = item.labels;
-                hasUpdates = true;
-                logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
-              } else {
-                logMessages.push("Invalid labels value: must be an array");
-              }
-            }
-          
             return { hasUpdates, updateData, logMessages };
           }
           
@@ -8464,13 +8452,12 @@ jobs:
             const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
             const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
             const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
-            const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
           
             core.info(`Update target configuration: ${updateTarget}`);
             if (supportsStatus) {
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
+              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
             } else {
-              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
+              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
             }
           
             // Check context validity
@@ -8514,7 +8501,6 @@ jobs:
                 canUpdateStatus,
                 canUpdateTitle,
                 canUpdateBody,
-                canUpdateLabels,
                 supportsStatus,
               });
           
@@ -8636,7 +8622,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_60283df2
+          EOF_006d32d7
       - name: Update Pull Request
         id: update_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_pull_request'))

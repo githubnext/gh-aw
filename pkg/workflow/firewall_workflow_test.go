@@ -8,7 +8,7 @@ import (
 // TestFirewallWorkflowNetworkConfiguration verifies that the firewall workflow
 // is properly configured to block access to example.com
 func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
-	// Create workflow data with network defaults and web-fetch tool
+	// Create workflow data with network defaults, firewall enabled, and web-fetch tool
 	workflowData := &WorkflowData{
 		Name: "firewall",
 		EngineConfig: &EngineConfig{
@@ -16,7 +16,8 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 		},
 		NetworkPermissions: &NetworkPermissions{
-			Mode: "defaults",
+			Mode:     "defaults",
+			Firewall: &FirewallConfig{Enabled: true},
 		},
 		Tools: map[string]any{
 			"web-fetch": nil,
@@ -32,36 +33,23 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		}
 	})
 
-	t.Run("network hook is generated with default domains", func(t *testing.T) {
+	t.Run("AWF is installed with firewall enabled", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		steps := engine.GetInstallationSteps(workflowData)
 
-		// Should have 5 steps: secret validation, Node.js setup, install, settings, hook
-		if len(steps) != 5 {
-			t.Errorf("Expected 5 installation steps with network permissions, got %d", len(steps))
+		// With AWF enabled: secret validation, Node.js setup, AWF install, Claude install
+		if len(steps) != 4 {
+			t.Errorf("Expected 4 installation steps with firewall enabled (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Check the network permissions hook step (5th step, index 4)
-		hookStepStr := strings.Join(steps[4], "\n")
-		if !strings.Contains(hookStepStr, "Generate Network Permissions Hook") {
-			t.Error("Fifth step should generate network permissions hook")
-		}
-
-		// Verify example.com is NOT in the allowed domains
-		if strings.Contains(hookStepStr, "\"example.com\"") {
-			t.Error("example.com should not be in the allowed domains for firewall workflow")
-		}
-
-		// Verify some default domains ARE present
-		defaultDomains := []string{"json-schema.org", "archive.ubuntu.com"}
-		for _, domain := range defaultDomains {
-			if !strings.Contains(hookStepStr, domain) {
-				t.Errorf("Expected default domain '%s' to be in allowed domains", domain)
-			}
+		// Check AWF installation step (3rd step, index 2)
+		awfStepStr := strings.Join(steps[2], "\n")
+		if !strings.Contains(awfStepStr, "Install awf binary") {
+			t.Error("Third step should install AWF binary")
 		}
 	})
 
-	t.Run("execution step includes settings parameter", func(t *testing.T) {
+	t.Run("execution step includes AWF wrapper", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test-log")
 
@@ -71,9 +59,19 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present (required for network permissions)
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
-			t.Error("Settings parameter should be present with network permissions")
+		// Verify AWF wrapper is present (required for network sandboxing)
+		if !strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF wrapper should be present with firewall enabled")
+		}
+
+		// Verify --tty flag is present (required for Claude)
+		if !strings.Contains(stepYAML, "--tty") {
+			t.Error("--tty flag should be present for Claude with AWF")
+		}
+
+		// Verify --allow-domains is present
+		if !strings.Contains(stepYAML, "--allow-domains") {
+			t.Error("--allow-domains should be present with AWF")
 		}
 	})
 }
