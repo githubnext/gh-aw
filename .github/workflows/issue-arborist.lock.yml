@@ -254,7 +254,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.73.0
+        run: npm install -g @openai/codex@0.75.0
       - name: Install awf binary
         run: |
           echo "Installing awf from release: v0.7.0"
@@ -292,7 +292,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1924,7 +1924,7 @@ jobs:
             "GITHUB_READ_ONLY=1",
             "-e",
             "GITHUB_TOOLSETS=issues",
-            "ghcr.io/github/github-mcp-server:v0.25.0"
+            "ghcr.io/github/github-mcp-server:v0.26.3"
           ]
           env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
@@ -1947,7 +1947,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.73.0",
+              agent_version: "0.75.0",
               workflow_name: "Issue Arborist",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1964,7 +1964,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: ["defaults","github"],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -2011,7 +2011,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -2623,7 +2623,7 @@ jobs:
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains '*.githubusercontent.com,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains '*.githubusercontent.com,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag v0.7.0 \
             -- export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && codex ${GH_AW_MODEL_AGENT_CODEX:+-c model="$GH_AW_MODEL_AGENT_CODEX" }exec --full-auto --skip-git-repo-check "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -5551,9 +5551,168 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `${validAllowedRequests} allowed | `;
+              summary += `${validDeniedRequests} blocked | `;
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+              if (uniqueDomainCount > 0) {
+                summary += "| Domain | Allowed | Denied |\n";
+                summary += "|--------|---------|--------|\n";
+                for (const domain of validDomains) {
+                  const stats = requestsByDomain.get(domain);
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
+                }
+              } else {
+                summary += "No firewall activity detected.\n";
+              }
+              summary += "\n</details>\n\n";
+              return summary;
+            }
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+            if (isDirectExecution) {
+              main();
+            }
+      - name: Upload Firewall Logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: firewall-logs-issue-arborist
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+              return name
+                .toLowerCase()
+                .replace(/[:\\/\s]/g, "-")
+                .replace(/[^a-z0-9._-]/g, "-");
+            }
+            function main() {
+              const fs = require("fs");
+              const path = require("path");
+              try {
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
+                if (!fs.existsSync(squidLogsDir)) {
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+                  return;
+                }
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+                if (files.length === 0) {
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+                  return;
+                }
+                core.info(`Found ${files.length} firewall log file(s)`);
+                let totalRequests = 0;
+                let allowedRequests = 0;
+                let deniedRequests = 0;
+                const allowedDomains = new Set();
+                const deniedDomains = new Set();
+                const requestsByDomain = new Map();
+                for (const file of files) {
+                  const filePath = path.join(squidLogsDir, file);
+                  core.info(`Parsing firewall log: ${file}`);
+                  const content = fs.readFileSync(filePath, "utf8");
+                  const lines = content.split("\n").filter(line => line.trim());
+                  for (const line of lines) {
+                    const entry = parseFirewallLogLine(line);
+                    if (!entry) {
+                      continue;
+                    }
+                    totalRequests++;
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+                    if (isAllowed) {
+                      allowedRequests++;
+                      allowedDomains.add(entry.domain);
+                    } else {
+                      deniedRequests++;
+                      deniedDomains.add(entry.domain);
+                    }
+                    if (!requestsByDomain.has(entry.domain)) {
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+                    }
+                    const domainStats = requestsByDomain.get(entry.domain);
+                    if (isAllowed) {
+                      domainStats.allowed++;
+                    } else {
+                      domainStats.denied++;
+                    }
+                  }
+                }
+                const summary = generateFirewallSummary({
+                  totalRequests,
+                  allowedRequests,
+                  deniedRequests,
+                  allowedDomains: Array.from(allowedDomains).sort(),
+                  deniedDomains: Array.from(deniedDomains).sort(),
+                  requestsByDomain,
+                });
+                core.summary.addRaw(summary).write();
+                core.info("Firewall log summary generated successfully");
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseFirewallLogLine(line) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith("#")) {
+                return null;
+              }
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+              if (!fields || fields.length < 10) {
+                return null;
+              }
+              const timestamp = fields[0];
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+                return null;
+              }
+              return {
+                timestamp,
+                clientIpPort: fields[1],
+                domain: fields[2],
+                destIpPort: fields[3],
+                proto: fields[4],
+                method: fields[5],
+                status: fields[6],
+                decision: fields[7],
+                url: fields[8],
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+              };
+            }
+            function isRequestAllowed(decision, status) {
+              const statusCode = parseInt(status, 10);
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+                return true;
+              }
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+                return true;
+              }
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+                return false;
+              }
+              return false;
+            }
+            function generateFirewallSummary(analysis) {
+              const { totalRequests, requestsByDomain } = analysis;
+              const validDomains = Array.from(requestsByDomain.keys())
+                .filter(domain => domain !== "-")
+                .sort();
+              const uniqueDomainCount = validDomains.length;
+              let validAllowedRequests = 0;
+              let validDeniedRequests = 0;
+              for (const domain of validDomains) {
+                const stats = requestsByDomain.get(domain);
+                validAllowedRequests += stats.allowed;
+                validDeniedRequests += stats.denied;
+              }
+              let summary = "";
+              summary += "<details>\n";
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -6502,7 +6661,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.73.0
+        run: npm install -g @openai/codex@0.75.0
       - name: Run Codex
         run: |
           set -o pipefail

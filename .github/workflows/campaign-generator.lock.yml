@@ -287,7 +287,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -331,7 +331,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1887,7 +1887,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.25.0"
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -1936,7 +1936,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.369",
+              agent_version: "0.0.371",
               workflow_name: "Campaign Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1953,7 +1953,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              firewall_version: "",
+              awf_version: "v0.7.0",
               steps: {
                 firewall: "squid"
               },
@@ -2000,7 +2000,7 @@ jobs:
               '|----------|-------|\n' +
               `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
               `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.firewall_version || '(latest)'} |\n` +
+              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
               '\n' +
               (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
               '</details>';
@@ -2451,7 +2451,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag v0.7.0 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -5574,9 +5574,9 @@ jobs:
                 validAllowedRequests += stats.allowed;
                 validDeniedRequests += stats.denied;
               }
-              let summary = "### 🔥 Firewall Activity\n\n";
+              let summary = "";
               summary += "<details>\n";
-              summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
               summary += `${validAllowedRequests} allowed | `;
               summary += `${validDeniedRequests} blocked | `;
               summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
@@ -6561,7 +6561,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -7522,7 +7522,7 @@ jobs:
           };
           
           EOF_4d21ccbd
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_006d32d7'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7607,11 +7607,12 @@ jobs:
            * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
            * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
            * @param {boolean} params.canUpdateBody - Whether body updates are allowed
+           * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
            * @param {boolean} params.supportsStatus - Whether this type supports status
            * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
            */
           function buildUpdateData(params) {
-            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
           
             /** @type {any} */
             const updateData = {};
@@ -7661,6 +7662,17 @@ jobs:
               }
             }
           
+            // Handle labels update
+            if (canUpdateLabels && item.labels !== undefined) {
+              if (Array.isArray(item.labels)) {
+                updateData.labels = item.labels;
+                hasUpdates = true;
+                logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
+              } else {
+                logMessages.push("Invalid labels value: must be an array");
+              }
+            }
+          
             return { hasUpdates, updateData, logMessages };
           }
           
@@ -7705,12 +7717,13 @@ jobs:
             const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
             const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
             const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+            const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
           
             core.info(`Update target configuration: ${updateTarget}`);
             if (supportsStatus) {
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             } else {
-              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
             }
           
             // Check context validity
@@ -7754,6 +7767,7 @@ jobs:
                 canUpdateStatus,
                 canUpdateTitle,
                 canUpdateBody,
+                canUpdateLabels,
                 supportsStatus,
               });
           
@@ -7875,7 +7889,7 @@ jobs:
             createGetSummaryLine,
           };
           
-          EOF_006d32d7
+          EOF_60283df2
       - name: Assign To Agent
         id: assign_to_agent
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))

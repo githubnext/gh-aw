@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -166,4 +167,16 @@ func enableFirewallByDefaultForEngine(engineID string, networkPermissions *Netwo
 		Enabled: true,
 	}
 	firewallLog.Printf("Enabled firewall by default for %s engine", engineID)
+}
+
+// getAWFImageTag returns the AWF Docker image tag to use for the --image-tag flag.
+// This ensures the AWF binary pulls its matching Docker image version instead of latest.
+// Returns the version from firewall config if specified, otherwise returns the default version.
+func getAWFImageTag(firewallConfig *FirewallConfig) string {
+	if firewallConfig != nil && firewallConfig.Version != "" {
+		firewallLog.Printf("Using custom AWF image tag: %s", firewallConfig.Version)
+		return firewallConfig.Version
+	}
+	firewallLog.Printf("Using default AWF image tag: %s", string(constants.DefaultFirewallVersion))
+	return string(constants.DefaultFirewallVersion)
 }
