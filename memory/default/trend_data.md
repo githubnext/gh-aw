@@ -1,6 +1,6 @@
-## Trend Data (as of 2025-12-18T13:18:11Z)
+## Trend Data (as of 2025-12-19T15:13:57Z)
 
-- Workflow snapshot (last 10 runs): 26.4m total duration, 1,708,908 tokens, 166 errors, 103 warnings, 3 failures/cancellations. Noise increased vs prior window; successes like §20337316176 still carry 113 errors and §20337284655 carries 19 errors/16 warnings.
-- Issue stats (weekly slice): 213 total; 19 open / 194 closed. Label skew unchanged — `plan`/`ai-generated` now 124 each, `enhancement` 42, `documentation` 30.
-- Issue hygiene: unlabeled at 27 total (6 open), only marginally better on open count while totals grew.
-- Discussion cadence: Dec 18 burst adds prompt-analysis (6845), prompt-clustering (6814), type consistency (6829), Go module review (6818), doc consolidation (6826), documentation noob test (6819), MCP structural (6828), firewall audit (6853), and team/daily status streams — quality and infra reviews remain daily.
+- Workflow snapshot (last 10 runs): 32.7m total duration, 2,659,647 tokens, 293 errors, 97 warnings, 1 recorded failure. Error noise remains high (e.g., §20373702961 logs 122 errors despite success), and missing tools surfaced twice.
+- Issue stats (weekly slice): 224 total; 28 open / 196 closed. Label skew persists — `plan`/`ai-generated` 123 each, `enhancement` 40, `documentation` 35.
+- Issue hygiene: unlabeled down to 23 total (2 open), modest improvement while overall open count climbed.
+- Discussion cadence: Dec 19 flood of reports (6939 prompt analysis, 6936 Typist, 6941 doc noob test, 6943 firewall, 6910 daily audit, plus daily status/static analysis/lock stats) keeps quality, infra, and docs reviews daily.
