@@ -72,18 +72,18 @@ func getAgentConfig(workflowData *WorkflowData) *AgentSandboxConfig {
 	return workflowData.SandboxConfig.Agent
 }
 
-// enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
+// enableFirewallByDefaultForCopilot enables firewall by default for copilot and codex engines
 // when network restrictions are present but no explicit firewall configuration exists
 // and no SRT sandbox is configured (SRT and AWF are mutually exclusive)
 // and sandbox.agent is not explicitly set to false
 //
-// The firewall is enabled by default for copilot UNLESS:
+// The firewall is enabled by default for copilot and codex UNLESS:
 // - allowed contains "*" (unrestricted network access)
 // - sandbox.agent is explicitly set to false
 // - SRT sandbox is configured
 func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) {
-	// Only apply to copilot engine
-	if engineID != "copilot" {
+	// Only apply to copilot and codex engines
+	if engineID != "copilot" && engineID != "codex" {
 		return
 	}
 
@@ -131,10 +131,10 @@ func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *Netw
 		}
 	}
 
-	// Enable firewall by default for copilot engine
+	// Enable firewall by default for copilot and codex engines
 	// This applies to all cases EXCEPT when allowed = "*"
 	networkPermissions.Firewall = &FirewallConfig{
 		Enabled: true,
 	}
-	firewallLog.Print("Enabled firewall by default for copilot engine")
+	firewallLog.Printf("Enabled firewall by default for %s engine", engineID)
 }
