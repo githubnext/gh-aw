@@ -59,6 +59,10 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 			updateDiscussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
 			if len(updateDiscussionsConfig.AllowedLabels) > 0 {
 				updateDiscussionLog.Printf("Allowed labels configured: %v", updateDiscussionsConfig.AllowedLabels)
+				// If allowed-labels is specified, implicitly enable labels
+				if updateDiscussionsConfig.Labels == nil {
+					updateDiscussionsConfig.Labels = new(bool)
+				}
 			}
 		}
 	}

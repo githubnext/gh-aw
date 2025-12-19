@@ -283,3 +283,67 @@ This workflow tests the update-discussion labels configuration.
 		}
 	}
 }
+
+func TestUpdateDiscussionConfigAllowedLabelsImplicitlyEnablesLabels(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-update-discussion-implicit-labels-test")
+
+	// Test case with only allowed-labels (no explicit labels:)
+	testContent := `---
+on:
+  discussion:
+    types: [created]
+permissions:
+  contents: read
+  discussions: write
+engine: claude
+strict: false
+safe-outputs:
+  update-discussion:
+    allowed-labels: [bug, enhancement]
+---
+
+# Test Update Discussion Implicit Labels Configuration
+
+This workflow tests that allowed-labels implicitly enables labels.
+`
+
+	testFile := filepath.Join(tmpDir, "test-update-discussion-implicit-labels.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with implicit labels config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.UpdateDiscussions == nil {
+		t.Fatal("Expected update-discussion configuration to be parsed")
+	}
+
+	// The key test: labels should be implicitly enabled when allowed-labels is present
+	if workflowData.SafeOutputs.UpdateDiscussions.Labels == nil {
+		t.Fatal("Expected labels to be implicitly enabled when allowed-labels is present")
+	}
+
+	// Check allowed-labels
+	expectedAllowedLabels := []string{"bug", "enhancement"}
+	if len(workflowData.SafeOutputs.UpdateDiscussions.AllowedLabels) != len(expectedAllowedLabels) {
+		t.Fatalf("Expected %d allowed-labels, got %d", len(expectedAllowedLabels), len(workflowData.SafeOutputs.UpdateDiscussions.AllowedLabels))
+	}
+
+	for i, expected := range expectedAllowedLabels {
+		if workflowData.SafeOutputs.UpdateDiscussions.AllowedLabels[i] != expected {
+			t.Fatalf("Expected allowed-label[%d] to be '%s', got '%s'", i, expected, workflowData.SafeOutputs.UpdateDiscussions.AllowedLabels[i])
+		}
+	}
+}

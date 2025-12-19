@@ -983,6 +983,9 @@ func (c *Compiler) buildUpdateDiscussionStepConfig(data *WorkflowData, mainJobNa
 	if cfg.Body != nil {
 		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_BODY: \"true\"\n")
 	}
+	if cfg.Labels != nil {
+		customEnvVars = append(customEnvVars, "          GH_AW_UPDATE_LABELS: \"true\"\n")
+	}
 
 	condition := BuildSafeOutputType("update_discussion")
 
