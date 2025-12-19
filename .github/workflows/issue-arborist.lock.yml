@@ -1948,7 +1948,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
               agent_version: "0.73.0",
-              cli_version: "0a41be5",
               workflow_name: "Issue Arborist",
               experimental: true,
               supports_tools_allowlist: true,

@@ -1952,7 +1952,6 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "d4fe65a-dirty",
               workflow_name: "Blog Auditor",
               experimental: true,
               supports_tools_allowlist: true,
