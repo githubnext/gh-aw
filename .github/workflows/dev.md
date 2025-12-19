@@ -18,6 +18,7 @@ imports:
   - shared/gh.md
 safe-outputs:
   update-discussion:
+    target: "*"
     body:
 ---
 
