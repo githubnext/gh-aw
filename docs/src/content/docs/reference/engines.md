@@ -41,49 +41,6 @@ engine:
 
 Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI version), `args` (command-line arguments). Alternatively set model via `COPILOT_MODEL` environment variable.
 
-#### Tool Permission Control (v0.0.370+)
-
-GitHub Copilot CLI provides two layers of tool access control:
-
-**Permission Control** - Controls which tools the CLI itself has permission to use:
-- `--allow-tool <tool>` - Grant permission to use a specific tool (no prompt)
-- `--deny-tool <tool>` - Deny permission to use a specific tool (no prompt, takes precedence over `--allow-tool`)
-
-**Model Availability** - Controls which tools are available to the AI model:
-- `--available-tools <tool>` - Only these tools will be available to the model
-- `--excluded-tools <tool>` - These tools will not be available to the model
-
-This separation enables fine-grained control: you can grant the CLI permission to use certain tools while limiting which ones the AI model can select.
-
-**Example:**
-```yaml wrap
-engine:
-  id: copilot
-  args:
-    - "--allow-tool"
-    - "github-cli"
-    - "--available-tools"
-    - "file_editing,bash"
-```
-
-#### Additional CLI Flags (v0.0.370+)
-
-**Disable Auto-Updates:**
-```yaml wrap
-engine:
-  id: copilot
-  args: ["--no-auto-update"]  # Prevent automatic CLI updates
-```
-
-**Plain Diff Rendering:**
-```yaml wrap
-engine:
-  id: copilot
-  args: ["--plain-diff"]  # Use git-configured diff tool instead of rich rendering
-```
-
-The `--plain-diff` flag disables syntax highlighting and uses the diff tool specified in your git configuration.
-
 #### Required Secrets
 
 **`COPILOT_GITHUB_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission. **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions).
