@@ -23,6 +23,18 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		return nil, err
 	}
 
+	// Add setup-activation step to copy activation scripts
+	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
+	if setupActivationActionRef != "" {
+		steps = append(steps, "      - name: Setup Activation Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActivationActionRef != ""
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -42,9 +54,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_stop_time.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Add skip-if-match check if configured
@@ -62,9 +79,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_skip_if_match.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Add command position check if this is a command workflow
@@ -77,9 +99,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_command_position.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Append custom steps from jobs.pre-activation if present
@@ -282,6 +309,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add setup-activation step to copy activation scripts
+	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
+	if setupActivationActionRef != "" {
+		steps = append(steps, "      - name: Setup Activation Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActivationActionRef != ""
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -291,9 +330,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
-	// Add the JavaScript script with proper indentation (using API-based version)
-	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
-	steps = append(steps, formattedScript...)
+	if useRequire {
+		// Use require() to load script from copied files
+		// The scripts execute main() at module load time
+		steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');\n")
+	} else {
+		// Add the JavaScript script with proper indentation (using API-based version)
+		formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
+		steps = append(steps, formattedScript...)
+	}
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -303,8 +348,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/compute_text.cjs');\n")
+		} else {
+			// Inline the JavaScript directly instead of using shared action
+			steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+		}
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -351,9 +401,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add each line of the script with proper indentation (bundled version with messages.cjs)
-		formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');\n")
+		} else {
+			// Add each line of the script with proper indentation (bundled version with messages.cjs)
+			formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
+			steps = append(steps, formattedScript...)
+		}
 
 		// Add reaction outputs
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
@@ -379,9 +434,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the lock-issue script
-		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/lock-issue.cjs');\n")
+		} else {
+			// Add the lock-issue script
+			formattedScript := FormatJavaScriptForYAML(lockIssueScript)
+			steps = append(steps, formattedScript...)
+		}
 
 		// Add output for tracking if issue was locked
 		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
