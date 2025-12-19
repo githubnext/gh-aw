@@ -13,31 +13,15 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep("", nil)
 		stepStr := strings.Join(step, "\n")
 
-		// Should NOT contain gh release view command
-		if strings.Contains(stepStr, "gh release view") {
-			t.Error("Should not use dynamic gh release view when default version is available")
-		}
-
-		// Should NOT contain LATEST_TAG variable
-		if strings.Contains(stepStr, "LATEST_TAG") {
-			t.Error("Should not use LATEST_TAG variable when default version is available")
-		}
-
-		// Should contain the default version
 		expectedVersion := string(constants.DefaultFirewallVersion)
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash"
+
+		if !strings.Contains(stepStr, expectedInstaller) {
+			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
+		}
+
 		if !strings.Contains(stepStr, expectedVersion) {
-			t.Errorf("Expected to find default version %s in installation step, but it was not found", expectedVersion)
-		}
-
-		// Should NOT have env section with GH_TOKEN
-		if strings.Contains(stepStr, "GH_TOKEN") {
-			t.Error("Should not require GH_TOKEN when using default version")
-		}
-
-		// Verify the curl command uses the default version
-		expectedURL := "https://github.com/githubnext/gh-aw-firewall/releases/download/" + expectedVersion + "/awf-linux-x64"
-		if !strings.Contains(stepStr, expectedURL) {
-			t.Errorf("Expected curl command to download from %s", expectedURL)
+			t.Errorf("Expected to log requested version %s in installation step, but it was not found", expectedVersion)
 		}
 	})
 
@@ -46,20 +30,14 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		// Should contain the custom version
+		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash"
+
 		if !strings.Contains(stepStr, customVersion) {
-			t.Errorf("Expected to find custom version %s in installation step", customVersion)
+			t.Errorf("Expected to log custom version %s in installation step", customVersion)
 		}
 
-		// Should NOT contain the default version
-		if strings.Contains(stepStr, string(constants.DefaultFirewallVersion)) && string(constants.DefaultFirewallVersion) != customVersion {
-			t.Error("Should use custom version instead of default version")
-		}
-
-		// Verify the curl command uses the custom version
-		expectedURL := "https://github.com/githubnext/gh-aw-firewall/releases/download/" + customVersion + "/awf-linux-x64"
-		if !strings.Contains(stepStr, expectedURL) {
-			t.Errorf("Expected curl command to download from %s", expectedURL)
+		if !strings.Contains(stepStr, expectedInstaller) {
+			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
 		}
 	})
 }
@@ -98,14 +76,12 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it uses the default version
+		// Verify it logs the default version and uses installer script
 		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
-			t.Errorf("AWF installation step should use default version %s", string(constants.DefaultFirewallVersion))
+			t.Errorf("AWF installation step should reference default version %s", string(constants.DefaultFirewallVersion))
 		}
-
-		// Verify it doesn't use dynamic LATEST_TAG
-		if strings.Contains(awfStepStr, "LATEST_TAG") {
-			t.Error("AWF installation should not use dynamic LATEST_TAG")
+		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
+			t.Error("AWF installation should use the installer script")
 		}
 	})
 
@@ -143,9 +119,13 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it uses the custom version
+		// Verify it logs the custom version
 		if !strings.Contains(awfStepStr, customVersion) {
 			t.Errorf("AWF installation step should use custom version %s", customVersion)
+		}
+
+		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
+			t.Error("AWF installation should use the installer script")
 		}
 	})
 

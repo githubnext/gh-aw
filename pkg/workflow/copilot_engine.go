@@ -1122,25 +1122,19 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		return GitHubActionStep([]string{})
 	}
 
-	stepLines := []string{
-		"      - name: Install awf binary",
-		"        run: |",
-	}
-
-	// Use default version if not specified to ensure reproducible builds
+	// Use default version for logging when not specified
 	if version == "" {
 		version = string(constants.DefaultFirewallVersion)
 	}
 
-	stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
-	stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
-
-	stepLines = append(stepLines,
-		"          chmod +x awf",
-		"          sudo mv awf /usr/local/bin/",
+	stepLines := []string{
+		"      - name: Install awf binary",
+		"        run: |",
+		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
+		"          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo bash",
 		"          which awf",
 		"          awf --version",
-	)
+	}
 
 	return GitHubActionStep(stepLines)
 }
