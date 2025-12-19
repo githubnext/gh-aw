@@ -33,6 +33,7 @@ This file provides network access to example.com domains.
 	}
 
 	// Create a workflow file that imports the shared network and has its own network config
+	// With firewall enabled to trigger AWF integration
 	workflowPath := filepath.Join(tempDir, "test-workflow.md")
 	workflowContent := `---
 on: issues
@@ -46,6 +47,7 @@ network:
   allowed:
     - defaults
     - github.com
+  firewall: true
 imports:
   - shared-network.md
 ---
@@ -86,8 +88,8 @@ This workflow should have merged network domains.
 		}
 	}
 
-	// Should also have defaults expanded
-	if !strings.Contains(workflowData, "ALLOWED_DOMAINS") {
-		t.Error("Expected compiled workflow to contain ALLOWED_DOMAINS configuration")
+	// Should use AWF with --allow-domains (Claude uses AWF for network restriction)
+	if !strings.Contains(workflowData, "--allow-domains") {
+		t.Error("Expected compiled workflow to contain --allow-domains configuration (AWF)")
 	}
 }

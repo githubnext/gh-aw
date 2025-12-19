@@ -191,6 +191,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	}
+	if claudeEngine, ok := engine.(*ClaudeEngine); ok {
+		collectionSteps := claudeEngine.GetFirewallLogsCollectionStep(data)
+		for _, step := range collectionSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
 
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
@@ -232,6 +240,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 	if codexEngine, ok := engine.(*CodexEngine); ok {
 		squidSteps := codexEngine.GetSquidLogsSteps(data)
+		for _, step := range squidSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+	// Add Squid logs upload and parsing steps for Claude engine (collection happens before secret redaction)
+	if claudeEngine, ok := engine.(*ClaudeEngine); ok {
+		squidSteps := claudeEngine.GetSquidLogsSteps(data)
 		for _, step := range squidSteps {
 			for _, line := range step {
 				yaml.WriteString(line + "\n")

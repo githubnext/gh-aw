@@ -22,46 +22,29 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("InstallationSteps with network permissions", func(t *testing.T) {
+	t.Run("InstallationSteps with network permissions and firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID:    "claude",
 				Model: "claude-3-5-sonnet-20241022",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com", "*.trusted.com"},
+				Allowed:  []string{"example.com", "*.trusted.com"},
+				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
 		steps := engine.GetInstallationSteps(workflowData)
-		if len(steps) != 5 {
-			t.Errorf("Expected 5 installation steps with network permissions (secret validation + Node.js setup + install + settings + hook), got %d", len(steps))
+		// With AWF enabled: secret validation + Node.js setup + AWF install + Claude install
+		if len(steps) != 4 {
+			t.Errorf("Expected 4 installation steps with network permissions and AWF (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Check settings step (4th step, index 3)
-		settingsStepStr := strings.Join(steps[3], "\n")
-		if !strings.Contains(settingsStepStr, "Generate Claude Settings") {
-			t.Error("Fourth step should generate Claude settings")
+		// Check AWF installation step (3rd step, index 2)
+		awfStepStr := strings.Join(steps[2], "\n")
+		if !strings.Contains(awfStepStr, "Install awf binary") {
+			t.Error("Third step should install AWF binary")
 		}
-		if !strings.Contains(settingsStepStr, "/tmp/gh-aw/.claude/settings.json") {
-			t.Error("Fourth step should create settings file")
-		}
-
-		// Check hook step (5th step, index 4)
-		hookStepStr := strings.Join(steps[4], "\n")
-		if !strings.Contains(hookStepStr, "Generate Network Permissions Hook") {
-			t.Error("Fifth step should generate network permissions hook")
-		}
-		if !strings.Contains(hookStepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("Fifth step should create hook file")
-		}
-		if !strings.Contains(hookStepStr, "example.com") {
-			t.Error("Hook should contain allowed domain example.com")
-		}
-		if !strings.Contains(hookStepStr, "*.trusted.com") {
-			t.Error("Hook should contain allowed domain *.trusted.com")
-		}
-
 	})
 
 	t.Run("ExecutionSteps without network permissions", func(t *testing.T) {
@@ -81,18 +64,18 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is not present
-		if strings.Contains(stepYAML, "--settings") {
-			t.Error("Settings parameter should not be present without network permissions")
+		// Verify AWF is not used without network permissions
+		if strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF should not be used without network permissions")
 		}
 
-		// Verify model parameter is present in claude_args
+		// Verify model parameter is present
 		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
 			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
 
-	t.Run("ExecutionSteps with network permissions", func(t *testing.T) {
+	t.Run("ExecutionSteps with network permissions and firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -100,7 +83,8 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 				Model: "claude-3-5-sonnet-20241022",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com"},
+				Allowed:  []string{"example.com"},
+				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -112,25 +96,36 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
-			t.Error("Settings parameter should be present with network permissions")
+		// Verify AWF is used
+		if !strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF should be used with network permissions")
 		}
 
-		// Verify model parameter is present in claude_args
+		// Verify --tty flag is present (required for Claude)
+		if !strings.Contains(stepYAML, "--tty") {
+			t.Error("--tty flag should be present for Claude with AWF")
+		}
+
+		// Verify --allow-domains is present
+		if !strings.Contains(stepYAML, "--allow-domains") {
+			t.Error("--allow-domains should be present with AWF")
+		}
+
+		// Verify model parameter is present
 		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
 			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
 		}
 	})
 
-	t.Run("ExecutionSteps with empty allowed domains (deny all)", func(t *testing.T) {
+	t.Run("ExecutionSteps with empty allowed domains and firewall enabled", func(t *testing.T) {
 		config := &EngineConfig{
 			ID:    "claude",
 			Model: "claude-3-5-sonnet-20241022",
 		}
 
 		networkPermissions := &NetworkPermissions{
-			Allowed: []string{}, // Empty list means deny all
+			Allowed:  []string{}, // Empty list means deny all
+			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
@@ -141,20 +136,23 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present even with deny-all policy
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
-			t.Error("Settings parameter should be present with deny-all network permissions")
+		// Verify AWF is used even with deny-all policy
+		if !strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF should be used even with deny-all network permissions")
 		}
 	})
 
-	t.Run("ExecutionSteps with non-Claude engine", func(t *testing.T) {
+	t.Run("ExecutionSteps with non-Claude engine ID in config", func(t *testing.T) {
+		// Note: This test uses Claude engine but with non-Claude engine config ID
+		// The behavior should still be based on the actual engine type, not the config ID
 		config := &EngineConfig{
-			ID:    "codex", // Non-Claude engine
+			ID:    "codex", // Non-Claude engine ID
 			Model: "gpt-4",
 		}
 
 		networkPermissions := &NetworkPermissions{
-			Allowed: []string{"example.com"},
+			Allowed:  []string{"example.com"},
+			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
@@ -162,18 +160,19 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Fatal("Expected at least one execution step")
 		}
 
+		// The Claude engine will still generate AWF-wrapped command since it's the Claude engine
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is not present for non-Claude engines
-		if strings.Contains(stepYAML, "settings:") {
-			t.Error("Settings parameter should not be present for non-Claude engine")
+		// AWF should be present because the engine is Claude (not based on config ID)
+		if !strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF should be used because the engine type is Claude")
 		}
 	})
 }
 
 func TestNetworkPermissionsIntegration(t *testing.T) {
-	t.Run("Full workflow generation", func(t *testing.T) {
+	t.Run("Full workflow generation with AWF", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		config := &EngineConfig{
 			ID:    "claude",
@@ -181,22 +180,21 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		}
 
 		networkPermissions := &NetworkPermissions{
-			Allowed: []string{"api.github.com", "*.example.com", "trusted.org"},
+			Allowed:  []string{"api.github.com", "*.example.com", "trusted.org"},
+			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		// Get installation steps
 		steps := engine.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
-		if len(steps) != 5 {
-			t.Fatalf("Expected 5 installation steps (secret validation + Node.js setup + install + settings + hook), got %d", len(steps))
+		// With AWF enabled: secret validation + Node.js setup + AWF install + Claude install
+		if len(steps) != 4 {
+			t.Fatalf("Expected 4 installation steps (secret validation + Node.js setup + AWF install + Claude install), got %d", len(steps))
 		}
 
-		// Verify hook generation step (fifth step, index 4)
-		hookStep := strings.Join(steps[4], "\n")
-		expectedDomains := []string{"api.github.com", "*.example.com", "trusted.org"}
-		for _, domain := range expectedDomains {
-			if !strings.Contains(hookStep, domain) {
-				t.Errorf("Hook step should contain domain '%s'", domain)
-			}
+		// Verify AWF installation step (third step, index 2)
+		awfStep := strings.Join(steps[2], "\n")
+		if !strings.Contains(awfStep, "Install awf binary") {
+			t.Error("Third step should install AWF binary")
 		}
 
 		// Get execution steps
@@ -208,9 +206,14 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(execSteps[0], "\n")
 
-		// Verify settings is configured
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
-			t.Error("Settings parameter should be present")
+		// Verify AWF is configured
+		if !strings.Contains(stepYAML, "sudo -E awf") {
+			t.Error("AWF should be present")
+		}
+
+		// Verify --tty flag is present
+		if !strings.Contains(stepYAML, "--tty") {
+			t.Error("--tty flag should be present for Claude with AWF")
 		}
 
 		// Test the GetAllowedDomains function - domains should be sorted
@@ -238,7 +241,8 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		}
 
 		networkPermissions := &NetworkPermissions{
-			Allowed: []string{"example.com"},
+			Allowed:  []string{"example.com"},
+			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps1 := engine1.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})

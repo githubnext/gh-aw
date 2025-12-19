@@ -298,8 +298,12 @@ This workflow tests that /tmp/gh-aw/ files are excluded from cleanup.
 func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 	engine := NewClaudeEngine()
 
-	t.Run("Network hook cleanup with Claude engine and network permissions", func(t *testing.T) {
-		// Test data with Claude engine and network permissions
+	// Note: With AWF integration, we no longer generate Python hooks for network permissions.
+	// Instead, AWF wraps the Claude CLI command directly. This test verifies that
+	// no cleanup steps are generated since hooks are no longer used.
+
+	t.Run("No hook cleanup with Claude engine and network permissions (AWF mode)", func(t *testing.T) {
+		// Test data with Claude engine and network permissions with firewall enabled
 		data := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -307,7 +311,8 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 				Model: "claude-3-5-sonnet-20241022",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com", "*.trusted.com"},
+				Allowed:  []string{"example.com", "*.trusted.com"},
+				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -321,31 +326,18 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 		result := allStepsStr.String()
 
-		// Verify cleanup step is generated
-		if !strings.Contains(result, "- name: Clean up network proxy hook files") {
-			t.Error("Expected cleanup step to be generated with Claude engine and network permissions")
+		// Verify AWF is used instead of hooks
+		if !strings.Contains(result, "sudo -E awf") {
+			t.Error("Expected AWF wrapper to be used with network permissions")
 		}
 
-		// Verify if: always() condition
-		if !strings.Contains(result, "if: always()") {
-			t.Error("Expected cleanup step to have 'if: always()' condition")
-		}
-
-		// Verify cleanup commands
-		if !strings.Contains(result, "rm -rf .claude/hooks/network_permissions.py || true") {
-			t.Error("Expected cleanup step to remove network_permissions.py")
-		}
-
-		if !strings.Contains(result, "rm -rf .claude/hooks || true") {
-			t.Error("Expected cleanup step to remove hooks directory")
-		}
-
-		if !strings.Contains(result, "rm -rf .claude || true") {
-			t.Error("Expected cleanup step to remove .claude directory")
+		// Verify no old hook cleanup step is generated (hooks are deprecated)
+		if strings.Contains(result, "- name: Clean up network proxy hook files") {
+			t.Error("Expected no hook cleanup step since AWF is used instead of hooks")
 		}
 	})
 
-	t.Run("Cleanup with Claude engine and defaults network permissions", func(t *testing.T) {
+	t.Run("No cleanup with Claude engine and defaults network permissions", func(t *testing.T) {
 		// Test data with Claude engine and defaults network permissions
 		// (This simulates what happens when no network section is specified - defaults to "defaults" mode)
 		data := &WorkflowData{
@@ -369,9 +361,9 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 		result := allStepsStr.String()
 
-		// Verify cleanup step is generated for defaults mode
-		if !strings.Contains(result, "- name: Clean up network proxy hook files") {
-			t.Error("Expected cleanup step to be generated with defaults network permissions")
+		// Verify no hook cleanup step (firewall not enabled, no AWF)
+		if strings.Contains(result, "- name: Clean up network proxy hook files") {
+			t.Error("Expected no hook cleanup step since AWF is used instead of hooks")
 		}
 	})
 
@@ -402,8 +394,8 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 	})
 
-	t.Run("Cleanup with empty network permissions (deny-all)", func(t *testing.T) {
-		// Test data with Claude engine and empty network permissions (deny-all)
+	t.Run("No cleanup with empty network permissions (AWF deny-all)", func(t *testing.T) {
+		// Test data with Claude engine and empty network permissions with firewall enabled
 		data := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -411,7 +403,8 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 				Model: "claude-3-5-sonnet-20241022",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{}, // Empty allowed list (deny-all, but still uses hooks)
+				Allowed:  []string{}, // Empty allowed list (deny-all)
+				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -425,10 +418,14 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 		result := allStepsStr.String()
 
-		// Verify cleanup step is generated even for deny-all policy
-		// because hooks are still created for deny-all enforcement
-		if !strings.Contains(result, "- name: Clean up network proxy hook files") {
-			t.Error("Expected cleanup step to be generated even with deny-all network permissions")
+		// Verify AWF is used
+		if !strings.Contains(result, "sudo -E awf") {
+			t.Error("Expected AWF to be used even with deny-all policy")
+		}
+
+		// Verify no old hook cleanup step is generated
+		if strings.Contains(result, "- name: Clean up network proxy hook files") {
+			t.Error("Expected no hook cleanup step since AWF is used instead of hooks")
 		}
 	})
 }
