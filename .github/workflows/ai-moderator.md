@@ -1,6 +1,7 @@
 ---
 bots: ["agentic-workflows-dev[bot]"]
 timeout-minutes: 5
+strict: true
 on:
   issues:
     types: [opened]
@@ -16,6 +17,8 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
+sandbox:
+  agent: awf
 tools:
   github:
     mode: local
@@ -263,6 +266,7 @@ The workflow is configured in `.github/workflows/ai-moderator.md` with the follo
 
 ```yaml
 timeout-minutes: 5
+strict: true
 on:
   issues:
     types: [opened]
@@ -277,6 +281,8 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
+sandbox:
+  agent: awf
 tools:
   github:
     mode: local

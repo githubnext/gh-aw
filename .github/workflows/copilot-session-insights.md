@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
 
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:
@@ -30,6 +30,8 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

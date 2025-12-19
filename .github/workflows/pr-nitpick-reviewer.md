@@ -7,6 +7,8 @@ permissions:
   pull-requests: read
   actions: read
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:
@@ -27,6 +29,7 @@ safe-outputs:
     run-success: "🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅"
     run-failure: "🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected..."
 timeout-minutes: 15
+strict: true
 imports:
   - shared/reporting.md
 ---

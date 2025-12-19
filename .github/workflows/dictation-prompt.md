@@ -18,6 +18,8 @@ network: defaults
 imports:
   - shared/reporting.md
 
+sandbox:
+  agent: awf
 tools:
   edit:
   bash:
@@ -32,6 +34,7 @@ safe-outputs:
     draft: false
 
 timeout-minutes: 10
+strict: true
 ---
 
 # Dictation Prompt Generator

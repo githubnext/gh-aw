@@ -39,6 +39,8 @@ permissions:
 
 engine: copilot
 
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [repos, issues, pull_requests, search]

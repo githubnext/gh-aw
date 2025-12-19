@@ -11,6 +11,8 @@ permissions:
   pull-requests: read
 tracker-id: hourly-ci-cleaner
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   bash: ["*"]
   edit:
@@ -67,6 +69,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[ca] "
 timeout-minutes: 45
+strict: true
 imports:
   - ../agents/ci-cleaner.agent.md
 ---

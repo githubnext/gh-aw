@@ -9,6 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
 safe-outputs:

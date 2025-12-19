@@ -140,7 +140,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      issues: read
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"

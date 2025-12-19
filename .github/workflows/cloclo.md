@@ -20,6 +20,8 @@ engine:
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   edit:
@@ -38,6 +40,7 @@ safe-outputs:
     run-success: "🎤 Bravo! [{workflow_name}]({run_url}) has delivered a stunning performance! Standing ovation! 🌟"
     run-failure: "🎵 Intermission... [{workflow_name}]({run_url}) {status}. The show must go on... eventually!"
 timeout-minutes: 20
+strict: true
 ---
 
 # /cloclo

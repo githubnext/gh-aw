@@ -9,6 +9,8 @@ permissions:
   pull-requests: read
   actions: read
 engine: claude
+sandbox:
+  agent: awf
 tools:
   agentic-workflows:
   github:
@@ -19,6 +21,7 @@ safe-outputs:
     category: "Audits"
     close-older-discussions: true
 timeout-minutes: 10
+strict: true
 imports:
   - shared/reporting.md
 ---

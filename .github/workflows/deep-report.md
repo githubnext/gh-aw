@@ -18,7 +18,7 @@ permissions:
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 engine: codex
-strict: false
+strict: true
 
 network:
   allowed:
@@ -33,6 +33,8 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
+sandbox:
+  agent: awf
 tools:
   repo-memory:
     branch-name: memory/deep-report

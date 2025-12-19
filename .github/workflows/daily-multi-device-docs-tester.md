@@ -11,14 +11,16 @@ on:
         default: 'mobile,tablet,desktop'
 permissions:
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 tracker-id: daily-multi-device-docs-tester
 engine:
   id: claude
   max-turns: 30  # Prevent runaway token usage
-strict: false
+strict: true
 timeout-minutes: 30
+sandbox:
+  agent: awf
 tools:
   playwright:
     version: "v1.56.1"

@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
 name: Smoke Codex Firewall
 engine: codex
-strict: false
+strict: true
 network:
   allowed:
     - defaults
@@ -33,6 +33,8 @@ safe-outputs:
       run-success: "✅ Firewall validation complete... [{workflow_name}]({run_url}) confirmed network sandboxing is operational. 🛡️"
       run-failure: "❌ Firewall validation failed... [{workflow_name}]({run_url}) {status}. Network sandboxing may not be working correctly."
 timeout-minutes: 10
+sandbox:
+  agent: awf
 tools:
   github:
   bash:

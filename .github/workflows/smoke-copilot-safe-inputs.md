@@ -20,6 +20,8 @@ network:
     - github
 imports:
   - shared/gh.md
+sandbox:
+  agent: awf
 tools:
   edit:
   bash:

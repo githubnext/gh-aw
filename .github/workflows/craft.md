@@ -9,6 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   edit:
   bash:
@@ -21,6 +23,7 @@ steps:
       gh extension remove gh-aw || true
       gh extension install .
 timeout-minutes: 15
+strict: true
 safe-outputs:
   add-comment:
     max: 1
@@ -227,12 +230,15 @@ permissions:
   contents: read
   issues: write
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]
 safe-outputs:
   add-comment:
 timeout-minutes: 10
+strict: true
 ---
 
 # My Workflow Title

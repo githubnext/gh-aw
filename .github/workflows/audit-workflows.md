@@ -10,6 +10,8 @@ permissions:
   pull-requests: read
 tracker-id: audit-workflows-daily
 engine: claude
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   timeout: 300
@@ -25,6 +27,7 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 timeout-minutes: 30
+strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md

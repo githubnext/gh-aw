@@ -10,6 +10,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   edit:

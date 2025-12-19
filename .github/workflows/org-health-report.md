@@ -10,6 +10,8 @@ permissions:
   pull-requests: read
   discussions: write
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets:

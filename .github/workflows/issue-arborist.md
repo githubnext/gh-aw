@@ -8,13 +8,15 @@ permissions:
   contents: read
   issues: read
 engine: codex
-strict: false
+strict: true
 network:
   allowed:
     - defaults
     - github
 imports:
   - shared/jqschema.md
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets:

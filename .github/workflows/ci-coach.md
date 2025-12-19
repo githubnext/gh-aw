@@ -11,6 +11,8 @@ permissions:
   issues: read
 tracker-id: ci-coach-daily
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]
@@ -81,6 +83,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[ci-coach] "
 timeout-minutes: 30
+strict: true
 imports:
   - shared/jqschema.md
   - shared/reporting.md

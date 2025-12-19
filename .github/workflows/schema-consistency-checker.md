@@ -9,6 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: claude
+sandbox:
+  agent: awf
 tools:
   edit:
   bash: ["*"]
@@ -24,6 +26,7 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 timeout-minutes: 30
+strict: true
 imports:
   - shared/reporting.md
 ---

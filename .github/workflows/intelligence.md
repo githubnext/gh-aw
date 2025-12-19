@@ -30,6 +30,8 @@ safe-outputs:
   create-issue:
     max: 1  # Intelligence report issue
 
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [repos, issues, search]

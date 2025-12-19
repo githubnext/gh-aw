@@ -12,6 +12,8 @@ engine: copilot
 strict: true
 imports:
   - shared/mcp/brave.md
+sandbox:
+  agent: awf
 safe-outputs:
   add-comment:
     max: 1

@@ -12,6 +12,8 @@ permissions:
 engine: copilot
 network:
   allowed: [defaults, node, "api.github.com"]
+sandbox:
+  agent: awf
 tools:
   edit:
   web-fetch:
@@ -23,6 +25,7 @@ safe-outputs:
     labels: [automation, cli, documentation]
     max: 5
 timeout-minutes: 20
+strict: true
 ---
 
 # CLI Consistency Checker

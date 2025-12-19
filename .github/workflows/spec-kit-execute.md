@@ -13,7 +13,7 @@ permissions:
 
 tracker-id: spec-kit-execute
 engine: copilot
-strict: false
+strict: true
 
 safe-outputs:
   create-pull-request:
@@ -22,6 +22,8 @@ safe-outputs:
     reviewers: copilot
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   repo-memory: true

@@ -15,6 +15,8 @@ permissions:
   pull-requests: read
   security-events: read
 engine: claude
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
@@ -27,6 +29,7 @@ safe-outputs:
     labels: [security, automated-fix]
     reviewers: copilot
 timeout-minutes: 20
+strict: true
 ---
 
 # Security Issue Fix Agent

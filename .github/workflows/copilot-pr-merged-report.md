@@ -14,8 +14,10 @@ permissions:
   actions: read
 
 engine: copilot
-strict: false
+strict: true
 
+sandbox:
+  agent: awf
 tools:
   github: false
   edit:

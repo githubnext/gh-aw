@@ -29,6 +29,7 @@ tools:
     toolsets:
       - default
       - discussions
+strict: true
 safe-outputs:
   upload-assets:
   create-discussion:

@@ -13,11 +13,13 @@ permissions:
   pull-requests: read
 
 engine: copilot
-strict: false
+strict: true
 
 imports:
   - ../agents/speckit-dispatcher.agent.md
 
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]

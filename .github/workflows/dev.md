@@ -4,13 +4,15 @@ on:
 name: Dev
 description: Add a poem to the latest discussion
 timeout-minutes: 5
-strict: false
+strict: true
 engine: copilot
 
 permissions:
   contents: read
   discussions: read
 
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [discussions]

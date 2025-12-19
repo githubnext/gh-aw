@@ -8,6 +8,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   agentic-workflows:
   edit:
@@ -19,6 +21,7 @@ safe-outputs:
     category: "artifacts"
     max: 1
 timeout-minutes: 15
+strict: true
 ---
 
 # Python Data Visualization Generator

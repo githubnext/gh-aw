@@ -27,6 +27,8 @@ safe-outputs:
     labels: [dependencies, automation]
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]

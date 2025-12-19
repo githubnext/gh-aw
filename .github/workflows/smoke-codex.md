@@ -14,12 +14,14 @@ permissions:
   pull-requests: read
 name: Smoke Codex
 engine: codex
-strict: false
+strict: true
 network:
   allowed:
     - defaults
     - github
     - playwright
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

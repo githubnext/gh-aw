@@ -10,8 +10,10 @@ permissions:
   pull-requests: read
   discussions: write
 engine: codex
-strict: false
+strict: true
 tracker-id: daily-issues-report
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default, discussions]

@@ -14,6 +14,8 @@ engine: codex
 imports:
   - shared/jqschema.md
   - shared/discussions-data-fetch.md
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default, discussions]

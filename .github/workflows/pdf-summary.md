@@ -29,6 +29,8 @@ engine: copilot
 imports:
   - shared/mcp/markitdown.md
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
 

@@ -9,6 +9,8 @@ permissions:
    pull-requests: read
    actions: read
 engine: claude
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   timeout: 300

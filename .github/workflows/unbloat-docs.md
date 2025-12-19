@@ -19,7 +19,7 @@ permissions:
   pull-requests: read
   issues: read
 
-strict: false
+strict: true
 
 # AI engine configuration
 engine:
@@ -37,6 +37,8 @@ network:
     - github
 
 # Tools configuration
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

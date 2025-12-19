@@ -12,6 +12,8 @@ tracker-id: portfolio-analyst-weekly
 engine: copilot
 network:
   allowed: [python]
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]
@@ -30,6 +32,7 @@ safe-outputs:
     close-older-discussions: true
   upload-assets:
 timeout-minutes: 20
+strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md

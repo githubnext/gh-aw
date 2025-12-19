@@ -26,6 +26,7 @@ network:
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
+strict: true
 safe-outputs:
   upload-assets:
   create-discussion:

@@ -7,12 +7,14 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
-strict: false
+strict: true
 engine: claude
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
+sandbox:
+  agent: awf
 tools:
   web-fetch:
   cache-memory: true

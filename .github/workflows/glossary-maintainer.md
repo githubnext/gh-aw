@@ -31,6 +31,8 @@ safe-outputs:
     labels: [documentation, glossary]
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   cache-memory: true
@@ -44,6 +46,7 @@ tools:
     - "git log --since='7 days ago' --oneline"
 
 timeout-minutes: 20
+strict: true
 
 ---
 

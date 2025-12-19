@@ -12,6 +12,8 @@ strict: true
 network:
   allowed:
     - defaults
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets:

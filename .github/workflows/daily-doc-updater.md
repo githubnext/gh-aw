@@ -14,7 +14,7 @@ permissions:
 
 tracker-id: daily-doc-updater
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:
@@ -28,6 +28,8 @@ safe-outputs:
     reviewers: copilot
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

@@ -9,6 +9,8 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]
@@ -20,6 +22,7 @@ safe-outputs:
     target: "${{ github.event.issue.number }}"
   assign-to-agent:
 timeout-minutes: 5
+strict: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

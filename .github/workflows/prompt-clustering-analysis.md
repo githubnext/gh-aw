@@ -11,7 +11,7 @@ permissions:
   issues: read
   actions: read
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:
@@ -39,6 +39,8 @@ cache:
     restore-keys: |
       prompt-clustering-cache-
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

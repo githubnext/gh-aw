@@ -26,6 +26,8 @@ safe-outputs:
     labels: [refactoring, code-health, automated-analysis]
     max: 1
 
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   github:

@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
 
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:
@@ -31,6 +31,8 @@ safe-outputs:
     labels: [documentation, automation]
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   cache-memory:

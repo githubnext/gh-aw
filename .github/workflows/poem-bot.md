@@ -35,6 +35,8 @@ engine:
 network: {}
 
 # Tools configuration
+sandbox:
+  agent: awf
 tools:
   github:
     toolsets: [default]

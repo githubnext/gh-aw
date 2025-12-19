@@ -14,7 +14,7 @@ permissions:
 
 tracker-id: spec-kit-executor
 engine: copilot
-strict: false
+strict: true
 
 network:
   allowed:
@@ -28,6 +28,8 @@ safe-outputs:
     reviewers: copilot
     draft: false
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   repo-memory: true

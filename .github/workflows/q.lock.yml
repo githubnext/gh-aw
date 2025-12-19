@@ -2948,6 +2948,8 @@ jobs:
           
           Example:
           ```yaml
+          sandbox:
+            agent: awf
           tools:
             github:
               allowed: 

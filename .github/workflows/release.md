@@ -25,6 +25,7 @@ tools:
   bash:
     - "*"
   edit:
+strict: true
 safe-outputs:
   update-release:
 jobs:

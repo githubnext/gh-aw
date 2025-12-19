@@ -14,7 +14,7 @@ permissions:
   actions: read
 
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:
@@ -33,6 +33,8 @@ imports:
   - shared/reporting.md
   - shared/copilot-pr-data-fetch.md
 
+sandbox:
+  agent: awf
 tools:
   cache-memory: true
   github:

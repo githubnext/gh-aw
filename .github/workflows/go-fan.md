@@ -32,6 +32,8 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 
+sandbox:
+  agent: awf
 tools:
   serena: ["go"]
   cache-memory: true
@@ -48,7 +50,7 @@ tools:
     - "cat specs/mods/*"
 
 timeout-minutes: 30
-strict: false
+strict: true
 ---
 
 # Go Fan 🐹 - Daily Go Module Reviewer
