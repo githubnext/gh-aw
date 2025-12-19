@@ -73,22 +73,22 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	}
 
 	// Verify that the prompt includes completion instructions
-	if !strings.Contains(data.MarkdownContent, "campaign is complete") {
+	if !strings.Contains(data.MarkdownContent, "Campaign complete") {
 		t.Errorf("expected markdown to mention campaign completion, got: %q", data.MarkdownContent)
 	}
 
-	if !strings.Contains(data.MarkdownContent, "normal terminal state") {
-		t.Errorf("expected markdown to mention normal terminal state, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "terminal state") {
+		t.Errorf("expected markdown to mention terminal state, got: %q", data.MarkdownContent)
 	}
 
-	// Verify that the prompt explicitly states not to report closed issues as blockers
-	if !strings.Contains(data.MarkdownContent, "Do not report closed issues as blockers") {
-		t.Errorf("expected markdown to explicitly state not to report closed issues as blockers, got: %q", data.MarkdownContent)
+	// Verify that the prompt uses system-agnostic completion logic
+	if !strings.Contains(data.MarkdownContent, "Decide completion") {
+		t.Errorf("expected markdown to include decision phase for completion, got: %q", data.MarkdownContent)
 	}
 
-	// Verify that "highlight blockers" is not in the prompt
-	if strings.Contains(data.MarkdownContent, "highlight blockers") {
-		t.Errorf("expected markdown to NOT contain 'highlight blockers', but it does: %q", data.MarkdownContent)
+	// Verify explicit completion criteria
+	if !strings.Contains(data.MarkdownContent, "all discovered issues are closed") {
+		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
 	}
 }
 
@@ -115,8 +115,13 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	}
 
 	// Verify that it searches for issues containing tracker-id
-	if !strings.Contains(data.MarkdownContent, "<!-- tracker-id:") {
-		t.Errorf("expected markdown to mention searching for tracker-id HTML comments, got: %q", data.MarkdownContent)
+	if !strings.Contains(data.MarkdownContent, "tracker-id") {
+		t.Errorf("expected markdown to mention searching for tracker-id, got: %q", data.MarkdownContent)
+	}
+
+	// Verify it explains the XML comment correlation mechanism
+	if !strings.Contains(data.MarkdownContent, "XML comment") || !strings.Contains(data.MarkdownContent, "Correlation Mechanism") {
+		t.Errorf("expected markdown to explain correlation mechanism with XML comments, got: %q", data.MarkdownContent)
 	}
 
 	// Verify that orchestrator does NOT monitor workflow runs by file name
@@ -128,8 +133,30 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		t.Errorf("expected markdown to NOT reference .lock.yml files for monitoring, but it does: %q", data.MarkdownContent)
 	}
 
-	// Verify that it uses github-search_issues
-	if !strings.Contains(data.MarkdownContent, "github-search_issues") {
-		t.Errorf("expected markdown to use github-search_issues for discovering worker output, got: %q", data.MarkdownContent)
+	// Verify that it uses tracker-id based discovery
+	if !strings.Contains(data.MarkdownContent, "tracker-id") {
+		t.Errorf("expected markdown to use tracker-id for discovering worker output, got: %q", data.MarkdownContent)
+	}
+
+	// Verify it follows system-agnostic rules
+	if !strings.Contains(data.MarkdownContent, "Campaign Orchestrator Rules") {
+		t.Errorf("expected markdown to contain Campaign Orchestrator Rules section, got: %q", data.MarkdownContent)
+	}
+
+	// Verify separation of phases
+	if !strings.Contains(data.MarkdownContent, "Phase 1: Read State") {
+		t.Errorf("expected markdown to contain Phase 1: Read State, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 2: Make Decisions") {
+		t.Errorf("expected markdown to contain Phase 2: Make Decisions, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 3: Write State") {
+		t.Errorf("expected markdown to contain Phase 3: Write State, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "Phase 4: Report") {
+		t.Errorf("expected markdown to contain Phase 4: Report, got: %q", data.MarkdownContent)
 	}
 }

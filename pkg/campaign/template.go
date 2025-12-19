@@ -22,10 +22,6 @@ var closingInstructionsTemplate string
 
 // CampaignPromptData holds data for rendering campaign orchestrator prompts
 type CampaignPromptData struct {
-	// ReportBlockers controls whether to include blocker reporting
-	ReportBlockers bool
-	// CompletionGuidance controls whether to include completion instructions
-	CompletionGuidance bool
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
 }
