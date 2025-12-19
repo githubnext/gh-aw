@@ -14,7 +14,7 @@ permissions:
 
 tracker-id: spec-kit-executor
 engine: copilot
-strict: false
+strict: true
 
 network:
   allowed:

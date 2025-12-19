@@ -19,7 +19,7 @@ permissions:
   pull-requests: read
   issues: read
 
-strict: false
+strict: true
 
 # AI engine configuration
 engine:

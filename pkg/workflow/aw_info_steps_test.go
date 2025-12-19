@@ -72,8 +72,8 @@ engine: claude
 
 This workflow tests that Claude has firewall enabled by default when network is not configured.
 `,
-			expectFirewall: "",
-			description:    "Should have empty firewall type when no network is configured (firewall only applies with network restrictions)",
+			expectFirewall: "squid",
+			description:    "Should have firewall type squid when no network is configured (firewall enabled by default)",
 		},
 	}
 

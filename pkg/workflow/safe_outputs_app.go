@@ -224,7 +224,7 @@ func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]str
 	// - models (no GitHub App permission for this)
 	// - id-token (not applicable to GitHub Apps)
 	// - attestations (no GitHub App permission for this)
-	// - repository-projects (classic repository projects, use organization-projects for Projects v2)
+	// - repository-projects (removed - classic projects are sunset; use organization-projects for Projects v2 via PAT/GitHub App)
 
 	return fields
 }

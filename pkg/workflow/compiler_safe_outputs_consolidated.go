@@ -445,7 +445,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
-		// Update project requires repository-projects permission
+		// Update project requires organization-projects permission (via GitHub App token)
+		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
