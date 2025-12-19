@@ -47,6 +47,22 @@ Once you decide to use a campaign, most implementations follow the same shape:
 
 You can track campaigns with just labels and issues, but campaigns become much more reusable when you also store baselines, metrics, and learnings in repo-memory (a git branch used for machine-generated snapshots).
 
+### Orchestrator and Worker Coordination
+
+Campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers:
+
+1. **Worker workflows** include a `tracker-id` in their frontmatter (e.g., `tracker-id: "daily-file-diet"`). This identifier is automatically embedded in all assets created by the workflow (issues, PRs, discussions, comments) as an XML comment marker: `<!-- agentic-workflow: WorkflowName, tracker-id: daily-file-diet, ... -->`
+
+2. **Orchestrator workflows** discover work created by workers by searching for issues containing the worker's tracker-id. For example, to find issues created by a worker with `tracker-id: "daily-file-diet"`:
+   ```
+   repo:owner/repo "tracker-id: daily-file-diet" in:body
+   ```
+
+3. The orchestrator then adds discovered issues to the campaign's GitHub Project board and updates their status as work progresses.
+
+This design allows workers to operate independently without knowledge of the campaign, while orchestrators maintain a centralized view of all campaign work by searching for tracker-id markers.
+
+
 Next: how gh-aw represents that “initiative layer” as a file you can review and version.
 
 ## Campaign spec files
@@ -88,6 +104,7 @@ To keep campaigns consistent and easy to read, most teams use a predictable set 
 - **Epic issue** (often also labeled `campaign-tracker`) as the human-readable command center.
 - **GitHub Project** as the dashboard (primary campaign dashboard).
 - **Repo-memory metrics** (daily JSON snapshots) to compute velocity/ETAs and enable trend reporting.
+- **Tracker IDs in worker workflows** (e.g., `tracker-id: "worker-name"`) to enable orchestrator discovery of worker-created assets.
 - **Monitor/orchestrator** to aggregate and post periodic updates.
 
 If you want to try this end-to-end quickly, start with the minimal steps below.
