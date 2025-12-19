@@ -249,7 +249,7 @@ jobs:
           npm install @anthropic-ai/sandbox-runtime
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install @github/copilot@0.0.371
+        run: npm install @github/copilot@0.0.369
       - name: Downloading container images
         run: |
           set -e
@@ -279,7 +279,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -302,7 +302,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                  "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -331,8 +331,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
-              cli_version: "f15297c",
+              agent_version: "0.0.369",
               workflow_name: "Smoke SRT Custom Config",
               experimental: false,
               supports_tools_allowlist: true,

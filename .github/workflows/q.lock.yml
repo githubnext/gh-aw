@@ -1045,7 +1045,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1089,7 +1089,7 @@ jobs:
             done
           }
           
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
+          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.25.0
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -2653,7 +2653,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,discussions",
-                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                  "ghcr.io/github/github-mcp-server:v0.25.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2721,8 +2721,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
-              cli_version: "f15297c",
+              agent_version: "0.0.369",
               workflow_name: "Q",
               experimental: false,
               supports_tools_allowlist: true,
@@ -7719,7 +7718,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.369 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
