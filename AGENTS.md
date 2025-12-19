@@ -368,6 +368,7 @@ make minor-release  # Automated via GitHub Actions
 ## Quick Reference for AI Agents
 - Go project with Makefile-managed build/test/lint
 - Always run `make agent-finish` before commits
+- Use `gh pr edit --add-label smoke` to trigger smoke tests (key integration tests); remove with `--remove-label smoke`
 - Use `make test-unit` for fast development testing, `make test` for full coverage
 - Use console formatting for user output
 - Repository: `githubnext/gh-aw`
