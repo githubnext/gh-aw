@@ -253,6 +253,15 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		claudeLog.Print("Added workspace mount to AWF")
 
+		// Mount minimal binaries needed to run Claude CLI
+		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/node:/usr/local/bin/node:ro")
+		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/claude:/usr/local/bin/claude:ro")
+
+		// Mount only the Claude Code package (not all node_modules)
+		awfArgs = append(awfArgs, "--mount", "/usr/local/lib/node_modules/@anthropic-ai:/usr/local/lib/node_modules/@anthropic-ai:ro")
+
+		claudeLog.Print("Added minimal Node.js and Claude CLI mounts to AWF container")
+
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
 			// Sort mounts for consistent output
