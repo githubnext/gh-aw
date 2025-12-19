@@ -193,8 +193,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build the command string with proper argument formatting
-	// Invoke Claude CLI directly via Node.js (avoids needing to mount the claude binary symlink)
-	commandParts := []string{"node", "/usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js"}
+	// Use claude command directly (available in PATH from hostedtoolcache mount)
+	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
@@ -253,12 +253,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		claudeLog.Print("Added workspace mount to AWF")
 
-		// Mount minimal binaries needed to run Claude CLI
-		// We invoke Claude via: node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js
-		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/node:/usr/local/bin/node:ro")
-		awfArgs = append(awfArgs, "--mount", "/usr/local/lib/node_modules/@anthropic-ai:/usr/local/lib/node_modules/@anthropic-ai:ro")
+		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
+		// This includes node binary, npm, and all global packages including Claude
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
 
-		claudeLog.Print("Added minimal Node.js and Claude package mounts to AWF container")
+		claudeLog.Print("Added hostedtoolcache node mount to AWF container")
 
 		// Add custom mounts from agent config if specified
 		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
