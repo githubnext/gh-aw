@@ -45,8 +45,12 @@ git --version     # Should show git version 2.x or higher
 If you want to use Copilot to configure GitHub Agentic Workflows, run:
 
 ```bash wrap
-npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
+npx --yes @github/copilot@latest -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
+
+:::note
+The `-i` flag requires `@github/copilot` version 0.0.366 or later. Using `@latest` ensures you have the newest version.
+:::
 
 ## How Agentic Workflows Work
 

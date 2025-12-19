@@ -195,7 +195,7 @@ gh extension install githubnext/gh-aw
 gh aw init
 
 # Agentic setup with Copilot CLI (optional)
-npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
+npx --yes @github/copilot@latest -i "activate https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install.md"
 ```
 
 > Built with AI agents in mind from day 0
