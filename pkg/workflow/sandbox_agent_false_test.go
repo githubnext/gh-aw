@@ -20,6 +20,7 @@ network:
     - github.com
 sandbox:
   agent: false
+strict: false
 on: workflow_dispatch
 ---
 
@@ -118,6 +119,7 @@ network:
     - github.com
 sandbox:
   agent: false
+strict: false
 on: workflow_dispatch
 ---
 

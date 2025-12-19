@@ -246,9 +246,11 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 	}
 
 	// Check if sandbox.agent: false is set (explicitly disabled)
+	// In strict mode, this is not allowed for copilot engine as it disables the firewall
+	// Note: We only reach this point for copilot engine (non-copilot returns early on line 226)
 	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		strictModeValidationLog.Printf("sandbox.agent: false is set, skipping firewall validation")
-		return nil
+		strictModeValidationLog.Printf("sandbox.agent: false is set, refusing in strict mode for copilot")
+		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed for copilot engine because it disables the firewall. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://githubnext.github.io/gh-aw/reference/network/")
 	}
 
 	// If network permissions don't exist, that's fine (will default to "defaults")

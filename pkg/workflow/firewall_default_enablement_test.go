@@ -402,7 +402,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("strict mode skips validation when sandbox.agent is false", func(t *testing.T) {
+	t.Run("strict mode refuses sandbox.agent: false for copilot", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.SetStrictMode(true)
 
@@ -419,8 +419,35 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		}
 
 		err := compiler.validateStrictFirewall("copilot", networkPerms, sandboxConfig)
+		if err == nil {
+			t.Error("Expected error when sandbox.agent is false in strict mode for copilot")
+		}
+		expectedMsg := "sandbox.agent: false"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
+		}
+	})
+
+	t.Run("strict mode allows sandbox.agent: false for non-copilot engines", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetStrictMode(true)
+
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
+			Firewall:          nil,
+		}
+
+		sandboxConfig := &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Disabled: true,
+			},
+		}
+
+		// Non-copilot engines should still allow sandbox.agent: false
+		err := compiler.validateStrictFirewall("claude", networkPerms, sandboxConfig)
 		if err != nil {
-			t.Errorf("Expected no error when sandbox.agent is false, got: %v", err)
+			t.Errorf("Expected no error for non-copilot engine with sandbox.agent: false, got: %v", err)
 		}
 	})
 
@@ -457,6 +484,28 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error in non-strict mode, got: %v", err)
+		}
+	})
+
+	t.Run("non-strict mode allows sandbox.agent: false for copilot", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetStrictMode(false)
+
+		networkPerms := &NetworkPermissions{
+			Allowed:           []string{"example.com"},
+			ExplicitlyDefined: true,
+			Firewall:          nil,
+		}
+
+		sandboxConfig := &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Disabled: true,
+			},
+		}
+
+		err := compiler.validateStrictFirewall("copilot", networkPerms, sandboxConfig)
+		if err != nil {
+			t.Errorf("Expected no error in non-strict mode with sandbox.agent: false, got: %v", err)
 		}
 	})
 }
