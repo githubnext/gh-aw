@@ -41,6 +41,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
+			supportsFirewall:       true,  // Codex supports network firewalling via AWF
 		},
 	}
 }
@@ -49,7 +50,7 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 
 	// Use base installation steps (secret validation + npm install)
-	return GetBaseInstallationSteps(EngineInstallConfig{
+	steps := GetBaseInstallationSteps(EngineInstallConfig{
 		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
 		DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 		NpmPackage: "@openai/codex",
@@ -57,6 +58,24 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		Name:       "Codex",
 		CliName:    "codex",
 	}, workflowData)
+
+	// Add AWF installation step if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
+		var awfVersion string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+		}
+
+		// Install AWF binary (or skip if custom command is specified)
+		awfInstall := generateAWFInstallationStep(awfVersion, agentConfig)
+		if len(awfInstall) > 0 {
+			steps = append(steps, awfInstall)
+		}
+	}
+
+	return steps
 }
 
 // GetDeclaredOutputFiles returns the output files that Codex may produce
@@ -76,8 +95,9 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	if modelConfigured {
 		model = workflowData.EngineConfig.Model
 	}
-	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v",
-		workflowData.Name, model, workflowData.AgentFile != "")
+	firewallEnabled := isFirewallEnabled(workflowData)
+	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v, firewall=%v",
+		workflowData.Name, model, workflowData.AgentFile != "", firewallEnabled)
 
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
@@ -117,24 +137,130 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		}
 	}
 
-	// Build the command with custom agent file prepending if specified (via imports)
-	var instructionCommand string
-	if workflowData.AgentFile != "" {
-		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
-		// Extract markdown body from custom agent file (skip frontmatter) and prepend to prompt
-		instructionCommand = fmt.Sprintf(`set -o pipefail
+	// Build the Codex command
+	var codexCommand string
+	if firewallEnabled {
+		// When firewall is enabled, use the binary path inside AWF container
+		codexCommand = fmt.Sprintf("/usr/local/bin/codex %sexec%s%s%s\"$INSTRUCTION\"",
+			modelParam, webSearchParam, fullAutoParam, customArgsParam)
+	} else {
+		// When firewall is disabled, use the regular codex command
+		codexCommand = fmt.Sprintf("codex %sexec%s%s%s\"$INSTRUCTION\"",
+			modelParam, webSearchParam, fullAutoParam, customArgsParam)
+	}
+
+	// Build the full command with agent file handling and AWF wrapping if enabled
+	var command string
+	if firewallEnabled {
+		// Build AWF-wrapped command
+		firewallConfig := getFirewallConfig(workflowData)
+		agentConfig := getAgentConfig(workflowData)
+		var awfLogLevel = "info"
+		if firewallConfig != nil && firewallConfig.LogLevel != "" {
+			awfLogLevel = firewallConfig.LogLevel
+		}
+
+		// Get allowed domains (Codex defaults + network permissions)
+		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
+
+		// Build AWF arguments: mount points + standard flags + custom args from config
+		var awfArgs []string
+		awfArgs = append(awfArgs, "--env-all")
+
+		// Set container working directory to match GITHUB_WORKSPACE
+		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
+		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
+
+		// Add mount arguments for required paths
+		// Always mount /tmp for temporary files, cache, and CODEX_HOME
+		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
+
+		// Always mount the workspace directory so Codex can access it
+		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
+		codexEngineLog.Print("Added workspace mount to AWF")
+
+		// Mount common utilities from host
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/date:/usr/bin/date:ro")
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
+		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
+
+		// Mount Codex binary (npm install -g places it at /usr/local/bin/codex)
+		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/codex:/usr/local/bin/codex:ro")
+		codexEngineLog.Print("Added Codex binary mount to AWF container")
+
+		// Add custom mounts from agent config if specified
+		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+			sortedMounts := make([]string, len(agentConfig.Mounts))
+			copy(sortedMounts, agentConfig.Mounts)
+			sort.Strings(sortedMounts)
+
+			for _, mount := range sortedMounts {
+				awfArgs = append(awfArgs, "--mount", mount)
+			}
+			codexEngineLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+		}
+
+		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
+
+		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
+
+		// Add custom args if specified in firewall config
+		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
+			awfArgs = append(awfArgs, firewallConfig.Args...)
+		}
+
+		// Add custom args from agent config if specified
+		if agentConfig != nil && len(agentConfig.Args) > 0 {
+			awfArgs = append(awfArgs, agentConfig.Args...)
+			codexEngineLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
+		}
+
+		// Determine the AWF command to use (custom or standard)
+		var awfCommand string
+		if agentConfig != nil && agentConfig.Command != "" {
+			awfCommand = agentConfig.Command
+			codexEngineLog.Printf("Using custom AWF command: %s", awfCommand)
+		} else {
+			awfCommand = "sudo -E awf"
+			codexEngineLog.Print("Using standard AWF command")
+		}
+
+		// Build the command with agent file handling if specified
+		if workflowData.AgentFile != "" {
+			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+			command = fmt.Sprintf(`set -o pipefail
+AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
+INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
+mkdir -p "$CODEX_HOME/logs"
+%s %s \
+  -- %s \
+  2>&1 | tee %s`, agentPath, awfCommand, shellJoinArgs(awfArgs), codexCommand, shellEscapeArg(logFile))
+		} else {
+			command = fmt.Sprintf(`set -o pipefail
+INSTRUCTION="$(cat "$GH_AW_PROMPT")"
+mkdir -p "$CODEX_HOME/logs"
+%s %s \
+  -- %s \
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), codexCommand, shellEscapeArg(logFile))
+		}
+	} else {
+		// Build the command without AWF wrapping
+		if workflowData.AgentFile != "" {
+			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+			command = fmt.Sprintf(`set -o pipefail
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, agentPath, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
-	} else {
-		instructionCommand = fmt.Sprintf(`set -o pipefail
+		} else {
+			command = fmt.Sprintf(`set -o pipefail
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+		}
 	}
-
-	command := instructionCommand
 
 	// Get effective GitHub token based on precedence: top-level github-token > default
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
@@ -186,6 +312,15 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 		}
 	}
 
+	// Add custom environment variables from agent config
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Env) > 0 {
+		for key, value := range agentConfig.Env {
+			env[key] = value
+		}
+		codexEngineLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+	}
+
 	// Add safe-inputs secrets to env for passthrough to MCP servers
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
@@ -207,6 +342,36 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 
 	steps = append(steps, GitHubActionStep(stepLines))
+
+	return steps
+}
+
+// GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction).
+// This method is part of the firewall integration interface. It returns an empty slice because
+// firewall logs are written to a known location (/tmp/gh-aw/sandbox/firewall/logs/) and don't need
+// a separate collection step. The method is still called from compiler_yaml_main_job.go to maintain
+// consistent behavior with other engines that may need log collection steps.
+func (e *CodexEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	return []GitHubActionStep{}
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
+func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Only add upload and parsing steps if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		codexEngineLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
+
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		steps = append(steps, squidLogsUpload)
+
+		// Add firewall log parsing step to create step summary
+		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
+		steps = append(steps, firewallLogParsing)
+	} else {
+		codexEngineLog.Print("Firewall disabled, skipping Squid logs upload")
+	}
 
 	return steps
 }

@@ -20,10 +20,10 @@ func TestSupportsFirewall(t *testing.T) {
 		}
 	})
 
-	t.Run("codex engine does not support firewall", func(t *testing.T) {
+	t.Run("codex engine supports firewall", func(t *testing.T) {
 		engine := NewCodexEngine()
-		if engine.SupportsFirewall() {
-			t.Error("Codex engine should not support firewall")
+		if !engine.SupportsFirewall() {
+			t.Error("Codex engine should support firewall")
 		}
 	})
 
@@ -136,7 +136,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 		}
 	})
 
-	t.Run("codex engine with restrictions - warning emitted", func(t *testing.T) {
+	t.Run("codex engine with restrictions - no warning", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		engine := NewCodexEngine()
 		perms := &NetworkPermissions{
@@ -148,8 +148,8 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if compiler.warningCount != initialWarnings+1 {
-			t.Error("Should emit warning for codex engine with network restrictions")
+		if compiler.warningCount != initialWarnings {
+			t.Error("Should not emit warning for codex engine with network restrictions")
 		}
 	})
 
@@ -206,7 +206,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 		}
 	})
 
-	t.Run("strict mode: codex engine with restrictions - error", func(t *testing.T) {
+	t.Run("strict mode: codex engine with restrictions - no error", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.strictMode = true
 		engine := NewCodexEngine()
@@ -215,11 +215,8 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 		}
 
 		err := compiler.checkNetworkSupport(engine, perms)
-		if err == nil {
-			t.Error("Expected error in strict mode for codex engine with restrictions")
-		}
-		if !strings.Contains(err.Error(), "strict mode") {
-			t.Errorf("Error should mention strict mode, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for codex in strict mode, got: %v", err)
 		}
 	})
 
