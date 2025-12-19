@@ -1886,7 +1886,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "03fc035",
+              cli_version: "4c094e3",
               workflow_name: "Hourly CI Cleaner",
               experimental: false,
               supports_tools_allowlist: true,
