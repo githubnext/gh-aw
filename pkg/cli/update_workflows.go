@@ -451,3 +451,72 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	return nil
 }
+
+// applyCodemodsToWorkflows applies codemods to all workflow files in the specified directory
+func applyCodemodsToWorkflows(workflowsDir string, verbose bool) error {
+	updateLog.Printf("Applying codemods to workflows in: %s", workflowsDir)
+
+	// Use provided workflows directory or default
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
+	// Get all markdown workflow files
+	files, err := getMarkdownWorkflowFilesInDir(workflowsDir)
+	if err != nil {
+		// If there are no workflow files, that's not an error for the update flow
+		if os.IsNotExist(err) {
+			updateLog.Print("No workflows directory found, skipping codemod application")
+			return nil
+		}
+		return fmt.Errorf("failed to get workflow files: %w", err)
+	}
+
+	if len(files) == 0 {
+		updateLog.Print("No workflow files found, skipping codemod application")
+		return nil
+	}
+
+	// Load all codemods
+	codemods := GetAllCodemods()
+	updateLog.Printf("Loaded %d codemods", len(codemods))
+
+	// Apply codemods to each file
+	var totalFixed int
+	for _, file := range files {
+		fixed, err := processWorkflowFile(file, codemods, true, verbose)
+		if err != nil {
+			// Log the error but continue with other files
+			updateLog.Printf("Error applying codemods to %s: %v", file, err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to apply codemods to %s: %v", filepath.Base(file), err)))
+			continue
+		}
+		if fixed {
+			totalFixed++
+		}
+	}
+
+	if totalFixed > 0 {
+		updateLog.Printf("Applied codemods to %d workflow files", totalFixed)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Applied codemods to %d workflow file(s)", totalFixed)))
+	} else {
+		updateLog.Print("No codemods needed to be applied")
+	}
+
+	return nil
+}
+
+// getMarkdownWorkflowFilesInDir finds all markdown files in the specified workflows directory
+func getMarkdownWorkflowFilesInDir(workflowsDir string) ([]string, error) {
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// Find all markdown files
+	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find workflow files: %w", err)
+	}
+
+	return mdFiles, nil
+}

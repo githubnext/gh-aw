@@ -898,3 +898,161 @@ func TestUpdateActions_InvalidJSON(t *testing.T) {
 		t.Errorf("Expected parse error, got: %v", err)
 	}
 }
+
+// TestApplyCodemodsToWorkflows tests that codemods are applied to workflow files
+func TestApplyCodemodsToWorkflows(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a workflow file with deprecated timeout_minutes field
+	workflowContent := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 30
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Apply codemods
+	err := applyCodemodsToWorkflows(workflowsDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Read the updated content
+	updatedContent, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	updatedStr := string(updatedContent)
+
+	// Verify the deprecated field was replaced
+	if strings.Contains(updatedStr, "timeout_minutes:") {
+		t.Error("Expected timeout_minutes to be replaced, but it still exists")
+	}
+
+	if !strings.Contains(updatedStr, "timeout-minutes: 30") {
+		t.Errorf("Expected timeout-minutes: 30 in updated content, got:\n%s", updatedStr)
+	}
+}
+
+// TestApplyCodemodsToWorkflows_NoFiles tests behavior when no workflow files exist
+func TestApplyCodemodsToWorkflows_NoFiles(t *testing.T) {
+	// Create a temporary directory without workflows
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Should not error when no files exist
+	err := applyCodemodsToWorkflows(tmpDir, false)
+	if err != nil {
+		t.Errorf("Expected no error when no workflow files exist, got: %v", err)
+	}
+}
+
+// TestApplyCodemodsToWorkflows_EmptyDirectory tests behavior with empty workflows directory
+func TestApplyCodemodsToWorkflows_EmptyDirectory(t *testing.T) {
+	// Create a temporary directory with empty workflows directory
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Should not error with empty directory
+	err := applyCodemodsToWorkflows(workflowsDir, false)
+	if err != nil {
+		t.Errorf("Expected no error with empty workflows directory, got: %v", err)
+	}
+}
+
+// TestApplyCodemodsToWorkflows_MultipleFiles tests applying codemods to multiple files
+func TestApplyCodemodsToWorkflows_MultipleFiles(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create first workflow with timeout_minutes
+	workflow1Content := `---
+on: push
+timeout_minutes: 60
+---
+
+# Workflow 1
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow1.md"), []byte(workflow1Content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow1: %v", err)
+	}
+
+	// Create second workflow with network.firewall
+	workflow2Content := `---
+on: push
+network:
+  allowed:
+    - "*.example.com"
+  firewall: null
+---
+
+# Workflow 2
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow2.md"), []byte(workflow2Content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow2: %v", err)
+	}
+
+	// Create third workflow with no deprecated fields
+	workflow3Content := `---
+on: push
+timeout-minutes: 30
+---
+
+# Workflow 3
+`
+	if err := os.WriteFile(filepath.Join(workflowsDir, "workflow3.md"), []byte(workflow3Content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow3: %v", err)
+	}
+
+	// Apply codemods
+	err := applyCodemodsToWorkflows(workflowsDir, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Check workflow1 was fixed
+	content1, _ := os.ReadFile(filepath.Join(workflowsDir, "workflow1.md"))
+	if !strings.Contains(string(content1), "timeout-minutes: 60") {
+		t.Error("Expected workflow1 to have timeout-minutes")
+	}
+
+	// Check workflow2 was fixed
+	content2, _ := os.ReadFile(filepath.Join(workflowsDir, "workflow2.md"))
+	if !strings.Contains(string(content2), "sandbox:") {
+		t.Error("Expected workflow2 to have sandbox field")
+	}
+	if strings.Contains(string(content2), "firewall:") {
+		t.Error("Expected workflow2 to have firewall field removed")
+	}
+
+	// Check workflow3 was unchanged
+	content3, _ := os.ReadFile(filepath.Join(workflowsDir, "workflow3.md"))
+	if string(content3) != workflow3Content {
+		t.Error("Expected workflow3 to be unchanged")
+	}
+}
