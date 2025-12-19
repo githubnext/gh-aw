@@ -195,7 +195,7 @@ type AwInfo struct {
 	EngineName      string      `json:"engine_name"`
 	Model           string      `json:"model"`
 	Version         string      `json:"version"`
-	CLIVersion      string      `json:"cli_version,omitempty"`      // gh-aw CLI version
+	CLIVersion      string      `json:"cli_version,omitempty"` // gh-aw CLI version
 	WorkflowName    string      `json:"workflow_name"`
 	Staged          bool        `json:"staged"`
 	AwfVersion      string      `json:"awf_version,omitempty"`      // AWF firewall version (new name)

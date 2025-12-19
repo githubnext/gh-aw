@@ -2592,7 +2592,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "ff5d504",
+              cli_version: "dev",
               workflow_name: "Archie",
               experimental: false,
               supports_tools_allowlist: true,

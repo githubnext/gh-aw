@@ -1962,7 +1962,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "ff5d504",
+              cli_version: "dev",
               workflow_name: "Copilot Agent PR Analysis",
               experimental: true,
               supports_tools_allowlist: true,
