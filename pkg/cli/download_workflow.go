@@ -16,6 +16,8 @@ import (
 var downloadLog = logger.New("cli:download_workflow")
 
 // resolveLatestReleaseViaGit finds the latest release using git ls-remote
+//
+//nolint:unused // Fallback implementation for when GitHub API is unavailable
 func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentRef, allowMajor)))
@@ -95,6 +97,8 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 }
 
 // isBranchRefViaGit checks if a ref is a branch using git ls-remote
+//
+//nolint:unused // Fallback implementation for when GitHub API is unavailable
 func isBranchRefViaGit(repo, ref string) (bool, error) {
 	downloadLog.Printf("Attempting git ls-remote to check if ref is branch: %s@%s", repo, ref)
 
@@ -125,6 +129,8 @@ func isBranchRefViaGit(repo, ref string) (bool, error) {
 }
 
 // isBranchRef checks if a ref is a branch in the repository
+//
+//nolint:unused // Reserved for future use
 func isBranchRef(repo, ref string) (bool, error) {
 	// Use gh CLI to list branches
 	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
@@ -155,6 +161,8 @@ func isBranchRef(repo, ref string) (bool, error) {
 }
 
 // resolveBranchHeadViaGit gets the latest commit SHA for a branch using git ls-remote
+//
+//nolint:unused // Fallback implementation for when GitHub API is unavailable
 func resolveBranchHeadViaGit(repo, branch string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s via git ls-remote", branch, repo)))
@@ -189,6 +197,8 @@ func resolveBranchHeadViaGit(repo, branch string, verbose bool) (string, error) 
 }
 
 // resolveBranchHead gets the latest commit SHA for a branch
+//
+//nolint:unused // Reserved for future use
 func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s", branch, repo)))
@@ -221,6 +231,8 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 }
 
 // resolveDefaultBranchHeadViaGit gets the latest commit SHA for the default branch using git ls-remote
+//
+//nolint:unused // Fallback implementation for when GitHub API is unavailable
 func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s via git ls-remote", repo)))
@@ -275,6 +287,8 @@ func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 }
 
 // resolveDefaultBranchHead gets the latest commit SHA for the default branch
+//
+//nolint:unused // Reserved for future use
 func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s", repo)))

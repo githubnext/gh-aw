@@ -47,6 +47,7 @@ permissions:
 engine: copilot
 network:
   firewall: false
+strict: false
 ---
 
 # Test firewall disabled

@@ -249,7 +249,7 @@ func TestVersionConstants(t *testing.T) {
 		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.369"},
 		{"DefaultCodexVersion", DefaultCodexVersion, "0.73.0"},
 		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.25.0"},
-		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.6.0"},
+		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.7.0"},
 		{"DefaultPlaywrightMCPVersion", DefaultPlaywrightMCPVersion, "0.0.52"},
 		{"DefaultPlaywrightBrowserVersion", DefaultPlaywrightBrowserVersion, "v1.57.0"},
 		{"DefaultBunVersion", DefaultBunVersion, "1.1"},
