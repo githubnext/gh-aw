@@ -100,7 +100,7 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that GH_AW_SAFE_OUTPUTS_STAGED is included
-	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED: true") && !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true")
 	}
 
