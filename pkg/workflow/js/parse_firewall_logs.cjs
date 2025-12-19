@@ -183,11 +183,11 @@ function generateFirewallSummary(analysis) {
     validDeniedRequests += stats.denied;
   }
 
-  let summary = "### 🔥 Firewall Activity\n\n";
+  let summary = "";
 
   // Wrap entire summary in details/summary tags
   summary += "<details>\n";
-  summary += `<summary>📊 ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+  summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
   summary += `${validAllowedRequests} allowed | `;
   summary += `${validDeniedRequests} blocked | `;
   summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
