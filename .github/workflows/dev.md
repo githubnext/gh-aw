@@ -15,4 +15,4 @@ timeout-minutes: 10
 
 ## Rule Definition
 
-Say hello to the world.
+Analyze the codebase in repository ${{ github.repository }} for compliance.

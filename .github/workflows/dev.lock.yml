@@ -239,8 +239,8 @@ jobs:
           copilot --version
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.7.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.7.0/awf-linux-x64 -o awf
+          echo "Installing awf from release: v0.6.0"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.6.0/awf-linux-x64 -o awf
           chmod +x awf
           sudo mv awf /usr/local/bin/
           which awf
@@ -400,6 +400,7 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -408,9 +409,46 @@ jobs:
           
           ## Rule Definition
           
-          Say hello to the world.
+          Analyze the codebase in repository __GH_AW_GITHUB_REPOSITORY__ for compliance.
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            const fs = require("fs"),
+              substitutePlaceholders = async ({ file, substitutions }) => {
+                if (!file) throw new Error("file parameter is required");
+                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
+                let content;
+                try {
+                  content = fs.readFileSync(file, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to read file ${file}: ${error.message}`);
+                }
+                for (const [key, value] of Object.entries(substitutions)) {
+                  const placeholder = `__${key}__`;
+                  content = content.split(placeholder).join(value);
+                }
+                try {
+                  fs.writeFileSync(file, content, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to write file ${file}: ${error.message}`);
+                }
+                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              };
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
+              }
+            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -541,6 +579,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
