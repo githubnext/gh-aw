@@ -206,6 +206,46 @@ GitHub Projects offers a [Roadmap view](https://docs.github.com/en/issues/planni
 
 Once these fields exist, orchestrator workflows can automatically populate them when adding or updating project items.
 
+### Automatic Timestamp Population
+
+**NEW**: Starting in this release, `update-project` automatically populates date fields from issue and pull request timestamps:
+
+- **Start Date** is automatically set from `createdAt` (when the issue/PR was created)
+- **End Date** is automatically set from `closedAt` (when the issue/PR was closed, if applicable)
+
+This happens automatically for campaign project boards and requires no additional configuration. The system will:
+
+1. Query the issue or PR to fetch `createdAt` and `closedAt` timestamps
+2. Convert timestamps to ISO date format (YYYY-MM-DD)
+3. Populate `Start Date` and `End Date` fields if they exist in the project and aren't already set
+4. Respect any manually provided date values in the `fields` parameter
+
+**Example:** When adding issue #123 (created on 2025-12-15, closed on 2025-12-18) to a project board with "Start Date" and "End Date" fields:
+
+```yaml
+update-project:
+  project: "https://github.com/orgs/myorg/projects/42"
+  content_number: 123
+  content_type: "issue"
+  # No fields specified - dates will be auto-populated!
+```
+
+Result:
+- `Start Date` → `2025-12-15` (from createdAt)
+- `End Date` → `2025-12-18` (from closedAt)
+
+**Override automatic timestamps:** You can still explicitly set date values if needed:
+
+```yaml
+update-project:
+  project: "https://github.com/orgs/myorg/projects/42"
+  content_number: 123
+  content_type: "issue"
+  fields:
+    start_date: "2025-12-10"  # Overrides automatic timestamp
+    end_date: "2025-12-20"    # Overrides automatic timestamp
+```
+
 ### Orchestrator Configuration for Date Fields
 
 To have orchestrators set date fields automatically, modify the orchestrator's instructions or use the `fields` parameter in `update-project` outputs.
