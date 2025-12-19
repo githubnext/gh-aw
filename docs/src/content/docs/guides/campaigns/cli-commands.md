@@ -1,0 +1,100 @@
+---
+title: "CLI Commands"
+description: "Command reference for managing agentic campaigns with gh aw"
+---
+
+The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.
+
+## Campaign Commands
+
+From the root of the repo:
+
+```bash
+gh aw campaign                         # List all agentic campaigns
+gh aw campaign security                # Filter by ID or name substring
+gh aw campaign --json                  # JSON output
+
+gh aw campaign status                  # Live status for all agentic campaigns
+gh aw campaign status incident         # Filter by ID or name substring
+gh aw campaign status --json           # JSON status output
+
+gh aw campaign new my-campaign-id      # Scaffold a new agentic campaign spec
+gh aw campaign validate                # Validate agentic campaign specs (fails on problems)
+gh aw campaign validate --no-strict    # Report problems without failing
+```
+
+## List Campaigns
+
+Display all agentic campaigns defined in `.github/workflows/*.campaign.md`:
+
+```bash
+gh aw campaign
+```
+
+Filter by campaign ID or name:
+
+```bash
+gh aw campaign security
+```
+
+Get machine-readable JSON output:
+
+```bash
+gh aw campaign --json
+```
+
+## Check Campaign Status
+
+View live status of all agentic campaigns with their associated project boards:
+
+```bash
+gh aw campaign status
+```
+
+Filter status by campaign ID or name:
+
+```bash
+gh aw campaign status incident
+```
+
+Get status in JSON format:
+
+```bash
+gh aw campaign status --json
+```
+
+## Create New Campaign
+
+Scaffold a new agentic campaign spec file interactively:
+
+```bash
+gh aw campaign new my-campaign-id
+```
+
+This creates `.github/workflows/my-campaign-id.campaign.md` with a basic structure.
+
+## Validate Campaigns
+
+Validate all agentic campaign specs:
+
+```bash
+gh aw campaign validate
+```
+
+By default, validation fails if problems are found. For non-failing validation (useful in CI while you iterate):
+
+```bash
+gh aw campaign validate --no-strict
+```
+
+## Compilation and Orchestrators
+
+**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction.campaign.md` → `go-file-size-reduction.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. 
+
+See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
+
+## Alternative: GitHub Issue Forms
+
+For a low-code/no-code method, use the "🚀 Start an Agentic Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. 
+
+See the [Getting Started guide](/gh-aw/guides/campaigns/getting-started/#start-an-agentic-campaign-with-github-issue-forms) for details.
