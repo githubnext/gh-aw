@@ -57,6 +57,48 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			description:   "Should NOT include cli_version field for git hash with dirty suffix",
 			shouldInclude: false,
 		},
+		{
+			name:          "Git commit hash is excluded",
+			cliVersion:    "e63fd5a",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for git commit hash",
+			shouldInclude: false,
+		},
+		{
+			name:          "Short git hash is excluded",
+			cliVersion:    "abc123",
+			engineID:      "claude",
+			description:   "Should NOT include cli_version field for short git hash",
+			shouldInclude: false,
+		},
+		{
+			name:          "Version starting with v is excluded",
+			cliVersion:    "v1.2.3",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for version with v prefix",
+			shouldInclude: false,
+		},
+		{
+			name:          "Version with only major number is excluded",
+			cliVersion:    "1",
+			engineID:      "copilot",
+			description:   "Should NOT include cli_version field for version with only major number",
+			shouldInclude: false,
+		},
+		{
+			name:          "Version with only major.minor is included",
+			cliVersion:    "1.2",
+			engineID:      "copilot",
+			description:   "Should include cli_version field for version with major.minor",
+			shouldInclude: true,
+		},
+		{
+			name:          "Version with build metadata is included",
+			cliVersion:    "1.2.3+build.456",
+			engineID:      "claude",
+			description:   "Should include cli_version field for version with build metadata",
+			shouldInclude: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -1,0 +1,73 @@
+name: 🤖 Create an Agentic Workflow
+description: Create a new agentic workflow with AI assistance - just provide a name and description
+title: "[Workflow] "
+labels: ["workflow", "automation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Create an Agentic Workflow with AI Assistance
+        
+        Our AI workflow expert will help you create a complete agentic workflow specification. Just provide:
+        1. A name for your workflow
+        2. A description of what you want to automate
+        
+        The AI will generate all the technical details including triggers, safe outputs, tools, and more.
+        
+        **What happens next:**
+        1. An AI agent analyzes your requirements and generates a complete workflow
+        2. The workflow includes appropriate triggers, tools, permissions, and safe outputs
+        3. A pull request is created automatically with the generated workflow file
+        4. Review and merge the PR to activate your workflow
+
+  - type: input
+    id: workflow_name
+    attributes:
+      label: Workflow Name
+      description: A short, descriptive name for your workflow (e.g., "Issue Classifier", "PR Reviewer", "Documentation Generator")
+      placeholder: My Workflow Name
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow_description
+    attributes:
+      label: Workflow Description
+      description: |
+        What should this workflow do? Be as specific or as high-level as you'd like.
+        
+        Examples:
+        - "Automatically label issues based on their content"
+        - "Review pull requests and provide feedback on code quality"
+        - "Generate weekly reports of repository activity"
+        - "Monitor dependencies and create issues for outdated packages"
+      placeholder: |
+        Describe what you want this workflow to automate...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context (Optional)
+      description: |
+        Any other information that might be helpful? (triggers, schedules, specific requirements, constraints, etc.)
+      placeholder: |
+        Add any relevant context...
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        ### How it works
+        
+        After submitting:
+        1. **This issue becomes your workflow design hub** - Track progress here
+        2. **AI generates a complete workflow** - Including triggers, tools, and safe outputs
+        3. **A PR is created automatically** - Contains the workflow markdown file
+        4. **Review and merge** - Activate your workflow once you're satisfied
+        
+        The AI will handle all the technical details and best practices for you!
