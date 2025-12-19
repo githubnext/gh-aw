@@ -196,10 +196,13 @@ async function updateProject(output) {
       const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
         contentQuery =
           "Issue" === contentType
-            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
-            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
+            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }"
+            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }",
         contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
-        contentId = "Issue" === contentType ? contentResult.repository.issue.id : contentResult.repository.pullRequest.id,
+        contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
+        contentId = contentData.id,
+        createdAt = contentData.createdAt,
+        closedAt = contentData.closedAt,
         existingItem = await (async function (projectId, contentId) {
           let hasNextPage = !0,
             endCursor = null;
@@ -229,14 +232,30 @@ async function updateProject(output) {
           core.warning(`Failed to add campaign label: ${labelError.message}`);
         }
       }
-      if (output.fields && Object.keys(output.fields).length > 0) {
+      // Automatically populate date fields from issue/PR timestamps for roadmap views
+      const fieldsToUpdate = output.fields ? { ...output.fields } : {};
+      if (createdAt) {
+        const startDate = new Date(createdAt).toISOString().split("T")[0];
+        if (!fieldsToUpdate.start_date && !fieldsToUpdate["Start Date"] && !fieldsToUpdate.StartDate) {
+          fieldsToUpdate.start_date = startDate;
+          core.info(`Auto-populating Start Date from createdAt: ${startDate}`);
+        }
+      }
+      if (closedAt) {
+        const endDate = new Date(closedAt).toISOString().split("T")[0];
+        if (!fieldsToUpdate.end_date && !fieldsToUpdate["End Date"] && !fieldsToUpdate.EndDate) {
+          fieldsToUpdate.end_date = endDate;
+          core.info(`Auto-populating End Date from closedAt: ${endDate}`);
+        }
+      }
+      if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
-            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+            "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
             { projectId }
           )
         ).node.fields.nodes;
-        for (const [fieldName, fieldValue] of Object.entries(output.fields)) {
+        for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
           const normalizedFieldName = fieldName
             .split(/[\s_-]+/)
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -289,6 +308,8 @@ async function updateProject(output) {
               continue;
             }
             valueToSet = { singleSelectOptionId: option.id };
+          } else if (field.dataType === "DATE") {
+            valueToSet = { date: String(fieldValue) };
           } else valueToSet = { text: String(fieldValue) };
           await github.graphql(
             "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
