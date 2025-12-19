@@ -3369,6 +3369,17 @@
                   "type": "null",
                   "description": "Allow updating discussion body - presence of key indicates field can be updated"
                 },
+                "labels": {
+                  "type": "null",
+                  "description": "Allow updating discussion labels - presence of key indicates field can be updated"
+                },
+                "allowed-labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones)."
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of discussions to update (default: 1)",

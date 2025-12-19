@@ -1857,7 +1857,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.369",
               workflow_name: "Daily Team Status",
               experimental: false,
               supports_tools_allowlist: true,
