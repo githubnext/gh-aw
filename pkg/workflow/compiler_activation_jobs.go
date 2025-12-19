@@ -34,7 +34,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
-		
+
 		steps = append(steps, "      - name: Setup Activation Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
 		steps = append(steps, "        with:\n")
@@ -347,7 +347,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
-		
+
 		steps = append(steps, "      - name: Setup Activation Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
 		steps = append(steps, "        with:\n")

@@ -119,3 +119,6 @@ gosec-report.json
 gosec-results.sarif
 govulncheck-results.sarif
 trivy-results.sarif
+
+# Generated action files
+actions/setup-safe-outputs/js/

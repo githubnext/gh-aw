@@ -105,13 +105,28 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		indexPath := filepath.Join(actionsDir, actionName, "index.js")
-		if _, err := os.Stat(indexPath); err == nil {
-			if err := os.Remove(indexPath); err != nil {
-				return fmt.Errorf("failed to remove %s: %w", indexPath, err)
+		// Clean index.js for actions that use it
+		if actionName != "setup-safe-outputs" {
+			indexPath := filepath.Join(actionsDir, actionName, "index.js")
+			if _, err := os.Stat(indexPath); err == nil {
+				if err := os.Remove(indexPath); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", indexPath, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/index.js", actionName)))
+				cleanedCount++
 			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/index.js", actionName)))
-			cleanedCount++
+		}
+
+		// Clean js/ directory for setup-safe-outputs
+		if actionName == "setup-safe-outputs" {
+			jsDir := filepath.Join(actionsDir, actionName, "js")
+			if _, err := os.Stat(jsDir); err == nil {
+				if err := os.RemoveAll(jsDir); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
+				cleanedCount++
+			}
 		}
 	}
 
@@ -164,9 +179,12 @@ func validateActionYml(actionPath string) error {
 		}
 	}
 
-	// Check that it's a node20 action
-	if !strings.Contains(contentStr, "using: 'node20'") && !strings.Contains(contentStr, "using: \"node20\"") {
-		return fmt.Errorf("action must use 'node20' runtime")
+	// Check that it's either a node20 or composite action
+	isNode20 := strings.Contains(contentStr, "using: 'node20'") || strings.Contains(contentStr, "using: \"node20\"")
+	isComposite := strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\"")
+
+	if !isNode20 && !isComposite {
+		return fmt.Errorf("action must use either 'node20' or 'composite' runtime")
 	}
 
 	return nil
@@ -179,14 +197,20 @@ func buildAction(actionsDir, actionName string) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Building action: %s", actionName)))
 
 	actionPath := filepath.Join(actionsDir, actionName)
-	srcPath := filepath.Join(actionPath, "src", "index.js")
-	outputPath := filepath.Join(actionPath, "index.js")
 
 	// Validate action.yml
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
 	if err := validateActionYml(actionPath); err != nil {
 		return err
 	}
+
+	// Special handling for setup-safe-outputs: copy files instead of embedding
+	if actionName == "setup-safe-outputs" {
+		return buildSetupSafeOutputsAction(actionsDir, actionName)
+	}
+
+	srcPath := filepath.Join(actionPath, "src", "index.js")
+	outputPath := filepath.Join(actionPath, "index.js")
 
 	// Check if source file exists
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
@@ -239,6 +263,43 @@ func buildAction(actionsDir, actionName string) error {
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
+
+	return nil
+}
+
+// buildSetupSafeOutputsAction builds the setup-safe-outputs action by copying JavaScript files
+func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
+	actionPath := filepath.Join(actionsDir, actionName)
+	jsDir := filepath.Join(actionPath, "js")
+
+	// Get dependencies for this action
+	dependencies := getActionDependencies(actionName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+
+	// Get all JavaScript sources
+	sources := workflow.GetJavaScriptSources()
+
+	// Create js directory if it doesn't exist
+	if err := os.MkdirAll(jsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create js directory: %w", err)
+	}
+
+	// Copy each dependency file to the js directory
+	copiedCount := 0
+	for _, dep := range dependencies {
+		if content, ok := sources[dep]; ok {
+			destPath := filepath.Join(jsDir, dep)
+			if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", dep, err)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
+			copiedCount++
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
 
 	return nil
 }
