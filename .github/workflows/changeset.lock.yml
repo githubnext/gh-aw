@@ -2624,7 +2624,7 @@ jobs:
               model: "gpt-5-mini",
               version: "",
               agent_version: "0.73.0",
-              cli_version: "03fc035",
+              cli_version: "0b2a752",
               workflow_name: "Changeset Generator",
               experimental: true,
               supports_tools_allowlist: true,

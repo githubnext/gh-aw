@@ -1977,7 +1977,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.71",
-              cli_version: "03fc035",
+              cli_version: "0b2a752",
               workflow_name: "GitHub MCP Remote Server Tools Report Generator",
               experimental: true,
               supports_tools_allowlist: true,
