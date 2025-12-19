@@ -19,7 +19,7 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
 async function handleCreateIssue(item, context) {
   const { core, github, exec } = context;
   const { context: ghContext } = context;
-  
+
   // Map to track temporary_id -> {repo, number} relationships for this handler
   /** @type {Map<string, {repo: string, number: number}>} */
   const localTemporaryIdMap = new Map();
@@ -28,32 +28,32 @@ async function handleCreateIssue(item, context) {
     // Parse allowed repos and default target
     const allowedRepos = parseAllowedRepos();
     const defaultTargetRepo = getDefaultTargetRepo();
-    
+
     // Determine target repository for this issue
     const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
-    
+
     // Validate the repository is allowed
     const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
     if (!repoValidation.valid) {
       core.warning(`Skipping issue: ${repoValidation.error}`);
       return { success: true }; // Not a failure, just skipped
     }
-    
+
     // Parse the repository slug
     const repoParts = parseRepoSlug(itemRepo);
     if (!repoParts) {
       core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
       return { success: true }; // Not a failure, just skipped
     }
-    
+
     // Get or generate the temporary ID for this issue
     const temporaryId = item.temporary_id || generateTemporaryId();
     core.info(`Processing create-issue item: title=${item.title}, bodyLength=${item.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
-    
+
     // Resolve parent: check if it's a temporary ID reference
     let effectiveParentIssueNumber;
     let effectiveParentRepo = itemRepo; // Default to same repo
-    
+
     if (item.parent !== undefined) {
       if (isTemporaryId(item.parent)) {
         // It's a temporary ID, look it up in the map
@@ -81,7 +81,7 @@ async function handleCreateIssue(item, context) {
         effectiveParentIssueNumber = ghContext.payload?.issue?.number;
       }
     }
-    
+
     // Get labels
     const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
     let envLabels = labelsEnv
@@ -90,7 +90,7 @@ async function handleCreateIssue(item, context) {
           .map(label => label.trim())
           .filter(label => label)
       : [];
-    
+
     let labels = [...envLabels];
     if (item.labels && Array.isArray(item.labels)) {
       labels = [...labels, ...item.labels];
@@ -103,17 +103,17 @@ async function handleCreateIssue(item, context) {
       .filter(label => label)
       .map(label => (label.length > 64 ? label.substring(0, 64) : label))
       .filter((label, index, arr) => arr.indexOf(label) === index);
-    
+
     let title = item.title ? item.title.trim() : "";
-    
+
     // Replace temporary ID references in the body using already-created issues
     let processedBody = replaceTemporaryIdReferences(item.body, context.temporaryIdMap, itemRepo);
-    
+
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-    
+
     let bodyLines = processedBody.split("\n");
-    
+
     if (!title) {
       title = item.body || "Agent Output";
     }
@@ -121,7 +121,7 @@ async function handleCreateIssue(item, context) {
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-    
+
     if (effectiveParentIssueNumber) {
       core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
       // Use full repo reference if cross-repo, short reference if same repo
@@ -131,38 +131,36 @@ async function handleCreateIssue(item, context) {
         bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
       }
     }
-    
+
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const runId = ghContext.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = ghContext.payload.repository 
-      ? `${ghContext.payload.repository.html_url}/actions/runs/${runId}` 
-      : `${githubServer}/${ghContext.repo.owner}/${ghContext.repo.repo}/actions/runs/${runId}`;
-    
+    const runUrl = ghContext.payload.repository ? `${ghContext.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${ghContext.repo.owner}/${ghContext.repo.repo}/actions/runs/${runId}`;
+
     // Add tracker-id comment if present
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
       bodyLines.push(trackerIDComment);
     }
-    
+
     // Add expiration comment if expires is set
     addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
-    
+
     // Extract triggering context for footer generation
     const triggeringIssueNumber = ghContext.payload?.issue?.number && !ghContext.payload?.issue?.pull_request ? ghContext.payload.issue.number : undefined;
     const triggeringPRNumber = ghContext.payload?.pull_request?.number || (ghContext.payload?.issue?.pull_request ? ghContext.payload.issue.number : undefined);
     const triggeringDiscussionNumber = ghContext.payload?.discussion?.number;
-    
+
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-    
+
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
     const body = bodyLines.join("\n").trim();
-    
+
     core.info(`Creating issue in ${itemRepo} with title: ${title}`);
     core.info(`Labels: ${labels}`);
     core.info(`Body length: ${body.length}`);
-    
+
     const { data: issue } = await github.rest.issues.create({
       owner: repoParts.owner,
       repo: repoParts.repo,
@@ -170,13 +168,13 @@ async function handleCreateIssue(item, context) {
       body: body,
       labels: labels,
     });
-    
+
     core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
-    
+
     // Store the mapping of temporary_id -> {repo, number}
     localTemporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
     core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
-    
+
     // Sub-issue linking only works within the same repository
     if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
       core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
@@ -190,7 +188,7 @@ async function handleCreateIssue(item, context) {
             }
           }
         `;
-        
+
         // Get parent issue node ID
         const parentResult = await github.graphql(getIssueNodeIdQuery, {
           owner: repoParts.owner,
@@ -198,7 +196,7 @@ async function handleCreateIssue(item, context) {
           issueNumber: effectiveParentIssueNumber,
         });
         const parentNodeId = parentResult.repository.issue.id;
-        
+
         // Get child issue node ID
         const childResult = await github.graphql(getIssueNodeIdQuery, {
           owner: repoParts.owner,
@@ -206,7 +204,7 @@ async function handleCreateIssue(item, context) {
           issueNumber: issue.number,
         });
         const childNodeId = childResult.repository.issue.id;
-        
+
         // Link the child issue as a sub-issue of the parent
         const addSubIssueMutation = `
           mutation($issueId: ID!, $subIssueId: ID!) {
@@ -221,12 +219,12 @@ async function handleCreateIssue(item, context) {
             }
           }
         `;
-        
+
         await github.graphql(addSubIssueMutation, {
           issueId: parentNodeId,
           subIssueId: childNodeId,
         });
-        
+
         core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
       } catch (error) {
         core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
@@ -244,7 +242,7 @@ async function handleCreateIssue(item, context) {
         }
       }
     }
-    
+
     return {
       success: true,
       temporaryIds: localTemporaryIdMap,

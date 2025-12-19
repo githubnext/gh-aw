@@ -152,7 +152,7 @@ func (c *Compiler) buildUnifiedSafeOutputsJob(data *WorkflowData, mainJobName, m
 
 	// Collect all custom environment variables from all safe output configs
 	var customEnvVars []string
-	
+
 	// Add environment variables for each enabled safe output type
 	// These mirror what the individual steps would have had
 	if data.SafeOutputs.CreateIssues != nil {
@@ -244,16 +244,16 @@ func (c *Compiler) buildUnifiedSafeOutputsJob(data *WorkflowData, mainJobName, m
 
 func (c *Compiler) buildCreateIssueEnvVars(cfg *CreateIssuesConfig) []string {
 	var envVars []string
-	
+
 	envVars = append(envVars, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", cfg.TitlePrefix)...)
 	envVars = append(envVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", cfg.Labels)...)
 	envVars = append(envVars, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", cfg.AllowedLabels)...)
 	envVars = append(envVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
-	
+
 	if cfg.Expires != 0 {
 		envVars = append(envVars, fmt.Sprintf("GH_AW_ISSUE_EXPIRES=%d", cfg.Expires))
 	}
-	
+
 	// Handle assignees - check for "copilot" assignee
 	for _, assignee := range cfg.Assignees {
 		if assignee == "copilot" || assignee == "github-copilot" {
@@ -261,34 +261,34 @@ func (c *Compiler) buildCreateIssueEnvVars(cfg *CreateIssuesConfig) []string {
 			break
 		}
 	}
-	
+
 	return envVars
 }
 
 func (c *Compiler) buildCreateDiscussionEnvVars(cfg *CreateDiscussionsConfig) []string {
 	var envVars []string
-	
+
 	envVars = append(envVars, buildCategoryEnvVar("GH_AW_DISCUSSION_CATEGORY", cfg.Category)...)
 	envVars = append(envVars, buildTitlePrefixEnvVar("GH_AW_DISCUSSION_TITLE_PREFIX", cfg.TitlePrefix)...)
 	envVars = append(envVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
-	
+
 	if cfg.Expires != 0 {
 		envVars = append(envVars, fmt.Sprintf("GH_AW_DISCUSSION_EXPIRES=%d", cfg.Expires))
 	}
-	
+
 	if cfg.CloseOlderDiscussions {
 		envVars = append(envVars, "GH_AW_CLOSE_OLDER_DISCUSSIONS=true")
 	}
-	
+
 	return envVars
 }
 
 func (c *Compiler) buildCreatePullRequestEnvVars(cfg *CreatePullRequestsConfig) []string {
 	var envVars []string
-	
+
 	envVars = append(envVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
 	envVars = append(envVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
-	
+
 	if cfg.Draft != nil {
 		if *cfg.Draft {
 			envVars = append(envVars, "GH_AW_PR_DRAFT=true")
@@ -296,17 +296,17 @@ func (c *Compiler) buildCreatePullRequestEnvVars(cfg *CreatePullRequestsConfig) 
 			envVars = append(envVars, "GH_AW_PR_DRAFT=false")
 		}
 	}
-	
+
 	if cfg.Expires != 0 {
 		envVars = append(envVars, fmt.Sprintf("GH_AW_PR_EXPIRES=%d", cfg.Expires))
 	}
-	
+
 	if cfg.AllowEmpty {
 		envVars = append(envVars, "GH_AW_PR_ALLOW_EMPTY=true")
 	}
 	if cfg.IfNoChanges != "" {
 		envVars = append(envVars, fmt.Sprintf("GH_AW_PR_IF_NO_CHANGES=%s", cfg.IfNoChanges))
 	}
-	
+
 	return envVars
 }

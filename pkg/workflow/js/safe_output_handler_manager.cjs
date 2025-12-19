@@ -3,7 +3,7 @@
 
 /**
  * Safe Output Handler Manager
- * 
+ *
  * This module provides a registry and dispatcher for safe output handlers.
  * Each handler can register itself for a specific message type, and the manager
  * will dispatch messages to the appropriate handler, collecting temporary ID
@@ -61,10 +61,10 @@ class SafeOutputHandlerManager {
    */
   async processAll(items, context) {
     const errors = [];
-    
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      
+
       if (!item.type) {
         context.core.warning(`Item ${i} has no type, skipping`);
         continue;
@@ -79,7 +79,7 @@ class SafeOutputHandlerManager {
       try {
         context.core.info(`Processing ${item.type} (${i + 1}/${items.length})`);
         const result = await handler(item, context);
-        
+
         if (!result.success) {
           const error = `Handler for ${item.type} failed: ${result.error || "Unknown error"}`;
           context.core.error(error);

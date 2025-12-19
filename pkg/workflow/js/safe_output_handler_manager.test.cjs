@@ -28,14 +28,14 @@ describe("SafeOutputHandlerManager", () => {
     it("should register a handler for a message type", () => {
       const handler = async () => ({ success: true });
       manager.registerHandler("create_issue", handler);
-      
+
       expect(manager.getRegisteredTypes()).toContain("create_issue");
     });
 
     it("should throw error when registering duplicate type", () => {
       const handler = async () => ({ success: true });
       manager.registerHandler("create_issue", handler);
-      
+
       expect(() => {
         manager.registerHandler("create_issue", handler);
       }).toThrow("Handler already registered for type: create_issue");
@@ -44,7 +44,7 @@ describe("SafeOutputHandlerManager", () => {
     it("should allow multiple different types", () => {
       manager.registerHandler("create_issue", async () => ({ success: true }));
       manager.registerHandler("create_pull_request", async () => ({ success: true }));
-      
+
       const types = manager.getRegisteredTypes();
       expect(types).toContain("create_issue");
       expect(types).toContain("create_pull_request");
@@ -55,7 +55,7 @@ describe("SafeOutputHandlerManager", () => {
   describe("processAll", () => {
     it("should process items with registered handlers", async () => {
       let called = false;
-      manager.registerHandler("create_issue", async (item) => {
+      manager.registerHandler("create_issue", async item => {
         called = true;
         expect(item.title).toBe("Test Issue");
         return { success: true };
@@ -108,7 +108,7 @@ describe("SafeOutputHandlerManager", () => {
       expect(result.temporaryIdMap.size).toBe(2);
       expect(result.temporaryIdMap.get("temp-1")).toEqual({ repo: "owner/repo", number: 42 });
       expect(result.temporaryIdMap.get("temp-2")).toEqual({ repo: "owner/repo", number: 100 });
-      
+
       // Also check that context.temporaryIdMap was updated
       expect(mockContext.temporaryIdMap.size).toBe(2);
     });
@@ -162,13 +162,13 @@ describe("SafeOutputHandlerManager", () => {
 
     it("should process multiple items in sequence", async () => {
       const callOrder = [];
-      
-      manager.registerHandler("create_issue", async (item) => {
+
+      manager.registerHandler("create_issue", async item => {
         callOrder.push(`issue:${item.title}`);
         return { success: true };
       });
 
-      manager.registerHandler("create_pull_request", async (item) => {
+      manager.registerHandler("create_pull_request", async item => {
         callOrder.push(`pr:${item.title}`);
         return { success: true };
       });
