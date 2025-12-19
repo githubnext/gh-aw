@@ -330,7 +330,7 @@
     },
     "UpdateDiscussionOutput": {
       "title": "Update Discussion Output",
-      "description": "Output for updating an existing GitHub discussion's title and/or body. Note: The JavaScript validation ensures at least one of title or body is provided.",
+      "description": "Output for updating an existing GitHub discussion's title, body, and/or labels. Note: The JavaScript validation ensures at least one of title, body, or labels is provided.",
       "type": "object",
       "properties": {
         "type": {
@@ -343,6 +343,13 @@
         "body": {
           "type": "string",
           "description": "New discussion body to replace the existing content"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of label names to set on the discussion (replaces existing labels)"
         },
         "discussion_number": {
           "oneOf": [

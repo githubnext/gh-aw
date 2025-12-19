@@ -82,11 +82,12 @@ function resolveTargetNumber(params) {
  * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
  * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
  * @param {boolean} params.canUpdateBody - Whether body updates are allowed
+ * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
  * @param {boolean} params.supportsStatus - Whether this type supports status
  * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
  */
 function buildUpdateData(params) {
-  const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, supportsStatus } = params;
+  const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
 
   /** @type {any} */
   const updateData = {};
@@ -136,6 +137,17 @@ function buildUpdateData(params) {
     }
   }
 
+  // Handle labels update
+  if (canUpdateLabels && item.labels !== undefined) {
+    if (Array.isArray(item.labels)) {
+      updateData.labels = item.labels;
+      hasUpdates = true;
+      logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
+    } else {
+      logMessages.push("Invalid labels value: must be an array");
+    }
+  }
+
   return { hasUpdates, updateData, logMessages };
 }
 
@@ -180,12 +192,13 @@ async function runUpdateWorkflow(config) {
   const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
   const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
   const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
+  const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
 
   core.info(`Update target configuration: ${updateTarget}`);
   if (supportsStatus) {
-    core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+    core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
   } else {
-    core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}`);
+    core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
   }
 
   // Check context validity
@@ -229,6 +242,7 @@ async function runUpdateWorkflow(config) {
       canUpdateStatus,
       canUpdateTitle,
       canUpdateBody,
+      canUpdateLabels,
       supportsStatus,
     });
 
