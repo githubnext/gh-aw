@@ -1915,7 +1915,7 @@ jobs:
               model: "gpt-5-mini",
               version: "",
               agent_version: "0.0.369",
-              cli_version: "03fc035",
+              cli_version: "d4fe65a-dirty",
               workflow_name: "AI Moderator",
               experimental: false,
               supports_tools_allowlist: true,
