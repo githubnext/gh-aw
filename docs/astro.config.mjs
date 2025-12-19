@@ -95,6 +95,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Agentic campaigns',
+					link: '/guides/campaigns/',
+				},
+				{
 					label: 'Guides',
 					items: [
 						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
@@ -114,7 +118,6 @@ export default defineConfig({
 						{ label: 'IssueOps', link: '/examples/issue-pr-events/issueops/' },
 						{ label: 'LabelOps', link: '/examples/issue-pr-events/labelops/' },
 						{ label: 'ProjectOps', link: '/examples/issue-pr-events/projectops/' },
-						{ label: 'Campaigns', link: '/guides/campaigns/' },
 						{ label: 'ResearchPlanAssign', link: '/guides/researchplanassign/' },
 						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 						{ label: 'SideRepoOps', link: '/guides/siderepoops/' },

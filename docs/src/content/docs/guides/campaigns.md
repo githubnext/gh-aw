@@ -1,45 +1,45 @@
 ---
-title: "Campaigns"
+title: "Agentic campaigns"
 description: "Run structured, visible automation initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-A campaign is a finite **initiative** with explicit ownership, review gates, and clear tracking. It helps you run large automation efforts—migrations, upgrades, and rollouts—in a way that is structured and visible.
+An agentic campaign is a finite **initiative** with explicit ownership, review gates, and clear tracking. It helps you run large automation efforts—migrations, upgrades, and rollouts—in a way that is structured and visible.
 
-Agentic workflows still do the hands-on work. Campaigns sit above them and add the *initiative layer*: a shared definition of scope, consistent tracking, and standard progress reporting.
+Agentic workflows still do the hands-on work. Agentic campaigns sit above them and add the *initiative layer*: a shared definition of scope, consistent tracking, and standard progress reporting.
 
-If you are deciding whether you need a campaign, start here.
+If you are deciding whether you need an agentic campaign, start here.
 
-## When to use campaigns
+## When to use agentic campaigns
 
-Use a campaign when you need to run a finite initiative and you want it to be easy to review, operate, and report on.
+Use an agentic campaign when you need to run a finite initiative and you want it to be easy to review, operate, and report on.
 
 Example: “Upgrade a dependency across 50 repositories over two weeks, with an approval gate, daily progress updates, and a final summary.”
 
 | If you care about… | Use… |
 |---|---|
 | The result of each run (success/failure, logs, artifacts) | A regular workflow |
-| The overall outcome across many runs, repos, and days/weeks | A campaign |
+| The overall outcome across many runs, repos, and days/weeks | An agentic campaign |
 
 Why just-a-label stops being enough at scale: it does not define scope, it is easy to apply inconsistently, and it does not give you a standard status view.
 
-Use a campaign when any of these are true:
+Use an agentic campaign when any of these are true:
 
 - The work runs for days/weeks and needs handoffs and a durable status view.
 - The scope spans many repos/teams and you need a single source of truth.
 - You need approvals, staged rollouts, or other explicit decision points.
 - You want repeatability: baselines + metrics + learnings for the next run.
 
-What campaigns add:
+What agentic campaigns add:
 
 - A campaign spec file declares the initiative (Project dashboard URL, tracker label, referenced workflows, and optional memory/metrics locations).
 - `gh aw compile` validates the spec and can generate an orchestrator workflow (`.campaign.g.md`).
 - The CLI gives consistent inventory and status (`gh aw campaign`, `gh aw campaign status`).
 
-You do not need campaigns just to run a workflow across many repositories (or org boundaries). That is primarily an authentication/permissions problem. Campaigns solve definition, validation, and consistent tracking.
+You do not need agentic campaigns just to run a workflow across many repositories (or org boundaries). That is primarily an authentication/permissions problem. Agentic campaigns solve definition, validation, and consistent tracking.
 
-## How campaigns work
+## How agentic campaigns work
 
-Once you decide to use a campaign, most implementations follow the same shape:
+Once you decide to use an agentic campaign, most implementations follow the same shape:
 
 - **Launcher workflow (required)**: finds work and creates tracking artifacts (issues/Project items), plus (optionally) a baseline in repo-memory.
 - **Worker workflows (optional)**: process campaign-labeled issues to do the actual work (open PRs, apply fixes, etc.).
@@ -49,7 +49,7 @@ You can track campaigns with just labels and issues, but campaigns become much m
 
 ### Orchestrator and Worker Coordination
 
-Campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers. This architecture maintains clean separation of concerns: workers execute tasks without campaign awareness, while orchestrators manage coordination and tracking.
+Agentic campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers. This architecture maintains clean separation of concerns: workers execute tasks without campaign awareness, while orchestrators manage coordination and tracking.
 
 #### The Coordination Pattern
 

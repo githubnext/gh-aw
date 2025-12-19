@@ -207,8 +207,8 @@ The process of checking workflow files for errors, security issues, and best pra
 ### Cache Memory
 Persistent storage for workflows that preserves data between runs. Configured using `cache-memory:` in the tools section, it enables workflows to remember information and build on previous interactions.
 
-### Campaign
-A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Unlike regular workflows that execute operations, campaigns manage business initiatives with measurable outcomes, defined budgets, stakeholder reporting, and compliance audit trails.
+### Agentic campaign
+A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking. Unlike regular workflows that execute operations, agentic campaigns manage business initiatives with measurable outcomes, defined budgets, stakeholder reporting, and compliance audit trails.
 
 **Key characteristics:**
 - Finite duration (days to months) with clear start and end
@@ -221,7 +221,7 @@ A finite, enterprise-scale initiative with explicit ownership, approval gates, a
 
 **File naming:** Use `.campaign.md` extension (e.g., `<campaign-id>.campaign.md`)
 
-See the [Campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
+See the [Agentic campaigns guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
 
 ### Command Triggers
 Special triggers that respond to slash commands in issue and PR comments (e.g., `/review`, `/deploy`). Configured using the `slash_command:` section with a command name.

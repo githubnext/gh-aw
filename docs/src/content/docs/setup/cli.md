@@ -378,7 +378,7 @@ gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-### Campaigns
+### Agentic campaigns
 
 #### `campaign`
 
@@ -398,7 +398,7 @@ gh aw campaign validate                # Validate campaign specs (fails on probl
 gh aw campaign validate --no-strict    # Report problems without failing
 ```
 
-**Alternative approach**: For a low-code/no-code method, use the "🚀 Start a Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Campaigns guide](/gh-aw/guides/campaigns/#start-a-campaign-with-github-issue-forms) for details.
+**Alternative approach**: For a low-code/no-code method, use the "🚀 Start a Campaign" issue form in the GitHub UI. The form captures campaign intent with structured fields and can trigger an agent to scaffold the spec file automatically. See the [Agentic campaigns guide](/gh-aw/guides/campaigns/#start-a-campaign-with-github-issue-forms) for details.
 
 ### Management
 

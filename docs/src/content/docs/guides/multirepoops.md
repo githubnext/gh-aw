@@ -263,7 +263,7 @@ For organization-wide workflows:
 
 - **[IssueOps](/gh-aw/examples/issue-pr-events/issueops/)** - Single-repo issue automation
 - **[ChatOps](/gh-aw/examples/comment-triggered/chatops/)** - Command-driven workflows
-- **[Campaigns](/gh-aw/guides/campaigns/)** - Multi-issue initiative coordination
+- **[Agentic campaigns](/gh-aw/guides/campaigns/)** - Multi-issue initiative coordination
 
 ## Related Documentation
 
