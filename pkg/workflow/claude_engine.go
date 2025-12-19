@@ -110,6 +110,12 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
+	// Determine Claude version for pinning in npx invocation
+	claudeVersion := string(constants.DefaultClaudeCodeVersion)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		claudeVersion = workflowData.EngineConfig.Version
+	}
+
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
