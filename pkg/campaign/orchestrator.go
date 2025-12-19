@@ -81,12 +81,9 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		spec.ID, spec.TrackerLabel, len(spec.Workflows), len(spec.MemoryPaths))
 
 	// Render orchestrator instructions using templates
-	// By default, we enable completion guidance and disable blocker reporting for closed issues
-	// This treats closed issues as a sign of completion, not as blockers
+	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{
-		ReportBlockers:     false, // Don't report closed issues as blockers
-		CompletionGuidance: true,  // Include completion guidance
-		ProjectURL:         strings.TrimSpace(spec.ProjectURL),
+		ProjectURL: strings.TrimSpace(spec.ProjectURL),
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)

@@ -2000,47 +2000,169 @@ jobs:
           - Metrics glob: `memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json`
           - Project URL: https://github.com/orgs/githubnext/projects/64
           
-          Each time this orchestrator runs on its daily schedule (or when manually dispatched), generate a concise status report for this campaign. Summarize current metrics and monitor the progress of associated worker workflows.
+          ## Campaign Orchestrator Rules
           
-          **Tracking Worker Output**: The campaign has knowledge of its workers (listed in the `workflows` field) and monitors their output via tracker-id. Each worker workflow has a unique tracker-id that gets embedded in all created assets. The orchestrator discovers issues created by workers by searching for this tracker-id:
+          This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination:
           
-          1. **Search for issues created by workers** using the GitHub MCP server:
-             - For each worker in the `workflows` list, determine its tracker-id (e.g., `daily-file-diet`)
-             - Search for issues in the repository containing the tracker-id HTML comment: ``
-             - Use `github-search_issues` to find issues containing the tracker-id in their body
-             - Example query: `repo:owner/repo "" in:body`
-             
-          2. **Filter discovered issues**:
-             - Focus on recently created or updated issues (within the last week)
-             - Check if issues are already on the project board to avoid duplicates
-             - Identify new issues that need to be added to the board
-             
-          3. **Add discovered issues to the project board**:
-             - Use `update-project` safe-output to add issue URLs to the project board
-             - Set appropriate status fields (e.g., "Todo", "In Progress", "Done")
-             - Preserve any existing project item metadata
-             
-          4. **Update project board status**:
-             - For issues already on the board, check their current state (open/closed)
-             - Update project board fields to reflect current status
-             - Move items between columns as appropriate (e.g., closed issues to "Done")
-             
-          5. **Report on campaign progress**:
-             - Count total issues discovered via tracker-id
-             - Track open vs closed issues
-             - Calculate progress percentage
-             - Highlight any issues that need attention
+          ### Core Principles
           
-          Workers operate independently without knowledge of the campaign. The orchestrator discovers their work by searching for issues containing the worker's tracker-id, which is automatically embedded in all created assets.
+          1. **Workers are immutable** - Worker workflows never change based on campaign state
+          2. **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
+          3. **Campaign logic is external** - All orchestration, sequencing, and decision-making happens here
+          4. **Workers only execute work** - No progress tracking or campaign-aware decisions in workers
+          5. **Campaign owns all coordination** - Sequencing, retries, continuation, and termination are campaign responsibilities
+          6. **State is external** - Campaign state lives in GitHub Projects, not in worker execution
+          7. **Single source of truth** - The GitHub Project board is the authoritative campaign state
+          8. **Correlation is explicit** - All work shares the campaign's tracker-id for correlation
+          9. **Separation of concerns** - State reads and state writes are separate operations
+          10. **Predefined fields only** - Only update explicitly defined project board fields
+          11. **Explicit outcomes** - Record actual outcomes, never infer status
+          12. **Idempotent operations** - Re-execution produces the same result without corruption
           
-          **Understanding Empty Boards**: If you find zero items on the project board, this is normal when a campaign is just starting or when all work has been completed. This is not an error condition - simply report the current state. Worker workflows will create issues as they discover work to be done, and the orchestrator will add them to the board on subsequent runs.
+          ### Orchestration Workflow
           
+          Execute these steps in sequence each time this orchestrator runs:
           
-          If all issues tracked by the campaign are closed, the campaign is complete. This is a normal terminal state indicating successful completion, not a blocker or error. When the campaign is complete, mark the project as finished and take no further action. Do not report closed issues as blockers.
+          #### Phase 1: Read State (Discovery)
           
-          Keep the campaign Project dashboard in sync using the `update-project` safe output. When calling update-project, use the `project` field with this exact URL: https://github.com/orgs/githubnext/projects/64
+          1. **Query worker-created issues** - Search for issues containing the worker's tracker-id
+             - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
+             - Collect all matching issue URLs
+             - Record issue metadata: number, title, state (open/closed), created date, updated date
           
-          Use these details to coordinate workers, update metrics, and track progress for this campaign.
+          2. **Query current project state** - Read the GitHub Project board
+             - Retrieve all items currently on the project board
+             - For each item, record: issue URL, status field value, other predefined field values
+             - Create a snapshot of current board state
+          
+          3. **Compare and identify gaps** - Determine what needs updating
+             - Issues found in step 1 but not on board = **new work to add**
+             - Issues on board with state mismatch = **status to update**
+             - Issues on board but no longer found = **check if archived/deleted**
+          
+          #### Phase 2: Make Decisions (Planning)
+          
+          4. **Decide additions** - For each new issue discovered:
+             - Decision: Add to board? (Default: yes for all issues with tracker-id)
+             - Determine initial status field value based on issue state:
+               - Open issue → "Todo" status
+               - Closed issue → "Done" status
+          
+          5. **Decide updates** - For each existing board item with mismatched state:
+             - Decision: Update status field? (Default: yes if issue state changed)
+             - Determine new status field value:
+               - Open issue → "In Progress" or "Todo"
+               - Closed issue → "Done"
+          
+          6. **Decide completion** - Check campaign completion criteria:
+             - If all discovered issues are closed AND all board items are "Done" → Campaign complete
+             - Otherwise → Campaign in progress
+          
+          #### Phase 3: Write State (Execution)
+          
+          7. **Execute additions** - Add new issues to project board
+             - Use `update-project` safe-output for each new issue
+             - Set predefined fields: `status` (required), optionally `priority`, `size`
+             - Record outcome: success or failure with error details
+          
+          8. **Execute updates** - Update existing board items
+             - Use `update-project` safe-output for each status change
+             - Update only predefined fields: `status` and related metadata
+             - Record outcome: success or failure with error details
+          
+          9. **Record completion state** - If campaign is complete:
+             - Mark project metadata field `campaign_status` as "completed"
+             - Do NOT create new work or modify existing items
+             - This is a terminal state
+          
+          #### Phase 4: Report (Output)
+          
+          10. **Generate status report** - Summarize execution results:
+              - Total issues discovered via tracker-id
+              - Issues added to board this run (count and URLs)
+              - Issues updated on board this run (count and status changes)
+              - Current campaign metrics: open vs closed, progress percentage
+              - Any failures encountered during writes
+              - Campaign completion status
+          
+          ### Predefined Project Fields
+          
+          Only these fields may be updated on the project board:
+          
+          - `status` (required) - Values: "Todo", "In Progress", "Done"
+          - `priority` (optional) - Values: "High", "Medium", "Low"
+          - `size` (optional) - Values: "Small", "Medium", "Large"
+          - `campaign_status` (metadata) - Values: "active", "completed"
+          
+          Do NOT update any other fields or create custom fields.
+          
+          ### Correlation Mechanism
+          
+          Workers embed a tracker-id in all created assets via XML comment:
+          ```
+          <!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->
+          ```
+          
+          The orchestrator uses this tracker-id to discover worker output by searching issue bodies. This correlation is explicit and does not require workers to be aware of the campaign.
+          
+          ### Idempotency Guarantee
+          
+          All operations must be idempotent:
+          - Adding an issue already on the board → No-op (do not duplicate)
+          - Updating a status that matches current value → No-op (no change recorded)
+          - Marking a completed campaign as completed → No-op (terminal state preserved)
+          
+          Re-running the orchestrator produces consistent results regardless of how many times it executes.
+          
+          ### Project Board Integration
+          
+          Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
+          
+          **Project URL**: https://github.com/orgs/githubnext/projects/64
+          
+          #### Adding New Issues
+          
+          When adding an issue to the project board:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/64"
+            item_url: "ISSUE_URL"
+            status: "Todo"  # or "Done" if issue is already closed
+          ```
+          
+          #### Updating Existing Items
+          
+          When updating status for an existing board item:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/64"
+            item_url: "ISSUE_URL"
+            status: "Done"  # or "In Progress", "Todo"
+          ```
+          
+          #### Idempotency
+          
+          - If an issue is already on the board with matching status → Skip (no-op)
+          - If an issue is already on the board with different status → Update status field only
+          - If an issue URL is invalid or deleted → Record failure, continue with remaining items
+          
+          #### Write Operation Rules
+          
+          1. **Batch writes separately** - Do not mix reads and writes in the same operation
+          2. **Validate before writing** - Confirm issue URL exists and is accessible
+          3. **Record all outcomes** - Log success/failure for each write operation
+          4. **Never infer state** - Only update based on explicit issue state (open/closed)
+          5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
+          
+          ### Summary
+          
+          Execute all four phases in order:
+          1. **Read State** - Discover worker issues and query project board
+          2. **Make Decisions** - Determine what to add, update, or mark complete
+          3. **Write State** - Execute additions and updates via update-project
+          4. **Report** - Generate status report with execution outcomes
+          
+          Remember: Workers are immutable and campaign-agnostic. All coordination, sequencing, and state management happens in this orchestrator. The GitHub Project board is the single source of truth for campaign state.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
