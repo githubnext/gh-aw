@@ -40,6 +40,7 @@ and migrate to new syntax. Codemods preserve formatting and comments as much as 
 Available codemods:
   • timeout-minutes-migration: Replaces 'timeout_minutes' with 'timeout-minutes'
   • network-firewall-migration: Replaces 'network.firewall' with 'sandbox.agent: false'
+  • safe-inputs-mode-removal: Removes deprecated 'safe-inputs.mode' field
 
 If no workflows are specified, all Markdown files in .github/workflows will be processed.
 

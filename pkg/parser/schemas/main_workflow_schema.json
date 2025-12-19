@@ -4869,9 +4869,11 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["http", "stdio"],
+          "enum": ["http"],
           "default": "http",
-          "description": "Transport mode for the safe-inputs MCP server. 'http' starts the server as a separate step (default), 'stdio' starts the server directly by the agent within the firewall."
+          "description": "Deprecated: Transport mode for the safe-inputs MCP server. This field is ignored as only 'http' mode is supported. The server always starts as a separate step.",
+          "deprecated": true,
+          "x-deprecation-message": "The mode field is no longer used. Safe-inputs always uses HTTP transport."
         }
       }
     },

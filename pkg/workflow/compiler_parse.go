@@ -211,14 +211,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 
-	// Validate firewall is enabled in strict mode for copilot with network restrictions
-	if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
-		return nil, err
-	}
-
-	// Save the initial strict mode state again for network support check
+	// Re-evaluate strict mode for firewall and network validation
 	// (it was restored after validateStrictMode but we need it again)
-	initialStrictModeForNetwork := c.strictMode
+	initialStrictModeForFirewall := c.strictMode
 	if !c.strictMode {
 		// CLI flag not set, check frontmatter
 		if strictValue, exists := result.Frontmatter["strict"]; exists {
@@ -232,15 +227,21 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Validate firewall is enabled in strict mode for copilot with network restrictions
+	if err := c.validateStrictFirewall(engineSetting, networkPermissions, sandboxConfig); err != nil {
+		c.strictMode = initialStrictModeForFirewall
+		return nil, err
+	}
+
 	// Check if the engine supports network restrictions when they are defined
 	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
 		// Restore strict mode before returning error
-		c.strictMode = initialStrictModeForNetwork
+		c.strictMode = initialStrictModeForFirewall
 		return nil, err
 	}
 
 	// Restore the strict mode state after network check
-	c.strictMode = initialStrictModeForNetwork
+	c.strictMode = initialStrictModeForFirewall
 
 	log.Print("Processing tools and includes...")
 

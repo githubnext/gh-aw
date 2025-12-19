@@ -344,19 +344,25 @@ func NewTools(toolsMap map[string]any) *Tools {
 func parseGitHubTool(val any) *GitHubToolConfig {
 	if val == nil {
 		toolsTypesLog.Print("GitHub tool enabled with default configuration")
-		return &GitHubToolConfig{}
+		return &GitHubToolConfig{
+			ReadOnly: true, // default to read-only for security
+		}
 	}
 
 	// Handle string type (simple enable)
 	if _, ok := val.(string); ok {
 		toolsTypesLog.Print("GitHub tool enabled with string configuration")
-		return &GitHubToolConfig{}
+		return &GitHubToolConfig{
+			ReadOnly: true, // default to read-only for security
+		}
 	}
 
 	// Handle map type (detailed configuration)
 	if configMap, ok := val.(map[string]any); ok {
 		toolsTypesLog.Print("Parsing GitHub tool detailed configuration")
-		config := &GitHubToolConfig{}
+		config := &GitHubToolConfig{
+			ReadOnly: true, // default to read-only for security
+		}
 
 		if allowed, ok := configMap["allowed"].([]any); ok {
 			config.Allowed = make([]string, 0, len(allowed))
@@ -387,6 +393,7 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		if readOnly, ok := configMap["read-only"].(bool); ok {
 			config.ReadOnly = readOnly
 		}
+		// else: defaults to true (set above)
 
 		if token, ok := configMap["github-token"].(string); ok {
 			config.GitHubToken = token
@@ -416,7 +423,9 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		return config
 	}
 
-	return &GitHubToolConfig{}
+	return &GitHubToolConfig{
+		ReadOnly: true, // default to read-only for security
+	}
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig
