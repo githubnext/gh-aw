@@ -68,12 +68,22 @@ jobs:
           GH_AW_WORKFLOW_FILE: "plan.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
       - name: Compute current body text
         id: compute-text
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/compute_text.cjs');
       - name: Add eyes reaction to the triggering item
         id: react
@@ -85,6 +95,11 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Plan Command"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');
 
   agent:
@@ -6854,6 +6869,11 @@ jobs:
           GH_AW_COMMAND: plan
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_command_position.cjs');
 
   safe_outputs:

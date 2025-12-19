@@ -73,6 +73,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "tidy.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
       - name: Add eyes reaction to the triggering item
         id: react
@@ -84,6 +89,11 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Tidy"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');
 
   agent:
@@ -6742,6 +6752,11 @@ jobs:
           GH_AW_COMMAND: tidy
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_command_position.cjs');
 
   safe_outputs:

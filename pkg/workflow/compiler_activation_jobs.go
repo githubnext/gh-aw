@@ -56,6 +56,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_stop_time.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
@@ -81,6 +87,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_skip_if_match.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
@@ -101,6 +113,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_command_position.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
@@ -332,7 +350,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	if useRequire {
 		// Use require() to load script from copied files
-		// The scripts execute main() at module load time
+		// Attach GitHub Actions builtin objects to global scope before requiring
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
 		steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');\n")
 	} else {
 		// Add the JavaScript script with proper indentation (using API-based version)
@@ -350,6 +373,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/compute_text.cjs');\n")
 		} else {
 			// Inline the JavaScript directly instead of using shared action
@@ -403,6 +432,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');\n")
 		} else {
 			// Add each line of the script with proper indentation (bundled version with messages.cjs)
@@ -436,6 +471,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		if useRequire {
 			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/lock-issue.cjs');\n")
 		} else {
 			// Add the lock-issue script

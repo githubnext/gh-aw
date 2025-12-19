@@ -64,12 +64,22 @@ jobs:
           GH_AW_WORKFLOW_FILE: "craft.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
       - name: Compute current body text
         id: compute-text
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/compute_text.cjs');
       - name: Add eyes reaction to the triggering item
         id: react
@@ -82,6 +92,11 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚒️ *Crafted with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"🛠️ Master Crafter at work! [{workflow_name}]({run_url}) is forging a new workflow on this {event_type}...\",\"runSuccess\":\"⚒️ Masterpiece complete! [{workflow_name}]({run_url}) has crafted your workflow. May it serve you well! 🎖️\",\"runFailure\":\"🛠️ Forge cooling down! [{workflow_name}]({run_url}) {status}. The anvil awaits another attempt...\"}"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');
 
   agent:
@@ -6898,6 +6913,11 @@ jobs:
           GH_AW_COMMAND: craft
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_command_position.cjs');
 
   safe_outputs:

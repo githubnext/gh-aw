@@ -70,6 +70,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "ai-moderator.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
       - name: Lock issue for agent workflow
         id: lock-issue
@@ -77,6 +82,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/lock-issue.cjs');
 
   agent:

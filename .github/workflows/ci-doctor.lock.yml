@@ -69,6 +69,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "ci-doctor.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
 
   agent:
@@ -6856,6 +6861,11 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_stop_time.cjs');
 
   safe_outputs:

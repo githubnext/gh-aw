@@ -63,6 +63,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "daily-file-diet.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
 
   agent:
@@ -7638,6 +7643,11 @@ jobs:
           GH_AW_SKIP_MAX_MATCHES: "1"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_skip_if_match.cjs');
 
   push_repo_memory:

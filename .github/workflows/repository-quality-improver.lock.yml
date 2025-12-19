@@ -57,6 +57,11 @@ jobs:
           GH_AW_WORKFLOW_FILE: "repository-quality-improver.lock.yml"
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
 
   agent:
