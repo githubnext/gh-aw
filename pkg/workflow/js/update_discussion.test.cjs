@@ -63,9 +63,11 @@ describe("update_discussion.cjs", () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_UPDATE_TITLE;
     delete process.env.GH_AW_UPDATE_BODY;
+    delete process.env.GH_AW_UPDATE_LABELS;
     delete process.env.GH_AW_UPDATE_TARGET;
     process.env.GH_AW_UPDATE_TITLE = "false";
     process.env.GH_AW_UPDATE_BODY = "false";
+    process.env.GH_AW_UPDATE_LABELS = "false";
 
     const scriptPath = path.join(__dirname, "update_discussion.cjs");
     updateDiscussionScript = fs.readFileSync(scriptPath, "utf8");
@@ -134,9 +136,19 @@ describe("update_discussion.cjs", () => {
       },
     });
 
+    // Mock the final query to get updated discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          title: "Updated discussion title",
+        },
+      },
+    });
+
     await eval(`(async () => { ${updateDiscussionScript} })()`);
 
-    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", mockDiscussion.url);
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
@@ -175,9 +187,19 @@ describe("update_discussion.cjs", () => {
       },
     });
 
+    // Mock the final query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          body: "New discussion body content",
+        },
+      },
+    });
+
     await eval(`(async () => { ${updateDiscussionScript} })()`);
 
-    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
   });
 
@@ -221,9 +243,20 @@ describe("update_discussion.cjs", () => {
       },
     });
 
+    // Mock the final query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          title: "New title",
+          body: "New body content",
+        },
+      },
+    });
+
     await eval(`(async () => { ${updateDiscussionScript} })()`);
 
-    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
   });
 
   it('should handle explicit discussion number with target "*"', async () => {
@@ -265,9 +298,19 @@ describe("update_discussion.cjs", () => {
       },
     });
 
+    // Mock the final query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          title: "Updated title",
+        },
+      },
+    });
+
     await eval(`(async () => { ${updateDiscussionScript} })()`);
 
-    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Should use the explicit discussion number 456
     expect(mockGithub.graphql).toHaveBeenNthCalledWith(
       1,
@@ -333,11 +376,175 @@ describe("update_discussion.cjs", () => {
       });
     });
 
+    // Mock the final query
+    mockGithub.graphql.mockImplementationOnce(() => {
+      return Promise.resolve({
+        repository: {
+          discussion: {
+            ...mockDiscussion,
+            body: capturedBody,
+          },
+        },
+      });
+    });
+
     await eval(`(async () => { ${updateDiscussionScript} })()`);
 
-    expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Verify the custom footer was used
     expect(capturedBody).toContain("Custom footer by");
     expect(capturedBody).toContain("Custom Workflow");
+  });
+
+  it("should update discussion labels successfully", async () => {
+    setAgentOutput({
+      items: [{ type: "update_discussion", labels: ["bug", "enhancement"] }],
+    });
+    process.env.GH_AW_UPDATE_LABELS = "true";
+    global.context.eventName = "discussion";
+
+    const mockDiscussion = {
+      id: "D_kwDOABCD123",
+      number: 123,
+      title: "Test Discussion",
+      body: "Test body",
+      url: "https://github.com/testowner/testrepo/discussions/123",
+      labels: {
+        nodes: [{ id: "L_kwDOABCD001", name: "old-label" }],
+      },
+    };
+
+    const mockLabels = [
+      { id: "L_kwDOABCD002", name: "bug" },
+      { id: "L_kwDOABCD003", name: "enhancement" },
+    ];
+
+    // Mock the first query to get discussion with labels
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: mockDiscussion,
+      },
+    });
+
+    // Mock the repository labels query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "R_kwDOABCD",
+        labels: {
+          nodes: mockLabels,
+        },
+      },
+    });
+
+    // Mock remove labels mutation
+    mockGithub.graphql.mockResolvedValueOnce({
+      removeLabelsFromLabelable: {
+        clientMutationId: null,
+      },
+    });
+
+    // Mock add labels mutation
+    mockGithub.graphql.mockResolvedValueOnce({
+      addLabelsToLabelable: {
+        clientMutationId: null,
+      },
+    });
+
+    // Mock the final query to get updated discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          labels: {
+            nodes: mockLabels,
+          },
+        },
+      },
+    });
+
+    await eval(`(async () => { ${updateDiscussionScript} })()`);
+
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", mockDiscussion.url);
+  });
+
+  it("should update both title and labels successfully", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "update_discussion",
+          title: "New title",
+          labels: ["question"],
+        },
+      ],
+    });
+    process.env.GH_AW_UPDATE_TITLE = "true";
+    process.env.GH_AW_UPDATE_LABELS = "true";
+    global.context.eventName = "discussion";
+
+    const mockDiscussion = {
+      id: "D_kwDOABCD123",
+      number: 123,
+      title: "Old title",
+      body: "Old body",
+      url: "https://github.com/testowner/testrepo/discussions/123",
+      labels: {
+        nodes: [],
+      },
+    };
+
+    const mockLabels = [{ id: "L_kwDOABCD004", name: "question" }];
+
+    // Mock the first query to get discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: mockDiscussion,
+      },
+    });
+
+    // Mock the title update mutation
+    mockGithub.graphql.mockResolvedValueOnce({
+      updateDiscussion: {
+        discussion: {
+          ...mockDiscussion,
+          title: "New title",
+        },
+      },
+    });
+
+    // Mock the repository labels query
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "R_kwDOABCD",
+        labels: {
+          nodes: mockLabels,
+        },
+      },
+    });
+
+    // Mock add labels mutation (no need to remove since there are no existing labels)
+    mockGithub.graphql.mockResolvedValueOnce({
+      addLabelsToLabelable: {
+        clientMutationId: null,
+      },
+    });
+
+    // Mock the final query to get updated discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          title: "New title",
+          labels: {
+            nodes: mockLabels,
+          },
+        },
+      },
+    });
+
+    await eval(`(async () => { ${updateDiscussionScript} })()`);
+
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
   });
 });
