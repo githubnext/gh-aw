@@ -126,7 +126,7 @@ Enable experimental or optional features using feature flags:
 tools:
   github:
     features:
-      - "example-feature"  # Feature flag names depend on MCP server version
+      - "your-feature-flag-name"  # Replace with actual feature flag name from MCP server version
 ```
 
 **Configuration Methods:**
