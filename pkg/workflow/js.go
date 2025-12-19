@@ -279,6 +279,15 @@ var safeOutputsToolsLoaderScript string
 //go:embed js/safe_outputs_bootstrap.cjs
 var safeOutputsBootstrapScript string
 
+//go:embed js/safe_output_handler_manager.cjs
+var safeOutputHandlerManagerScript string
+
+//go:embed js/create_issue_handler.cjs
+var createIssueHandlerScript string
+
+//go:embed js/safe_outputs_processor_main.cjs
+var safeOutputsProcessorMainScript string
+
 //go:embed js/resolve_mentions_from_payload.cjs
 var resolveMentionsFromPayloadScript string
 
@@ -353,6 +362,9 @@ func GetJavaScriptSources() map[string]string {
 		"safe_outputs_tools_loader.cjs":     safeOutputsToolsLoaderScript,
 		"safe_outputs_tools.json":           safeOutputsToolsJSON,
 		"safe_outputs_bootstrap.cjs":        safeOutputsBootstrapScript,
+		"safe_output_handler_manager.cjs":   safeOutputHandlerManagerScript,
+		"create_issue_handler.cjs":          createIssueHandlerScript,
+		"safe_outputs_processor_main.cjs":   safeOutputsProcessorMainScript,
 		"safe_outputs_mcp_server.cjs":       safeOutputsMCPServerScriptSource,
 		"resolve_mentions_from_payload.cjs": resolveMentionsFromPayloadScript,
 		"sanitize_incoming_text.cjs":        sanitizeIncomingTextScript,

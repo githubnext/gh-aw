@@ -145,9 +145,9 @@ func (c *Compiler) buildUnifiedSafeOutputsJob(data *WorkflowData, mainJobName, m
 
 	// Build the unified processor step
 	// This single step replaces all the individual safe output steps
-	stepScript := sources["safe_outputs_processor_main"]
+	stepScript := sources["safe_outputs_processor_main.cjs"]
 	if stepScript == "" {
-		return nil, nil, fmt.Errorf("safe_outputs_processor_main script not found")
+		return nil, nil, fmt.Errorf("safe_outputs_processor_main.cjs script not found")
 	}
 
 	// Collect all custom environment variables from all safe output configs
