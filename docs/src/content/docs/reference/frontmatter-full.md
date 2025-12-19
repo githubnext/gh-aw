@@ -1925,6 +1925,42 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for updating GitHub discussions from agentic workflow
+  # output
+  update-discussion:
+    # Target for updates: 'triggering' (default), '*' (any discussion), or explicit
+    # discussion number
+    # (optional)
+    target: "example-value"
+
+    # Allow updating discussion title - presence of key indicates field can be updated
+    # (optional)
+    title: null
+
+    # Allow updating discussion body - presence of key indicates field can be updated
+    # (optional)
+    body: null
+
+    # Maximum number of discussions to update (default: 1)
+    # (optional)
+    max: 1
+
+    # Target repository in format 'owner/repo' for cross-repository discussion
+    # updates. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable discussion updating with default configuration
+  update-discussion: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for closing GitHub issues with comment from agentic
   # workflow output
   close-issue:
@@ -2863,10 +2899,7 @@ strict: true
 # (JavaScript), 'run' (shell), or 'py' (Python) must be specified per tool.
 # (optional)
 safe-inputs:
-  # Transport mode for the safe-inputs MCP server. Only 'http' mode is supported,
-  # which starts the server as a separate step.
-  # (optional)
-  mode: "http"
+
 
 # Runtime environment version overrides. Allows customizing runtime versions
 # (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared
