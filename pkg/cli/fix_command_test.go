@@ -443,6 +443,7 @@ func TestGetAllCodemods(t *testing.T) {
 		"timeout-minutes-migration",
 		"network-firewall-migration",
 		"command-to-slash-command-migration",
+		"safe-inputs-mode-removal",
 	}
 
 	foundIDs := make(map[string]bool)
@@ -538,4 +539,75 @@ This is a test workflow with slash command.
 	if !strings.Contains(updatedStr, "slash_command: my-bot") {
 		t.Errorf("Expected on.slash_command: my-bot in updated content, got:\n%s", updatedStr)
 	}
+}
+
+func TestFixCommand_SafeInputsModeRemoval(t *testing.T) {
+// Create a temporary directory for test files
+tmpDir := t.TempDir()
+workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+// Create a workflow with deprecated safe-inputs.mode field
+content := `---
+on: workflow_dispatch
+engine: copilot
+safe-inputs:
+  mode: http
+  test-tool:
+    description: Test tool
+    script: |
+      return { result: "test" };
+---
+
+# Test Workflow
+
+This is a test workflow with safe-inputs mode field.
+`
+
+if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+t.Fatalf("Failed to create test file: %v", err)
+}
+
+// Get the safe-inputs mode removal codemod
+modeCodemod := getCodemodByID("safe-inputs-mode-removal")
+if modeCodemod == nil {
+t.Fatal("safe-inputs-mode-removal codemod not found")
+}
+
+// Process the file
+fixed, err := processWorkflowFile(workflowFile, []Codemod{*modeCodemod}, true, false)
+if err != nil {
+t.Fatalf("Failed to process workflow file: %v", err)
+}
+
+if !fixed {
+t.Error("Expected file to be fixed, but no changes were made")
+}
+
+// Read the updated content
+updatedContent, err := os.ReadFile(workflowFile)
+if err != nil {
+t.Fatalf("Failed to read updated file: %v", err)
+}
+
+updatedStr := string(updatedContent)
+
+t.Logf("Updated content:\n%s", updatedStr)
+
+// Verify the change - mode field should be removed
+if strings.Contains(updatedStr, "mode:") {
+t.Errorf("Expected mode field to be removed, but it still exists:\n%s", updatedStr)
+}
+
+// Verify safe-inputs block and test-tool are preserved
+if !strings.Contains(updatedStr, "safe-inputs:") {
+t.Error("Expected safe-inputs block to be preserved")
+}
+
+if !strings.Contains(updatedStr, "test-tool:") {
+t.Error("Expected test-tool to be preserved")
+}
+
+if !strings.Contains(updatedStr, "description: Test tool") {
+t.Error("Expected test-tool description to be preserved")
+}
 }
