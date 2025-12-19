@@ -2504,7 +2504,7 @@ jobs:
               model: process.env. || "",
               version: "",
               agent_version: "",
-              cli_version: "dev",
+              cli_version: "ff5d504",
               workflow_name: "Issue Classifier",
               experimental: false,
               supports_tools_allowlist: false,
