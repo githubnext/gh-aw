@@ -182,7 +182,7 @@ func validateActionYml(actionPath string) error {
 	// Check that it's either a node20 or composite action
 	isNode20 := strings.Contains(contentStr, "using: 'node20'") || strings.Contains(contentStr, "using: \"node20\"")
 	isComposite := strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\"")
-	
+
 	if !isNode20 && !isComposite {
 		return fmt.Errorf("action must use either 'node20' or 'composite' runtime")
 	}
