@@ -39,17 +39,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string
 
-	// Build consolidated safe outputs job containing all safe output operations as steps
-	consolidatedJob, consolidatedStepNames, err := c.buildConsolidatedSafeOutputsJob(data, jobName, markdownPath)
+	// Build unified safe outputs job with single processor step
+	unifiedJob, unifiedStepNames, err := c.buildUnifiedSafeOutputsJob(data, jobName, markdownPath)
 	if err != nil {
-		return fmt.Errorf("failed to build consolidated safe outputs job: %w", err)
+		return fmt.Errorf("failed to build unified safe outputs job: %w", err)
 	}
-	if consolidatedJob != nil {
-		if err := c.jobManager.AddJob(consolidatedJob); err != nil {
-			return fmt.Errorf("failed to add consolidated safe outputs job: %w", err)
+	if unifiedJob != nil {
+		if err := c.jobManager.AddJob(unifiedJob); err != nil {
+			return fmt.Errorf("failed to add unified safe outputs job: %w", err)
 		}
-		safeOutputJobNames = append(safeOutputJobNames, consolidatedJob.Name)
-		compilerSafeOutputJobsLog.Printf("Added consolidated safe outputs job with %d steps: %v", len(consolidatedStepNames), consolidatedStepNames)
+		safeOutputJobNames = append(safeOutputJobNames, unifiedJob.Name)
+		compilerSafeOutputJobsLog.Printf("Added unified safe outputs job with single processor step: %v", unifiedStepNames)
 	}
 
 	// Build safe-jobs if configured
