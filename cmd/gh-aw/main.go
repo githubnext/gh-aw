@@ -515,6 +515,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	logsCmd := cli.NewLogsCommand()
 	auditCmd := cli.NewAuditCommand()
 	mcpServerCmd := cli.NewMCPServerCommand()
+	mcpGatewayCmd := cli.NewMCPGatewayCommand()
 	prCmd := cli.NewPRCommand()
 	campaignCmd := campaign.NewCommand()
 	secretsCmd := cli.NewSecretsCommand()
@@ -534,6 +535,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	mcpServerCmd.GroupID = "development"
+	mcpGatewayCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
 
 	// Execution Commands
@@ -568,6 +570,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(auditCmd)
 	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(mcpServerCmd)
+	rootCmd.AddCommand(mcpGatewayCmd)
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(campaignCmd)
