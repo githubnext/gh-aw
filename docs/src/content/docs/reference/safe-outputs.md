@@ -360,7 +360,11 @@ safe-outputs:
 
 Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, `fields`, and `campaign_id`. The job adds the issue or PR to the board, updates custom fields, applies `campaign:<id>` labels, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
 
-To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output. Your token must have sufficient permissions to create projects in the organization (classic PAT with `project` + `repo` scopes, or fine-grained PAT with Projects: Read+Write, or GitHub App with Projects permissions).
+To opt in to creating missing project boards, include `create_if_missing: true` in the `update_project` output. Your token must have sufficient permissions:
+- **User-owned Projects**: Classic PAT with `project` + `repo` scopes (fine-grained PATs don't work)
+- **Organization-owned Projects**: Classic PAT with `project` + `read:org` scopes, or fine-grained PAT with explicit Organization access and Projects: Read+Write, or GitHub App with Projects permissions
+
+See [GitHub Projects v2 token requirements](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for detailed setup instructions.
 
 ### Pull Request Creation (`create-pull-request:`)
 
