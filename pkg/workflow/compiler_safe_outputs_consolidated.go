@@ -638,28 +638,43 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	cfg := data.SafeOutputs.CreatePullRequests
 
 	var customEnvVars []string
+	// Pass the workflow ID for branch naming (required by create_pull_request.cjs)
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
+	// Pass the base branch from GitHub context (required by create_pull_request.cjs)
+	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", cfg.AllowedLabels)...)
-	// Add draft setting if explicitly set
+	// Add draft setting - always set with default to true for backwards compatibility
+	draftValue := true // Default value
 	if cfg.Draft != nil {
-		if *cfg.Draft {
-			customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"true\"\n")
-		} else {
-			customEnvVars = append(customEnvVars, "          GH_AW_PR_DRAFT: \"false\"\n")
-		}
+		draftValue = *cfg.Draft
 	}
-	// Add if-no-changes setting if explicitly set
-	if cfg.IfNoChanges != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
+	// Add if-no-changes setting - always set with default to "warn"
+	ifNoChanges := cfg.IfNoChanges
+	if ifNoChanges == "" {
+		ifNoChanges = "warn" // Default value
 	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
+	// Add allow-empty setting
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %q\n", fmt.Sprintf("%t", cfg.AllowEmpty)))
 	// Add max patch size setting
 	maxPatchSize := 1024 // default 1024 KB
 	if data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	// Add activation comment information if available (for updating the comment with PR link)
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
+	}
+	// Add expires value if set (only for same-repo PRs - when target-repo is not set)
+	if cfg.Expires > 0 && cfg.TargetRepoSlug == "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", cfg.Expires))
+	}
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("create_pull_request")
 

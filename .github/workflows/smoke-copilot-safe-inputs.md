@@ -25,7 +25,6 @@ tools:
   bash:
     - "*"
   github: false
-  serena: ["go"]
 safe-outputs:
     add-comment:
       hide-older-comments: true
@@ -34,22 +33,21 @@ safe-outputs:
 strict: true
 ---
 
-# Smoke Test: Copilot Engine Validation
+# Smoke Test: Copilot Safe Inputs Validation
 
 **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
 
+This smoke test validates safe-inputs functionality. GitHub MCP is intentionally disabled (`github: false`) to test that the `safeinputs-gh` tool provides an alternative way to access GitHub data.
+
 ## Test Requirements
 
-1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **Serena MCP Testing**: Use Serena to list classes in the project
-5. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
+1. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
+2. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+3. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh pr list --state merged --limit 2" to verify the tool can access GitHub data. This tests that safe-inputs can replace GitHub MCP for CLI-based GitHub access.
 
 ## Output
 
 Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 

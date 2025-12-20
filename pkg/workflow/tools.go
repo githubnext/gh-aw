@@ -191,27 +191,6 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 }
 
-// extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
-// This now uses the structured extraction helper for better error handling
-func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[string]any {
-	return ExtractMapField(frontmatter, key)
-}
-
-// extractToolsFromFrontmatter extracts tools section from frontmatter map
-func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	return ExtractMapField(frontmatter, "tools")
-}
-
-// extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
-func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
-	return ExtractMapField(frontmatter, "mcp-servers")
-}
-
-// extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
-func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
-	return ExtractMapField(frontmatter, "runtimes")
-}
-
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
 func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, includedTools string) (map[string]any, error) {
 	toolsLog.Printf("Merging tools and MCP servers: topTools=%d, mcpServers=%d", len(topTools), len(mcpServers))
