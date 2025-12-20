@@ -105,8 +105,8 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		// Clean index.js for actions that use it
-		if actionName != "setup-safe-outputs" {
+		// Clean index.js for actions that use it (except setup-safe-outputs and setup-activation)
+		if actionName != "setup-safe-outputs" && actionName != "setup-activation" {
 			indexPath := filepath.Join(actionsDir, actionName, "index.js")
 			if _, err := os.Stat(indexPath); err == nil {
 				if err := os.Remove(indexPath); err != nil {
@@ -128,6 +128,8 @@ func ActionsCleanCommand() error {
 				cleanedCount++
 			}
 		}
+
+		// Note: setup-activation uses setup.sh as template, so we don't clean it
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
@@ -207,6 +209,11 @@ func buildAction(actionsDir, actionName string) error {
 	// Special handling for setup-safe-outputs: copy files instead of embedding
 	if actionName == "setup-safe-outputs" {
 		return buildSetupSafeOutputsAction(actionsDir, actionName)
+	}
+
+	// Special handling for setup-activation: build shell script with embedded files
+	if actionName == "setup-activation" {
+		return buildSetupActivationAction(actionsDir, actionName)
 	}
 
 	srcPath := filepath.Join(actionPath, "src", "index.js")
@@ -300,6 +307,50 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
+
+	return nil
+}
+
+// buildSetupActivationAction builds the setup-activation action by embedding files in shell script
+func buildSetupActivationAction(actionsDir, actionName string) error {
+	actionPath := filepath.Join(actionsDir, actionName)
+	templatePath := filepath.Join(actionPath, "setup.sh")
+	outputPath := templatePath
+
+	// Read template file
+	templateContent, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read template file: %w", err)
+	}
+
+	// Get dependencies for this action
+	dependencies := getActionDependencies(actionName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+
+	// Get all JavaScript sources
+	sources := workflow.GetJavaScriptSources()
+
+	// Replace each placeholder with file content
+	outputContent := string(templateContent)
+	embeddedCount := 0
+	for _, dep := range dependencies {
+		if content, ok := sources[dep]; ok {
+			placeholder := fmt.Sprintf("__CONTENT_%s__", dep)
+			outputContent = strings.ReplaceAll(outputContent, placeholder, content)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
+			embeddedCount++
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
+		}
+	}
+
+	// Write output file
+	if err := os.WriteFile(outputPath, []byte(outputContent), 0755); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", embeddedCount)))
 
 	return nil
 }

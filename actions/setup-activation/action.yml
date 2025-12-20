@@ -13,8 +13,11 @@ outputs:
     description: 'Number of files copied'
   
 runs:
-  using: 'node20'
-  main: 'index.js'
+  using: 'composite'
+  steps:
+    - name: Setup Activation Scripts
+      shell: bash
+      run: ${{ github.action_path }}/setup.sh
 
 branding:
   icon: 'play'
