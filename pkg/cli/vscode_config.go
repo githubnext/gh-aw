@@ -47,7 +47,7 @@ func (s *VSCodeSettings) UnmarshalJSON(data []byte) error {
 	for k, v := range raw {
 		s.Other[k] = v
 	}
-	
+
 	return nil
 }
 
