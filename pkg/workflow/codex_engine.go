@@ -195,6 +195,11 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Pin AWF Docker image version to match the installed binary version
+		awfImageTag := getAWFImageTag(firewallConfig)
+		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
+		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
+
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
 		// Add custom args if specified in firewall config

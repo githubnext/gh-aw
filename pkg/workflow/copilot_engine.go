@@ -402,6 +402,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Pin AWF Docker image version to match the installed binary version
+		awfImageTag := getAWFImageTag(firewallConfig)
+		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
+		copilotLog.Printf("Pinned AWF image tag to %s", awfImageTag)
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)
