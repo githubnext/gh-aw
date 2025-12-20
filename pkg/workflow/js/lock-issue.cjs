@@ -33,6 +33,13 @@ async function main() {
       issue_number: issueNumber,
     });
 
+    // Skip locking if this is a pull request (PRs cannot be locked via issues API)
+    if (issue.pull_request) {
+      core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping lock operation`);
+      core.setOutput("locked", "false");
+      return;
+    }
+
     if (issue.locked) {
       core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
       core.setOutput("locked", "false");

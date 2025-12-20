@@ -168,6 +168,11 @@ jobs:
                   repo,
                   issue_number: issueNumber,
                 });
+                if (issue.pull_request) {
+                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
                 if (issue.locked) {
                   core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
                   core.setOutput("locked", "false");
@@ -6371,6 +6376,10 @@ jobs:
                   repo,
                   issue_number: issueNumber,
                 });
+                if (issue.pull_request) {
+                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping unlock operation`);
+                  return;
+                }
                 if (!issue.locked) {
                   core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
                   return;
