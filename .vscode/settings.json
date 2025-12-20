@@ -3,7 +3,7 @@
         "markdown": true
     },
     "yaml.schemas": {
-        "./pkg/parsers/schemas/main_workflow_schema.json": ".github/workflows/*.md"
+        "./pkg/parser/schemas/main_workflow_schema.json": ".github/workflows/*.md"
     },
     "yaml.validate": true,
     "yaml.hover": true,
