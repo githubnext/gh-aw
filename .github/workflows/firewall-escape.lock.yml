@@ -21,7 +21,7 @@
 #
 # Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 
-name: "Firewall Escape"
+name: "The Great Escapi"
 "on":
   pull_request:
     # names: # Label filtering applied via job conditions
@@ -39,7 +39,7 @@ concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
-run-name: "Firewall Escape"
+run-name: "The Great Escapi"
 
 jobs:
   activation:
@@ -362,7 +362,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              workflow_name: "Firewall Escape",
+              workflow_name: "The Great Escapi",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -444,7 +444,7 @@ jobs:
                       });
           ---
           
-          # Firewall Escape Test Agent
+          # The Great Escapi
           
           You are a security testing agent running inside the gh-aw-firewall container. Your job is to verify that the firewall is correctly restricting network access while allowing legitimate operations.
           
@@ -2571,7 +2571,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: firewall-logs-firewall-escape
+          name: firewall-logs-the-great-escapi
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
