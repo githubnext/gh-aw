@@ -170,3 +170,64 @@ func TestGatewaySettings_WithAPIKey(t *testing.T) {
 		t.Errorf("Expected API key 'test-api-key', got '%s'", settings.APIKey)
 	}
 }
+
+func TestReadGatewayConfig_FileNotFound(t *testing.T) {
+	// Try to read a non-existent file
+	_, err := readGatewayConfig("/tmp/nonexistent-gateway-config-12345.json")
+	if err == nil {
+		t.Error("Expected error for non-existent file, got nil")
+	}
+	if err != nil && err.Error() != "configuration file not found: /tmp/nonexistent-gateway-config-12345.json" {
+		t.Errorf("Expected specific error message, got: %v", err)
+	}
+}
+
+func TestReadGatewayConfig_EmptyServers(t *testing.T) {
+	// Create a config file with no servers
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "empty-servers.json")
+
+	config := MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{},
+		Gateway: GatewaySettings{
+			Port: 8080,
+		},
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	if err := os.WriteFile(configFile, configJSON, 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	// Try to read config - should fail with no servers
+	_, err = readGatewayConfig(configFile)
+	if err == nil {
+		t.Error("Expected error for config with no servers, got nil")
+	}
+	if err != nil && err.Error() != "no MCP servers configured in configuration" {
+		t.Errorf("Expected 'no MCP servers configured' error, got: %v", err)
+	}
+}
+
+func TestReadGatewayConfig_EmptyData(t *testing.T) {
+	// Create an empty config file
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "empty.json")
+
+	if err := os.WriteFile(configFile, []byte(""), 0644); err != nil {
+		t.Fatalf("Failed to write empty config file: %v", err)
+	}
+
+	// Try to read config - should fail with empty data
+	_, err := readGatewayConfig(configFile)
+	if err == nil {
+		t.Error("Expected error for empty config file, got nil")
+	}
+	if err != nil && err.Error() != "configuration data is empty" {
+		t.Errorf("Expected 'configuration data is empty' error, got: %v", err)
+	}
+}

@@ -153,46 +153,78 @@ func readGatewayConfig(configFile string) (*MCPGatewayConfig, error) {
 		// Read from file
 		gatewayLog.Printf("Reading configuration from file: %s", configFile)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading configuration from file: %s", configFile)))
+		
+		// Check if file exists
+		if _, err := os.Stat(configFile); os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Configuration file not found: %s", configFile)))
+			gatewayLog.Printf("Configuration file not found: %s", configFile)
+			return nil, fmt.Errorf("configuration file not found: %s", configFile)
+		}
+		
 		data, err = os.ReadFile(configFile)
 		if err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read config file: %v", err)))
 			return nil, fmt.Errorf("failed to read config file: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from file", len(data))))
+		gatewayLog.Printf("Read %d bytes from file", len(data))
 	} else {
 		// Read from stdin
 		gatewayLog.Print("Reading configuration from stdin")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading configuration from stdin..."))
 		data, err = io.ReadAll(os.Stdin)
 		if err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read from stdin: %v", err)))
 			return nil, fmt.Errorf("failed to read from stdin: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from stdin", len(data))))
+		gatewayLog.Printf("Read %d bytes from stdin", len(data))
+		
 		if len(data) == 0 {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No data received from stdin"))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No configuration data received from stdin"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please provide configuration via --config flag or pipe JSON to stdin"))
+			gatewayLog.Print("No data received from stdin")
+			return nil, fmt.Errorf("no configuration data received from stdin")
 		}
 	}
 
+	// Validate we have data
+	if len(data) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
+		gatewayLog.Print("Configuration data is empty")
+		return nil, fmt.Errorf("configuration data is empty")
+	}
+
 	gatewayLog.Printf("Parsing %d bytes of configuration data", len(data))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %d bytes of configuration data", len(data))))
+	
 	var config MCPGatewayConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse JSON: %v", err)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Data received (first 500 chars): %s", string(data[:min(500, len(data))]))))
+		gatewayLog.Printf("Failed to parse JSON: %v", err)
 		return nil, fmt.Errorf("failed to parse configuration JSON: %w", err)
 	}
 
+	gatewayLog.Printf("Successfully parsed JSON configuration")
 	gatewayLog.Printf("Loaded configuration with %d MCP servers", len(config.MCPServers))
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully loaded configuration with %d MCP servers", len(config.MCPServers))))
 	
-	// Log server names for debugging
-	if len(config.MCPServers) > 0 {
-		serverNames := make([]string, 0, len(config.MCPServers))
-		for name := range config.MCPServers {
-			serverNames = append(serverNames, name)
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No MCP servers configured"))
+	// Validate we have at least one server configured
+	if len(config.MCPServers) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No MCP servers configured in configuration"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration must include at least one MCP server in 'mcpServers' section"))
+		gatewayLog.Print("No MCP servers configured")
+		return nil, fmt.Errorf("no MCP servers configured in configuration")
 	}
+	
+	// Log server names for debugging
+	serverNames := make([]string, 0, len(config.MCPServers))
+	for name := range config.MCPServers {
+		serverNames = append(serverNames, name)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
+	gatewayLog.Printf("MCP servers configured: %v", serverNames)
 	
 	return &config, nil
 }
@@ -202,14 +234,17 @@ func (g *MCPGatewayServer) initializeSessions() error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initializing %d MCP sessions", len(g.config.MCPServers))))
 	gatewayLog.Printf("Initializing %d MCP sessions", len(g.config.MCPServers))
 
+	// This should never happen as we validate in readGatewayConfig, but double-check
 	if len(g.config.MCPServers) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No MCP servers to initialize"))
-		return nil
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No MCP servers to initialize"))
+		gatewayLog.Print("No MCP servers to initialize")
+		return fmt.Errorf("no MCP servers configured")
 	}
 
+	successCount := 0
 	for serverName, serverConfig := range g.config.MCPServers {
 		gatewayLog.Printf("Initializing session for server: %s", serverName)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initializing session for server: %s", serverName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initializing session for server: %s (command: %s, args: %v)", serverName, serverConfig.Command, serverConfig.Args)))
 
 		session, err := g.createMCPSession(serverName, serverConfig)
 		if err != nil {
@@ -222,11 +257,13 @@ func (g *MCPGatewayServer) initializeSessions() error {
 		g.sessions[serverName] = session
 		g.mu.Unlock()
 
-		gatewayLog.Printf("Successfully initialized session for %s", serverName)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully initialized session for %s", serverName)))
+		successCount++
+		gatewayLog.Printf("Successfully initialized session for %s (%d/%d)", serverName, successCount, len(g.config.MCPServers))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully initialized session for %s (%d/%d)", serverName, successCount, len(g.config.MCPServers))))
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d MCP sessions initialized successfully", len(g.config.MCPServers))))
+	gatewayLog.Printf("All %d MCP sessions initialized successfully", len(g.config.MCPServers))
 	return nil
 }
 
@@ -234,56 +271,77 @@ func (g *MCPGatewayServer) initializeSessions() error {
 func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerConfig) (*mcp.ClientSession, error) {
 	// Create log file for this server
 	logFile := filepath.Join(g.logDir, fmt.Sprintf("%s.log", serverName))
+	gatewayLog.Printf("Creating log file for %s: %s", serverName, logFile)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating log file for %s: %s", serverName, logFile)))
+	
 	logFd, err := os.Create(logFile)
 	if err != nil {
+		gatewayLog.Printf("Failed to create log file for %s: %v", serverName, err)
 		return nil, fmt.Errorf("failed to create log file: %w", err)
 	}
 	defer logFd.Close()
 
-	gatewayLog.Printf("Created log file for %s: %s", serverName, logFile)
+	gatewayLog.Printf("Log file created successfully for %s", serverName)
 
 	// Handle different server types
 	if config.URL != "" {
 		// HTTP transport (not yet fully supported in go-sdk for SSE)
-		gatewayLog.Printf("Creating HTTP client for %s at %s", serverName, config.URL)
+		gatewayLog.Printf("Attempting HTTP client for %s at %s", serverName, config.URL)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("HTTP transport not yet supported for %s", serverName)))
 		return nil, fmt.Errorf("HTTP transport not yet fully implemented in MCP gateway")
 	} else if config.Command != "" {
 		// Command transport (subprocess with stdio)
 		gatewayLog.Printf("Creating command client for %s with command: %s %v", serverName, config.Command, config.Args)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using command transport: %s %v", config.Command, config.Args)))
 
 		// Create command with environment variables
 		cmd := exec.Command(config.Command, config.Args...)
 		if len(config.Env) > 0 {
+			gatewayLog.Printf("Setting %d environment variables for %s", len(config.Env), serverName)
 			cmd.Env = os.Environ()
 			for k, v := range config.Env {
 				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+				gatewayLog.Printf("Env var for %s: %s=%s", serverName, k, v)
 			}
 		}
 
 		// Create command transport
+		gatewayLog.Printf("Creating CommandTransport for %s", serverName)
 		transport := &mcp.CommandTransport{
 			Command: cmd,
 		}
 
+		gatewayLog.Printf("Creating MCP client for %s", serverName)
 		client := mcp.NewClient(&mcp.Implementation{
 			Name:    fmt.Sprintf("gateway-client-%s", serverName),
 			Version: GetVersion(),
 		}, nil)
 
+		gatewayLog.Printf("Connecting to MCP server %s with 30s timeout", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Connecting to %s...", serverName)))
+		
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		session, err := client.Connect(ctx, transport, nil)
 		if err != nil {
+			gatewayLog.Printf("Failed to connect to command server %s: %v", serverName, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Connection failed for %s: %v", serverName, err)))
 			return nil, fmt.Errorf("failed to connect to command server: %w", err)
 		}
 
+		gatewayLog.Printf("Successfully connected to MCP server %s", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Connected to %s successfully", serverName)))
 		return session, nil
 	} else if config.Container != "" {
 		// Docker container (not yet implemented)
+		gatewayLog.Printf("Docker container requested for %s but not yet implemented", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Docker container support not available for %s", serverName)))
 		return nil, fmt.Errorf("docker container support not yet implemented")
 	}
 
+	gatewayLog.Printf("Invalid server configuration for %s: no command, url, or container specified", serverName)
+	fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Invalid configuration for %s: must specify command, url, or container", serverName)))
 	return nil, fmt.Errorf("invalid server configuration: must specify command, url, or container")
 }
 
