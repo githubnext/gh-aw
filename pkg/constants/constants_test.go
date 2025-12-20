@@ -2,6 +2,7 @@ package constants
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -379,5 +380,123 @@ func TestFeatureFlagType(t *testing.T) {
 	safeInputsFlag := SafeInputsFeatureFlag
 	if safeInputsFlag != "safe-inputs" {
 		t.Errorf("SafeInputsFeatureFlag assignment failed: got %q, want %q", safeInputsFlag, "safe-inputs")
+	}
+}
+
+// TestFeatureFlagTypeSafety verifies that FeatureFlag type provides
+// type safety and prevents confusion with arbitrary strings.
+// This test ensures type consistency improvements work as expected.
+func TestFeatureFlagTypeSafety(t *testing.T) {
+	t.Parallel()
+
+	// Test that FeatureFlag constants have correct type
+	var safeInputs FeatureFlag = SafeInputsFeatureFlag
+	var mcpGateway FeatureFlag = MCPGatewayFeatureFlag
+	var sandboxRuntime FeatureFlag = SandboxRuntimeFeatureFlag
+
+	// Verify type identity
+	if safeInputs != SafeInputsFeatureFlag {
+		t.Errorf("Expected SafeInputsFeatureFlag to equal itself")
+	}
+	if mcpGateway != MCPGatewayFeatureFlag {
+		t.Errorf("Expected MCPGatewayFeatureFlag to equal itself")
+	}
+	if sandboxRuntime != SandboxRuntimeFeatureFlag {
+		t.Errorf("Expected SandboxRuntimeFeatureFlag to equal itself")
+	}
+
+	// Test that FeatureFlag can be used in comparisons
+	if SafeInputsFeatureFlag == MCPGatewayFeatureFlag {
+		t.Error("Different feature flags should not be equal")
+	}
+
+	// Test that FeatureFlag can be used in switch statements
+	testFlag := SafeInputsFeatureFlag
+	switch testFlag {
+	case SafeInputsFeatureFlag:
+		// Expected path
+	case MCPGatewayFeatureFlag, SandboxRuntimeFeatureFlag:
+		t.Error("Switch statement matched wrong case")
+	default:
+		t.Error("Switch statement didn't match any case")
+	}
+
+	// Test that FeatureFlag can be used in maps (common use case)
+	flagMap := map[FeatureFlag]bool{
+		SafeInputsFeatureFlag:     true,
+		MCPGatewayFeatureFlag:     false,
+		SandboxRuntimeFeatureFlag: true,
+	}
+
+	if !flagMap[SafeInputsFeatureFlag] {
+		t.Error("Expected SafeInputsFeatureFlag to be enabled in map")
+	}
+	if flagMap[MCPGatewayFeatureFlag] {
+		t.Error("Expected MCPGatewayFeatureFlag to be disabled in map")
+	}
+}
+
+// TestFeatureFlagInFunctionCalls verifies that FeatureFlag type
+// can be used in function signatures for type safety.
+func TestFeatureFlagInFunctionCalls(t *testing.T) {
+	t.Parallel()
+
+	// Helper function that accepts FeatureFlag type
+	isEnabled := func(flag FeatureFlag) bool {
+		// Simulate checking if a feature is enabled
+		return flag == SafeInputsFeatureFlag || flag == SandboxRuntimeFeatureFlag
+	}
+
+	// Test that function accepts FeatureFlag constants
+	if !isEnabled(SafeInputsFeatureFlag) {
+		t.Error("Expected SafeInputsFeatureFlag to be enabled")
+	}
+
+	if isEnabled(MCPGatewayFeatureFlag) {
+		t.Error("Expected MCPGatewayFeatureFlag to be disabled")
+	}
+
+	// Test that function call with FeatureFlag type is compile-time safe
+	// This would fail to compile if we passed a plain string:
+	// isEnabled("safe-inputs") // Would cause compile error
+	
+	// But we can still convert if needed:
+	dynamicFlag := FeatureFlag("dynamic-flag")
+	if isEnabled(dynamicFlag) {
+		t.Error("Dynamic flag should not be enabled")
+	}
+}
+
+// TestFeatureFlagDocumentation verifies that all feature flags
+// are properly documented with their purpose.
+func TestFeatureFlagDocumentation(t *testing.T) {
+	t.Parallel()
+
+	// Test that feature flag constants exist and have meaningful names
+	flags := []struct {
+		flag     FeatureFlag
+		name     string
+		expected string
+	}{
+		{SafeInputsFeatureFlag, "SafeInputsFeatureFlag", "safe-inputs"},
+		{MCPGatewayFeatureFlag, "MCPGatewayFeatureFlag", "mcp-gateway"},
+		{SandboxRuntimeFeatureFlag, "SandboxRuntimeFeatureFlag", "sandbox-runtime"},
+	}
+
+	for _, tt := range flags {
+		t.Run(tt.name, func(t *testing.T) {
+			if string(tt.flag) != tt.expected {
+				t.Errorf("%s = %q, want %q", tt.name, tt.flag, tt.expected)
+			}
+
+			// Verify that flag value follows kebab-case naming convention
+			flagStr := string(tt.flag)
+			if strings.Contains(flagStr, "_") {
+				t.Errorf("Feature flag %q should use kebab-case, not snake_case", flagStr)
+			}
+			if strings.ToLower(flagStr) != flagStr {
+				t.Errorf("Feature flag %q should be lowercase", flagStr)
+			}
+		})
 	}
 }

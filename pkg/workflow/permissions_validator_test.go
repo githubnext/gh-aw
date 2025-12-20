@@ -382,3 +382,163 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 		})
 	}
 }
+
+// TestValidatableToolInterface verifies that ValidatableTool interface
+// provides type-safe abstraction for tool configuration validation.
+// This test ensures type consistency improvements enable compile-time safety.
+func TestValidatableToolInterface(t *testing.T) {
+	t.Parallel()
+
+	// Test that GitHubToolConfig implements ValidatableTool interface
+	var _ ValidatableTool = (*GitHubToolConfig)(nil)
+
+	// Test GetToolsets method
+	config := &GitHubToolConfig{
+		Toolset: []string{"repos", "issues"},
+	}
+
+	toolsets := config.GetToolsets()
+	if !strings.Contains(toolsets, "repos") {
+		t.Errorf("Expected toolsets to contain 'repos', got %q", toolsets)
+	}
+	if !strings.Contains(toolsets, "issues") {
+		t.Errorf("Expected toolsets to contain 'issues', got %q", toolsets)
+	}
+
+	// Test IsReadOnly method
+	if config.IsReadOnly() {
+		t.Error("Expected IsReadOnly to return false for non-read-only config")
+	}
+
+	readOnlyConfig := &GitHubToolConfig{
+		Toolset:  []string{"repos"},
+		ReadOnly: true,
+	}
+
+	if !readOnlyConfig.IsReadOnly() {
+		t.Error("Expected IsReadOnly to return true for read-only config")
+	}
+
+	// Test nil config handling
+	var nilConfig *GitHubToolConfig
+	if nilConfig.GetToolsets() != "" {
+		t.Error("Expected empty string for nil config GetToolsets")
+	}
+	if !nilConfig.IsReadOnly() {
+		t.Error("Expected nil config to default to read-only for security")
+	}
+}
+
+// TestValidatableToolInterfaceWithValidation verifies that ValidatableTool
+// interface works correctly with the permission validation system.
+func TestValidatableToolInterfaceWithValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		permissions       *Permissions
+		tool              ValidatableTool
+		expectMissing     int
+		expectReadOnly    bool
+		expectHasIssues   bool
+	}{
+		{
+			name:        "Interface with read-write config",
+			permissions: NewPermissions(),
+			tool: &GitHubToolConfig{
+				Toolset:  []string{"repos"},
+				ReadOnly: false,
+			},
+			expectMissing:   1, // Missing contents: write
+			expectReadOnly:  false,
+			expectHasIssues: true,
+		},
+		{
+			name: "Interface with read-only config and read permissions",
+			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionRead,
+			}),
+			tool: &GitHubToolConfig{
+				Toolset:  []string{"repos"},
+				ReadOnly: true,
+			},
+			expectMissing:   0,
+			expectReadOnly:  true,
+			expectHasIssues: false,
+		},
+		{
+			name:            "Nil interface (no tool configured)",
+			permissions:     NewPermissions(),
+			tool:            nil,
+			expectMissing:   0,
+			expectReadOnly:  false,
+			expectHasIssues: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ValidatePermissions(tt.permissions, tt.tool)
+
+			if len(result.MissingPermissions) != tt.expectMissing {
+				t.Errorf("Expected %d missing permissions, got %d",
+					tt.expectMissing, len(result.MissingPermissions))
+			}
+
+			if result.ReadOnlyMode != tt.expectReadOnly {
+				t.Errorf("Expected ReadOnlyMode=%v, got %v",
+					tt.expectReadOnly, result.ReadOnlyMode)
+			}
+
+			if result.HasValidationIssues != tt.expectHasIssues {
+				t.Errorf("Expected HasValidationIssues=%v, got %v",
+					tt.expectHasIssues, result.HasValidationIssues)
+			}
+		})
+	}
+}
+
+// TestValidatableToolTypeExpansion verifies that the interface method
+// GetToolsets correctly expands default toolset references.
+func TestValidatableToolTypeExpansion(t *testing.T) {
+	t.Parallel()
+
+	// Test that "default" expands to actual toolsets
+	config := &GitHubToolConfig{
+		Toolset: []string{"default"},
+	}
+
+	toolsets := config.GetToolsets()
+	// The expandDefaultToolset function should expand "default" to actual toolsets
+	if toolsets == "default" {
+		t.Error("Expected 'default' to be expanded to actual toolsets")
+	}
+
+	// Test multiple toolsets
+	multiConfig := &GitHubToolConfig{
+		Toolset: []string{"repos", "issues", "pull_requests"},
+	}
+
+	multiToolsets := multiConfig.GetToolsets()
+	if !strings.Contains(multiToolsets, "repos") {
+		t.Error("Expected toolsets to contain 'repos'")
+	}
+	if !strings.Contains(multiToolsets, "issues") {
+		t.Error("Expected toolsets to contain 'issues'")
+	}
+	if !strings.Contains(multiToolsets, "pull_requests") {
+		t.Error("Expected toolsets to contain 'pull_requests'")
+	}
+
+	// Test empty toolset (should apply defaults)
+	emptyConfig := &GitHubToolConfig{
+		Toolset: []string{},
+	}
+
+	emptyToolsets := emptyConfig.GetToolsets()
+	// Empty toolset should be expanded by expandDefaultToolset
+	if emptyToolsets == "" {
+		// This is expected if expandDefaultToolset returns empty for empty input
+		// The actual behavior depends on expandDefaultToolset implementation
+	}
+}

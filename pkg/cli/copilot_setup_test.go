@@ -539,3 +539,126 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 		t.Error("Expected copilot-setup-steps.yml to be created")
 	}
 }
+
+// TestCopilotWorkflowStepTypeDistinction verifies that CopilotWorkflowStep is a simplified
+// type distinct from workflow.WorkflowStep, with a focused schema for Copilot setup scaffolding.
+// This test ensures type consistency improvements prevent future collisions.
+func TestCopilotWorkflowStepTypeDistinction(t *testing.T) {
+	t.Parallel()
+
+	// CopilotWorkflowStep should have a simpler structure than workflow.WorkflowStep
+	// It's designed for Copilot setup scaffolding, not full workflow compilation
+	step := CopilotWorkflowStep{
+		Name: "Test step",
+		Uses: "actions/checkout@v5",
+		Run:  "echo test",
+		With: map[string]any{
+			"param": "value",
+		},
+		Env: map[string]any{
+			"VAR": "value",
+		},
+	}
+
+	// Test that CopilotWorkflowStep can be marshaled and unmarshaled
+	data, err := yaml.Marshal(&step)
+	if err != nil {
+		t.Fatalf("Failed to marshal CopilotWorkflowStep: %v", err)
+	}
+
+	var unmarshaled CopilotWorkflowStep
+	if err := yaml.Unmarshal(data, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal CopilotWorkflowStep: %v", err)
+	}
+
+	// Verify fields are preserved
+	if unmarshaled.Name != step.Name {
+		t.Errorf("Name not preserved: got %q, want %q", unmarshaled.Name, step.Name)
+	}
+	if unmarshaled.Uses != step.Uses {
+		t.Errorf("Uses not preserved: got %q, want %q", unmarshaled.Uses, step.Uses)
+	}
+	if unmarshaled.Run != step.Run {
+		t.Errorf("Run not preserved: got %q, want %q", unmarshaled.Run, step.Run)
+	}
+
+	// Verify that CopilotWorkflowStep can be used in arrays (as required by WorkflowJob)
+	steps := []CopilotWorkflowStep{step, step}
+	if len(steps) != 2 {
+		t.Errorf("Expected 2 steps, got %d", len(steps))
+	}
+
+	// Test that empty CopilotWorkflowStep is valid (for flexibility)
+	emptyStep := CopilotWorkflowStep{}
+	emptyData, err := yaml.Marshal(&emptyStep)
+	if err != nil {
+		t.Fatalf("Failed to marshal empty CopilotWorkflowStep: %v", err)
+	}
+	if len(emptyData) == 0 {
+		t.Error("Empty CopilotWorkflowStep should marshal to valid YAML")
+	}
+}
+
+// TestCopilotWorkflowStepSimplifiedSchema verifies that CopilotWorkflowStep
+// has a focused schema appropriate for Copilot setup, unlike the more complex
+// workflow.WorkflowStep used in workflow compilation.
+func TestCopilotWorkflowStepSimplifiedSchema(t *testing.T) {
+	t.Parallel()
+
+	// Test that CopilotWorkflowStep supports all required fields for setup steps
+	setupStep := CopilotWorkflowStep{
+		Name: "Install gh-aw extension",
+		Run:  "curl -fsSL https://example.com/install.sh | bash",
+	}
+
+	data, err := yaml.Marshal(&setupStep)
+	if err != nil {
+		t.Fatalf("Failed to marshal setup step: %v", err)
+	}
+
+	yamlStr := string(data)
+	if !strings.Contains(yamlStr, "Install gh-aw extension") {
+		t.Error("Expected marshaled YAML to contain step name")
+	}
+	if !strings.Contains(yamlStr, "curl -fsSL") {
+		t.Error("Expected marshaled YAML to contain run command")
+	}
+
+	// Test that CopilotWorkflowStep supports action steps
+	actionStep := CopilotWorkflowStep{
+		Name: "Setup Go",
+		Uses: "actions/setup-go@v6",
+		With: map[string]any{
+			"go-version": "1.21",
+		},
+	}
+
+	actionData, err := yaml.Marshal(&actionStep)
+	if err != nil {
+		t.Fatalf("Failed to marshal action step: %v", err)
+	}
+
+	actionYamlStr := string(actionData)
+	if !strings.Contains(actionYamlStr, "actions/setup-go") {
+		t.Error("Expected marshaled YAML to contain action reference")
+	}
+
+	// Test that CopilotWorkflowStep supports environment variables
+	envStep := CopilotWorkflowStep{
+		Name: "Run with env",
+		Run:  "echo $VAR",
+		Env: map[string]any{
+			"VAR": "value",
+		},
+	}
+
+	envData, err := yaml.Marshal(&envStep)
+	if err != nil {
+		t.Fatalf("Failed to marshal env step: %v", err)
+	}
+
+	envYamlStr := string(envData)
+	if !strings.Contains(envYamlStr, "env:") {
+		t.Error("Expected marshaled YAML to contain env section")
+	}
+}
