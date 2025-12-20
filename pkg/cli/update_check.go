@@ -92,12 +92,7 @@ func shouldCheckForUpdate(noCheckUpdate bool) bool {
 // This is a heuristic - we can't reliably detect this, so we're conservative
 func isRunningAsMCPServer() bool {
 	// Check for MCP_SERVER environment variable that could be set by the MCP server
-	if os.Getenv("GH_AW_MCP_SERVER") != "" {
-		return true
-	}
-	// Additional heuristic: check if we're likely being invoked by MCP server
-	// MCP server tools typically run with minimal environment
-	return false
+	return os.Getenv("GH_AW_MCP_SERVER") != ""
 }
 
 var (
