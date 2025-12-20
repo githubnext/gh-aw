@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Test MCP gateway with GitHub issues
+description: Test MCP gateway with issue creation in staged mode
 timeout-minutes: 5
 strict: true
 engine: copilot
@@ -18,24 +18,22 @@ sandbox:
 tools:
   github:
     toolsets: [issues]
+safe-outputs:
+  create-issue:
+    title-prefix: "[Poetry Test] "
+    max: 1
 imports:
   - shared/gh.md
 ---
 
-# Test MCP Gateway with GitHub Issues
+# Test MCP Gateway with Issue Creation in Staged Mode
 
-List the last 2 issues from this repository and verify the answer is correct.
+Create an issue with a poem about GitHub Copilot in **staged mode** (preview mode).
 
 **Requirements:**
-1. Use the GitHub tools to fetch the last 2 issues
-2. Display the issue numbers and titles
-3. Verify the data by checking:
-   - Issue numbers are valid
-   - Titles are present
-   - Issues are sorted by most recent first
-
-**Expected Output:**
-- Issue #123: "Title of issue"
-- Issue #122: "Title of another issue"
-
-Confirm that you successfully retrieved the issues and the data looks correct.
+1. Write a short, creative poem (4-6 lines) about GitHub Copilot
+2. Create an issue with:
+   - Title: Start with the prefix "[Poetry Test]" followed by a creative title for your poem
+   - Body: The poem you created
+3. **IMPORTANT**: Use staged mode (add `staged: true` to your create-issue call) so the issue is previewed with the 🎭 indicator but not actually created
+4. Confirm that the issue creation was successful in staged mode
