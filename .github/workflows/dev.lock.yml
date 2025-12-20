@@ -1660,6 +1660,63 @@ jobs:
           echo "port=$GH_AW_SAFE_INPUTS_PORT" >> "$GITHUB_OUTPUT"
           echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> "$GITHUB_OUTPUT"
           
+      - name: Setup MCPs
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_DEBUG: 1
+        run: |
+          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/mcp-config.json << EOF
+          {
+            "mcpServers": {
+              "github": {
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=issues",
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                ],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                }
+              },
+              "safeinputs": {
+                "type": "http",
+                "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
+                "headers": {
+                  "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
+                },
+                "tools": ["*"],
+                "env": {
+                  "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
+                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}",
+                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
+                  "GH_DEBUG": "\${GH_DEBUG}"
+                }
+              }
+            }
+          }
+          EOF
+          echo "-------START MCP CONFIG-----------"
+          cat /home/runner/.copilot/mcp-config.json
+          echo "-------END MCP CONFIG-----------"
+          echo "-------/home/runner/.copilot-----------"
+          find /home/runner/.copilot
+          echo "HOME: $HOME"
+          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Start MCP Gateway
         run: |
           mkdir -p /tmp/gh-aw/mcp-gateway-logs
@@ -1719,63 +1776,6 @@ jobs:
           echo 'Gateway logs:'
           cat /tmp/gh-aw/mcp-gateway-logs/gateway.log || echo 'No gateway logs found'
           exit 1
-      - name: Setup MCPs
-        env:
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
-          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
-          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_DEBUG: 1
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=issues",
-                  "ghcr.io/github/github-mcp-server:v0.26.3"
-                ],
-                "tools": ["*"],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
-              },
-              "safeinputs": {
-                "type": "http",
-                "url": "http://host.docker.internal:\${GH_AW_SAFE_INPUTS_PORT}",
-                "headers": {
-                  "Authorization": "Bearer \${GH_AW_SAFE_INPUTS_API_KEY}"
-                },
-                "tools": ["*"],
-                "env": {
-                  "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}",
-                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
-                  "GH_DEBUG": "\${GH_DEBUG}"
-                }
-              }
-            }
-          }
-          EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

@@ -2293,65 +2293,6 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
-      - name: Start MCP Gateway
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-gateway-logs
-          echo 'Starting MCP Gateway...'
-          
-          # Development mode: Build awmg from sources
-          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
-            echo 'Building awmg from sources (development mode)...'
-            make build-awmg
-            if [ -f "./awmg" ]; then
-              echo 'Built awmg successfully'
-              AWMG_CMD="./awmg"
-            else
-              echo 'ERROR: Failed to build awmg from sources'
-              exit 1
-            fi
-          # Check if awmg is already in PATH
-          elif command -v awmg &> /dev/null; then
-            echo 'awmg is already available in PATH'
-            AWMG_CMD="awmg"
-          # Check for local awmg build
-          elif [ -f "./awmg" ]; then
-            echo 'Using existing local awmg build'
-            AWMG_CMD="./awmg"
-          else
-            echo 'ERROR: Could not find awmg binary or source files'
-            echo 'Please build awmg with: make build-awmg'
-            exit 1
-          fi
-          
-          # Start MCP gateway in background with config piped via stdin
-          echo '{"mcpServers":null,"gateway":{"port":8080}}' | $AWMG_CMD --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
-          GATEWAY_PID=$!
-          echo "MCP Gateway started with PID $GATEWAY_PID"
-          
-          # Give the gateway a moment to start
-          sleep 2
-      - name: Verify MCP Gateway Health
-        run: |
-          echo 'Waiting for MCP Gateway to be ready...'
-          max_retries=30
-          retry_count=0
-          gateway_url="http://localhost:8080"
-          while [ $retry_count -lt $max_retries ]; do
-            if curl -s -o /dev/null -w "%{http_code}" "${gateway_url}/health" | grep -q "200\|204"; then
-              echo "MCP Gateway is ready!"
-              curl -s "${gateway_url}/servers" || echo "Could not fetch servers list"
-              exit 0
-            fi
-            retry_count=$((retry_count + 1))
-            echo "Waiting for gateway... (attempt $retry_count/$max_retries)"
-            sleep 1
-          done
-          echo "Error: MCP Gateway failed to start after $max_retries attempts"
-          
-          # Show gateway logs for debugging
-          echo 'Gateway logs:'
-          cat /tmp/gh-aw/mcp-gateway-logs/gateway.log || echo 'No gateway logs found'
-          exit 1
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -2412,6 +2353,65 @@ jobs:
           find /home/runner/.copilot
           echo "HOME: $HOME"
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+      - name: Start MCP Gateway
+        run: |
+          mkdir -p /tmp/gh-aw/mcp-gateway-logs
+          echo 'Starting MCP Gateway...'
+          
+          # Development mode: Build awmg from sources
+          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
+            echo 'Building awmg from sources (development mode)...'
+            make build-awmg
+            if [ -f "./awmg" ]; then
+              echo 'Built awmg successfully'
+              AWMG_CMD="./awmg"
+            else
+              echo 'ERROR: Failed to build awmg from sources'
+              exit 1
+            fi
+          # Check if awmg is already in PATH
+          elif command -v awmg &> /dev/null; then
+            echo 'awmg is already available in PATH'
+            AWMG_CMD="awmg"
+          # Check for local awmg build
+          elif [ -f "./awmg" ]; then
+            echo 'Using existing local awmg build'
+            AWMG_CMD="./awmg"
+          else
+            echo 'ERROR: Could not find awmg binary or source files'
+            echo 'Please build awmg with: make build-awmg'
+            exit 1
+          fi
+          
+          # Start MCP gateway in background with config piped via stdin
+          echo '{"mcpServers":null,"gateway":{"port":8080}}' | $AWMG_CMD --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
+          GATEWAY_PID=$!
+          echo "MCP Gateway started with PID $GATEWAY_PID"
+          
+          # Give the gateway a moment to start
+          sleep 2
+      - name: Verify MCP Gateway Health
+        run: |
+          echo 'Waiting for MCP Gateway to be ready...'
+          max_retries=30
+          retry_count=0
+          gateway_url="http://localhost:8080"
+          while [ $retry_count -lt $max_retries ]; do
+            if curl -s -o /dev/null -w "%{http_code}" "${gateway_url}/health" | grep -q "200\|204"; then
+              echo "MCP Gateway is ready!"
+              curl -s "${gateway_url}/servers" || echo "Could not fetch servers list"
+              exit 0
+            fi
+            retry_count=$((retry_count + 1))
+            echo "Waiting for gateway... (attempt $retry_count/$max_retries)"
+            sleep 1
+          done
+          echo "Error: MCP Gateway failed to start after $max_retries attempts"
+          
+          # Show gateway logs for debugging
+          echo 'Gateway logs:'
+          cat /tmp/gh-aw/mcp-gateway-logs/gateway.log || echo 'No gateway logs found'
+          exit 1
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
