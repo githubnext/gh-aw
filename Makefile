@@ -409,6 +409,13 @@ fix: build
 dependabot: build
 	./$(BINARY_NAME) compile --dependabot --verbose
 
+# Update GitHub Actions and workflows, then sync action pins and rebuild
+.PHONY: update
+update: build
+	./$(BINARY_NAME) update
+	$(MAKE) sync-action-pins
+	$(MAKE) build
+
 # Run development server
 .PHONY: dev
 dev: build
@@ -501,6 +508,7 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
+	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
