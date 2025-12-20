@@ -130,7 +130,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 
 	// Configure VSCode settings for YAML schema validation
 	initLog.Print("Configuring VSCode YAML schema validation")
-	
+
 	// Write workflow schema to .github/aw/
 	if err := ensureWorkflowSchema(verbose); err != nil {
 		initLog.Printf("Failed to write workflow schema: %v", err)

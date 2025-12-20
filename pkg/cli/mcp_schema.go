@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"reflect"
-
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -30,15 +27,5 @@ import (
 //	    OutputSchema: schema,
 //	}
 func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
-	// Get the type of T
-	var zero T
-	typ := reflect.TypeOf(zero)
-
-	// Use jsonschema.ForType to generate schema from Go type
-	schema, err := jsonschema.ForType(typ, &jsonschema.ForOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate schema: %w", err)
-	}
-
-	return schema, nil
+	return jsonschema.For[T](nil)
 }
