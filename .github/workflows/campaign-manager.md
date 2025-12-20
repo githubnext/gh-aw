@@ -11,6 +11,9 @@ tools:
   github:
     mode: remote
     toolsets: [default]
+  repo-memory:
+    branch-name: memory/meta-orchestrators
+    file-glob: "**/*"
 safe-outputs:
   create-issue:
     max: 5
@@ -117,6 +120,44 @@ As a meta-orchestrator, you coordinate between multiple campaigns, analyze their
 ## Workflow Execution
 
 Execute these phases each time you run:
+
+## Shared Memory Integration
+
+**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+
+This workflow shares memory with other meta-orchestrators (Workflow Health Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
+
+**Read from shared memory:**
+1. Check for existing files in the memory directory:
+   - `campaign-manager-latest.md` - Your last run's summary
+   - `workflow-health-latest.md` - Latest workflow health insights
+   - `agent-performance-latest.md` - Latest agent quality insights
+   - `shared-alerts.md` - Cross-orchestrator alerts and coordination notes
+
+2. Use insights from other orchestrators:
+   - Workflow Health Manager may flag campaigns whose workflows are failing
+   - Agent Performance Analyzer may identify campaigns with low-quality outputs
+   - Coordinate actions to avoid duplicate issues or conflicting recommendations
+
+**Write to shared memory:**
+1. Save your current run's summary as `campaign-manager-latest.md`:
+   - Campaign health scores
+   - Priority adjustments made
+   - Issues created or flagged
+   - Key recommendations
+   - Run timestamp
+
+2. Add coordination notes to `shared-alerts.md`:
+   - Cross-cutting concerns affecting multiple orchestrators
+   - High-priority systemic issues
+   - Recommendations for other orchestrators
+
+**Format for memory files:**
+- Use markdown format only
+- Include timestamp and workflow name at the top
+- Keep files concise (< 10KB recommended)
+- Use clear headers and bullet points
+- Include issue/PR numbers for reference
 
 ### Phase 1: Discovery (5 minutes)
 

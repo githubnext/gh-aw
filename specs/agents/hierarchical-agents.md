@@ -133,6 +133,30 @@ The hierarchical agent system consists of specialized meta-orchestrator workflow
 3. **Evidence-Based:** All decisions based on concrete metrics and data
 4. **Actionable:** Outputs are specific recommendations with clear next steps
 5. **Coordinated:** Meta-orchestrators complement each other without overlap
+6. **Shared Memory:** Meta-orchestrators use common repo memory to share insights and coordinate actions
+
+### Shared Memory System
+
+Meta-orchestrators use a shared repository memory branch (`memory/meta-orchestrators`) to persist data across runs and coordinate with each other.
+
+**Memory Location:** `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`
+
+**Shared Files:**
+- `campaign-manager-latest.md` - Campaign portfolio health and decisions
+- `workflow-health-latest.md` - Workflow compilation and execution status
+- `agent-performance-latest.md` - Agent quality scores and patterns
+- `shared-alerts.md` - Cross-orchestrator coordination notes and alerts
+
+**Benefits:**
+- **Avoid Duplicate Work:** Each orchestrator can see what others have already flagged
+- **Coordinate Actions:** Orchestrators can build on each other's insights
+- **Track Trends:** Historical data enables trend analysis across runs
+- **Share Context:** Common understanding of ecosystem state
+
+**Example Use Cases:**
+- Campaign Manager sees that Workflow Health Manager flagged a failing workflow used by Campaign X
+- Workflow Health Manager identifies that Agent Performance Analyzer found quality issues in a specific workflow
+- Agent Performance Analyzer notes that Campaign Manager deprioritized a campaign, reducing urgency of related improvements
 
 ## How Meta-Orchestrators Work
 

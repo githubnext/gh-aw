@@ -99,6 +99,32 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 - When evaluating agent effectiveness
 - Before creating new agents (learn from patterns)
 
+## How They Coordinate
+
+### Shared Memory System 🔗
+
+All three meta-orchestrators share a common repository memory at `memory/meta-orchestrators/` where they exchange insights and coordinate actions.
+
+**What's shared:**
+- Latest run summaries from each orchestrator
+- Cross-cutting alerts and coordination notes
+- Historical trends and patterns
+- Action items requiring multi-orchestrator attention
+
+**How it helps:**
+- **Avoid duplicates:** Campaign Manager won't create an issue if Workflow Health Manager already did
+- **Better context:** Agent Performance Analyzer can see if a low-quality agent is in a failing workflow
+- **Coordinated fixes:** All three can work together on systemic issues
+- **Trend tracking:** Historical data enables pattern recognition across runs
+
+**Example coordination:**
+1. Workflow Health Manager detects that `daily-metrics` workflow is failing (80% failure rate)
+2. Campaign Manager sees this and notes that "Metrics Campaign" relies on this workflow
+3. Agent Performance Analyzer identifies the agent has quality issues in this workflow
+4. Result: Single coordinated issue created referencing all three perspectives
+
+**You don't need to do anything** - the coordination happens automatically through shared memory!
+
 ## Quick Actions
 
 ### As a Repository Maintainer

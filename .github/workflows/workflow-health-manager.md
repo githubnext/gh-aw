@@ -10,6 +10,9 @@ tools:
   github:
     mode: remote
     toolsets: [default]
+  repo-memory:
+    branch-name: memory/meta-orchestrators
+    file-glob: "**/*"
 safe-outputs:
   create-issue:
     max: 10
@@ -143,6 +146,44 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 ## Workflow Execution
 
 Execute these phases each run:
+
+## Shared Memory Integration
+
+**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+
+This workflow shares memory with other meta-orchestrators (Campaign Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
+
+**Read from shared memory:**
+1. Check for existing files in the memory directory:
+   - `workflow-health-latest.md` - Your last run's summary
+   - `campaign-manager-latest.md` - Latest campaign health insights
+   - `agent-performance-latest.md` - Latest agent quality insights
+   - `shared-alerts.md` - Cross-orchestrator alerts and coordination notes
+
+2. Use insights from other orchestrators:
+   - Campaign Manager may identify campaigns that need workflow attention
+   - Agent Performance Analyzer may flag agents with quality issues that need health checks
+   - Coordinate actions to avoid duplicate issues or conflicting recommendations
+
+**Write to shared memory:**
+1. Save your current run's summary as `workflow-health-latest.md`:
+   - Workflow health scores and categories
+   - Critical issues (P0/P1) identified
+   - Systemic problems detected
+   - Issues created
+   - Run timestamp
+
+2. Add coordination notes to `shared-alerts.md`:
+   - Workflows affecting multiple campaigns
+   - Systemic issues requiring campaign-level attention
+   - Health patterns that affect agent performance
+
+**Format for memory files:**
+- Use markdown format only
+- Include timestamp and workflow name at the top
+- Keep files concise (< 10KB recommended)
+- Use clear headers and bullet points
+- Include issue/PR/workflow numbers for reference
 
 ### Phase 1: Discovery (5 minutes)
 
