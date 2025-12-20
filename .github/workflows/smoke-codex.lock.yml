@@ -59,7 +59,7 @@ jobs:
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@670905c-dirty
+        uses: githubnext/gh-aw/actions/setup-activation@1bb062e
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -6491,7 +6491,7 @@ jobs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@670905c-dirty
+        uses: githubnext/gh-aw/actions/setup-activation@1bb062e
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow
