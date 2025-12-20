@@ -64,7 +64,6 @@ features:
 
 sandbox:
   mcp:
-    container: "ghcr.io/your-org/mcp-gateway"
     port: 8080
     api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
 ```
@@ -80,7 +79,6 @@ features:
 sandbox:
   agent: awf
   mcp:
-    container: "ghcr.io/your-org/mcp-gateway"
     port: 8080
 ```
 
@@ -252,7 +250,7 @@ features:
 
 sandbox:
   mcp:
-    container: "ghcr.io/githubnext/mcp-gateway"
+    # MCP gateway runs as standalone awmg CLI
     version: "v1.0.0"
     port: 9000
     api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"

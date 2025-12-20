@@ -127,7 +127,7 @@ The awmg binary is designed to work seamlessly with GitHub Agentic Workflows. Wh
 ---
 sandbox:
   mcp:
-    container: ghcr.io/githubnext/mcp-gateway
+    # MCP gateway runs as standalone awmg CLI
     port: 8080
 ---
 ```

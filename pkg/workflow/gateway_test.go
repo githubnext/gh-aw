@@ -25,20 +25,17 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "minimal config with container only",
+			name: "minimal config with port only",
 			input: map[string]any{
-				"container": "ghcr.io/githubnext/mcp-gateway",
+				"port": 8080,
 			},
 			expected: &MCPGatewayConfig{
-				Container: "ghcr.io/githubnext/mcp-gateway",
-				Port:      DefaultMCPGatewayPort,
+				Port: 8080,
 			},
 		},
 		{
 			name: "full config",
 			input: map[string]any{
-				"container":      "ghcr.io/githubnext/mcp-gateway",
-				"version":        "v1.0.0",
 				"port":           8888,
 				"api-key":        "${{ secrets.API_KEY }}",
 				"args":           []any{"-v", "--debug"},
@@ -48,8 +45,6 @@ func TestParseMCPGatewayTool(t *testing.T) {
 				},
 			},
 			expected: &MCPGatewayConfig{
-				Container:      "ghcr.io/githubnext/mcp-gateway",
-				Version:        "v1.0.0",
 				Port:           8888,
 				APIKey:         "${{ secrets.API_KEY }}",
 				Args:           []string{"-v", "--debug"},
@@ -58,26 +53,19 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			},
 		},
 		{
-			name: "numeric version",
-			input: map[string]any{
-				"container": "ghcr.io/githubnext/mcp-gateway",
-				"version":   1.0,
-			},
+			name: "empty config",
+			input: map[string]any{},
 			expected: &MCPGatewayConfig{
-				Container: "ghcr.io/githubnext/mcp-gateway",
-				Version:   "1",
-				Port:      DefaultMCPGatewayPort,
+				Port: DefaultMCPGatewayPort,
 			},
 		},
 		{
 			name: "float port",
 			input: map[string]any{
-				"container": "ghcr.io/githubnext/mcp-gateway",
-				"port":      8888.0,
+				"port": 8888.0,
 			},
 			expected: &MCPGatewayConfig{
-				Container: "ghcr.io/githubnext/mcp-gateway",
-				Port:      8888,
+				Port: 8888,
 			},
 		},
 	}
@@ -133,19 +121,17 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayConfig{
-						Container: "test",
+						Port: 8080,
 					},
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "sandbox.mcp configured",
+			name: "sandbox.mcp with empty config",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
-						Container: "test",
-					},
+					MCP: &MCPGatewayConfig{},
 				},
 			},
 			expected: true,
@@ -185,8 +171,7 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayConfig{
-						Container: "test-image",
-						Port:      9090,
+						Port: 9090,
 					},
 				},
 			},
@@ -199,7 +184,6 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 			result := getMCPGatewayConfig(tt.data)
 			if tt.hasConfig {
 				require.NotNil(t, result)
-				assert.Equal(t, "test-image", result.Container)
 				assert.Equal(t, 9090, result.Port)
 			} else {
 				assert.Nil(t, result)
@@ -226,8 +210,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayConfig{
-						Container: "test-gateway",
-						Port:      8080,
+						Port: 8080,
 					},
 				},
 				Features: map[string]bool{
@@ -251,8 +234,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 
 func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	config := &MCPGatewayConfig{
-		Container: "ghcr.io/githubnext/mcp-gateway",
-		Port:      8080,
+		Port: 8080,
 	}
 	mcpServers := map[string]any{
 		"github": map[string]any{},

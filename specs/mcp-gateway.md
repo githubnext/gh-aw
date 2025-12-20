@@ -151,7 +151,7 @@ The mcp-gateway can be tested in smoke-copilot or any workflow by:
 ```yaml
 sandbox:
   mcp:
-    container: "ghcr.io/githubnext/mcp-gateway"
+    # MCP gateway runs as standalone awmg CLI
     port: 8080
 features:
   - mcp-gateway

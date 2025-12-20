@@ -22,7 +22,6 @@ network:
 sandbox:
   agent: awf  # Firewall enabled
   mcp:
-    container: ghcr.io/githubnext/mcp-gateway
     port: 8080
 tools:
   cache-memory: true

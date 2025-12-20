@@ -45,7 +45,6 @@ permissions:
 engine: copilot
 sandbox:
   mcp:
-    container: ghcr.io/githubnext/mcp-gateway
     port: 8089
 tools:
   playwright:

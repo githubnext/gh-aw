@@ -63,11 +63,11 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	}
 
 	config := getMCPGatewayConfig(workflowData)
-	if config == nil || config.Container == "" {
+	if config == nil {
 		return nil
 	}
 
-	gatewayLog.Printf("Generating MCP gateway steps for container: %s", config.Container)
+	gatewayLog.Print("Generating MCP gateway steps")
 
 	var steps []GitHubActionStep
 
@@ -121,18 +121,9 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"            if [ -f \"./awmg\" ]; then",
 		"              echo 'Using local awmg build'",
 		"              AWMG_CMD=\"./awmg\"",
-		"            # Check if gh-aw extension is installed (has awmg)",
-		"            elif gh extension list 2>/dev/null | grep -q 'githubnext/gh-aw' && [ -f \"$HOME/.local/share/gh/extensions/gh-aw/awmg\" ]; then",
-		"              echo 'Using awmg from gh-aw extension'",
-		"              AWMG_CMD=\"$HOME/.local/share/gh/extensions/gh-aw/awmg\"",
 		"            else",
 		"              # Download awmg from releases",
 		"              echo 'Downloading awmg from GitHub releases...'",
-		"              AWMG_VERSION=$(gh release list --repo githubnext/gh-aw --limit 1 | grep -v draft | grep -v prerelease | head -n 1 | awk '{print $1}')",
-		"              if [ -z \"$AWMG_VERSION\" ]; then",
-		"                echo 'No release version found, using latest'",
-		"                AWMG_VERSION='latest'",
-		"              fi",
 		"              ",
 		"              # Detect platform",
 		"              OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
@@ -143,14 +134,10 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"              AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
 		"              if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
 		"              ",
-		"              # Download from releases",
-		"              if [ \"$AWMG_VERSION\" = \"latest\" ]; then",
-		"                gh release download --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp || true",
-		"              else",
-		"                gh release download \"$AWMG_VERSION\" --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp || true",
-		"              fi",
-		"              ",
-		"              if [ -f \"/tmp/$AWMG_BINARY\" ]; then",
+		"              # Download from releases using curl (no gh CLI dependency)",
+		"              RELEASE_URL=\"https://github.com/githubnext/gh-aw/releases/latest/download/$AWMG_BINARY\"",
+		"              echo \"Downloading from $RELEASE_URL\"",
+		"              if curl -L -f -o \"/tmp/$AWMG_BINARY\" \"$RELEASE_URL\"; then",
 		"                chmod +x \"/tmp/$AWMG_BINARY\"",
 		"                AWMG_CMD=\"/tmp/$AWMG_BINARY\"",
 		"                echo 'Downloaded awmg successfully'",
