@@ -6575,6 +6575,10 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "super-linter"
+      GH_AW_WORKFLOW_NAME: "Super Linter Report"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -7237,8 +7241,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[linter] "
           GH_AW_ISSUE_LABELS: "automation,code-quality"
-          GH_AW_WORKFLOW_NAME: "Super Linter Report"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -197,13 +197,35 @@ A specialized token for GitHub Projects v2 operations used by the [`update-proje
 
 **Setup**:
 
-1. Create a **classic PAT** with `project` and `repo` scopes, **OR** a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
-   - Repository access: Select specific repos or "All repositories"
-   - Organization permissions:
-     - Projects: Read+Write (for creating and managing org Projects)
-   - **OR** use a GitHub App with Projects: Read+Write permission
+The required token type depends on whether you're working with **user-owned** or **organization-owned** Projects:
 
-2. Add to repository secrets:
+**For User-owned Projects (v2)**:
+
+You **must** use a **classic PAT** with the `project` scope. Fine-grained PATs do **not** work with user-owned Projects.
+
+1. Create a [classic PAT](https://github.com/settings/tokens/new) with scopes:
+   - `project` (required for user Projects)
+   - `repo` (required if accessing private repositories)
+
+**For Organization-owned Projects (v2)**:
+
+You can use either a classic PAT or a fine-grained PAT:
+
+1. **Option A**: Create a **classic PAT** with `project` and `read:org` scopes:
+   - `project` (required)
+   - `read:org` (required for org Projects)
+   - `repo` (required if accessing private repositories)
+
+2. **Option B**: Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - Repository access: Select specific repos or "All repositories"
+   - **Organization permissions** (must be explicitly granted):
+     - **Organization access**: Must be granted to the target organization
+     - **Projects**: Read+Write (for creating and managing org Projects)
+   - **Important**: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
+
+3. **Option C**: Use a GitHub App with Projects: Read+Write permission
+
+After creating your token, add it to repository secrets:
 
 ```bash wrap
 gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
@@ -235,7 +257,12 @@ safe-outputs:
 :::note[Default behavior]
 By default, `update-project` is **update-only**: it will not create projects. If a project doesn't exist, the job fails with instructions to create it manually.
 
-**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. GitHub Projects v2 requires GraphQL API access with a PAT (classic with `project` + `repo` scopes, or fine-grained with Projects permissions) or a GitHub App.
+**Important**: The default `GITHUB_TOKEN` **cannot** be used for Projects v2 operations. You **must** configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`. 
+
+**GitHub Projects v2 PAT Requirements**:
+- **User-owned Projects**: Require a **classic PAT** with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do **not** work with user-owned Projects.
+- **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, **or** a fine-grained PAT with explicit Organization access granted plus Projects: Read+Write permission. Fine-grained PATs work by default only for public org resources and must be explicitly granted organization access.
+- **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
 
 To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
 :::

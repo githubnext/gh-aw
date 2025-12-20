@@ -1195,6 +1195,11 @@
               "type": "string",
               "enum": ["read", "write", "none"]
             },
+            "repository-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository projects (read: view projects, write: manage projects, none: no access)"
+            },
             "security-events": {
               "type": "string",
               "enum": ["read", "write", "none"]

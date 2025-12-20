@@ -6341,6 +6341,10 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_WORKFLOW_ID: "cli-version-checker"
+      GH_AW_WORKFLOW_NAME: "CLI Version Checker"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -7003,8 +7007,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[ca] "
           GH_AW_ISSUE_LABELS: "automation,dependencies"
-          GH_AW_WORKFLOW_NAME: "CLI Version Checker"
-          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
