@@ -1067,3 +1067,24 @@ func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
 
 	return strings.Join(result, "\n")
 }
+
+// extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
+// This now uses the structured extraction helper for better error handling
+func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[string]any {
+	return ExtractMapField(frontmatter, key)
+}
+
+// extractToolsFromFrontmatter extracts tools section from frontmatter map
+func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "tools")
+}
+
+// extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
+func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "mcp-servers")
+}
+
+// extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
+func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "runtimes")
+}
