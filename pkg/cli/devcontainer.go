@@ -97,17 +97,17 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	ghAwRepositories := buildRepositoryPermissions(repoName, owner, additionalRepos)
 
 	var config DevcontainerConfig
-	
+
 	if existingConfig != nil {
 		// Update existing configuration
 		devcontainerLog.Printf("Updating existing devcontainer.json")
 		config = *existingConfig
-		
+
 		// Ensure customizations exists
 		if config.Customizations == nil {
 			config.Customizations = &DevcontainerCustomizations{}
 		}
-		
+
 		// Merge VSCode extensions
 		if config.Customizations.VSCode == nil {
 			config.Customizations.VSCode = &DevcontainerVSCode{}
@@ -116,7 +116,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			config.Customizations.VSCode.Extensions,
 			[]string{"GitHub.copilot", "GitHub.copilot-chat"},
 		)
-		
+
 		// Merge Codespaces repositories
 		if config.Customizations.Codespaces == nil {
 			config.Customizations.Codespaces = &DevcontainerCodespaces{
@@ -130,7 +130,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			config.Customizations.Codespaces.Repositories[repo] = perms
 			devcontainerLog.Printf("Updated permissions for repo: %s", repo)
 		}
-		
+
 		// Merge features
 		if config.Features == nil {
 			config.Features = make(DevcontainerFeatures)
@@ -139,7 +139,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
 			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
 		})
-		
+
 		// Update postCreateCommand if not set or if it doesn't include gh-aw install
 		if config.PostCreateCommand == "" || !strings.Contains(config.PostCreateCommand, "install-gh-aw.sh") {
 			ghAwInstall := "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
@@ -150,7 +150,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			}
 			devcontainerLog.Printf("Updated postCreateCommand to include gh-aw installation")
 		}
-		
+
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Updated existing devcontainer at %s\n", devcontainerPath)
 		}
@@ -177,7 +177,7 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			},
 			PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
 		}
-		
+
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Created new devcontainer at %s\n", devcontainerPath)
 		}
@@ -271,7 +271,7 @@ func buildRepositoryPermissions(repoName, owner string, additionalRepos []string
 func mergeExtensions(existing, toAdd []string) []string {
 	extensionSet := make(map[string]bool)
 	result := make([]string, 0, len(existing)+len(toAdd))
-	
+
 	// Add existing extensions
 	for _, ext := range existing {
 		if !extensionSet[ext] {
@@ -279,7 +279,7 @@ func mergeExtensions(existing, toAdd []string) []string {
 			result = append(result, ext)
 		}
 	}
-	
+
 	// Add new extensions if not already present
 	for _, ext := range toAdd {
 		if !extensionSet[ext] {
@@ -287,7 +287,7 @@ func mergeExtensions(existing, toAdd []string) []string {
 			result = append(result, ext)
 		}
 	}
-	
+
 	return result
 }
 
@@ -295,13 +295,13 @@ func mergeExtensions(existing, toAdd []string) []string {
 func mergeFeatures(existing DevcontainerFeatures, toAdd map[string]any) {
 	// First, remove old copilot-cli versions
 	for key := range existing {
-		if strings.HasPrefix(key, "ghcr.io/devcontainers/features/copilot-cli:") && 
-		   key != "ghcr.io/devcontainers/features/copilot-cli:latest" {
+		if strings.HasPrefix(key, "ghcr.io/devcontainers/features/copilot-cli:") &&
+			key != "ghcr.io/devcontainers/features/copilot-cli:latest" {
 			delete(existing, key)
 			devcontainerLog.Printf("Removed old copilot-cli version: %s", key)
 		}
 	}
-	
+
 	// Add new features
 	for key, value := range toAdd {
 		existing[key] = value
