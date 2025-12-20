@@ -69,18 +69,18 @@ func (s VSCodeSettings) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
-// ensureWorkflowSchema writes the main workflow schema to .github/aw/main_workflow_schema.json
+// ensureWorkflowSchema writes the main workflow schema to .github/aw/schemas/agentic-workflow.json
 func ensureWorkflowSchema(verbose bool) error {
-	vscodeConfigLog.Print("Writing main workflow schema to .github/aw/")
+	vscodeConfigLog.Print("Writing main workflow schema to .github/aw/schemas/")
 
-	// Create .github/aw directory if it doesn't exist
-	awDir := filepath.Join(".github", "aw")
-	if err := os.MkdirAll(awDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/aw directory: %w", err)
+	// Create .github/aw/schemas directory if it doesn't exist
+	schemasDir := filepath.Join(".github", "aw", "schemas")
+	if err := os.MkdirAll(schemasDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/aw/schemas directory: %w", err)
 	}
-	vscodeConfigLog.Printf("Ensured directory exists: %s", awDir)
+	vscodeConfigLog.Printf("Ensured directory exists: %s", schemasDir)
 
-	schemaPath := filepath.Join(awDir, "main_workflow_schema.json")
+	schemaPath := filepath.Join(schemasDir, "agentic-workflow.json")
 
 	// Get the embedded schema from parser package
 	schemaContent := parser.GetMainWorkflowSchema()
@@ -129,7 +129,7 @@ func ensureVSCodeSettings(verbose bool) error {
 	}
 
 	// Add schema mapping for workflow files
-	schemaPath := "./.github/aw/main_workflow_schema.json"
+	schemaPath := "./.github/aw/schemas/agentic-workflow.json"
 	workflowPattern := ".github/workflows/*.md"
 
 	// Check if already configured

@@ -137,7 +137,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		return fmt.Errorf("failed to write workflow schema: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/aw/main_workflow_schema.json"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/aw/schemas/agentic-workflow.json"))
 	}
 
 	// Update .vscode/settings.json
