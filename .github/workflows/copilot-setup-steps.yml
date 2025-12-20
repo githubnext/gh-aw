@@ -31,7 +31,7 @@ jobs:
         cache: true
         go-version-file: go.mod
     - name: Install JavaScript dependencies
-      run: npm ci
+      run: cd pkg/workflow/js && npm ci
     - name: Install development dependencies
       run: make deps-dev
     - name: Build code
