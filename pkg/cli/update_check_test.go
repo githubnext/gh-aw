@@ -86,7 +86,7 @@ func TestShouldCheckForUpdate(t *testing.T) {
 			} else {
 				os.Setenv("CI", tt.ciEnv)
 			}
-			
+
 			if tt.mcpEnv == "" {
 				os.Unsetenv("GH_AW_MCP_SERVER")
 			} else {
