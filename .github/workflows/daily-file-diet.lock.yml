@@ -7837,6 +7837,11 @@ jobs:
       contents: write
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_TRACKER_ID: "daily-file-diet"
+      GH_AW_WORKFLOW_ID: "daily-file-diet"
+      GH_AW_WORKFLOW_NAME: "Daily File Diet"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -8510,9 +8515,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[file-diet] "
           GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis"
-          GH_AW_WORKFLOW_NAME: "Daily File Diet"
-          GH_AW_TRACKER_ID: "daily-file-diet"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -8811,9 +8813,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily File Diet"
-          GH_AW_TRACKER_ID: "daily-file-diet"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

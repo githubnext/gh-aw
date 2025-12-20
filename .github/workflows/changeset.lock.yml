@@ -7451,6 +7451,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "codex"
+      GH_AW_ENGINE_MODEL: "gpt-5-mini"
+      GH_AW_WORKFLOW_ID: "changeset"
+      GH_AW_WORKFLOW_NAME: "Changeset Generator"
     outputs:
       push_to_pull_request_branch_commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
     steps:
@@ -8691,9 +8696,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Changeset Generator"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_ENGINE_MODEL: "gpt-5-mini"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -8775,9 +8777,6 @@ jobs:
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_COMMIT_TITLE_SUFFIX: " [skip-ci]"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Changeset Generator"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_ENGINE_MODEL: "gpt-5-mini"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

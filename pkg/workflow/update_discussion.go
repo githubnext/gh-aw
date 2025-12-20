@@ -28,24 +28,13 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 		UpdateEntityConfig: *baseConfig,
 	}
 
-	// Parse discussion-specific fields from config map
+	// Parse discussion-specific fields using key existence mode
+	updateDiscussionsConfig.Title = parseUpdateEntityBoolField(configMap, "title", FieldParsingKeyExistence)
+	updateDiscussionsConfig.Body = parseUpdateEntityBoolField(configMap, "body", FieldParsingKeyExistence)
+	updateDiscussionsConfig.Labels = parseUpdateEntityBoolField(configMap, "labels", FieldParsingKeyExistence)
+
+	// Parse allowed-labels using shared helper
 	if configMap != nil {
-		// Parse title - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["title"]; exists {
-			updateDiscussionsConfig.Title = new(bool)
-		}
-
-		// Parse body - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["body"]; exists {
-			updateDiscussionsConfig.Body = new(bool)
-		}
-
-		// Parse labels - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["labels"]; exists {
-			updateDiscussionsConfig.Labels = new(bool)
-		}
-
-		// Parse allowed-labels using shared helper
 		updateDiscussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
 		if len(updateDiscussionsConfig.AllowedLabels) > 0 {
 			updateDiscussionLog.Printf("Allowed labels configured: %v", updateDiscussionsConfig.AllowedLabels)

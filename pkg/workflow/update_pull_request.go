@@ -28,24 +28,9 @@ func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *Upda
 		UpdateEntityConfig: *baseConfig,
 	}
 
-	// Parse PR-specific fields from config map
-	if configMap != nil {
-		// Parse title - boolean to enable/disable (defaults to true if nil or not set)
-		if titleVal, exists := configMap["title"]; exists {
-			if titleBool, ok := titleVal.(bool); ok {
-				updatePullRequestsConfig.Title = &titleBool
-			}
-			// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
-		}
-
-		// Parse body - boolean to enable/disable (defaults to true if nil or not set)
-		if bodyVal, exists := configMap["body"]; exists {
-			if bodyBool, ok := bodyVal.(bool); ok {
-				updatePullRequestsConfig.Body = &bodyBool
-			}
-			// If present but not a bool (e.g., null), leave as nil (defaults to enabled)
-		}
-	}
+	// Parse PR-specific fields using bool value mode (defaults to true if nil)
+	updatePullRequestsConfig.Title = parseUpdateEntityBoolField(configMap, "title", FieldParsingBoolValue)
+	updatePullRequestsConfig.Body = parseUpdateEntityBoolField(configMap, "body", FieldParsingBoolValue)
 
 	return updatePullRequestsConfig
 }
