@@ -72,12 +72,14 @@ make recompile
 - Use the GitHub issue tracker to report bugs
 - Include detailed steps to reproduce the issue
 - Include version information (`./gh-aw version`)
+- Follow label guidelines (see [Label Guidelines](specs/labels.md))
 
 ### Suggesting Features
 
 - Open an issue describing your feature request
 - Explain the use case and how it would benefit users
 - Include examples if applicable
+- Apply appropriate labels (see [Label Guidelines](specs/labels.md))
 
 ### Contributing Code
 
