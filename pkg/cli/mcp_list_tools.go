@@ -206,7 +206,7 @@ The command will:
 }
 
 // commonMCPServerNames contains commonly used MCP server names for shell completion
-var commonMCPServerNames = []string{"github", "playwright", "tavily", "safe-outputs"}
+var commonMCPServerNames = []string{"github", "playwright", "serena", "tavily", "safe-outputs"}
 
 // completeMCPListToolsArgs provides completion for mcp list-tools command arguments
 func completeMCPListToolsArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
