@@ -26,7 +26,7 @@ name: "Daily Workflow Updater"
   schedule:
   - cron: "18 5 * * *"
     # Friendly format: daily (scattered)
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

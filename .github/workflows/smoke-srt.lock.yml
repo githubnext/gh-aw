@@ -28,7 +28,7 @@ name: "Smoke SRT"
     # - test-srt # Label filtering applied via job conditions
     types:
     - labeled
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

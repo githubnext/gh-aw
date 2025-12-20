@@ -30,7 +30,7 @@ name: "Weekly Workflow Analysis"
   schedule:
   - cron: "0 9 * * 1"
     # Friendly format: weekly on monday at 09:00
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

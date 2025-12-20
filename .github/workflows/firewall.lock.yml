@@ -23,7 +23,7 @@
 
 name: "Firewall Test Agent"
 "on":
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

@@ -387,7 +387,7 @@ func TestScheduleFriendlyComments(t *testing.T) {
 	yamlStr := `"on":
   schedule:
   - cron: "0 2 * * *"
-  workflow_dispatch: null`
+  workflow_dispatch:`
 
 	// Add friendly comments
 	result := compiler.addFriendlyScheduleComments(yamlStr, frontmatter)

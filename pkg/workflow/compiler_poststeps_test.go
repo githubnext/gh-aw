@@ -205,7 +205,7 @@ strict: false
 				"stop-after: \"+48h\"",
 			},
 			shouldContain: []string{
-				"workflow_dispatch: null",
+				"workflow_dispatch:",
 				"- cron: \"0 2 * * 1-5\"",
 			},
 			description: "stop-after should be compiled away when used with workflow_dispatch and schedule",
@@ -230,7 +230,7 @@ strict: false
 				"stop-after: \"2024-12-31T23:59:59Z\"",
 			},
 			shouldContain: []string{
-				"workflow_dispatch: null",
+				"workflow_dispatch:",
 				"issue_comment:",
 				"issues:",
 				"pull_request:",
@@ -308,7 +308,7 @@ strict: false
 				"stop-after: \"+36h\"",
 			},
 			shouldContain: []string{
-				"workflow_dispatch: null",
+				"workflow_dispatch:",
 				"issue_comment:",
 				"issues:",
 				"pull_request:",
@@ -368,7 +368,7 @@ strict: false
 				"stop-after: \"+96h\"",
 			},
 			shouldContain: []string{
-				"workflow_dispatch: null",
+				"workflow_dispatch:",
 				"schedule:",
 				"- cron: \"0 12 * * *\"",
 				"issue_comment:",

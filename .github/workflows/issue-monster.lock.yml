@@ -29,7 +29,7 @@ name: "Issue Monster"
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
     # max: 5
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

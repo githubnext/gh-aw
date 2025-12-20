@@ -30,7 +30,7 @@ name: "Schema Consistency Checker"
   schedule:
   - cron: "41 23 * * *"
     # Friendly format: daily (scattered)
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

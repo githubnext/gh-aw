@@ -30,7 +30,7 @@ name: "Lockfile Statistics Analysis Agent"
   schedule:
   - cron: "48 14 * * *"
     # Friendly format: daily (scattered)
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 
