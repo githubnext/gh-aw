@@ -15,6 +15,18 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
+// extractBaseRepo extracts the base repository (owner/repo) from an action path
+// that may include subfolders (e.g., "actions/cache/restore" -> "actions/cache")
+func extractBaseRepo(actionPath string) string {
+	parts := strings.Split(actionPath, "/")
+	if len(parts) >= 2 {
+		// Return owner/repo (first two segments)
+		return parts[0] + "/" + parts[1]
+	}
+	// If less than 2 parts, return as-is (shouldn't happen in practice)
+	return actionPath
+}
+
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
 // It checks each action for newer releases and updates the SHA if a newer version is found
 func UpdateActions(allowMajor, verbose bool) error {
@@ -143,8 +155,12 @@ func UpdateActions(allowMajor, verbose bool) error {
 func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
+	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
+	baseRepo := extractBaseRepo(repo)
+	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
+
 	// Use gh CLI to get releases
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
+	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if this is an authentication error
@@ -171,7 +187,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	if currentVer == nil {
 		// If current version is not a valid semantic version, just return the latest release
 		latestRelease := releases[0]
-		sha, err := getActionSHAForTag(repo, latestRelease)
+		sha, err := getActionSHAForTag(baseRepo, latestRelease)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
 		}
@@ -205,7 +221,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	}
 
 	// Get the SHA for the latest compatible release
-	sha, err := getActionSHAForTag(repo, latestCompatible)
+	sha, err := getActionSHAForTag(baseRepo, latestCompatible)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestCompatible, err)
 	}
@@ -219,7 +235,11 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentVersion, allowMajor)))
 	}
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
+	baseRepo := extractBaseRepo(repo)
+	updateLog.Printf("Using base repository: %s for action: %s (git fallback)", baseRepo, repo)
+
+	repoURL := fmt.Sprintf("https://github.com/%s.git", baseRepo)
 
 	// List all tags
 	cmd := exec.Command("git", "ls-remote", "--tags", repoURL)
