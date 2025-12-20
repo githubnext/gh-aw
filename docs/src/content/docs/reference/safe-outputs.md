@@ -971,6 +971,166 @@ footer: "> [View workflow source]({workflow_source_url})"
 
 Custom messages can be imported from shared workflows. Local messages override imported ones.
 
+## Environment Variables Reference
+
+Each safe output job type requires specific environment variables to function properly. The workflow compiler automatically sets these variables based on your configuration, but this reference is useful for understanding dependencies and troubleshooting.
+
+### Common Environment Variables
+
+These variables are set for all safe output job types:
+
+- **`GH_AW_WORKFLOW_NAME`** (required) - Workflow name
+- **`GITHUB_TOKEN`** (required) - GitHub token for API calls
+- **`GH_AW_WORKFLOW_SOURCE`** (optional) - Workflow source file path
+- **`GH_AW_WORKFLOW_SOURCE_URL`** (optional) - URL to workflow source
+- **`GH_AW_TRACKER_ID`** (optional) - Tracker ID for workflow runs
+- **`GH_AW_ENGINE_ID`** (optional) - AI engine identifier
+- **`GH_AW_ENGINE_VERSION`** (optional) - AI engine version
+- **`GH_AW_ENGINE_MODEL`** (optional) - AI engine model
+- **`GH_AW_SAFE_OUTPUTS_STAGED`** (conditional) - Set to "true" in staged/trial mode
+- **`GH_AW_TARGET_REPO_SLUG`** (optional) - Target repository for cross-repo operations
+- **`GH_AW_SAFE_OUTPUT_MESSAGES`** (optional) - JSON config for custom messages
+
+### Job-Specific Environment Variables
+
+#### `create-pull-request`
+
+**Required:**
+- `GH_AW_WORKFLOW_ID` - Main job name for branch naming
+- `GH_AW_BASE_BRANCH` - Base branch from github.ref_name
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+
+**Optional:**
+- `GH_AW_PR_TITLE_PREFIX` - Prefix for PR titles
+- `GH_AW_PR_LABELS` - Comma-separated labels
+- `GH_AW_PR_ALLOWED_LABELS` - Comma-separated allowed labels
+- `GH_AW_PR_DRAFT` - "true" or "false" (default: "true")
+- `GH_AW_PR_IF_NO_CHANGES` - "warn", "error", or "ignore" (default: "warn")
+- `GH_AW_PR_ALLOW_EMPTY` - "true" or "false" (default: "false")
+- `GH_AW_MAX_PATCH_SIZE` - Maximum patch size in KB (default: 1024)
+- `GH_AW_PR_EXPIRES` - Days until PR expires
+- `GH_AW_COMMENT_ID` - Comment ID from activation job (when reaction enabled)
+- `GH_AW_COMMENT_REPO` - Comment repo from activation job (when reaction enabled)
+
+#### `add-comment`
+
+**Required:** None (uses common variables)
+
+**Optional:**
+- `GH_AW_COMMENT_TARGET` - Target: "triggering", "*", or issue number
+- `GITHUB_AW_COMMENT_DISCUSSION` - "true" to target discussions
+- `GH_AW_HIDE_OLDER_COMMENTS` - "true" to minimize older comments
+- `GH_AW_ALLOWED_REASONS` - JSON array of allowed reasons
+- `GH_AW_CREATED_ISSUE_URL` - Output from create_issue job
+- `GH_AW_CREATED_ISSUE_NUMBER` - Output from create_issue job
+- `GH_AW_TEMPORARY_ID_MAP` - Temporary ID map from create_issue job
+- `GH_AW_CREATED_DISCUSSION_URL` - Output from create_discussion job
+- `GH_AW_CREATED_DISCUSSION_NUMBER` - Output from create_discussion job
+- `GH_AW_CREATED_PULL_REQUEST_URL` - Output from create_pull_request job
+- `GH_AW_CREATED_PULL_REQUEST_NUMBER` - Output from create_pull_request job
+
+#### `create-issue`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+
+**Optional:**
+- `GH_AW_ISSUE_TITLE_PREFIX` - Prefix for issue titles
+- `GH_AW_ISSUE_LABELS` - Comma-separated labels
+- `GH_AW_ASSIGN_COPILOT` - "true" to assign copilot
+
+#### `create-discussion`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+
+**Optional:**
+- `GH_AW_DISCUSSION_CATEGORY` - Discussion category ID or name
+- `GH_AW_DISCUSSION_TITLE_PREFIX` - Prefix for discussion titles
+- `GH_AW_DISCUSSION_LABELS` - Comma-separated labels
+- `GH_AW_CLOSE_OLDER_DISCUSSIONS` - "true" to close older discussions
+
+#### `missing-tool`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+
+**Optional:**
+- `GH_AW_MISSING_TOOL_MAX` - Maximum number to report
+
+#### `noop`
+
+**Required:** None (uses common variables only)
+
+**Optional:** None
+
+#### `create-agent-task`
+
+**Required:**
+- `GITHUB_AW_AGENT_OUTPUT` - Path to agent output file
+- `GITHUB_REPOSITORY` - Repository slug
+
+**Optional:**
+- `GITHUB_AW_TARGET_REPO` - Target repository for tasks
+- `GITHUB_AW_AGENT_TASK_BASE` - Base configuration
+- `GITHUB_REF_NAME` - Current branch name
+
+#### `create-code-scanning-alert`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+- `GH_AW_WORKFLOW_FILENAME` - Workflow filename
+
+**Optional:**
+- `GH_AW_SECURITY_REPORT_DRIVER` - Security reporting driver
+- `GH_AW_SECURITY_REPORT_MAX` - Maximum reports
+
+#### `create-pull-request-review-comment`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+
+**Optional:**
+- `GH_AW_PR_REVIEW_COMMENT_TARGET` - Target PR
+- `GH_AW_PR_REVIEW_COMMENT_SIDE` - Diff side: "LEFT" or "RIGHT"
+
+#### `push-to-pull-request-branch`
+
+**Required:**
+- `GH_AW_AGENT_OUTPUT` - Path to agent output file
+- `GH_AW_PUSH_TARGET` - Target for push operations
+
+**Optional:**
+- `GH_AW_PR_TITLE_PREFIX` - Prefix for PR titles
+- `GH_AW_PR_LABELS` - Comma-separated labels
+- `GH_AW_COMMIT_TITLE_SUFFIX` - Suffix for commits
+- `GH_AW_PUSH_IF_NO_CHANGES` - Behavior when no changes
+- `GH_AW_MAX_PATCH_SIZE` - Maximum patch size in KB (default: 1024)
+
+### Programmatic Access
+
+For tool developers and workflow compiler extensions, environment variable requirements are available programmatically:
+
+```go
+import "github.com/githubnext/gh-aw/pkg/workflow"
+
+// Get all job types
+jobTypes := workflow.GetSupportedSafeOutputJobTypes()
+
+// Get required variables for a job type
+required, err := workflow.GetRequiredEnvVarsForJobType("create_pull_request")
+
+// Get all variables (required and optional)
+allVars, err := workflow.GetAllEnvVarsForJobType("create_pull_request")
+
+// Validate environment variables
+providedVars := map[string]string{
+    "GH_AW_WORKFLOW_NAME": "my-workflow",
+    "GITHUB_TOKEN": "ghp_...",
+}
+missing := workflow.ValidateSafeOutputJobEnvVars("noop", providedVars)
+```
+
 ## Related Documentation
 
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Complete threat detection documentation and examples
