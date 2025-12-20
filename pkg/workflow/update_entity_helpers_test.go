@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 func TestParseUpdateEntityBoolField(t *testing.T) {
@@ -133,6 +135,122 @@ func TestParseUpdateEntityBoolFieldFieldNames(t *testing.T) {
 			result := parseUpdateEntityBoolField(configMap, fieldName, FieldParsingKeyExistence)
 			if result == nil {
 				t.Errorf("Expected non-nil result for field %s", fieldName)
+			}
+		})
+	}
+}
+
+func TestParseUpdateEntityConfigWithFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		outputMap    map[string]any
+		opts         UpdateEntityParseOptions
+		wantNil      bool
+		validateFunc func(*testing.T, *UpdateEntityConfig)
+	}{
+		{
+			name: "basic config with no fields",
+			outputMap: map[string]any{
+				"update-test": map[string]any{
+					"max": 2,
+				},
+			},
+			opts: UpdateEntityParseOptions{
+				EntityType: UpdateEntityIssue,
+				ConfigKey:  "update-test",
+				Logger:     logger.New("test"),
+				Fields:     nil,
+			},
+			wantNil: false,
+			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
+				if cfg.Max != 2 {
+					t.Errorf("Expected max=2, got %d", cfg.Max)
+				}
+			},
+		},
+		{
+			name: "config with bool fields using key existence mode",
+			outputMap: map[string]any{
+				"update-test": map[string]any{
+					"max":   3,
+					"title": nil,
+					"body":  nil,
+				},
+			},
+			opts: func() UpdateEntityParseOptions {
+				var title, body *bool
+				return UpdateEntityParseOptions{
+					EntityType: UpdateEntityIssue,
+					ConfigKey:  "update-test",
+					Logger:     logger.New("test"),
+					Fields: []UpdateEntityFieldSpec{
+						{Name: "title", Mode: FieldParsingKeyExistence, Dest: &title},
+						{Name: "body", Mode: FieldParsingKeyExistence, Dest: &body},
+					},
+				}
+			}(),
+			wantNil: false,
+			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
+				if cfg.Max != 3 {
+					t.Errorf("Expected max=3, got %d", cfg.Max)
+				}
+			},
+		},
+		{
+			name: "config with custom parser",
+			outputMap: map[string]any{
+				"update-test": map[string]any{
+					"max":    1,
+					"custom": "value",
+				},
+			},
+			opts: UpdateEntityParseOptions{
+				EntityType: UpdateEntityIssue,
+				ConfigKey:  "update-test",
+				Logger:     logger.New("test"),
+				Fields:     nil,
+				CustomParser: func(cm map[string]any) {
+					// Custom parser just demonstrates it runs
+					_ = cm
+				},
+			},
+			wantNil: false,
+			validateFunc: func(t *testing.T, cfg *UpdateEntityConfig) {
+				if cfg.Max != 1 {
+					t.Errorf("Expected max=1, got %d", cfg.Max)
+				}
+			},
+		},
+		{
+			name: "missing config key returns nil",
+			outputMap: map[string]any{
+				"other-key": map[string]any{},
+			},
+			opts: UpdateEntityParseOptions{
+				EntityType: UpdateEntityIssue,
+				ConfigKey:  "update-test",
+				Logger:     logger.New("test"),
+				Fields:     nil,
+			},
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			result, _ := compiler.parseUpdateEntityConfigWithFields(tt.outputMap, tt.opts)
+
+			if tt.wantNil {
+				if result != nil {
+					t.Errorf("Expected nil result, got %v", result)
+				}
+			} else {
+				if result == nil {
+					t.Errorf("Expected non-nil result, got nil")
+				} else if tt.validateFunc != nil {
+					tt.validateFunc(t, result)
+				}
 			}
 		})
 	}
