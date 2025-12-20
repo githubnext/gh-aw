@@ -56,7 +56,7 @@ safe-outputs:
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
       run-failure: "📰 DEVELOPING STORY: [{workflow_name}]({run_url}) reports {status}. Our correspondents are investigating the incident..."
 timeout-minutes: 5
-strict: false
+strict: true
 steps:
   # Pre-flight Docker container test for Playwright MCP
   - name: Pre-flight Playwright MCP Test

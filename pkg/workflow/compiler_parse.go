@@ -211,6 +211,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// (unless SRT sandbox is configured, since AWF and SRT are mutually exclusive)
 	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions, sandboxConfig)
 
+	// Enable firewall by default for claude engine when network restrictions are present
+	enableFirewallByDefaultForClaude(engineSetting, networkPermissions, sandboxConfig)
+
 	// Re-evaluate strict mode for firewall and network validation
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForFirewall := c.strictMode

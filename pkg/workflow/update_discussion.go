@@ -17,52 +17,41 @@ type UpdateDiscussionsConfig struct {
 
 // parseUpdateDiscussionsConfig handles update-discussion configuration
 func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *UpdateDiscussionsConfig {
-	params := UpdateEntityJobParams{
-		EntityType: UpdateEntityDiscussion,
-		ConfigKey:  "update-discussion",
-	}
-
-	parseSpecificFields := func(configMap map[string]any, baseConfig *UpdateEntityConfig) {
-		// This will be called during parsing to handle discussion-specific fields
-		// The actual UpdateDiscussionsConfig fields are handled separately since they're not in baseConfig
-	}
-
-	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updateDiscussionLog, parseSpecificFields)
+	// Parse base configuration using helper
+	baseConfig, configMap := c.parseUpdateEntityBase(outputMap, UpdateEntityDiscussion, "update-discussion", updateDiscussionLog)
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdateDiscussionsConfig and populate it
+	// Create UpdateDiscussionsConfig with base fields
 	updateDiscussionsConfig := &UpdateDiscussionsConfig{
 		UpdateEntityConfig: *baseConfig,
 	}
 
-	// Parse discussion-specific fields
-	if configData, exists := outputMap["update-discussion"]; exists {
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["title"]; exists {
-				updateDiscussionsConfig.Title = new(bool)
-			}
+	// Parse discussion-specific fields from config map
+	if configMap != nil {
+		// Parse title - presence of the key (even if nil/empty) indicates field can be updated
+		if _, exists := configMap["title"]; exists {
+			updateDiscussionsConfig.Title = new(bool)
+		}
 
-			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["body"]; exists {
-				updateDiscussionsConfig.Body = new(bool)
-			}
+		// Parse body - presence of the key (even if nil/empty) indicates field can be updated
+		if _, exists := configMap["body"]; exists {
+			updateDiscussionsConfig.Body = new(bool)
+		}
 
-			// Parse labels - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["labels"]; exists {
+		// Parse labels - presence of the key (even if nil/empty) indicates field can be updated
+		if _, exists := configMap["labels"]; exists {
+			updateDiscussionsConfig.Labels = new(bool)
+		}
+
+		// Parse allowed-labels using shared helper
+		updateDiscussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
+		if len(updateDiscussionsConfig.AllowedLabels) > 0 {
+			updateDiscussionLog.Printf("Allowed labels configured: %v", updateDiscussionsConfig.AllowedLabels)
+			// If allowed-labels is specified, implicitly enable labels
+			if updateDiscussionsConfig.Labels == nil {
 				updateDiscussionsConfig.Labels = new(bool)
-			}
-
-			// Parse allowed-labels using shared helper
-			updateDiscussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
-			if len(updateDiscussionsConfig.AllowedLabels) > 0 {
-				updateDiscussionLog.Printf("Allowed labels configured: %v", updateDiscussionsConfig.AllowedLabels)
-				// If allowed-labels is specified, implicitly enable labels
-				if updateDiscussionsConfig.Labels == nil {
-					updateDiscussionsConfig.Labels = new(bool)
-				}
 			}
 		}
 	}

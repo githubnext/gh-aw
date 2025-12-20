@@ -197,7 +197,7 @@ This workflow tests the workflow overview for Claude engine.
 			expectEngineID:       "claude",
 			expectEngineName:     "Claude Code",
 			expectModel:          "claude-sonnet-4-20250514",
-			expectFirewall:       false,
+			expectFirewall:       true, // Claude now has firewall enabled by default
 			expectAllowedDomains: []string{},
 		},
 	}

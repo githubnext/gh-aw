@@ -14,7 +14,7 @@ tracker-id: daily-fact-thread
 engine:
   id: codex
   model: gpt-5-mini
-strict: false  # Required: codex engine doesn't support network firewall
+strict: true
 timeout-minutes: 15
 
 network:

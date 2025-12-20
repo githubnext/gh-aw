@@ -402,6 +402,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
+		// Pin AWF Docker image version to match the installed binary version
+		awfImageTag := getAWFImageTag(firewallConfig)
+		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
+		copilotLog.Printf("Pinned AWF image tag to %s", awfImageTag)
+
 		// Add custom args if specified in firewall config
 		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 			awfArgs = append(awfArgs, firewallConfig.Args...)
@@ -1122,25 +1127,19 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 		return GitHubActionStep([]string{})
 	}
 
-	stepLines := []string{
-		"      - name: Install awf binary",
-		"        run: |",
-	}
-
-	// Use default version if not specified to ensure reproducible builds
+	// Use default version for logging when not specified
 	if version == "" {
 		version = string(constants.DefaultFirewallVersion)
 	}
 
-	stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
-	stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
-
-	stepLines = append(stepLines,
-		"          chmod +x awf",
-		"          sudo mv awf /usr/local/bin/",
+	stepLines := []string{
+		"      - name: Install awf binary",
+		"        run: |",
+		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
+		fmt.Sprintf("          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=%s bash", version),
 		"          which awf",
 		"          awf --version",
-	)
+	}
 
 	return GitHubActionStep(stepLines)
 }

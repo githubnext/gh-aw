@@ -206,12 +206,6 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 2. Create a new GitHub discussion with your findings and insights
 ```
 
-**Structure:**
-
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (between `---` markers): [YAML](/gh-aw/reference/glossary/#yaml) configuration for triggers (`on:`), [permissions](/gh-aw/reference/glossary/#permissions), tools, and [safe outputs](/gh-aw/reference/glossary/#safe-outputs)
-- **Markdown body**: Natural language instructions for the AI [agent](/gh-aw/reference/glossary/#agent)
-- **[Safe outputs](/gh-aw/reference/glossary/#safe-outputs)**: Pre-approved actions the AI can request (processed in separate, permission-controlled jobs)
-
 ## Customize Your Workflow
 
 Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization using GitHub Copilot CLI:

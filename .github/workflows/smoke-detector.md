@@ -56,7 +56,7 @@ tools:
   cache-memory: true
   github:
     toolsets: [default, actions]
-strict: false
+strict: true
 ---
 # Smoke Detector - Smoke Test Failure Investigator
 

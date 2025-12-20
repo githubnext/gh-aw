@@ -2,7 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -22,6 +24,7 @@ The command:
 2. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
 3. Updates workflows using the 'source' field in the workflow frontmatter
 4. Compiles each workflow immediately after update
+5. Applies automatic fixes (codemods) to ensure workflows follow latest best practices
 
 By default, the update command replaces local workflow files with the latest version from the source
 repository, overriding any local changes. Use the --merge flag to preserve local changes by performing
@@ -89,7 +92,8 @@ Examples:
 // 1. Check for gh-aw extension updates
 // 2. Update GitHub Actions versions (unless --no-actions flag is set)
 // 3. Update workflows from source repositories (compiles each workflow after update)
-// 4. Optionally create a PR
+// 4. Apply automatic fixes to updated workflows
+// 5. Optionally create a PR
 func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool, workflowsDir string, noStopAfter bool, stopAfter string, merge bool, noActions bool) error {
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, createPR=%v, merge=%v, noActions=%v", workflowNames, allowMajor, force, createPR, merge, noActions)
 
@@ -111,7 +115,21 @@ func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force
 		return fmt.Errorf("workflow update failed: %w", err)
 	}
 
-	// Step 4: Optionally create PR if flag is set
+	// Step 4: Apply automatic fixes to updated workflows
+	fixConfig := FixConfig{
+		WorkflowIDs: workflowNames,
+		Write:       true,
+		Verbose:     verbose,
+	}
+	if err := RunFix(fixConfig); err != nil {
+		updateLog.Printf("Fix command failed (non-fatal): %v", err)
+		// Don't fail the update if fix fails - this is non-critical
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: automatic fixes failed: %v", err)))
+		}
+	}
+
+	// Step 5: Optionally create PR if flag is set
 	if createPR {
 		if err := createUpdatePR(verbose); err != nil {
 			return fmt.Errorf("failed to create PR: %w", err)
