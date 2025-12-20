@@ -7448,6 +7448,11 @@ jobs:
       contents: write
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
+      GH_AW_WORKFLOW_ID: "stale-repo-identifier"
+      GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -8110,9 +8115,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[Stale Repository] "
           GH_AW_ISSUE_LABELS: "stale-repository,automated-analysis"
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8411,9 +8413,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

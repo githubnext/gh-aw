@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -9,6 +10,13 @@ import (
 )
 
 var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
+
+// GetWorkflowIDFromPath extracts the workflow ID from a markdown file path.
+// The workflow ID is the filename without the .md extension.
+// Example: "/path/to/ai-moderator.md" -> "ai-moderator"
+func GetWorkflowIDFromPath(markdownPath string) string {
+	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+}
 
 // convertStepToYAML converts a step map to YAML format.
 // This is a method wrapper around the package-level ConvertStepToYAML function.

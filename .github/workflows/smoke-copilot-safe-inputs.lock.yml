@@ -8253,6 +8253,10 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "smoke-copilot-safe-inputs"
+      GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -9550,8 +9554,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_HIDE_OLDER_COMMENTS: "true"
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9960,8 +9962,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "smoke-copilot"
-          GH_AW_WORKFLOW_NAME: "Smoke Copilot Safe Inputs"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

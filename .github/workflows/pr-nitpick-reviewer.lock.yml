@@ -7622,6 +7622,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
+      GH_AW_WORKFLOW_ID: "pr-nitpick-reviewer"
+      GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -8867,9 +8872,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9156,9 +9158,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_DISCUSSION_URL: ${{ steps.create_discussion.outputs.discussion_url }}
           GH_AW_CREATED_DISCUSSION_NUMBER: ${{ steps.create_discussion.outputs.discussion_number }}
-          GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9567,9 +9566,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
-          GH_AW_WORKFLOW_NAME: "PR Nitpick Reviewer 🔍"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}...\",\"runSuccess\":\"🔍 Nitpicks catalogued! [{workflow_name}]({run_url}) has documented all the tiny details. Perfection awaits! ✅\",\"runFailure\":\"🔬 Lens cracked! [{workflow_name}]({run_url}) {status}. Some nitpicks remain undetected...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

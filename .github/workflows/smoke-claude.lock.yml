@@ -6929,6 +6929,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
+      GH_AW_WORKFLOW_ID: "smoke-claude"
+      GH_AW_WORKFLOW_NAME: "Smoke Claude"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -8492,9 +8497,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_EXPIRES: "1"
-          GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_ENGINE_ID: "claude"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8797,9 +8799,6 @@ jobs:
           GH_AW_CREATED_ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_ENGINE_ID: "claude"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9208,9 +9207,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "smoke-claude"
-          GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_ENGINE_ID: "claude"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
