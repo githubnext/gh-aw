@@ -288,7 +288,7 @@ func (g *MCPGatewayServer) startHTTPServer() error {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	fmt.Fprintf(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("MCP gateway listening on http://localhost:%d", port)))
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("MCP gateway listening on http://localhost:%d", port)))
 	gatewayLog.Printf("HTTP server ready on port %d", port)
 
 	return server.ListenAndServe()
