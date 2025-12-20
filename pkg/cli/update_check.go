@@ -10,6 +10,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var updateCheckLog = logger.New("cli:update_check")
@@ -156,8 +157,8 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 
 	// Get current version
 	currentVersion := GetVersion()
-	if currentVersion == "" || currentVersion == "dev" {
-		updateCheckLog.Print("Running development version, skipping update check")
+	if !workflow.IsReleasedVersion(currentVersion) {
+		updateCheckLog.Print("Not a released version, skipping update check")
 		return
 	}
 
