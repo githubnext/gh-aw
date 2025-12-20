@@ -1,5 +1,47 @@
 package workflow
 
+// Safe Output Environment Variable Manifest
+//
+// This file provides a comprehensive manifest of environment variable requirements
+// for all safe output job types. The manifest enables:
+//
+// - **Documentation**: Clear reference of what env vars each job type needs
+// - **Validation**: Programmatic validation of environment variable configuration
+// - **Discovery**: Listing all supported job types and their requirements
+//
+// # Usage Example
+//
+//	// Get all supported job types
+//	jobTypes := workflow.GetSupportedSafeOutputJobTypes()
+//
+//	// Get required variables for validation
+//	required, err := workflow.GetRequiredEnvVarsForJobType("create_pull_request")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Validate environment configuration
+//	providedVars := map[string]string{
+//	    "GH_AW_WORKFLOW_NAME": "my-workflow",
+//	    "GITHUB_TOKEN": "ghp_...",
+//	}
+//	missing := workflow.ValidateSafeOutputJobEnvVars("noop", providedVars)
+//	if len(missing) > 0 {
+//	    log.Printf("Missing required variables: %v", missing)
+//	}
+//
+// # Future Integration
+//
+// This manifest is designed to be used by:
+// - Workflow compiler for compile-time validation
+// - CLI tools for configuration verification
+// - Documentation generation for environment variables
+// - Testing frameworks for mock environment setup
+//
+// The manifest is currently a reference implementation. Future work may integrate
+// this with the workflow compiler's validation pipeline to catch configuration
+// errors at compile time rather than runtime.
+
 import (
 	"fmt"
 
