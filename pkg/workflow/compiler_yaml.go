@@ -338,10 +338,10 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	}
 }
 
-// isReleasedVersion checks if a version string represents a released build.
+// IsReleasedVersion checks if a version string represents a released build.
 // It validates that the version matches semantic versioning format (x.y.z or x.y.z-prerelease)
 // and excludes development builds (containing "dev", "dirty", or "test").
-func isReleasedVersion(version string) bool {
+func IsReleasedVersion(version string) bool {
 	if version == "" {
 		return false
 	}
@@ -460,7 +460,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 	// CLI version - only include for released builds
 	// Excludes development builds containing "dev", "dirty", or "test"
-	if isReleasedVersion(c.version) {
+	if IsReleasedVersion(c.version) {
 		fmt.Fprintf(yaml, "              cli_version: \"%s\",\n", c.version)
 	}
 

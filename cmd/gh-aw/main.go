@@ -214,10 +214,14 @@ Examples:
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		fix, _ := cmd.Flags().GetBool("fix")
 		stats, _ := cmd.Flags().GetBool("stats")
+		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			return err
 		}
+
+		// Check for updates (non-blocking, runs once per day)
+		cli.CheckForUpdatesAsync(noCheckUpdate, verbose)
 
 		// If --fix is specified, run fix --write first
 		if fix {
@@ -468,6 +472,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
 	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by file size (shows jobs, steps, scripts, and shells)")
+	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 
 	// Register completions for compile command
