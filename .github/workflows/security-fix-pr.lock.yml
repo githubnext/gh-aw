@@ -6425,7 +6425,9 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_WORKFLOW_ID: "agent"
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_WORKFLOW_ID: "security-fix-pr"
+      GH_AW_WORKFLOW_NAME: "Security Fix PR"
     outputs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
@@ -6723,8 +6725,6 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Security Fix PR"
-          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

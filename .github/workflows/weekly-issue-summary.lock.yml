@@ -7091,7 +7091,10 @@ jobs:
       discussions: write
     timeout-minutes: 15
     env:
-      GH_AW_WORKFLOW_ID: "agent"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_TRACKER_ID: "weekly-issue-summary"
+      GH_AW_WORKFLOW_ID: "weekly-issue-summary"
+      GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
@@ -7994,9 +7997,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8281,9 +8281,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Issue Summary"
-          GH_AW_TRACKER_ID: "weekly-issue-summary"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

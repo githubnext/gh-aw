@@ -6628,7 +6628,10 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_WORKFLOW_ID: "agent"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_TRACKER_ID: "jsweep-daily"
+      GH_AW_WORKFLOW_ID: "jsweep"
+      GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
     outputs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
@@ -6926,9 +6929,6 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "ignore"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
-          GH_AW_TRACKER_ID: "jsweep-daily"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

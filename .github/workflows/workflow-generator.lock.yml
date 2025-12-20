@@ -6705,7 +6705,9 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
-      GH_AW_WORKFLOW_ID: "agent"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "workflow-generator"
+      GH_AW_WORKFLOW_NAME: "Workflow Generator"
     outputs:
       assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
     steps:
@@ -7798,8 +7800,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Workflow Generator"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
           script: |
@@ -7978,8 +7978,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Workflow Generator"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
