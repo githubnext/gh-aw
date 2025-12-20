@@ -120,3 +120,57 @@ func (c *Compiler) parseUpdateEntityBase(
 
 	return baseConfig, configMap
 }
+
+// FieldParsingMode determines how boolean fields are parsed from the config
+type FieldParsingMode int
+
+const (
+	// FieldParsingKeyExistence mode: Field presence (even if nil) indicates it can be updated
+	// Used by update-issue and update-discussion
+	FieldParsingKeyExistence FieldParsingMode = iota
+	// FieldParsingBoolValue mode: Field's boolean value determines if it can be updated
+	// Used by update-pull-request (defaults to true if nil)
+	FieldParsingBoolValue
+)
+
+// parseUpdateEntityBoolField is a generic helper that parses boolean fields from config maps
+// based on the specified parsing mode.
+//
+// Parameters:
+//   - configMap: The entity-specific configuration map
+//   - fieldName: The name of the field to parse (e.g., "title", "body", "status")
+//   - mode: The parsing mode (FieldParsingKeyExistence or FieldParsingBoolValue)
+//
+// Returns:
+//   - *bool: A pointer to bool if the field should be enabled, nil if disabled
+//
+// Behavior by mode:
+//   - FieldParsingKeyExistence: Returns new(bool) if key exists, nil otherwise
+//   - FieldParsingBoolValue: Returns &boolValue if key exists and is bool, nil otherwise
+func parseUpdateEntityBoolField(configMap map[string]any, fieldName string, mode FieldParsingMode) *bool {
+	if configMap == nil {
+		return nil
+	}
+
+	val, exists := configMap[fieldName]
+	if !exists {
+		return nil
+	}
+
+	switch mode {
+	case FieldParsingKeyExistence:
+		// Key presence (even if nil) indicates field can be updated
+		return new(bool) // Allocate a new bool pointer (defaults to false)
+
+	case FieldParsingBoolValue:
+		// Parse actual boolean value from config
+		if boolVal, ok := val.(bool); ok {
+			return &boolVal
+		}
+		// If present but not a bool (e.g., null), return nil (no explicit setting)
+		return nil
+
+	default:
+		return nil
+	}
+}
