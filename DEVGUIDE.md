@@ -38,6 +38,13 @@ make lint
 # Build and test the binary
 make build
 ./gh-aw --help
+
+# Build the awmg (MCP gateway) standalone binary
+make build-awmg
+./awmg --help
+
+# Build both binaries
+make all
 ```
 
 ### 4. Install the Extension Locally for Testing
