@@ -64,7 +64,7 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(installStep, "Install Claude Code CLI") {
 		t.Errorf("Expected 'Install Claude Code CLI' in installation step, got: %s", installStep)
 	}
-	expectedInstallCommand := fmt.Sprintf("npm install -g @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
+	expectedInstallCommand := fmt.Sprintf("npm install -g --silent @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
 	if !strings.Contains(installStep, expectedInstallCommand) {
 		t.Errorf("Expected '%s' in install step, got: %s", expectedInstallCommand, installStep)
 	}
@@ -263,7 +263,7 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 
 	// Check that install step uses the custom version (third step, index 2)
 	installStep := strings.Join([]string(installSteps[2]), "\n")
-	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@v1.2.3") {
+	if !strings.Contains(installStep, "npm install -g --silent @anthropic-ai/claude-code@v1.2.3") {
 		t.Errorf("Expected npm install with custom version v1.2.3 in install step:\n%s", installStep)
 	}
 

@@ -174,7 +174,7 @@ jobs:
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
-        run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+        run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -204,7 +204,7 @@ jobs:
         name: Fetch PR comments for detailed analysis
         run: "# Create comments directory\nmkdir -p /tmp/gh-aw/pr-comments\n\n# Fetch detailed comments for each PR from the pre-fetched data\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do\n  echo \"Fetching comments for PR #${PR_NUM}\"\n  gh pr view \"${PR_NUM}\" \\\n    --json comments,reviews,reviewComments \\\n    > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\" 2>/dev/null || echo \"{}\" > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\"\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/pr-comments/\"\n"
       - name: Install NLP libraries
-        run: "pip install --user nltk scikit-learn textblob wordcloud\n\n# Download required NLTK data (using punkt_tab for NLTK 3.9+)\npython3 -c \"import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)\"\n\n# Verify installations\npython3 -c \"import nltk; print(f'NLTK {nltk.__version__} installed')\"\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__} installed')\"\npython3 -c \"import textblob; print(f'TextBlob {textblob.__version__} installed')\"\npython3 -c \"import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')\"\n\necho \"All NLP libraries installed successfully\"\n"
+        run: "pip install --user --quiet nltk scikit-learn textblob wordcloud\n\n# Download required NLTK data (using punkt_tab for NLTK 3.9+)\npython3 -c \"import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)\"\n\n# Verify installations\npython3 -c \"import nltk; print(f'NLTK {nltk.__version__} installed')\"\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__} installed')\"\npython3 -c \"import textblob; print(f'TextBlob {textblob.__version__} installed')\"\npython3 -c \"import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')\"\n\necho \"All NLP libraries installed successfully\"\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -328,7 +328,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi

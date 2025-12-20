@@ -68,7 +68,7 @@ steps:
 
   - name: Install NLP libraries
     run: |
-      pip install --user nltk scikit-learn textblob wordcloud
+      pip install --user --quiet nltk scikit-learn textblob wordcloud
       
       # Download required NLTK data (using punkt_tab for NLTK 3.9+)
       python3 -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger_eng', quiet=True)"
