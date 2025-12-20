@@ -16,7 +16,7 @@
         "serena",
         "start-mcp-server",
         "--context",
-        "copilot",
+        "codex",
         "--project",
         "${workspaceFolder}"
       ],
