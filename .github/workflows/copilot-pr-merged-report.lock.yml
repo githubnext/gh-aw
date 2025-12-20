@@ -30,7 +30,7 @@ name: "Daily Copilot PR Merged Report"
 "on":
   schedule:
   - cron: "0 15 * * 1-5"
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

@@ -26,7 +26,7 @@ name: "Spec Kit Executor"
   schedule:
   - cron: "25 9 * * *"
     # Friendly format: daily (scattered)
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

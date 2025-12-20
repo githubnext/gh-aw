@@ -103,6 +103,10 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// which causes validation errors since they start with numbers but contain spaces
 	yamlStr = parser.QuoteCronExpressions(yamlStr)
 
+	// Clean up null values - replace `: null` with `:` for cleaner output
+	// GitHub Actions treats `workflow_dispatch:` and `workflow_dispatch: null` identically
+	yamlStr = CleanYAMLNullValues(yamlStr)
+
 	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted
 	if key != "on" {

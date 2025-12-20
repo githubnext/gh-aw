@@ -26,7 +26,7 @@ name: "Breaking Change Checker"
   schedule:
   - cron: "0 14 * * 1-5"
   # skip-if-match: is:issue is:open in:title "[breaking-change]" # Skip-if-match processed as search check in pre-activation job
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

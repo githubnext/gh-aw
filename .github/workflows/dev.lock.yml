@@ -27,7 +27,7 @@
 
 name: "Dev"
 "on":
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

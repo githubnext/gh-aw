@@ -30,7 +30,7 @@ name: "Close Outdated Discussions"
 "on":
   schedule:
   - cron: "0 14 * * 1-5"
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

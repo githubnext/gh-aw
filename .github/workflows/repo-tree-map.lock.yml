@@ -30,7 +30,7 @@ name: "Repository Tree Map Generator"
   schedule:
   - cron: "0 15 * * 1"
     # Friendly format: weekly on monday at 15:00
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

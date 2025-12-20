@@ -30,7 +30,7 @@ name: "Blog Auditor"
   schedule:
   - cron: "0 12 * * 3"
     # Friendly format: weekly on wednesday at 12:00
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

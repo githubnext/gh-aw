@@ -30,7 +30,7 @@ name: "CLI Version Checker"
   schedule:
   - cron: "2 19 * * *"
     # Friendly format: daily (scattered)
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 

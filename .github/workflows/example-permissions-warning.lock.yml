@@ -23,7 +23,7 @@
 
 name: "Example: Properly Provisioned Permissions"
 "on":
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 
