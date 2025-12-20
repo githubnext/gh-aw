@@ -102,17 +102,10 @@ function extractDomainsFromUrl(url) {
 }
 
 /**
- * Core sanitization function without mention filtering
- * @param {string} content - The content to sanitize
- * @param {number} [maxLength] - Maximum length of content (default: 524288)
- * @returns {string} The sanitized content
+ * Build the list of allowed domains from environment variables and GitHub context
+ * @returns {string[]} Array of allowed domains
  */
-function sanitizeContentCore(content, maxLength) {
-  if (!content || typeof content !== "string") {
-    return "";
-  }
-
-  // Read allowed domains from environment variable
+function buildAllowedDomains() {
   const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
   const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
@@ -124,7 +117,6 @@ function sanitizeContentCore(content, maxLength) {
     : defaultAllowedDomains;
 
   // Extract and add GitHub domains from GitHub context URLs
-  // This handles GitHub Enterprise deployments with custom domains
   const githubServerUrl = process.env.GITHUB_SERVER_URL;
   const githubApiUrl = process.env.GITHUB_API_URL;
 
@@ -139,7 +131,242 @@ function sanitizeContentCore(content, maxLength) {
   }
 
   // Remove duplicates
-  allowedDomains = [...new Set(allowedDomains)];
+  return [...new Set(allowedDomains)];
+}
+
+/**
+ * Sanitize URL protocols - replace non-https with (redacted)
+ * @param {string} s - The string to process
+ * @returns {string} The string with non-https protocols redacted
+ */
+function sanitizeUrlProtocols(s) {
+  // Match common non-https protocols
+  // This regex matches: protocol://domain or protocol:path or incomplete protocol://
+  // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
+  // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
+  // Note: No word boundary check to catch protocols even when preceded by word characters
+  return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+    // Extract domain for http/ftp/file/ssh/git protocols
+    if (domain) {
+      const domainLower = domain.toLowerCase();
+      const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+      if (typeof core !== "undefined" && core.info) {
+        core.info(`Redacted URL: ${truncated}`);
+      }
+      if (typeof core !== "undefined" && core.debug) {
+        core.debug(`Redacted URL (full): ${match}`);
+      }
+      addRedactedDomain(domainLower);
+    } else {
+      // For other protocols (data:, javascript:, etc.), track the protocol itself
+      const protocolMatch = match.match(/^([^:]+):/);
+      if (protocolMatch) {
+        const protocol = protocolMatch[1] + ":";
+        // Truncate the matched URL for logging (keep first 12 chars + "...")
+        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Redacted URL: ${truncated}`);
+        }
+        if (typeof core !== "undefined" && core.debug) {
+          core.debug(`Redacted URL (full): ${match}`);
+        }
+        addRedactedDomain(protocol);
+      }
+    }
+    return "(redacted)";
+  });
+}
+
+/**
+ * Remove unknown domains
+ * @param {string} s - The string to process
+ * @param {string[]} allowed - List of allowed domains
+ * @returns {string} The string with unknown domains redacted
+ */
+function sanitizeUrlDomains(s, allowed) {
+  // Match HTTPS URLs with optional port and path
+  // This regex is designed to:
+  // 1. Match https:// URIs with explicit protocol
+  // 2. Capture the hostname/domain
+  // 3. Allow optional port (:8080)
+  // 4. Allow optional path and query string (but not trailing commas/periods)
+  // 5. Stop before another https:// URL in query params (using negative lookahead)
+  const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
+
+  return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
+    // Extract just the hostname (remove port if present)
+    const hostname = hostnameWithPort.split(":")[0].toLowerCase();
+    pathPart = pathPart || "";
+
+    // Check if domain is in the allowed list or is a subdomain of an allowed domain
+    const isAllowed = allowed.some(allowedDomain => {
+      const normalizedAllowed = allowedDomain.toLowerCase();
+
+      // Exact match
+      if (hostname === normalizedAllowed) {
+        return true;
+      }
+
+      // Wildcard match (*.example.com matches subdomain.example.com)
+      if (normalizedAllowed.startsWith("*.")) {
+        const baseDomain = normalizedAllowed.substring(2); // Remove *.
+        return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
+      }
+
+      // Subdomain match (example.com matches subdomain.example.com)
+      return hostname.endsWith("." + normalizedAllowed);
+    });
+
+    if (isAllowed) {
+      return match; // Keep the full URL as-is
+    } else {
+      // Redact the domain but preserve the protocol and structure for debugging
+      const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
+      if (typeof core !== "undefined" && core.info) {
+        core.info(`Redacted URL: ${truncated}`);
+      }
+      if (typeof core !== "undefined" && core.debug) {
+        core.debug(`Redacted URL (full): ${match}`);
+      }
+      addRedactedDomain(hostname);
+      return "(redacted)";
+    }
+  });
+}
+
+/**
+ * Neutralizes commands at the start of text by wrapping them in backticks
+ * @param {string} s - The string to process
+ * @returns {string} The string with neutralized commands
+ */
+function neutralizeCommands(s) {
+  const commandName = process.env.GH_AW_COMMAND;
+  if (!commandName) {
+    return s;
+  }
+
+  // Escape special regex characters in command name
+  const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  // Neutralize /command at the start of text (with optional leading whitespace)
+  // Only match at the start of the string or after leading whitespace
+  return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+}
+
+/**
+ * Neutralizes ALL @mentions by wrapping them in backticks
+ * This is the core version without any filtering
+ * @param {string} s - The string to process
+ * @returns {string} The string with neutralized mentions
+ */
+function neutralizeAllMentions(s) {
+  // Replace @name or @org/team outside code with `@name`
+  // No filtering - all mentions are neutralized
+  return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
+    // Log when a mention is escaped to help debug issues
+    if (typeof core !== "undefined" && core.info) {
+      core.info(`Escaped mention: @${p2} (not in allowed list)`);
+    }
+    return `${p1}\`@${p2}\``;
+  });
+}
+
+/**
+ * Removes XML comments from content
+ * @param {string} s - The string to process
+ * @returns {string} The string with XML comments removed
+ */
+function removeXmlComments(s) {
+  // Remove <!-- comment --> and malformed <!--! comment --!>
+  return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+}
+
+/**
+ * Converts XML/HTML tags to parentheses format to prevent injection
+ * @param {string} s - The string to process
+ * @returns {string} The string with XML tags converted to parentheses
+ */
+function convertXmlTags(s) {
+  // Allow safe HTML tags: b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
+  const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+
+  // First, process CDATA sections specially - convert tags inside them and the CDATA markers
+  s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+    // Convert tags inside CDATA content
+    const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+    // Return with CDATA markers also converted to parentheses
+    return `(![CDATA[${convertedContent}]])`;
+  });
+
+  // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
+  // Convert closing tags: </tag> to (/tag)
+  // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
+  // But preserve allowed safe tags
+  return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+    // Extract tag name from the content (handle closing tags and attributes)
+    const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+    if (tagNameMatch) {
+      const tagName = tagNameMatch[1].toLowerCase();
+      if (allowedTags.includes(tagName)) {
+        return match; // Preserve allowed tags
+      }
+    }
+    return `(${tagContent})`; // Convert other tags to parentheses
+  });
+}
+
+/**
+ * Neutralizes bot trigger phrases by wrapping them in backticks
+ * @param {string} s - The string to process
+ * @returns {string} The string with neutralized bot triggers
+ */
+function neutralizeBotTriggers(s) {
+  // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
+  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+}
+
+/**
+ * Apply truncation limits to content
+ * @param {string} content - The content to truncate
+ * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @returns {string} The truncated content
+ */
+function applyTruncation(content, maxLength) {
+  maxLength = maxLength || 524288;
+  const lines = content.split("\n");
+  const maxLines = 65000;
+
+  // If content has too many lines, truncate by lines (primary limit)
+  if (lines.length > maxLines) {
+    const truncationMsg = "\n[Content truncated due to line count]";
+    const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+
+    // If still too long after line truncation, shorten but keep the line count message
+    if (truncatedLines.length > maxLength) {
+      return truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+    } else {
+      return truncatedLines;
+    }
+  } else if (content.length > maxLength) {
+    return content.substring(0, maxLength) + "\n[Content truncated due to length]";
+  }
+
+  return content;
+}
+
+/**
+ * Core sanitization function without mention filtering
+ * @param {string} content - The content to sanitize
+ * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @returns {string} The sanitized content
+ */
+function sanitizeContentCore(content, maxLength) {
+  if (!content || typeof content !== "string") {
+    return "";
+  }
+
+  // Build list of allowed domains from environment and GitHub context
+  const allowedDomains = buildAllowedDomains();
 
   let sanitized = content;
 
@@ -168,222 +395,14 @@ function sanitizeContentCore(content, maxLength) {
   // Domain filtering for HTTPS URIs
   sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
 
-  // Check line count before length to provide more specific truncation message
-  const lines = sanitized.split("\n");
-  const maxLines = 65000;
-  maxLength = maxLength || 524288;
-
-  // If content has too many lines, truncate by lines (primary limit)
-  if (lines.length > maxLines) {
-    const truncationMsg = "\n[Content truncated due to line count]";
-    const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-
-    // If still too long after line truncation, shorten but keep the line count message
-    if (truncatedLines.length > maxLength) {
-      sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-    } else {
-      sanitized = truncatedLines;
-    }
-  } else if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-  }
+  // Apply truncation limits
+  sanitized = applyTruncation(sanitized, maxLength);
 
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
 
   // Trim excessive whitespace
   return sanitized.trim();
-
-  /**
-   * Remove unknown domains
-   * @param {string} s - The string to process
-   * @param {string[]} allowed - List of allowed domains
-   * @returns {string} The string with unknown domains redacted
-   */
-  function sanitizeUrlDomains(s, allowed) {
-    // Match HTTPS URLs with optional port and path
-    // This regex is designed to:
-    // 1. Match https:// URIs with explicit protocol
-    // 2. Capture the hostname/domain
-    // 3. Allow optional port (:8080)
-    // 4. Allow optional path and query string (but not trailing commas/periods)
-    // 5. Stop before another https:// URL in query params (using negative lookahead)
-    const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
-
-    return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-      // Extract just the hostname (remove port if present)
-      const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-      pathPart = pathPart || "";
-
-      // Check if domain is in the allowed list or is a subdomain of an allowed domain
-      const isAllowed = allowed.some(allowedDomain => {
-        const normalizedAllowed = allowedDomain.toLowerCase();
-
-        // Exact match
-        if (hostname === normalizedAllowed) {
-          return true;
-        }
-
-        // Wildcard match (*.example.com matches subdomain.example.com)
-        if (normalizedAllowed.startsWith("*.")) {
-          const baseDomain = normalizedAllowed.substring(2); // Remove *.
-          return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
-        }
-
-        // Subdomain match (example.com matches subdomain.example.com)
-        return hostname.endsWith("." + normalizedAllowed);
-      });
-
-      if (isAllowed) {
-        return match; // Keep the full URL as-is
-      } else {
-        // Redact the domain but preserve the protocol and structure for debugging
-        const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${truncated}`);
-        }
-        if (typeof core !== "undefined" && core.debug) {
-          core.debug(`Redacted URL (full): ${match}`);
-        }
-        addRedactedDomain(hostname);
-        return "(redacted)";
-      }
-    });
-  }
-
-  /**
-   * Sanitize URL protocols - replace non-https with (redacted)
-   * @param {string} s - The string to process
-   * @returns {string} The string with non-https protocols redacted
-   */
-  function sanitizeUrlProtocols(s) {
-    // Match common non-https protocols
-    // This regex matches: protocol://domain or protocol:path or incomplete protocol://
-    // Examples: http://, ftp://, file://, data:, javascript:, mailto:, tel:, ssh://, git://
-    // The regex also matches incomplete protocols like "http://" or "ftp://" without a domain
-    // Note: No word boundary check to catch protocols even when preceded by word characters
-    return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-      // Extract domain for http/ftp/file/ssh/git protocols
-      if (domain) {
-        const domainLower = domain.toLowerCase();
-        const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${truncated}`);
-        }
-        if (typeof core !== "undefined" && core.debug) {
-          core.debug(`Redacted URL (full): ${match}`);
-        }
-        addRedactedDomain(domainLower);
-      } else {
-        // For other protocols (data:, javascript:, etc.), track the protocol itself
-        const protocolMatch = match.match(/^([^:]+):/);
-        if (protocolMatch) {
-          const protocol = protocolMatch[1] + ":";
-          // Truncate the matched URL for logging (keep first 12 chars + "...")
-          const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-          if (typeof core !== "undefined" && core.info) {
-            core.info(`Redacted URL: ${truncated}`);
-          }
-          if (typeof core !== "undefined" && core.debug) {
-            core.debug(`Redacted URL (full): ${match}`);
-          }
-          addRedactedDomain(protocol);
-        }
-      }
-      return "(redacted)";
-    });
-  }
-
-  /**
-   * Neutralizes commands at the start of text by wrapping them in backticks
-   * @param {string} s - The string to process
-   * @returns {string} The string with neutralized commands
-   */
-  function neutralizeCommands(s) {
-    const commandName = process.env.GH_AW_COMMAND;
-    if (!commandName) {
-      return s;
-    }
-
-    // Escape special regex characters in command name
-    const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    // Neutralize /command at the start of text (with optional leading whitespace)
-    // Only match at the start of the string or after leading whitespace
-    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-  }
-
-  /**
-   * Neutralizes ALL @mentions by wrapping them in backticks
-   * This is the core version without any filtering
-   * @param {string} s - The string to process
-   * @returns {string} The string with neutralized mentions
-   */
-  function neutralizeAllMentions(s) {
-    // Replace @name or @org/team outside code with `@name`
-    // No filtering - all mentions are neutralized
-    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
-      // Log when a mention is escaped to help debug issues
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Escaped mention: @${p2} (not in allowed list)`);
-      }
-      return `${p1}\`@${p2}\``;
-    });
-  }
-
-  /**
-   * Removes XML comments from content
-   * @param {string} s - The string to process
-   * @returns {string} The string with XML comments removed
-   */
-  function removeXmlComments(s) {
-    // Remove <!-- comment --> and malformed <!--! comment --!>
-    return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-  }
-
-  /**
-   * Converts XML/HTML tags to parentheses format to prevent injection
-   * @param {string} s - The string to process
-   * @returns {string} The string with XML tags converted to parentheses
-   */
-  function convertXmlTags(s) {
-    // Allow safe HTML tags: b, blockquote, br, code, details, em, h1–h6, hr, i, li, ol, p, pre, strong, sub, summary, sup, table, tbody, td, th, thead, tr, ul
-    const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
-
-    // First, process CDATA sections specially - convert tags inside them and the CDATA markers
-    s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-      // Convert tags inside CDATA content
-      const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-      // Return with CDATA markers also converted to parentheses
-      return `(![CDATA[${convertedContent}]])`;
-    });
-
-    // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
-    // Convert closing tags: </tag> to (/tag)
-    // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
-    // But preserve allowed safe tags
-    return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-      // Extract tag name from the content (handle closing tags and attributes)
-      const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-      if (tagNameMatch) {
-        const tagName = tagNameMatch[1].toLowerCase();
-        if (allowedTags.includes(tagName)) {
-          return match; // Preserve allowed tags
-        }
-      }
-      return `(${tagContent})`; // Convert other tags to parentheses
-    });
-  }
-
-  /**
-   * Neutralizes bot trigger phrases by wrapping them in backticks
-   * @param {string} s - The string to process
-   * @returns {string} The string with neutralized bot triggers
-   */
-  function neutralizeBotTriggers(s) {
-    // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
-    return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-  }
 }
 
 module.exports = {
@@ -393,4 +412,12 @@ module.exports = {
   clearRedactedDomains,
   writeRedactedDomainsLog,
   extractDomainsFromUrl,
+  buildAllowedDomains,
+  sanitizeUrlProtocols,
+  sanitizeUrlDomains,
+  neutralizeCommands,
+  removeXmlComments,
+  convertXmlTags,
+  neutralizeBotTriggers,
+  applyTruncation,
 };
