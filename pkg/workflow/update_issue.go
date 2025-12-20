@@ -27,25 +27,10 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 		UpdateEntityConfig: *baseConfig,
 	}
 
-	// Parse issue-specific fields from config map
-	if configMap != nil {
-		// Parse status - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["status"]; exists {
-			// If the key exists, it means we can update the status
-			// We don't care about the value - just that the key is present
-			updateIssuesConfig.Status = new(bool) // Allocate a new bool pointer (defaults to false)
-		}
-
-		// Parse title - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["title"]; exists {
-			updateIssuesConfig.Title = new(bool)
-		}
-
-		// Parse body - presence of the key (even if nil/empty) indicates field can be updated
-		if _, exists := configMap["body"]; exists {
-			updateIssuesConfig.Body = new(bool)
-		}
-	}
+	// Parse issue-specific fields using key existence mode
+	updateIssuesConfig.Status = parseUpdateEntityBoolField(configMap, "status", FieldParsingKeyExistence)
+	updateIssuesConfig.Title = parseUpdateEntityBoolField(configMap, "title", FieldParsingKeyExistence)
+	updateIssuesConfig.Body = parseUpdateEntityBoolField(configMap, "body", FieldParsingKeyExistence)
 
 	return updateIssuesConfig
 }
