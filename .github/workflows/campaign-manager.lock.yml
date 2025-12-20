@@ -22,7 +22,11 @@
 # Meta-orchestrator workflow that manages multiple campaigns, analyzes their performance, and makes strategic decisions
 
 name: "Campaign Manager - Meta-Orchestrator"
-"on": daily
+"on":
+  schedule:
+  - cron: "57 9 * * *"
+    # Friendly format: daily (scattered)
+  workflow_dispatch: null
 
 permissions: {}
 

@@ -6,6 +6,190 @@ import (
 	"testing"
 )
 
+func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
+	tests := []struct {
+		name                 string
+		frontmatter          map[string]any
+		checkScattered       bool // Check if fuzzy was scattered to valid cron
+		expectedCron         string
+		expectedError        bool
+		errorSubstring       string
+		expectWorkflowDispatch bool
+	}{
+		{
+			name: "on: daily",
+			frontmatter: map[string]any{
+				"on": "daily",
+			},
+			checkScattered:       true, // Fuzzy schedule, should be scattered
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: weekly",
+			frontmatter: map[string]any{
+				"on": "weekly",
+			},
+			checkScattered:       true, // Fuzzy schedule, should be scattered
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: daily at 14:00",
+			frontmatter: map[string]any{
+				"on": "daily at 14:00",
+			},
+			expectedCron:         "0 14 * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: weekly on monday",
+			frontmatter: map[string]any{
+				"on": "weekly on monday",
+			},
+			checkScattered:       true, // Fuzzy schedule, should be scattered
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: every 10 minutes",
+			frontmatter: map[string]any{
+				"on": "every 10 minutes",
+			},
+			expectedCron:         "*/10 * * * *",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: 0 9 * * 1 (cron expression)",
+			frontmatter: map[string]any{
+				"on": "0 9 * * 1",
+			},
+			expectedCron:         "0 9 * * 1",
+			expectWorkflowDispatch: true,
+		},
+		{
+			name: "on: push (not a schedule)",
+			frontmatter: map[string]any{
+				"on": "push",
+			},
+			expectedCron:         "",
+			expectWorkflowDispatch: false,
+		},
+		{
+			name: "on: invalid schedule",
+			frontmatter: map[string]any{
+				"on": "invalid schedule format",
+			},
+			expectedCron:         "",
+			expectWorkflowDispatch: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			// Set workflow identifier for fuzzy schedule scattering
+			// (required for all schedule tests to avoid fuzzy schedule errors)
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+			
+			err := compiler.preprocessScheduleFields(tt.frontmatter)
+
+			if tt.expectedError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorSubstring) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorSubstring, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// If expectWorkflowDispatch is false, "on" should still be a string
+			if !tt.expectWorkflowDispatch {
+				onValue, exists := tt.frontmatter["on"]
+				if !exists {
+					t.Error("expected 'on' field to exist")
+					return
+				}
+				if _, ok := onValue.(string); !ok {
+					t.Errorf("expected 'on' to remain a string for non-schedule value")
+				}
+				return
+			}
+
+			// Check that "on" was converted to a map with schedule and workflow_dispatch
+			onValue, exists := tt.frontmatter["on"]
+			if !exists {
+				t.Error("expected 'on' field to exist")
+				return
+			}
+
+			onMap, ok := onValue.(map[string]any)
+			if !ok {
+				t.Errorf("expected 'on' to be converted to map, got %T", onValue)
+				return
+			}
+
+			// Check schedule field exists
+			scheduleValue, hasSchedule := onMap["schedule"]
+			if !hasSchedule {
+				t.Error("expected 'schedule' field in 'on' map")
+				return
+			}
+
+			// Check workflow_dispatch field exists
+			if _, hasWorkflowDispatch := onMap["workflow_dispatch"]; !hasWorkflowDispatch {
+				t.Error("expected 'workflow_dispatch' field in 'on' map")
+				return
+			}
+
+			// Check the cron expression
+			scheduleArray, ok := scheduleValue.([]any)
+			if !ok {
+				t.Errorf("expected schedule to be array, got %T", scheduleValue)
+				return
+			}
+
+			if len(scheduleArray) == 0 {
+				t.Error("expected at least one schedule item")
+				return
+			}
+
+			firstSchedule, ok := scheduleArray[0].(map[string]any)
+			if !ok {
+				t.Errorf("expected first schedule to be map, got %T", scheduleArray[0])
+				return
+			}
+
+			actualCron, ok := firstSchedule["cron"].(string)
+			if !ok {
+				t.Errorf("expected cron to be string, got %T", firstSchedule["cron"])
+				return
+			}
+
+			if tt.checkScattered {
+				// Should be scattered to a valid cron (not fuzzy)
+				if strings.HasPrefix(actualCron, "FUZZY:") {
+					t.Errorf("expected scattered cron, got fuzzy: %s", actualCron)
+				}
+				// Verify it's a valid cron expression
+				fields := strings.Fields(actualCron)
+				if len(fields) != 5 {
+					t.Errorf("expected 5 fields in cron expression, got %d: %s", len(fields), actualCron)
+				}
+				t.Logf("Successfully scattered schedule to: %s", actualCron)
+			} else if tt.expectedCron != "" {
+				if actualCron != tt.expectedCron {
+					t.Errorf("expected cron '%s', got '%s'", tt.expectedCron, actualCron)
+				}
+			}
+		})
+	}
+}
+
 func TestSchedulePreprocessing(t *testing.T) {
 	tests := []struct {
 		name           string
