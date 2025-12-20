@@ -504,9 +504,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions.RenderToYAML(),
 		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          needs,
+		Env: map[string]string{
+			"GH_AW_WORKFLOW_ID": fmt.Sprintf("%q", mainJobName),
+		},
+		Steps:   steps,
+		Outputs: outputs,
+		Needs:   needs,
 	}
 
 	consolidatedSafeOutputsLog.Printf("Built consolidated safe outputs job with %d steps", len(safeOutputStepNames))
@@ -638,9 +641,8 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	cfg := data.SafeOutputs.CreatePullRequests
 
 	var customEnvVars []string
-	// Pass the workflow ID for branch naming (required by create_pull_request.cjs)
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
 	// Pass the base branch from GitHub context (required by create_pull_request.cjs)
+	// Note: GH_AW_WORKFLOW_ID is now set at the job level and inherited by all steps
 	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
