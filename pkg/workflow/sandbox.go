@@ -1,3 +1,20 @@
+// Package workflow provides sandbox configuration and validation for agentic workflows.
+//
+// This file handles:
+//   - Sandbox type definitions (AWF, SRT)
+//   - Sandbox configuration structures and parsing
+//   - Sandbox runtime config generation
+//   - Domain-specific validation for sandbox configurations
+//
+// # Validation Functions
+//
+// This file contains domain-specific validation functions for sandbox configuration:
+//   - validateMountsSyntax() - Validates container mount syntax
+//   - validateSandboxConfig() - Validates complete sandbox configuration
+//
+// These validation functions are co-located with sandbox logic following the principle
+// that domain-specific validation belongs in domain files. See validation.go for the
+// validation architecture documentation.
 package workflow
 
 import (

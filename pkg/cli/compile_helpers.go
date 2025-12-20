@@ -1,3 +1,36 @@
+// Package cli provides helper functions for workflow compilation.
+//
+// This file contains shared utilities used by the compile command to process workflow
+// files, manage compilation statistics, and handle campaign workflows. These helpers
+// support both single-file and batch compilation operations.
+//
+// # Organization Rationale
+//
+// These helper functions are grouped here because they:
+//   - Are used by multiple compile command variants (compile, watch, campaign)
+//   - Provide common compilation patterns and error handling
+//   - Have a clear domain focus (compilation operations)
+//   - Keep the main compile_command.go file focused on CLI interaction
+//
+// This follows the helper file conventions documented in skills/developer/SKILL.md.
+//
+// # Key Functions
+//
+// Single File Compilation:
+//   - compileSingleFile() - Compile a single markdown workflow with stats tracking
+//
+// Batch Compilation:
+//   - compileBatchWorkflows() - Compile multiple workflows in parallel
+//   - scanAllWorkflows() - Scan directories for workflow files
+//
+// Campaign Compilation:
+//   - compileAllCampaignOrchestrators() - Generate and compile campaign orchestrators
+//
+// Statistics:
+//   - CompilationStats - Track compilation success/failure/skip counts
+//
+// These functions abstract common compilation patterns, allowing the main compile
+// command to focus on CLI interaction while these helpers handle the mechanics.
 package cli
 
 import (
