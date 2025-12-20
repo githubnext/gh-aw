@@ -17,33 +17,36 @@ type UpdateDiscussionsConfig struct {
 
 // parseUpdateDiscussionsConfig handles update-discussion configuration
 func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *UpdateDiscussionsConfig {
-	// Parse base configuration using helper
-	baseConfig, configMap := c.parseUpdateEntityBase(outputMap, UpdateEntityDiscussion, "update-discussion", updateDiscussionLog)
+	// Create config struct
+	cfg := &UpdateDiscussionsConfig{}
+
+	// Parse base config and entity-specific fields using generic helper
+	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
+		EntityType: UpdateEntityDiscussion,
+		ConfigKey:  "update-discussion",
+		Logger:     updateDiscussionLog,
+		Fields: []UpdateEntityFieldSpec{
+			{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+			{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+			{Name: "labels", Mode: FieldParsingKeyExistence, Dest: &cfg.Labels},
+		},
+		CustomParser: func(cm map[string]any) {
+			// Parse allowed-labels using shared helper
+			cfg.AllowedLabels = parseAllowedLabelsFromConfig(cm)
+			if len(cfg.AllowedLabels) > 0 {
+				updateDiscussionLog.Printf("Allowed labels configured: %v", cfg.AllowedLabels)
+				// If allowed-labels is specified, implicitly enable labels
+				if cfg.Labels == nil {
+					cfg.Labels = new(bool)
+				}
+			}
+		},
+	})
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdateDiscussionsConfig with base fields
-	updateDiscussionsConfig := &UpdateDiscussionsConfig{
-		UpdateEntityConfig: *baseConfig,
-	}
-
-	// Parse discussion-specific fields using key existence mode
-	updateDiscussionsConfig.Title = parseUpdateEntityBoolField(configMap, "title", FieldParsingKeyExistence)
-	updateDiscussionsConfig.Body = parseUpdateEntityBoolField(configMap, "body", FieldParsingKeyExistence)
-	updateDiscussionsConfig.Labels = parseUpdateEntityBoolField(configMap, "labels", FieldParsingKeyExistence)
-
-	// Parse allowed-labels using shared helper
-	if configMap != nil {
-		updateDiscussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
-		if len(updateDiscussionsConfig.AllowedLabels) > 0 {
-			updateDiscussionLog.Printf("Allowed labels configured: %v", updateDiscussionsConfig.AllowedLabels)
-			// If allowed-labels is specified, implicitly enable labels
-			if updateDiscussionsConfig.Labels == nil {
-				updateDiscussionsConfig.Labels = new(bool)
-			}
-		}
-	}
-
-	return updateDiscussionsConfig
+	// Set base fields
+	cfg.UpdateEntityConfig = *baseConfig
+	return cfg
 }
