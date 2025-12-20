@@ -713,7 +713,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
 		{
-			name: "valid new GitHub Actions properties - permissions with new properties",
+			name: "invalid permissions with unsupported repository-projects property",
 			frontmatter: map[string]any{
 				"on": "push",
 				"permissions": map[string]any{
@@ -725,7 +725,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 					"repository-projects": "none",
 				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "valid claude engine with network permissions",
