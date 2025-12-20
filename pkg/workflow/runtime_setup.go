@@ -500,13 +500,13 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 			// Install TypeScript language server
 			steps = append(steps, GitHubActionStep{
 				"      - name: Install TypeScript language service",
-				"        run: npm install -g typescript-language-server typescript",
+				"        run: npm install -g --silent typescript-language-server typescript",
 			})
 		case "python":
 			// Install Python language server
 			steps = append(steps, GitHubActionStep{
 				"      - name: Install Python language service",
-				"        run: pip install python-lsp-server",
+				"        run: pip install --quiet python-lsp-server",
 			})
 		case "java":
 			// Java language service typically comes with the JDK setup
