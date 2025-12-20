@@ -1,3 +1,38 @@
+// Package workflow provides helper functions for parsing safe output configurations.
+//
+// This file contains parsing utilities for extracting and validating configuration
+// values from safe output config maps. These helpers are used across safe output
+// processors to parse common configuration patterns.
+//
+// # Organization Rationale
+//
+// These parse functions are grouped in a helper file because they:
+//   - Share a common purpose (safe output config parsing)
+//   - Are used by multiple safe output modules (3+ callers)
+//   - Provide stable, reusable parsing patterns
+//   - Have clear domain focus (configuration extraction)
+//
+// This follows the helper file conventions documented in the developer instructions.
+// See skills/developer/SKILL.md#helper-file-conventions for details.
+//
+// # Key Functions
+//
+// Configuration Array Parsing:
+//   - ParseStringArrayFromConfig() - Generic string array extraction
+//   - parseLabelsFromConfig() - Extract labels array
+//   - parseParticipantsFromConfig() - Extract participants array
+//   - parseAllowedReposFromConfig() - Extract allowed repos array
+//   - parseAllowedLabelsFromConfig() - Extract allowed labels array
+//
+// Configuration String Parsing:
+//   - extractStringFromMap() - Generic string extraction
+//   - parseTitlePrefixFromConfig() - Extract title prefix
+//   - parseTargetRepoFromConfig() - Extract target repository
+//   - parseTargetRepoWithValidation() - Extract and validate target repo
+//
+// Configuration Integer Parsing:
+//   - parseExpiresFromConfig() - Extract expiration time
+//   - parseRelativeTimeSpec() - Parse relative time specifications
 package workflow
 
 import (

@@ -1,3 +1,52 @@
+// Package workflow provides tool configuration parsing for agentic workflows.
+//
+// This file handles parsing of tool configurations from the frontmatter tools section.
+// It extracts and validates tool configurations for all supported tools, converting
+// YAML-parsed maps into strongly-typed Go structs.
+//
+// # Organization Rationale
+//
+// All tool parsing functions are grouped in this file because they:
+//   - Share a common purpose (tool configuration parsing)
+//   - Follow similar parsing patterns (map[string]any -> struct)
+//   - Are called together during workflow compilation
+//   - Provide a single source of truth for tool configuration
+//
+// This follows established patterns where domain-specific parsing is grouped by
+// functionality rather than scattered across files. See skills/developer/SKILL.md
+// for code organization principles.
+//
+// # Supported Tools
+//
+// Built-in Tools:
+//   - github: GitHub API and repository operations
+//   - bash: Shell command execution
+//   - web-fetch: HTTP content fetching
+//   - web-search: Web search capabilities
+//   - edit: File editing operations
+//   - playwright: Browser automation
+//   - serena: Serena integration
+//   - agentic-workflows: Nested workflow execution
+//   - cache-memory: In-workflow memory caching
+//   - repo-memory: Repository-backed persistent memory
+//
+// Configuration Tools:
+//   - safety-prompt: Safety prompt injection
+//   - timeout: Agent timeout configuration
+//   - startup-timeout: Agent startup timeout
+//
+// Custom Tools:
+//   - MCP servers and other custom tool configurations
+//
+// # Parse Function Pattern
+//
+// Each parse function follows the pattern:
+//  1. Accept any type to handle various YAML representations
+//  2. Type-assert to expected structure (bool, string, map, array)
+//  3. Extract and validate configuration values
+//  4. Return strongly-typed configuration struct
+//
+// This provides type safety while accommodating flexible YAML syntax.
 package workflow
 
 import (
