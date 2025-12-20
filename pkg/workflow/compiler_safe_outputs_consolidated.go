@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -282,7 +280,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// 9. Create Code Scanning Alert step
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+		workflowFilename := GetWorkflowIDFromPath(markdownPath)
 		stepConfig := c.buildCreateCodeScanningAlertStepConfig(data, mainJobName, threatDetectionEnabled, workflowFilename)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
@@ -498,11 +496,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		needs = append(needs, constants.ActivationJobName)
 	}
 
-	// Extract workflow filename (without extension) for GH_AW_WORKFLOW_ID
-	workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
+	workflowID := GetWorkflowIDFromPath(markdownPath)
 
 	// Build job-level environment variables that are common to all safe output steps
-	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowFilename)
+	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
 
 	job := &Job{
 		Name:           "safe_outputs",
@@ -587,12 +585,12 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 
 // buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
 // for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
-func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowFilename string) map[string]string {
+func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
 	envVars := make(map[string]string)
 
-	// Set GH_AW_WORKFLOW_ID to the workflow filename (without extension)
+	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
 	// This is used for branch naming in create_pull_request and other operations
-	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowFilename)
+	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
 
 	// Add workflow metadata that's common to all steps
 	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
