@@ -818,4 +818,3 @@ func TestConsolidatedSafeOutputsJobWithCustomEnv(t *testing.T) {
 
 	t.Logf("✓ Consolidated job with custom env vars built successfully with %d steps: %v", len(stepNames), stepNames)
 }
-
