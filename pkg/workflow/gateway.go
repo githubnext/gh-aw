@@ -115,13 +115,32 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"          mkdir -p " + MCPGatewayLogsFolder,
 		"          echo 'Starting MCP Gateway...'",
 		"          ",
+		"          # Detect if we're in development mode (runtime detection)",
+		"          IS_DEV_MODE=\"false\"",
+		"          if [ \"${GITHUB_REF}\" = \"\" ] || [[ \"${GITHUB_REF}\" == refs/pull/* ]] || [[ \"${GITHUB_REF}\" == refs/heads/* && \"${GITHUB_REF}\" != refs/heads/release* ]]; then",
+		"            IS_DEV_MODE=\"true\"",
+		"          fi",
+		"          ",
 		"          # Install awmg CLI if not already available",
 		"          if ! command -v awmg &> /dev/null; then",
-		"            # Check if this is a local build (gh-aw repo)",
-		"            if [ -f \"./awmg\" ]; then",
-		"              echo 'Using local awmg build'",
+		"            # In development mode, build from sources if in gh-aw repo",
+		"            if [ \"$IS_DEV_MODE\" = \"true\" ] && [ -f \"cmd/awmg/main.go\" ] && [ -f \"Makefile\" ]; then",
+		"              echo 'Building awmg from sources (development mode)...'",
+		"              make build-awmg",
+		"              if [ -f \"./awmg\" ]; then",
+		"                echo 'Built awmg successfully'",
+		"                AWMG_CMD=\"./awmg\"",
+		"              else",
+		"                echo 'ERROR: Failed to build awmg from sources'",
+		"                exit 1",
+		"              fi",
+		"            elif [ -f \"./awmg\" ]; then",
+		"              echo 'Using existing local awmg build'",
 		"              AWMG_CMD=\"./awmg\"",
 		"            else",
+	}
+	
+	stepLines = append(stepLines,
 		"              # Download awmg from releases",
 		"              echo 'Downloading awmg from GitHub releases...'",
 		"              ",
@@ -160,7 +179,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"          ",
 		"          # Give the gateway a moment to start",
 		"          sleep 2",
-	}
+	)
 
 	return GitHubActionStep(stepLines)
 }

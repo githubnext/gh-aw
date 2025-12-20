@@ -2023,7 +2023,6 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "required": ["container"],
               "additionalProperties": false
             }
           },
