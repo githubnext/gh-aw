@@ -35,16 +35,16 @@ func TestCreatePullRequestStepConfigEnvVars(t *testing.T) {
 
 	// Verify required environment variables are present
 	requiredEnvVars := map[string]string{
-		"GH_AW_WORKFLOW_ID":      `GH_AW_WORKFLOW_ID: "main_job"`,
-		"GH_AW_BASE_BRANCH":      "GH_AW_BASE_BRANCH: ${{ github.ref_name }}",
-		"GH_AW_PR_TITLE_PREFIX":  `GH_AW_PR_TITLE_PREFIX: "[TEST] "`,
-		"GH_AW_PR_LABELS":        `GH_AW_PR_LABELS: "automated,test"`,
+		"GH_AW_WORKFLOW_ID":       `GH_AW_WORKFLOW_ID: "main_job"`,
+		"GH_AW_BASE_BRANCH":       "GH_AW_BASE_BRANCH: ${{ github.ref_name }}",
+		"GH_AW_PR_TITLE_PREFIX":   `GH_AW_PR_TITLE_PREFIX: "[TEST] "`,
+		"GH_AW_PR_LABELS":         `GH_AW_PR_LABELS: "automated,test"`,
 		"GH_AW_PR_ALLOWED_LABELS": `GH_AW_PR_ALLOWED_LABELS: "automated,test,bug"`,
-		"GH_AW_PR_DRAFT":         `GH_AW_PR_DRAFT: "false"`,
-		"GH_AW_PR_IF_NO_CHANGES": `GH_AW_PR_IF_NO_CHANGES: "error"`,
-		"GH_AW_PR_ALLOW_EMPTY":   `GH_AW_PR_ALLOW_EMPTY: "true"`,
-		"GH_AW_MAX_PATCH_SIZE":   "GH_AW_MAX_PATCH_SIZE: 2048",
-		"GH_AW_PR_EXPIRES":       `GH_AW_PR_EXPIRES: "7"`,
+		"GH_AW_PR_DRAFT":          `GH_AW_PR_DRAFT: "false"`,
+		"GH_AW_PR_IF_NO_CHANGES":  `GH_AW_PR_IF_NO_CHANGES: "error"`,
+		"GH_AW_PR_ALLOW_EMPTY":    `GH_AW_PR_ALLOW_EMPTY: "true"`,
+		"GH_AW_MAX_PATCH_SIZE":    "GH_AW_MAX_PATCH_SIZE: 2048",
+		"GH_AW_PR_EXPIRES":        `GH_AW_PR_EXPIRES: "7"`,
 	}
 
 	for envVarName, expectedContent := range requiredEnvVars {
@@ -87,7 +87,7 @@ func TestCreatePullRequestStepConfigDefaultValues(t *testing.T) {
 	defaultEnvVars := map[string]string{
 		"GH_AW_WORKFLOW_ID":      `GH_AW_WORKFLOW_ID: "agent"`,
 		"GH_AW_BASE_BRANCH":      "GH_AW_BASE_BRANCH: ${{ github.ref_name }}",
-		"GH_AW_PR_DRAFT":         `GH_AW_PR_DRAFT: "true"`,  // Default is true
+		"GH_AW_PR_DRAFT":         `GH_AW_PR_DRAFT: "true"`,         // Default is true
 		"GH_AW_PR_IF_NO_CHANGES": `GH_AW_PR_IF_NO_CHANGES: "warn"`, // Default is warn
 		"GH_AW_PR_ALLOW_EMPTY":   `GH_AW_PR_ALLOW_EMPTY: "false"`,  // Default is false
 		"GH_AW_MAX_PATCH_SIZE":   "GH_AW_MAX_PATCH_SIZE: 1024",     // Default is 1024
