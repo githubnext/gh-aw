@@ -396,8 +396,17 @@ jobs:
       # Go formatting check (fast, no deps needed)
       - name: Check Go formatting
         run: |
-          if [ -n "$(go fmt ./...)" ]; then
+          unformatted=$(go fmt ./...)
+          if [ -n "$unformatted" ]; then
             echo "❌ Code is not formatted. Run 'make fmt' to fix." >> $GITHUB_STEP_SUMMARY
+            echo "Unformatted files:" >> $GITHUB_STEP_SUMMARY
+            echo "$unformatted" >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "To fix this locally, run:"
+            echo "  make fmt"
+            echo ""
+            echo "Or format individual files with:"
+            echo "  go fmt ./path/to/file.go"
             exit 1
           fi
           echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
@@ -575,6 +584,7 @@ jobs:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
       contents: read
     strategy:
