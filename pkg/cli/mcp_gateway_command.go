@@ -106,11 +106,13 @@ Examples:
 
 // runMCPGateway starts the MCP gateway server
 func runMCPGateway(configFile string, port int, logDir string) error {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP gateway (port: %d, logDir: %s, configFile: %q)", port, logDir, configFile)))
 	gatewayLog.Printf("Starting MCP gateway on port %d", port)
 
 	// Read configuration
 	config, err := readGatewayConfig(configFile)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read configuration: %v", err)))
 		return fmt.Errorf("failed to read gateway configuration: %w", err)
 	}
 
@@ -150,38 +152,69 @@ func readGatewayConfig(configFile string) (*MCPGatewayConfig, error) {
 	if configFile != "" {
 		// Read from file
 		gatewayLog.Printf("Reading configuration from file: %s", configFile)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading configuration from file: %s", configFile)))
 		data, err = os.ReadFile(configFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read config file: %w", err)
 		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from file", len(data))))
 	} else {
 		// Read from stdin
 		gatewayLog.Print("Reading configuration from stdin")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading configuration from stdin..."))
 		data, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read from stdin: %w", err)
 		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from stdin", len(data))))
+		if len(data) == 0 {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No data received from stdin"))
+		}
 	}
 
+	gatewayLog.Printf("Parsing %d bytes of configuration data", len(data))
 	var config MCPGatewayConfig
 	if err := json.Unmarshal(data, &config); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse JSON: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Data received (first 500 chars): %s", string(data[:min(500, len(data))]))))
 		return nil, fmt.Errorf("failed to parse configuration JSON: %w", err)
 	}
 
 	gatewayLog.Printf("Loaded configuration with %d MCP servers", len(config.MCPServers))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully loaded configuration with %d MCP servers", len(config.MCPServers))))
+	
+	// Log server names for debugging
+	if len(config.MCPServers) > 0 {
+		serverNames := make([]string, 0, len(config.MCPServers))
+		for name := range config.MCPServers {
+			serverNames = append(serverNames, name)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No MCP servers configured"))
+	}
+	
 	return &config, nil
 }
 
 // initializeSessions creates MCP sessions for all configured servers
 func (g *MCPGatewayServer) initializeSessions() error {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initializing %d MCP sessions", len(g.config.MCPServers))))
 	gatewayLog.Printf("Initializing %d MCP sessions", len(g.config.MCPServers))
+
+	if len(g.config.MCPServers) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("WARNING: No MCP servers to initialize"))
+		return nil
+	}
 
 	for serverName, serverConfig := range g.config.MCPServers {
 		gatewayLog.Printf("Initializing session for server: %s", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Initializing session for server: %s", serverName)))
 
 		session, err := g.createMCPSession(serverName, serverConfig)
 		if err != nil {
 			gatewayLog.Printf("Failed to initialize session for %s: %v", serverName, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to initialize session for %s: %v", serverName, err)))
 			return fmt.Errorf("failed to create session for server %s: %w", serverName, err)
 		}
 
@@ -190,8 +223,10 @@ func (g *MCPGatewayServer) initializeSessions() error {
 		g.mu.Unlock()
 
 		gatewayLog.Printf("Successfully initialized session for %s", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully initialized session for %s", serverName)))
 	}
 
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All %d MCP sessions initialized successfully", len(g.config.MCPServers))))
 	return nil
 }
 
