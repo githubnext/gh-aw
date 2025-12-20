@@ -106,32 +106,6 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		configJSON = []byte("{}")
 	}
 
-	// Build docker run command
-	var dockerArgs []string
-	dockerArgs = append(dockerArgs, "run", "-d", "--rm", "--init")
-	dockerArgs = append(dockerArgs, "--name", "mcp-gateway")
-	dockerArgs = append(dockerArgs, "-p", fmt.Sprintf("%d:%d", port, port))
-
-	// Add environment variables
-	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("MCP_GATEWAY_LOG_DIR=%s", MCPGatewayLogsFolder))
-	for k, v := range config.Env {
-		dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// Mount logs folder
-	dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", MCPGatewayLogsFolder, MCPGatewayLogsFolder))
-
-	// Container image with optional version
-	containerImage := config.Container
-	if config.Version != "" {
-		containerImage = fmt.Sprintf("%s:%s", config.Container, config.Version)
-	}
-	dockerArgs = append(dockerArgs, containerImage)
-
-	// Add container args
-	dockerArgs = append(dockerArgs, config.Args...)
-	dockerArgs = append(dockerArgs, config.EntrypointArgs...)
-
 	// Escape single quotes in JSON for shell
 	escapedJSON := strings.ReplaceAll(string(configJSON), "'", "'\\''")
 
@@ -140,9 +114,70 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"        run: |",
 		"          mkdir -p " + MCPGatewayLogsFolder,
 		"          echo 'Starting MCP Gateway...'",
+		"          ",
+		"          # Install awmg CLI if not already available",
+		"          if ! command -v awmg &> /dev/null; then",
+		"            # Check if this is a local build (gh-aw repo)",
+		"            if [ -f \"./awmg\" ]; then",
+		"              echo 'Using local awmg build'",
+		"              AWMG_CMD=\"./awmg\"",
+		"            # Check if gh-aw extension is installed (has awmg)",
+		"            elif gh extension list 2>/dev/null | grep -q 'githubnext/gh-aw' && [ -f \"$HOME/.local/share/gh/extensions/gh-aw/awmg\" ]; then",
+		"              echo 'Using awmg from gh-aw extension'",
+		"              AWMG_CMD=\"$HOME/.local/share/gh/extensions/gh-aw/awmg\"",
+		"            else",
+		"              # Download awmg from releases",
+		"              echo 'Downloading awmg from GitHub releases...'",
+		"              AWMG_VERSION=$(gh release list --repo githubnext/gh-aw --limit 1 | grep -v draft | grep -v prerelease | head -n 1 | awk '{print $1}')",
+		"              if [ -z \"$AWMG_VERSION\" ]; then",
+		"                echo 'No release version found, using latest'",
+		"                AWMG_VERSION='latest'",
+		"              fi",
+		"              ",
+		"              # Detect platform",
+		"              OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
+		"              ARCH=$(uname -m)",
+		"              if [ \"$ARCH\" = \"x86_64\" ]; then ARCH=\"amd64\"; fi",
+		"              if [ \"$ARCH\" = \"aarch64\" ]; then ARCH=\"arm64\"; fi",
+		"              ",
+		"              AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
+		"              if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
+		"              ",
+		"              # Download from releases",
+		"              if [ \"$AWMG_VERSION\" = \"latest\" ]; then",
+		"                gh release download --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp || true",
+		"              else",
+		"                gh release download \"$AWMG_VERSION\" --repo githubnext/gh-aw --pattern \"$AWMG_BINARY\" --dir /tmp || true",
+		"              fi",
+		"              ",
+		"              if [ -f \"/tmp/$AWMG_BINARY\" ]; then",
+		"                chmod +x \"/tmp/$AWMG_BINARY\"",
+		"                AWMG_CMD=\"/tmp/$AWMG_BINARY\"",
+		"                echo 'Downloaded awmg successfully'",
+		"              else",
+		"                echo 'Failed to download awmg, trying fallback...'",
+		"                # Fallback: use gh aw mcp-gateway if gh-aw is installed",
+		"                if gh extension list 2>/dev/null | grep -q 'githubnext/gh-aw'; then",
+		"                  echo 'Using gh aw mcp-gateway as fallback'",
+		"                  AWMG_CMD=\"gh aw mcp-gateway\"",
+		"                else",
+		"                  echo 'ERROR: Could not find or download awmg binary'",
+		"                  exit 1",
+		"                fi",
+		"              fi",
+		"            fi",
+		"          else",
+		"            echo 'awmg is already available'",
+		"            AWMG_CMD=\"awmg\"",
+		"          fi",
+		"          ",
 		"          # Start MCP gateway in background with config piped via stdin",
-		fmt.Sprintf("          echo '%s' | docker %s", escapedJSON, strings.Join(dockerArgs, " ")),
-		"          echo 'MCP Gateway started'",
+		fmt.Sprintf("          echo '%s' | $AWMG_CMD --port %d --log-dir %s > %s/gateway.log 2>&1 &", escapedJSON, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
+		"          GATEWAY_PID=$!",
+		"          echo \"MCP Gateway started with PID $GATEWAY_PID\"",
+		"          ",
+		"          # Give the gateway a moment to start",
+		"          sleep 2",
 	}
 
 	return GitHubActionStep(stepLines)
@@ -169,6 +204,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          while [ $retry_count -lt $max_retries ]; do",
 		"            if curl -s -o /dev/null -w \"%{http_code}\" \"${gateway_url}/health\" | grep -q \"200\\|204\"; then",
 		"              echo \"MCP Gateway is ready!\"",
+		"              curl -s \"${gateway_url}/servers\" || echo \"Could not fetch servers list\"",
 		"              exit 0",
 		"            fi",
 		"            retry_count=$((retry_count + 1))",
@@ -176,7 +212,10 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"            sleep 1",
 		"          done",
 		"          echo \"Error: MCP Gateway failed to start after $max_retries attempts\"",
-		"          docker logs mcp-gateway || true",
+		"          ",
+		"          # Show gateway logs for debugging",
+		fmt.Sprintf("          echo 'Gateway logs:'"),
+		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
 		"          exit 1",
 	}
 

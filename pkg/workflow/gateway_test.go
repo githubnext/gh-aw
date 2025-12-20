@@ -262,9 +262,9 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
-	assert.Contains(t, stepStr, "docker")
-	assert.Contains(t, stepStr, "ghcr.io/githubnext/mcp-gateway")
-	assert.Contains(t, stepStr, "8080:8080")
+	assert.Contains(t, stepStr, "awmg")
+	assert.Contains(t, stepStr, "--port 8080")
+	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
