@@ -6,6 +6,7 @@
     "yaml.hover": true,
     "yaml.schemas": {
         "./.github/aw/main_workflow_schema.json": ".github/workflows/*.md",
+        "./.github/aw/schemas/agentic-workflow.json": ".github/workflows/*.md",
         "./pkg/parser/schemas/main_workflow_schema.json": ".github/workflows/*.md"
     },
     "yaml.validate": true
