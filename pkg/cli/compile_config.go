@@ -25,12 +25,19 @@ type CompileConfig struct {
 	Stats                bool     // Display statistics table sorted by file size
 }
 
+// WorkflowFailure represents a failed workflow with its error count
+type WorkflowFailure struct {
+	Path       string // File path of the workflow
+	ErrorCount int    // Number of errors in this workflow
+}
+
 // CompilationStats tracks the results of workflow compilation
 type CompilationStats struct {
 	Total           int
 	Errors          int
 	Warnings        int
-	FailedWorkflows []string // Names of workflows that failed compilation
+	FailedWorkflows []string          // Names of workflows that failed compilation (deprecated, use FailedWorkflowDetails)
+	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
 }
 
 // ValidationError represents a single validation error or warning

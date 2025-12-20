@@ -106,12 +106,91 @@ func TestPrintCompilationSummary(t *testing.T) {
 				FailedWorkflows: []string{"workflow1.md", "workflow2.md"},
 			},
 		},
+		{
+			name: "with detailed failure information",
+			stats: &CompilationStats{
+				Total:    5,
+				Errors:   3,
+				Warnings: 1,
+				FailureDetails: []WorkflowFailure{
+					{Path: ".github/workflows/test1.md", ErrorCount: 1},
+					{Path: ".github/workflows/test2.md", ErrorCount: 2},
+					{Path: ".github/workflows/test3.md", ErrorCount: 1},
+				},
+			},
+		},
+		{
+			name: "with multiple errors per workflow",
+			stats: &CompilationStats{
+				Total:    3,
+				Errors:   5,
+				Warnings: 0,
+				FailureDetails: []WorkflowFailure{
+					{Path: ".github/workflows/complex.md", ErrorCount: 3},
+					{Path: ".github/workflows/simple.md", ErrorCount: 2},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// printCompilationSummary writes to stderr, we just verify it doesn't panic
 			printCompilationSummary(tt.stats)
+		})
+	}
+}
+
+// TestTrackWorkflowFailure tests the trackWorkflowFailure helper function
+func TestTrackWorkflowFailure(t *testing.T) {
+	tests := []struct {
+		name            string
+		workflowPath    string
+		errorCount      int
+		expectedDetails WorkflowFailure
+	}{
+		{
+			name:         "single error",
+			workflowPath: ".github/workflows/test.md",
+			errorCount:   1,
+			expectedDetails: WorkflowFailure{
+				Path:       ".github/workflows/test.md",
+				ErrorCount: 1,
+			},
+		},
+		{
+			name:         "multiple errors",
+			workflowPath: ".github/workflows/complex.md",
+			errorCount:   5,
+			expectedDetails: WorkflowFailure{
+				Path:       ".github/workflows/complex.md",
+				ErrorCount: 5,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stats := &CompilationStats{}
+			trackWorkflowFailure(stats, tt.workflowPath, tt.errorCount)
+
+			// Check that FailedWorkflows was updated
+			if len(stats.FailedWorkflows) != 1 {
+				t.Errorf("Expected 1 failed workflow, got %d", len(stats.FailedWorkflows))
+			}
+
+			// Check that FailureDetails was updated correctly
+			if len(stats.FailureDetails) != 1 {
+				t.Errorf("Expected 1 failure detail, got %d", len(stats.FailureDetails))
+			}
+
+			detail := stats.FailureDetails[0]
+			if detail.Path != tt.expectedDetails.Path {
+				t.Errorf("Expected path %s, got %s", tt.expectedDetails.Path, detail.Path)
+			}
+			if detail.ErrorCount != tt.expectedDetails.ErrorCount {
+				t.Errorf("Expected error count %d, got %d", tt.expectedDetails.ErrorCount, detail.ErrorCount)
+			}
 		})
 	}
 }
