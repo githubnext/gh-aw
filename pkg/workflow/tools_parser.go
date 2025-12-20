@@ -41,10 +41,10 @@
 // # Parse Function Pattern
 //
 // Each parse function follows the pattern:
-//   1. Accept any type to handle various YAML representations
-//   2. Type-assert to expected structure (bool, string, map, array)
-//   3. Extract and validate configuration values
-//   4. Return strongly-typed configuration struct
+//  1. Accept any type to handle various YAML representations
+//  2. Type-assert to expected structure (bool, string, map, array)
+//  3. Extract and validate configuration values
+//  4. Return strongly-typed configuration struct
 //
 // This provides type safety while accommodating flexible YAML syntax.
 package workflow
