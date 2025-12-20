@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
@@ -40,8 +41,8 @@ func TestEnsureDevcontainerConfig(t *testing.T) {
 		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
 	}
 
-	// Verify .devcontainer/devcontainer.json was created
-	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	// Verify .devcontainer/devcontainer.json was created at default location
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
 		t.Fatal("Expected .devcontainer/devcontainer.json to be created")
 	}
@@ -153,8 +154,8 @@ func TestEnsureDevcontainerConfigWithAdditionalRepos(t *testing.T) {
 		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
 	}
 
-	// Read and parse the created file
-	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	// Read and parse the created file at default location
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	data, err := os.ReadFile(devcontainerPath)
 	if err != nil {
 		t.Fatalf("Failed to read devcontainer.json: %v", err)
@@ -220,8 +221,8 @@ func TestEnsureDevcontainerConfigWithCurrentRepo(t *testing.T) {
 		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
 	}
 
-	// Read and parse the created file
-	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	// Read and parse the created file at default location
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	data, err := os.ReadFile(devcontainerPath)
 	if err != nil {
 		t.Fatalf("Failed to read devcontainer.json: %v", err)
@@ -284,18 +285,44 @@ func TestEnsureDevcontainerConfigWithOwnerValidation(t *testing.T) {
 		t.Fatalf("ensureDevcontainerConfig() with same owner should succeed: %v", err)
 	}
 
-	// Clean up for next test
-	os.RemoveAll(filepath.Join(".devcontainer", "gh-aw"))
-
-	// Test that different owner fails
-	err = ensureDevcontainerConfig(false, []string{"differentowner/repo2"})
-	if err == nil {
-		t.Fatal("ensureDevcontainerConfig() with different owner should fail")
+	// Verify the repo was added
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	data, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
 	}
 
-	// Check that error message contains expected text
-	if err.Error() == "" || len(err.Error()) < 10 {
-		t.Errorf("Expected meaningful error message, got: %v", err)
+	var config DevcontainerConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatalf("Failed to parse devcontainer.json: %v", err)
+	}
+
+	if _, exists := config.Customizations.Codespaces.Repositories["testowner/repo1"]; !exists {
+		t.Error("Expected testowner/repo1 to be in repositories")
+	}
+
+	// Clean up for next test
+	os.RemoveAll(filepath.Join(".devcontainer", "devcontainer.json"))
+
+	// Test that different owner is skipped (not an error, just logged and skipped)
+	err = ensureDevcontainerConfig(false, []string{"differentowner/repo2"})
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() with different owner should succeed but skip the repo: %v", err)
+	}
+
+	// Verify the file was created but without the different-owner repo
+	data, err = os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read devcontainer.json: %v", err)
+	}
+
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatalf("Failed to parse devcontainer.json: %v", err)
+	}
+
+	// Different owner repo should not be in the config
+	if _, exists := config.Customizations.Codespaces.Repositories["differentowner/repo2"]; exists {
+		t.Error("Expected differentowner/repo2 to be skipped")
 	}
 }
 
@@ -323,21 +350,21 @@ func TestEnsureDevcontainerConfigUpdatesOldVersion(t *testing.T) {
 	exec.Command("git", "config", "user.name", "Test User").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 
-	// Create .devcontainer/gh-aw directory
-	devcontainerDir := filepath.Join(".devcontainer", "gh-aw")
+	// Create .devcontainer directory
+	devcontainerDir := ".devcontainer"
 	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
-	// Create a devcontainer.json with old copilot-cli version
+	// Create a devcontainer.json with old copilot-cli version at default location
 	oldConfig := DevcontainerConfig{
-		Name:  "Agentic Workflows Development",
-		Image: "mcr.microsoft.com/devcontainers/universal:latest",
+		Name:  "Existing Dev Environment",
+		Image: "mcr.microsoft.com/devcontainers/go:latest",
 		Features: DevcontainerFeatures{
 			"ghcr.io/devcontainers/features/github-cli:1":  map[string]any{},
 			"ghcr.io/devcontainers/features/copilot-cli:1": map[string]any{}, // Old version
 		},
-		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+		PostCreateCommand: "echo 'existing setup'",
 	}
 
 	devcontainerPath := filepath.Join(devcontainerDir, "devcontainer.json")
@@ -376,6 +403,188 @@ func TestEnsureDevcontainerConfigUpdatesOldVersion(t *testing.T) {
 	// Verify old version is gone
 	if _, exists := updatedConfig.Features["ghcr.io/devcontainers/features/copilot-cli:1"]; exists {
 		t.Error("Expected old copilot-cli:1 version to be removed")
+	}
+
+	// Verify existing config properties were preserved
+	if updatedConfig.Name != "Existing Dev Environment" {
+		t.Errorf("Expected name to be preserved, got %q", updatedConfig.Name)
+	}
+
+	if updatedConfig.Image != "mcr.microsoft.com/devcontainers/go:latest" {
+		t.Errorf("Expected image to be preserved, got %q", updatedConfig.Image)
+	}
+
+	// Verify postCreateCommand was updated to include gh-aw
+	if !strings.Contains(updatedConfig.PostCreateCommand, "install-gh-aw.sh") {
+		t.Error("Expected postCreateCommand to include gh-aw installation")
+	}
+	if !strings.Contains(updatedConfig.PostCreateCommand, "echo 'existing setup'") {
+		t.Error("Expected postCreateCommand to preserve existing command")
+	}
+
+	// Verify GitHub Copilot extensions were added
+	hasGitHubCopilot := false
+	hasCopilotChat := false
+	for _, ext := range updatedConfig.Customizations.VSCode.Extensions {
+		if ext == "GitHub.copilot" {
+			hasGitHubCopilot = true
+		}
+		if ext == "GitHub.copilot-chat" {
+			hasCopilotChat = true
+		}
+	}
+	if !hasGitHubCopilot {
+		t.Error("Expected GitHub.copilot extension to be added")
+	}
+	if !hasCopilotChat {
+		t.Error("Expected GitHub.copilot-chat extension to be added")
+	}
+}
+
+func TestEnsureDevcontainerConfigMergesWithExisting(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git and add remote
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run()
+
+	// Create .devcontainer directory
+	devcontainerDir := ".devcontainer"
+	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Create an existing devcontainer.json with custom configuration
+	existingConfig := DevcontainerConfig{
+		Name:  "My Custom Dev Environment",
+		Image: "mcr.microsoft.com/devcontainers/python:3.11",
+		Customizations: &DevcontainerCustomizations{
+			VSCode: &DevcontainerVSCode{
+				Extensions: []string{
+					"ms-python.python",
+					"ms-python.vscode-pylance",
+				},
+			},
+		},
+		Features: DevcontainerFeatures{
+			"ghcr.io/devcontainers/features/docker-in-docker:2": map[string]any{},
+		},
+		PostCreateCommand: "pip install -r requirements.txt",
+	}
+
+	devcontainerPath := filepath.Join(devcontainerDir, "devcontainer.json")
+	data, err := json.MarshalIndent(existingConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal existing config: %v", err)
+	}
+	data = append(data, '\n')
+
+	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
+		t.Fatalf("Failed to write existing config: %v", err)
+	}
+
+	// Run ensureDevcontainerConfig - should merge with existing config
+	err = ensureDevcontainerConfig(false, []string{})
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
+	}
+
+	// Read and verify the merged config
+	mergedData, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read merged config: %v", err)
+	}
+
+	var mergedConfig DevcontainerConfig
+	if err := json.Unmarshal(mergedData, &mergedConfig); err != nil {
+		t.Fatalf("Failed to parse merged config: %v", err)
+	}
+
+	// Verify existing properties were preserved
+	if mergedConfig.Name != "My Custom Dev Environment" {
+		t.Errorf("Expected name to be preserved, got %q", mergedConfig.Name)
+	}
+
+	if mergedConfig.Image != "mcr.microsoft.com/devcontainers/python:3.11" {
+		t.Errorf("Expected image to be preserved, got %q", mergedConfig.Image)
+	}
+
+	// Verify existing extensions were preserved and new ones added
+	extensions := mergedConfig.Customizations.VSCode.Extensions
+	hasPython := false
+	hasPylance := false
+	hasGitHubCopilot := false
+	hasCopilotChat := false
+
+	for _, ext := range extensions {
+		switch ext {
+		case "ms-python.python":
+			hasPython = true
+		case "ms-python.vscode-pylance":
+			hasPylance = true
+		case "GitHub.copilot":
+			hasGitHubCopilot = true
+		case "GitHub.copilot-chat":
+			hasCopilotChat = true
+		}
+	}
+
+	if !hasPython {
+		t.Error("Expected existing ms-python.python extension to be preserved")
+	}
+	if !hasPylance {
+		t.Error("Expected existing ms-python.vscode-pylance extension to be preserved")
+	}
+	if !hasGitHubCopilot {
+		t.Error("Expected GitHub.copilot extension to be added")
+	}
+	if !hasCopilotChat {
+		t.Error("Expected GitHub.copilot-chat extension to be added")
+	}
+
+	// Verify existing features were preserved and new ones added
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/docker-in-docker:2"]; !exists {
+		t.Error("Expected existing docker-in-docker feature to be preserved")
+	}
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/github-cli:1"]; !exists {
+		t.Error("Expected github-cli feature to be added")
+	}
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/copilot-cli:latest"]; !exists {
+		t.Error("Expected copilot-cli feature to be added")
+	}
+
+	// Verify postCreateCommand was updated to include gh-aw
+	if !strings.Contains(mergedConfig.PostCreateCommand, "pip install -r requirements.txt") {
+		t.Error("Expected postCreateCommand to preserve existing command")
+	}
+	if !strings.Contains(mergedConfig.PostCreateCommand, "install-gh-aw.sh") {
+		t.Error("Expected postCreateCommand to include gh-aw installation")
+	}
+
+	// Verify codespaces repository permissions were added
+	if mergedConfig.Customizations.Codespaces == nil {
+		t.Fatal("Expected Codespaces configuration to be added")
+	}
+	if _, exists := mergedConfig.Customizations.Codespaces.Repositories["testorg/testrepo"]; !exists {
+		t.Error("Expected testorg/testrepo to be in repositories")
 	}
 }
 

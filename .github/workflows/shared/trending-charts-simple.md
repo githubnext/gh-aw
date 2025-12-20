@@ -44,7 +44,7 @@ steps:
 
   - name: Install Python scientific libraries
     run: |
-      pip install --user numpy pandas matplotlib seaborn scipy
+      pip install --user --quiet numpy pandas matplotlib seaborn scipy
       
       # Verify installations
       python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"

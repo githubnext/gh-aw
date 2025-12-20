@@ -47,7 +47,7 @@ network:
     - node
 steps:
   - name: Set up Node.js
-    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+    uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm

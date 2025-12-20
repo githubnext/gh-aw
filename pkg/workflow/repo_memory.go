@@ -1,3 +1,19 @@
+// Package workflow provides repository memory configuration and validation.
+//
+// This file handles:
+//   - Repo-memory configuration structures and defaults
+//   - Repo-memory tool configuration extraction and parsing
+//   - Generation of per-memory GitHub token secrets
+//   - Domain-specific validation for repo-memory configurations
+//
+// # Validation Functions
+//
+// This file contains domain-specific validation functions for repo-memory:
+//   - validateNoDuplicateMemoryIDs() - Ensures unique memory identifiers
+//
+// These validation functions are co-located with repo-memory logic following the
+// principle that domain-specific validation belongs in domain files. See validation.go
+// for the validation architecture documentation.
 package workflow
 
 import (

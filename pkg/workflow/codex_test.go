@@ -116,7 +116,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Install Codex") {
 					t.Errorf("Expected lock file to contain 'Install Codex' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "npm install -g @openai/codex") {
+				if !strings.Contains(lockContent, "npm install -g --silent @openai/codex") {
 					t.Errorf("Expected lock file to contain codex installation command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that codex command is present
@@ -171,7 +171,7 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check for installation step (npm install)
-				expectedClaudeInstall := fmt.Sprintf("npm install -g @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
+				expectedClaudeInstall := fmt.Sprintf("npm install -g --silent @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
 				if !strings.Contains(lockContent, expectedClaudeInstall) {
 					t.Errorf("Expected lock file to contain npm install command (%s) but it didn't.\nContent:\n%s", expectedClaudeInstall, lockContent)
 				}
@@ -458,7 +458,7 @@ This is a test workflow for MCP configuration with different AI engines.
 					t.Errorf("Expected claude command but didn't find it in:\n%s", lockContent)
 				}
 				// Check for npm install
-				if !strings.Contains(lockContent, "npm install -g @anthropic-ai/claude-code") {
+				if !strings.Contains(lockContent, "npm install -g --silent @anthropic-ai/claude-code") {
 					t.Errorf("Expected npm install command but didn't find it in:\n%s", lockContent)
 				}
 			}

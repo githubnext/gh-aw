@@ -23,3 +23,6 @@ export GOOGLE_APPLICATION_CREDENTIALS=.credentials/vertex_api.json
 export CLAUDE_CODE_USE_VERTEX=1
 export CLOUD_ML_REGION=us-east5
 export ANTHROPIC_VERTEX_PROJECT_ID=github-next
+
+# install uvx
+curl -LsSf https://astral.sh/uv/install.sh | sh

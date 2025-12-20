@@ -46,87 +46,42 @@ type DevcontainerConfig struct {
 	PostCreateCommand string                      `json:"postCreateCommand,omitempty"`
 }
 
-// ensureDevcontainerConfig creates or updates .devcontainer/gh-aw/devcontainer.json
+// ensureDevcontainerConfig creates or updates devcontainer.json
+// If .devcontainer/devcontainer.json exists, it updates it with gh-aw configuration.
+// If it doesn't exist, it creates it at the default location.
 func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
-	devcontainerLog.Printf("Creating or updating .devcontainer/gh-aw/devcontainer.json with additional repos: %v", additionalRepos)
+	devcontainerLog.Printf("Creating or updating devcontainer.json with additional repos: %v", additionalRepos)
 
-	// Create .devcontainer/gh-aw directory if it doesn't exist
-	// Using a subdirectory to avoid overriding existing devcontainer.json files
-	devcontainerDir := filepath.Join(".devcontainer", "gh-aw")
+	// Check for existing devcontainer at default location first
+	defaultDevcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
+	devcontainerPath := defaultDevcontainerPath
+
+	// Create .devcontainer directory if it doesn't exist
+	devcontainerDir := ".devcontainer"
 	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .devcontainer/gh-aw directory: %w", err)
+		return fmt.Errorf("failed to create .devcontainer directory: %w", err)
 	}
 	devcontainerLog.Printf("Ensured directory exists: %s", devcontainerDir)
 
-	devcontainerPath := filepath.Join(devcontainerDir, "devcontainer.json")
-
-	// Check if file already exists
+	// Check if file already exists at default location
+	var existingConfig *DevcontainerConfig
 	if _, err := os.Stat(devcontainerPath); err == nil {
 		devcontainerLog.Printf("File already exists: %s", devcontainerPath)
 
-		// Read existing config to check if we need to update copilot-cli version
+		// Read existing config to update it
 		existingData, err := os.ReadFile(devcontainerPath)
 		if err != nil {
 			devcontainerLog.Printf("Failed to read existing config: %v", err)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
-			}
-			return nil
+			return fmt.Errorf("failed to read existing devcontainer.json: %w", err)
 		}
 
-		var existingConfig DevcontainerConfig
-		if err := json.Unmarshal(existingData, &existingConfig); err != nil {
+		var config DevcontainerConfig
+		if err := json.Unmarshal(existingData, &config); err != nil {
 			devcontainerLog.Printf("Failed to parse existing config: %v", err)
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
-			}
-			return nil
+			return fmt.Errorf("failed to parse existing devcontainer.json: %w", err)
 		}
-
-		// Check if copilot-cli feature exists with a different version
-		needsUpdate := false
-		if existingConfig.Features != nil {
-			for key := range existingConfig.Features {
-				// Check if this is a copilot-cli feature with a different version
-				if strings.HasPrefix(key, "ghcr.io/devcontainers/features/copilot-cli:") && key != "ghcr.io/devcontainers/features/copilot-cli:latest" {
-					needsUpdate = true
-					// Remove the old version
-					delete(existingConfig.Features, key)
-					devcontainerLog.Printf("Removing old copilot-cli version: %s", key)
-					break
-				}
-			}
-		}
-
-		if needsUpdate {
-			// Add the latest version
-			if existingConfig.Features == nil {
-				existingConfig.Features = make(DevcontainerFeatures)
-			}
-			existingConfig.Features["ghcr.io/devcontainers/features/copilot-cli:latest"] = map[string]any{}
-			devcontainerLog.Printf("Updated copilot-cli to :latest version")
-
-			// Write updated config
-			updatedData, err := json.MarshalIndent(existingConfig, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to marshal updated devcontainer.json: %w", err)
-			}
-			updatedData = append(updatedData, '\n')
-
-			if err := os.WriteFile(devcontainerPath, updatedData, 0644); err != nil {
-				return fmt.Errorf("failed to write updated devcontainer.json: %w", err)
-			}
-			devcontainerLog.Printf("Updated file: %s", devcontainerPath)
-
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Updated copilot-cli to :latest in %s\n", devcontainerPath)
-			}
-		} else {
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Devcontainer already exists at %s (skipping)\n", devcontainerPath)
-			}
-		}
-		return nil
+		existingConfig = &config
+		devcontainerLog.Printf("Successfully parsed existing devcontainer.json")
 	}
 
 	// Get current repository name from git remote
@@ -138,6 +93,115 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 	// Get the owner from the current repository
 	owner := getRepoOwner()
 
+	// Prepare gh-aw specific configuration
+	ghAwRepositories := buildRepositoryPermissions(repoName, owner, additionalRepos)
+
+	var config DevcontainerConfig
+
+	if existingConfig != nil {
+		// Update existing configuration
+		devcontainerLog.Printf("Updating existing devcontainer.json")
+		config = *existingConfig
+
+		// Ensure customizations exists
+		if config.Customizations == nil {
+			config.Customizations = &DevcontainerCustomizations{}
+		}
+
+		// Merge VSCode extensions
+		if config.Customizations.VSCode == nil {
+			config.Customizations.VSCode = &DevcontainerVSCode{}
+		}
+		config.Customizations.VSCode.Extensions = mergeExtensions(
+			config.Customizations.VSCode.Extensions,
+			[]string{"GitHub.copilot", "GitHub.copilot-chat"},
+		)
+
+		// Merge Codespaces repositories
+		if config.Customizations.Codespaces == nil {
+			config.Customizations.Codespaces = &DevcontainerCodespaces{
+				Repositories: make(map[string]DevcontainerRepoPermissions),
+			}
+		}
+		if config.Customizations.Codespaces.Repositories == nil {
+			config.Customizations.Codespaces.Repositories = make(map[string]DevcontainerRepoPermissions)
+		}
+		for repo, perms := range ghAwRepositories {
+			config.Customizations.Codespaces.Repositories[repo] = perms
+			devcontainerLog.Printf("Updated permissions for repo: %s", repo)
+		}
+
+		// Merge features
+		if config.Features == nil {
+			config.Features = make(DevcontainerFeatures)
+		}
+		mergeFeatures(config.Features, map[string]any{
+			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
+			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
+		})
+
+		// Update postCreateCommand if not set or if it doesn't include gh-aw install
+		if config.PostCreateCommand == "" || !strings.Contains(config.PostCreateCommand, "install-gh-aw.sh") {
+			ghAwInstall := "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
+			if config.PostCreateCommand == "" {
+				config.PostCreateCommand = ghAwInstall
+			} else {
+				config.PostCreateCommand = config.PostCreateCommand + " && " + ghAwInstall
+			}
+			devcontainerLog.Printf("Updated postCreateCommand to include gh-aw installation")
+		}
+
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Updated existing devcontainer at %s\n", devcontainerPath)
+		}
+	} else {
+		// Create new configuration
+		devcontainerLog.Printf("Creating new devcontainer.json at default location")
+		config = DevcontainerConfig{
+			Name:  "Agentic Workflows Development",
+			Image: "mcr.microsoft.com/devcontainers/universal:latest",
+			Customizations: &DevcontainerCustomizations{
+				VSCode: &DevcontainerVSCode{
+					Extensions: []string{
+						"GitHub.copilot",
+						"GitHub.copilot-chat",
+					},
+				},
+				Codespaces: &DevcontainerCodespaces{
+					Repositories: ghAwRepositories,
+				},
+			},
+			Features: DevcontainerFeatures{
+				"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
+				"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
+			},
+			PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+		}
+
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Created new devcontainer at %s\n", devcontainerPath)
+		}
+	}
+
+	// Write config file with proper indentation
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal devcontainer.json: %w", err)
+	}
+
+	// Add newline at end of file
+	data = append(data, '\n')
+
+	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write devcontainer.json: %w", err)
+	}
+	devcontainerLog.Printf("Wrote file: %s", devcontainerPath)
+
+	return nil
+}
+
+// buildRepositoryPermissions creates the repository permissions map for gh-aw
+func buildRepositoryPermissions(repoName, owner string, additionalRepos []string) map[string]DevcontainerRepoPermissions {
 	// Create repository permissions map
 	// Reference: https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces
 	// Default codespace permissions are read/write to the repository from which it was created.
@@ -176,7 +240,9 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 			if len(parts) >= 2 {
 				repoOwner := parts[0]
 				if owner != "" && repoOwner != owner {
-					return fmt.Errorf("repository '%s' is not in the same organization as the current repository (expected owner: '%s')", repo, owner)
+					// Skip repos with different owners rather than error
+					devcontainerLog.Printf("Skipping repository '%s' - different owner than current repo (expected: '%s')", repo, owner)
+					continue
 				}
 			}
 		} else if owner != "" {
@@ -198,43 +264,48 @@ func ensureDevcontainerConfig(verbose bool, additionalRepos []string) error {
 		}
 	}
 
-	// Create devcontainer configuration
-	config := DevcontainerConfig{
-		Name:  "Agentic Workflows Development",
-		Image: "mcr.microsoft.com/devcontainers/universal:latest",
-		Customizations: &DevcontainerCustomizations{
-			VSCode: &DevcontainerVSCode{
-				Extensions: []string{
-					"GitHub.copilot",
-					"GitHub.copilot-chat",
-				},
-			},
-			Codespaces: &DevcontainerCodespaces{
-				Repositories: repositories,
-			},
-		},
-		Features: DevcontainerFeatures{
-			"ghcr.io/devcontainers/features/github-cli:1":       map[string]any{},
-			"ghcr.io/devcontainers/features/copilot-cli:latest": map[string]any{},
-		},
-		PostCreateCommand: "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+	return repositories
+}
+
+// mergeExtensions adds new extensions to existing list, avoiding duplicates
+func mergeExtensions(existing, toAdd []string) []string {
+	extensionSet := make(map[string]bool)
+	result := make([]string, 0, len(existing)+len(toAdd))
+
+	// Add existing extensions
+	for _, ext := range existing {
+		if !extensionSet[ext] {
+			extensionSet[ext] = true
+			result = append(result, ext)
+		}
 	}
 
-	// Write config file with proper indentation
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal devcontainer.json: %w", err)
+	// Add new extensions if not already present
+	for _, ext := range toAdd {
+		if !extensionSet[ext] {
+			extensionSet[ext] = true
+			result = append(result, ext)
+		}
 	}
 
-	// Add newline at end of file
-	data = append(data, '\n')
+	return result
+}
 
-	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write devcontainer.json: %w", err)
+// mergeFeatures adds new features to existing features map, updating old copilot-cli versions
+func mergeFeatures(existing DevcontainerFeatures, toAdd map[string]any) {
+	// First, remove old copilot-cli versions
+	for key := range existing {
+		if strings.HasPrefix(key, "ghcr.io/devcontainers/features/copilot-cli:") &&
+			key != "ghcr.io/devcontainers/features/copilot-cli:latest" {
+			delete(existing, key)
+			devcontainerLog.Printf("Removed old copilot-cli version: %s", key)
+		}
 	}
-	devcontainerLog.Printf("Created file: %s", devcontainerPath)
 
-	return nil
+	// Add new features
+	for key, value := range toAdd {
+		existing[key] = value
+	}
 }
 
 // getCurrentRepoName gets the current repository name from git remote in owner/repo format

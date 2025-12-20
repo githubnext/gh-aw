@@ -656,8 +656,8 @@ func TestInitRepositoryWithCodespace(t *testing.T) {
 		t.Fatalf("InitRepository() with codespaces failed: %v", err)
 	}
 
-	// Verify .devcontainer/devcontainer.json was created
-	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	// Verify .devcontainer/devcontainer.json was created at default location
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
 		t.Error("Expected .devcontainer/devcontainer.json to be created")
 	}
@@ -721,10 +721,10 @@ func TestInitCommandWithCodespacesNoArgs(t *testing.T) {
 		t.Fatalf("InitRepository() with codespaces (no args) failed: %v", err)
 	}
 
-	// Verify .devcontainer/gh-aw/devcontainer.json was created
-	devcontainerPath := filepath.Join(".devcontainer", "gh-aw", "devcontainer.json")
+	// Verify .devcontainer/devcontainer.json was created at default location
+	devcontainerPath := filepath.Join(".devcontainer", "devcontainer.json")
 	if _, err := os.Stat(devcontainerPath); os.IsNotExist(err) {
-		t.Error("Expected .devcontainer/gh-aw/devcontainer.json to be created")
+		t.Error("Expected .devcontainer/devcontainer.json to be created")
 	}
 
 	// Verify only current repo is configured

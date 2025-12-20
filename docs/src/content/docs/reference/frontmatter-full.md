@@ -744,9 +744,6 @@ permissions:
   pull-requests: "read"
 
   # (optional)
-  repository-projects: "read"
-
-  # (optional)
   security-events: "read"
 
   # (optional)
@@ -1786,10 +1783,12 @@ safe-outputs:
   # is update-only: if the project does not exist, the job fails with instructions
   # to create it manually. To allow workflows to create missing projects, explicitly
   # opt in via the agent output field create_if_missing=true (and/or provide a
-  # github-token override). Requires repository-projects: write permission. Safe
-  # output items produced by the agent use type=update_project and may include:
-  # project (board name), content_type (issue|pull_request), content_number, fields,
-  # campaign_id, and create_if_missing.
+  # github-token override). NOTE: Projects v2 requires a Personal Access Token (PAT)
+  # or GitHub App token with appropriate permissions; the GITHUB_TOKEN cannot be
+  # used for Projects v2. Safe output items produced by the agent use
+  # type=update_project and may include: project (board name), content_type
+  # (issue|pull_request), content_number, fields, campaign_id, and
+  # create_if_missing.
   update-project:
     # Maximum number of project operations to perform (default: 10). Each operation
     # may add a project item, or update its fields.
