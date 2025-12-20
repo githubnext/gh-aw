@@ -87,7 +87,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 				"cron": parsedCron,
 			},
 		}
-		
+
 		// Replace the simple "on: schedule" with expanded format
 		onMap := map[string]any{
 			"schedule":          scheduleArray,

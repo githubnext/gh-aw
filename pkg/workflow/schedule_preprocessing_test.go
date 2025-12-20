@@ -8,12 +8,12 @@ import (
 
 func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 	tests := []struct {
-		name                 string
-		frontmatter          map[string]any
-		checkScattered       bool // Check if fuzzy was scattered to valid cron
-		expectedCron         string
-		expectedError        bool
-		errorSubstring       string
+		name                   string
+		frontmatter            map[string]any
+		checkScattered         bool // Check if fuzzy was scattered to valid cron
+		expectedCron           string
+		expectedError          bool
+		errorSubstring         string
 		expectWorkflowDispatch bool
 	}{
 		{
@@ -21,7 +21,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "daily",
 			},
-			checkScattered:       true, // Fuzzy schedule, should be scattered
+			checkScattered:         true, // Fuzzy schedule, should be scattered
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -29,7 +29,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "weekly",
 			},
-			checkScattered:       true, // Fuzzy schedule, should be scattered
+			checkScattered:         true, // Fuzzy schedule, should be scattered
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -37,7 +37,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "daily at 14:00",
 			},
-			expectedCron:         "0 14 * * *",
+			expectedCron:           "0 14 * * *",
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -45,7 +45,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "weekly on monday",
 			},
-			checkScattered:       true, // Fuzzy schedule, should be scattered
+			checkScattered:         true, // Fuzzy schedule, should be scattered
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -53,7 +53,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "every 10 minutes",
 			},
-			expectedCron:         "*/10 * * * *",
+			expectedCron:           "*/10 * * * *",
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -61,7 +61,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "0 9 * * 1",
 			},
-			expectedCron:         "0 9 * * 1",
+			expectedCron:           "0 9 * * 1",
 			expectWorkflowDispatch: true,
 		},
 		{
@@ -69,7 +69,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "push",
 			},
-			expectedCron:         "",
+			expectedCron:           "",
 			expectWorkflowDispatch: false,
 		},
 		{
@@ -77,7 +77,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "invalid schedule format",
 			},
-			expectedCron:         "",
+			expectedCron:           "",
 			expectWorkflowDispatch: false,
 		},
 	}
@@ -88,7 +88,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			// Set workflow identifier for fuzzy schedule scattering
 			// (required for all schedule tests to avoid fuzzy schedule errors)
 			compiler.SetWorkflowIdentifier("test-workflow.md")
-			
+
 			err := compiler.preprocessScheduleFields(tt.frontmatter)
 
 			if tt.expectedError {
