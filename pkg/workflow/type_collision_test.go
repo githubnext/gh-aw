@@ -114,9 +114,9 @@ func TestKnownTypeDistinctions(t *testing.T) {
 			"Workflow",            // Workflow structure for Copilot setup
 		},
 		"workflow": {
-			"WorkflowStep",              // Full step type for workflow compilation
-			"ValidatableTool",           // Interface for tool validation
-			"GitHubToolConfig",          // GitHub tool configuration
+			"WorkflowStep",                // Full step type for workflow compilation
+			"ValidatableTool",             // Interface for tool validation
+			"GitHubToolConfig",            // GitHub tool configuration
 			"PermissionsValidationResult", // Validation result type
 		},
 		"constants": {

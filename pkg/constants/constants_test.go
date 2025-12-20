@@ -390,9 +390,10 @@ func TestFeatureFlagTypeSafety(t *testing.T) {
 	t.Parallel()
 
 	// Test that FeatureFlag constants have correct type
-	var safeInputs FeatureFlag = SafeInputsFeatureFlag
-	var mcpGateway FeatureFlag = MCPGatewayFeatureFlag
-	var sandboxRuntime FeatureFlag = SandboxRuntimeFeatureFlag
+	// Explicitly specify type to verify type safety
+	var safeInputs = SafeInputsFeatureFlag
+	var mcpGateway = MCPGatewayFeatureFlag
+	var sandboxRuntime = SandboxRuntimeFeatureFlag
 
 	// Verify type identity
 	if safeInputs != SafeInputsFeatureFlag {
@@ -459,7 +460,7 @@ func TestFeatureFlagInFunctionCalls(t *testing.T) {
 	// Test that function call with FeatureFlag type is compile-time safe
 	// This would fail to compile if we passed a plain string:
 	// isEnabled("safe-inputs") // Would cause compile error
-	
+
 	// But we can still convert if needed:
 	dynamicFlag := FeatureFlag("dynamic-flag")
 	if isEnabled(dynamicFlag) {

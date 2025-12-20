@@ -435,12 +435,12 @@ func TestValidatableToolInterfaceWithValidation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name              string
-		permissions       *Permissions
-		tool              ValidatableTool
-		expectMissing     int
-		expectReadOnly    bool
-		expectHasIssues   bool
+		name            string
+		permissions     *Permissions
+		tool            ValidatableTool
+		expectMissing   int
+		expectReadOnly  bool
+		expectHasIssues bool
 	}{
 		{
 			name:        "Interface with read-write config",
@@ -537,8 +537,6 @@ func TestValidatableToolTypeExpansion(t *testing.T) {
 
 	emptyToolsets := emptyConfig.GetToolsets()
 	// Empty toolset should be expanded by expandDefaultToolset
-	if emptyToolsets == "" {
-		// This is expected if expandDefaultToolset returns empty for empty input
-		// The actual behavior depends on expandDefaultToolset implementation
-	}
+	// The actual behavior depends on expandDefaultToolset implementation
+	_ = emptyToolsets // Just verify it doesn't panic
 }
