@@ -11599,10 +11599,16 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_ID: "agent"
+          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
           GH_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
           GH_AW_PR_LABELS: "poetry,automation,creative-writing"
           GH_AW_PR_DRAFT: "false"
+          GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: "gpt-5"
