@@ -1,11 +1,5 @@
 {
     "github.copilot.enable": {
         "markdown": true
-    },
-    "yaml.completion": true,
-    "yaml.hover": true,
-    "yaml.schemas": {
-        "./.github/aw/schemas/agentic-workflow.json": ".github/workflows/*.md"
-    },
-    "yaml.validate": true
+    }
 }
