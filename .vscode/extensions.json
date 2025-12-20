@@ -1,6 +1,7 @@
 {
     "recommendations": [
         "astro-build.astro-vscode",
-        "davidanson.vscode-markdownlint"
+        "davidanson.vscode-markdownlint",
+        "redhat.vscode-yaml"
     ]
 }

@@ -24,6 +24,7 @@ This command:
 - Creates the agent for workflow creation at .github/agents/create-agentic-workflow.agent.md
 - Creates the debug agentic workflow agent at .github/agents/debug-agentic-workflow.agent.md
 - Removes old prompt files from .github/prompts/ if they exist
+- Configures VSCode YAML schema validation (.github/aw/schemas/agentic-workflow.json, .vscode/settings.json, .vscode/extensions.json)
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
