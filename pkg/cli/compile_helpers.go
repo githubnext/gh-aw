@@ -402,7 +402,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCount int) {
 	// Add to FailedWorkflows for backward compatibility
 	stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(workflowPath))
-	
+
 	// Add detailed failure information
 	stats.FailureDetails = append(stats.FailureDetails, WorkflowFailure{
 		Path:       workflowPath,
