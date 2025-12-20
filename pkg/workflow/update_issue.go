@@ -16,21 +16,25 @@ type UpdateIssuesConfig struct {
 
 // parseUpdateIssuesConfig handles update-issue configuration
 func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
-	// Parse base configuration using helper
-	baseConfig, configMap := c.parseUpdateEntityBase(outputMap, UpdateEntityIssue, "update-issue", updateIssueLog)
+	// Create config struct
+	cfg := &UpdateIssuesConfig{}
+
+	// Parse base config and entity-specific fields using generic helper
+	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
+		EntityType: UpdateEntityIssue,
+		ConfigKey:  "update-issue",
+		Logger:     updateIssueLog,
+		Fields: []UpdateEntityFieldSpec{
+			{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
+			{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+			{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+		},
+	})
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdateIssuesConfig with base fields
-	updateIssuesConfig := &UpdateIssuesConfig{
-		UpdateEntityConfig: *baseConfig,
-	}
-
-	// Parse issue-specific fields using key existence mode
-	updateIssuesConfig.Status = parseUpdateEntityBoolField(configMap, "status", FieldParsingKeyExistence)
-	updateIssuesConfig.Title = parseUpdateEntityBoolField(configMap, "title", FieldParsingKeyExistence)
-	updateIssuesConfig.Body = parseUpdateEntityBoolField(configMap, "body", FieldParsingKeyExistence)
-
-	return updateIssuesConfig
+	// Set base fields
+	cfg.UpdateEntityConfig = *baseConfig
+	return cfg
 }

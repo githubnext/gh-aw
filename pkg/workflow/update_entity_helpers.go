@@ -174,3 +174,63 @@ func parseUpdateEntityBoolField(configMap map[string]any, fieldName string, mode
 		return nil
 	}
 }
+
+// UpdateEntityFieldSpec defines a boolean field to be parsed from config
+type UpdateEntityFieldSpec struct {
+	Name string           // Field name in config (e.g., "title", "body", "status")
+	Mode FieldParsingMode // Parsing mode for this field
+	Dest **bool           // Pointer to the destination field in the config struct
+}
+
+// UpdateEntityParseOptions holds options for parsing entity-specific configuration
+type UpdateEntityParseOptions struct {
+	EntityType   UpdateEntityType        // Type of entity being parsed
+	ConfigKey    string                  // Config key (e.g., "update-issue")
+	Logger       *logger.Logger          // Logger for this entity type
+	Fields       []UpdateEntityFieldSpec // Field specifications to parse
+	CustomParser func(map[string]any)    // Optional custom field parser
+}
+
+// parseUpdateEntityConfigWithFields is a generic helper that reduces scaffolding duplication
+// across update entity parsers by handling:
+// 1. Calling parseUpdateEntityBase to get base config and config map
+// 2. Parsing entity-specific bool fields according to field specs
+// 3. Calling optional custom parser for special fields
+//
+// This eliminates the repetitive pattern of:
+//
+//	baseConfig, configMap := c.parseUpdateEntityBase(...)
+//	if baseConfig == nil { return nil }
+//	cfg := &SpecificConfig{UpdateEntityConfig: *baseConfig}
+//	cfg.Field1 = parseUpdateEntityBoolField(configMap, "field1", mode)
+//	cfg.Field2 = parseUpdateEntityBoolField(configMap, "field2", mode)
+//	...
+//
+// Returns nil if parsing fails, otherwise parsing is done in-place via field specs.
+func (c *Compiler) parseUpdateEntityConfigWithFields(
+	outputMap map[string]any,
+	opts UpdateEntityParseOptions,
+) (*UpdateEntityConfig, map[string]any) {
+	// Parse base configuration using helper
+	baseConfig, configMap := c.parseUpdateEntityBase(
+		outputMap,
+		opts.EntityType,
+		opts.ConfigKey,
+		opts.Logger,
+	)
+	if baseConfig == nil {
+		return nil, nil
+	}
+
+	// Parse entity-specific bool fields according to specs
+	for _, field := range opts.Fields {
+		*field.Dest = parseUpdateEntityBoolField(configMap, field.Name, field.Mode)
+	}
+
+	// Call custom parser if provided (e.g., for AllowedLabels in discussions)
+	if opts.CustomParser != nil && configMap != nil {
+		opts.CustomParser(configMap)
+	}
+
+	return baseConfig, configMap
+}
