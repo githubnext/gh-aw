@@ -88,10 +88,10 @@ Configuration format:
 }
 
 Examples:
-  gh aw mcp-gateway --config config.json                    # From file
-  gh aw mcp-gateway --port 8080                             # From stdin
-  echo '{"mcpServers":{...}}' | gh aw mcp-gateway           # Pipe config
-  gh aw mcp-gateway --config config.json --log-dir /tmp/logs # Custom log dir`,
+  awmg --config config.json                    # From file
+  awmg --port 8080                             # From stdin
+  echo '{"mcpServers":{...}}' | awmg           # Pipe config
+  awmg --config config.json --log-dir /tmp/logs # Custom log dir`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMCPGateway(configFile, port, logDir)
 		},

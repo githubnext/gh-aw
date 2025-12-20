@@ -1,6 +1,6 @@
 # MCP Gateway Implementation Summary
 
-This document summarizes the implementation of the `gh aw mcp-gateway` command as requested in the problem statement.
+This document summarizes the implementation of the `awmg` command as requested in the problem statement.
 
 ## Problem Statement Requirements
 
@@ -130,17 +130,17 @@ The gateway accepts configuration matching Claude/Copilot format:
 
 **From file**:
 ```bash
-gh aw mcp-gateway --config examples/mcp-gateway-config.json
+awmg --config examples/mcp-gateway-config.json
 ```
 
 **From stdin**:
 ```bash
-echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | gh aw mcp-gateway
+echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | awmg
 ```
 
 **Custom port and logs**:
 ```bash
-gh aw mcp-gateway --config config.json --port 8088 --log-dir /custom/logs
+awmg --config config.json --port 8088 --log-dir /custom/logs
 ```
 
 ### 10. Smoke Testing
@@ -162,7 +162,7 @@ features:
 steps:
   - name: Start MCP Gateway
     run: |
-      echo '{"mcpServers":{...}}' | gh aw mcp-gateway --port 8080 &
+      echo '{"mcpServers":{...}}' | awmg --port 8080 &
       sleep 2
 ```
 

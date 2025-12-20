@@ -1,6 +1,6 @@
 # MCP Gateway Command
 
-The `gh aw mcp-gateway` command implements a minimal MCP proxy application that aggregates multiple MCP servers into a single HTTP gateway.
+The MCP gateway is implemented as a standalone `awmg` binary that aggregates multiple MCP servers into a single HTTP gateway.
 
 ## Features
 
@@ -17,13 +17,13 @@ The `gh aw mcp-gateway` command implements a minimal MCP proxy application that 
 
 ```bash
 # From stdin (reads JSON config from standard input)
-echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | gh aw mcp-gateway
+echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | awmg
 
 # From config file
-gh aw mcp-gateway --config config.json
+awmg --config config.json
 
 # Custom port and log directory
-gh aw mcp-gateway --config config.json --port 8088 --log-dir /custom/logs
+awmg --config config.json --port 8088 --log-dir /custom/logs
 ```
 
 ### Configuration Format
