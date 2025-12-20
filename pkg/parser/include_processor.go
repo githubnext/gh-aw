@@ -1,0 +1,238 @@
+package parser
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+)
+
+// ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
+// This matches the bash process_includes function behavior
+func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
+	visited := make(map[string]bool)
+	return processIncludesWithVisited(content, baseDir, extractTools, visited)
+}
+
+// processIncludesWithVisited processes import directives with cycle detection
+func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	var result bytes.Buffer
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			// Emit deprecation warning for legacy syntax
+			if directive.IsLegacy {
+				// Security: Escape strings to prevent quote injection in warning messages
+				// Use %q format specifier to safely quote strings containing special characters
+				optionalMarker := ""
+				if directive.IsOptional {
+					optionalMarker = "?"
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. Use {{#import%s %s}} instead.",
+					directive.Original,
+					optionalMarker,
+					directive.Path)))
+			}
+
+			isOptional := directive.IsOptional
+			includePath := directive.Path
+
+			// Handle section references (file.md#Section)
+			var filePath, sectionName string
+			if strings.Contains(includePath, "#") {
+				parts := strings.SplitN(includePath, "#", 2)
+				filePath = parts[0]
+				sectionName = parts[1]
+			} else {
+				filePath = includePath
+			}
+
+			// Resolve file path first to get the canonical path
+			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+			if err != nil {
+				if isOptional {
+					// For optional includes, show a friendly informational message to stdout
+					if !extractTools {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Optional include file not found: %s. You can create this file to configure the workflow.", filePath)))
+					}
+					continue
+				}
+				// For required includes, fail compilation with an error
+				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+			}
+
+			// Check for repeated imports using the resolved full path
+			if visited[fullPath] {
+				if !extractTools {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
+				}
+				continue
+			}
+
+			// Mark as visited using the resolved full path
+			visited[fullPath] = true
+
+			// Process the included file
+			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, visited)
+			if err != nil {
+				// For any processing errors, fail compilation
+				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
+			}
+
+			if extractTools {
+				// For tools mode, add each JSON on a separate line
+				result.WriteString(includedContent + "\n")
+			} else {
+				result.WriteString(includedContent)
+			}
+		} else {
+			// Regular line, just pass through (unless extracting tools)
+			if !extractTools {
+				result.WriteString(line + "\n")
+			}
+		}
+	}
+
+	return result.String(), nil
+}
+
+// processIncludedFile processes a single included file, optionally extracting a section
+// processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
+func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, visited map[string]bool) (string, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
+	}
+
+	// Validate included file frontmatter based on file location
+	result, err := ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "", fmt.Errorf("failed to extract frontmatter from included file %s: %w", filePath, err)
+	}
+
+	// Check if file is under .github/workflows/ for strict validation
+	isWorkflowFile := isUnderWorkflowsDirectory(filePath)
+
+	// Always try strict validation first
+	validationErr := ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
+
+	if validationErr != nil {
+		if isWorkflowFile {
+			// For workflow files, strict validation must pass
+			return "", fmt.Errorf("invalid frontmatter in included file %s: %w", filePath, validationErr)
+		} else {
+			// For non-workflow files, fall back to relaxed validation with warnings
+			if len(result.Frontmatter) > 0 {
+				// Valid fields for non-workflow frontmatter (fields that should not trigger warnings)
+				// This list should match the properties defined in included_file_schema.json
+				validFields := map[string]bool{
+					"tools":          true,
+					"engine":         true,
+					"network":        true,
+					"mcp-servers":    true,
+					"imports":        true,
+					"name":           true,
+					"description":    true,
+					"steps":          true,
+					"safe-outputs":   true,
+					"safe-inputs":    true,
+					"services":       true,
+					"runtimes":       true,
+					"permissions":    true,
+					"secret-masking": true,
+					"applyTo":        true,
+					"inputs":         true,
+				}
+
+				// Check for unexpected frontmatter fields
+				unexpectedFields := make([]string, 0)
+				for key := range result.Frontmatter {
+					if !validFields[key] {
+						unexpectedFields = append(unexpectedFields, key)
+					}
+				}
+
+				if len(unexpectedFields) > 0 {
+					// Show warning for unexpected frontmatter fields
+					fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
+						fmt.Sprintf("Ignoring unexpected frontmatter fields in %s: %s",
+							filePath, strings.Join(unexpectedFields, ", "))))
+				}
+
+				// Validate the tools, engine, network, and mcp-servers sections if present
+				filteredFrontmatter := map[string]any{}
+				if tools, hasTools := result.Frontmatter["tools"]; hasTools {
+					filteredFrontmatter["tools"] = tools
+				}
+				if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
+					filteredFrontmatter["engine"] = engine
+				}
+				if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
+					filteredFrontmatter["network"] = network
+				}
+				if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
+					filteredFrontmatter["mcp-servers"] = mcpServers
+				}
+				// Note: we don't validate imports field as it's handled separately
+				if len(filteredFrontmatter) > 0 {
+					if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
+						fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
+							fmt.Sprintf("Invalid configuration in %s: %v", filePath, err)))
+					}
+				}
+			}
+		}
+	}
+
+	if extractTools {
+		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
+		if validationErr == nil || isWorkflowFile {
+			// If validation passed or it's a workflow file (which must have valid frontmatter), use original extraction
+			return extractToolsFromContent(string(content))
+		} else {
+			// For non-workflow files with validation errors, only extract tools section
+			if tools, hasTools := result.Frontmatter["tools"]; hasTools {
+				toolsJSON, err := json.Marshal(tools)
+				if err != nil {
+					return "{}", nil
+				}
+				return strings.TrimSpace(string(toolsJSON)), nil
+			}
+			return "{}", nil
+		}
+	}
+
+	// Extract markdown content
+	markdownContent, err := ExtractMarkdownContent(string(content))
+	if err != nil {
+		return "", fmt.Errorf("failed to extract markdown from %s: %w", filePath, err)
+	}
+
+	// Process nested includes recursively
+	includedDir := filepath.Dir(filePath)
+	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited)
+	if err != nil {
+		return "", fmt.Errorf("failed to process nested includes in %s: %w", filePath, err)
+	}
+
+	// If section specified, extract only that section
+	if sectionName != "" {
+		sectionContent, err := ExtractMarkdownSection(markdownContent, sectionName)
+		if err != nil {
+			return "", fmt.Errorf("failed to extract section '%s' from %s: %w", sectionName, filePath, err)
+		}
+		return strings.Trim(sectionContent, "\n") + "\n", nil
+	}
+
+	return strings.Trim(markdownContent, "\n") + "\n", nil
+}
