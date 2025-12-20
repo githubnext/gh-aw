@@ -79,7 +79,7 @@ The hierarchical agent system consists of specialized meta-orchestrator workflow
 - Generate quality improvement recommendations
 - Track agent performance trends
 
-**Schedule:** Weekly
+**Schedule:** Daily
 
 **Key Capabilities:**
 - Quality assessment across all agent outputs

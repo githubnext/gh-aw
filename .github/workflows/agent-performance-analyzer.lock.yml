@@ -22,7 +22,7 @@
 # Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
 
 name: "Agent Performance Analyzer - Meta-Orchestrator"
-"on": weekly
+"on": daily
 
 permissions: {}
 

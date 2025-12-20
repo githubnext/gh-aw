@@ -1,6 +1,6 @@
 ---
 description: Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
-on: weekly
+on: daily
 permissions:
   contents: read
   issues: read

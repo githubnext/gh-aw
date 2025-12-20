@@ -71,7 +71,7 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ### 3. Agent Performance Analyzer 📈
 **What it does:** Evaluates agent quality like a quality assurance team
 
-**When it runs:** Weekly
+**When it runs:** Daily
 
 **What you'll see:**
 - Performance report discussion with agent rankings
@@ -95,7 +95,7 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ```
 
 **When to check it:**
-- Weekly during agent reviews
+- Daily during agent reviews
 - When evaluating agent effectiveness
 - Before creating new agents (learn from patterns)
 
@@ -107,11 +107,11 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 1. Check Workflow Health Dashboard pinned issue
 2. Address P0/P1 issues immediately
 3. Review Campaign Manager report if campaigns are active
+4. Review Agent Performance Report discussion
 
 **Weekly:**
-1. Read Agent Performance Report discussion
-2. Review and prioritize improvement issues
-3. Update agent prompts based on recommendations
+1. Review and prioritize improvement issues
+2. Update agent prompts based on recommendations
 
 **Monthly:**
 1. Review trends across all three reports
@@ -180,7 +180,7 @@ If reports are too frequent or not frequent enough:
 on: daily  # Change to: weekly, or custom schedule
 
 # agent-performance-analyzer.md
-on: weekly  # Change to: daily, biweekly, monthly
+on: daily  # Change to: weekly, biweekly, monthly
 ```
 
 Recompile with: `gh aw compile <workflow>.md`
