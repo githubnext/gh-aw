@@ -232,7 +232,7 @@ jobs:
 ## Related Documentation
 
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output environment configuration
+- [Safe Outputs - Environment Variables Reference](/gh-aw/reference/safe-outputs/#environment-variables-reference) - Detailed environment variables for each safe output job type
 - [Sandbox](/gh-aw/reference/sandbox/) - Sandbox environment variables
 - [Tools](/gh-aw/reference/tools/) - MCP tool configuration
 - [Safe Inputs](/gh-aw/reference/safe-inputs/) - Safe input tool configuration
