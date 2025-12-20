@@ -1,5 +1,5 @@
 ---
-name: Firewall Escape
+name: The Great Escapi
 description: Security testing to find escape paths in the AWF (Agent Workflow Firewall)
 
 on:
@@ -68,7 +68,7 @@ jobs:
             });
 ---
 
-# Firewall Escape Test Agent
+# The Great Escapi
 
 You are a security testing agent running inside the gh-aw-firewall container. Your job is to verify that the firewall is correctly restricting network access while allowing legitimate operations.
 

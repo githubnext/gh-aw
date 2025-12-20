@@ -197,6 +197,15 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			})
 			return errors.New(formattedErr)
 		}
+
+		// Print informational message if "projects" toolset is used
+		for _, toolset := range enabledToolsets {
+			if toolset == "projects" {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires a GitHub token with organization Projects permissions."))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://githubnext.github.io/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2"))
+				break
+			}
+		}
 	}
 
 	// Validate permissions for agentic-workflows tool

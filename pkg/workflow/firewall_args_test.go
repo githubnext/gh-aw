@@ -3,6 +3,8 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestFirewallArgsInCopilotEngine tests that custom firewall args are included in AWF command
@@ -149,6 +151,72 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		// Check that gh CLI binary mount is included in AWF command
 		if !strings.Contains(stepContent, "--mount /usr/bin/gh:/usr/bin/gh:ro") {
 			t.Error("Expected AWF command to contain gh CLI binary mount '--mount /usr/bin/gh:/usr/bin/gh:ro'")
+		}
+	})
+
+	t.Run("AWF command includes image-tag with default version", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --image-tag is included with default version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		if !strings.Contains(stepContent, expectedImageTag) {
+			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+		}
+	})
+
+	t.Run("AWF command includes image-tag with custom version", func(t *testing.T) {
+		customVersion := "v0.5.0"
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: customVersion,
+				},
+			},
+		}
+
+		engine := NewCopilotEngine()
+		steps := engine.GetExecutionSteps(workflowData, "test.log")
+
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one execution step")
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+
+		// Check that --image-tag is included with custom version (without v prefix)
+		expectedImageTag := "--image-tag " + strings.TrimPrefix(customVersion, "v")
+		if !strings.Contains(stepContent, expectedImageTag) {
+			t.Errorf("Expected AWF command to contain '%s', got:\n%s", expectedImageTag, stepContent)
+		}
+
+		// Ensure default version is not used when custom version is specified
+		defaultImageTag := "--image-tag " + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+		if strings.TrimPrefix(customVersion, "v") != strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") && strings.Contains(stepContent, defaultImageTag) {
+			t.Error("Should use custom version, not default version")
 		}
 	})
 }
