@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -16,57 +15,6 @@ import (
 )
 
 var log = logger.New("parser:frontmatter")
-
-// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
-// The colon after #import is optional and ignored if present
-var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?\s*:?\s*(.+?)\s*}})$`)
-
-// LegacyIncludeDirectivePattern matches only the deprecated @include and @import directives
-var LegacyIncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
-
-// ImportDirectiveMatch holds the parsed components of an import directive
-type ImportDirectiveMatch struct {
-	IsOptional bool
-	Path       string
-	IsLegacy   bool
-	Original   string
-}
-
-// ParseImportDirective parses an import directive and returns its components
-func ParseImportDirective(line string) *ImportDirectiveMatch {
-	trimmedLine := strings.TrimSpace(line)
-
-	// Check if it matches the import pattern at all
-	matches := IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
-	if matches == nil {
-		return nil
-	}
-
-	// Check if it's legacy syntax
-	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
-
-	var isOptional bool
-	var path string
-
-	if isLegacy {
-		// Legacy syntax: @include? path or @import? path
-		// Group 1: optional marker, Group 2: path
-		isOptional = matches[1] == "?"
-		path = strings.TrimSpace(matches[2])
-	} else {
-		// New syntax: {{#import?: path}} or {{#import: path}} (colon is optional)
-		// Group 3: optional marker, Group 4: path
-		isOptional = matches[3] == "?"
-		path = strings.TrimSpace(matches[4])
-	}
-
-	return &ImportDirectiveMatch{
-		IsOptional: isOptional,
-		Path:       path,
-		IsLegacy:   isLegacy,
-		Original:   trimmedLine,
-	}
-}
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
