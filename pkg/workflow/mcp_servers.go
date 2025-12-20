@@ -542,6 +542,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Generate MCP gateway steps if configured
+	// Note: Currently passing nil for mcpServersConfig as the gateway is configured via Docker
+	gatewaySteps := generateMCPGatewaySteps(workflowData, nil)
+	for _, step := range gatewaySteps {
+		for _, line := range step {
+			yaml.WriteString(line + "\n")
+		}
+	}
+
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
 

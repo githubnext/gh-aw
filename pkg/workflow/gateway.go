@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -44,8 +43,8 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 		return false
 	}
 
-	// Then check if the feature flag is enabled
-	return isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData)
+	// MCP gateway is enabled by default when sandbox.mcp is configured
+	return true
 }
 
 // getMCPGatewayConfig extracts the MCPGatewayConfig from sandbox configuration

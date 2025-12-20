@@ -129,7 +129,7 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "sandbox.mcp without feature flag",
+			name: "sandbox.mcp configured",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayConfig{
@@ -137,18 +137,15 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 					},
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
-			name: "sandbox.mcp with feature flag",
+			name: "sandbox.mcp configured",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
 					MCP: &MCPGatewayConfig{
 						Container: "test",
 					},
-				},
-				Features: map[string]bool{
-					"mcp-gateway": true,
 				},
 			},
 			expected: true,
