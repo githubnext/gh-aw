@@ -616,7 +616,19 @@ func getWorkflowInputs(markdownPath string) (map[string]*workflow.InputDefinitio
 	return workflow.ParseInputDefinitions(inputsMap), nil
 }
 
-// validateWorkflowInputs validates that required inputs are provided and checks for typos
+// validateWorkflowInputs validates that required inputs are provided and checks for typos.
+//
+// This validation function is co-located with the run command implementation because:
+//   - It's specific to the workflow run operation
+//   - It's only called during workflow dispatch
+//   - It provides immediate feedback before triggering the workflow
+//
+// The function validates:
+//   - All required inputs are provided
+//   - Provided input names match defined inputs (typo detection)
+//   - Suggestions for misspelled input names
+//
+// This follows the principle that domain-specific validation belongs in domain files.
 func validateWorkflowInputs(markdownPath string, providedInputs []string) error {
 	// Extract workflow inputs
 	workflowInputs, err := getWorkflowInputs(markdownPath)
@@ -888,7 +900,19 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	return nil, fmt.Errorf("no workflow run found after %d attempts", maxRetries)
 }
 
-// validateRemoteWorkflow checks if a workflow exists in a remote repository and can be triggered
+// validateRemoteWorkflow checks if a workflow exists in a remote repository and can be triggered.
+//
+// This validation function is co-located with the run command implementation because:
+//   - It's specific to remote workflow execution
+//   - It's only called when running workflows in remote repositories
+//   - It provides early validation before attempting workflow dispatch
+//
+// The function validates:
+//   - The specified repository exists and is accessible
+//   - The workflow file exists in the repository
+//   - The workflow can be triggered via GitHub Actions API
+//
+// This follows the principle that domain-specific validation belongs in domain files.
 func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bool) error {
 	if repoOverride == "" {
 		return fmt.Errorf("repository must be specified for remote workflow validation")

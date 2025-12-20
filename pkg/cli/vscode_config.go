@@ -98,7 +98,7 @@ func ensureWorkflowSchema(verbose bool) error {
 	return nil
 }
 
-// ensureVSCodeSettings creates or updates .vscode/settings.json with YAML schema configuration
+// ensureVSCodeSettings creates or updates .vscode/settings.json
 func ensureVSCodeSettings(verbose bool) error {
 	vscodeConfigLog.Print("Creating or updating .vscode/settings.json")
 
@@ -111,52 +111,22 @@ func ensureVSCodeSettings(verbose bool) error {
 
 	settingsPath := filepath.Join(vscodeDir, "settings.json")
 
-	// Read existing settings if they exist
-	var settings VSCodeSettings
-	if data, err := os.ReadFile(settingsPath); err == nil {
-		vscodeConfigLog.Printf("Reading existing settings from: %s", settingsPath)
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("failed to parse existing settings.json: %w", err)
+	// Check if settings.json already exists
+	if _, err := os.Stat(settingsPath); err == nil {
+		vscodeConfigLog.Print("Settings file already exists, skipping creation")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Settings file already exists at %s\n", settingsPath)
 		}
-	} else {
-		vscodeConfigLog.Print("No existing settings found, creating new one")
-		settings.Other = make(map[string]any)
+		return nil
 	}
 
-	// Initialize yaml.schemas if it doesn't exist
-	if settings.YAMLSchemas == nil {
-		settings.YAMLSchemas = make(map[string]any)
-	}
-
-	// Add schema mapping for workflow files
-	schemaPath := "./.github/aw/schemas/agentic-workflow.json"
-	workflowPattern := ".github/workflows/*.md"
-
-	// Check if already configured
-	if existingPattern, exists := settings.YAMLSchemas[schemaPath]; exists {
-		if existingPattern == workflowPattern {
-			vscodeConfigLog.Print("Schema mapping already configured, skipping update")
-			if verbose {
-				fmt.Fprintf(os.Stderr, "YAML schema mapping already configured in %s\n", settingsPath)
-			}
-			return nil
-		}
-	}
-
-	settings.YAMLSchemas[schemaPath] = workflowPattern
-
-	// Ensure yaml validation settings are enabled
-	if settings.Other == nil {
-		settings.Other = make(map[string]any)
-	}
-	if _, exists := settings.Other["yaml.validate"]; !exists {
-		settings.Other["yaml.validate"] = true
-	}
-	if _, exists := settings.Other["yaml.hover"]; !exists {
-		settings.Other["yaml.hover"] = true
-	}
-	if _, exists := settings.Other["yaml.completion"]; !exists {
-		settings.Other["yaml.completion"] = true
+	// Create minimal settings file with just Copilot settings
+	settings := VSCodeSettings{
+		Other: map[string]any{
+			"github.copilot.enable": map[string]bool{
+				"markdown": true,
+			},
+		},
 	}
 
 	// Write settings file with proper indentation
@@ -173,7 +143,7 @@ func ensureVSCodeSettings(verbose bool) error {
 	return nil
 }
 
-// ensureVSCodeExtensions creates or updates .vscode/extensions.json with RedHat YAML extension
+// ensureVSCodeExtensions creates or updates .vscode/extensions.json
 func ensureVSCodeExtensions(verbose bool) error {
 	vscodeConfigLog.Print("Creating or updating .vscode/extensions.json")
 
@@ -185,39 +155,23 @@ func ensureVSCodeExtensions(verbose bool) error {
 
 	extensionsPath := filepath.Join(vscodeDir, "extensions.json")
 
-	// Read existing extensions if they exist
-	var extensions VSCodeExtensions
-	if data, err := os.ReadFile(extensionsPath); err == nil {
-		vscodeConfigLog.Printf("Reading existing extensions from: %s", extensionsPath)
-		if err := json.Unmarshal(data, &extensions); err != nil {
-			return fmt.Errorf("failed to parse existing extensions.json: %w", err)
-		}
-	} else {
-		vscodeConfigLog.Print("No existing extensions file found, creating new one")
-		extensions.Recommendations = []string{}
-	}
-
-	// Check if RedHat YAML extension is already in recommendations
-	redhatYAMLExt := "redhat.vscode-yaml"
-	hasYAMLExt := false
-	for _, ext := range extensions.Recommendations {
-		if ext == redhatYAMLExt {
-			hasYAMLExt = true
-			break
-		}
-	}
-
-	if hasYAMLExt {
-		vscodeConfigLog.Print("RedHat YAML extension already in recommendations, skipping update")
+	// Check if extensions.json already exists
+	if _, err := os.Stat(extensionsPath); err == nil {
+		vscodeConfigLog.Print("Extensions file already exists, skipping creation")
 		if verbose {
-			fmt.Fprintf(os.Stderr, "RedHat YAML extension already in %s\n", extensionsPath)
+			fmt.Fprintf(os.Stderr, "Extensions file already exists at %s\n", extensionsPath)
 		}
 		return nil
 	}
 
-	// Add RedHat YAML extension to recommendations
-	extensions.Recommendations = append(extensions.Recommendations, redhatYAMLExt)
-	vscodeConfigLog.Printf("Added %s to recommendations", redhatYAMLExt)
+	// Create minimal extensions file with common recommendations
+	extensions := VSCodeExtensions{
+		Recommendations: []string{
+			"astro-build.astro-vscode",
+			"davidanson.vscode-markdownlint",
+		},
+	}
+	vscodeConfigLog.Print("Creating new extensions file with basic recommendations")
 
 	// Write extensions file with proper indentation
 	data, err := json.MarshalIndent(extensions, "", "    ")

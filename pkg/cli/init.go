@@ -118,18 +118,18 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if codespaceEnabled {
 		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", codespaceRepos)
 
-		// Create .devcontainer/gh-aw/devcontainer.json
+		// Create or update .devcontainer/devcontainer.json
 		if err := ensureDevcontainerConfig(verbose, codespaceRepos); err != nil {
-			initLog.Printf("Failed to create devcontainer config: %v", err)
-			return fmt.Errorf("failed to create devcontainer config: %w", err)
+			initLog.Printf("Failed to configure devcontainer: %v", err)
+			return fmt.Errorf("failed to configure devcontainer: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .devcontainer/gh-aw/devcontainer.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .devcontainer/devcontainer.json"))
 		}
 	}
 
-	// Configure VSCode settings for YAML schema validation
-	initLog.Print("Configuring VSCode YAML schema validation")
+	// Configure VSCode settings
+	initLog.Print("Configuring VSCode settings")
 
 	// Write workflow schema to .github/aw/
 	if err := ensureWorkflowSchema(verbose); err != nil {
@@ -177,8 +177,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("VSCode YAML schema validation configured"))
 	fmt.Fprintln(os.Stderr, "")
 	if mcp {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))

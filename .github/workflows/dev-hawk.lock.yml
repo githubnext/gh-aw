@@ -295,7 +295,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6659,6 +6659,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦅 *Observed from above by [{workflow_name}]({run_url})*\",\"runStarted\":\"🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above...\",\"runSuccess\":\"🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯\",\"runFailure\":\"🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet...\"}"
+      GH_AW_WORKFLOW_ID: "dev-hawk"
+      GH_AW_WORKFLOW_NAME: "Dev Hawk"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -7286,9 +7291,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_TARGET: "*"
-          GH_AW_WORKFLOW_NAME: "Dev Hawk"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦅 *Observed from above by [{workflow_name}]({run_url})*\",\"runStarted\":\"🦅 Dev Hawk circles the sky! [{workflow_name}]({run_url}) is monitoring this {event_type} from above...\",\"runSuccess\":\"🦅 Hawk eyes report! [{workflow_name}]({run_url}) has completed reconnaissance. Intel delivered! 🎯\",\"runFailure\":\"🦅 Hawk down! [{workflow_name}]({run_url}) {status}. The skies grow quiet...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

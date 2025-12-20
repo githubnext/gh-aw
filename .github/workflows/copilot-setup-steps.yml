@@ -38,3 +38,9 @@ jobs:
       run: make build
     - name: Recompile workflows
       run: make recompile
+    - name: Install UV (Python package manager)
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install Go language server (gopls)
+      run: go install golang.org/x/tools/gopls@latest
+    - name: Install TypeScript language server
+      run: npm install -g typescript-language-server typescript

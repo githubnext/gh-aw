@@ -1,3 +1,33 @@
+// Package workflow provides shared helper functions for AI engine implementations.
+//
+// This file contains utilities used across multiple AI engine files (copilot_engine.go,
+// claude_engine.go, codex_engine.go, custom_engine.go) to generate common workflow
+// steps and configurations.
+//
+// # Organization Rationale
+//
+// These helper functions are grouped here because they:
+//   - Are used by 3+ engine implementations (shared utilities)
+//   - Provide common patterns for agent installation and npm setup
+//   - Have a clear domain focus (engine workflow generation)
+//   - Are stable and change infrequently
+//
+// This follows the helper file conventions documented in skills/developer/SKILL.md.
+//
+// # Key Functions
+//
+// Agent Installation:
+//   - GenerateAgentInstallSteps() - Generate agent installation workflow steps
+//
+// NPM Installation:
+//   - GenerateNpmInstallStep() - Generate npm package installation step
+//   - GenerateEngineDependenciesInstallStep() - Generate engine dependencies install step
+//
+// Configuration:
+//   - GetClaudeSystemPrompt() - Get system prompt for Claude engine
+//
+// These functions encapsulate shared logic that would otherwise be duplicated across
+// engine files, maintaining DRY principles while keeping engine-specific code separate.
 package workflow
 
 import (

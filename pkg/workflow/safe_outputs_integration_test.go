@@ -592,8 +592,19 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 			// Convert steps to string for verification
 			stepsContent := strings.Join(job.Steps, "")
 
-			// Verify expected environment variables and step content
+			// For consolidated job, GH_AW_WORKFLOW_ID should be at job level, not in steps
+			// Check job.Env for this variable
+			if job.Env == nil || job.Env["GH_AW_WORKFLOW_ID"] == "" {
+				t.Errorf("GH_AW_WORKFLOW_ID should be set at job level in consolidated job for %s.\nJob.Env: %v",
+					tt.name, job.Env)
+			}
+
+			// Verify other expected environment variables and step content (excluding GH_AW_WORKFLOW_ID)
 			for _, expectedContent := range tt.expectedStepsContaining {
+				if expectedContent == "GH_AW_WORKFLOW_ID" {
+					// Skip GH_AW_WORKFLOW_ID check in steps since it's now at job level
+					continue
+				}
 				if !strings.Contains(stepsContent, expectedContent) {
 					t.Errorf("Expected content %q not found in consolidated job for %s.\nJob steps:\n%s",
 						expectedContent, tt.name, stepsContent)
@@ -855,10 +866,9 @@ func TestConsolidatedSafeOutputsJobWithCustomEnv(t *testing.T) {
 		}
 	}
 
-	// Verify GH_AW_WORKFLOW_ID is present
-	// Known issue: GH_AW_WORKFLOW_ID may be missing from consolidated job for certain configurations
-	if !strings.Contains(stepsContent, "GH_AW_WORKFLOW_ID") {
-		t.Log("Known issue: GH_AW_WORKFLOW_ID not present in consolidated job - this should be fixed")
+	// Verify GH_AW_WORKFLOW_ID is present at job level
+	if job.Env == nil || job.Env["GH_AW_WORKFLOW_ID"] == "" {
+		t.Error("GH_AW_WORKFLOW_ID should be set at job level in consolidated job")
 	}
 
 	t.Logf("✓ Consolidated job with custom env vars built successfully with %d steps: %v", len(stepNames), stepNames)

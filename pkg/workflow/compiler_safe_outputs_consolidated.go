@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -282,7 +280,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// 9. Create Code Scanning Alert step
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		workflowFilename := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+		workflowFilename := GetWorkflowIDFromPath(markdownPath)
 		stepConfig := c.buildCreateCodeScanningAlertStepConfig(data, mainJobName, threatDetectionEnabled, workflowFilename)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
@@ -498,12 +496,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		needs = append(needs, constants.ActivationJobName)
 	}
 
+	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
+	workflowID := GetWorkflowIDFromPath(markdownPath)
+
+	// Build job-level environment variables that are common to all safe output steps
+	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
+
 	job := &Job{
 		Name:           "safe_outputs",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions.RenderToYAML(),
 		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
+		Env:            jobEnv,
 		Steps:          steps,
 		Outputs:        outputs,
 		Needs:          needs,
@@ -578,6 +583,67 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	return steps
 }
 
+// buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
+// for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
+func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
+	envVars := make(map[string]string)
+
+	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
+	// This is used for branch naming in create_pull_request and other operations
+	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
+
+	// Add workflow metadata that's common to all steps
+	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
+
+	if data.Source != "" {
+		envVars["GH_AW_WORKFLOW_SOURCE"] = fmt.Sprintf("%q", data.Source)
+		sourceURL := buildSourceURL(data.Source)
+		if sourceURL != "" {
+			envVars["GH_AW_WORKFLOW_SOURCE_URL"] = fmt.Sprintf("%q", sourceURL)
+		}
+	}
+
+	if data.TrackerID != "" {
+		envVars["GH_AW_TRACKER_ID"] = fmt.Sprintf("%q", data.TrackerID)
+	}
+
+	// Add engine metadata that's common to all steps
+	if data.EngineConfig != nil {
+		if data.EngineConfig.ID != "" {
+			envVars["GH_AW_ENGINE_ID"] = fmt.Sprintf("%q", data.EngineConfig.ID)
+		}
+		if data.EngineConfig.Version != "" {
+			envVars["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
+		}
+		if data.EngineConfig.Model != "" {
+			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("%q", data.EngineConfig.Model)
+		}
+	}
+
+	// Add safe output job environment variables (staged/target repo)
+	if c.trialMode || data.SafeOutputs.Staged {
+		envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
+	}
+
+	// Set GH_AW_TARGET_REPO_SLUG - prefer trial target repo (applies to all steps)
+	// Note: Individual steps with target-repo config will override this in their step-level env
+	if c.trialMode && c.trialLogicalRepoSlug != "" {
+		envVars["GH_AW_TARGET_REPO_SLUG"] = fmt.Sprintf("%q", c.trialLogicalRepoSlug)
+	}
+
+	// Add messages config if present (applies to all steps)
+	if data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			consolidatedSafeOutputsLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
+		}
+	}
+
+	return envVars
+}
+
 // buildDetectionSuccessCondition builds the condition to check if detection passed
 func buildDetectionSuccessCondition() ConditionNode {
 	return BuildEquals(
@@ -600,7 +666,7 @@ func (c *Compiler) buildCreateIssueStepConfig(data *WorkflowData, mainJobName st
 	if cfg.Expires > 0 {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", cfg.Expires))
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("create_issue")
 
@@ -619,7 +685,7 @@ func (c *Compiler) buildCreateDiscussionStepConfig(data *WorkflowData, mainJobNa
 	cfg := data.SafeOutputs.CreateDiscussions
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_discussion")
 
@@ -638,9 +704,8 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	cfg := data.SafeOutputs.CreatePullRequests
 
 	var customEnvVars []string
-	// Pass the workflow ID for branch naming (required by create_pull_request.cjs)
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
 	// Pass the base branch from GitHub context (required by create_pull_request.cjs)
+	// Note: GH_AW_WORKFLOW_ID is now set at the job level and inherited by all steps
 	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
@@ -674,7 +739,7 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	if cfg.Expires > 0 && cfg.TargetRepoSlug == "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", cfg.Expires))
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("create_pull_request")
 
@@ -721,7 +786,7 @@ func (c *Compiler) buildAddCommentStepConfig(data *WorkflowData, mainJobName str
 		customEnvVars = append(customEnvVars, "          GH_AW_CREATED_PULL_REQUEST_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}\n")
 		customEnvVars = append(customEnvVars, "          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}\n")
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("add_comment")
 
@@ -740,7 +805,7 @@ func (c *Compiler) buildCloseDiscussionStepConfig(data *WorkflowData, mainJobNam
 	cfg := data.SafeOutputs.CloseDiscussions
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("close_discussion")
 
@@ -759,7 +824,7 @@ func (c *Compiler) buildCloseIssueStepConfig(data *WorkflowData, mainJobName str
 	cfg := data.SafeOutputs.CloseIssues
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("close_issue")
 
@@ -778,7 +843,7 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	cfg := data.SafeOutputs.ClosePullRequests
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("close_pull_request")
 
@@ -805,7 +870,7 @@ func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, main
 	if cfg.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_TARGET: %q\n", cfg.Target))
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_pull_request_review_comment")
 
@@ -825,7 +890,7 @@ func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, ma
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %q\n", workflowFilename))
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_code_scanning_alert")
 
@@ -851,7 +916,7 @@ func (c *Compiler) buildAddLabelsStepConfig(data *WorkflowData, mainJobName stri
 	if cfg.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", cfg.Target))
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("add_labels")
 
@@ -870,7 +935,7 @@ func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName st
 	cfg := data.SafeOutputs.AddReviewer
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("add_reviewer")
 
@@ -889,7 +954,7 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 	cfg := data.SafeOutputs.AssignMilestone
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("assign_milestone")
 
@@ -908,7 +973,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	cfg := data.SafeOutputs.AssignToAgent
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("assign_to_agent")
 
@@ -928,7 +993,7 @@ func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName s
 	cfg := data.SafeOutputs.AssignToUser
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("assign_to_user")
 
@@ -947,7 +1012,7 @@ func (c *Compiler) buildUpdateIssueStepConfig(data *WorkflowData, mainJobName st
 	cfg := data.SafeOutputs.UpdateIssues
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("update_issue")
 
@@ -966,7 +1031,7 @@ func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobN
 	cfg := data.SafeOutputs.UpdatePullRequests
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("update_pull_request")
 
@@ -985,7 +1050,7 @@ func (c *Compiler) buildUpdateDiscussionStepConfig(data *WorkflowData, mainJobNa
 	cfg := data.SafeOutputs.UpdateDiscussions
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	// Add target environment variable if set
 	if cfg.Target != "" {
@@ -1042,7 +1107,7 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("push_to_pull_request_branch")
 
@@ -1065,7 +1130,7 @@ func (c *Compiler) buildUploadAssetsStepConfig(data *WorkflowData, mainJobName s
 	cfg := data.SafeOutputs.UploadAssets
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("upload_asset")
 
@@ -1084,7 +1149,7 @@ func (c *Compiler) buildUpdateReleaseStepConfig(data *WorkflowData, mainJobName 
 	cfg := data.SafeOutputs.UpdateRelease
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("update_release")
 
@@ -1107,7 +1172,7 @@ func (c *Compiler) buildLinkSubIssueStepConfig(data *WorkflowData, mainJobName s
 		customEnvVars = append(customEnvVars, "          GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
 		customEnvVars = append(customEnvVars, "          GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}\n")
 	}
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("link_sub_issue")
 
@@ -1126,7 +1191,7 @@ func (c *Compiler) buildHideCommentStepConfig(data *WorkflowData, mainJobName st
 	cfg := data.SafeOutputs.HideComment
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("hide_comment")
 
@@ -1145,7 +1210,7 @@ func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobNam
 	cfg := data.SafeOutputs.CreateAgentTasks
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("create_agent_task")
 
@@ -1164,7 +1229,7 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 	cfg := data.SafeOutputs.UpdateProjects
 
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...)
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
 	condition := BuildSafeOutputType("update_project")
 

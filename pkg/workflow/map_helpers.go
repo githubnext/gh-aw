@@ -1,3 +1,29 @@
+// Package workflow provides generic map and type conversion utilities.
+//
+// This file contains low-level helper functions for working with map[string]any
+// structures and type conversions. These utilities are used throughout the workflow
+// compilation process to safely parse and manipulate configuration data.
+//
+// # Organization Rationale
+//
+// These functions are grouped in a helper file because they:
+//   - Provide generic, reusable utilities (used by 10+ files)
+//   - Have no specific domain focus (work with any map/type data)
+//   - Are small, stable functions (< 50 lines each)
+//   - Follow clear, single-purpose patterns
+//
+// This follows the helper file conventions documented in skills/developer/SKILL.md.
+//
+// # Key Functions
+//
+// Type Conversion:
+//   - parseIntValue() - Safely parse numeric types to int with truncation warnings
+//
+// Map Operations:
+//   - filterMapKeys() - Create new map excluding specified keys
+//
+// These utilities handle common type conversion and map manipulation patterns that
+// occur frequently during YAML-to-struct parsing and configuration processing.
 package workflow
 
 import "github.com/githubnext/gh-aw/pkg/logger"

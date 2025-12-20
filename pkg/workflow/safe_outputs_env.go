@@ -148,6 +148,37 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 	return customEnvVars
 }
 
+// buildStepLevelSafeOutputEnvVars builds environment variables for consolidated safe output steps
+// This excludes variables that are already set at the job level in consolidated jobs
+func (c *Compiler) buildStepLevelSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Only add target repo slug if it's different from the job-level setting
+	// (i.e., this step has a specific target-repo config that overrides the global trial mode target)
+	if targetRepoSlug != "" {
+		// Step-specific target repo overrides job-level setting
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
+	} else if !c.trialMode && data.SafeOutputs.Staged {
+		// Step needs staged flag but there's no job-level target repo (not in trial mode)
+		// Job level only sets this if trialMode is true
+		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+
+	// Note: The following are now set at job level and should NOT be included here:
+	// - GH_AW_WORKFLOW_NAME
+	// - GH_AW_WORKFLOW_SOURCE
+	// - GH_AW_WORKFLOW_SOURCE_URL
+	// - GH_AW_TRACKER_ID
+	// - GH_AW_ENGINE_ID
+	// - GH_AW_ENGINE_VERSION
+	// - GH_AW_ENGINE_MODEL
+	// - GH_AW_SAFE_OUTPUTS_STAGED (if in trial mode)
+	// - GH_AW_TARGET_REPO_SLUG (if in trial mode and no step override)
+	// - GH_AW_SAFE_OUTPUT_MESSAGES
+
+	return customEnvVars
+}
+
 // buildEngineMetadataEnvVars builds engine metadata environment variables (id, version, model)
 // These are used by the JavaScript footer generation to create XML comment markers for traceability
 func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {

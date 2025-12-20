@@ -254,7 +254,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.75.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
@@ -273,7 +273,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6543,7 +6543,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.75.0
       - name: Run Codex
         run: |
           set -o pipefail
@@ -6619,6 +6619,10 @@ jobs:
       discussions: write
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "codex"
+      GH_AW_WORKFLOW_ID: "issue-arborist"
+      GH_AW_WORKFLOW_NAME: "Issue Arborist"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
@@ -7692,8 +7696,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[Parent] "
-          GH_AW_WORKFLOW_NAME: "Issue Arborist"
-          GH_AW_ENGINE_ID: "codex"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7992,8 +7994,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Issue Arborist"
-          GH_AW_ENGINE_ID: "codex"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8280,8 +8280,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Issue Arborist"
-          GH_AW_ENGINE_ID: "codex"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

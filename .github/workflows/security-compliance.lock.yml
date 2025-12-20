@@ -300,7 +300,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6899,6 +6899,10 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "security-compliance"
+      GH_AW_WORKFLOW_NAME: "Security Compliance Campaign"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -7560,8 +7564,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_LABELS: "security,campaign-tracker"
-          GH_AW_WORKFLOW_NAME: "Security Compliance Campaign"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

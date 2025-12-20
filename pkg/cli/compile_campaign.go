@@ -1,3 +1,29 @@
+// Package cli provides campaign workflow compilation and validation.
+//
+// This file handles validation of campaign spec files and their referenced workflows.
+// Campaign workflows are special workflows that orchestrate multiple sub-workflows
+// across a set of target repositories.
+//
+// # Organization Rationale
+//
+// The validateCampaigns function is co-located with campaign compilation logic because:
+//   - It's domain-specific to campaign workflows
+//   - It's only called during compile operations
+//   - It's tightly coupled to the campaign compilation process
+//   - The file is small (98 lines) and focused
+//
+// This follows the principle that domain-specific validation belongs in domain files.
+// See skills/developer/SKILL.md for validation architecture patterns.
+//
+// # Validation Functions
+//
+// Campaign Validation:
+//   - validateCampaigns() - Validates campaign specs and referenced workflows
+//
+// This validation ensures that:
+//   - Campaign spec files are syntactically valid
+//   - Referenced workflow files exist in the workflows directory
+//   - Campaign configuration is complete and correct
 package cli
 
 import (

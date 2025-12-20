@@ -244,7 +244,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.75.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
@@ -263,7 +263,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6244,7 +6244,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.75.0
       - name: Run Codex
         run: |
           set -o pipefail
@@ -6320,6 +6320,13 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "codex"
+      GH_AW_ENGINE_MODEL: "gpt-5-mini"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
+      GH_AW_TRACKER_ID: "daily-fact-thread"
+      GH_AW_WORKFLOW_ID: "daily-fact"
+      GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -6948,11 +6955,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_TARGET: "4750"
           GITHUB_AW_COMMENT_DISCUSSION: "true"
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_ENGINE_MODEL: "gpt-5-mini"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

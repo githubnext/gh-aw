@@ -271,7 +271,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -6588,7 +6588,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -6687,6 +6687,10 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_WORKFLOW_ID: "github-mcp-tools-report"
+      GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
@@ -7749,8 +7753,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
-          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8035,7 +8037,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
           GH_AW_PR_TITLE_PREFIX: "[mcp-tools] "
           GH_AW_PR_LABELS: "documentation,automation"
@@ -8043,8 +8044,6 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
-          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

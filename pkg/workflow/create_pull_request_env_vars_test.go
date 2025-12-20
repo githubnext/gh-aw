@@ -34,8 +34,8 @@ func TestCreatePullRequestStepConfigEnvVars(t *testing.T) {
 	envVarsContent := strings.Join(stepConfig.CustomEnvVars, "")
 
 	// Verify required environment variables are present
+	// Note: GH_AW_WORKFLOW_ID is now set at job level, not in step-level CustomEnvVars
 	requiredEnvVars := map[string]string{
-		"GH_AW_WORKFLOW_ID":       `GH_AW_WORKFLOW_ID: "main_job"`,
 		"GH_AW_BASE_BRANCH":       "GH_AW_BASE_BRANCH: ${{ github.ref_name }}",
 		"GH_AW_PR_TITLE_PREFIX":   `GH_AW_PR_TITLE_PREFIX: "[TEST] "`,
 		"GH_AW_PR_LABELS":         `GH_AW_PR_LABELS: "automated,test"`,
@@ -84,8 +84,8 @@ func TestCreatePullRequestStepConfigDefaultValues(t *testing.T) {
 	envVarsContent := strings.Join(stepConfig.CustomEnvVars, "")
 
 	// Verify default values
+	// Note: GH_AW_WORKFLOW_ID is now set at job level, not in step-level CustomEnvVars
 	defaultEnvVars := map[string]string{
-		"GH_AW_WORKFLOW_ID":      `GH_AW_WORKFLOW_ID: "agent"`,
 		"GH_AW_BASE_BRANCH":      "GH_AW_BASE_BRANCH: ${{ github.ref_name }}",
 		"GH_AW_PR_DRAFT":         `GH_AW_PR_DRAFT: "true"`,         // Default is true
 		"GH_AW_PR_IF_NO_CHANGES": `GH_AW_PR_IF_NO_CHANGES: "warn"`, // Default is warn

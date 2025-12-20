@@ -316,7 +316,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -7268,6 +7268,10 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_WORKFLOW_ID: "org-wide-rollout"
+      GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -8991,8 +8995,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_LABELS: "campaign-tracker,org-rollout"
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9291,15 +9293,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
           GH_AW_PR_LABELS: "campaign-pr,org-rollout"
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9799,8 +9798,6 @@ jobs:
           GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -10208,8 +10205,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign - Org-Wide Rollout"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

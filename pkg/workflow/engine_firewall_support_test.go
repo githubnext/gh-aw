@@ -320,7 +320,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	t.Run("strict mode: firewall disabled with unsupported engine - error", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.strictMode = true
-		engine := NewCodexEngine() // Codex doesn't support firewall
+		engine := NewCustomEngine() // Custom engine doesn't support firewall
 		perms := &NetworkPermissions{
 			Firewall: &FirewallConfig{
 				Enabled: false,
@@ -330,8 +330,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 		err := compiler.checkFirewallDisable(engine, perms)
 		if err == nil {
 			t.Error("Expected error in strict mode when firewall is disabled with unsupported engine")
-		}
-		if !strings.Contains(err.Error(), "does not support firewall") {
+		} else if !strings.Contains(err.Error(), "does not support firewall") {
 			t.Errorf("Error should mention firewall support, got: %v", err)
 		}
 	})

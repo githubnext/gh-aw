@@ -1031,7 +1031,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -7827,6 +7827,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})...\",\"runSuccess\":\"✅ Guidance provided! [{workflow_name}]({run_url}) has determined the next steps.\",\"runFailure\":\"❌ Analysis incomplete. [{workflow_name}]({run_url}) {status}.\"}"
+      GH_AW_WORKFLOW_ID: "speckit-dispatcher"
+      GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
@@ -8789,9 +8794,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})...\",\"runSuccess\":\"✅ Guidance provided! [{workflow_name}]({run_url}) has determined the next steps.\",\"runFailure\":\"❌ Analysis incomplete. [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9093,9 +9095,6 @@ jobs:
           GH_AW_CREATED_ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})...\",\"runSuccess\":\"✅ Guidance provided! [{workflow_name}]({run_url}) has determined the next steps.\",\"runFailure\":\"❌ Analysis incomplete. [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -9505,9 +9504,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
           GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
-          GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})...\",\"runSuccess\":\"✅ Guidance provided! [{workflow_name}]({run_url}) has determined the next steps.\",\"runFailure\":\"❌ Analysis incomplete. [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -39,11 +39,10 @@ With --tokens flag:
 - Use with --engine flag to check engine-specific tokens (copilot, claude, codex)
 
 With --codespaces flag:
-- Creates .devcontainer/gh-aw/devcontainer.json with universal image (in subfolder to avoid conflicts)
+- Updates existing .devcontainer/devcontainer.json if present, otherwise creates new file at default location
 - Configures permissions for current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
-- Pre-installs gh aw extension CLI
-- Pre-installs @github/copilot
+- Adds GitHub Copilot extensions and gh aw CLI installation
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:

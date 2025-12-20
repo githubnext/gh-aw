@@ -293,7 +293,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
       - name: Downloading container images
         run: |
           set -e
@@ -306,7 +306,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6531,7 +6531,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -6627,6 +6627,10 @@ jobs:
       contents: read
       discussions: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "claude"
+      GH_AW_WORKFLOW_ID: "safe-output-health"
+      GH_AW_WORKFLOW_NAME: "Safe Output Health Monitor"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
@@ -7529,8 +7533,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Safe Output Health Monitor"
-          GH_AW_ENGINE_ID: "claude"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

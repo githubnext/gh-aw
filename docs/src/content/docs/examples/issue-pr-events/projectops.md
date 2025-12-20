@@ -13,6 +13,46 @@ By default, `update-project` is update-only: create the Project once in the GitH
 
 **Important**: GitHub Projects v2 requires a PAT or GitHub App token - the default `GITHUB_TOKEN` cannot access Projects v2. Configure [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) before using `update-project`.
 
+## Token Requirements for Projects v2
+
+The type of Personal Access Token (PAT) you need depends on whether you're working with **user-owned** or **organization-owned** Projects:
+
+### User-owned Projects (v2)
+
+**Must use a classic PAT** - Fine-grained PATs do **not** work with user-owned Projects.
+
+Required scopes:
+- `project` (required for user Projects)
+- `repo` (required if accessing private repositories)
+
+Create at: [https://github.com/settings/tokens/new](https://github.com/settings/tokens/new)
+
+### Organization-owned Projects (v2)
+
+**Can use either classic or fine-grained PAT**:
+
+**Option 1: Classic PAT**
+- `project` (required)
+- `read:org` (required for org Projects)
+- `repo` (required if accessing private repositories)
+
+**Option 2: Fine-grained PAT**
+- Repository access: Select specific repos or "All repositories"
+- **Organization permissions** (must be explicitly granted):
+  - **Organization access**: Must be granted to the target organization
+  - **Projects**: Read+Write
+- **Important**: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
+
+Create at: [https://github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
+
+**Setup**: After creating your PAT, add it to your repository:
+
+```bash
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
+```
+
+See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for complete details.
+
 ## When to Use ProjectOps
 
 ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:

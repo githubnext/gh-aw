@@ -298,7 +298,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -6921,6 +6921,11 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_TRACKER_ID: "slide-deck-maintainer"
+      GH_AW_WORKFLOW_ID: "slide-deck-maintainer"
+      GH_AW_WORKFLOW_NAME: "Slide Deck Maintainer"
     outputs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
@@ -7211,16 +7216,12 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
           GH_AW_PR_TITLE_PREFIX: "[slides] "
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Slide Deck Maintainer"
-          GH_AW_TRACKER_ID: "slide-deck-maintainer"
-          GH_AW_ENGINE_ID: "copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

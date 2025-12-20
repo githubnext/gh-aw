@@ -91,7 +91,7 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 	yaml.WriteString("            \n")
 	yaml.WriteString("            while [ $attempt -le $max_attempts ]; do\n")
 	yaml.WriteString("              echo \"Attempt $attempt of $max_attempts: Pulling $image...\"\n")
-	yaml.WriteString("              if docker pull \"$image\"; then\n")
+	yaml.WriteString("              if docker pull --quiet \"$image\"; then\n")
 	yaml.WriteString("                echo \"Successfully pulled $image\"\n")
 	yaml.WriteString("                return 0\n")
 	yaml.WriteString("              fi\n")
