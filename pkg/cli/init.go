@@ -128,8 +128,8 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		}
 	}
 
-	// Configure VSCode settings for YAML schema validation
-	initLog.Print("Configuring VSCode YAML schema validation")
+	// Configure VSCode settings
+	initLog.Print("Configuring VSCode settings")
 
 	// Write workflow schema to .github/aw/
 	if err := ensureWorkflowSchema(verbose); err != nil {
@@ -177,8 +177,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("VSCode YAML schema validation configured"))
 	fmt.Fprintln(os.Stderr, "")
 	if mcp {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
