@@ -41,7 +41,7 @@ const mockCore = {
       (fs.writeFileSync(tempFilePath, content), (process.env.GH_AW_AGENT_OUTPUT = tempFilePath));
     };
     (beforeEach(() => {
-      (vi.clearAllMocks(), delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GITHUB_WORKFLOW, (global.context.eventName = "issues"), (global.context.payload.issue = { number: 123 }));
+      (vi.clearAllMocks(), delete process.env.GH_AW_AGENT_OUTPUT, delete process.env.GITHUB_WORKFLOW, (global.context.eventName = "issues"), (global.context.payload.issue = { number: 123 }), (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
       const scriptPath = path.join(process.cwd(), "add_comment.cjs");
       createCommentScript = fs.readFileSync(scriptPath, "utf8");
     }),

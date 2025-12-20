@@ -46,7 +46,8 @@ const mockCore = {
         delete process.env.GH_AW_DISCUSSION_TITLE_PREFIX,
         delete process.env.GH_AW_DISCUSSION_CATEGORY,
         delete process.env.GH_AW_TARGET_REPO_SLUG,
-        delete process.env.GH_AW_ALLOWED_REPOS);
+        delete process.env.GH_AW_ALLOWED_REPOS,
+        (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
       const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
       ((createDiscussionScript = fs.readFileSync(scriptPath, "utf8")), (createDiscussionScript = createDiscussionScript.replace("export {};", "")));
     }),

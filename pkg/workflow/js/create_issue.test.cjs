@@ -47,7 +47,8 @@ const mockCore = {
         delete process.env.GH_AW_ISSUE_TITLE_PREFIX,
         delete process.env.GH_AW_TARGET_REPO_SLUG,
         delete process.env.GH_AW_ALLOWED_REPOS,
-        delete global.context.payload.issue);
+        delete global.context.payload.issue,
+        (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
       const scriptPath = path.join(process.cwd(), "create_issue.cjs");
       ((createIssueScript = fs.readFileSync(scriptPath, "utf8")),
         (createIssueScript = createIssueScript.replace("export {};", "")),

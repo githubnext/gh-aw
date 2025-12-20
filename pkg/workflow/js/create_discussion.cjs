@@ -8,6 +8,7 @@ const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporar
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { validateEnvironment } = require("./validate_environment.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -90,6 +91,9 @@ async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
+
+  // Environment validation - fail early if required variables are missing
+  validateEnvironment(["GH_AW_WORKFLOW_NAME"]);
 
   // Load the temporary ID map from create_issue job
   const temporaryIdMap = loadTemporaryIdMap();

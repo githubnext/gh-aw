@@ -6,6 +6,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
+const { validateEnvironment } = require("./validate_environment.cjs");
 
 /**
  * Hide/minimize a comment using the GraphQL API
@@ -262,6 +263,9 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
 }
 
 async function main() {
+  // Environment validation - fail early if required variables are missing
+  validateEnvironment(["GH_AW_WORKFLOW_NAME"]);
+
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";

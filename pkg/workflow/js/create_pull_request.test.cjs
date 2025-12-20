@@ -12,8 +12,9 @@ const createTestableFunction = scriptContent => {
     (scriptBody = scriptBody.replace(/const \{ getTrackerID \} = require\("\.\/get_tracker_id\.cjs"\);?\s*/g, "")),
     (scriptBody = scriptBody.replace(/const \{ addExpirationComment \} = require\("\.\/expiration_helpers\.cjs"\);?\s*/g, "")),
     (scriptBody = scriptBody.replace(/const \{ removeDuplicateTitleFromDescription \} = require\("\.\/remove_duplicate_title\.cjs"\);?\s*/g, "")),
+    (scriptBody = scriptBody.replace(/const \{ validateEnvironment \} = require\("\.\/validate_environment\.cjs"\);?\s*/g, "")),
     new Function(
-      `\n    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID, addExpirationComment, removeDuplicateTitleFromDescription } = arguments[0];\n    \n    ${scriptBody}\n    \n    return main;\n  `
+      `\n    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID, addExpirationComment, removeDuplicateTitleFromDescription, validateEnvironment } = arguments[0];\n    \n    ${scriptBody}\n    \n    return main;\n  `
     )
   );
 };
@@ -70,6 +71,18 @@ describe("create_pull_request.cjs", () => {
         getTrackerID: vi.fn(format => ""),
         addExpirationComment: vi.fn(),
         removeDuplicateTitleFromDescription: vi.fn((title, description) => description),
+        validateEnvironment: vi.fn((required) => {
+          // Implement actual validation logic for tests
+          const missing = required.filter(varName => {
+            const value = mockDependencies.process.env[varName];
+            return value === undefined || value === null || value.trim() === "";
+          });
+          if (missing.length > 0) {
+            throw new Error(
+              `Missing required environment variable${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}\n\nPlease ensure these are set in the safe_outputs job configuration.`
+            );
+          }
+        }),
       }));
   }),
     afterEach(() => {
@@ -79,12 +92,12 @@ describe("create_pull_request.cjs", () => {
     }),
     it("should throw error when GH_AW_WORKFLOW_ID is missing", async () => {
       const mainFunction = createMainFunction(mockDependencies);
-      await expect(mainFunction()).rejects.toThrow("GH_AW_WORKFLOW_ID environment variable is required");
+      await expect(mainFunction()).rejects.toThrow("Missing required environment variables: GH_AW_WORKFLOW_ID, GH_AW_BASE_BRANCH");
     }),
     it("should throw error when GH_AW_BASE_BRANCH is missing", async () => {
       mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
       const mainFunction = createMainFunction(mockDependencies);
-      await expect(mainFunction()).rejects.toThrow("GH_AW_BASE_BRANCH environment variable is required");
+      await expect(mainFunction()).rejects.toThrow("Missing required environment variable: GH_AW_BASE_BRANCH");
     }),
     it("should handle missing patch file with default warn behavior", async () => {
       ((mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow"), (mockDependencies.process.env.GH_AW_BASE_BRANCH = "main"), mockDependencies.fs.existsSync.mockReturnValue(!1));

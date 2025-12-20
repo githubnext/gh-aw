@@ -9,6 +9,7 @@ const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { validateEnvironment } = require("./validate_environment.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -53,15 +54,10 @@ async function main() {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
-  const workflowId = process.env.GH_AW_WORKFLOW_ID;
-  if (!workflowId) {
-    throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-  }
+  validateEnvironment(["GH_AW_WORKFLOW_ID", "GH_AW_BASE_BRANCH"]);
 
+  const workflowId = process.env.GH_AW_WORKFLOW_ID;
   const baseBranch = process.env.GH_AW_BASE_BRANCH;
-  if (!baseBranch) {
-    throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-  }
 
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
 

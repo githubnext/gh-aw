@@ -10,6 +10,7 @@ const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTempora
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { validateEnvironment } = require("./validate_environment.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -17,6 +18,9 @@ async function main() {
   core.setOutput("issue_url", "");
   core.setOutput("temporary_id_map", "{}");
   core.setOutput("issues_to_assign_copilot", "");
+
+  // Environment validation - fail early if required variables are missing
+  validateEnvironment(["GH_AW_WORKFLOW_NAME"]);
 
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
