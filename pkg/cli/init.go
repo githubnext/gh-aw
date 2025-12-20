@@ -118,13 +118,13 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if codespaceEnabled {
 		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", codespaceRepos)
 
-		// Create .devcontainer/gh-aw/devcontainer.json
+		// Create or update .devcontainer/devcontainer.json
 		if err := ensureDevcontainerConfig(verbose, codespaceRepos); err != nil {
-			initLog.Printf("Failed to create devcontainer config: %v", err)
-			return fmt.Errorf("failed to create devcontainer config: %w", err)
+			initLog.Printf("Failed to configure devcontainer: %v", err)
+			return fmt.Errorf("failed to configure devcontainer: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .devcontainer/gh-aw/devcontainer.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .devcontainer/devcontainer.json"))
 		}
 	}
 
