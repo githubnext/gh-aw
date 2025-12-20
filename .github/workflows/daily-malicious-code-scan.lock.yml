@@ -6428,6 +6428,8 @@ jobs:
       contents: read
       security-events: write
     timeout-minutes: 15
+    env:
+      GH_AW_WORKFLOW_ID: "agent"
     steps:
       - name: Download agent output artifact
         continue-on-error: true

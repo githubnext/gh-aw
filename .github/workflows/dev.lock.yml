@@ -7721,6 +7721,8 @@ jobs:
       contents: read
       discussions: write
     timeout-minutes: 15
+    env:
+      GH_AW_WORKFLOW_ID: "agent"
     outputs:
       update_discussion_discussion_number: ${{ steps.update_discussion.outputs.discussion_number }}
       update_discussion_discussion_url: ${{ steps.update_discussion.outputs.discussion_url }}

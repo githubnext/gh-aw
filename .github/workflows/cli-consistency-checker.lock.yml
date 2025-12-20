@@ -6565,6 +6565,8 @@ jobs:
       contents: read
       issues: write
     timeout-minutes: 15
+    env:
+      GH_AW_WORKFLOW_ID: "agent"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}

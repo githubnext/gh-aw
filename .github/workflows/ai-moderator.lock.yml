@@ -6550,6 +6550,8 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_WORKFLOW_ID: "agent"
     outputs:
       add_labels_labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
