@@ -209,7 +209,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		State              string                                 `json:"state,omitempty"`
 		Tags               []string                               `json:"tags,omitempty"`
 		AllowedSafeOutputs []string                               `json:"allowed-safe-outputs,omitempty"`
-		Launcher           *CampaignLauncherConfigForValidation    `json:"launcher,omitempty"`
+		Launcher           *CampaignLauncherConfigForValidation   `json:"launcher,omitempty"`
 		Governance         *CampaignGovernancePolicyForValidation `json:"governance,omitempty"`
 		ApprovalPolicy     *CampaignApprovalPolicy                `json:"approval-policy,omitempty"`
 	}
