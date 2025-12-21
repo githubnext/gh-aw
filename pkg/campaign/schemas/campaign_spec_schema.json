@@ -27,6 +27,11 @@
       "pattern": "/projects/",
       "minLength": 1
     },
+    "project-github-token": {
+      "type": "string",
+      "description": "Optional GitHub token expression used for GitHub Projects v2 operations (e.g., ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }})",
+      "minLength": 1
+    },
     "version": {
       "type": "string",
       "description": "Spec version (e.g., v1)",
@@ -53,6 +58,12 @@
     "metrics-glob": {
       "type": "string",
       "description": "Glob pattern to locate JSON metrics snapshots in memory/campaigns branch"
+    },
+    "cursor-glob": {
+      "type": "string",
+      "description": "Glob pattern to locate a durable cursor/checkpoint file in memory/campaigns branch",
+      "pattern": "^memory/campaigns/",
+      "minLength": 1
     },
     "owners": {
       "type": "array",
@@ -122,6 +133,61 @@
         "change-control": {
           "type": "boolean",
           "description": "Whether change control is required"
+        }
+      },
+      "additionalProperties": false
+    },
+    "launcher": {
+      "type": "object",
+      "description": "Optional launcher layer configuration. When omitted, the launcher is enabled by default.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to generate and compile the campaign launcher workflow"
+        }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "description": "Lightweight pacing and opt-out policies for campaign coordinator workflows (launcher/orchestrator)",
+      "properties": {
+        "max-new-items-per-run": {
+          "type": "integer",
+          "description": "Maximum number of new items (issues/PRs) the launcher should add to the Project board per run",
+          "minimum": 0
+        },
+        "max-discovery-items-per-run": {
+          "type": "integer",
+          "description": "Maximum number of candidate issues/PRs to scan during discovery in a single run",
+          "minimum": 0
+        },
+        "max-discovery-pages-per-run": {
+          "type": "integer",
+          "description": "Maximum number of result pages to fetch during discovery in a single run",
+          "minimum": 0
+        },
+        "opt-out-labels": {
+          "type": "array",
+          "description": "Labels that opt an issue/PR out of campaign tracking",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "do-not-downgrade-done-items": {
+          "type": "boolean",
+          "description": "If true, prevent moving Project status backwards (e.g., Done -> In Progress) when issues/PRs are reopened"
+        },
+        "max-project-updates-per-run": {
+          "type": "integer",
+          "description": "Maximum number of update-project safe-output operations per run for generated coordinator workflows",
+          "minimum": 0
+        },
+        "max-comments-per-run": {
+          "type": "integer",
+          "description": "Maximum number of add-comment safe-output operations per run for generated coordinator workflows",
+          "minimum": 0
         }
       },
       "additionalProperties": false
