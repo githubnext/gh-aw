@@ -424,14 +424,14 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 }
 
 func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
-	// Create a config with safe-inputs, safe-outputs, and other servers
+	// Create a config with safeinputs, safeoutputs, and other servers
 	configJSON := `{
 		"mcpServers": {
-			"safe-inputs": {
+			"safeinputs": {
 				"command": "node",
-				"args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"]
+				"args": ["/tmp/gh-aw/safeinputs/mcp-server.cjs"]
 			},
-			"safe-outputs": {
+			"safeoutputs": {
 				"command": "node",
 				"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]
 			},
@@ -454,13 +454,13 @@ func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
 		t.Fatalf("Failed to parse config: %v", err)
 	}
 
-	// Verify that safe-inputs and safe-outputs are filtered out
-	if _, exists := config.MCPServers["safe-inputs"]; exists {
-		t.Error("safe-inputs should be filtered out")
+	// Verify that safeinputs and safeoutputs are filtered out
+	if _, exists := config.MCPServers["safeinputs"]; exists {
+		t.Error("safeinputs should be filtered out")
 	}
 
-	if _, exists := config.MCPServers["safe-outputs"]; exists {
-		t.Error("safe-outputs should be filtered out")
+	if _, exists := config.MCPServers["safeoutputs"]; exists {
+		t.Error("safeoutputs should be filtered out")
 	}
 
 	// Verify that other servers are kept
@@ -479,14 +479,14 @@ func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
 }
 
 func TestParseGatewayConfig_OnlyInternalServers(t *testing.T) {
-	// Create a config with only safe-inputs and safe-outputs
+	// Create a config with only safeinputs and safeoutputs
 	configJSON := `{
 		"mcpServers": {
-			"safe-inputs": {
+			"safeinputs": {
 				"command": "node",
-				"args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"]
+				"args": ["/tmp/gh-aw/safeinputs/mcp-server.cjs"]
 			},
-			"safe-outputs": {
+			"safeoutputs": {
 				"command": "node",
 				"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]
 			}
