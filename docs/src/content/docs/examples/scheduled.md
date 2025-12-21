@@ -21,6 +21,14 @@ Scheduled workflows run automatically at specified times using cron expressions.
 
 ## Example Schedule Triggers
 
+**Recommended: Short fuzzy syntax**
+```yaml
+on: daily              # Automatically scattered to different time
+on: weekly             # Scattered across days and times
+on: weekly on monday   # Scattered time on specific day
+```
+
+**Traditional cron syntax**
 ```yaml
 on:
   schedule:
@@ -28,6 +36,8 @@ on:
     - cron: "0 0 * * *"      # Daily at midnight
     - cron: "0 */6 * * *"    # Every 6 hours
 ```
+
+See the [Triggers reference](/gh-aw/reference/triggers/#scheduled-triggers-schedule) for complete syntax options.
 
 ## Quick Start
 
