@@ -769,32 +769,6 @@ func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]
 	return copy
 }
 
-// removeInternalMarkers removes internal marker fields from frontmatter that are used for
-// internal processing but should not be validated against the schema
-func (c *Compiler) removeInternalMarkers(frontmatter map[string]any) {
-	// Check if "on" field exists
-	onValue, exists := frontmatter["on"]
-	if !exists {
-		return
-	}
-
-	// Check if "on" is a map
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return
-	}
-
-	// Process issues and pull_request sections
-	for _, sectionKey := range []string{"issues", "pull_request"} {
-		if sectionValue, hasSec := onMap[sectionKey]; hasSec {
-			if sectionMap, ok := sectionValue.(map[string]any); ok {
-				// Remove the marker field
-				delete(sectionMap, "__gh_aw_native_label_filter__")
-			}
-		}
-	}
-}
-
 // detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for the specific GitHub Actions expression
