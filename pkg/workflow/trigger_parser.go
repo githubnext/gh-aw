@@ -33,7 +33,7 @@ type TriggerIR struct {
 func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return nil, fmt.Errorf("trigger shorthand cannot be empty")
+		return nil, fmt.Errorf("trigger shorthand cannot be empty. Expected format: 'push to <branch>', 'issue opened', 'pull_request merged', etc.")
 	}
 
 	triggerParserLog.Printf("Parsing trigger shorthand: %s", input)
@@ -214,7 +214,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("invalid push trigger format: %s", strings.Join(tokens, " "))
+	return nil, fmt.Errorf("invalid push trigger format: '%s'. Expected format: 'push to <branch>' or 'push tags <pattern>'. Example: 'push to main' or 'push tags v*'", strings.Join(tokens, " "))
 }
 
 // parsePullRequestTrigger parses pull request triggers
@@ -289,7 +289,7 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("invalid pull_request trigger format: %s", strings.Join(tokens, " "))
+	return nil, fmt.Errorf("invalid pull_request trigger format: '%s'. Expected format: 'pull_request <type>' or 'pull_request affecting <path>'. Valid types: opened, edited, closed, reopened, synchronize, merged, labeled, unlabeled. Example: 'pull_request opened' or 'pull_request affecting src/**'", strings.Join(tokens, " "))
 }
 
 // parseIssueDiscussionTrigger parses issue and discussion triggers
@@ -312,7 +312,7 @@ func parseIssueDiscussionTrigger(input string) (*TriggerIR, error) {
 // parseIssueTrigger parses issue triggers
 func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("issue trigger requires an activity type")
+		return nil, fmt.Errorf("issue trigger requires an activity type. Expected format: 'issue <type>'. Valid types: opened, edited, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted, transferred. Example: 'issue opened'")
 	}
 
 	activityType := tokens[1]
@@ -332,7 +332,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 	}
 
 	if !validTypes[activityType] {
-		return nil, fmt.Errorf("invalid issue activity type: %s", activityType)
+		return nil, fmt.Errorf("invalid issue activity type: '%s'. Valid types: opened, edited, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted, transferred. Example: 'issue opened'", activityType)
 	}
 
 	ir := &TriggerIR{
@@ -357,7 +357,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 // parseDiscussionTrigger parses discussion triggers
 func parseDiscussionTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("discussion trigger requires an activity type")
+		return nil, fmt.Errorf("discussion trigger requires an activity type. Expected format: 'discussion <type>'. Valid types: created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered. Example: 'discussion created'")
 	}
 
 	activityType := tokens[1]
@@ -380,7 +380,7 @@ func parseDiscussionTrigger(tokens []string) (*TriggerIR, error) {
 	}
 
 	if !validTypes[activityType] {
-		return nil, fmt.Errorf("invalid discussion activity type: %s", activityType)
+		return nil, fmt.Errorf("invalid discussion activity type: '%s'. Valid types: created, edited, deleted, transferred, pinned, unpinned, labeled, unlabeled, locked, unlocked, category_changed, answered, unanswered. Example: 'discussion created'", activityType)
 	}
 
 	return &TriggerIR{
@@ -479,7 +479,7 @@ func parseReleaseRepositoryTrigger(input string) (*TriggerIR, error) {
 // parseReleaseTrigger parses release triggers
 func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("release trigger requires an activity type")
+		return nil, fmt.Errorf("release trigger requires an activity type. Expected format: 'release <type>'. Valid types: published, unpublished, created, edited, deleted, prereleased, released. Example: 'release published'")
 	}
 
 	activityType := tokens[1]
@@ -495,7 +495,7 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 	}
 
 	if !validTypes[activityType] {
-		return nil, fmt.Errorf("invalid release activity type: %s", activityType)
+		return nil, fmt.Errorf("invalid release activity type: '%s'. Valid types: published, unpublished, created, edited, deleted, prereleased, released. Example: 'release published'", activityType)
 	}
 
 	return &TriggerIR{
@@ -510,7 +510,7 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 // parseRepositoryTrigger parses repository lifecycle triggers
 func parseRepositoryTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
-		return nil, fmt.Errorf("repository trigger requires an activity type")
+		return nil, fmt.Errorf("repository trigger requires an activity type. Expected format: 'repository <type>'. Valid types: starred, forked. Example: 'repository starred'")
 	}
 
 	activityType := tokens[1]
@@ -535,7 +535,7 @@ func parseRepositoryTrigger(tokens []string) (*TriggerIR, error) {
 			},
 		}, nil
 	default:
-		return nil, fmt.Errorf("invalid repository activity type: %s", activityType)
+		return nil, fmt.Errorf("invalid repository activity type: '%s'. Valid types: starred, forked. Example: 'repository starred'", activityType)
 	}
 }
 
