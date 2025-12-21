@@ -464,15 +464,8 @@ func (g *MCPGatewayServer) initializeSessions() error {
 
 // createMCPSession creates an MCP session for a single server configuration
 func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerConfig) (*mcp.ClientSession, error) {
-	// Create log subdirectory for this server
-	serverLogDir := filepath.Join(g.logDir, serverName)
-	if err := os.MkdirAll(serverLogDir, 0755); err != nil {
-		gatewayLog.Printf("Failed to create log directory for %s: %v", serverName, err)
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-	
-	// Create log file for this server
-	logFile := filepath.Join(serverLogDir, fmt.Sprintf("%s.log", serverName))
+	// Create log file for this server (flat directory structure)
+	logFile := filepath.Join(g.logDir, fmt.Sprintf("%s.log", serverName))
 	gatewayLog.Printf("Creating log file for %s: %s", serverName, logFile)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating log file for %s: %s", serverName, logFile)))
 	
