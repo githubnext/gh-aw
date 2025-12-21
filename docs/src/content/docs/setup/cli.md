@@ -267,7 +267,7 @@ gh aw compile --strict --zizmor        # Strict mode with security scanning
 gh aw compile --validate --strict      # Validate schema and enforce strict mode
 ```
 
-**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction.campaign.md` → `go-file-size-reduction.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. See the [`campaign` command](#campaign) for management and inspection.
+**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction-project64.campaign.md` → `go-file-size-reduction-project64.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. See the [`campaign` command](#campaign) for management and inspection.
 
 See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for frontmatter configuration and [Security Guide](/gh-aw/guides/security/#strict-mode-validation) for best practices.
 
