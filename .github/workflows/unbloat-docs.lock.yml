@@ -2327,6 +2327,8 @@ jobs:
                   "-i",
                   "--rm",
                   "--init",
+                  "--network",
+                  "host",
                   "mcr.microsoft.com/playwright/mcp",
                   "--output-dir",
                   "/tmp/gh-aw/mcp-logs/playwright",
