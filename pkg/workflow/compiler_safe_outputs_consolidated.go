@@ -1275,13 +1275,13 @@ func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData
 	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          token: ${{ steps.app-token.outputs.token }}\n")
 	preSteps = append(preSteps, "          persist-credentials: false\n")
 	preSteps = append(preSteps, "          fetch-depth: 0\n")
 	if c.trialMode {
 		if c.trialLogicalRepoSlug != "" {
 			preSteps = append(preSteps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
 		}
-		preSteps = append(preSteps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	}
 
 	// Step 2: Configure Git credentials with conditional execution
@@ -1314,13 +1314,13 @@ func (c *Compiler) buildPushToPullRequestBranchPreStepsConsolidated(data *Workfl
 	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          token: ${{ steps.app-token.outputs.token }}\n")
 	preSteps = append(preSteps, "          persist-credentials: false\n")
 	preSteps = append(preSteps, "          fetch-depth: 0\n")
 	if c.trialMode {
 		if c.trialLogicalRepoSlug != "" {
 			preSteps = append(preSteps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
 		}
-		preSteps = append(preSteps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	}
 
 	// Step 2: Configure Git credentials with conditional execution
