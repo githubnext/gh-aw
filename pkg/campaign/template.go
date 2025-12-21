@@ -14,9 +14,6 @@ var templateLog = logger.New("campaign:template")
 //go:embed prompts/orchestrator_instructions.md
 var orchestratorInstructionsTemplate string
 
-//go:embed prompts/launcher_instructions.md
-var launcherInstructionsTemplate string
-
 //go:embed prompts/project_update_instructions.md
 var projectUpdateInstructionsTemplate string
 
@@ -76,16 +73,6 @@ func RenderOrchestratorInstructions(data CampaignPromptData) string {
 		templateLog.Printf("Failed to render orchestrator instructions: %v", err)
 		// Fallback to a simple version if template rendering fails
 		return "Each time this orchestrator runs, generate a concise status report for this campaign."
-	}
-	return strings.TrimSpace(result)
-}
-
-// RenderLauncherInstructions renders the launcher instructions with the given data.
-func RenderLauncherInstructions(data CampaignPromptData) string {
-	result, err := renderTemplate(launcherInstructionsTemplate, data)
-	if err != nil {
-		templateLog.Printf("Failed to render launcher instructions: %v", err)
-		return "Keep the GitHub Project dashboard in sync with the campaign tracker label."
 	}
 	return strings.TrimSpace(result)
 }

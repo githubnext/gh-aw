@@ -43,7 +43,7 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	if strings.TrimSpace(data.Concurrency) == "" || !strings.Contains(data.Concurrency, "concurrency:") {
 		t.Fatalf("expected workflow-level concurrency to be set, got %q", data.Concurrency)
 	}
-	if !strings.Contains(data.Concurrency, "campaign-go-file-size-reduction-orchestrator") {
+	if !strings.Contains(data.Concurrency, "campaign-go-file-size-reduction-project64-orchestrator") {
 		t.Fatalf("expected concurrency group to include campaign id, got %q", data.Concurrency)
 	}
 

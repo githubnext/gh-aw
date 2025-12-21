@@ -78,13 +78,9 @@ type CampaignSpec struct {
 	// safe output configuration in the generated orchestrator workflow.
 	ProjectGitHubToken string `yaml:"project-github-token,omitempty" json:"project_github_token,omitempty" console:"header:Project Token,omitempty,maxlen:30"`
 
-	// Launcher configures the optional launcher layer for this campaign.
-	// When omitted, the launcher is enabled by default.
-	Launcher *CampaignLauncherConfig `yaml:"launcher,omitempty" json:"launcher,omitempty"`
-
 	// Governance configures lightweight pacing and opt-out policies for campaign
-	// coordinator workflows (launcher/orchestrator). These guardrails are
-	// primarily enforced through generated prompts and safe-output maxima.
+	// orchestrator workflows. These guardrails are primarily enforced through
+	// generated prompts and safe-output maxima.
 	Governance *CampaignGovernancePolicy `yaml:"governance,omitempty" json:"governance,omitempty"`
 
 	// ApprovalPolicy describes high-level approval expectations for this
@@ -94,24 +90,6 @@ type CampaignSpec struct {
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
-}
-
-// CampaignLauncherConfig configures the optional launcher layer for campaigns.
-//
-// The launcher is enabled by default. Set enabled: false to disable launcher
-// generation/compilation for a given campaign.
-type CampaignLauncherConfig struct {
-	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-}
-
-// IsLauncherEnabled reports whether the campaign launcher layer is enabled.
-//
-// Defaults to true when launcher.enabled is omitted.
-func (spec *CampaignSpec) IsLauncherEnabled() bool {
-	if spec == nil || spec.Launcher == nil || spec.Launcher.Enabled == nil {
-		return true
-	}
-	return *spec.Launcher.Enabled
 }
 
 // CampaignGovernancePolicy captures lightweight pacing and opt-out policies.
