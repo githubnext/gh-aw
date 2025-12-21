@@ -7,6 +7,10 @@ sidebar:
 
 The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
+:::tip[Setting Appropriate Limits]
+Choosing the right limits for your workflow prevents spam and ensures consistency. See [Safe Output Limits Guidelines](/gh-aw/guides/safe-output-limits/) for recommended limits by workflow category (meta-orchestrators, daily monitors, workers, campaigns, analysis, and responders).
+:::
+
 ## Why Safe Outputs?
 
 **Safe outputs are a security feature.** Your AI agent runs with minimal permissions (read-only access by default). When the agent wants to make changes to your repository—like creating an issue, adding a comment, or opening a pull request—it cannot do so directly. Instead, it "requests" that action by writing structured output to a file.
@@ -977,6 +981,7 @@ Custom messages can be imported from shared workflows. Local messages override i
 
 ## Related Documentation
 
+- [Safe Output Limits Guidelines](/gh-aw/guides/safe-output-limits/) - Recommended limits by workflow category
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Complete threat detection documentation and examples
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
