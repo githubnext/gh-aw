@@ -7772,6 +7772,9 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_TRACKER_ID: "daily-file-diet"
       GH_AW_WORKFLOW_ID: "daily-file-diet"
