@@ -159,6 +159,63 @@ func TestParseLabelTriggerShorthand(t *testing.T) {
 			wantIsLabel:    true,
 			wantErr:        false,
 		},
+		// Comma-separated label tests
+		{
+			name:           "issue labeled with comma-separated labels",
+			input:          "issue labeled bug, enhancement, priority-high",
+			wantEntityType: "issues",
+			wantLabelNames: []string{"bug", "enhancement", "priority-high"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "issue labeled with comma-separated single label",
+			input:          "issue labeled bug,",
+			wantEntityType: "issues",
+			wantLabelNames: []string{"bug"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "pull_request labeled with comma-separated labels",
+			input:          "pull_request labeled needs-review, approved, ready-to-merge",
+			wantEntityType: "pull_request",
+			wantLabelNames: []string{"needs-review", "approved", "ready-to-merge"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "pull-request (hyphen) labeled with comma-separated labels",
+			input:          "pull-request labeled needs-review, approved",
+			wantEntityType: "pull_request",
+			wantLabelNames: []string{"needs-review", "approved"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "discussion labeled with comma-separated labels",
+			input:          "discussion labeled question, announcement, help-wanted",
+			wantEntityType: "discussion",
+			wantLabelNames: []string{"question", "announcement", "help-wanted"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "issue labeled with mixed comma and space separation",
+			input:          "issue labeled bug, enhancement priority-high",
+			wantEntityType: "issues",
+			wantLabelNames: []string{"bug", "enhancement", "priority-high"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "issue labeled with commas but no spaces",
+			input:          "issue labeled bug,enhancement,priority-high",
+			wantEntityType: "issues",
+			wantLabelNames: []string{"bug", "enhancement", "priority-high"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
 	}
 
 	for _, tt := range tests {

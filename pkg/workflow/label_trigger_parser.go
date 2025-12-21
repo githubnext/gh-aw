@@ -26,22 +26,22 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	}
 
 	// Check for different patterns:
-	// 1. "issue labeled label1 label2 ..."
-	// 2. "pull_request labeled label1 label2 ..." or "pull-request labeled label1 label2 ..."
-	// 3. "discussion labeled label1 label2 ..."
+	// 1. "issue labeled label1 label2 ..." or "issue labeled label1, label2, ..."
+	// 2. "pull_request labeled label1 label2 ..." or "pull-request labeled label1, label2, ..."
+	// 3. "discussion labeled label1 label2 ..." or "discussion labeled label1, label2, ..."
 
 	var startIdx int
 
 	if tokens[0] == "issue" && tokens[1] == "labeled" {
-		// Pattern 1: "issue labeled label1 label2 ..."
+		// Pattern 1: "issue labeled label1 label2 ..." or "issue labeled label1, label2, ..."
 		entityType = "issues"
 		startIdx = 2
 	} else if (tokens[0] == "pull_request" || tokens[0] == "pull-request") && tokens[1] == "labeled" {
-		// Pattern 2: "pull_request labeled label1 label2 ..." or "pull-request labeled label1 label2 ..."
+		// Pattern 2: "pull_request labeled label1 label2 ..." or "pull-request labeled label1, label2, ..."
 		entityType = "pull_request"
 		startIdx = 2
 	} else if tokens[0] == "discussion" && tokens[1] == "labeled" {
-		// Pattern 3: "discussion labeled label1 label2 ..."
+		// Pattern 3: "discussion labeled label1 label2 ..." or "discussion labeled label1, label2, ..."
 		entityType = "discussion"
 		startIdx = 2
 	} else {
@@ -54,13 +54,22 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
 	}
 
-	labelNames = tokens[startIdx:]
-
-	// Validate label names are not empty
-	for _, label := range labelNames {
-		if strings.TrimSpace(label) == "" {
-			return "", nil, true, fmt.Errorf("label names cannot be empty in label trigger shorthand")
+	// Process label names: handle both space-separated and comma-separated formats
+	rawLabels := tokens[startIdx:]
+	for _, token := range rawLabels {
+		// Split on commas to handle "label1,label2,label3" format
+		parts := strings.Split(token, ",")
+		for _, part := range parts {
+			cleanLabel := strings.TrimSpace(part)
+			if cleanLabel != "" {
+				labelNames = append(labelNames, cleanLabel)
+			}
 		}
+	}
+
+	// Validate we have at least one label after processing
+	if len(labelNames) == 0 {
+		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
 	}
 
 	labelTriggerParserLog.Printf("Parsed label trigger shorthand: %s -> entity: %s, labels: %v", input, entityType, labelNames)
