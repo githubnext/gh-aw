@@ -180,7 +180,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          retry_count=0",
 		fmt.Sprintf("          gateway_url=\"%s\"", gatewayURL),
 		"          while [ $retry_count -lt $max_retries ]; do",
-		"            if curl -s -o /dev/null -w \"%{http_code}\" \"${gateway_url}/health\" | grep -q \"200\\|204\"; then",
+		"            if curl -s -o /dev/null -w \"%{http_code}\" \"${gateway_url}\" | grep -q \"200\\|204\"; then",
 		"              echo \"MCP Gateway is ready!\"",
 		"              exit 0",
 		"            fi",
