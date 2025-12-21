@@ -145,8 +145,7 @@ func (c *Compiler) validateCopilotNetworkConfig(engineID string, networkPermissi
 
 				// Build error message
 				var errorMsg strings.Builder
-				errorMsg.WriteString("Copilot workflows cannot directly access api.github.com. ")
-				errorMsg.WriteString("The Copilot agent requires the GitHub MCP server for GitHub API operations.\n\n")
+				errorMsg.WriteString("Copilot workflows cannot directly access api.github.com. The Copilot agent requires the GitHub MCP server for GitHub API operations.\n\n")
 
 				if hasGitHubMCP {
 					errorMsg.WriteString("You have GitHub MCP configured, so you can remove 'api.github.com' from your network.allowed list.\n\n")
@@ -162,9 +161,9 @@ func (c *Compiler) validateCopilotNetworkConfig(engineID string, networkPermissi
 					errorMsg.WriteString("    github:\n")
 					errorMsg.WriteString("      mode: local\n")
 					errorMsg.WriteString("      toolsets: [default]\n\n")
+					errorMsg.WriteString("Then remove 'api.github.com' from your network.allowed list.\n\n")
 				}
 
-				errorMsg.WriteString("Then remove 'api.github.com' from your network.allowed list.\n\n")
 				errorMsg.WriteString("See: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default")
 
 				return fmt.Errorf("%s", errorMsg.String())
