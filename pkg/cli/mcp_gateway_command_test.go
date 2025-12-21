@@ -37,7 +37,7 @@ func TestReadGatewayConfig_FromFile(t *testing.T) {
 	}
 
 	// Read config
-	result, err := readGatewayConfig([]string{configFile})
+	result, _, err := readGatewayConfig([]string{configFile})
 	if err != nil {
 		t.Fatalf("Failed to read config: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestReadGatewayConfig_InvalidJSON(t *testing.T) {
 	}
 
 	// Read config - should fail
-	_, err := readGatewayConfig([]string{configFile})
+	_, _, err := readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -173,7 +173,7 @@ func TestGatewaySettings_WithAPIKey(t *testing.T) {
 
 func TestReadGatewayConfig_FileNotFound(t *testing.T) {
 	// Try to read a non-existent file
-	_, err := readGatewayConfig([]string{"/tmp/nonexistent-gateway-config-12345.json"})
+	_, _, err := readGatewayConfig([]string{"/tmp/nonexistent-gateway-config-12345.json"})
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -204,7 +204,7 @@ func TestReadGatewayConfig_EmptyServers(t *testing.T) {
 	}
 
 	// Try to read config - should fail with no servers
-	_, err = readGatewayConfig([]string{configFile})
+	_, _, err = readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for config with no servers, got nil")
 	}
@@ -223,7 +223,7 @@ func TestReadGatewayConfig_EmptyData(t *testing.T) {
 	}
 
 	// Try to read config - should fail with empty data
-	_, err := readGatewayConfig([]string{configFile})
+	_, _, err := readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for empty config file, got nil")
 	}
@@ -288,7 +288,7 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 	}
 
 	// Read and merge configs
-	result, err := readGatewayConfig([]string{baseConfig, overrideConfig})
+	result, _, err := readGatewayConfig([]string{baseConfig, overrideConfig})
 	if err != nil {
 		t.Fatalf("Failed to read configs: %v", err)
 	}
@@ -502,4 +502,191 @@ func TestParseGatewayConfig_OnlyInternalServers(t *testing.T) {
 	if len(config.MCPServers) != 0 {
 		t.Errorf("Expected 0 servers after filtering internal servers, got %d", len(config.MCPServers))
 	}
+}
+
+func TestRewriteMCPConfigForGateway(t *testing.T) {
+// Create a temporary config file
+tmpDir := t.TempDir()
+configFile := filepath.Join(tmpDir, "test-config.json")
+
+// Initial config with multiple servers
+initialConfig := map[string]any{
+"mcpServers": map[string]any{
+"github": map[string]any{
+"command": "gh",
+"args":    []string{"aw", "mcp-server"},
+},
+"custom": map[string]any{
+"command": "node",
+"args":    []string{"server.js"},
+},
+},
+"gateway": map[string]any{
+"port": 8080,
+},
+}
+
+initialJSON, _ := json.Marshal(initialConfig)
+if err := os.WriteFile(configFile, initialJSON, 0644); err != nil {
+t.Fatalf("Failed to write config file: %v", err)
+}
+
+// Create a gateway config (after filtering)
+gatewayConfig := &MCPGatewayConfig{
+MCPServers: map[string]MCPServerConfig{
+"github": {
+Command: "gh",
+Args:    []string{"aw", "mcp-server"},
+},
+"custom": {
+Command: "node",
+Args:    []string{"server.js"},
+},
+},
+Gateway: GatewaySettings{
+Port: 8080,
+},
+}
+
+// Rewrite the config
+if err := rewriteMCPConfigForGateway(configFile, gatewayConfig); err != nil {
+t.Fatalf("rewriteMCPConfigForGateway failed: %v", err)
+}
+
+// Read back the rewritten config
+rewrittenData, err := os.ReadFile(configFile)
+if err != nil {
+t.Fatalf("Failed to read rewritten config: %v", err)
+}
+
+var rewrittenConfig map[string]any
+if err := json.Unmarshal(rewrittenData, &rewrittenConfig); err != nil {
+t.Fatalf("Failed to parse rewritten config: %v", err)
+}
+
+// Verify structure
+mcpServers, ok := rewrittenConfig["mcpServers"].(map[string]any)
+if !ok {
+t.Fatal("mcpServers not found or wrong type")
+}
+
+if len(mcpServers) != 2 {
+t.Errorf("Expected 2 servers in rewritten config, got %d", len(mcpServers))
+}
+
+// Verify github server points to gateway
+github, ok := mcpServers["github"].(map[string]any)
+if !ok {
+t.Fatal("github server not found")
+}
+
+githubURL, ok := github["url"].(string)
+if !ok {
+t.Fatal("github server missing url")
+}
+
+expectedURL := "http://localhost:8080/mcp/github"
+if githubURL != expectedURL {
+t.Errorf("Expected github URL %s, got %s", expectedURL, githubURL)
+}
+
+// Verify custom server points to gateway
+custom, ok := mcpServers["custom"].(map[string]any)
+if !ok {
+t.Fatal("custom server not found")
+}
+
+customURL, ok := custom["url"].(string)
+if !ok {
+t.Fatal("custom server missing url")
+}
+
+expectedCustomURL := "http://localhost:8080/mcp/custom"
+if customURL != expectedCustomURL {
+t.Errorf("Expected custom URL %s, got %s", expectedCustomURL, customURL)
+}
+
+// Verify gateway settings are preserved
+gateway, ok := rewrittenConfig["gateway"].(map[string]any)
+if !ok {
+t.Fatal("gateway settings not found")
+}
+
+port, ok := gateway["port"].(float64) // JSON numbers unmarshal to float64
+if !ok {
+t.Fatal("gateway port not found")
+}
+
+if int(port) != 8080 {
+t.Errorf("Expected port 8080, got %d", int(port))
+}
+}
+
+func TestRewriteMCPConfigForGateway_WithAPIKey(t *testing.T) {
+// Create a temporary config file
+tmpDir := t.TempDir()
+configFile := filepath.Join(tmpDir, "test-config.json")
+
+initialConfig := map[string]any{
+"mcpServers": map[string]any{
+"github": map[string]any{
+"command": "gh",
+"args":    []string{"aw", "mcp-server"},
+},
+},
+}
+
+initialJSON, _ := json.Marshal(initialConfig)
+if err := os.WriteFile(configFile, initialJSON, 0644); err != nil {
+t.Fatalf("Failed to write config file: %v", err)
+}
+
+// Create a gateway config with API key
+gatewayConfig := &MCPGatewayConfig{
+MCPServers: map[string]MCPServerConfig{
+"github": {
+Command: "gh",
+Args:    []string{"aw", "mcp-server"},
+},
+},
+Gateway: GatewaySettings{
+Port:   8080,
+APIKey: "test-api-key",
+},
+}
+
+// Rewrite the config
+if err := rewriteMCPConfigForGateway(configFile, gatewayConfig); err != nil {
+t.Fatalf("rewriteMCPConfigForGateway failed: %v", err)
+}
+
+// Read back the rewritten config
+rewrittenData, err := os.ReadFile(configFile)
+if err != nil {
+t.Fatalf("Failed to read rewritten config: %v", err)
+}
+
+var rewrittenConfig map[string]any
+if err := json.Unmarshal(rewrittenData, &rewrittenConfig); err != nil {
+t.Fatalf("Failed to parse rewritten config: %v", err)
+}
+
+// Verify server has authorization header
+mcpServers := rewrittenConfig["mcpServers"].(map[string]any)
+github := mcpServers["github"].(map[string]any)
+
+headers, ok := github["headers"].(map[string]any)
+if !ok {
+t.Fatal("Expected headers in server config")
+}
+
+auth, ok := headers["Authorization"].(string)
+if !ok {
+t.Fatal("Expected Authorization header")
+}
+
+expectedAuth := "Bearer test-api-key"
+if auth != expectedAuth {
+t.Errorf("Expected auth '%s', got '%s'", expectedAuth, auth)
+}
 }
