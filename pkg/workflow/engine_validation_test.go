@@ -310,14 +310,15 @@ func TestValidateCopilotNetworkConfig(t *testing.T) {
 		errorMsg           string
 	}{
 		{
-			name:     "non-Copilot engine is allowed api.github.com",
+			name:     "claude engine with api.github.com should fail",
 			engineID: "claude",
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
 				Allowed: []string{"api.github.com", "anthropic.com"},
 			},
 			tools:       nil,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
 		},
 		{
 			name:     "Copilot engine without api.github.com in network allowed",
@@ -393,14 +394,15 @@ func TestValidateCopilotNetworkConfig(t *testing.T) {
 			errorMsg:    "cannot directly access api.github.com",
 		},
 		{
-			name:     "codex engine is allowed api.github.com",
+			name:     "codex engine with api.github.com should fail",
 			engineID: "codex",
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
 				Allowed: []string{"api.github.com", "api.openai.com"},
 			},
 			tools:       nil,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
 		},
 		{
 			name:     "custom engine is allowed api.github.com",
