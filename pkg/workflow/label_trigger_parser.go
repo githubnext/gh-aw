@@ -10,10 +10,11 @@ import (
 var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
 
 // parseLabelTriggerShorthand parses a string in the format "labeled label1 label2 ..." or
-// "issue labeled label1 label2 ...", "pull_request labeled label1 label2 ...", or
-// "discussion labeled label1 label2 ..." and returns the entity type and label names.
+// "issue labeled label1 label2 ...", "pull_request labeled label1 label2 ..."
+// and returns the entity type and label names.
 // Returns an empty string for entityType if not a valid label trigger shorthand.
 // Returns an error if the format is invalid.
+// Note: Discussion labeled triggers are not supported as GitHub Actions does not support label filtering for discussions.
 func parseLabelTriggerShorthand(input string) (entityType string, labelNames []string, isLabelTrigger bool, err error) {
 	input = strings.TrimSpace(input)
 	
@@ -27,7 +28,6 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	// 1. "labeled label1 label2 ..." - defaults to issues
 	// 2. "issue labeled label1 label2 ..."
 	// 3. "pull_request labeled label1 label2 ..."
-	// 4. "discussion labeled label1 label2 ..."
 
 	var startIdx int
 	
@@ -42,10 +42,6 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	} else if len(tokens) >= 2 && tokens[0] == "pull_request" && tokens[1] == "labeled" {
 		// Pattern 3: "pull_request labeled label1 label2 ..."
 		entityType = "pull_request"
-		startIdx = 2
-	} else if len(tokens) >= 2 && tokens[0] == "discussion" && tokens[1] == "labeled" {
-		// Pattern 4: "discussion labeled label1 label2 ..."
-		entityType = "discussion"
 		startIdx = 2
 	} else {
 		// Not a label trigger shorthand
@@ -73,6 +69,8 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 // expandLabelTriggerShorthand takes an entity type and label names and returns a map that represents
 // the expanded label trigger + workflow_dispatch configuration with item_number input.
+// Note: Only "issues" and "pull_request" entity types are supported, as GitHub Actions
+// does not support label filtering for discussions.
 func expandLabelTriggerShorthand(entityType string, labelNames []string) map[string]any {
 	// Create the trigger configuration based on entity type
 	var triggerKey string
@@ -81,10 +79,8 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 		triggerKey = "issues"
 	case "pull_request":
 		triggerKey = "pull_request"
-	case "discussion":
-		triggerKey = "discussion"
 	default:
-		triggerKey = "issues" // Default to issues
+		triggerKey = "issues" // Default to issues (though this shouldn't happen with our parser)
 	}
 
 	// Build the trigger configuration
@@ -117,9 +113,7 @@ func getItemTypeName(entityType string) string {
 		return "issue"
 	case "pull_request":
 		return "pull request"
-	case "discussion":
-		return "discussion"
 	default:
-		return "item"
+		return "item" // Fallback (though this shouldn't happen with our parser)
 	}
 }

@@ -64,19 +64,11 @@ func TestParseLabelTriggerShorthand(t *testing.T) {
 			wantErr:        false,
 		},
 		{
-			name:           "discussion labeled with single label",
+			name:           "not a label trigger - discussion labeled (not supported)",
 			input:          "discussion labeled question",
-			wantEntityType: "discussion",
-			wantLabelNames: []string{"question"},
-			wantIsLabel:    true,
-			wantErr:        false,
-		},
-		{
-			name:           "discussion labeled with multiple labels",
-			input:          "discussion labeled question announcement",
-			wantEntityType: "discussion",
-			wantLabelNames: []string{"question", "announcement"},
-			wantIsLabel:    true,
+			wantEntityType: "",
+			wantLabelNames: nil,
+			wantIsLabel:    false,
 			wantErr:        false,
 		},
 		{
@@ -216,20 +208,6 @@ func TestExpandLabelTriggerShorthand(t *testing.T) {
 			wantTriggerKey:   "pull_request",
 			wantItemTypeName: "pull request",
 		},
-		{
-			name:             "discussion with single label",
-			entityType:       "discussion",
-			labelNames:       []string{"question"},
-			wantTriggerKey:   "discussion",
-			wantItemTypeName: "discussion",
-		},
-		{
-			name:             "discussion with multiple labels",
-			entityType:       "discussion",
-			labelNames:       []string{"question", "announcement"},
-			wantTriggerKey:   "discussion",
-			wantItemTypeName: "discussion",
-		},
 	}
 
 	for _, tt := range tests {
@@ -316,7 +294,6 @@ func TestGetItemTypeName(t *testing.T) {
 	}{
 		{"issues", "issue"},
 		{"pull_request", "pull request"},
-		{"discussion", "discussion"},
 		{"unknown", "item"},
 	}
 
