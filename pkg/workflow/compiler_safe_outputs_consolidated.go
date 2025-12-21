@@ -153,6 +153,19 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add artifact download steps once at the beginning
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
 
+	// Add patch artifact download if push-to-pull-request-branch is enabled
+	// This is required for the push_to_pull_request_branch step to find the patch file
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		consolidatedSafeOutputsLog.Print("Adding patch artifact download for push-to-pull-request-branch")
+		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+			ArtifactName: "aw.patch",
+			DownloadPath: "/tmp/gh-aw/",
+			SetupEnvStep: false, // No environment variable needed, the script checks the file directly
+			StepName:     "Download patch artifact",
+		})
+		steps = append(steps, patchDownloadSteps...)
+	}
+
 	// Add JavaScript files setup step if using file mode
 	if scriptFilesResult != nil && len(scriptFilesResult.Files) > 0 {
 		// Prepare files with rewritten require paths
