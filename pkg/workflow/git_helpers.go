@@ -1,3 +1,31 @@
+// Package workflow provides Git repository utilities for workflow compilation.
+//
+// This file contains helper functions for interacting with Git repositories
+// to extract metadata such as tags and version information. These helpers are
+// used during workflow compilation to determine release contexts and versioning.
+//
+// # Organization Rationale
+//
+// These Git utilities are grouped in a helper file because they:
+//   - Provide Git-specific functionality (tags, versions)
+//   - Are used by multiple workflow compilation modules
+//   - Encapsulate Git command execution and error handling
+//   - Have a clear domain focus (Git repository metadata)
+//
+// This follows the helper file conventions documented in the developer instructions.
+// See skills/developer/SKILL.md#helper-file-conventions for details.
+//
+// # Key Functions
+//
+// Tag Detection:
+//   - GetCurrentGitTag() - Detect current Git tag from environment or repository
+//
+// # Usage Patterns
+//
+// These functions are primarily used during workflow compilation to:
+//   - Detect release contexts (tags vs. regular commits)
+//   - Extract version information for releases
+//   - Support conditional workflow behavior based on Git state
 package workflow
 
 import (
