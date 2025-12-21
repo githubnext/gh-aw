@@ -30,7 +30,7 @@
 //
 // Functions:
 //   - normalizeWorkflowName (resolve.go): Removes file extensions (.md, .lock.yml)
-//   - normalizeSafeOutputIdentifier (safe_outputs.go): Converts dashes to underscores
+//   - normalizeSafeOutputIdentifier (safe_outputs_config.go): Converts dashes to underscores
 //
 // Example:
 //
