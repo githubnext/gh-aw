@@ -273,6 +273,20 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 	}
 
 	gatewayLog.Printf("Successfully parsed JSON configuration")
+	
+	// Filter out internal workflow MCP servers (safe-inputs and safe-outputs)
+	// These are used internally by the workflow and should not be proxied by the gateway
+	filteredServers := make(map[string]MCPServerConfig)
+	for name, serverConfig := range config.MCPServers {
+		if name == "safe-inputs" || name == "safe-outputs" {
+			gatewayLog.Printf("Filtering out internal workflow server: %s", name)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Filtering out internal workflow server: %s", name)))
+			continue
+		}
+		filteredServers[name] = serverConfig
+	}
+	config.MCPServers = filteredServers
+	
 	return &config, nil
 }
 

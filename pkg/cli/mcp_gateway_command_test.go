@@ -422,3 +422,84 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 		t.Error("Port should be kept from base")
 	}
 }
+
+func TestParseGatewayConfig_FiltersInternalServers(t *testing.T) {
+	// Create a config with safe-inputs, safe-outputs, and other servers
+	configJSON := `{
+		"mcpServers": {
+			"safe-inputs": {
+				"command": "node",
+				"args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"]
+			},
+			"safe-outputs": {
+				"command": "node",
+				"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]
+			},
+			"github": {
+				"command": "gh",
+				"args": ["aw", "mcp-server", "--toolsets", "default"]
+			},
+			"custom-server": {
+				"command": "custom-command",
+				"args": ["arg1"]
+			}
+		},
+		"gateway": {
+			"port": 8080
+		}
+	}`
+
+	config, err := parseGatewayConfig([]byte(configJSON))
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	// Verify that safe-inputs and safe-outputs are filtered out
+	if _, exists := config.MCPServers["safe-inputs"]; exists {
+		t.Error("safe-inputs should be filtered out")
+	}
+
+	if _, exists := config.MCPServers["safe-outputs"]; exists {
+		t.Error("safe-outputs should be filtered out")
+	}
+
+	// Verify that other servers are kept
+	if _, exists := config.MCPServers["github"]; !exists {
+		t.Error("github server should be kept")
+	}
+
+	if _, exists := config.MCPServers["custom-server"]; !exists {
+		t.Error("custom-server should be kept")
+	}
+
+	// Verify server count
+	if len(config.MCPServers) != 2 {
+		t.Errorf("Expected 2 servers after filtering, got %d", len(config.MCPServers))
+	}
+}
+
+func TestParseGatewayConfig_OnlyInternalServers(t *testing.T) {
+	// Create a config with only safe-inputs and safe-outputs
+	configJSON := `{
+		"mcpServers": {
+			"safe-inputs": {
+				"command": "node",
+				"args": ["/tmp/gh-aw/safe-inputs/mcp-server.cjs"]
+			},
+			"safe-outputs": {
+				"command": "node",
+				"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]
+			}
+		}
+	}`
+
+	config, err := parseGatewayConfig([]byte(configJSON))
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	// Verify that all internal servers are filtered out, resulting in 0 servers
+	if len(config.MCPServers) != 0 {
+		t.Errorf("Expected 0 servers after filtering internal servers, got %d", len(config.MCPServers))
+	}
+}
