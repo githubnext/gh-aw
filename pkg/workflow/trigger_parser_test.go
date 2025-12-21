@@ -45,7 +45,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 				"tags": []string{"v*"},
 			},
 		},
-		
+
 		// Source Control Patterns - Pull Request
 		{
 			name:    "simple pull_request (left as-is)",
@@ -88,7 +88,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 				"paths": []string{"docs/**"},
 			},
 		},
-		
+
 		// Issue Patterns
 		{
 			name:      "issue opened",
@@ -115,7 +115,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantTypes: []string{"opened"},
 			wantConds: []string{"contains(github.event.issue.labels.*.name, 'bug')"},
 		},
-		
+
 		// Discussion Patterns
 		{
 			name:      "discussion created",
@@ -129,7 +129,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantEvent: "discussion",
 			wantTypes: []string{"edited"},
 		},
-		
+
 		// Manual Invocation Patterns
 		{
 			name:    "manual",
@@ -150,7 +150,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 				"workflows": []string{"ci-test"},
 			},
 		},
-		
+
 		// Comment Patterns
 		{
 			name:      "comment created",
@@ -158,7 +158,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantEvent: "issue_comment",
 			wantTypes: []string{"created"},
 		},
-		
+
 		// Release Patterns
 		{
 			name:      "release published",
@@ -172,7 +172,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantEvent: "release",
 			wantTypes: []string{"prereleased"},
 		},
-		
+
 		// Repository Patterns
 		{
 			name:      "repository starred",
@@ -185,7 +185,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			input:     "repository forked",
 			wantEvent: "fork",
 		},
-		
+
 		// Security Patterns
 		{
 			name:      "dependabot pull request",
@@ -206,7 +206,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantEvent: "code_scanning_alert",
 			wantTypes: []string{"created", "reopened", "fixed"},
 		},
-		
+
 		// External Integration Patterns
 		{
 			name:      "api dispatch",
@@ -216,7 +216,7 @@ func TestParseTriggerShorthand(t *testing.T) {
 				"types": []string{"custom-event"},
 			},
 		},
-		
+
 		// Invalid/Unrecognized Patterns
 		{
 			name:    "not a trigger shorthand",
@@ -229,47 +229,47 @@ func TestParseTriggerShorthand(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ir, err := ParseTriggerShorthand(tt.input)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ParseTriggerShorthand() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseTriggerShorthand() unexpected error = %v", err)
 				return
 			}
-			
+
 			if tt.wantNil {
 				if ir != nil {
 					t.Errorf("ParseTriggerShorthand() expected nil but got IR with event %s", ir.Event)
 				}
 				return
 			}
-			
+
 			if ir == nil {
 				t.Errorf("ParseTriggerShorthand() returned nil when IR was expected")
 				return
 			}
-			
+
 			if ir.Event != tt.wantEvent {
 				t.Errorf("ParseTriggerShorthand() event = %v, want %v", ir.Event, tt.wantEvent)
 			}
-			
+
 			if !slicesEqual(ir.Types, tt.wantTypes) {
 				t.Errorf("ParseTriggerShorthand() types = %v, want %v", ir.Types, tt.wantTypes)
 			}
-			
+
 			if !mapsEqual(ir.Filters, tt.wantFilters) {
 				t.Errorf("ParseTriggerShorthand() filters = %v, want %v", ir.Filters, tt.wantFilters)
 			}
-			
+
 			if !slicesEqual(ir.Conditions, tt.wantConds) {
 				t.Errorf("ParseTriggerShorthand() conditions = %v, want %v", ir.Conditions, tt.wantConds)
 			}
@@ -289,7 +289,7 @@ func TestTriggerIRToYAMLMap(t *testing.T) {
 				Event: "push",
 			},
 			want: map[string]any{
-				"push": nil,
+				"push": map[string]any{}, // Empty map instead of nil to avoid null in YAML
 			},
 		},
 		{
@@ -327,16 +327,16 @@ func TestTriggerIRToYAMLMap(t *testing.T) {
 				},
 			},
 			want: map[string]any{
-				"push": nil,
+				"push":              map[string]any{}, // Empty map instead of nil
 				"workflow_dispatch": nil,
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.ir.ToYAMLMap()
-			
+
 			if !mapsEqual(got, tt.want) {
 				t.Errorf("TriggerIR.ToYAMLMap() = %v, want %v", got, tt.want)
 			}
@@ -381,32 +381,32 @@ func TestParseSourceControlTriggers(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ir, err := ParseTriggerShorthand(tt.input)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ParseTriggerShorthand() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseTriggerShorthand() unexpected error = %v", err)
 				return
 			}
-			
+
 			if ir == nil {
 				t.Errorf("ParseTriggerShorthand() returned nil")
 				return
 			}
-			
+
 			if ir.Event != tt.wantEvent {
 				t.Errorf("Event = %v, want %v", ir.Event, tt.wantEvent)
 			}
-			
+
 			if !slicesEqual(ir.Types, tt.wantTypes) {
 				t.Errorf("Types = %v, want %v", ir.Types, tt.wantTypes)
 			}
@@ -457,32 +457,32 @@ func TestParseIssueDiscussionTriggers(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ir, err := ParseTriggerShorthand(tt.input)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ParseTriggerShorthand() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("ParseTriggerShorthand() unexpected error = %v", err)
 				return
 			}
-			
+
 			if ir == nil {
 				t.Errorf("ParseTriggerShorthand() returned nil")
 				return
 			}
-			
+
 			if ir.Event != tt.wantEvent {
 				t.Errorf("Event = %v, want %v", ir.Event, tt.wantEvent)
 			}
-			
+
 			if !slicesEqual(ir.Types, tt.wantTypes) {
 				t.Errorf("Types = %v, want %v", ir.Types, tt.wantTypes)
 			}
@@ -495,13 +495,13 @@ func mapsEqual(a, b map[string]any) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	for key, aVal := range a {
 		bVal, exists := b[key]
 		if !exists {
 			return false
 		}
-		
+
 		// Handle nil values
 		if aVal == nil && bVal == nil {
 			continue
@@ -509,7 +509,7 @@ func mapsEqual(a, b map[string]any) bool {
 		if aVal == nil || bVal == nil {
 			return false
 		}
-		
+
 		// Handle map values
 		if aMap, ok := aVal.(map[string]any); ok {
 			if bMap, ok := bVal.(map[string]any); ok {
@@ -520,7 +520,7 @@ func mapsEqual(a, b map[string]any) bool {
 			}
 			return false
 		}
-		
+
 		// Handle slice values
 		if aSlice, ok := aVal.([]string); ok {
 			if bSlice, ok := bVal.([]string); ok {
@@ -531,7 +531,7 @@ func mapsEqual(a, b map[string]any) bool {
 			}
 			return false
 		}
-		
+
 		// Handle []any values
 		if aSlice, ok := aVal.([]any); ok {
 			if bSlice, ok := bVal.([]any); ok {
@@ -547,12 +547,12 @@ func mapsEqual(a, b map[string]any) bool {
 			}
 			return false
 		}
-		
+
 		// Direct comparison for other types
 		if aVal != bVal {
 			return false
 		}
 	}
-	
+
 	return true
 }

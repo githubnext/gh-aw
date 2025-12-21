@@ -13,16 +13,16 @@ var triggerParserLog = logger.New("workflow:trigger_parser")
 type TriggerIR struct {
 	// Event is the main GitHub Actions event type (e.g., "push", "pull_request", "issues")
 	Event string
-	
+
 	// Types contains the activity types for the event (e.g., ["opened", "edited"])
 	Types []string
-	
+
 	// Filters contains additional event filters (branches, paths, tags, labels, etc.)
 	Filters map[string]any
-	
+
 	// Conditions contains job-level conditions for complex filtering
 	Conditions []string
-	
+
 	// AdditionalEvents contains other events to include (e.g., workflow_dispatch)
 	AdditionalEvents map[string]any
 }
@@ -35,56 +35,56 @@ func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 	if input == "" {
 		return nil, fmt.Errorf("trigger shorthand cannot be empty")
 	}
-	
+
 	triggerParserLog.Printf("Parsing trigger shorthand: %s", input)
-	
+
 	// Try parsers in order of specificity:
-	
+
 	// 1. Slash command shorthand (starts with /)
 	if ir, err := parseSlashCommandTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 2. Label trigger shorthand (entity labeled label1 label2...)
 	if ir, err := parseLabelTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 3. Source control patterns (push, pull request, etc.)
 	if ir, err := parseSourceControlTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 4. Issue and discussion patterns
 	if ir, err := parseIssueDiscussionTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 5. Manual invocation patterns
 	if ir, err := parseManualTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 6. Comment patterns
 	if ir, err := parseCommentTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 7. Release and repository patterns
 	if ir, err := parseReleaseRepositoryTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 8. Security patterns
 	if ir, err := parseSecurityTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// 9. External integration patterns
 	if ir, err := parseExternalTrigger(input); ir != nil || err != nil {
 		return ir, err
 	}
-	
+
 	// Not a recognized trigger shorthand
 	return nil, nil
 }
@@ -92,21 +92,21 @@ func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 // ToYAMLMap converts a TriggerIR to a map structure suitable for YAML generation
 func (ir *TriggerIR) ToYAMLMap() map[string]any {
 	result := make(map[string]any)
-	
+
 	// Add the main event
 	if ir.Event != "" {
 		eventConfig := make(map[string]any)
-		
+
 		// Add types if specified
 		if len(ir.Types) > 0 {
 			eventConfig["types"] = ir.Types
 		}
-		
+
 		// Add filters
 		for key, value := range ir.Filters {
 			eventConfig[key] = value
 		}
-		
+
 		// If event config has content, add it; otherwise omit the event entirely for simple triggers
 		if len(eventConfig) > 0 {
 			result[ir.Event] = eventConfig
@@ -116,12 +116,12 @@ func (ir *TriggerIR) ToYAMLMap() map[string]any {
 			result[ir.Event] = map[string]any{}
 		}
 	}
-	
+
 	// Add additional events
 	for event, config := range ir.AdditionalEvents {
 		result[event] = config
 	}
-	
+
 	return result
 }
 
@@ -134,9 +134,9 @@ func parseSlashCommandTrigger(input string) (*TriggerIR, error) {
 	if !isSlashCommand {
 		return nil, nil
 	}
-	
+
 	triggerParserLog.Printf("Parsed slash command trigger: %s", commandName)
-	
+
 	// Note: slash_command is handled specially in the compiler, not as a standard GitHub event
 	// We return nil here to let the existing slash command processing handle it
 	return nil, nil
@@ -151,9 +151,9 @@ func parseLabelTrigger(input string) (*TriggerIR, error) {
 	if !isLabelTrigger {
 		return nil, nil
 	}
-	
+
 	triggerParserLog.Printf("Parsed label trigger: %s labeled %v", entityType, labelNames)
-	
+
 	// Note: Label triggers are handled specially via expandLabelTriggerShorthand
 	// We return nil here to let the existing label trigger processing handle it
 	return nil, nil
@@ -165,7 +165,7 @@ func parseSourceControlTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) == 0 {
 		return nil, nil
 	}
-	
+
 	switch tokens[0] {
 	case "push":
 		return parsePushTrigger(tokens)
@@ -185,7 +185,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 		// GitHub Actions supports simple event names as strings: on: push
 		return nil, nil
 	}
-	
+
 	if len(tokens) >= 3 && tokens[1] == "to" {
 		// "push to <branch>"
 		branch := strings.Join(tokens[2:], " ")
@@ -199,7 +199,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	if len(tokens) >= 3 && tokens[1] == "tags" {
 		// "push tags <pattern>"
 		pattern := strings.Join(tokens[2:], " ")
@@ -213,7 +213,7 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, fmt.Errorf("invalid push trigger format: %s", strings.Join(tokens, " "))
 }
 
@@ -224,36 +224,36 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 		// GitHub Actions supports: on: pull_request
 		return nil, nil
 	}
-	
+
 	// Check for activity type: "pull_request opened", "pull_request merged", etc.
 	activityType := tokens[1]
-	
+
 	// Map common activity types
 	validTypes := map[string]bool{
-		"opened":       true,
-		"edited":       true,
-		"closed":       true,
-		"reopened":     true,
-		"synchronize":  true,
-		"assigned":     true,
-		"unassigned":   true,
-		"labeled":      true,
-		"unlabeled":    true,
+		"opened":           true,
+		"edited":           true,
+		"closed":           true,
+		"reopened":         true,
+		"synchronize":      true,
+		"assigned":         true,
+		"unassigned":       true,
+		"labeled":          true,
+		"unlabeled":        true,
 		"review_requested": true,
 	}
-	
+
 	// Special case: "merged" is not a real type, it's a condition on "closed"
 	if activityType == "merged" {
 		return &TriggerIR{
-			Event: "pull_request",
-			Types: []string{"closed"},
+			Event:      "pull_request",
+			Types:      []string{"closed"},
 			Conditions: []string{"github.event.pull_request.merged == true"},
 			AdditionalEvents: map[string]any{
 				"workflow_dispatch": nil,
 			},
 		}, nil
 	}
-	
+
 	if validTypes[activityType] {
 		ir := &TriggerIR{
 			Event: "pull_request",
@@ -262,7 +262,7 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 				"workflow_dispatch": nil,
 			},
 		}
-		
+
 		// Check for path filter: "pull_request opened affecting <path>"
 		if len(tokens) >= 4 && tokens[2] == "affecting" {
 			path := strings.Join(tokens[3:], " ")
@@ -270,10 +270,10 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 				"paths": []string{path},
 			}
 		}
-		
+
 		return ir, nil
 	}
-	
+
 	// Check for "affecting" without activity type: "pull_request affecting <path>"
 	if activityType == "affecting" && len(tokens) >= 3 {
 		path := strings.Join(tokens[2:], " ")
@@ -288,7 +288,7 @@ func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, fmt.Errorf("invalid pull_request trigger format: %s", strings.Join(tokens, " "))
 }
 
@@ -298,7 +298,7 @@ func parseIssueDiscussionTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, nil
 	}
-	
+
 	switch tokens[0] {
 	case "issue":
 		return parseIssueTrigger(tokens)
@@ -314,27 +314,27 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, fmt.Errorf("issue trigger requires an activity type")
 	}
-	
+
 	activityType := tokens[1]
-	
+
 	// Map common activity types
 	validTypes := map[string]bool{
-		"opened":     true,
-		"edited":     true,
-		"closed":     true,
-		"reopened":   true,
-		"assigned":   true,
-		"unassigned": true,
-		"labeled":    true,
-		"unlabeled":  true,
-		"deleted":    true,
+		"opened":      true,
+		"edited":      true,
+		"closed":      true,
+		"reopened":    true,
+		"assigned":    true,
+		"unassigned":  true,
+		"labeled":     true,
+		"unlabeled":   true,
+		"deleted":     true,
 		"transferred": true,
 	}
-	
+
 	if !validTypes[activityType] {
 		return nil, fmt.Errorf("invalid issue activity type: %s", activityType)
 	}
-	
+
 	ir := &TriggerIR{
 		Event: "issues",
 		Types: []string{activityType},
@@ -342,7 +342,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 			"workflow_dispatch": nil,
 		},
 	}
-	
+
 	// Check for label filter: "issue opened labeled <label>"
 	if len(tokens) >= 4 && tokens[2] == "labeled" {
 		label := strings.Join(tokens[3:], " ")
@@ -350,7 +350,7 @@ func parseIssueTrigger(tokens []string) (*TriggerIR, error) {
 			fmt.Sprintf("contains(github.event.issue.labels.*.name, '%s')", label),
 		}
 	}
-	
+
 	return ir, nil
 }
 
@@ -359,30 +359,30 @@ func parseDiscussionTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, fmt.Errorf("discussion trigger requires an activity type")
 	}
-	
+
 	activityType := tokens[1]
-	
+
 	// Map common activity types
 	validTypes := map[string]bool{
-		"created":      true,
-		"edited":       true,
-		"deleted":      true,
-		"transferred":  true,
-		"pinned":       true,
-		"unpinned":     true,
-		"labeled":      true,
-		"unlabeled":    true,
-		"locked":       true,
-		"unlocked":     true,
+		"created":          true,
+		"edited":           true,
+		"deleted":          true,
+		"transferred":      true,
+		"pinned":           true,
+		"unpinned":         true,
+		"labeled":          true,
+		"unlabeled":        true,
+		"locked":           true,
+		"unlocked":         true,
 		"category_changed": true,
-		"answered":     true,
-		"unanswered":   true,
+		"answered":         true,
+		"unanswered":       true,
 	}
-	
+
 	if !validTypes[activityType] {
 		return nil, fmt.Errorf("invalid discussion activity type: %s", activityType)
 	}
-	
+
 	return &TriggerIR{
 		Event: "discussion",
 		Types: []string{activityType},
@@ -398,14 +398,14 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) == 0 {
 		return nil, nil
 	}
-	
+
 	if tokens[0] == "manual" {
 		ir := &TriggerIR{
 			AdditionalEvents: map[string]any{
 				"workflow_dispatch": nil,
 			},
 		}
-		
+
 		// Check for input specification: "manual with input <name>"
 		if len(tokens) >= 4 && tokens[1] == "with" && tokens[2] == "input" {
 			inputName := tokens[3]
@@ -419,10 +419,10 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 				},
 			}
 		}
-		
+
 		return ir, nil
 	}
-	
+
 	if len(tokens) >= 3 && tokens[0] == "workflow" && tokens[1] == "completed" {
 		// "workflow completed <workflow-name>"
 		workflowName := strings.Join(tokens[2:], " ")
@@ -434,7 +434,7 @@ func parseManualTrigger(input string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -444,7 +444,7 @@ func parseCommentTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, nil
 	}
-	
+
 	if tokens[0] == "comment" && tokens[1] == "created" {
 		// "comment created" - supports both issue and PR comments
 		return &TriggerIR{
@@ -455,7 +455,7 @@ func parseCommentTrigger(input string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -465,7 +465,7 @@ func parseReleaseRepositoryTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, nil
 	}
-	
+
 	switch tokens[0] {
 	case "release":
 		return parseReleaseTrigger(tokens)
@@ -481,9 +481,9 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, fmt.Errorf("release trigger requires an activity type")
 	}
-	
+
 	activityType := tokens[1]
-	
+
 	validTypes := map[string]bool{
 		"published":   true,
 		"unpublished": true,
@@ -493,11 +493,11 @@ func parseReleaseTrigger(tokens []string) (*TriggerIR, error) {
 		"prereleased": true,
 		"released":    true,
 	}
-	
+
 	if !validTypes[activityType] {
 		return nil, fmt.Errorf("invalid release activity type: %s", activityType)
 	}
-	
+
 	return &TriggerIR{
 		Event: "release",
 		Types: []string{activityType},
@@ -512,9 +512,9 @@ func parseRepositoryTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, fmt.Errorf("repository trigger requires an activity type")
 	}
-	
+
 	activityType := tokens[1]
-	
+
 	// Map activity types to events
 	switch activityType {
 	case "starred":
@@ -528,7 +528,7 @@ func parseRepositoryTrigger(tokens []string) (*TriggerIR, error) {
 		}, nil
 	case "forked":
 		return &TriggerIR{
-			Event: "fork",
+			Event:   "fork",
 			Filters: map[string]any{}, // Empty map to avoid null in YAML
 			AdditionalEvents: map[string]any{
 				"workflow_dispatch": nil,
@@ -545,19 +545,19 @@ func parseSecurityTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) < 2 {
 		return nil, nil
 	}
-	
+
 	if tokens[0] == "dependabot" && len(tokens) >= 3 && tokens[1] == "pull" && tokens[2] == "request" {
 		// "dependabot pull request" - filter pull requests by Dependabot author
 		return &TriggerIR{
-			Event: "pull_request",
-			Types: []string{"opened", "synchronize", "reopened"},
+			Event:      "pull_request",
+			Types:      []string{"opened", "synchronize", "reopened"},
 			Conditions: []string{"github.actor == 'dependabot[bot]'"},
 			AdditionalEvents: map[string]any{
 				"workflow_dispatch": nil,
 			},
 		}, nil
 	}
-	
+
 	if tokens[0] == "security" && tokens[1] == "alert" {
 		// "security alert" - code scanning alert
 		return &TriggerIR{
@@ -568,7 +568,7 @@ func parseSecurityTrigger(input string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	if len(tokens) >= 3 && tokens[0] == "code" && tokens[1] == "scanning" && tokens[2] == "alert" {
 		// "code scanning alert" - explicit code scanning alert
 		return &TriggerIR{
@@ -579,7 +579,7 @@ func parseSecurityTrigger(input string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, nil
 }
 
@@ -589,7 +589,7 @@ func parseExternalTrigger(input string) (*TriggerIR, error) {
 	if len(tokens) < 3 {
 		return nil, nil
 	}
-	
+
 	if tokens[0] == "api" && tokens[1] == "dispatch" {
 		// "api dispatch <event-type>"
 		eventType := strings.Join(tokens[2:], " ")
@@ -600,6 +600,6 @@ func parseExternalTrigger(input string) (*TriggerIR, error) {
 			},
 		}, nil
 	}
-	
+
 	return nil, nil
 }
