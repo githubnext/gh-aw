@@ -425,3 +425,73 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		t.Error("Conclusion job should have issues: write permission when lock-for-agent is enabled")
 	}
 }
+
+func TestLockForAgentCommentedInYAML(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "lock-for-agent-commented-test")
+
+	// Create a test markdown file with lock-for-agent enabled
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+    lock-for-agent: true
+  issue_comment:
+    types: [created]
+    lock-for-agent: true
+engine: copilot
+safe-outputs:
+  add-comment: {}
+---
+
+# Lock For Agent Commented Test
+
+Test that lock-for-agent is commented out in generated YAML.
+`
+
+	testFile := filepath.Join(tmpDir, "test-lock-for-agent-commented.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify lock-for-agent field is parsed correctly
+	if !workflowData.LockForAgent {
+		t.Error("Expected LockForAgent to be true")
+	}
+
+	// Generate YAML
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Verify lock-for-agent is commented out in the on section
+	expectedComments := []string{
+		"# lock-for-agent: true # Lock-for-agent processed as issue locking in activation job",
+	}
+
+	for _, comment := range expectedComments {
+		if !strings.Contains(yamlContent, comment) {
+			t.Errorf("Generated YAML should contain commented lock-for-agent: %s", comment)
+		}
+	}
+
+	// Verify lock-for-agent does not appear uncommented
+	// Look for lines that have "lock-for-agent:" but not starting with "#"
+	lines := strings.Split(yamlContent, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Check if line contains "lock-for-agent:" but is not a comment
+		if strings.Contains(trimmed, "lock-for-agent:") && !strings.HasPrefix(trimmed, "#") {
+			t.Errorf("Line %d contains uncommented lock-for-agent: %s", i+1, line)
+		}
+	}
+}
