@@ -19,18 +19,17 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
+# Tracks and visualizes weekly code metrics and trends to monitor repository health and development patterns
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 
-name: "Daily Code Metrics and Trend Tracking Agent"
+name: "Weekly Code Metrics and Trend Tracking Agent"
 "on":
   schedule:
-  - cron: "2 17 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 9 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -38,7 +37,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Code Metrics and Trend Tracking Agent"
+run-name: "Weekly Code Metrics and Trend Tracking Agent"
 
 jobs:
   activation:
@@ -52,7 +51,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-code-metrics.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-code-metrics.lock.yml"
         with:
           script: |
             async function main() {
@@ -170,7 +169,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -178,7 +177,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -1872,7 +1871,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.73",
-              workflow_name: "Daily Code Metrics and Trend Tracking Agent",
+              workflow_name: "Weekly Code Metrics and Trend Tracking Agent",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2005,13 +2004,13 @@ jobs:
           
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Code Metrics and Trend Tracking Agent
+          # Weekly Code Metrics and Trend Tracking Agent
           
-          You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
+          You are the Weekly Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
           
           ## Mission
           
-          Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
+          Analyze codebase weekly: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
           
           **Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Cache: `/tmp/gh-aw/cache-memory/metrics/`
           
@@ -4955,7 +4954,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-code-metrics-and-trend-tracking-agent
+          name: firewall-logs-weekly-code-metrics-and-trend-tracking-agent
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5406,8 +5405,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
-          GH_AW_TRACKER_ID: "daily-code-metrics"
+          GH_AW_WORKFLOW_NAME: "Weekly Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "weekly-code-metrics"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5499,8 +5498,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
-          GH_AW_TRACKER_ID: "daily-code-metrics"
+          GH_AW_WORKFLOW_NAME: "Weekly Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "weekly-code-metrics"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5611,8 +5610,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
-          GH_AW_TRACKER_ID: "daily-code-metrics"
+          GH_AW_WORKFLOW_NAME: "Weekly Code Metrics and Trend Tracking Agent"
+          GH_AW_TRACKER_ID: "weekly-code-metrics"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -5905,8 +5904,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
-          WORKFLOW_DESCRIPTION: "Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns"
+          WORKFLOW_NAME: "Weekly Code Metrics and Trend Tracking Agent"
+          WORKFLOW_DESCRIPTION: "Tracks and visualizes weekly code metrics and trends to monitor repository health and development patterns"
         with:
           script: |
             const fs = require('fs');
@@ -6145,9 +6144,9 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_TRACKER_ID: "daily-code-metrics"
-      GH_AW_WORKFLOW_ID: "daily-code-metrics"
-      GH_AW_WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
+      GH_AW_TRACKER_ID: "weekly-code-metrics"
+      GH_AW_WORKFLOW_ID: "weekly-code-metrics"
+      GH_AW_WORKFLOW_NAME: "Weekly Code Metrics and Trend Tracking Agent"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}

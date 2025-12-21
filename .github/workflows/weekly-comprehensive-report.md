@@ -1,8 +1,7 @@
 ---
 description: Comprehensive weekly report consolidating code metrics, performance, issues, and team activity
 on:
-  schedule:
-    - cron: "0 8 * * 1"  # Weekly on Mondays at 8 AM UTC
+  schedule: weekly on monday
   workflow_dispatch:
 permissions:
   contents: read
@@ -537,7 +536,7 @@ This comprehensive report consolidates data from:
 - GitHub Actions workflow runs (last 7 days)
 - Static code analysis (current snapshot)
 
-**Report Generated**: ${{ github.event.repository.updated_at }}  
+**Report Generated**: [timestamp]  
 **Workflow Run**: [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
 </details>

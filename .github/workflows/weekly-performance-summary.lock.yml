@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Daily project performance summary (90-day window) with trend charts using safe-inputs
+# Weekly project performance summary (90-day window) with trend charts using safe-inputs
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -27,11 +27,10 @@
 #     - shared/trending-charts-simple.md
 #     - shared/reporting.md
 
-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+name: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: "24 2 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 10 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -39,7 +38,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+run-name: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
 
 jobs:
   activation:
@@ -53,7 +52,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-performance-summary.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-performance-summary.lock.yml"
         with:
           script: |
             async function main() {
@@ -176,7 +175,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -184,7 +183,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -340,7 +339,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[daily performance] \". Discussions will be created in category \"General\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[weekly performance] \". Discussions will be created in category \"General\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -3601,7 +3600,7 @@ jobs:
           include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
           
           [mcp_servers.github]
-          user_agent = "daily-project-performance-summary-generator-using-safe-inputs"
+          user_agent = "weekly-project-performance-summary-generator-using-safe-inputs"
           startup_timeout_sec = 120
           tool_timeout_sec = 60
           command = "docker"
@@ -3645,7 +3644,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
               agent_version: "0.75.0",
-              workflow_name: "Daily Project Performance Summary Generator (Using Safe Inputs)",
+              workflow_name: "Weekly Project Performance Summary Generator (Using Safe Inputs)",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3782,15 +3781,15 @@ jobs:
           
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Project Performance Summary Generator (Using Safe Inputs)
+          # Weekly Project Performance Summary Generator (Using Safe Inputs)
           
-          You are an expert analyst that generates comprehensive daily performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
+          You are an expert analyst that generates comprehensive weekly performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
           
           **IMPORTANT**: This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`. All data gathering MUST be done through these tools.
           
           ## Mission
           
-          Generate a daily performance summary analyzing the last 90 days of project activity:
+          Generate a weekly performance summary analyzing the last 90 days of project activity:
           1. **Use safe-input tools** to query PRs, issues, and discussions
           2. Calculate key performance metrics (velocity, resolution times, activity levels)
           3. Generate trend charts showing project activity and performance
@@ -7320,7 +7319,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-project-performance-summary-generator-using-safe-inputs-
+          name: firewall-logs-weekly-project-performance-summary-generator-using-safe-inputs-
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7479,7 +7478,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-project-performance-summary-generator-using-safe-inputs-
+          name: firewall-logs-weekly-project-performance-summary-generator-using-safe-inputs-
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -7937,8 +7936,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
-          GH_AW_TRACKER_ID: "daily-performance-summary"
+          GH_AW_WORKFLOW_NAME: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_TRACKER_ID: "weekly-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8030,8 +8029,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
-          GH_AW_TRACKER_ID: "daily-performance-summary"
+          GH_AW_WORKFLOW_NAME: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_TRACKER_ID: "weekly-performance-summary"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8142,8 +8141,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
-          GH_AW_TRACKER_ID: "daily-performance-summary"
+          GH_AW_WORKFLOW_NAME: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
+          GH_AW_TRACKER_ID: "weekly-performance-summary"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -8436,8 +8435,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
-          WORKFLOW_DESCRIPTION: "Daily project performance summary (90-day window) with trend charts using safe-inputs"
+          WORKFLOW_NAME: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
+          WORKFLOW_DESCRIPTION: "Weekly project performance summary (90-day window) with trend charts using safe-inputs"
         with:
           script: |
             const fs = require('fs');
@@ -8658,9 +8657,9 @@ jobs:
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "codex"
-      GH_AW_TRACKER_ID: "daily-performance-summary"
-      GH_AW_WORKFLOW_ID: "daily-performance-summary"
-      GH_AW_WORKFLOW_NAME: "Daily Project Performance Summary Generator (Using Safe Inputs)"
+      GH_AW_TRACKER_ID: "weekly-performance-summary"
+      GH_AW_WORKFLOW_ID: "weekly-performance-summary"
+      GH_AW_WORKFLOW_NAME: "Weekly Project Performance Summary Generator (Using Safe Inputs)"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}

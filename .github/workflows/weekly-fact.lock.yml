@@ -19,12 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Posts a daily poetic verse about the gh-aw project to a discussion thread
+# Posts a weekly poetic verse about the gh-aw project to a discussion thread
 
-name: "Daily Fact About gh-aw"
+name: "Weekly Fact About gh-aw"
 "on":
   schedule:
-  - cron: "0 11 * * 1-5"
+  - cron: "0 11 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -32,7 +32,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Fact About gh-aw"
+run-name: "Weekly Fact About gh-aw"
 
 jobs:
   activation:
@@ -46,7 +46,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-fact.lock.yml"
         with:
           script: |
             async function main() {
@@ -1767,7 +1767,7 @@ jobs:
           include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
           
           [mcp_servers.github]
-          user_agent = "daily-fact-about-gh-aw"
+          user_agent = "weekly-fact-about-gh-aw"
           startup_timeout_sec = 120
           tool_timeout_sec = 60
           command = "docker"
@@ -1805,7 +1805,7 @@ jobs:
               model: "gpt-5-mini",
               version: "",
               agent_version: "0.75.0",
-              workflow_name: "Daily Fact About gh-aw",
+              workflow_name: "Weekly Fact About gh-aw",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1886,7 +1886,7 @@ jobs:
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Fact About gh-aw
+          # Weekly Fact About gh-aw
           
           Your task is to post a poetic, whimsical fact about the __GH_AW_GITHUB_REPOSITORY__ project to discussion #4750.
           
@@ -1916,7 +1916,7 @@ jobs:
           - **Be specific**: Include PR numbers, issue references, or release tags when relevant
           - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
           - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
-          - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
+          - **Add variety**: Don't repeat the same type of fact every week (e.g., alternate between PRs, issues, releases, contributors, code patterns)
           
           ## Output Format
           
@@ -4999,7 +4999,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-fact-about-gh-aw
+          name: firewall-logs-weekly-fact-about-gh-aw
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5158,7 +5158,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-fact-about-gh-aw
+          name: firewall-logs-weekly-fact-about-gh-aw
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5602,8 +5602,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Weekly Fact About gh-aw"
+          GH_AW_TRACKER_ID: "weekly-fact-thread"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5695,8 +5695,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Weekly Fact About gh-aw"
+          GH_AW_TRACKER_ID: "weekly-fact-thread"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5807,8 +5807,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "Weekly Fact About gh-aw"
+          GH_AW_TRACKER_ID: "weekly-fact-thread"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
@@ -6102,8 +6102,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Fact About gh-aw"
-          WORKFLOW_DESCRIPTION: "Posts a daily poetic verse about the gh-aw project to a discussion thread"
+          WORKFLOW_NAME: "Weekly Fact About gh-aw"
+          WORKFLOW_DESCRIPTION: "Posts a weekly poetic verse about the gh-aw project to a discussion thread"
         with:
           script: |
             const fs = require('fs');
@@ -6324,9 +6324,9 @@ jobs:
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5-mini"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
-      GH_AW_TRACKER_ID: "daily-fact-thread"
-      GH_AW_WORKFLOW_ID: "daily-fact"
-      GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+      GH_AW_TRACKER_ID: "weekly-fact-thread"
+      GH_AW_WORKFLOW_ID: "weekly-fact"
+      GH_AW_WORKFLOW_NAME: "Weekly Fact About gh-aw"
     outputs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}

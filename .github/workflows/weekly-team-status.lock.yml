@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# This workflow created daily team status reporter creating upbeat activity summaries.
+# This workflow creates weekly team status reports creating upbeat activity summaries.
 # Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
 # and generates engaging GitHub discussions with productivity insights, community
 # highlights, and project recommendations. Uses a positive, encouraging tone with
@@ -33,10 +33,10 @@
 #
 # Effective stop-time: 2026-01-02 23:42:46
 
-name: "Daily Team Status"
+name: "Weekly Team Status"
 "on":
   schedule:
-  - cron: "0 9 * * 1-5"
+  - cron: "0 9 * * 1"
   workflow_dispatch: null
 
 permissions: {}
@@ -44,7 +44,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Team Status"
+run-name: "Weekly Team Status"
 
 jobs:
   activation:
@@ -60,7 +60,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-team-status.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-team-status.lock.yml"
         with:
           script: |
             async function main() {
@@ -1856,7 +1856,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              workflow_name: "Daily Team Status",
+              workflow_name: "Weekly Team Status",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2013,9 +2013,9 @@ jobs:
           
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily Team Status
+          # Weekly Team Status
           
-          Create an upbeat daily status report for the team as a GitHub discussion.
+          Create an upbeat weekly status report for the team as a GitHub discussion.
           
           ## What to include
           
@@ -5249,7 +5249,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-team-status
+          name: firewall-logs-weekly-team-status
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5693,10 +5693,10 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_WORKFLOW_NAME: "Weekly Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_TRACKER_ID: "weekly-team-status"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5788,10 +5788,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_WORKFLOW_NAME: "Weekly Team Status"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_TRACKER_ID: "weekly-team-status"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5902,8 +5902,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
-          GH_AW_TRACKER_ID: "daily-team-status"
+          GH_AW_WORKFLOW_NAME: "Weekly Team Status"
+          GH_AW_TRACKER_ID: "weekly-team-status"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -6196,8 +6196,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Team Status"
-          WORKFLOW_DESCRIPTION: "This workflow created daily team status reporter creating upbeat activity summaries.\nGathers recent repository activity (issues, PRs, discussions, releases, code changes)\nand generates engaging GitHub discussions with productivity insights, community\nhighlights, and project recommendations. Uses a positive, encouraging tone with\nmoderate emoji usage to boost team morale."
+          WORKFLOW_NAME: "Weekly Team Status"
+          WORKFLOW_DESCRIPTION: "This workflow creates weekly team status reports creating upbeat activity summaries.\nGathers recent repository activity (issues, PRs, discussions, releases, code changes)\nand generates engaging GitHub discussions with productivity insights, community\nhighlights, and project recommendations. Uses a positive, encouraging tone with\nmoderate emoji usage to boost team morale."
         with:
           script: |
             const fs = require('fs');
@@ -6428,7 +6428,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_STOP_TIME: 2026-01-02 23:42:46
-          GH_AW_WORKFLOW_NAME: "Daily Team Status"
+          GH_AW_WORKFLOW_NAME: "Weekly Team Status"
         with:
           script: |
             async function main() {
@@ -6472,9 +6472,9 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "daily-team-status"
-      GH_AW_WORKFLOW_ID: "daily-team-status"
-      GH_AW_WORKFLOW_NAME: "Daily Team Status"
+      GH_AW_TRACKER_ID: "weekly-team-status"
+      GH_AW_WORKFLOW_ID: "weekly-team-status"
+      GH_AW_WORKFLOW_NAME: "Weekly Team Status"
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/d3422bf940923ef1d43db5559652b8e1e71869f3/workflows/daily-team-status.md"
     outputs:

@@ -21,11 +21,10 @@
 #
 # Automatically reviews and updates documentation to ensure accuracy and completeness
 
-name: "Daily Documentation Updater"
+name: "Weekly Documentation Updater"
 "on":
   schedule:
-  - cron: "55 17 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -33,7 +32,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Documentation Updater"
+run-name: "Weekly Documentation Updater"
 
 jobs:
   activation:
@@ -47,7 +46,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-doc-updater.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-doc-updater.lock.yml"
         with:
           script: |
             async function main() {
@@ -1853,7 +1852,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.0.73",
-              workflow_name: "Daily Documentation Updater",
+              workflow_name: "Weekly Documentation Updater",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -5062,7 +5061,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-documentation-updater
+          name: firewall-logs-weekly-documentation-updater
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5520,8 +5519,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Documentation Updater"
-          GH_AW_TRACKER_ID: "daily-doc-updater"
+          GH_AW_WORKFLOW_NAME: "Weekly Documentation Updater"
+          GH_AW_TRACKER_ID: "weekly-doc-updater"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5613,8 +5612,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Documentation Updater"
-          GH_AW_TRACKER_ID: "daily-doc-updater"
+          GH_AW_WORKFLOW_NAME: "Weekly Documentation Updater"
+          GH_AW_TRACKER_ID: "weekly-doc-updater"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5725,8 +5724,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Documentation Updater"
-          GH_AW_TRACKER_ID: "daily-doc-updater"
+          GH_AW_WORKFLOW_NAME: "Weekly Documentation Updater"
+          GH_AW_TRACKER_ID: "weekly-doc-updater"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -6019,7 +6018,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily Documentation Updater"
+          WORKFLOW_NAME: "Weekly Documentation Updater"
           WORKFLOW_DESCRIPTION: "Automatically reviews and updates documentation to ensure accuracy and completeness"
         with:
           script: |
@@ -6261,9 +6260,9 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_TRACKER_ID: "daily-doc-updater"
-      GH_AW_WORKFLOW_ID: "daily-doc-updater"
-      GH_AW_WORKFLOW_NAME: "Daily Documentation Updater"
+      GH_AW_TRACKER_ID: "weekly-doc-updater"
+      GH_AW_WORKFLOW_ID: "weekly-doc-updater"
+      GH_AW_WORKFLOW_NAME: "Weekly Documentation Updater"
     outputs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}

@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Generates a daily news digest of repository activity including issues, PRs, discussions, and workflow runs
+# Generates a weekly news digest of repository activity including issues, PRs, discussions, and workflow runs
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -29,10 +29,10 @@
 #     - shared/trends.md
 #     - shared/python-dataviz.md
 
-name: "Daily News"
+name: "Weekly News"
 "on":
   schedule:
-  - cron: "0 9 * * 1-5"
+  - cron: "0 9 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -40,7 +40,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily News"
+run-name: "Weekly News"
 
 jobs:
   activation:
@@ -54,7 +54,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "daily-news.lock.yml"
+          GH_AW_WORKFLOW_FILE: "weekly-news.lock.yml"
         with:
           script: |
             async function main() {
@@ -179,7 +179,7 @@ jobs:
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: data-charts
@@ -187,7 +187,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -352,7 +352,7 @@ jobs:
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"daily-news\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"weekly-news\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1954,7 +1954,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.371",
-              workflow_name: "Daily News",
+              workflow_name: "Weekly News",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2553,7 +2553,7 @@ jobs:
           
           {{#runtime-import? .github/shared-instructions.md}}
           
-          # Daily News
+          # Weekly News
           
           PROMPT_EOF
       - name: Append prompt (part 2)
@@ -2681,7 +2681,7 @@ jobs:
           
           **Phase 5: Embed Charts in Discussion**
           
-          Include the charts in your daily news discussion report with this structure:
+          Include the charts in your weekly news discussion report with this structure:
           
           ```markdown
           ## 📈 Trend Analysis
@@ -2745,7 +2745,7 @@ jobs:
             * Date range of data analyzed
             * Any data limitations encountered
           
-          Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
+          Create a new GitHub discussion with a title containing today's date (e.g., "Weekly Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
           
           Only a new discussion should be created, do not close or update any existing discussions.
           
@@ -6006,7 +6006,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-daily-news
+          name: firewall-logs-weekly-news
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -6464,8 +6464,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily News"
-          GH_AW_TRACKER_ID: "daily-news-weekday"
+          GH_AW_WORKFLOW_NAME: "Weekly News"
+          GH_AW_TRACKER_ID: "weekly-news"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6557,8 +6557,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily News"
-          GH_AW_TRACKER_ID: "daily-news-weekday"
+          GH_AW_WORKFLOW_NAME: "Weekly News"
+          GH_AW_TRACKER_ID: "weekly-news"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6669,8 +6669,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily News"
-          GH_AW_TRACKER_ID: "daily-news-weekday"
+          GH_AW_WORKFLOW_NAME: "Weekly News"
+          GH_AW_TRACKER_ID: "weekly-news"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -6963,8 +6963,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Daily News"
-          WORKFLOW_DESCRIPTION: "Generates a daily news digest of repository activity including issues, PRs, discussions, and workflow runs"
+          WORKFLOW_NAME: "Weekly News"
+          WORKFLOW_DESCRIPTION: "Generates a weekly news digest of repository activity including issues, PRs, discussions, and workflow runs"
         with:
           script: |
             const fs = require('fs');
@@ -7200,9 +7200,9 @@ jobs:
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "daily-news-weekday"
-      GH_AW_WORKFLOW_ID: "daily-news"
-      GH_AW_WORKFLOW_NAME: "Daily News"
+      GH_AW_TRACKER_ID: "weekly-news"
+      GH_AW_WORKFLOW_ID: "weekly-news"
+      GH_AW_WORKFLOW_NAME: "Weekly News"
     outputs:
       create_discussion_discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       create_discussion_discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
