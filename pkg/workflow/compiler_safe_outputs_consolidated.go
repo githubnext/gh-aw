@@ -1269,13 +1269,25 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData, cfg *CreatePullRequestsConfig, condition ConditionNode) []string {
 	var preSteps []string
 
+	// Determine which token to use for checkout
+	// If an app is configured, use the app token; otherwise use the default github.token
+	var checkoutToken string
+	var gitRemoteToken string
+	if data.SafeOutputs.App != nil {
+		checkoutToken = "${{ steps.app-token.outputs.token }}"
+		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
+	} else {
+		checkoutToken = "${{ github.token }}"
+		gitRemoteToken = "${{ github.token }}"
+	}
+
 	// Step 1: Checkout repository with conditional execution
 	preSteps = append(preSteps, "      - name: Checkout repository\n")
 	// Add the condition to only checkout if create_pull_request will run
 	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          token: ${{ steps.app-token.outputs.token }}\n")
+	preSteps = append(preSteps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	preSteps = append(preSteps, "          persist-credentials: false\n")
 	preSteps = append(preSteps, "          fetch-depth: 0\n")
 	if c.trialMode {
@@ -1296,7 +1308,7 @@ func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData
 		"          git config --global user.name \"github-actions[bot]\"\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		"          git remote set-url origin \"https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 	preSteps = append(preSteps, gitConfigSteps...)
@@ -1308,13 +1320,25 @@ func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData
 func (c *Compiler) buildPushToPullRequestBranchPreStepsConsolidated(data *WorkflowData, cfg *PushToPullRequestBranchConfig, condition ConditionNode) []string {
 	var preSteps []string
 
+	// Determine which token to use for checkout
+	// If an app is configured, use the app token; otherwise use the default github.token
+	var checkoutToken string
+	var gitRemoteToken string
+	if data.SafeOutputs.App != nil {
+		checkoutToken = "${{ steps.app-token.outputs.token }}"
+		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
+	} else {
+		checkoutToken = "${{ github.token }}"
+		gitRemoteToken = "${{ github.token }}"
+	}
+
 	// Step 1: Checkout repository with conditional execution
 	preSteps = append(preSteps, "      - name: Checkout repository\n")
 	// Add the condition to only checkout if push_to_pull_request_branch will run
 	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	preSteps = append(preSteps, "        with:\n")
-	preSteps = append(preSteps, "          token: ${{ steps.app-token.outputs.token }}\n")
+	preSteps = append(preSteps, fmt.Sprintf("          token: %s\n", checkoutToken))
 	preSteps = append(preSteps, "          persist-credentials: false\n")
 	preSteps = append(preSteps, "          fetch-depth: 0\n")
 	if c.trialMode {
@@ -1335,7 +1359,7 @@ func (c *Compiler) buildPushToPullRequestBranchPreStepsConsolidated(data *Workfl
 		"          git config --global user.name \"github-actions[bot]\"\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		"          git remote set-url origin \"https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 	preSteps = append(preSteps, gitConfigSteps...)
