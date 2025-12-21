@@ -189,7 +189,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 		return
 	}
 
-	// Check both issues and pull_request sections for labeled/unlabeled with names
+	// Check both issues, pull_request, and discussion sections for labeled/unlabeled with names
 	eventSections := []struct {
 		eventName    string
 		eventValue   any
@@ -197,6 +197,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 	}{
 		{"issues", onMap["issues"], "issues"},
 		{"pull_request", onMap["pull_request"], "pull_request"},
+		{"discussion", onMap["discussion"], "discussion"},
 	}
 
 	var labelConditions []ConditionNode
@@ -242,6 +243,17 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 
 		if !hasLabeled && !hasUnlabeled {
 			continue
+		}
+
+		// Check if this section uses native GitHub Actions label filtering
+		// (indicated by __gh_aw_native_label_filter__ marker)
+		if nativeFilterValue, hasNativeFilter := sectionMap["__gh_aw_native_label_filter__"]; hasNativeFilter {
+			if usesNativeFilter, ok := nativeFilterValue.(bool); ok && usesNativeFilter {
+				// Skip applying job condition filtering for this section
+				// as it uses native GitHub Actions label filtering
+				filtersLog.Printf("Skipping label filter for %s: using native GitHub Actions label filtering", section.eventName)
+				continue
+			}
 		}
 
 		// Check for "names" field

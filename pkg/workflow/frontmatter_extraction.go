@@ -115,7 +115,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
-		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
+		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, frontmatter)
 		// Add zizmor ignore comment if workflow_run trigger is present
 		yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
 		// Add friendly format comments for schedule cron expressions
@@ -127,29 +127,65 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, reaction, and lock-for-agent fields in the on section
 // These fields are processed separately and should be commented for documentation
-func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
+// Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
+func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
+	
+	// Check frontmatter for native label filter markers
+	nativeLabelFilterSections := make(map[string]bool)
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			for _, sectionKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
+				if sectionValue, hasSec := onMap[sectionKey]; hasSec {
+					if sectionMap, ok := sectionValue.(map[string]any); ok {
+						if marker, hasMarker := sectionMap["__gh_aw_native_label_filter__"]; hasMarker {
+							if useNative, ok := marker.(bool); ok && useNative {
+								nativeLabelFilterSections[sectionKey] = true
+								frontmatterLog.Printf("Section %s uses native label filtering", sectionKey)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
 	inPullRequest := false
 	inIssues := false
+	inDiscussion := false
 	inIssueComment := false
 	inForksArray := false
 	inSkipIfMatch := false
+	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
 
 	for _, line := range lines {
-		// Check if we're entering a pull_request, issues, or issue_comment section
+		// Check if we're entering a pull_request, issues, discussion, or issue_comment section
 		if strings.Contains(line, "pull_request:") {
 			inPullRequest = true
 			inIssues = false
+			inDiscussion = false
 			inIssueComment = false
+			currentSection = "pull_request"
 			result = append(result, line)
 			continue
 		}
 		if strings.Contains(line, "issues:") {
 			inIssues = true
 			inPullRequest = false
+			inDiscussion = false
 			inIssueComment = false
+			currentSection = "issues"
+			result = append(result, line)
+			continue
+		}
+		if strings.Contains(line, "discussion:") {
+			inDiscussion = true
+			inPullRequest = false
+			inIssues = false
+			inIssueComment = false
+			currentSection = "discussion"
 			result = append(result, line)
 			continue
 		}
@@ -157,22 +193,32 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 			inIssueComment = true
 			inPullRequest = false
 			inIssues = false
+			inDiscussion = false
+			currentSection = "issue_comment"
 			result = append(result, line)
 			continue
 		}
 
-		// Check if we're leaving the pull_request, issues, or issue_comment section (new top-level key or end of indent)
-		if inPullRequest || inIssues || inIssueComment {
+		// Check if we're leaving the pull_request, issues, discussion, or issue_comment section (new top-level key or end of indent)
+		if inPullRequest || inIssues || inDiscussion || inIssueComment {
 			// If line is not indented or is a new top-level key, we're out of the section
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
 				inIssues = false
+				inDiscussion = false
 				inIssueComment = false
 				inForksArray = false
+				currentSection = ""
 			}
 		}
 
 		trimmedLine := strings.TrimSpace(line)
+
+		// Skip marker lines in the YAML output
+		if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
+			// Don't include the marker line in the output
+			continue
+		}
 
 		// Check if we're entering the forks array
 		if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
@@ -180,7 +226,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		}
 
 		// Check if we're entering skip-if-match object
-		if !inPullRequest && !inIssues && !inIssueComment && !inSkipIfMatch {
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfMatch {
 			// Check both uncommented and commented forms
 			if (strings.HasPrefix(trimmedLine, "skip-if-match:") && trimmedLine == "skip-if-match:") ||
 				(strings.HasPrefix(trimmedLine, "# skip-if-match:") && strings.Contains(trimmedLine, "pre-activation job")) {
@@ -216,8 +262,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		shouldComment := false
 		var commentReason string
 
-		// Check for top-level fields that should be commented out (not inside pull_request, issues, or issue_comment)
-		if !inPullRequest && !inIssues && !inIssueComment {
+		// Check for top-level fields that should be commented out (not inside pull_request, issues, discussion, or issue_comment)
+		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment {
 			if strings.HasPrefix(trimmedLine, "manual-approval:") {
 				shouldComment = true
 				commentReason = " # Manual approval processed as environment field in activation job"
@@ -246,15 +292,20 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
 			shouldComment = true
 			commentReason = " # Fork filtering applied via job conditions"
-		} else if (inPullRequest || inIssues || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
+		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
 			shouldComment = true
 			commentReason = " # Lock-for-agent processed as issue locking in activation job"
-		} else if (inPullRequest || inIssues || inIssueComment) && strings.HasPrefix(trimmedLine, "names:") {
-			shouldComment = true
-			commentReason = " # Label filtering applied via job conditions"
-		} else if (inPullRequest || inIssues || inIssueComment) && line != "" {
+		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "names:") {
+			// Only comment out names if NOT using native label filtering for this section
+			if !nativeLabelFilterSections[currentSection] {
+				shouldComment = true
+				commentReason = " # Label filtering applied via job conditions"
+			}
+		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && line != "" {
 			// Check if we're in a names array (after "names:" line)
 			// Look back to see if the previous uncommented line was "names:"
+			// Only do this if NOT using native label filtering for this section
+			if !nativeLabelFilterSections[currentSection] {
 			if len(result) > 0 {
 				for i := len(result) - 1; i >= 0; i-- {
 					prevLine := result[i]
@@ -291,6 +342,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 					break
 				}
 			}
+			} // Close native filter check
 		}
 
 		if shouldComment {
