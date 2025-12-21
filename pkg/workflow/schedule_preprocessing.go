@@ -16,6 +16,75 @@ var schedulePreprocessingLog = logger.New("workflow:schedule_preprocessing")
 // Key is: "on.schedule[index]"
 var scheduleFriendlyFormats = make(map[string]map[int]string)
 
+// normalizeScheduleString handles the common schedule string parsing, warning emission,
+// fuzzy scattering, and validation logic. It returns the normalized cron expression
+// and the original friendly format, or an error if validation fails.
+func (c *Compiler) normalizeScheduleString(scheduleStr string, itemIndex int) (parsedCron string, friendlyFormat string, err error) {
+	// Try to parse as a schedule expression
+	parsedCron, original, err := parser.ParseSchedule(scheduleStr)
+	if err != nil {
+		// Return error for array items, but return nil error for top-level parsing
+		// (caller will handle differently based on context)
+		if itemIndex >= 0 {
+			return "", "", fmt.Errorf("invalid schedule expression in item %d: %w", itemIndex, err)
+		}
+		return "", "", err
+	}
+
+	// Warn if using explicit daily cron pattern
+	if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+		c.addDailyCronWarning(parsedCron)
+	}
+
+	// Warn if using hourly interval with fixed minute
+	if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+		c.addHourlyCronWarning(parsedCron)
+	}
+
+	// Warn if using explicit weekly cron pattern with fixed time
+	if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
+		c.addWeeklyCronWarning(parsedCron)
+	}
+
+	// Scatter fuzzy schedules if workflow identifier is set
+	if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
+		// Combine repo slug and workflow identifier for scattering seed
+		seed := c.workflowIdentifier
+		if c.repositorySlug != "" {
+			seed = c.repositorySlug + "/" + c.workflowIdentifier
+		}
+		scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
+		if err != nil {
+			schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
+			// Keep the original fuzzy schedule as fallback
+		} else {
+			schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
+			parsedCron = scatteredCron
+			// Update the friendly format to show the scattering
+			if original != "" {
+				original = fmt.Sprintf("%s (scattered)", original)
+			}
+		}
+	}
+
+	// Validate final cron expression has correct syntax (5 fields)
+	// FUZZY cron expressions are not supported by GitHub Actions
+	if parser.IsFuzzyCron(parsedCron) {
+		if itemIndex >= 0 {
+			return "", "", fmt.Errorf("fuzzy cron expression '%s' in item %d must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron, itemIndex)
+		}
+		return "", "", fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron)
+	}
+	if !parser.IsCronExpression(parsedCron) {
+		if itemIndex >= 0 {
+			return "", "", fmt.Errorf("invalid cron expression '%s' in item %d: must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron, itemIndex)
+		}
+		return "", "", fmt.Errorf("invalid cron expression '%s': must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron)
+	}
+
+	return parsedCron, original, nil
+}
+
 // preprocessScheduleFields converts human-friendly schedule expressions to cron expressions
 // in the frontmatter's "on" section. It modifies the frontmatter map in place.
 func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdownPath string, content string) error {
@@ -78,7 +147,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		}
 
 		// Try to parse as a schedule expression (only if not already recognized as another trigger type)
-		parsedCron, original, err := parser.ParseSchedule(onStr)
+		parsedCron, original, err := c.normalizeScheduleString(onStr, -1)
 		if err != nil {
 			// Not a schedule expression either - leave as simple string trigger
 			// (simple event names like "push", "fork", etc. are valid)
@@ -87,51 +156,6 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		}
 
 		schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to schedule + workflow_dispatch", onStr)
-
-		// Warn if using explicit daily cron pattern
-		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addDailyCronWarning(parsedCron)
-		}
-
-		// Warn if using hourly interval with fixed minute
-		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addHourlyCronWarning(parsedCron)
-		}
-
-		// Warn if using explicit weekly cron pattern with fixed time
-		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addWeeklyCronWarning(parsedCron)
-		}
-
-		// Scatter fuzzy schedules if workflow identifier is set
-		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
-			// Combine repo slug and workflow identifier for scattering seed
-			seed := c.workflowIdentifier
-			if c.repositorySlug != "" {
-				seed = c.repositorySlug + "/" + c.workflowIdentifier
-			}
-			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
-			if err != nil {
-				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
-				// Keep the original fuzzy schedule as fallback
-			} else {
-				schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
-				parsedCron = scatteredCron
-				// Update the friendly format to show the scattering
-				if original != "" {
-					original = fmt.Sprintf("%s (scattered)", original)
-				}
-			}
-		}
-
-		// Validate final cron expression has correct syntax (5 fields)
-		// FUZZY cron expressions are not supported by GitHub Actions
-		if parser.IsFuzzyCron(parsedCron) {
-			return fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron)
-		}
-		if !parser.IsCronExpression(parsedCron) {
-			return fmt.Errorf("invalid cron expression '%s': must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron)
-		}
 
 		// Create schedule array format with workflow_dispatch
 		scheduleArray := []any{
@@ -175,54 +199,9 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 	if scheduleStr, ok := scheduleValue.(string); ok {
 		schedulePreprocessingLog.Printf("Converting shorthand schedule string to array format: %s", scheduleStr)
 		// Convert string to array format with single item
-		parsedCron, original, err := parser.ParseSchedule(scheduleStr)
+		parsedCron, original, err := c.normalizeScheduleString(scheduleStr, -1)
 		if err != nil {
 			return fmt.Errorf("invalid schedule expression: %w", err)
-		}
-
-		// Warn if using explicit daily cron pattern
-		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addDailyCronWarning(parsedCron)
-		}
-
-		// Warn if using hourly interval with fixed minute
-		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addHourlyCronWarning(parsedCron)
-		}
-
-		// Warn if using explicit weekly cron pattern with fixed time
-		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addWeeklyCronWarning(parsedCron)
-		}
-
-		// Scatter fuzzy schedules if workflow identifier is set
-		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
-			// Combine repo slug and workflow identifier for scattering seed
-			seed := c.workflowIdentifier
-			if c.repositorySlug != "" {
-				seed = c.repositorySlug + "/" + c.workflowIdentifier
-			}
-			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
-			if err != nil {
-				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
-				// Keep the original fuzzy schedule as fallback
-			} else {
-				schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
-				parsedCron = scatteredCron
-				// Update the friendly format to show the scattering
-				if original != "" {
-					original = fmt.Sprintf("%s (scattered)", original)
-				}
-			}
-		}
-
-		// Validate final cron expression has correct syntax (5 fields)
-		// FUZZY cron expressions are not supported by GitHub Actions
-		if parser.IsFuzzyCron(parsedCron) {
-			return fmt.Errorf("fuzzy cron expression '%s' must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron)
-		}
-		if !parser.IsCronExpression(parsedCron) {
-			return fmt.Errorf("invalid cron expression '%s': must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron)
 		}
 
 		// Create array format
@@ -274,55 +253,10 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		}
 
 		// Try to parse as human-friendly schedule
-		parsedCron, original, err := parser.ParseSchedule(cronStr)
+		parsedCron, original, err := c.normalizeScheduleString(cronStr, i)
 		if err != nil {
-			// If parsing fails, it might be an invalid expression
-			return fmt.Errorf("invalid schedule expression in item %d: %w", i, err)
-		}
-
-		// Warn if using explicit daily cron pattern
-		if parser.IsDailyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addDailyCronWarning(parsedCron)
-		}
-
-		// Warn if using hourly interval with fixed minute
-		if parser.IsHourlyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addHourlyCronWarning(parsedCron)
-		}
-
-		// Warn if using explicit weekly cron pattern with fixed time
-		if parser.IsWeeklyCron(parsedCron) && !parser.IsFuzzyCron(parsedCron) {
-			c.addWeeklyCronWarning(parsedCron)
-		}
-
-		// Scatter fuzzy schedules if workflow identifier is set
-		if parser.IsFuzzyCron(parsedCron) && c.workflowIdentifier != "" {
-			// Combine repo slug and workflow identifier for scattering seed
-			seed := c.workflowIdentifier
-			if c.repositorySlug != "" {
-				seed = c.repositorySlug + "/" + c.workflowIdentifier
-			}
-			scatteredCron, err := parser.ScatterSchedule(parsedCron, seed)
-			if err != nil {
-				schedulePreprocessingLog.Printf("Warning: failed to scatter fuzzy schedule: %v", err)
-				// Keep the original fuzzy schedule as fallback
-			} else {
-				schedulePreprocessingLog.Printf("Scattered fuzzy schedule %s to %s for workflow %s", parsedCron, scatteredCron, c.workflowIdentifier)
-				parsedCron = scatteredCron
-				// Update the friendly format to show the scattering
-				if original != "" {
-					original = fmt.Sprintf("%s (scattered)", original)
-				}
-			}
-		}
-
-		// Validate final cron expression has correct syntax (5 fields)
-		// FUZZY cron expressions are not supported by GitHub Actions
-		if parser.IsFuzzyCron(parsedCron) {
-			return fmt.Errorf("fuzzy cron expression '%s' in item %d must be scattered to proper cron format before compilation (ensure workflow identifier is set)", parsedCron, i)
-		}
-		if !parser.IsCronExpression(parsedCron) {
-			return fmt.Errorf("invalid cron expression '%s' in item %d: must have exactly 5 fields (minute hour day-of-month month day-of-week)", parsedCron, i)
+			// Error already includes item index from normalizeScheduleString
+			return err
 		}
 
 		// Update the cron field with the parsed cron expression
