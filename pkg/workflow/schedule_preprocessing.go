@@ -30,20 +30,15 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		schedulePreprocessingLog.Printf("Processing on field as string: %s", onStr)
 
 		// Check if it's a slash command shorthand (starts with /)
-		if strings.HasPrefix(onStr, "/") {
-			// Extract command name (remove leading /)
-			commandName := strings.TrimPrefix(onStr, "/")
-			if commandName == "" {
-				return fmt.Errorf("slash command shorthand cannot be empty after '/'")
-			}
-
+		commandName, isSlashCommand, err := parseSlashCommandShorthand(onStr)
+		if err != nil {
+			return err
+		}
+		if isSlashCommand {
 			schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to slash_command + workflow_dispatch", onStr)
 
 			// Create the expanded format
-			onMap := map[string]any{
-				"slash_command":     commandName,
-				"workflow_dispatch": nil,
-			}
+			onMap := expandSlashCommandShorthand(commandName)
 			frontmatter["on"] = onMap
 
 			return nil
