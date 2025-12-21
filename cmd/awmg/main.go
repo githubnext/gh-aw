@@ -34,8 +34,10 @@ The gateway:
 - Provides extensive logging to file in the MCP log folder
 
 Configuration can be provided via:
-1. --config flag pointing to a JSON config file
+1. --config flag(s) pointing to JSON config file(s) (can be specified multiple times)
 2. stdin (reads JSON configuration from standard input)
+
+Multiple config files are merged in order, with later files overriding earlier ones.
 
 Configuration format:
 {
@@ -53,7 +55,8 @@ Configuration format:
 }
 
 Examples:
-  awmg --config config.json                    # From file
+  awmg --config config.json                    # From single file
+  awmg --config base.json --config override.json # From multiple files (merged)
   awmg --port 8080                             # From stdin
   echo '{"mcpServers":{...}}' | awmg           # Pipe config
   awmg --config config.json --log-dir /tmp/logs # Custom log dir`

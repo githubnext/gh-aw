@@ -37,7 +37,7 @@ func TestReadGatewayConfig_FromFile(t *testing.T) {
 	}
 
 	// Read config
-	result, err := readGatewayConfig(configFile)
+	result, err := readGatewayConfig([]string{configFile})
 	if err != nil {
 		t.Fatalf("Failed to read config: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestReadGatewayConfig_InvalidJSON(t *testing.T) {
 	}
 
 	// Read config - should fail
-	_, err := readGatewayConfig(configFile)
+	_, err := readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -173,7 +173,7 @@ func TestGatewaySettings_WithAPIKey(t *testing.T) {
 
 func TestReadGatewayConfig_FileNotFound(t *testing.T) {
 	// Try to read a non-existent file
-	_, err := readGatewayConfig("/tmp/nonexistent-gateway-config-12345.json")
+	_, err := readGatewayConfig([]string{"/tmp/nonexistent-gateway-config-12345.json"})
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -204,7 +204,7 @@ func TestReadGatewayConfig_EmptyServers(t *testing.T) {
 	}
 
 	// Try to read config - should fail with no servers
-	_, err = readGatewayConfig(configFile)
+	_, err = readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for config with no servers, got nil")
 	}
@@ -223,11 +223,202 @@ func TestReadGatewayConfig_EmptyData(t *testing.T) {
 	}
 
 	// Try to read config - should fail with empty data
-	_, err := readGatewayConfig(configFile)
+	_, err := readGatewayConfig([]string{configFile})
 	if err == nil {
 		t.Error("Expected error for empty config file, got nil")
 	}
 	if err != nil && err.Error() != "configuration data is empty" {
 		t.Errorf("Expected 'configuration data is empty' error, got: %v", err)
+	}
+}
+
+func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
+	// Create base config file
+	tmpDir := t.TempDir()
+	baseConfig := filepath.Join(tmpDir, "base-config.json")
+	baseConfigData := MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"server1": {
+				Command: "command1",
+				Args:    []string{"arg1"},
+			},
+			"server2": {
+				Command: "command2",
+				Args:    []string{"arg2"},
+			},
+		},
+		Gateway: GatewaySettings{
+			Port: 8080,
+		},
+	}
+
+	baseJSON, err := json.Marshal(baseConfigData)
+	if err != nil {
+		t.Fatalf("Failed to marshal base config: %v", err)
+	}
+	if err := os.WriteFile(baseConfig, baseJSON, 0644); err != nil {
+		t.Fatalf("Failed to write base config: %v", err)
+	}
+
+	// Create override config file
+	overrideConfig := filepath.Join(tmpDir, "override-config.json")
+	overrideConfigData := MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"server2": {
+				Command: "override-command2",
+				Args:    []string{"override-arg2"},
+			},
+			"server3": {
+				Command: "command3",
+				Args:    []string{"arg3"},
+			},
+		},
+		Gateway: GatewaySettings{
+			Port:   9090,
+			APIKey: "test-key",
+		},
+	}
+
+	overrideJSON, err := json.Marshal(overrideConfigData)
+	if err != nil {
+		t.Fatalf("Failed to marshal override config: %v", err)
+	}
+	if err := os.WriteFile(overrideConfig, overrideJSON, 0644); err != nil {
+		t.Fatalf("Failed to write override config: %v", err)
+	}
+
+	// Read and merge configs
+	result, err := readGatewayConfig([]string{baseConfig, overrideConfig})
+	if err != nil {
+		t.Fatalf("Failed to read configs: %v", err)
+	}
+
+	// Verify merged config
+	if len(result.MCPServers) != 3 {
+		t.Errorf("Expected 3 servers, got %d", len(result.MCPServers))
+	}
+
+	// server1 should remain from base
+	server1, exists := result.MCPServers["server1"]
+	if !exists {
+		t.Fatal("server1 not found in merged config")
+	}
+	if server1.Command != "command1" {
+		t.Errorf("Expected server1 command 'command1', got '%s'", server1.Command)
+	}
+
+	// server2 should be overridden
+	server2, exists := result.MCPServers["server2"]
+	if !exists {
+		t.Fatal("server2 not found in merged config")
+	}
+	if server2.Command != "override-command2" {
+		t.Errorf("Expected server2 command 'override-command2', got '%s'", server2.Command)
+	}
+
+	// server3 should be added from override
+	server3, exists := result.MCPServers["server3"]
+	if !exists {
+		t.Fatal("server3 not found in merged config")
+	}
+	if server3.Command != "command3" {
+		t.Errorf("Expected server3 command 'command3', got '%s'", server3.Command)
+	}
+
+	// Gateway settings should be overridden
+	if result.Gateway.Port != 9090 {
+		t.Errorf("Expected port 9090, got %d", result.Gateway.Port)
+	}
+	if result.Gateway.APIKey != "test-key" {
+		t.Errorf("Expected API key 'test-key', got '%s'", result.Gateway.APIKey)
+	}
+}
+
+func TestMergeConfigs(t *testing.T) {
+	base := &MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"server1": {
+				Command: "cmd1",
+			},
+			"server2": {
+				Command: "cmd2",
+			},
+		},
+		Gateway: GatewaySettings{
+			Port:   8080,
+			APIKey: "base-key",
+		},
+	}
+
+	override := &MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"server2": {
+				Command: "override-cmd2",
+			},
+			"server3": {
+				Command: "cmd3",
+			},
+		},
+		Gateway: GatewaySettings{
+			Port: 9090,
+			// APIKey not set, should keep base
+		},
+	}
+
+	merged := mergeConfigs(base, override)
+
+	// Check servers
+	if len(merged.MCPServers) != 3 {
+		t.Errorf("Expected 3 servers, got %d", len(merged.MCPServers))
+	}
+
+	if merged.MCPServers["server1"].Command != "cmd1" {
+		t.Error("server1 should remain from base")
+	}
+
+	if merged.MCPServers["server2"].Command != "override-cmd2" {
+		t.Error("server2 should be overridden")
+	}
+
+	if merged.MCPServers["server3"].Command != "cmd3" {
+		t.Error("server3 should be added from override")
+	}
+
+	// Check gateway settings
+	if merged.Gateway.Port != 9090 {
+		t.Error("Port should be overridden")
+	}
+
+	if merged.Gateway.APIKey != "base-key" {
+		t.Error("APIKey should be kept from base when not set in override")
+	}
+}
+
+func TestMergeConfigs_EmptyOverride(t *testing.T) {
+	base := &MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"server1": {
+				Command: "cmd1",
+			},
+		},
+		Gateway: GatewaySettings{
+			Port: 8080,
+		},
+	}
+
+	override := &MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{},
+		Gateway:    GatewaySettings{},
+	}
+
+	merged := mergeConfigs(base, override)
+
+	// Should keep base config
+	if len(merged.MCPServers) != 1 {
+		t.Errorf("Expected 1 server, got %d", len(merged.MCPServers))
+	}
+
+	if merged.Gateway.Port != 8080 {
+		t.Error("Port should be kept from base")
 	}
 }
