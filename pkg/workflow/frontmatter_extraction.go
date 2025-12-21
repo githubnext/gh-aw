@@ -125,7 +125,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, and reaction fields in the on section
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, reaction, and lock-for-agent fields in the on section
 // These fields are processed separately and should be commented for documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
@@ -133,30 +133,41 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	var result []string
 	inPullRequest := false
 	inIssues := false
+	inIssueComment := false
 	inForksArray := false
 	inSkipIfMatch := false
 
 	for _, line := range lines {
-		// Check if we're entering a pull_request or issues section
+		// Check if we're entering a pull_request, issues, or issue_comment section
 		if strings.Contains(line, "pull_request:") {
 			inPullRequest = true
 			inIssues = false
+			inIssueComment = false
 			result = append(result, line)
 			continue
 		}
 		if strings.Contains(line, "issues:") {
 			inIssues = true
 			inPullRequest = false
+			inIssueComment = false
+			result = append(result, line)
+			continue
+		}
+		if strings.Contains(line, "issue_comment:") {
+			inIssueComment = true
+			inPullRequest = false
+			inIssues = false
 			result = append(result, line)
 			continue
 		}
 
-		// Check if we're leaving the pull_request or issues section (new top-level key or end of indent)
-		if inPullRequest || inIssues {
+		// Check if we're leaving the pull_request, issues, or issue_comment section (new top-level key or end of indent)
+		if inPullRequest || inIssues || inIssueComment {
 			// If line is not indented or is a new top-level key, we're out of the section
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
 				inIssues = false
+				inIssueComment = false
 				inForksArray = false
 			}
 		}
@@ -169,7 +180,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		}
 
 		// Check if we're entering skip-if-match object
-		if !inPullRequest && !inIssues && !inSkipIfMatch {
+		if !inPullRequest && !inIssues && !inIssueComment && !inSkipIfMatch {
 			// Check both uncommented and commented forms
 			if (strings.HasPrefix(trimmedLine, "skip-if-match:") && trimmedLine == "skip-if-match:") ||
 				(strings.HasPrefix(trimmedLine, "# skip-if-match:") && strings.Contains(trimmedLine, "pre-activation job")) {
@@ -205,8 +216,8 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		shouldComment := false
 		var commentReason string
 
-		// Check for top-level fields that should be commented out (not inside pull_request or issues)
-		if !inPullRequest && !inIssues {
+		// Check for top-level fields that should be commented out (not inside pull_request, issues, or issue_comment)
+		if !inPullRequest && !inIssues && !inIssueComment {
 			if strings.HasPrefix(trimmedLine, "manual-approval:") {
 				shouldComment = true
 				commentReason = " # Manual approval processed as environment field in activation job"
@@ -235,10 +246,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
 			shouldComment = true
 			commentReason = " # Fork filtering applied via job conditions"
-		} else if (inPullRequest || inIssues) && strings.HasPrefix(trimmedLine, "names:") {
+		} else if (inPullRequest || inIssues || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
+			shouldComment = true
+			commentReason = " # Lock-for-agent processed as issue locking in activation job"
+		} else if (inPullRequest || inIssues || inIssueComment) && strings.HasPrefix(trimmedLine, "names:") {
 			shouldComment = true
 			commentReason = " # Label filtering applied via job conditions"
-		} else if (inPullRequest || inIssues) && line != "" {
+		} else if (inPullRequest || inIssues || inIssueComment) && line != "" {
 			// Check if we're in a names array (after "names:" line)
 			// Look back to see if the previous uncommented line was "names:"
 			if len(result) > 0 {
