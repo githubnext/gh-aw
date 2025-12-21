@@ -128,6 +128,8 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("            \"-i\",\n")
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"--init\",\n")
+	yaml.WriteString("            \"--network\",\n")
+	yaml.WriteString("            \"host\",\n")
 	yaml.WriteString("            \"" + playwrightImage + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
