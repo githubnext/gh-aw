@@ -1,18 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const { createUpdateHandler } = require("./update_runner.cjs");
 const { updatePRBody } = require("./update_pr_description_helpers.cjs");
 const { isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
-
-// Use shared helper for staged preview rendering
-const renderStagedItem = createRenderStagedItem({
-  entityName: "Pull Request",
-  numberField: "pull_request_number",
-  targetLabel: "Target PR:",
-  currentTargetText: "Current pull request",
-  includeOperation: true,
-});
 
 /**
  * Execute the pull request update API call
@@ -70,27 +61,23 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   return pr;
 }
 
-// Use shared helper for summary line generation
-const getSummaryLine = createGetSummaryLine({
+// Create the handler using the factory
+const main = createUpdateHandler({
+  itemType: "update_pull_request",
+  displayName: "pull request",
+  displayNamePlural: "pull requests",
+  numberField: "pull_request_number",
+  outputNumberKey: "pull_request_number",
+  outputUrlKey: "pull_request_url",
+  entityName: "Pull Request",
   entityPrefix: "PR",
+  targetLabel: "Target PR:",
+  currentTargetText: "Current pull request",
+  supportsStatus: false,
+  supportsOperation: true,
+  isValidContext: isPRContext,
+  getContextNumber: getPRNumber,
+  executeUpdate: executePRUpdate,
 });
-
-async function main() {
-  return await runUpdateWorkflow({
-    itemType: "update_pull_request",
-    displayName: "pull request",
-    displayNamePlural: "pull requests",
-    numberField: "pull_request_number",
-    outputNumberKey: "pull_request_number",
-    outputUrlKey: "pull_request_url",
-    isValidContext: isPRContext,
-    getContextNumber: getPRNumber,
-    supportsStatus: false,
-    supportsOperation: true,
-    renderStagedItem,
-    executeUpdate: executePRUpdate,
-    getSummaryLine,
-  });
-}
 
 await main();
