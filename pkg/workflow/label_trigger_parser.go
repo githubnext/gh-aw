@@ -1,0 +1,125 @@
+package workflow
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
+
+// parseLabelTriggerShorthand parses a string in the format "labeled label1 label2 ..." or
+// "issue labeled label1 label2 ...", "pull_request labeled label1 label2 ...", or
+// "discussion labeled label1 label2 ..." and returns the entity type and label names.
+// Returns an empty string for entityType if not a valid label trigger shorthand.
+// Returns an error if the format is invalid.
+func parseLabelTriggerShorthand(input string) (entityType string, labelNames []string, isLabelTrigger bool, err error) {
+	input = strings.TrimSpace(input)
+	
+	// Split into tokens
+	tokens := strings.Fields(input)
+	if len(tokens) == 0 {
+		return "", nil, false, nil
+	}
+
+	// Check for different patterns:
+	// 1. "labeled label1 label2 ..." - defaults to issues
+	// 2. "issue labeled label1 label2 ..."
+	// 3. "pull_request labeled label1 label2 ..."
+	// 4. "discussion labeled label1 label2 ..."
+
+	var startIdx int
+	
+	if tokens[0] == "labeled" {
+		// Pattern 1: "labeled label1 label2 ..."
+		entityType = "issues"
+		startIdx = 1
+	} else if len(tokens) >= 2 && tokens[0] == "issue" && tokens[1] == "labeled" {
+		// Pattern 2: "issue labeled label1 label2 ..."
+		entityType = "issues"
+		startIdx = 2
+	} else if len(tokens) >= 2 && tokens[0] == "pull_request" && tokens[1] == "labeled" {
+		// Pattern 3: "pull_request labeled label1 label2 ..."
+		entityType = "pull_request"
+		startIdx = 2
+	} else if len(tokens) >= 2 && tokens[0] == "discussion" && tokens[1] == "labeled" {
+		// Pattern 4: "discussion labeled label1 label2 ..."
+		entityType = "discussion"
+		startIdx = 2
+	} else {
+		// Not a label trigger shorthand
+		return "", nil, false, nil
+	}
+
+	// Extract label names
+	if len(tokens) <= startIdx {
+		return "", nil, true, fmt.Errorf("label trigger shorthand requires at least one label name")
+	}
+
+	labelNames = tokens[startIdx:]
+	
+	// Validate label names are not empty
+	for _, label := range labelNames {
+		if strings.TrimSpace(label) == "" {
+			return "", nil, true, fmt.Errorf("label names cannot be empty in label trigger shorthand")
+		}
+	}
+
+	labelTriggerParserLog.Printf("Parsed label trigger shorthand: %s -> entity: %s, labels: %v", input, entityType, labelNames)
+
+	return entityType, labelNames, true, nil
+}
+
+// expandLabelTriggerShorthand takes an entity type and label names and returns a map that represents
+// the expanded label trigger + workflow_dispatch configuration with item_number input.
+func expandLabelTriggerShorthand(entityType string, labelNames []string) map[string]any {
+	// Create the trigger configuration based on entity type
+	var triggerKey string
+	switch entityType {
+	case "issues":
+		triggerKey = "issues"
+	case "pull_request":
+		triggerKey = "pull_request"
+	case "discussion":
+		triggerKey = "discussion"
+	default:
+		triggerKey = "issues" // Default to issues
+	}
+
+	// Build the trigger configuration
+	triggerConfig := map[string]any{
+		"types": []any{"labeled"},
+		"names": labelNames,
+	}
+
+	// Create workflow_dispatch with item_number input
+	workflowDispatchConfig := map[string]any{
+		"inputs": map[string]any{
+			"item_number": map[string]any{
+				"description": "The number of the " + getItemTypeName(entityType),
+				"required":    true,
+				"type":        "string",
+			},
+		},
+	}
+
+	return map[string]any{
+		triggerKey:           triggerConfig,
+		"workflow_dispatch": workflowDispatchConfig,
+	}
+}
+
+// getItemTypeName returns the human-readable item type name for the entity type
+func getItemTypeName(entityType string) string {
+	switch entityType {
+	case "issues":
+		return "issue"
+	case "pull_request":
+		return "pull request"
+	case "discussion":
+		return "discussion"
+	default:
+		return "item"
+	}
+}
