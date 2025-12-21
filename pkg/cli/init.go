@@ -118,14 +118,44 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if codespaceEnabled {
 		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", codespaceRepos)
 
-		// Create .devcontainer/gh-aw/devcontainer.json
+		// Create or update .devcontainer/devcontainer.json
 		if err := ensureDevcontainerConfig(verbose, codespaceRepos); err != nil {
-			initLog.Printf("Failed to create devcontainer config: %v", err)
-			return fmt.Errorf("failed to create devcontainer config: %w", err)
+			initLog.Printf("Failed to configure devcontainer: %v", err)
+			return fmt.Errorf("failed to configure devcontainer: %w", err)
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .devcontainer/gh-aw/devcontainer.json"))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .devcontainer/devcontainer.json"))
 		}
+	}
+
+	// Configure VSCode settings
+	initLog.Print("Configuring VSCode settings")
+
+	// Write workflow schema to .github/aw/
+	if err := ensureWorkflowSchema(verbose); err != nil {
+		initLog.Printf("Failed to write workflow schema: %v", err)
+		return fmt.Errorf("failed to write workflow schema: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/aw/schemas/agentic-workflow.json"))
+	}
+
+	// Update .vscode/settings.json
+	if err := ensureVSCodeSettings(verbose); err != nil {
+		initLog.Printf("Failed to update VSCode settings: %v", err)
+		return fmt.Errorf("failed to update VSCode settings: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/settings.json"))
+	}
+
+	// Update .vscode/extensions.json
+	if err := ensureVSCodeExtensions(verbose); err != nil {
+		initLog.Printf("Failed to update VSCode extensions: %v", err)
+		return fmt.Errorf("failed to update VSCode extensions: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/extensions.json"))
 	}
 
 	// Validate tokens if requested

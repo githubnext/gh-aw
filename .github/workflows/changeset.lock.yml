@@ -202,10 +202,7 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContentCore(content, maxLength) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
+            function buildAllowedDomains() {
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
               let allowedDomains = allowedDomainsEnv
@@ -224,7 +221,129 @@ jobs:
                 const apiDomains = extractDomainsFromUrl(githubApiUrl);
                 allowedDomains = allowedDomains.concat(apiDomains);
               }
-              allowedDomains = [...new Set(allowedDomains)];
+              return [...new Set(allowedDomains)];
+            }
+            function sanitizeUrlProtocols(s) {
+              return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                if (domain) {
+                  const domainLower = domain.toLowerCase();
+                  const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                  if (typeof core !== "undefined" && core.info) {
+                    core.info(`Redacted URL: ${truncated}`);
+                  }
+                  if (typeof core !== "undefined" && core.debug) {
+                    core.debug(`Redacted URL (full): ${match}`);
+                  }
+                  addRedactedDomain(domainLower);
+                } else {
+                  const protocolMatch = match.match(/^([^:]+):/);
+                  if (protocolMatch) {
+                    const protocol = protocolMatch[1] + ":";
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(protocol);
+                  }
+                }
+                return "(redacted)";
+              });
+            }
+            function sanitizeUrlDomains(s, allowed) {
+              const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
+              return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
+                const hostname = hostnameWithPort.split(":")[0].toLowerCase();
+                pathPart = pathPart || "";
+                const isAllowed = allowed.some(allowedDomain => {
+                  const normalizedAllowed = allowedDomain.toLowerCase();
+                  if (hostname === normalizedAllowed) {
+                    return true;
+                  }
+                  if (normalizedAllowed.startsWith("*.")) {
+                    const baseDomain = normalizedAllowed.substring(2); 
+                    return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
+                  }
+                  return hostname.endsWith("." + normalizedAllowed);
+                });
+                if (isAllowed) {
+                  return match; 
+                } else {
+                  const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
+                  if (typeof core !== "undefined" && core.info) {
+                    core.info(`Redacted URL: ${truncated}`);
+                  }
+                  if (typeof core !== "undefined" && core.debug) {
+                    core.debug(`Redacted URL (full): ${match}`);
+                  }
+                  addRedactedDomain(hostname);
+                  return "(redacted)";
+                }
+              });
+            }
+            function neutralizeCommands(s) {
+              const commandName = process.env.GH_AW_COMMAND;
+              if (!commandName) {
+                return s;
+              }
+              const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+            }
+            function neutralizeAllMentions(s) {
+              return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
+                if (typeof core !== "undefined" && core.info) {
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
+                }
+                return `${p1}\`@${p2}\``;
+              });
+            }
+            function removeXmlComments(s) {
+              return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+            }
+            function convertXmlTags(s) {
+              const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+              s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                return `(![CDATA[${convertedContent}]])`;
+              });
+              return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                if (tagNameMatch) {
+                  const tagName = tagNameMatch[1].toLowerCase();
+                  if (allowedTags.includes(tagName)) {
+                    return match; 
+                  }
+                }
+                return `(${tagContent})`; 
+              });
+            }
+            function neutralizeBotTriggers(s) {
+              return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+            }
+            function applyTruncation(content, maxLength) {
+              maxLength = maxLength || 524288;
+              const lines = content.split("\n");
+              const maxLines = 65000;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  return truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  return truncatedLines;
+                }
+              } else if (content.length > maxLength) {
+                return content.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              return content;
+            }
+            function sanitizeContentCore(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomains = buildAllowedDomains();
               let sanitized = content;
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
@@ -234,121 +353,9 @@ jobs:
               sanitized = convertXmlTags(sanitized);
               sanitized = sanitizeUrlProtocols(sanitized);
               sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
+              sanitized = applyTruncation(sanitized, maxLength);
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
-              function sanitizeUrlDomains(s, allowed) {
-                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
-                return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-                  const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-                  pathPart = pathPart || "";
-                  const isAllowed = allowed.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    if (hostname === normalizedAllowed) {
-                      return true;
-                    }
-                    if (normalizedAllowed.startsWith("*.")) {
-                      const baseDomain = normalizedAllowed.substring(2); 
-                      return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
-                    }
-                    return hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match; 
-                  } else {
-                    const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(hostname);
-                    return "(redacted)";
-                  }
-                });
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-                  if (domain) {
-                    const domainLower = domain.toLowerCase();
-                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(domainLower);
-                  } else {
-                    const protocolMatch = match.match(/^([^:]+):/);
-                    if (protocolMatch) {
-                      const protocol = protocolMatch[1] + ":";
-                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                      if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${truncated}`);
-                      }
-                      if (typeof core !== "undefined" && core.debug) {
-                        core.debug(`Redacted URL (full): ${match}`);
-                      }
-                      addRedactedDomain(protocol);
-                    }
-                  }
-                  return "(redacted)";
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeAllMentions(s) {
-                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
-                  if (typeof core !== "undefined" && core.info) {
-                    core.info(`Escaped mention: @${p2} (not in allowed list)`);
-                  }
-                  return `${p1}\`@${p2}\``;
-                });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match; 
-                    }
-                  }
-                  return `(${tagContent})`; 
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
             }
             function sanitizeIncomingText(content, maxLength) {
               return sanitizeContentCore(content, maxLength);
@@ -893,7 +900,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
@@ -983,18 +990,16 @@ jobs:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.75.0
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.7.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.7.0/awf-linux-x64 -o awf
-          chmod +x awf
-          sudo mv awf /usr/local/bin/
+          echo "Installing awf via installer script (requested version: v0.7.0)"
+          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
           which awf
           awf --version
       - name: Downloading container images
@@ -1009,7 +1014,7 @@ jobs:
             
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull "$image"; then
+              if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
@@ -2925,7 +2930,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
@@ -3075,7 +3080,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -3300,14 +3305,14 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -3317,7 +3322,7 @@ jobs:
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains api.npms.io,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains api.npms.io,api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
             -- export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && codex -c model=gpt-5-mini exec --full-auto --skip-git-repo-check "$INSTRUCTION" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -3450,7 +3455,7 @@ jobs:
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -3512,10 +3517,7 @@ jobs:
                 return [];
               }
             }
-            function sanitizeContentCore(content, maxLength) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
+            function buildAllowedDomains() {
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
               let allowedDomains = allowedDomainsEnv
@@ -3534,7 +3536,129 @@ jobs:
                 const apiDomains = extractDomainsFromUrl(githubApiUrl);
                 allowedDomains = allowedDomains.concat(apiDomains);
               }
-              allowedDomains = [...new Set(allowedDomains)];
+              return [...new Set(allowedDomains)];
+            }
+            function sanitizeUrlProtocols(s) {
+              return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
+                if (domain) {
+                  const domainLower = domain.toLowerCase();
+                  const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
+                  if (typeof core !== "undefined" && core.info) {
+                    core.info(`Redacted URL: ${truncated}`);
+                  }
+                  if (typeof core !== "undefined" && core.debug) {
+                    core.debug(`Redacted URL (full): ${match}`);
+                  }
+                  addRedactedDomain(domainLower);
+                } else {
+                  const protocolMatch = match.match(/^([^:]+):/);
+                  if (protocolMatch) {
+                    const protocol = protocolMatch[1] + ":";
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    if (typeof core !== "undefined" && core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (typeof core !== "undefined" && core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
+                    addRedactedDomain(protocol);
+                  }
+                }
+                return "(redacted)";
+              });
+            }
+            function sanitizeUrlDomains(s, allowed) {
+              const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
+              return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
+                const hostname = hostnameWithPort.split(":")[0].toLowerCase();
+                pathPart = pathPart || "";
+                const isAllowed = allowed.some(allowedDomain => {
+                  const normalizedAllowed = allowedDomain.toLowerCase();
+                  if (hostname === normalizedAllowed) {
+                    return true;
+                  }
+                  if (normalizedAllowed.startsWith("*.")) {
+                    const baseDomain = normalizedAllowed.substring(2); 
+                    return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
+                  }
+                  return hostname.endsWith("." + normalizedAllowed);
+                });
+                if (isAllowed) {
+                  return match; 
+                } else {
+                  const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
+                  if (typeof core !== "undefined" && core.info) {
+                    core.info(`Redacted URL: ${truncated}`);
+                  }
+                  if (typeof core !== "undefined" && core.debug) {
+                    core.debug(`Redacted URL (full): ${match}`);
+                  }
+                  addRedactedDomain(hostname);
+                  return "(redacted)";
+                }
+              });
+            }
+            function neutralizeCommands(s) {
+              const commandName = process.env.GH_AW_COMMAND;
+              if (!commandName) {
+                return s;
+              }
+              const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+            }
+            function neutralizeAllMentions(s) {
+              return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
+                if (typeof core !== "undefined" && core.info) {
+                  core.info(`Escaped mention: @${p2} (not in allowed list)`);
+                }
+                return `${p1}\`@${p2}\``;
+              });
+            }
+            function removeXmlComments(s) {
+              return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+            }
+            function convertXmlTags(s) {
+              const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
+              s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                return `(![CDATA[${convertedContent}]])`;
+              });
+              return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                if (tagNameMatch) {
+                  const tagName = tagNameMatch[1].toLowerCase();
+                  if (allowedTags.includes(tagName)) {
+                    return match; 
+                  }
+                }
+                return `(${tagContent})`; 
+              });
+            }
+            function neutralizeBotTriggers(s) {
+              return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+            }
+            function applyTruncation(content, maxLength) {
+              maxLength = maxLength || 524288;
+              const lines = content.split("\n");
+              const maxLines = 65000;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  return truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  return truncatedLines;
+                }
+              } else if (content.length > maxLength) {
+                return content.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              return content;
+            }
+            function sanitizeContentCore(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomains = buildAllowedDomains();
               let sanitized = content;
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
@@ -3544,121 +3668,9 @@ jobs:
               sanitized = convertXmlTags(sanitized);
               sanitized = sanitizeUrlProtocols(sanitized);
               sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
+              sanitized = applyTruncation(sanitized, maxLength);
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
-              function sanitizeUrlDomains(s, allowed) {
-                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/(?:(?!https:\/\/)[^\s,])*)?/gi;
-                return s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-                  const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-                  pathPart = pathPart || "";
-                  const isAllowed = allowed.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    if (hostname === normalizedAllowed) {
-                      return true;
-                    }
-                    if (normalizedAllowed.startsWith("*.")) {
-                      const baseDomain = normalizedAllowed.substring(2); 
-                      return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
-                    }
-                    return hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match; 
-                  } else {
-                    const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(hostname);
-                    return "(redacted)";
-                  }
-                });
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/((?:http|ftp|file|ssh|git):\/\/([\w.-]*)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-                  if (domain) {
-                    const domainLower = domain.toLowerCase();
-                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(domainLower);
-                  } else {
-                    const protocolMatch = match.match(/^([^:]+):/);
-                    if (protocolMatch) {
-                      const protocol = protocolMatch[1] + ":";
-                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                      if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${truncated}`);
-                      }
-                      if (typeof core !== "undefined" && core.debug) {
-                        core.debug(`Redacted URL (full): ${match}`);
-                      }
-                      addRedactedDomain(protocol);
-                    }
-                  }
-                  return "(redacted)";
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
-              function neutralizeAllMentions(s) {
-                return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
-                  if (typeof core !== "undefined" && core.info) {
-                    core.info(`Escaped mention: @${p2} (not in allowed list)`);
-                  }
-                  return `${p1}\`@${p2}\``;
-                });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match; 
-                    }
-                  }
-                  return `(${tagContent})`; 
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
             }
             function sanitizeContent(content, maxLengthOrOptions) {
               let maxLength;
@@ -3675,119 +3687,19 @@ jobs:
               if (!content || typeof content !== "string") {
                 return "";
               }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              let allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              const githubServerUrl = process.env.GITHUB_SERVER_URL;
-              const githubApiUrl = process.env.GITHUB_API_URL;
-              if (githubServerUrl) {
-                const serverDomains = extractDomainsFromUrl(githubServerUrl);
-                allowedDomains = allowedDomains.concat(serverDomains);
-              }
-              if (githubApiUrl) {
-                const apiDomains = extractDomainsFromUrl(githubApiUrl);
-                allowedDomains = allowedDomains.concat(apiDomains);
-              }
-              allowedDomains = [...new Set(allowedDomains)];
+              const allowedDomains = buildAllowedDomains();
               let sanitized = content;
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized, allowedAliasesLowercase);
               sanitized = removeXmlComments(sanitized);
               sanitized = convertXmlTags(sanitized);
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = sanitizeUrlProtocols(sanitized);
               sanitized = sanitizeUrlDomains(sanitized, allowedDomains);
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              maxLength = maxLength || 524288;
-              if (lines.length > maxLines) {
-                const truncationMsg = "\n[Content truncated due to line count]";
-                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                if (truncatedLines.length > maxLength) {
-                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                } else {
-                  sanitized = truncatedLines;
-                }
-              } else if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
+              sanitized = applyTruncation(sanitized, maxLength);
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
-              function sanitizeUrlDomains(s, allowed) {
-                const httpsUrlRegex = /https:\/\/([\w.-]+(?::\d+)?)(\/[^\s]*)?/gi;
-                const result = s.replace(httpsUrlRegex, (match, hostnameWithPort, pathPart) => {
-                  const hostname = hostnameWithPort.split(":")[0].toLowerCase();
-                  pathPart = pathPart || "";
-                  const isAllowed = allowed.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    if (hostname === normalizedAllowed) {
-                      return true;
-                    }
-                    if (normalizedAllowed.startsWith("*.")) {
-                      const baseDomain = normalizedAllowed.substring(2);
-                      return hostname.endsWith("." + baseDomain) || hostname === baseDomain;
-                    }
-                    return hostname.endsWith("." + normalizedAllowed);
-                  });
-                  if (isAllowed) {
-                    return match;
-                  } else {
-                    const truncated = hostname.length > 12 ? hostname.substring(0, 12) + "..." : hostname;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(hostname);
-                    return "(redacted)";
-                  }
-                });
-                return result;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b((?:http|ftp|file|ssh|git):\/\/([\w.-]+)(?:[^\s]*)|(?:data|javascript|vbscript|about|mailto|tel):[^\s]+)/gi, (match, _fullMatch, domain) => {
-                  if (domain) {
-                    const domainLower = domain.toLowerCase();
-                    const truncated = domainLower.length > 12 ? domainLower.substring(0, 12) + "..." : domainLower;
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${truncated}`);
-                    }
-                    if (typeof core !== "undefined" && core.debug) {
-                      core.debug(`Redacted URL (full): ${match}`);
-                    }
-                    addRedactedDomain(domainLower);
-                  } else {
-                    const protocolMatch = match.match(/^([^:]+):/);
-                    if (protocolMatch) {
-                      const protocol = protocolMatch[1] + ":";
-                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
-                      if (typeof core !== "undefined" && core.info) {
-                        core.info(`Redacted URL: ${truncated}`);
-                      }
-                      if (typeof core !== "undefined" && core.debug) {
-                        core.debug(`Redacted URL (full): ${match}`);
-                      }
-                      addRedactedDomain(protocol);
-                    }
-                  }
-                  return "(redacted)";
-                });
-              }
-              function neutralizeCommands(s) {
-                const commandName = process.env.GH_AW_COMMAND;
-                if (!commandName) {
-                  return s;
-                }
-                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
-              }
               function neutralizeMentions(s, allowedLowercase) {
                 return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
                   const isAllowed = allowedLowercase.includes(p2.toLowerCase());
@@ -3799,29 +3711,6 @@ jobs:
                   }
                   return `${p1}\`@${p2}\``; 
                 });
-              }
-              function removeXmlComments(s) {
-                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-              }
-              function convertXmlTags(s) {
-                const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
-                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
-                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
-                  return `(![CDATA[${convertedContent}]])`;
-                });
-                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
-                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
-                  if (tagNameMatch) {
-                    const tagName = tagNameMatch[1].toLowerCase();
-                    if (allowedTags.includes(tagName)) {
-                      return match;
-                    }
-                  }
-                  return `(${tagContent})`;
-                });
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
               }
             }
             const crypto = require("crypto");
@@ -4806,13 +4695,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: agent_outputs
           path: |
@@ -4821,7 +4710,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
@@ -6111,7 +6000,166 @@ jobs:
       - name: Upload Firewall Logs
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: firewall-logs-changeset-generator
+          path: /tmp/gh-aw/sandbox/firewall/logs/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+              return name
+                .toLowerCase()
+                .replace(/[:\\/\s]/g, "-")
+                .replace(/[^a-z0-9._-]/g, "-");
+            }
+            function main() {
+              const fs = require("fs");
+              const path = require("path");
+              try {
+                const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
+                if (!fs.existsSync(squidLogsDir)) {
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+                  return;
+                }
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+                if (files.length === 0) {
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+                  return;
+                }
+                core.info(`Found ${files.length} firewall log file(s)`);
+                let totalRequests = 0;
+                let allowedRequests = 0;
+                let deniedRequests = 0;
+                const allowedDomains = new Set();
+                const deniedDomains = new Set();
+                const requestsByDomain = new Map();
+                for (const file of files) {
+                  const filePath = path.join(squidLogsDir, file);
+                  core.info(`Parsing firewall log: ${file}`);
+                  const content = fs.readFileSync(filePath, "utf8");
+                  const lines = content.split("\n").filter(line => line.trim());
+                  for (const line of lines) {
+                    const entry = parseFirewallLogLine(line);
+                    if (!entry) {
+                      continue;
+                    }
+                    totalRequests++;
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+                    if (isAllowed) {
+                      allowedRequests++;
+                      allowedDomains.add(entry.domain);
+                    } else {
+                      deniedRequests++;
+                      deniedDomains.add(entry.domain);
+                    }
+                    if (!requestsByDomain.has(entry.domain)) {
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+                    }
+                    const domainStats = requestsByDomain.get(entry.domain);
+                    if (isAllowed) {
+                      domainStats.allowed++;
+                    } else {
+                      domainStats.denied++;
+                    }
+                  }
+                }
+                const summary = generateFirewallSummary({
+                  totalRequests,
+                  allowedRequests,
+                  deniedRequests,
+                  allowedDomains: Array.from(allowedDomains).sort(),
+                  deniedDomains: Array.from(deniedDomains).sort(),
+                  requestsByDomain,
+                });
+                core.summary.addRaw(summary).write();
+                core.info("Firewall log summary generated successfully");
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function parseFirewallLogLine(line) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed.startsWith("#")) {
+                return null;
+              }
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+              if (!fields || fields.length < 10) {
+                return null;
+              }
+              const timestamp = fields[0];
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+                return null;
+              }
+              return {
+                timestamp,
+                clientIpPort: fields[1],
+                domain: fields[2],
+                destIpPort: fields[3],
+                proto: fields[4],
+                method: fields[5],
+                status: fields[6],
+                decision: fields[7],
+                url: fields[8],
+                userAgent: fields[9]?.replace(/^"|"$/g, "") || "-",
+              };
+            }
+            function isRequestAllowed(decision, status) {
+              const statusCode = parseInt(status, 10);
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+                return true;
+              }
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+                return true;
+              }
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+                return false;
+              }
+              return false;
+            }
+            function generateFirewallSummary(analysis) {
+              const { totalRequests, requestsByDomain } = analysis;
+              const validDomains = Array.from(requestsByDomain.keys())
+                .filter(domain => domain !== "-")
+                .sort();
+              const uniqueDomainCount = validDomains.length;
+              let validAllowedRequests = 0;
+              let validDeniedRequests = 0;
+              for (const domain of validDomains) {
+                const stats = requestsByDomain.get(domain);
+                validAllowedRequests += stats.allowed;
+                validDeniedRequests += stats.denied;
+              }
+              let summary = "";
+              summary += "<details>\n";
+              summary += `<summary>sandbox agent: ${totalRequests} request${totalRequests !== 1 ? "s" : ""} | `;
+              summary += `${validAllowedRequests} allowed | `;
+              summary += `${validDeniedRequests} blocked | `;
+              summary += `${uniqueDomainCount} unique domain${uniqueDomainCount !== 1 ? "s" : ""}</summary>\n\n`;
+              if (uniqueDomainCount > 0) {
+                summary += "| Domain | Allowed | Denied |\n";
+                summary += "|--------|---------|--------|\n";
+                for (const domain of validDomains) {
+                  const stats = requestsByDomain.get(domain);
+                  summary += `| ${domain} | ${stats.allowed} | ${stats.denied} |\n`;
+                }
+              } else {
+                summary += "No firewall activity detected.\n";
+              }
+              summary += "\n</details>\n\n";
+              return summary;
+            }
+            const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+            if (isDirectExecution) {
+              main();
+            }
+      - name: Upload Firewall Logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: firewall-logs-changeset-generator
           path: /tmp/gh-aw/sandbox/firewall/logs/
@@ -6269,7 +6317,7 @@ jobs:
             }
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
@@ -6512,7 +6560,7 @@ jobs:
             }
       - name: Upload git patch
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: aw.patch
           path: /tmp/gh-aw/aw.patch
@@ -6538,7 +6586,7 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -6561,7 +6609,7 @@ jobs:
           echo "Agent Conclusion: $AGENT_CONCLUSION"
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -7058,20 +7106,20 @@ jobs:
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         if: needs.agent.outputs.has_patch == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -7232,7 +7280,7 @@ jobs:
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -7403,12 +7451,17 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
+    env:
+      GH_AW_ENGINE_ID: "codex"
+      GH_AW_ENGINE_MODEL: "gpt-5-mini"
+      GH_AW_WORKFLOW_ID: "changeset"
+      GH_AW_WORKFLOW_NAME: "Changeset Generator"
     outputs:
       push_to_pull_request_branch_commit_url: ${{ steps.push_to_pull_request_branch.outputs.commit_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -7419,7 +7472,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -8269,7 +8322,7 @@ jobs:
           };
           
           EOF_d0693c3b
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_5e2e1ea7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -8628,24 +8681,83 @@ jobs:
             };
           }
           
+          /**
+           * @typedef {Object} UpdateHandlerConfig
+           * @property {string} itemType - Type of item in agent output (e.g., "update_issue")
+           * @property {string} displayName - Human-readable name (e.g., "issue")
+           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues")
+           * @property {string} numberField - Field name for explicit number (e.g., "issue_number")
+           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number")
+           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url")
+           * @property {string} entityName - Display name for entity (e.g., "Issue", "Pull Request")
+           * @property {string} entityPrefix - Prefix for summary lines (e.g., "Issue", "PR")
+           * @property {string} targetLabel - Label for target in staged preview (e.g., "Target Issue:")
+           * @property {string} currentTargetText - Text for current target (e.g., "Current issue")
+           * @property {boolean} supportsStatus - Whether this type supports status updates
+           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
+           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
+           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
+           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
+           */
+          
+          /**
+           * Create an update handler from configuration
+           * This factory function eliminates boilerplate by generating all the
+           * render functions, summary line generators, and the main handler
+           * @param {UpdateHandlerConfig} config - Handler configuration
+           * @returns {() => Promise<any[]|undefined>} Main handler function
+           */
+          function createUpdateHandler(config) {
+            // Create render function for staged preview
+            const renderStagedItem = createRenderStagedItem({
+              entityName: config.entityName,
+              numberField: config.numberField,
+              targetLabel: config.targetLabel,
+              currentTargetText: config.currentTargetText,
+              includeOperation: config.supportsOperation,
+            });
+          
+            // Create summary line generator
+            const getSummaryLine = createGetSummaryLine({
+              entityPrefix: config.entityPrefix,
+            });
+          
+            // Return the main handler function
+            return async function main() {
+              return await runUpdateWorkflow({
+                itemType: config.itemType,
+                displayName: config.displayName,
+                displayNamePlural: config.displayNamePlural,
+                numberField: config.numberField,
+                outputNumberKey: config.outputNumberKey,
+                outputUrlKey: config.outputUrlKey,
+                isValidContext: config.isValidContext,
+                getContextNumber: config.getContextNumber,
+                supportsStatus: config.supportsStatus,
+                supportsOperation: config.supportsOperation,
+                renderStagedItem,
+                executeUpdate: config.executeUpdate,
+                getSummaryLine,
+              });
+            };
+          }
+          
           module.exports = {
             runUpdateWorkflow,
             resolveTargetNumber,
             buildUpdateData,
             createRenderStagedItem,
             createGetSummaryLine,
+            createUpdateHandler,
           };
           
-          EOF_60283df2
+          EOF_5e2e1ea7
       - name: Update Pull Request
         id: update_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_pull_request'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Changeset Generator"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_ENGINE_MODEL: "gpt-5-mini"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
@@ -8654,16 +8766,9 @@ jobs:
             globalThis.core = core;
             globalThis.exec = exec;
             globalThis.io = io;
-            const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
+            const { createUpdateHandler } = require('/tmp/gh-aw/scripts/update_runner.cjs');
             const { updatePRBody } = require('/tmp/gh-aw/scripts/update_pr_description_helpers.cjs');
             const { isPRContext, getPRNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
-            const renderStagedItem = createRenderStagedItem({
-              entityName: "Pull Request",
-              numberField: "pull_request_number",
-              targetLabel: "Target PR:",
-              currentTargetText: "Current pull request",
-              includeOperation: true,
-            });
             async function executePRUpdate(github, context, prNumber, updateData) {
               const operation = updateData._operation || "replace";
               const rawBody = updateData._rawBody;
@@ -8697,26 +8802,23 @@ jobs:
               });
               return pr;
             }
-            const getSummaryLine = createGetSummaryLine({
+            const main = createUpdateHandler({
+              itemType: "update_pull_request",
+              displayName: "pull request",
+              displayNamePlural: "pull requests",
+              numberField: "pull_request_number",
+              outputNumberKey: "pull_request_number",
+              outputUrlKey: "pull_request_url",
+              entityName: "Pull Request",
               entityPrefix: "PR",
+              targetLabel: "Target PR:",
+              currentTargetText: "Current pull request",
+              supportsStatus: false,
+              supportsOperation: true,
+              isValidContext: isPRContext,
+              getContextNumber: getPRNumber,
+              executeUpdate: executePRUpdate,
             });
-            async function main() {
-              return await runUpdateWorkflow({
-                itemType: "update_pull_request",
-                displayName: "pull request",
-                displayNamePlural: "pull requests",
-                numberField: "pull_request_number",
-                outputNumberKey: "pull_request_number",
-                outputUrlKey: "pull_request_url",
-                isValidContext: isPRContext,
-                getContextNumber: getPRNumber,
-                supportsStatus: false,
-                supportsOperation: true,
-                renderStagedItem,
-                executeUpdate: executePRUpdate,
-                getSummaryLine,
-              });
-            }
             (async () => { await main(); })();
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
@@ -8727,9 +8829,6 @@ jobs:
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
           GH_AW_COMMIT_TITLE_SUFFIX: " [skip-ci]"
           GH_AW_MAX_PATCH_SIZE: 1024
-          GH_AW_WORKFLOW_NAME: "Changeset Generator"
-          GH_AW_ENGINE_ID: "codex"
-          GH_AW_ENGINE_MODEL: "gpt-5-mini"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

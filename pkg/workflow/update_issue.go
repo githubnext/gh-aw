@@ -16,47 +16,25 @@ type UpdateIssuesConfig struct {
 
 // parseUpdateIssuesConfig handles update-issue configuration
 func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
-	params := UpdateEntityJobParams{
+	// Create config struct
+	cfg := &UpdateIssuesConfig{}
+
+	// Parse base config and entity-specific fields using generic helper
+	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
 		EntityType: UpdateEntityIssue,
 		ConfigKey:  "update-issue",
-	}
-
-	parseSpecificFields := func(configMap map[string]any, baseConfig *UpdateEntityConfig) {
-		// This will be called during parsing to handle issue-specific fields
-		// The actual UpdateIssuesConfig fields are handled separately since they're not in baseConfig
-	}
-
-	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updateIssueLog, parseSpecificFields)
+		Logger:     updateIssueLog,
+		Fields: []UpdateEntityFieldSpec{
+			{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
+			{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+			{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+		},
+	})
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdateIssuesConfig and populate it
-	updateIssuesConfig := &UpdateIssuesConfig{
-		UpdateEntityConfig: *baseConfig,
-	}
-
-	// Parse issue-specific fields
-	if configData, exists := outputMap["update-issue"]; exists {
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse status - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["status"]; exists {
-				// If the key exists, it means we can update the status
-				// We don't care about the value - just that the key is present
-				updateIssuesConfig.Status = new(bool) // Allocate a new bool pointer (defaults to false)
-			}
-
-			// Parse title - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["title"]; exists {
-				updateIssuesConfig.Title = new(bool)
-			}
-
-			// Parse body - presence of the key (even if nil/empty) indicates field can be updated
-			if _, exists := configMap["body"]; exists {
-				updateIssuesConfig.Body = new(bool)
-			}
-		}
-	}
-
-	return updateIssuesConfig
+	// Set base fields
+	cfg.UpdateEntityConfig = *baseConfig
+	return cfg
 }

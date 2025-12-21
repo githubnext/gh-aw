@@ -15,7 +15,7 @@ permissions:
 engine:
   id: codex
   model: gpt-5-mini
-strict: false  # Required: codex engine doesn't support network firewall
+strict: true
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"

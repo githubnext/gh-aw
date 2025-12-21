@@ -14,7 +14,7 @@ permissions:
   actions: read
 
 engine: claude
-strict: false
+strict: true
 
 network:
   allowed:

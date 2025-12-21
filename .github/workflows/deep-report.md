@@ -12,13 +12,12 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-  repository-projects: read
   security-events: read
 
 tracker-id: deep-report-intel-agent
 timeout-minutes: 45
 engine: codex
-strict: false
+strict: true
 
 network:
   allowed:

@@ -18,7 +18,7 @@ permissions:
   actions: read
 
 engine: copilot
-strict: false
+strict: true
 timeout-minutes: 45
 
 imports:

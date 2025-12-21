@@ -7,20 +7,20 @@ import (
 
 func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "go-file-size-reduction",
-		Name:         "Campaign: Go File Size Reduction",
+		ID:           "go-file-size-reduction-project64",
+		Name:         "Campaign: Go File Size Reduction (Project 64)",
 		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
 		Workflows:    []string{"daily-file-diet"},
-		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-*/**"},
-		MetricsGlob:  "memory/campaigns/go-file-size-reduction-*/metrics/*.json",
-		TrackerLabel: "campaign:go-file-size-reduction",
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+		TrackerLabel: "campaign:go-file-size-reduction-project64",
 	}
 
-	mdPath := ".github/workflows/go-file-size-reduction.campaign.md"
+	mdPath := ".github/workflows/go-file-size-reduction-project64.campaign.md"
 	data, orchestratorPath := BuildOrchestrator(spec, mdPath)
 
-	if orchestratorPath != ".github/workflows/go-file-size-reduction.campaign.g.md" {
+	if orchestratorPath != ".github/workflows/go-file-size-reduction-project64.campaign.g.md" {
 		t.Fatalf("unexpected orchestrator path: got %q", orchestratorPath)
 	}
 

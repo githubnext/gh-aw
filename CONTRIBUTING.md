@@ -2,123 +2,125 @@
 
 Thank you for your interest in contributing to GitHub Agentic Workflows! We welcome contributions from the community and are excited to work with you.
 
-For detailed development setup instructions, see the [Development Guide](DEVGUIDE.md).
+**⚠️ IMPORTANT: This project requires agentic development using GitHub Copilot Agent. No local development environment is needed or expected.**
+
+## 🤖 Agentic Development Workflow
+
+GitHub Agentic Workflows is developed **exclusively through GitHub Copilot Agent**. This means:
+
+- ✅ **All development happens in pull requests** created by GitHub Copilot Agent
+- ✅ **No local setup required** - agents handle building, testing, and validation
+- ✅ **Automated quality assurance** - CI runs all checks on agent-created PRs
+- ❌ **Local development is not supported** - all work is done through the agent
+
+### Why Agentic Development?
+
+This project practices what it preaches: agentic workflows are used to build agentic workflows. Benefits include:
+
+- **Consistency**: All changes go through the same automated quality gates
+- **Accessibility**: No need to set up local development environments
+- **Best practices**: Agents follow established patterns and guidelines automatically
+- **Dogfooding**: We use our own tools to build our tools
 
 ## 🚀 Quick Start for Contributors
 
-### Prerequisites
+### Step 1: Fork the Repository
 
-- Go 1.24.5 or later
-- Node.js 20 or higher (check with `node --version`)
-- GitHub CLI (`gh`) installed and authenticated
-- Git
+Fork <https://github.com/githubnext/gh-aw/> to your GitHub account
 
-### Setup and Build
+### Step 2: Open an Issue or Discussion
 
-- Fork <https://github.com/githubnext/gh-aw/> and clone the repository
+- Describe what you want to contribute
+- Explain the use case and expected behavior
+- Provide examples if applicable
+- Tag with appropriate labels (see [Label Guidelines](specs/labels.md))
 
-```bash
-git clone https://github.com/your-username/gh-aw.git
-cd gh-aw
+### Step 3: Create a Pull Request with GitHub Copilot Agent
+
+Use GitHub Copilot Agent to implement your contribution:
+
+1. **Start from the issue**: Reference the issue number in your PR description
+2. **Provide clear instructions**: Tell the agent what changes you want
+3. **Let the agent work**: The agent will read guidelines, make changes, run tests
+4. **Review and iterate**: The agent will respond to feedback and update the PR
+
+**Example PR description:**
+
+```markdown
+Fix #123 - Add support for custom MCP server timeout configuration
+
+@github-copilot agent, please:
+- Add a `timeout` field to MCP server configuration schema
+- Update validation to accept timeout values between 5-300 seconds
+- Add tests for timeout validation
+- Update documentation with timeout examples
+- Follow error message style guide for validation messages
 ```
 
-- **Set up the development environment**
+### Step 4: Agent Handles Everything
 
-```bash
-# Install dependencies
-make deps-dev
+The GitHub Copilot Agent will:
 
-# Build the project
-make build
-```
+- Read relevant documentation and specifications
+- Make code changes following established patterns
+- Run `make agent-finish` to validate changes
+- Format code, run linters, execute tests
+- Recompile workflows to ensure compatibility
+- Respond to review feedback and make adjustments
 
-- **Make your changes and test them**
+### No Local Setup Needed
 
-```bash
-# Format your code
-make fmt
+You don't need to install Go, Node.js, or any dependencies. The agent runs in GitHub's infrastructure with all tools pre-configured.
 
-# Run linter
-make lint
+## 📝 How to Contribute via GitHub Copilot Agent
 
-# Run tests
-make test
+All contributions are made through GitHub Copilot Agent in pull requests. The agent has access to comprehensive documentation and follows established patterns automatically.
 
-# Compile workflows to ensure compatibility
-make recompile
-```
+### What the Agent Handles
 
-## **Submit your contribution**
+The GitHub Copilot Agent automatically:
 
-- Create a new branch for your feature or fix
-- Make your changes
-- Run `make agent-finish` to ensure all checks pass
-- Submit a pull request
-
-### Build Commands
-
-- `make deps` - Install basic dependencies
-- `make deps-dev` - Install development dependencies (including linter)
-- `make build` - Build the binary
-- `make test` - Run tests
-- `make lint` - Run linter
-- `make fmt` - Format code
-- `make agent-finish` - Run complete validation (build, test, recompile, format, lint)
-
-## 📝 How to Contribute
+- **Reads specifications** from `specs/`, `skills/`, and `.github/instructions/`
+- **Follows code organization patterns** (see [specs/code-organization.md](specs/code-organization.md))
+- **Implements validation** following the architecture in [specs/validation-architecture.md](specs/validation-architecture.md)
+- **Uses console formatting** from `pkg/console` for CLI output
+- **Writes error messages** following the [Error Message Style Guide](.github/instructions/error-messages.instructions.md)
+- **Runs all quality checks**: `make agent-finish` (build, test, recompile, format, lint)
+- **Updates documentation** for new features
+- **Creates tests** for new functionality
 
 ### Reporting Issues
 
-- Use the GitHub issue tracker to report bugs
-- Include detailed steps to reproduce the issue
-- Include version information (`./gh-aw version`)
+Use the GitHub issue tracker to report bugs or request features:
 
-### Suggesting Features
+- Include detailed steps to reproduce issues
+- Explain the use case for feature requests
+- Provide examples if applicable
+- Follow [Label Guidelines](specs/labels.md)
+- The agent will read the issue and implement fixes in a PR
 
-- Open an issue describing your feature request
-- Explain the use case and how it would benefit users
-- Include examples if applicable
+### Code Quality Standards
 
-### Contributing Code
-
-#### Code Style
-
-- Follow Go best practices and idioms
-- Use `make fmt` to format your code
-- Ensure `make lint` passes without errors
-- Write tests for new functionality
-- Follow error message style guide (see below)
+GitHub Copilot Agent automatically enforces:
 
 #### Error Messages
 
-All validation error messages should follow the error message template: **[what's wrong]. [what's expected]. [example]**
+All validation errors follow the template: **[what's wrong]. [what's expected]. [example]**
 
 ```go
-// Good - explains what's wrong, what's expected, and provides example
+// Agent produces error messages like this:
 return fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo. Example: +3d", deltaStr)
-
-// Bad - doesn't explain what's expected or provide example
-return fmt.Errorf("invalid format")
 ```
 
-**Key guidelines:**
-
-- Validation errors should include examples showing correct usage
-- Use proper YAML formatting in examples
-- Show actual values/types for debugging (use `%T`, `%v`, `%s`)
-- List valid options for enum/choice fields
-- Run `make lint-errors` to check error message quality
-
-For complete guidelines, see [Error Message Style Guide](.github/instructions/error-messages.instructions.md).
+The agent runs `make lint-errors` to verify error message quality.
 
 #### Console Output
 
-When adding CLI output, always use the styled console functions from `pkg/console`:
+The agent uses styled console functions from `pkg/console`:
 
 ```go
 import "github.com/githubnext/gh-aw/pkg/console"
 
-// Use styled messages instead of plain fmt.Printf
 fmt.Println(console.FormatSuccessMessage("Operation completed"))
 fmt.Println(console.FormatInfoMessage("Processing workflow..."))
 fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -126,126 +128,102 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 
 #### File Organization
 
-Follow these principles when organizing code:
+The agent follows these principles:
 
 - **Prefer many small files** over large monolithic files
-- **Group by functionality**, not by type (avoid generic `utils.go` files)
-- **Use descriptive names** that clearly indicate the file's purpose
+- **Group by functionality**, not by type
+- **Use descriptive names** that clearly indicate purpose
 - **Follow established patterns** from the codebase
 
-**Key Patterns to Follow**:
+**Key Patterns the Agent Uses**:
 
 1. **Create Functions Pattern** - One file per GitHub entity creation
    - Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
-   - Use when: Implementing new safe output types or GitHub API operations
 
 2. **Engine Separation Pattern** - Each engine has its own file
    - Examples: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
-   - Shared helpers go in `engine_helpers.go`
+   - Shared helpers in `engine_helpers.go`
 
 3. **Focused Utilities Pattern** - Self-contained feature files
    - Examples: `expressions.go`, `strings.go`, `artifacts.go`
-   - Keep files under 500 lines when possible
 
-**File Placement**:
-
-- Place new CLI commands in `pkg/cli/`
-- Place workflow processing logic in `pkg/workflow/`
-- Add tests alongside your code (e.g., `feature.go` and `feature_test.go`)
-- Use descriptive test names: `feature_scenario_test.go`, `feature_integration_test.go`
-
-**When to Create a New File**:
-
-- Implementing a new safe output type → `create_<entity>.go`
-- Adding a new AI engine → `<engine>_engine.go`
-- Building a distinct feature module → `<feature>.go`
-- Current file exceeds 800 lines → Split by logical boundaries
-
-**File Size Guidelines**:
-
-- Small files (50-200 lines): Utilities, simple features
-- Medium files (200-500 lines): Most feature implementations
-- Large files (500-800 lines): Complex features (consider splitting)
-- Very large files (800+ lines): Core infrastructure only (refactor if possible)
-
-For detailed guidance, see [Code Organization Patterns](specs/code-organization.md).
+See [Code Organization Patterns](specs/code-organization.md) for details.
 
 #### Validation Patterns
 
-When adding validation logic, follow the established architecture:
+The agent places validation logic appropriately:
 
 **Centralized validation** (`pkg/workflow/validation.go`):
 
-- Cross-cutting concerns spanning multiple domains
-- Core workflow integrity checks
-- GitHub Actions compatibility validation
-- General schema and configuration validation
-- Repository-level feature detection
+- Cross-cutting concerns
+- Core workflow integrity
+- GitHub Actions compatibility
 
 **Domain-specific validation** (dedicated files):
 
-- `strict_mode_validation.go` - Security and strict mode enforcement
-- `pip_validation.go` - Python package validation
-- `npm_validation.go` - NPM package validation
-- `docker_validation.go` - Docker image validation
-- `expression_safety.go` - GitHub Actions expression security
-- `engine.go` - AI engine configuration
-- `mcp-config.go` - MCP server configuration
-- `template.go` - Template structure validation
+- `strict_mode_validation.go` - Security enforcement
+- `pip_validation.go` - Python packages
+- `npm_validation.go` - NPM packages
+- `docker_validation.go` - Docker images
+- `expression_safety.go` - Expression security
 
-**When to create a new validation file**:
-
-- Validating a new external ecosystem (e.g., Ruby gems, Java packages)
-- Complex domain-specific validation logic (> 100 lines)
-- Security-focused validation requiring dedicated focus
-
-For detailed validation architecture and decision tree, see [specs/validation-architecture.md](specs/validation-architecture.md).
+See [Validation Architecture](specs/validation-architecture.md) for the complete decision tree.
 
 #### CLI Breaking Changes
 
-When modifying CLI commands, flags, or output formats, evaluate whether the change is breaking:
+The agent evaluates whether changes are breaking:
 
-- **Breaking**: Removing/renaming commands or flags, changing JSON output structure, altering default behavior
-- **Non-breaking**: Adding new commands/flags, adding new output fields, bug fixes
+- **Breaking**: Removing/renaming commands or flags, changing JSON output structure, altering defaults
+- **Non-breaking**: Adding new commands/flags, adding output fields, bug fixes
 
-For breaking changes:
-- Use `major` changeset type
-- Provide migration guidance in the changeset
-- Document in CHANGELOG.md
+For breaking changes, the agent:
 
-For detailed guidelines and decision tree, see [specs/breaking-cli-rules.md](specs/breaking-cli-rules.md).
+- Uses `major` changeset type
+- Provides migration guidance
+- Documents in CHANGELOG.md
 
-### Documentation
+See [Breaking CLI Rules](specs/breaking-cli-rules.md) for details.
 
-- Update documentation for any new features
-- Add examples where helpful
-- Ensure documentation is clear and concise
+## 🔄 Pull Request Process via GitHub Copilot Agent
 
-### Testing
+All pull requests are created and managed by GitHub Copilot Agent:
 
-- Write unit tests for new functionality
-- Ensure all tests pass (`make test`)
-- Test manually with real workflows when possible
+1. **Issue or discussion first:**
+   - Open an issue describing what needs to be done
+   - Provide clear context and examples
+   - Tag appropriately using [Label Guidelines](specs/labels.md)
 
-## 🔄 Pull Request Process
+2. **Agent creates the PR:**
+   - Mention `@github-copilot agent` with instructions
+   - Agent reads specifications and guidelines
+   - Agent makes changes following established patterns
+   - Agent runs `make agent-finish` automatically
 
-1. **Before submitting:**
-   - Run `make agent-finish` to ensure all checks pass
-   - Test your changes manually
-   - Update documentation if needed
+3. **Automated quality checks:**
+   - CI runs on agent-created PRs
+   - All checks must pass (build, test, lint, recompile)
+   - Agent responds to CI failures and fixes them
 
-2. **Pull request requirements:**
-   - Clear description of what the PR does
-   - Reference any related issues
-   - Include tests for new functionality
-   - Ensure CI passes
+4. **Review and iterate:**
+   - Maintainers review the PR
+   - Provide feedback as comments
+   - Agent responds to feedback and makes adjustments
+   - Once approved, PR is merged
 
-3. **Review process:**
-   - Maintainers will review your PR
-   - Address any feedback
-   - Once approved, your PR will be merged
+### What Gets Validated
 
-## 🏗️ Project Structure
+Every agent-created PR automatically runs:
+
+- `make build` - Ensures Go code compiles
+- `make test` - Runs all unit and integration tests
+- `make lint` - Checks code quality and style
+- `make recompile` - Recompiles all workflows to ensure compatibility
+- `make fmt` - Formats Go code
+- `make lint-errors` - Validates error message quality
+
+## 🏗️ Project Structure (For Agent Reference)
+
+The agent understands this structure:
 
 ```
 /
@@ -255,16 +233,19 @@ For detailed guidelines and decision tree, see [specs/breaking-cli-rules.md](spe
 │   ├── console/         # Console formatting utilities
 │   ├── parser/          # Markdown frontmatter parsing
 │   └── workflow/        # Workflow compilation and processing
-├── docs/                # Documentation
-├── .github/workflows/   # Sample workflows and CI
-└── Makefile             # Build automation
+├── specs/               # Technical specifications the agent reads
+├── skills/              # Specialized knowledge for agents
+├── .github/             # Instructions and sample workflows
+│   ├── instructions/    # Agent instructions
+│   └── workflows/       # Sample workflows and CI
+└── Makefile             # Build automation (agent uses this)
 ```
 
 ## 🤝 Community
 
 - Join the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 - Participate in discussions on GitHub issues
-- Help other contributors and users
+- Collaborate through GitHub Copilot Agent PRs
 
 ## 📜 Code of Conduct
 
@@ -272,8 +253,20 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 ## ❓ Getting Help
 
-- Read the [Development Guide](DEVGUIDE.md)
-- Ask questions in GitHub issues or Discord
-- Look at existing code and tests for examples
+- **For bugs or features**: Open a GitHub issue and work with the agent
+- **For questions**: Ask in issues, discussions, or Discord
+- **For examples**: Look at existing agent-created PRs
 
-Thank you for contributing to GitHub Agentic Workflows! 🎉
+## 🎯 Why No Local Development?
+
+This project is built using agentic workflows to demonstrate their capabilities:
+
+- **Dogfooding**: We use our own tools to build our tools
+- **Accessibility**: No need for complex local setup
+- **Consistency**: All changes go through the same automated process
+- **Best practices**: Agents follow guidelines automatically
+- **Focus on outcomes**: Describe what you want, not how to build it
+
+The [Development Guide](DEVGUIDE.md) exists as reference for the agent, not for local setup.
+
+Thank you for contributing to GitHub Agentic Workflows! 🤖🎉

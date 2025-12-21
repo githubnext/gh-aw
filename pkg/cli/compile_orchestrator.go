@@ -325,7 +325,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
-				stats.FailedWorkflows = append(stats.FailedWorkflows, markdownFile)
+				trackWorkflowFailure(stats, markdownFile, 1)
 
 				// Add to validation results
 				result.Valid = false
@@ -354,7 +354,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					errorMessages = append(errorMessages, vErr.Error())
 					errorCount++
 					stats.Errors++
-					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+					trackWorkflowFailure(stats, resolvedFile, 1)
 
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{
@@ -384,7 +384,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					errorMessages = append(errorMessages, problems[0])
 					errorCount++
 					stats.Errors++
-					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+					trackWorkflowFailure(stats, resolvedFile, len(problems))
 				} else {
 					if verbose && !jsonOutput {
 						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(resolvedFile))))
@@ -409,7 +409,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 						errorMessages = append(errorMessages, errMsg)
 						errorCount++
 						stats.Errors++
-						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+						trackWorkflowFailure(stats, resolvedFile, 1)
 						result.Valid = false
 						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
 					}
@@ -476,7 +476,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
-				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+				trackWorkflowFailure(stats, resolvedFile, 1)
 
 				// Add to validation results
 				result.Valid = false
@@ -498,7 +498,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
-				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+				trackWorkflowFailure(stats, resolvedFile, 1)
 
 				// Add to validation results
 				result.Valid = false
@@ -730,7 +730,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				}
 				errorCount++
 				stats.Errors++
-				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+				trackWorkflowFailure(stats, file, 1)
 
 				result.Valid = false
 				result.Errors = append(result.Errors, ValidationError{
@@ -759,7 +759,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				// Treat campaign spec problems as compilation errors for this file
 				errorCount++
 				stats.Errors++
-				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+				trackWorkflowFailure(stats, file, len(problems))
 			} else {
 				if verbose && !jsonOutput {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(file))))
@@ -782,7 +782,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					}
 					errorCount++
 					stats.Errors++
-					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+					trackWorkflowFailure(stats, file, 1)
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: genErr.Error()})
 				}
@@ -842,7 +842,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 			errorCount++
 			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			trackWorkflowFailure(stats, file, 1)
 
 			// Add to validation results
 			result.Valid = false
@@ -862,7 +862,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 			errorCount++
 			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			trackWorkflowFailure(stats, file, 1)
 
 			// Add to validation results
 			result.Valid = false

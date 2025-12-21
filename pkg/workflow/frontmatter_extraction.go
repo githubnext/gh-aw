@@ -103,6 +103,10 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// which causes validation errors since they start with numbers but contain spaces
 	yamlStr = parser.QuoteCronExpressions(yamlStr)
 
+	// Clean up null values - replace `: null` with `:` for cleaner output
+	// GitHub Actions treats `workflow_dispatch:` and `workflow_dispatch: null` identically
+	yamlStr = CleanYAMLNullValues(yamlStr)
+
 	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted
 	if key != "on" {
@@ -1066,4 +1070,25 @@ func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
+// This now uses the structured extraction helper for better error handling
+func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[string]any {
+	return ExtractMapField(frontmatter, key)
+}
+
+// extractToolsFromFrontmatter extracts tools section from frontmatter map
+func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "tools")
+}
+
+// extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
+func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "mcp-servers")
+}
+
+// extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
+func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
+	return ExtractMapField(frontmatter, "runtimes")
 }

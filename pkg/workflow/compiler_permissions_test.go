@@ -136,13 +136,14 @@ This is a test workflow without network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults to allow-list)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup when no network field specified (defaults to allow-list)")
+		// AWF is enabled by default for all engines (copilot, claude, codex) even without explicit network config
+		// This ensures sandbox.agent: awf is the default behavior
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper by default for Claude engine")
 		}
 	})
 
-	t.Run("network: defaults should enforce allow-list restrictions", func(t *testing.T) {
+	t.Run("network: defaults enables AWF by default for Claude", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -172,13 +173,13 @@ This is a test workflow with explicit defaults network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (defaults mode uses allow-list)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup for network: defaults (uses allow-list)")
+		// AWF is enabled by default for Claude engine with network: defaults
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper for Claude engine with network: defaults")
 		}
 	})
 
-	t.Run("network: {} should enforce deny-all", func(t *testing.T) {
+	t.Run("network: {} enables AWF by default for Claude", func(t *testing.T) {
 		testContent := `---
 on: push
 engine: claude
@@ -208,17 +209,13 @@ This is a test workflow with empty network permissions (deny all).
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup (deny-all enforcement)
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup for network: {}")
-		}
-		// Should have empty ALLOWED_DOMAINS array for deny-all
-		if !strings.Contains(string(lockContent), "json.loads('''[]''')") {
-			t.Error("Should have empty ALLOWED_DOMAINS array for deny-all policy")
+		// AWF is enabled by default for Claude engine with network: {}
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper for Claude engine with network: {}")
 		}
 	})
 
-	t.Run("network with allowed domains should enforce restrictions", func(t *testing.T) {
+	t.Run("network with allowed domains and firewall enabled should use AWF", func(t *testing.T) {
 		testContent := `---
 on: push
 strict: false
@@ -226,6 +223,7 @@ engine:
   id: claude
 network:
   allowed: ["example.com", "api.github.com"]
+  firewall: true
 ---
 
 # Test Workflow
@@ -250,14 +248,17 @@ This is a test workflow with explicit network permissions.
 			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Should contain network hook setup with specified domains
-		if !strings.Contains(string(lockContent), "Generate Network Permissions Hook") {
-			t.Error("Should contain network hook setup with explicit network permissions")
+		// Should contain AWF wrapper with --allow-domains
+		if !strings.Contains(string(lockContent), "sudo -E awf") {
+			t.Error("Should contain AWF wrapper with explicit network permissions and firewall: true")
 		}
-		if !strings.Contains(string(lockContent), `"example.com"`) {
+		if !strings.Contains(string(lockContent), "--allow-domains") {
+			t.Error("Should contain --allow-domains flag in AWF command")
+		}
+		if !strings.Contains(string(lockContent), "example.com") {
 			t.Error("Should contain example.com in allowed domains")
 		}
-		if !strings.Contains(string(lockContent), `"api.github.com"`) {
+		if !strings.Contains(string(lockContent), "api.github.com") {
 			t.Error("Should contain api.github.com in allowed domains")
 		}
 	})

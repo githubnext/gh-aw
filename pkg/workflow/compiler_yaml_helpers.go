@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -9,6 +10,13 @@ import (
 )
 
 var compilerYamlHelpersLog = logger.New("workflow:compiler_yaml_helpers")
+
+// GetWorkflowIDFromPath extracts the workflow ID from a markdown file path.
+// The workflow ID is the filename without the .md extension.
+// Example: "/path/to/ai-moderator.md" -> "ai-moderator"
+func GetWorkflowIDFromPath(markdownPath string) string {
+	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+}
 
 // convertStepToYAML converts a step map to YAML format.
 // This is a method wrapper around the package-level ConvertStepToYAML function.
@@ -55,7 +63,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	// Use actions/github-script to perform the substitutions
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
-	yaml.WriteString(indent + "  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString(fmt.Sprintf(indent+"  uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString(indent + "  env:\n")
 	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

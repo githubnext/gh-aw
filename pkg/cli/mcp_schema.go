@@ -1,44 +1,32 @@
 package cli
 
 import (
-	"fmt"
-	"reflect"
-
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
 // GenerateOutputSchema generates a JSON schema from a Go struct type for MCP tool outputs.
-// This helper uses the github.com/google/jsonschema-go package to automatically generate
-// schemas from Go types, leveraging struct tags for descriptions and constraints.
+// The schema conforms to JSON Schema draft 2020-12 and draft-07.
 //
-// The schema is generated with default options which respect:
-// - json tags for field names
-// - jsonschema tags for descriptions and constraints
-// - omitempty to mark optional fields
+// Schema generation rules:
+//   - json tags define property names
+//   - jsonschema tags define descriptions
+//   - omitempty/omitzero mark optional fields
+//   - Pointer types include null in their type array
+//   - Slices allow null values (jsonschema-go v0.4.0+)
+//   - PropertyOrder maintains deterministic field ordering (v0.4.0+)
 //
-// Example usage:
+// MCP Requirements:
+//   - Tool output schemas must be objects (not arrays or primitives)
+//   - All properties should have descriptions for better LLM understanding
+//   - Required vs optional fields must be correctly specified
 //
-//	type MyOutput struct {
-//	    Name  string `json:"name" jsonschema:"description=Name of the item"`
-//	    Count int    `json:"count,omitempty" jsonschema:"description=Number of items"`
+// Example:
+//
+//	type Output struct {
+//	    Name string `json:"name" jsonschema:"Name of the user"`
+//	    Age  int    `json:"age,omitempty" jsonschema:"Age in years"`
 //	}
-//
-//	schema, err := GenerateOutputSchema[MyOutput]()
-//	tool := &mcp.Tool{
-//	    Name:         "my-tool",
-//	    Description:  "My tool description",
-//	    OutputSchema: schema,
-//	}
+//	schema, err := GenerateOutputSchema[Output]()
 func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
-	// Get the type of T
-	var zero T
-	typ := reflect.TypeOf(zero)
-
-	// Use jsonschema.ForType to generate schema from Go type
-	schema, err := jsonschema.ForType(typ, &jsonschema.ForOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate schema: %w", err)
-	}
-
-	return schema, nil
+	return jsonschema.For[T](nil)
 }

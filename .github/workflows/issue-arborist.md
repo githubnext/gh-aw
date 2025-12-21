@@ -8,7 +8,7 @@ permissions:
   contents: read
   issues: read
 engine: codex
-strict: false
+strict: true
 network:
   allowed:
     - defaults

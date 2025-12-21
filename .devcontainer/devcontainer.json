@@ -1,60 +1,52 @@
-
 {
-	"name": "Go",
-	"image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
-	"customizations": {
-		// Configure properties specific to VS Code.
-		"vscode": {
-			"settings": {},
-			"extensions": [
-				"golang.go",
-				"GitHub.copilot-chat",
-				"GitHub.copilot",
-				"github.vscode-github-actions",
-				"astro-build.astro-vscode",
-				"DavidAnson.vscode-markdownlint"
-			]
-		},
-		"codespaces": {
-			"repositories": {
-				"githubnext/agentics": {
-					"permissions": {
-						"contents": "read",
-						"workflows": "write"
-					}
-				},
-				"githubnext/gh-aw": {
-					"permissions": {
-						"actions": "write",
-						"contents": "write",
-						"workflows": "write",
-						"issues": "write",
-						"pull-requests": "write",
-						"discussions": "write"
-					}
-				},
-				"githubnext/gh-aw-test": {
-					"permissions": {
-						"contents": "write",
-						"workflows": "write"
-					}
-				}
-			}
-		}
-	},
-	"features": {
-		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "24"
-		}
-	},
-	"containerEnv": {
-		"GOOGLE_APPLICATION_CREDENTIALS": ".credentials/vertex_api.json",
-		"CLAUDE_CODE_USE_VERTEX": "1",
-		"CLOUD_ML_REGION": "us-east5",
-		"ANTHROPIC_VERTEX_PROJECT_ID": "github-next"
-	}
-
+  "name": "Go",
+  "image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "GitHub.copilot-chat",
+        "GitHub.copilot",
+        "github.vscode-github-actions",
+        "astro-build.astro-vscode",
+        "DavidAnson.vscode-markdownlint"
+      ]
+    },
+    "codespaces": {
+      "repositories": {
+        "githubnext/agentics": {
+          "permissions": {
+            "contents": "read",
+            "workflows": "write"
+          }
+        },
+        "githubnext/gh-aw": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "discussions": "read",
+            "issues": "read",
+            "pull-requests": "write",
+            "workflows": "write"
+          }
+        },
+        "githubnext/gh-aw-test": {
+          "permissions": {
+            "contents": "write",
+            "workflows": "write"
+          }
+        }
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/copilot-cli:latest": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
+  "postCreateCommand": "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
 }

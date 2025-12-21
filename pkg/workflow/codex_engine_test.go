@@ -106,10 +106,10 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	// Test installation steps without version (should use pinned default version)
 	stepsNoVersion := engine.GetInstallationSteps(&WorkflowData{})
 	foundNoVersionInstall := false
-	expectedVersion := fmt.Sprintf("npm install -g @openai/codex@%s", constants.DefaultCodexVersion)
+	expectedPackage := fmt.Sprintf("@openai/codex@%s", constants.DefaultCodexVersion)
 	for _, step := range stepsNoVersion {
 		for _, line := range step {
-			if strings.Contains(line, expectedVersion) {
+			if strings.Contains(line, "npm install") && strings.Contains(line, expectedPackage) {
 				foundNoVersionInstall = true
 				break
 			}
@@ -131,7 +131,7 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	foundVersionInstall := false
 	for _, step := range stepsWithVersion {
 		for _, line := range step {
-			if strings.Contains(line, "npm install -g @openai/codex@3.0.1") {
+			if strings.Contains(line, "npm install") && strings.Contains(line, "@openai/codex@3.0.1") {
 				foundVersionInstall = true
 				break
 			}

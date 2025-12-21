@@ -372,18 +372,35 @@ func TestGetJavaScriptSources(t *testing.T) {
 		t.Error("sanitize_content.cjs does not contain sanitizeContent function")
 	}
 
-	// Should contain helper functions
-	helpers := []string{
-		"function sanitizeUrlDomains",
-		"function sanitizeUrlProtocols",
-		"function neutralizeMentions",
-		"function removeXmlComments",
-		"function neutralizeBotTriggers",
+	// Should contain neutralizeMentions helper (still defined locally)
+	if !strings.Contains(sanitize, "function neutralizeMentions") {
+		t.Error("sanitize_content.cjs does not contain function neutralizeMentions")
 	}
 
-	for _, helper := range helpers {
-		if !strings.Contains(sanitize, helper) {
-			t.Errorf("sanitize_content.cjs does not contain %s", helper)
+	// Should import from sanitize_content_core
+	if !strings.Contains(sanitize, `require("./sanitize_content_core.cjs")`) {
+		t.Error("sanitize_content.cjs does not import from sanitize_content_core.cjs")
+	}
+
+	// Check that sanitize_content_core.cjs contains the shared helper functions
+	core, ok := sources["sanitize_content_core.cjs"]
+	if !ok {
+		t.Fatal("GetJavaScriptSources does not contain sanitize_content_core.cjs")
+	}
+
+	// Should contain helper functions in core
+	coreHelpers := []string{
+		"function sanitizeUrlDomains",
+		"function sanitizeUrlProtocols",
+		"function removeXmlComments",
+		"function neutralizeBotTriggers",
+		"function buildAllowedDomains",
+		"function applyTruncation",
+	}
+
+	for _, helper := range coreHelpers {
+		if !strings.Contains(core, helper) {
+			t.Errorf("sanitize_content_core.cjs does not contain %s", helper)
 		}
 	}
 }

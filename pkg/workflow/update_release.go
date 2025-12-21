@@ -13,20 +13,21 @@ type UpdateReleaseConfig struct {
 
 // parseUpdateReleaseConfig handles update-release configuration
 func (c *Compiler) parseUpdateReleaseConfig(outputMap map[string]any) *UpdateReleaseConfig {
-	params := UpdateEntityJobParams{
+	// Create config struct
+	cfg := &UpdateReleaseConfig{}
+
+	// Parse base config (no entity-specific fields for releases)
+	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
 		EntityType: UpdateEntityRelease,
 		ConfigKey:  "update-release",
-	}
-
-	baseConfig := c.parseUpdateEntityConfig(outputMap, params, updateReleaseLog, nil)
+		Logger:     updateReleaseLog,
+		Fields:     nil, // No entity-specific fields
+	})
 	if baseConfig == nil {
 		return nil
 	}
 
-	// Create UpdateReleaseConfig and populate it
-	updateReleaseConfig := &UpdateReleaseConfig{
-		UpdateEntityConfig: *baseConfig,
-	}
-
-	return updateReleaseConfig
+	// Set base fields
+	cfg.UpdateEntityConfig = *baseConfig
+	return cfg
 }

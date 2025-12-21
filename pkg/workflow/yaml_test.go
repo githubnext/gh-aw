@@ -7,6 +7,90 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+func TestCleanYAMLNullValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "workflow_dispatch with null",
+			input: `on:
+  schedule:
+  - cron: "0 0 * * *"
+  workflow_dispatch: null`,
+			expected: `on:
+  schedule:
+  - cron: "0 0 * * *"
+  workflow_dispatch:`,
+		},
+		{
+			name: "multiple null values",
+			input: `on:
+  workflow_dispatch: null
+  workflow_call: null
+  schedule:
+  - cron: "0 0 * * *"`,
+			expected: `on:
+  workflow_dispatch:
+  workflow_call:
+  schedule:
+  - cron: "0 0 * * *"`,
+		},
+		{
+			name: "null with extra whitespace",
+			input: `on:
+  workflow_dispatch:   null  
+  schedule:
+  - cron: "0 0 * * *"`,
+			expected: `on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 0 * * *"`,
+		},
+		{
+			name:     "string containing null should not be modified",
+			input:    `description: "This is a null value"`,
+			expected: `description: "This is a null value"`,
+		},
+		{
+			name: "null in the middle of line should not be modified",
+			input: `key: null is not good
+  workflow_dispatch: null`,
+			expected: `key: null is not good
+  workflow_dispatch:`,
+		},
+		{
+			name: "no null values",
+			input: `on:
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        required: true`,
+			expected: `on:
+  workflow_dispatch:
+    inputs:
+      issue_url:
+        required: true`,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CleanYAMLNullValues(tt.input)
+			if result != tt.expected {
+				t.Errorf("CleanYAMLNullValues() failed\nInput:\n%s\n\nExpected:\n%s\n\nGot:\n%s",
+					tt.input, tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestUnquoteYAMLKey(t *testing.T) {
 	tests := []struct {
 		name     string

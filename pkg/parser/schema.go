@@ -1154,3 +1154,8 @@ func FindDeprecatedFieldsInFrontmatter(frontmatter map[string]any, deprecatedFie
 
 	return found
 }
+
+// GetMainWorkflowSchema returns the embedded main workflow schema JSON
+func GetMainWorkflowSchema() string {
+	return mainWorkflowSchema
+}

@@ -78,7 +78,7 @@ jobs:
       discussions: write
     steps:
       - name: Close expired discussions
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
 `)
@@ -95,7 +95,7 @@ jobs:
       issues: write
     steps:
       - name: Close expired issues
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: ` + GetActionPin("actions/github-script") + `
         with:
           script: |
 `)

@@ -141,7 +141,19 @@ func getActionDirectories(actionsDir string) ([]string, error) {
 	return dirs, nil
 }
 
-// validateActionYml validates an action.yml file
+// validateActionYml validates that an action.yml file exists and contains required fields.
+//
+// This validation function is co-located with the actions build command because:
+//   - It's specific to GitHub Actions custom action structure
+//   - It's only called during the actions build process
+//   - It validates action metadata before bundling JavaScript
+//
+// The function validates:
+//   - action.yml file exists in the action directory
+//   - Required fields are present (name, description, runs)
+//   - Basic action metadata structure is valid
+//
+// This follows the principle that domain-specific validation belongs in domain files.
 func validateActionYml(actionPath string) error {
 	ymlPath := filepath.Join(actionPath, "action.yml")
 
