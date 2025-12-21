@@ -174,7 +174,7 @@ jobs:
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
         with:
           cache: true
           go-version-file: go.mod
@@ -1788,12 +1788,22 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "local",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "gh-aw": {
                 "type": "http",
                 "url": "http://localhost:8765",
@@ -1971,7 +1981,7 @@ jobs:
           
           2. **Analyze**: Once PR confirmed:
              - Get workflow details, status, execution time
-             - For failures: Use gh-aw MCP `audit` tool with run_id `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__`
+             - For failures: Use the `audit` tool from the agentic-workflows MCP server with run_id `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__`
              - Categorize: code issues, infrastructure, dependencies, config, timeouts
              - Extract error messages and patterns
           
@@ -2009,7 +2019,7 @@ jobs:
           - Verify PR exists first, abandon if not found
           - Be thorough but concise
           - Focus on actionable insights
-          - Use gh-aw MCP audit tool for failures
+          - Use the `audit` tool from the agentic-workflows MCP server for failures
           - Include specific errors and file locations
           - Categorize failure types
           
