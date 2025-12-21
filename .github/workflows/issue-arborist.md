@@ -55,7 +55,7 @@ steps:
 safe-outputs:
   create-issue:
     title-prefix: "[Parent] "
-    max: 5
+    max: 2  # Reduced from 5 per safe-output-limits guidelines
   link-sub-issue:
     max: 50
   create-discussion:

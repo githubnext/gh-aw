@@ -26,6 +26,11 @@ safe-outputs:
     title-prefix: "[deps]"
     labels: [dependencies, go]
     max: 10
+    # Exception: Dependency consolidation strategy
+    # - Groups safe patch updates into single issue
+    # - Creates individual issues for problematic updates
+    # Safeguards: Filters by dependency type, runs 3x/week not daily
+    # Review: 2025-03-21
 
 tools:
   github:

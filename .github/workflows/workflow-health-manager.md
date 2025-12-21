@@ -15,7 +15,7 @@ tools:
     file-glob: "**/*"
 safe-outputs:
   create-issue:
-    max: 10
+    max: 5  # Per safe-output-limits guidelines for meta-orchestrators
   add-comment:
     max: 15
   update-issue:

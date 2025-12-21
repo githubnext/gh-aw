@@ -25,6 +25,9 @@ network: defaults
 safe-outputs:
   create-issue:
     title-prefix: "[CI Failure Doctor] "
+    max: 1
+    # Note: PR/Event Responders guideline suggests using add-comment only
+    # Consider removing create-issue in favor of commenting on related PRs/issues
   add-comment:
   messages:
     footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*"

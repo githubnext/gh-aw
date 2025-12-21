@@ -36,6 +36,11 @@ safe-outputs:
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis]
     max: 10
+    # Exception: Org-wide monthly scan
+    # - Scans 100+ repos in organization
+    # - Creates one issue per truly stale repository
+    # Safeguards: Runs monthly not daily, filters by 365 days inactive
+    # Review: 2025-03-21
   upload-assets:
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"
