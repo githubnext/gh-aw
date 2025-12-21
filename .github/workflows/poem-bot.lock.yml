@@ -7995,6 +7995,9 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
