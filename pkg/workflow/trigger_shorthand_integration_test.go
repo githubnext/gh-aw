@@ -22,7 +22,7 @@ on: push
 ---
 # Test Workflow
 Test workflow for push trigger`,
-			wantTrigger: "push:",
+			wantTrigger: `"on": push`,
 		},
 		{
 			name: "push to branch shorthand",
@@ -40,7 +40,7 @@ on: pull_request
 ---
 # Test Workflow
 Test workflow for pull request`,
-			wantTrigger: "pull_request:",
+			wantTrigger: `"on": pull_request`,
 		},
 		{
 			name: "pull_request opened shorthand",
@@ -156,6 +156,11 @@ Test workflow for dependabot PRs`,
 			
 			if !strings.Contains(yamlStr, tt.wantTrigger) {
 				t.Errorf("Compiled YAML should contain %q\nGot:\n%s", tt.wantTrigger, yamlStr)
+			}
+			
+			if tt.wantTrigger == `"on": push` || tt.wantTrigger == `"on": pull_request` {
+				// Simple triggers remain as-is, no workflow_dispatch added
+				return
 			}
 			
 			// Verify workflow_dispatch is added for most triggers

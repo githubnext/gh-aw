@@ -17,9 +17,9 @@ func TestParseTriggerShorthand(t *testing.T) {
 	}{
 		// Source Control Patterns - Push
 		{
-			name:      "simple push",
-			input:     "push",
-			wantEvent: "push",
+			name:    "simple push (left as-is)",
+			input:   "push",
+			wantNil: true, // Simple triggers left as-is
 		},
 		{
 			name:      "push to branch",
@@ -48,16 +48,14 @@ func TestParseTriggerShorthand(t *testing.T) {
 		
 		// Source Control Patterns - Pull Request
 		{
-			name:      "simple pull_request",
-			input:     "pull_request",
-			wantEvent: "pull_request",
-			wantTypes: []string{"opened", "synchronize", "reopened"},
+			name:    "simple pull_request (left as-is)",
+			input:   "pull_request",
+			wantNil: true, // Simple triggers left as-is
 		},
 		{
-			name:      "simple pull (normalized to pull_request)",
-			input:     "pull",
-			wantEvent: "pull_request",
-			wantTypes: []string{"opened", "synchronize", "reopened"},
+			name:    "simple pull (left as-is)",
+			input:   "pull",
+			wantNil: true, // Simple triggers left as-is
 		},
 		{
 			name:      "pull_request opened",

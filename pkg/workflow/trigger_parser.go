@@ -181,14 +181,9 @@ func parseSourceControlTrigger(input string) (*TriggerIR, error) {
 // parsePushTrigger parses push-related triggers
 func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) == 1 {
-		// Simple "push" trigger - need to provide an empty map, not nil
-		return &TriggerIR{
-			Event: "push",
-			Filters: map[string]any{}, // Empty map to avoid null in YAML
-			AdditionalEvents: map[string]any{
-				"workflow_dispatch": nil,
-			},
-		}, nil
+		// Simple "push" trigger - leave as simple string, don't convert
+		// GitHub Actions supports simple event names as strings: on: push
+		return nil, nil
 	}
 	
 	if len(tokens) >= 3 && tokens[1] == "to" {
@@ -225,14 +220,9 @@ func parsePushTrigger(tokens []string) (*TriggerIR, error) {
 // parsePullRequestTrigger parses pull request triggers
 func parsePullRequestTrigger(tokens []string) (*TriggerIR, error) {
 	if len(tokens) == 1 {
-		// Simple "pull_request" trigger - use common types
-		return &TriggerIR{
-			Event: "pull_request",
-			Types: []string{"opened", "synchronize", "reopened"},
-			AdditionalEvents: map[string]any{
-				"workflow_dispatch": nil,
-			},
-		}, nil
+		// Simple "pull_request" trigger - leave as simple string
+		// GitHub Actions supports: on: pull_request
+		return nil, nil
 	}
 	
 	// Check for activity type: "pull_request opened", "pull_request merged", etc.

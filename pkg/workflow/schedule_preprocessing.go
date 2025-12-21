@@ -74,11 +74,12 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			return nil
 		}
 
-		// Try to parse as a schedule expression
+		// Try to parse as a schedule expression (only if not already recognized as another trigger type)
 		parsedCron, original, err := parser.ParseSchedule(onStr)
 		if err != nil {
-			// Not a schedule expression, treat as a simple event trigger
-			schedulePreprocessingLog.Printf("Not a schedule expression: %s", onStr)
+			// Not a schedule expression either - leave as simple string trigger
+			// (simple event names like "push", "fork", etc. are valid)
+			schedulePreprocessingLog.Printf("Not a recognized shorthand or schedule: %s - leaving as-is", onStr)
 			return nil
 		}
 
