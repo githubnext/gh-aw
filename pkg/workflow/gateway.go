@@ -202,7 +202,7 @@ func getMCPGatewayURL(config *MCPGatewayConfig) string {
 	if port == 0 {
 		port = DefaultMCPGatewayPort
 	}
-	return fmt.Sprintf("http://localhost:%d/mcp", port)
+	return fmt.Sprintf("http://localhost:%d", port)
 }
 
 // transformMCPConfigForGateway transforms the MCP server configuration to use the gateway URL
