@@ -190,10 +190,19 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 
 	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
 
+	// MCP config file path (created by RenderMCPConfig)
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
+
 	stepLines := []string{
 		"      - name: Verify MCP Gateway Health",
 		"        run: |",
 		"          echo 'Waiting for MCP Gateway to be ready...'",
+		"          ",
+		"          # Show MCP config file content",
+		fmt.Sprintf("          echo 'MCP Configuration:'"),
+		fmt.Sprintf("          cat %s || echo 'No MCP config file found'", mcpConfigPath),
+		"          echo ''",
+		"          ",
 		"          max_retries=30",
 		"          retry_count=0",
 		fmt.Sprintf("          gateway_url=\"%s\"", gatewayURL),

@@ -3294,6 +3294,12 @@ jobs:
       - name: Verify MCP Gateway Health
         run: |
           echo 'Waiting for MCP Gateway to be ready...'
+          
+          # Show MCP config file content
+          echo 'MCP Configuration:'
+          cat /home/runner/.copilot/mcp-config.json || echo 'No MCP config file found'
+          echo ''
+          
           max_retries=30
           retry_count=0
           gateway_url="http://localhost:8080"

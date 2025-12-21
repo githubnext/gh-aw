@@ -263,6 +263,9 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	assert.Contains(t, stepStr, "http://localhost:8080")
 	assert.Contains(t, stepStr, "/health")
 	assert.Contains(t, stepStr, "max_retries")
+	// Verify MCP config file content is displayed
+	assert.Contains(t, stepStr, "MCP Configuration:")
+	assert.Contains(t, stepStr, "cat /home/runner/.copilot/mcp-config.json")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
