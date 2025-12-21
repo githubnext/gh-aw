@@ -23,6 +23,7 @@
 name: "AI Moderator"
 "on":
   issue_comment:
+    lock-for-agent: true
     types:
     - created
   issues:
