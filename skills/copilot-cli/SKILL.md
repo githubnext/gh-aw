@@ -55,6 +55,105 @@ copilot --add-dir /path/to/project \
 - `--model`: Specify AI model (if supported)
 - `--prompt`: Natural language instruction (required to avoid interactive mode)
 
+## Tool Permission and Availability Control (v0.0.370+)
+
+Copilot CLI v0.0.370 introduces a distinction between **tool availability** (what the model can see) and **tool permissions** (what requires approval):
+
+### Tool Availability Flags
+
+**`--available-tools [tools...]`** - Restricts which tools the model can see
+- Only specified tools will be available to the model
+- Disables all other tools
+- Acts as an allowlist filter
+
+**`--excluded-tools [tools...]`** - Hides specific tools from the model
+- Specified tools will not be available to the model
+- Other tools remain available
+- Acts as a denylist filter
+
+**Use cases:**
+- Limit model to safe read-only operations
+- Remove dangerous tools from model visibility
+- Create specialized agents with restricted toolsets
+
+### Tool Permission Flags
+
+**`--allow-tool [tools...]`** - Pre-approves tools to run without confirmation
+- Tools will execute without user prompts
+- Required for non-interactive mode
+- Does not expose tools filtered by availability flags
+
+**`--deny-tool [tools...]`** - Denies permission for specific tools
+- Tools will always be denied, even if allowed by other flags
+- Takes precedence over `--allow-tool` and `--allow-all-tools`
+- Useful for blocking dangerous operations while allowing others
+
+**`--allow-all-tools`** - Pre-approves all available tools
+- Required for non-interactive execution
+- Applies only to tools not filtered by availability flags
+
+### Flag Precedence and Interaction
+
+1. **Availability filters are applied first**: `--available-tools` and `--excluded-tools` control what the model can see
+2. **Permission checks are applied second**: `--allow-tool`, `--deny-tool`, and `--allow-all-tools` control approval prompts
+3. **Denial takes precedence**: `--deny-tool` overrides any allow rules
+
+**Example combinations:**
+
+```bash
+# Safe read-only agent: Model can only see read tools, all pre-approved
+copilot --available-tools 'github(get_file_contents)' 'github(list_commits)' \
+        --allow-all-tools \
+        --prompt "Analyze the repository"
+
+# Flexible agent with safety guardrails: Model sees all tools except dangerous ones
+copilot --excluded-tools 'shell(rm:*)' 'shell(git push)' \
+        --allow-all-tools \
+        --prompt "Help me with the codebase"
+
+# Granular control: Limit visibility and pre-approve specific operations
+copilot --available-tools 'github' 'shell(git:*)' 'write' \
+        --deny-tool 'shell(git push)' \
+        --allow-tool 'github' 'shell(git:*)' 'write' \
+        --prompt "Create a pull request"
+```
+
+### Tool Permission Patterns
+
+Tool patterns follow the format `kind(argument)`:
+
+- `shell(command:*?)` - Shell commands
+  - `shell(echo)` - Specific command
+  - `shell(git:*)` - All git commands
+  - `shell` - All shell commands
+
+- `write` - File creation and modification tools
+
+- `<mcp-server-name>(tool-name?)` - MCP server tools
+  - `github(get_file_contents)` - Specific tool
+  - `github` - All tools from server
+
+**Wildcard matching:**
+- Use `:*` suffix for prefix matching
+- `shell(git:*)` matches `git push`, `git commit`, etc.
+- Wildcard matching applies to command stems, so `shell(git:*)` won't match `gitea`
+
+### Migration from Pre-v0.0.370
+
+**Before v0.0.370:**
+- Only `--allow-tool` and `--deny-tool` were available
+- These flags controlled both visibility and permissions
+
+**After v0.0.370:**
+- `--allow-tool`/`--deny-tool` now only control permissions (approval prompts)
+- Use `--available-tools`/`--excluded-tools` to control model visibility
+- **Backward compatible**: Existing workflows using `--allow-tool`/`--deny-tool` continue to work
+
+**No action required** for existing workflows, but consider:
+- Using availability flags for additional security (defense in depth)
+- Restricting model visibility to only necessary tools
+- Combining both approaches for maximum control
+
 ## MCP Server Configuration
 
 Copilot CLI supports MCP servers via JSON configuration at `/tmp/gh-aw/.copilot/mcp-config.json`:

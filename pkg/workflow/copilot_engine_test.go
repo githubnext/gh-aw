@@ -1146,3 +1146,106 @@ func TestCopilotEngineParseLogMetrics_NoTokenData(t *testing.T) {
 		t.Errorf("Expected token usage 0 when no usage data present, got %d", metrics.TokenUsage)
 	}
 }
+
+// TestCopilotEngineToolPermissionBackwardCompatibility verifies that the existing
+// --allow-tool and --deny-tool flags continue to work correctly after v0.0.370
+// introduced the new --available-tools and --excluded-tools flags for tool availability control.
+//
+// This test ensures backward compatibility: workflows using the original permission flags
+// should continue to work without modification.
+func TestCopilotEngineToolPermissionBackwardCompatibility(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name        string
+		tools       map[string]any
+		safeOutputs *SafeOutputsConfig
+		description string
+		hasAllowAll bool
+	}{
+		{
+			name: "bash with specific commands uses --allow-tool",
+			tools: map[string]any{
+				"bash": []any{"echo", "git status"},
+			},
+			description: "Specific bash commands should generate --allow-tool flags",
+			hasAllowAll: false,
+		},
+		{
+			name: "bash with wildcard uses --allow-all-tools",
+			tools: map[string]any{
+				"bash": []any{":*"},
+			},
+			description: "Wildcard bash should generate --allow-all-tools",
+			hasAllowAll: true,
+		},
+		{
+			name: "github with specific tools uses --allow-tool",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_file_contents", "list_commits"},
+				},
+			},
+			description: "Specific GitHub tools should generate --allow-tool flags",
+			hasAllowAll: false,
+		},
+		{
+			name: "mixed tools use --allow-tool",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+				"edit": nil,
+				"github": map[string]any{
+					"allowed": []any{"create_issue"},
+				},
+			},
+			description: "Mixed tool configuration should generate appropriate --allow-tool flags",
+			hasAllowAll: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, nil, nil)
+
+			if tt.hasAllowAll {
+				// Should contain --allow-all-tools
+				found := false
+				for _, arg := range args {
+					if arg == "--allow-all-tools" {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("%s: Expected --allow-all-tools flag, got args: %v", tt.description, args)
+				}
+			} else {
+				// Should contain --allow-tool flags (not --allow-all-tools)
+				hasAllowTool := false
+				hasAllowAll := false
+				for _, arg := range args {
+					if arg == "--allow-tool" {
+						hasAllowTool = true
+					}
+					if arg == "--allow-all-tools" {
+						hasAllowAll = true
+					}
+				}
+				if !hasAllowTool {
+					t.Errorf("%s: Expected --allow-tool flags, got args: %v", tt.description, args)
+				}
+				if hasAllowAll {
+					t.Errorf("%s: Should not contain --allow-all-tools, got args: %v", tt.description, args)
+				}
+			}
+
+			// Verify no new flags (--available-tools, --excluded-tools) are generated
+			// as we only use permission control, not availability control
+			for _, arg := range args {
+				if arg == "--available-tools" || arg == "--excluded-tools" {
+					t.Errorf("%s: Unexpected availability flag %s. Implementation should only use permission flags.", tt.description, arg)
+				}
+			}
+		})
+	}
+}
