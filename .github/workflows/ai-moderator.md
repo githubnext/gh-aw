@@ -7,6 +7,7 @@ on:
     lock-for-agent: true
   issue_comment:
     types: [created]
+    lock-for-agent: true
   workflow_dispatch:
     inputs:
       issue_url:
