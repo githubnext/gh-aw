@@ -719,3 +719,105 @@ func TestSchedulePreprocessingDailyVariations(t *testing.T) {
 
 	t.Logf("Successfully compiled 'daily' to valid cron: %s", cronExpr)
 }
+
+func TestSlashCommandShorthand(t *testing.T) {
+	tests := []struct {
+		name                  string
+		frontmatter           map[string]any
+		expectedCommand       string
+		expectWorkflowDispath bool
+		expectedError         bool
+		errorSubstring        string
+	}{
+		{
+			name: "on: /command",
+			frontmatter: map[string]any{
+				"on": "/my-bot",
+			},
+			expectedCommand:       "my-bot",
+			expectWorkflowDispath: true,
+		},
+		{
+			name: "on: /another-command",
+			frontmatter: map[string]any{
+				"on": "/code-review",
+			},
+			expectedCommand:       "code-review",
+			expectWorkflowDispath: true,
+		},
+		{
+			name: "on: / (empty command)",
+			frontmatter: map[string]any{
+				"on": "/",
+			},
+			expectedError:  true,
+			errorSubstring: "slash command shorthand cannot be empty after '/'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			compiler.SetWorkflowIdentifier("test-workflow.md")
+
+			err := compiler.preprocessScheduleFields(tt.frontmatter)
+
+			if tt.expectedError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorSubstring)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.errorSubstring) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorSubstring, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Check that "on" was converted to a map with slash_command and workflow_dispatch
+			onValue, exists := tt.frontmatter["on"]
+			if !exists {
+				t.Error("expected 'on' field to exist")
+				return
+			}
+
+			onMap, ok := onValue.(map[string]any)
+			if !ok {
+				t.Errorf("expected 'on' to be converted to map, got %T", onValue)
+				return
+			}
+
+			// Check slash_command field exists and has correct value
+			slashCommandValue, hasSlashCommand := onMap["slash_command"]
+			if !hasSlashCommand {
+				t.Error("expected 'slash_command' field in 'on' map")
+				return
+			}
+
+			slashCommandStr, ok := slashCommandValue.(string)
+			if !ok {
+				t.Errorf("expected slash_command to be string, got %T", slashCommandValue)
+				return
+			}
+
+			if slashCommandStr != tt.expectedCommand {
+				t.Errorf("expected slash_command '%s', got '%s'", tt.expectedCommand, slashCommandStr)
+			}
+
+			// Check workflow_dispatch field exists
+			if _, hasWorkflowDispatch := onMap["workflow_dispatch"]; !hasWorkflowDispatch {
+				t.Error("expected 'workflow_dispatch' field in 'on' map")
+				return
+			}
+
+			// Ensure there are no extra fields (should only have slash_command and workflow_dispatch)
+			if len(onMap) != 2 {
+				t.Errorf("expected exactly 2 fields in 'on' map, got %d: %v", len(onMap), onMap)
+			}
+		})
+	}
+}
