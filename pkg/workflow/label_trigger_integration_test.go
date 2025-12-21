@@ -180,6 +180,68 @@ func TestLabelTriggerIntegrationPullRequest(t *testing.T) {
 	}
 }
 
+func TestLabelTriggerIntegrationDiscussion(t *testing.T) {
+	frontmatter := map[string]any{
+		"on": "discussion labeled question announcement",
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	err := compiler.preprocessScheduleFields(frontmatter)
+	if err != nil {
+		t.Fatalf("preprocessScheduleFields() error = %v", err)
+	}
+
+	// Check that the on section was expanded
+	on, ok := frontmatter["on"].(map[string]any)
+	if !ok {
+		t.Fatalf("on section is not a map")
+	}
+
+	// Check discussion trigger
+	discussion, ok := on["discussion"].(map[string]any)
+	if !ok {
+		t.Fatalf("discussion trigger not found")
+	}
+
+	// Check types
+	types, ok := discussion["types"].([]any)
+	if !ok {
+		t.Fatalf("discussion.types is not an array")
+	}
+	if len(types) != 1 || types[0] != "labeled" {
+		t.Errorf("discussion.types = %v, want [labeled]", types)
+	}
+
+	// Note: GitHub Actions doesn't support 'names' field for discussion events
+	// So we don't check for names or the native filter marker for discussions
+
+	// Check workflow_dispatch exists
+	dispatch, ok := on["workflow_dispatch"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow_dispatch not found")
+	}
+
+	// Check inputs
+	inputs, ok := dispatch["inputs"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow_dispatch.inputs is not a map")
+	}
+
+	// Check item_number input
+	itemNumber, ok := inputs["item_number"].(map[string]any)
+	if !ok {
+		t.Fatalf("item_number input not found")
+	}
+
+	description, ok := itemNumber["description"].(string)
+	if !ok {
+		t.Fatalf("item_number.description is not a string")
+	}
+	if !strings.Contains(description, "discussion") {
+		t.Errorf("item_number.description = %q, want to contain 'discussion'", description)
+	}
+}
+
 func TestLabelTriggerIntegrationError(t *testing.T) {
 	// Test that implicit "labeled" syntax is not recognized
 	frontmatter := map[string]any{

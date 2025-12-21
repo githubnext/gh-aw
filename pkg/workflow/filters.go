@@ -189,7 +189,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 		return
 	}
 
-	// Check both issues and pull_request sections for labeled/unlabeled with names
+	// Check both issues, pull_request, and discussion sections for labeled/unlabeled with names
 	eventSections := []struct {
 		eventName    string
 		eventValue   any
@@ -197,6 +197,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 	}{
 		{"issues", onMap["issues"], "issues"},
 		{"pull_request", onMap["pull_request"], "pull_request"},
+		{"discussion", onMap["discussion"], "discussion"},
 	}
 
 	var labelConditions []ConditionNode

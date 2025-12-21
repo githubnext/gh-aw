@@ -135,7 +135,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	nativeLabelFilterSections := make(map[string]bool)
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
-			for _, sectionKey := range []string{"issues", "pull_request"} {
+			for _, sectionKey := range []string{"issues", "pull_request", "discussion"} {
 				if sectionValue, hasSec := onMap[sectionKey]; hasSec {
 					if sectionMap, ok := sectionValue.(map[string]any); ok {
 						if marker, hasMarker := sectionMap["__gh_aw_native_label_filter__"]; hasMarker {
@@ -154,15 +154,17 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 	var result []string
 	inPullRequest := false
 	inIssues := false
+	inDiscussion := false
 	inForksArray := false
 	inSkipIfMatch := false
-	currentSection := "" // Track which section we're in ("issues" or "pull_request")
+	currentSection := "" // Track which section we're in ("issues", "pull_request", or "discussion")
 
 	for _, line := range lines {
-		// Check if we're entering a pull_request or issues section
+		// Check if we're entering a pull_request, issues, or discussion section
 		if strings.Contains(line, "pull_request:") {
 			inPullRequest = true
 			inIssues = false
+			inDiscussion = false
 			currentSection = "pull_request"
 			result = append(result, line)
 			continue
@@ -170,17 +172,27 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		if strings.Contains(line, "issues:") {
 			inIssues = true
 			inPullRequest = false
+			inDiscussion = false
 			currentSection = "issues"
 			result = append(result, line)
 			continue
 		}
+		if strings.Contains(line, "discussion:") {
+			inDiscussion = true
+			inPullRequest = false
+			inIssues = false
+			currentSection = "discussion"
+			result = append(result, line)
+			continue
+		}
 
-		// Check if we're leaving the pull_request or issues section (new top-level key or end of indent)
-		if inPullRequest || inIssues {
+		// Check if we're leaving the pull_request, issues, or discussion section (new top-level key or end of indent)
+		if inPullRequest || inIssues || inDiscussion {
 			// If line is not indented or is a new top-level key, we're out of the section
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
 				inIssues = false
+				inDiscussion = false
 				inForksArray = false
 				currentSection = ""
 			}
@@ -189,7 +201,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		trimmedLine := strings.TrimSpace(line)
 
 		// Skip marker lines in the YAML output
-		if (inPullRequest || inIssues) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
+		if (inPullRequest || inIssues || inDiscussion) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
 			// Don't include the marker line in the output
 			continue
 		}
@@ -266,13 +278,13 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
 			shouldComment = true
 			commentReason = " # Fork filtering applied via job conditions"
-		} else if (inPullRequest || inIssues) && strings.HasPrefix(trimmedLine, "names:") {
+		} else if (inPullRequest || inIssues || inDiscussion) && strings.HasPrefix(trimmedLine, "names:") {
 			// Only comment out names if NOT using native label filtering for this section
 			if !nativeLabelFilterSections[currentSection] {
 				shouldComment = true
 				commentReason = " # Label filtering applied via job conditions"
 			}
-		} else if (inPullRequest || inIssues) && line != "" {
+		} else if (inPullRequest || inIssues || inDiscussion) && line != "" {
 			// Check if we're in a names array (after "names:" line)
 			// Look back to see if the previous uncommented line was "names:"
 			// Only do this if NOT using native label filtering for this section

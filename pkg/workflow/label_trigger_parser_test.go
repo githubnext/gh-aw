@@ -64,11 +64,35 @@ func TestParseLabelTriggerShorthand(t *testing.T) {
 			wantErr:        false,
 		},
 		{
-			name:           "not a label trigger - discussion labeled (not supported)",
+			name:           "pull-request (with hyphen) labeled with single label",
+			input:          "pull-request labeled needs-review",
+			wantEntityType: "pull_request",
+			wantLabelNames: []string{"needs-review"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "pull-request (with hyphen) labeled with multiple labels",
+			input:          "pull-request labeled needs-review approved ready-to-merge",
+			wantEntityType: "pull_request",
+			wantLabelNames: []string{"needs-review", "approved", "ready-to-merge"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "discussion labeled with single label",
 			input:          "discussion labeled question",
-			wantEntityType: "",
-			wantLabelNames: nil,
-			wantIsLabel:    false,
+			wantEntityType: "discussion",
+			wantLabelNames: []string{"question"},
+			wantIsLabel:    true,
+			wantErr:        false,
+		},
+		{
+			name:           "discussion labeled with multiple labels",
+			input:          "discussion labeled question announcement help-wanted",
+			wantEntityType: "discussion",
+			wantLabelNames: []string{"question", "announcement", "help-wanted"},
+			wantIsLabel:    true,
 			wantErr:        false,
 		},
 		{
@@ -206,6 +230,20 @@ func TestExpandLabelTriggerShorthand(t *testing.T) {
 			wantTriggerKey:   "pull_request",
 			wantItemTypeName: "pull request",
 		},
+		{
+			name:             "discussion with single label",
+			entityType:       "discussion",
+			labelNames:       []string{"question"},
+			wantTriggerKey:   "discussion",
+			wantItemTypeName: "discussion",
+		},
+		{
+			name:             "discussion with multiple labels",
+			entityType:       "discussion",
+			labelNames:       []string{"question", "announcement"},
+			wantTriggerKey:   "discussion",
+			wantItemTypeName: "discussion",
+		},
 	}
 
 	for _, tt := range tests {
@@ -232,13 +270,20 @@ func TestExpandLabelTriggerShorthand(t *testing.T) {
 				t.Errorf("expandLabelTriggerShorthand() types = %v, want [labeled]", types)
 			}
 
-			// Check names field
-			names, ok := triggerConfig["names"].([]string)
-			if !ok {
-				t.Fatalf("expandLabelTriggerShorthand() names is not a string array")
-			}
-			if !slicesEqual(names, tt.labelNames) {
-				t.Errorf("expandLabelTriggerShorthand() names = %v, want %v", names, tt.labelNames)
+			// Check names field (only for issues and pull_request, not discussion)
+			if tt.entityType == "issues" || tt.entityType == "pull_request" {
+				names, ok := triggerConfig["names"].([]string)
+				if !ok {
+					t.Fatalf("expandLabelTriggerShorthand() names is not a string array for %s", tt.entityType)
+				}
+				if !slicesEqual(names, tt.labelNames) {
+					t.Errorf("expandLabelTriggerShorthand() names = %v, want %v", names, tt.labelNames)
+				}
+			} else if tt.entityType == "discussion" {
+				// Discussion should not have names field (GitHub Actions doesn't support it)
+				if _, hasNames := triggerConfig["names"]; hasNames {
+					t.Errorf("expandLabelTriggerShorthand() discussion should not have names field")
+				}
 			}
 
 			// Check workflow_dispatch
@@ -292,6 +337,7 @@ func TestGetItemTypeName(t *testing.T) {
 	}{
 		{"issues", "issue"},
 		{"pull_request", "pull request"},
+		{"discussion", "discussion"},
 		{"unknown", "item"},
 	}
 

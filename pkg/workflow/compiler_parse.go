@@ -741,7 +741,7 @@ func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]
 			if onMap, ok := v.(map[string]any); ok {
 				onCopy := make(map[string]any)
 				for onKey, onValue := range onMap {
-					if onKey == "issues" || onKey == "pull_request" {
+					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" {
 						// Deep copy the section and remove marker
 						if sectionMap, ok := onValue.(map[string]any); ok {
 							sectionCopy := make(map[string]any)
