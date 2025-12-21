@@ -1,9 +1,7 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -16,18 +14,6 @@ const (
 	// MCPGatewayLogsFolder is the folder where MCP gateway logs are stored
 	MCPGatewayLogsFolder = "/tmp/gh-aw/mcp-gateway-logs"
 )
-
-// MCPGatewayStdinConfig represents the configuration passed to the MCP gateway via stdin
-type MCPGatewayStdinConfig struct {
-	MCPServers map[string]any     `json:"mcpServers"`
-	Gateway    MCPGatewaySettings `json:"gateway"`
-}
-
-// MCPGatewaySettings represents the gateway-specific settings
-type MCPGatewaySettings struct {
-	Port   int    `json:"port"`
-	APIKey string `json:"apiKey,omitempty"`
-}
 
 // isMCPGatewayEnabled checks if the MCP gateway feature is enabled for the workflow
 func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
@@ -91,23 +77,8 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		port = DefaultMCPGatewayPort
 	}
 
-	// Build the gateway stdin configuration
-	gatewayConfig := MCPGatewayStdinConfig{
-		MCPServers: mcpServersConfig,
-		Gateway: MCPGatewaySettings{
-			Port:   port,
-			APIKey: config.APIKey,
-		},
-	}
-
-	configJSON, err := json.Marshal(gatewayConfig)
-	if err != nil {
-		gatewayLog.Printf("Failed to marshal gateway config: %v", err)
-		configJSON = []byte("{}")
-	}
-
-	// Escape single quotes in JSON for shell
-	escapedJSON := strings.ReplaceAll(string(configJSON), "'", "'\\''")
+	// MCP config file path (created by RenderMCPConfig)
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
 
 	// Detect action mode at compile time
 	actionMode := DetectActionMode()
@@ -196,8 +167,8 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 
 	stepLines = append(stepLines,
 		"          ",
-		"          # Start MCP gateway in background with config piped via stdin",
-		fmt.Sprintf("          echo '%s' | $AWMG_CMD --port %d --log-dir %s > %s/gateway.log 2>&1 &", escapedJSON, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
+		"          # Start MCP gateway in background with config file",
+		fmt.Sprintf("          $AWMG_CMD --config %s --port %d --log-dir %s > %s/gateway.log 2>&1 &", mcpConfigPath, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
 		"          GATEWAY_PID=$!",
 		"          echo \"MCP Gateway started with PID $GATEWAY_PID\"",
 		"          ",

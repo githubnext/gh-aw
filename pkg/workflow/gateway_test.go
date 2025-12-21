@@ -245,6 +245,8 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
 	assert.Contains(t, stepStr, "awmg")
+	assert.Contains(t, stepStr, "--config")
+	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
 	assert.Contains(t, stepStr, "--port 8080")
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }

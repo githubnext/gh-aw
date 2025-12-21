@@ -2383,8 +2383,8 @@ jobs:
             exit 1
           fi
           
-          # Start MCP gateway in background with config piped via stdin
-          echo '{"mcpServers":null,"gateway":{"port":8080}}' | $AWMG_CMD --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
+          # Start MCP gateway in background with config file
+          $AWMG_CMD --config /home/runner/.copilot/mcp-config.json --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
           GATEWAY_PID=$!
           echo "MCP Gateway started with PID $GATEWAY_PID"
           
