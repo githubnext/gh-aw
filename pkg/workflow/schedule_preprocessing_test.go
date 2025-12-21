@@ -89,7 +89,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 			// (required for all schedule tests to avoid fuzzy schedule errors)
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
-			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
 				if err == nil {
@@ -332,7 +332,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
-			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
 				if err == nil {
@@ -378,7 +378,7 @@ func TestScheduleFriendlyComments(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Preprocess to convert and store friendly formats
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessing failed: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 				compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
 			}
 
-			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectError {
 				if err == nil {
@@ -510,7 +510,7 @@ func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.SetWorkflowIdentifier(wf)
 
-		err := compiler.preprocessScheduleFields(frontmatter)
+		err := compiler.preprocessScheduleFields(frontmatter, "", "")
 		if err != nil {
 			t.Fatalf("unexpected error for workflow %s: %v", wf, err)
 		}
@@ -604,7 +604,7 @@ func TestSchedulePreprocessingWithFuzzyDaily(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
-			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectError {
 				if err == nil {
@@ -669,7 +669,7 @@ func TestSchedulePreprocessingDailyVariations(t *testing.T) {
 		},
 	}
 
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -760,7 +760,7 @@ func TestSlashCommandShorthand(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
-			err := compiler.preprocessScheduleFields(tt.frontmatter)
+			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
 				if err == nil {

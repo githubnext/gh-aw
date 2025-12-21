@@ -11,7 +11,7 @@ func TestLabelTriggerIntegrationSimple(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
 	}
@@ -90,7 +90,7 @@ func TestLabelTriggerIntegrationIssue(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
 	}
@@ -120,7 +120,7 @@ func TestLabelTriggerIntegrationPullRequest(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
 	}
@@ -186,7 +186,7 @@ func TestLabelTriggerIntegrationDiscussion(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
 	}
@@ -249,7 +249,7 @@ func TestLabelTriggerIntegrationError(t *testing.T) {
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	err := compiler.preprocessScheduleFields(frontmatter)
+	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() unexpected error = %v", err)
 	}
