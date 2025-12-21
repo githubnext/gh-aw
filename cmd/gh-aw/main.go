@@ -511,6 +511,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	statusCmd := cli.NewStatusCommand()
 
 	// Create commands that need group assignment
+	agentsCmd := cli.NewAgentsCommand()
 	mcpCmd := cli.NewMCPCommand()
 	logsCmd := cli.NewLogsCommand()
 	auditCmd := cli.NewAuditCommand()
@@ -527,6 +528,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	addCmd.GroupID = "setup"
 	removeCmd.GroupID = "setup"
 	updateCmd.GroupID = "setup"
+	agentsCmd.GroupID = "setup"
 	secretsCmd.GroupID = "setup"
 
 	// Development Commands
@@ -558,6 +560,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 	rootCmd.AddCommand(trialCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(agentsCmd)
 
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(removeCmd)
