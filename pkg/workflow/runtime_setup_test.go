@@ -318,7 +318,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081",
+				"astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86",
 			},
 		},
 		{
@@ -354,7 +354,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Elixir",
-				"erlef/setup-beam@3559ac3b631a9560f28817e8e7fdde1638664336",
+				"erlef/setup-beam@dff508cca8ce57162e7aa6c4769a4f97c2fed638",
 				"elixir-version: '1.17'",
 			},
 		},
@@ -366,7 +366,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Haskell",
-				"haskell-actions/setup@0b77b13e8a0f222da982de80f02d94f9c058a6ba",
+				"haskell-actions/setup@782a7c5aa54495c3d21d7c8d5f03a8a2113a1ff7",
 				"ghc-version: '9.10'",
 			},
 		},
