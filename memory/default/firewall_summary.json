@@ -1,7 +1,7 @@
 {
-  "last_updated": "2025-12-20T12:44:45.000Z",
-  "report_generated": "2025-12-20T12:44:45.000Z",
-  "analysis_period": "2025-11-20 to 2025-12-20",
+  "last_updated": "2025-12-21T12:42:46.000Z",
+  "report_generated": "2025-12-21T12:42:46.000Z",
+  "analysis_period": "2025-11-21 to 2025-12-21",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
@@ -9,11 +9,15 @@
   "total_allowed_requests": 2828,
   "total_requests": 3410,
   "denial_rate": 17.1,
+  "denial_rate_current_week": 16.8,
   "top_blocked_domain": "api.github.com",
   "top_blocked_count": 134,
   "trend_direction": "decreasing",
   "trend_change_pct": -1.8,
   "key_finding": "GitHub API access blocked (134 requests) - workflows need GitHub MCP server configuration",
   "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access",
-  "notes": "Report successfully generated for December 20, 2025. Analysis based on 30 days of firewall data with ASCII visualizations. Denial rate trending down from 17.1% to 16.8% in recent week."
+  "notes": "Report successfully generated for December 21, 2025. Analysis based on 30 days of firewall data. Denial rate trending down from 17.1% to 16.8% in recent week.",
+  "charts_generated": false,
+  "visualization_type": "ascii",
+  "next_report_date": "2025-12-22"
 }
