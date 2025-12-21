@@ -176,7 +176,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -184,7 +184,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -293,7 +293,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.77.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
@@ -3644,7 +3644,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.75.0",
+              agent_version: "0.77.0",
               workflow_name: "Daily Project Performance Summary Generator (Using Safe Inputs)",
               experimental: true,
               supports_tools_allowlist: true,
@@ -8578,7 +8578,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.77.0
       - name: Run Codex
         run: |
           set -o pipefail
