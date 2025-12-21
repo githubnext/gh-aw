@@ -13,11 +13,15 @@ on:
     name: my-bot  # Optional: defaults to filename without .md extension
 ```
 
-You can also use the shorthand string format:
+You can also use shorthand formats:
 
 ```yaml wrap
 on:
   slash_command: "my-bot"  # Shorthand: string directly specifies command name
+```
+
+```yaml wrap
+on: /my-bot  # Ultra-short: slash prefix automatically expands to slash_command + workflow_dispatch
 ```
 
 > [!NOTE]

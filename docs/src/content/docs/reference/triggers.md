@@ -278,11 +278,18 @@ on:
     name: my-bot
 ```
 
-**Shorthand Format:**
+**Shorthand Format (String):**
 ```yaml wrap
 on:
   slash_command: "my-bot"
 ```
+
+**Shorthand Format (Slash Command):**
+```yaml wrap
+on: /my-bot
+```
+
+This ultra-short syntax automatically expands to include `slash_command` and `workflow_dispatch` triggers, similar to how `on: daily` expands to include schedule and workflow_dispatch.
 
 **With Event Filtering:**
 ```yaml wrap

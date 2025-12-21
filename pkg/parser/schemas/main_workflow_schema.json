@@ -119,8 +119,8 @@
         {
           "type": "string",
           "minLength": 1,
-          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
-          "examples": ["push", "issues", "workflow_dispatch"]
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
+          "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
           "type": "object",
