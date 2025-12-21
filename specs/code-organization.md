@@ -194,6 +194,23 @@ When implementing a feature:
 
 ## File Size Guidelines
 
+### Function Count Threshold
+
+**Guideline**: Consider splitting files when they exceed **50 functions**.
+
+**Note**: This is a guideline, not a hard rule. Domain complexity may justify larger files.
+
+**Monitoring**: Run `make check-file-sizes` to identify files approaching the 50-function threshold.
+
+### Current Large Files
+
+The following files are justified despite their size due to domain complexity:
+
+- `js.go` (41 functions, 914 lines) - JavaScript bundling and execution with many embed directives
+- `permissions.go` (37 functions, 945 lines) - Permission handling with many GitHub Actions permission types
+- `scripts.go` (37 functions, 397 lines) - Script generation with specialized functions for workflow steps
+- `compiler_safe_outputs_consolidated.go` (30 functions, 1267 lines) - Consolidated safe output handling
+
 ### Recommended Sizes
 
 - **Small files**: 50-200 lines

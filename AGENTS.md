@@ -244,6 +244,32 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile
 - Add new files for new features rather than extending existing ones
 - Use console formatting instead of plain fmt.* for CLI output
 
+### File Size Guidelines
+
+**Function Count Threshold**: Consider splitting files when they exceed **50 functions**.
+
+**Important**: This is a guideline, not a hard rule. Domain complexity may justify larger files.
+
+**Current Large Files** (approaching or exceeding threshold):
+- `js.go` (41 functions, 914 lines) - **Justified**: JavaScript bundling and execution is a cohesive domain with many embed directives for .cjs files
+- `permissions.go` (37 functions, 945 lines) - **Justified**: Permission handling is complex with many GitHub Actions permission types and validation rules
+- `scripts.go` (37 functions, 397 lines) - **Justified**: Script generation has many specialized generation functions for different workflow steps
+- `compiler_safe_outputs_consolidated.go` (30 functions, 1267 lines) - **Justified**: Consolidated safe output handling for multiple GitHub entity types
+
+**When to Split**:
+- File exceeds 50 functions AND has multiple distinct responsibilities
+- File has unrelated functionality that could be extracted
+- File is becoming difficult to navigate or maintain
+
+**When NOT to Split**:
+- File is cohesive despite size (like the examples above)
+- Splitting would break logical grouping
+- Domain complexity naturally requires many functions
+
+**Monitoring**: Run `make check-file-sizes` to identify files approaching the threshold.
+
+**See**: <a>specs/code-organization.md</a> for detailed code organization patterns and file size guidelines.
+
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
 
