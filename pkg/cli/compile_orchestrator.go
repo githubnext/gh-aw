@@ -62,6 +62,10 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 		b.WriteString(strings.TrimSuffix(data.On, "\n"))
 		b.WriteString("\n")
 	}
+	if strings.TrimSpace(data.Concurrency) != "" {
+		b.WriteString(strings.TrimSuffix(data.Concurrency, "\n"))
+		b.WriteString("\n")
+	}
 
 	// Make the orchestrator runnable by default.
 	b.WriteString("engine: copilot\n")
@@ -408,6 +412,31 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 						stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 						result.Valid = false
 						result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
+					}
+					if spec.IsLauncherEnabled() {
+						if _, genErr := generateAndCompileCampaignLauncher(
+							compiler,
+							spec,
+							resolvedFile,
+							verbose && !jsonOutput,
+							noEmit,
+							zizmor && !noEmit,
+							poutine && !noEmit,
+							actionlint && !noEmit,
+							strict,
+							validate && !noEmit,
+						); genErr != nil {
+							errMsg := fmt.Sprintf("failed to compile campaign launcher for %s: %v", filepath.Base(resolvedFile), genErr)
+							if !jsonOutput {
+								fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+							}
+							errorMessages = append(errorMessages, errMsg)
+							errorCount++
+							stats.Errors++
+							stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
+							result.Valid = false
+							result.Errors = append(result.Errors, ValidationError{Type: "campaign_launcher_error", Message: errMsg})
+						}
 					}
 				}
 
@@ -756,6 +785,27 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 					result.Valid = false
 					result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: genErr.Error()})
+				}
+				if _, genErr := generateAndCompileCampaignLauncher(
+					compiler,
+					spec,
+					file,
+					verbose && !jsonOutput,
+					noEmit,
+					zizmor && !noEmit,
+					poutine && !noEmit,
+					actionlint && !noEmit,
+					strict,
+					validate && !noEmit,
+				); genErr != nil {
+					if !jsonOutput {
+						fmt.Fprintln(os.Stderr, console.FormatErrorMessage(genErr.Error()))
+					}
+					errorCount++
+					stats.Errors++
+					stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+					result.Valid = false
+					result.Errors = append(result.Errors, ValidationError{Type: "campaign_launcher_error", Message: genErr.Error()})
 				}
 			}
 

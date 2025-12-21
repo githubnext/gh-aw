@@ -16,6 +16,11 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 			data: CampaignPromptData{},
 			shouldContain: []string{
 				"Campaign Orchestrator Rules",
+				"Traffic and rate limits (required)",
+				"Prefer incremental processing",
+				"strict pagination budgets",
+				"durable cursor/checkpoint",
+				"On throttling",
 				"Workers are immutable",
 				"Workers are campaign-agnostic",
 				"Campaign logic is external",

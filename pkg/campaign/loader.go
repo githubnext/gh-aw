@@ -155,6 +155,19 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 		Version:      "v1",
 		State:        "planned",
 		TrackerLabel: "campaign:" + id,
+		CursorGlob:   "memory/campaigns/" + id + "/cursor.json",
+		Launcher: &CampaignLauncherConfig{
+			Enabled: boolPtr(true),
+		},
+		Governance: &CampaignGovernancePolicy{
+			MaxNewItemsPerRun:       25,
+			MaxDiscoveryItemsPerRun: 200,
+			MaxDiscoveryPagesPerRun: 10,
+			OptOutLabels:            []string{"no-campaign", "no-bot"},
+			DoNotDowngradeDoneItems: boolPtr(true),
+			MaxProjectUpdatesPerRun: 10,
+			MaxCommentsPerRun:       10,
+		},
 	}
 
 	data, err := yaml.Marshal(&spec)
@@ -178,4 +191,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 
 	return relPath, nil
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }

@@ -14,6 +14,9 @@ var templateLog = logger.New("campaign:template")
 //go:embed prompts/orchestrator_instructions.md
 var orchestratorInstructionsTemplate string
 
+//go:embed prompts/launcher_instructions.md
+var launcherInstructionsTemplate string
+
 //go:embed prompts/project_update_instructions.md
 var projectUpdateInstructionsTemplate string
 
@@ -24,6 +27,18 @@ var closingInstructionsTemplate string
 type CampaignPromptData struct {
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
+
+	// TrackerLabel is the label used to associate issues/PRs with this campaign.
+	TrackerLabel string
+
+	// CursorGlob is a glob for locating the durable cursor/checkpoint file in repo-memory.
+	CursorGlob string
+
+	// MaxDiscoveryItemsPerRun caps how many candidate items may be scanned during discovery.
+	MaxDiscoveryItemsPerRun int
+
+	// MaxDiscoveryPagesPerRun caps how many pages may be fetched during discovery.
+	MaxDiscoveryPagesPerRun int
 }
 
 // renderTemplate renders a template string with the given data
@@ -61,6 +76,16 @@ func RenderOrchestratorInstructions(data CampaignPromptData) string {
 		templateLog.Printf("Failed to render orchestrator instructions: %v", err)
 		// Fallback to a simple version if template rendering fails
 		return "Each time this orchestrator runs, generate a concise status report for this campaign."
+	}
+	return strings.TrimSpace(result)
+}
+
+// RenderLauncherInstructions renders the launcher instructions with the given data.
+func RenderLauncherInstructions(data CampaignPromptData) string {
+	result, err := renderTemplate(launcherInstructionsTemplate, data)
+	if err != nil {
+		templateLog.Printf("Failed to render launcher instructions: %v", err)
+		return "Keep the GitHub Project dashboard in sync with the campaign tracker label."
 	}
 	return strings.TrimSpace(result)
 }

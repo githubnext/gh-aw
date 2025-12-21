@@ -37,6 +37,13 @@ type CampaignSpec struct {
 	// key fields.
 	MetricsGlob string `yaml:"metrics-glob,omitempty" json:"metrics_glob,omitempty" console:"header:Metrics Glob,omitempty,maxlen:30"`
 
+	// CursorGlob is an optional glob (relative to the repository root)
+	// used to locate a durable cursor/checkpoint file stored in the
+	// memory/campaigns branch. When set, generated coordinator workflows
+	// will be instructed to continue incremental discovery from this cursor
+	// and `gh aw campaign status` will surface its freshness.
+	CursorGlob string `yaml:"cursor-glob,omitempty" json:"cursor_glob,omitempty" console:"header:Cursor Glob,omitempty,maxlen:30"`
+
 	// Owners lists the primary human owners for this campaign.
 	Owners []string `yaml:"owners,omitempty" json:"owners,omitempty" console:"header:Owners,omitempty,maxlen:30"`
 
@@ -71,6 +78,15 @@ type CampaignSpec struct {
 	// safe output configuration in the generated orchestrator workflow.
 	ProjectGitHubToken string `yaml:"project-github-token,omitempty" json:"project_github_token,omitempty" console:"header:Project Token,omitempty,maxlen:30"`
 
+	// Launcher configures the optional launcher layer for this campaign.
+	// When omitted, the launcher is enabled by default.
+	Launcher *CampaignLauncherConfig `yaml:"launcher,omitempty" json:"launcher,omitempty"`
+
+	// Governance configures lightweight pacing and opt-out policies for campaign
+	// coordinator workflows (launcher/orchestrator). These guardrails are
+	// primarily enforced through generated prompts and safe-output maxima.
+	Governance *CampaignGovernancePolicy `yaml:"governance,omitempty" json:"governance,omitempty"`
+
 	// ApprovalPolicy describes high-level approval expectations for this
 	// campaign (for example: number of approvals and required roles).
 	ApprovalPolicy *CampaignApprovalPolicy `yaml:"approval-policy,omitempty" json:"approval-policy,omitempty"`
@@ -78,6 +94,60 @@ type CampaignSpec struct {
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
+}
+
+// CampaignLauncherConfig configures the optional launcher layer for campaigns.
+//
+// The launcher is enabled by default. Set enabled: false to disable launcher
+// generation/compilation for a given campaign.
+type CampaignLauncherConfig struct {
+	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+}
+
+// IsLauncherEnabled reports whether the campaign launcher layer is enabled.
+//
+// Defaults to true when launcher.enabled is omitted.
+func (spec *CampaignSpec) IsLauncherEnabled() bool {
+	if spec == nil || spec.Launcher == nil || spec.Launcher.Enabled == nil {
+		return true
+	}
+	return *spec.Launcher.Enabled
+}
+
+// CampaignGovernancePolicy captures lightweight pacing and opt-out policies.
+// This is intentionally scoped to what gh-aw can apply safely and consistently
+// via prompts and safe-output job limits.
+type CampaignGovernancePolicy struct {
+	// MaxNewItemsPerRun caps how many new items (issues/PRs) the launcher should
+	// add to the Project board per run. 0 means "use defaults".
+	MaxNewItemsPerRun int `yaml:"max-new-items-per-run,omitempty" json:"max_new_items_per_run,omitempty"`
+
+	// MaxDiscoveryItemsPerRun caps how many candidate issues/PRs the launcher
+	// and orchestrator may scan during discovery in a single run.
+	// 0 means "use defaults".
+	MaxDiscoveryItemsPerRun int `yaml:"max-discovery-items-per-run,omitempty" json:"max_discovery_items_per_run,omitempty"`
+
+	// MaxDiscoveryPagesPerRun caps how many pages of results the launcher and
+	// orchestrator may fetch in a single run.
+	// 0 means "use defaults".
+	MaxDiscoveryPagesPerRun int `yaml:"max-discovery-pages-per-run,omitempty" json:"max_discovery_pages_per_run,omitempty"`
+
+	// OptOutLabels is a list of labels that opt an issue/PR out of campaign
+	// tracking. Items with any of these labels should be ignored by launcher/
+	// orchestrator.
+	OptOutLabels []string `yaml:"opt-out-labels,omitempty" json:"opt_out_labels,omitempty"`
+
+	// DoNotDowngradeDoneItems prevents moving Project status backwards (e.g.
+	// Done -> In Progress) if the underlying issue/PR is reopened.
+	DoNotDowngradeDoneItems *bool `yaml:"do-not-downgrade-done-items,omitempty" json:"do_not_downgrade_done_items,omitempty"`
+
+	// MaxProjectUpdatesPerRun controls the update-project safe-output maximum
+	// for generated coordinator workflows. 0 means "use defaults".
+	MaxProjectUpdatesPerRun int `yaml:"max-project-updates-per-run,omitempty" json:"max_project_updates_per_run,omitempty"`
+
+	// MaxCommentsPerRun controls the add-comment safe-output maximum for
+	// generated coordinator workflows. 0 means "use defaults".
+	MaxCommentsPerRun int `yaml:"max-comments-per-run,omitempty" json:"max_comments_per_run,omitempty"`
 }
 
 // CampaignApprovalPolicy captures basic approval expectations for a
@@ -110,6 +180,10 @@ type CampaignRuntimeStatus struct {
 	MetricsTasksCompleted      int     `json:"metrics_tasks_completed,omitempty" console:"header:Tasks Completed,omitempty"`
 	MetricsVelocityPerDay      float64 `json:"metrics_velocity_per_day,omitempty" console:"header:Velocity/Day,omitempty"`
 	MetricsEstimatedCompletion string  `json:"metrics_estimated_completion,omitempty" console:"header:ETA,omitempty"`
+
+	// Optional durable cursor/checkpoint info from repo-memory.
+	CursorPath      string `json:"cursor_path,omitempty" console:"header:Cursor Path,omitempty,maxlen:40"`
+	CursorUpdatedAt string `json:"cursor_updated_at,omitempty" console:"header:Cursor Updated,omitempty,maxlen:30"`
 }
 
 // CampaignMetricsSnapshot describes the JSON structure used by campaign

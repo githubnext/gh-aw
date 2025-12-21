@@ -98,6 +98,24 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
+	if spec.Governance != nil {
+		if spec.Governance.MaxNewItemsPerRun < 0 {
+			problems = append(problems, "governance.max-new-items-per-run must be >= 0")
+		}
+		if spec.Governance.MaxDiscoveryItemsPerRun < 0 {
+			problems = append(problems, "governance.max-discovery-items-per-run must be >= 0")
+		}
+		if spec.Governance.MaxDiscoveryPagesPerRun < 0 {
+			problems = append(problems, "governance.max-discovery-pages-per-run must be >= 0")
+		}
+		if spec.Governance.MaxProjectUpdatesPerRun < 0 {
+			problems = append(problems, "governance.max-project-updates-per-run must be >= 0")
+		}
+		if spec.Governance.MaxCommentsPerRun < 0 {
+			problems = append(problems, "governance.max-comments-per-run must be >= 0")
+		}
+	}
+
 	if len(problems) == 0 {
 		validationLog.Printf("Campaign spec '%s' validation passed with no problems", spec.ID)
 	} else {
@@ -159,23 +177,41 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 	//
 	// JSON property names intentionally mirror the kebab-case YAML keys so the
 	// JSON Schema can validate both YAML and JSON representations consistently.
+	type CampaignGovernancePolicyForValidation struct {
+		MaxNewItemsPerRun       int      `json:"max-new-items-per-run,omitempty"`
+		MaxDiscoveryItemsPerRun int      `json:"max-discovery-items-per-run,omitempty"`
+		MaxDiscoveryPagesPerRun int      `json:"max-discovery-pages-per-run,omitempty"`
+		OptOutLabels            []string `json:"opt-out-labels,omitempty"`
+		DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"`
+		MaxProjectUpdatesPerRun int      `json:"max-project-updates-per-run,omitempty"`
+		MaxCommentsPerRun       int      `json:"max-comments-per-run,omitempty"`
+	}
+
+	type CampaignLauncherConfigForValidation struct {
+		Enabled *bool `json:"enabled,omitempty"`
+	}
+
 	type CampaignSpecForValidation struct {
-		ID                 string                  `json:"id"`
-		Name               string                  `json:"name"`
-		Description        string                  `json:"description,omitempty"`
-		ProjectURL         string                  `json:"project-url,omitempty"`
-		Version            string                  `json:"version,omitempty"`
-		Workflows          []string                `json:"workflows,omitempty"`
-		MemoryPaths        []string                `json:"memory-paths,omitempty"`
-		MetricsGlob        string                  `json:"metrics-glob,omitempty"`
-		Owners             []string                `json:"owners,omitempty"`
-		ExecutiveSponsors  []string                `json:"executive-sponsors,omitempty"`
-		RiskLevel          string                  `json:"risk-level,omitempty"`
-		TrackerLabel       string                  `json:"tracker-label,omitempty"`
-		State              string                  `json:"state,omitempty"`
-		Tags               []string                `json:"tags,omitempty"`
-		AllowedSafeOutputs []string                `json:"allowed-safe-outputs,omitempty"`
-		ApprovalPolicy     *CampaignApprovalPolicy `json:"approval-policy,omitempty"`
+		ID                 string                                 `json:"id"`
+		Name               string                                 `json:"name"`
+		Description        string                                 `json:"description,omitempty"`
+		ProjectURL         string                                 `json:"project-url,omitempty"`
+		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
+		Version            string                                 `json:"version,omitempty"`
+		Workflows          []string                               `json:"workflows,omitempty"`
+		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
+		MetricsGlob        string                                 `json:"metrics-glob,omitempty"`
+		CursorGlob         string                                 `json:"cursor-glob,omitempty"`
+		Owners             []string                               `json:"owners,omitempty"`
+		ExecutiveSponsors  []string                               `json:"executive-sponsors,omitempty"`
+		RiskLevel          string                                 `json:"risk-level,omitempty"`
+		TrackerLabel       string                                 `json:"tracker-label,omitempty"`
+		State              string                                 `json:"state,omitempty"`
+		Tags               []string                               `json:"tags,omitempty"`
+		AllowedSafeOutputs []string                               `json:"allowed-safe-outputs,omitempty"`
+		Launcher           *CampaignLauncherConfigForValidation    `json:"launcher,omitempty"`
+		Governance         *CampaignGovernancePolicyForValidation `json:"governance,omitempty"`
+		ApprovalPolicy     *CampaignApprovalPolicy                `json:"approval-policy,omitempty"`
 	}
 
 	validationSpec := CampaignSpecForValidation{
@@ -183,10 +219,12 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		Name:               spec.Name,
 		Description:        spec.Description,
 		ProjectURL:         spec.ProjectURL,
+		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
 		MemoryPaths:        spec.MemoryPaths,
 		MetricsGlob:        spec.MetricsGlob,
+		CursorGlob:         spec.CursorGlob,
 		Owners:             spec.Owners,
 		ExecutiveSponsors:  spec.ExecutiveSponsors,
 		RiskLevel:          spec.RiskLevel,
@@ -194,7 +232,27 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		State:              spec.State,
 		Tags:               spec.Tags,
 		AllowedSafeOutputs: spec.AllowedSafeOutputs,
-		ApprovalPolicy:     spec.ApprovalPolicy,
+		Launcher: func() *CampaignLauncherConfigForValidation {
+			if spec.Launcher == nil {
+				return nil
+			}
+			return &CampaignLauncherConfigForValidation{Enabled: spec.Launcher.Enabled}
+		}(),
+		Governance: func() *CampaignGovernancePolicyForValidation {
+			if spec.Governance == nil {
+				return nil
+			}
+			return &CampaignGovernancePolicyForValidation{
+				MaxNewItemsPerRun:       spec.Governance.MaxNewItemsPerRun,
+				MaxDiscoveryItemsPerRun: spec.Governance.MaxDiscoveryItemsPerRun,
+				MaxDiscoveryPagesPerRun: spec.Governance.MaxDiscoveryPagesPerRun,
+				OptOutLabels:            spec.Governance.OptOutLabels,
+				DoNotDowngradeDoneItems: spec.Governance.DoNotDowngradeDoneItems,
+				MaxProjectUpdatesPerRun: spec.Governance.MaxProjectUpdatesPerRun,
+				MaxCommentsPerRun:       spec.Governance.MaxCommentsPerRun,
+			}
+		}(),
+		ApprovalPolicy: spec.ApprovalPolicy,
 	}
 
 	// Marshal spec to JSON then unmarshal to any for validation

@@ -2,6 +2,24 @@
 
 This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination:
 
+### Traffic and rate limits (required)
+
+- Minimize API calls: avoid full rescans when possible and avoid repeated reads of the same data in a single run.
+- Prefer incremental processing: use deterministic ordering (e.g., by updated time) and process a bounded slice each run.
+- Use strict pagination budgets: if a query would require many pages, stop early and continue next run.
+- Use a durable cursor/checkpoint: persist the last processed boundary (e.g., updatedAt cutoff + last seen ID) so the next run can continue without rescanning.
+- On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
+
+{{ if .CursorGlob }}
+**Cursor file (repo-memory)**: `{{ .CursorGlob }}`
+{{ end }}
+{{ if gt .MaxDiscoveryItemsPerRun 0 }}
+**Read budget**: max discovery items per run: {{ .MaxDiscoveryItemsPerRun }}
+{{ end }}
+{{ if gt .MaxDiscoveryPagesPerRun 0 }}
+**Read budget**: max discovery pages per run: {{ .MaxDiscoveryPagesPerRun }}
+{{ end }}
+
 ### Core Principles
 
 1. **Workers are immutable** - Worker workflows never change based on campaign state
