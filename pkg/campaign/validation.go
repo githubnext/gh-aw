@@ -187,10 +187,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		MaxCommentsPerRun       int      `json:"max-comments-per-run,omitempty"`
 	}
 
-	type CampaignLauncherConfigForValidation struct {
-		Enabled *bool `json:"enabled,omitempty"`
-	}
-
 	type CampaignSpecForValidation struct {
 		ID                 string                                 `json:"id"`
 		Name               string                                 `json:"name"`
@@ -209,7 +205,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		State              string                                 `json:"state,omitempty"`
 		Tags               []string                               `json:"tags,omitempty"`
 		AllowedSafeOutputs []string                               `json:"allowed-safe-outputs,omitempty"`
-		Launcher           *CampaignLauncherConfigForValidation   `json:"launcher,omitempty"`
 		Governance         *CampaignGovernancePolicyForValidation `json:"governance,omitempty"`
 		ApprovalPolicy     *CampaignApprovalPolicy                `json:"approval-policy,omitempty"`
 	}
@@ -232,12 +227,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		State:              spec.State,
 		Tags:               spec.Tags,
 		AllowedSafeOutputs: spec.AllowedSafeOutputs,
-		Launcher: func() *CampaignLauncherConfigForValidation {
-			if spec.Launcher == nil {
-				return nil
-			}
-			return &CampaignLauncherConfigForValidation{Enabled: spec.Launcher.Enabled}
-		}(),
 		Governance: func() *CampaignGovernancePolicyForValidation {
 			if spec.Governance == nil {
 				return nil
