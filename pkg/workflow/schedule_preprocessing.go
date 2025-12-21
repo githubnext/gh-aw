@@ -25,7 +25,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Check if "on" is a string - might be a schedule expression, slash command shorthand, or label trigger shorthand
+	// Check if "on" is a string - might be a schedule expression, slash command shorthand, label trigger shorthand, or other trigger shorthand
 	if onStr, ok := onValue.(string); ok {
 		schedulePreprocessingLog.Printf("Processing on field as string: %s", onStr)
 
@@ -54,6 +54,21 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 
 			// Create the expanded format
 			onMap := expandLabelTriggerShorthand(entityType, labelNames)
+			frontmatter["on"] = onMap
+
+			return nil
+		}
+
+		// Try the new unified trigger parser for other trigger shorthands
+		triggerIR, err := ParseTriggerShorthand(onStr)
+		if err != nil {
+			return err
+		}
+		if triggerIR != nil {
+			schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to structured trigger", onStr)
+
+			// Convert IR to YAML map
+			onMap := triggerIR.ToYAMLMap()
 			frontmatter["on"] = onMap
 
 			return nil
