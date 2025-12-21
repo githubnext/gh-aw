@@ -16,6 +16,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  agentic-workflows:
   github:
     toolsets: [pull_requests, actions, repos]
 imports:
@@ -53,7 +54,7 @@ You monitor "Dev" workflow completions on copilot/* branches (workflow_dispatch 
 
 2. **Analyze**: Once PR confirmed:
    - Get workflow details, status, execution time
-   - For failures: Use gh-aw MCP `audit` tool with run_id `${{ github.event.workflow_run.id }}`
+   - For failures: Use the `audit` tool from the agentic-workflows MCP server with run_id `${{ github.event.workflow_run.id }}`
    - Categorize: code issues, infrastructure, dependencies, config, timeouts
    - Extract error messages and patterns
 
@@ -91,7 +92,7 @@ Dev workflow completed successfully! 🎉
 - Verify PR exists first, abandon if not found
 - Be thorough but concise
 - Focus on actionable insights
-- Use gh-aw MCP audit tool for failures
+- Use the `audit` tool from the agentic-workflows MCP server for failures
 - Include specific errors and file locations
 - Categorize failure types
 
