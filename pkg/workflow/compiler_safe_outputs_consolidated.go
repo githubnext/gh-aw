@@ -1267,14 +1267,78 @@ func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName 
 
 // buildCreatePullRequestPreSteps builds the pre-steps for create-pull-request
 func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData, cfg *CreatePullRequestsConfig, condition ConditionNode) []string {
-	// This is a simplified version - the actual implementation would include
-	// checkout, git config, and patch application steps
-	return nil
+	var preSteps []string
+
+	// Step 1: Checkout repository with conditional execution
+	preSteps = append(preSteps, "      - name: Checkout repository\n")
+	// Add the condition to only checkout if create_pull_request will run
+	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          persist-credentials: false\n")
+	preSteps = append(preSteps, "          fetch-depth: 0\n")
+	if c.trialMode {
+		if c.trialLogicalRepoSlug != "" {
+			preSteps = append(preSteps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+		}
+		preSteps = append(preSteps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	}
+
+	// Step 2: Configure Git credentials with conditional execution
+	gitConfigSteps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", condition.Render()),
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          # Re-authenticate git with GitHub token\n",
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		"          git remote set-url origin \"https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+	preSteps = append(preSteps, gitConfigSteps...)
+
+	return preSteps
 }
 
 // buildPushToPullRequestBranchPreSteps builds the pre-steps for push-to-pull-request-branch
 func (c *Compiler) buildPushToPullRequestBranchPreStepsConsolidated(data *WorkflowData, cfg *PushToPullRequestBranchConfig, condition ConditionNode) []string {
-	// This is a simplified version - the actual implementation would include
-	// checkout and git config steps
-	return nil
+	var preSteps []string
+
+	// Step 1: Checkout repository with conditional execution
+	preSteps = append(preSteps, "      - name: Checkout repository\n")
+	// Add the condition to only checkout if push_to_pull_request_branch will run
+	preSteps = append(preSteps, fmt.Sprintf("        if: %s\n", condition.Render()))
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          persist-credentials: false\n")
+	preSteps = append(preSteps, "          fetch-depth: 0\n")
+	if c.trialMode {
+		if c.trialLogicalRepoSlug != "" {
+			preSteps = append(preSteps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+		}
+		preSteps = append(preSteps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	}
+
+	// Step 2: Configure Git credentials with conditional execution
+	gitConfigSteps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", condition.Render()),
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          # Re-authenticate git with GitHub token\n",
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		"          git remote set-url origin \"https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n",
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+	preSteps = append(preSteps, gitConfigSteps...)
+
+	return preSteps
 }
