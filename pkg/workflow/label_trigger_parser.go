@@ -17,7 +17,7 @@ var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
 // Note: Discussion labeled triggers are not supported as GitHub Actions does not support label filtering for discussions.
 func parseLabelTriggerShorthand(input string) (entityType string, labelNames []string, isLabelTrigger bool, err error) {
 	input = strings.TrimSpace(input)
-	
+
 	// Split into tokens
 	tokens := strings.Fields(input)
 	if len(tokens) == 0 {
@@ -30,7 +30,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	// 3. "pull_request labeled label1 label2 ..."
 
 	var startIdx int
-	
+
 	if tokens[0] == "labeled" {
 		// Pattern 1: "labeled label1 label2 ..."
 		entityType = "issues"
@@ -54,7 +54,7 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 	}
 
 	labelNames = tokens[startIdx:]
-	
+
 	// Validate label names are not empty
 	for _, label := range labelNames {
 		if strings.TrimSpace(label) == "" {
@@ -101,7 +101,7 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	}
 
 	return map[string]any{
-		triggerKey:           triggerConfig,
+		triggerKey:          triggerConfig,
 		"workflow_dispatch": workflowDispatchConfig,
 	}
 }

@@ -7,13 +7,13 @@ import (
 
 func TestParseLabelTriggerShorthand(t *testing.T) {
 	tests := []struct {
-		name             string
-		input            string
-		wantEntityType   string
-		wantLabelNames   []string
-		wantIsLabel      bool
-		wantErr          bool
-		wantErrContains  string
+		name            string
+		input           string
+		wantEntityType  string
+		wantLabelNames  []string
+		wantIsLabel     bool
+		wantErr         bool
+		wantErrContains string
 	}{
 		{
 			name:           "simple labeled with single label",
