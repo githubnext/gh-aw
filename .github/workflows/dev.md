@@ -26,14 +26,19 @@ imports:
   - shared/gh.md
 ---
 
-# Test MCP Gateway with Issue Creation in Staged Mode
+# Test MCP Gateway: Read Last Issue and Write Poem in Staged Mode
 
-Create an issue with a poem about GitHub Copilot in **staged mode** (preview mode).
+Read the most recent issue from the repository and write a creative poem about it in a new issue using **staged mode** (preview mode).
 
 **Requirements:**
-1. Write a short, creative poem (4-6 lines) about GitHub Copilot
-2. Create an issue with:
-   - Title: Start with the prefix "[Poetry Test]" followed by a creative title for your poem
-   - Body: The poem you created
-3. **IMPORTANT**: Use staged mode (add `staged: true` to your create-issue call) so the issue is previewed with the 🎭 indicator but not actually created
-4. Confirm that the issue creation was successful in staged mode
+1. Use the GitHub tools to fetch the most recent issue from this repository
+2. Read the issue title and body to understand what it's about
+3. Write a short, creative poem (4-6 lines) inspired by the content of that issue
+4. Create a new issue with:
+   - Title: Start with the prefix "[Poetry Test]" followed by a creative title that relates to the original issue
+   - Body: Your poem about the issue, plus a reference to the original issue number
+5. **IMPORTANT**: Use staged mode (add `staged: true` to your create-issue call) so the issue is previewed with the 🎭 indicator but not actually created
+6. Confirm that:
+   - You successfully read the last issue
+   - You created a poem inspired by it
+   - The new issue was created in staged mode with the 🎭 indicator
