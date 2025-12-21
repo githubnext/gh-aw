@@ -24,10 +24,11 @@
 name: "Label Trigger Example - Pull Request"
 "on":
   pull_request:
-    # names: # Label filtering applied via job conditions
-    # - needs-review # Label filtering applied via job conditions
-    # - approved # Label filtering applied via job conditions
-    # - ready-to-merge # Label filtering applied via job conditions
+    __gh_aw_native_label_filter__: true
+    names:
+    - needs-review
+    - approved
+    - ready-to-merge
     types:
     - labeled
   workflow_dispatch:

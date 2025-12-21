@@ -19,15 +19,15 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Example workflow demonstrating the simple labeled trigger shorthand syntax
+# Example workflow demonstrating the issue labeled trigger shorthand syntax
 
 name: "Label Trigger Example - Simple"
 "on":
   issues:
-    # names: # Label filtering applied via job conditions
-    # - bug # Label filtering applied via job conditions
-    # - enhancement # Label filtering applied via job conditions
-    # - priority-high # Label filtering applied via job conditions
+    names:
+    - bug
+    - enhancement
+    - priority-high
     types:
     - labeled
   workflow_dispatch:
@@ -402,10 +402,10 @@ jobs:
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Label Trigger Example - Simple
           
-          This workflow demonstrates the simple labeled trigger shorthand syntax:
+          This workflow demonstrates the issue labeled trigger shorthand syntax:
           
           ```yaml
-          on: labeled bug enhancement priority-high
+          on: issue labeled bug enhancement priority-high
           ```
           
           This short syntax automatically expands to:

@@ -244,6 +244,17 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 			continue
 		}
 
+		// Check if this section uses native GitHub Actions label filtering
+		// (indicated by __gh_aw_native_label_filter__ marker)
+		if nativeFilterValue, hasNativeFilter := sectionMap["__gh_aw_native_label_filter__"]; hasNativeFilter {
+			if usesNativeFilter, ok := nativeFilterValue.(bool); ok && usesNativeFilter {
+				// Skip applying job condition filtering for this section
+				// as it uses native GitHub Actions label filtering
+				filtersLog.Printf("Skipping label filter for %s: using native GitHub Actions label filtering", section.eventName)
+				continue
+			}
+		}
+
 		// Check for "names" field
 		namesValue, hasNames := sectionMap["names"]
 		if !hasNames {

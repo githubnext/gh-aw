@@ -7,7 +7,7 @@ import (
 
 func TestLabelTriggerIntegrationSimple(t *testing.T) {
 	frontmatter := map[string]any{
-		"on": "labeled bug enhancement",
+		"on": "issue labeled bug enhancement",
 	}
 
 	compiler := NewCompiler(false, "", "test")
@@ -44,6 +44,12 @@ func TestLabelTriggerIntegrationSimple(t *testing.T) {
 	}
 	if len(names) != 2 || names[0] != "bug" || names[1] != "enhancement" {
 		t.Errorf("issues.names = %v, want [bug enhancement]", names)
+	}
+
+	// Check that the native filter marker is present
+	nativeFilter, ok := issues["__gh_aw_native_label_filter__"].(bool)
+	if !ok || !nativeFilter {
+		t.Errorf("__gh_aw_native_label_filter__ = %v, want true", nativeFilter)
 	}
 
 	// Check workflow_dispatch exists
@@ -175,16 +181,21 @@ func TestLabelTriggerIntegrationPullRequest(t *testing.T) {
 }
 
 func TestLabelTriggerIntegrationError(t *testing.T) {
+	// Test that implicit "labeled" syntax is not recognized
 	frontmatter := map[string]any{
-		"on": "labeled",
+		"on": "labeled bug",
 	}
 
 	compiler := NewCompiler(false, "", "test")
 	err := compiler.preprocessScheduleFields(frontmatter)
-	if err == nil {
-		t.Errorf("preprocessScheduleFields() expected error for 'labeled' without label names, got none")
+	if err != nil {
+		t.Fatalf("preprocessScheduleFields() unexpected error = %v", err)
 	}
-	if !strings.Contains(err.Error(), "requires at least one label name") {
-		t.Errorf("preprocessScheduleFields() error = %v, want error containing 'requires at least one label name'", err)
+
+	// The shorthand should NOT have been expanded (because implicit labeled is not supported)
+	// So "on" should still be a string
+	onValue := frontmatter["on"]
+	if onStr, ok := onValue.(string); !ok || onStr != "labeled bug" {
+		t.Errorf("'labeled bug' should not be expanded (implicit syntax removed), got: %v", onValue)
 	}
 }

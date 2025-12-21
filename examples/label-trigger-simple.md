@@ -1,7 +1,7 @@
 ---
 name: Label Trigger Example - Simple
-description: Example workflow demonstrating the simple labeled trigger shorthand syntax
-on: labeled bug enhancement priority-high
+description: Example workflow demonstrating the issue labeled trigger shorthand syntax
+on: issue labeled bug enhancement priority-high
 engine:
   id: codex
   model: gpt-5-mini
@@ -10,10 +10,10 @@ strict: true
 
 # Label Trigger Example - Simple
 
-This workflow demonstrates the simple labeled trigger shorthand syntax:
+This workflow demonstrates the issue labeled trigger shorthand syntax:
 
 ```yaml
-on: labeled bug enhancement priority-high
+on: issue labeled bug enhancement priority-high
 ```
 
 This short syntax automatically expands to:

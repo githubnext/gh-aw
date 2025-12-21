@@ -9,8 +9,8 @@ import (
 
 var labelTriggerParserLog = logger.New("workflow:label_trigger_parser")
 
-// parseLabelTriggerShorthand parses a string in the format "labeled label1 label2 ..." or
-// "issue labeled label1 label2 ...", "pull_request labeled label1 label2 ..."
+// parseLabelTriggerShorthand parses a string in the format
+// "issue labeled label1 label2 ..." or "pull_request labeled label1 label2 ..."
 // and returns the entity type and label names.
 // Returns an empty string for entityType if not a valid label trigger shorthand.
 // Returns an error if the format is invalid.
@@ -20,27 +20,23 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 
 	// Split into tokens
 	tokens := strings.Fields(input)
-	if len(tokens) == 0 {
+	if len(tokens) < 3 {
+		// Need at least: "issue/pull_request labeled label1"
 		return "", nil, false, nil
 	}
 
 	// Check for different patterns:
-	// 1. "labeled label1 label2 ..." - defaults to issues
-	// 2. "issue labeled label1 label2 ..."
-	// 3. "pull_request labeled label1 label2 ..."
+	// 1. "issue labeled label1 label2 ..."
+	// 2. "pull_request labeled label1 label2 ..."
 
 	var startIdx int
 
-	if tokens[0] == "labeled" {
-		// Pattern 1: "labeled label1 label2 ..."
-		entityType = "issues"
-		startIdx = 1
-	} else if len(tokens) >= 2 && tokens[0] == "issue" && tokens[1] == "labeled" {
-		// Pattern 2: "issue labeled label1 label2 ..."
+	if tokens[0] == "issue" && tokens[1] == "labeled" {
+		// Pattern 1: "issue labeled label1 label2 ..."
 		entityType = "issues"
 		startIdx = 2
-	} else if len(tokens) >= 2 && tokens[0] == "pull_request" && tokens[1] == "labeled" {
-		// Pattern 3: "pull_request labeled label1 label2 ..."
+	} else if tokens[0] == "pull_request" && tokens[1] == "labeled" {
+		// Pattern 2: "pull_request labeled label1 label2 ..."
 		entityType = "pull_request"
 		startIdx = 2
 	} else {
@@ -84,9 +80,12 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	}
 
 	// Build the trigger configuration
+	// Add a marker to indicate this uses native GitHub Actions label filtering
+	// (not job condition filtering), so names should not be commented out
 	triggerConfig := map[string]any{
-		"types": []any{"labeled"},
-		"names": labelNames,
+		"types":                         []any{"labeled"},
+		"names":                         labelNames,
+		"__gh_aw_native_label_filter__": true, // Marker to prevent commenting out names
 	}
 
 	// Create workflow_dispatch with item_number input
