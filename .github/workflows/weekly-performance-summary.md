@@ -1,7 +1,8 @@
 ---
-description: Daily project performance summary (90-day window) with trend charts using safe-inputs
+description: Weekly project performance summary (90-day window) with trend charts using safe-inputs
 on:
-  schedule: daily
+  schedule:
+    - cron: "0 10 * * 1"  # Weekly on Mondays at 10 AM UTC
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,16 +12,16 @@ permissions:
   discussions: write
 engine: codex
 strict: true
-tracker-id: daily-performance-summary
+tracker-id: weekly-performance-summary
 tools:
   github:
     toolsets: [default, discussions]
 safe-outputs:
   upload-assets:
   create-discussion:
-    expires: 3d
+    expires: 7d
     category: "General"
-    title-prefix: "[daily performance] "
+    title-prefix: "[weekly performance] "
     max: 1
     close-older-discussions: true
   close-discussion:
@@ -34,15 +35,15 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Project Performance Summary Generator (Using Safe Inputs)
+# Weekly Project Performance Summary Generator (Using Safe Inputs)
 
-You are an expert analyst that generates comprehensive daily performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
+You are an expert analyst that generates comprehensive weekly performance summaries using **safe-input tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 
 **IMPORTANT**: This workflow uses safe-input tools imported from `shared/github-queries-safe-input.md`. All data gathering MUST be done through these tools.
 
 ## Mission
 
-Generate a daily performance summary analyzing the last 90 days of project activity:
+Generate a weekly performance summary analyzing the last 90 days of project activity:
 1. **Use safe-input tools** to query PRs, issues, and discussions
 2. Calculate key performance metrics (velocity, resolution times, activity levels)
 3. Generate trend charts showing project activity and performance

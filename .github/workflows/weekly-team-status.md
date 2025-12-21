@@ -3,25 +3,25 @@ timeout-minutes: 10
 strict: true
 on:
   schedule:
-  - cron: 0 9 * * 1-5
+  - cron: "0 9 * * 1"  # Weekly on Mondays at 9 AM UTC
   stop-after: +1mo
   workflow_dispatch: null
 permissions:
   contents: read
   issues: read
   pull-requests: read
-tracker-id: daily-team-status
+tracker-id: weekly-team-status
 network: defaults
 imports:
 - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
   create-discussion:
-    expires: 3d
+    expires: 7d
     category: announcements
     title-prefix: "[team-status] "
     close-older-discussions: true
 description: |
-  This workflow created daily team status reporter creating upbeat activity summaries.
+  This workflow creates weekly team status reports creating upbeat activity summaries.
   Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
   and generates engaging GitHub discussions with productivity insights, community
   highlights, and project recommendations. Uses a positive, encouraging tone with
@@ -33,9 +33,9 @@ tools:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Team Status
+# Weekly Team Status
 
-Create an upbeat daily status report for the team as a GitHub discussion.
+Create an upbeat weekly status report for the team as a GitHub discussion.
 
 ## What to include
 

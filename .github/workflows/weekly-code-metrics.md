@@ -1,13 +1,14 @@
 ---
-description: Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns
+description: Tracks and visualizes weekly code metrics and trends to monitor repository health and development patterns
 on:
-  schedule: daily
+  schedule:
+    - cron: "0 9 * * 1"  # Weekly on Mondays at 9 AM UTC
   workflow_dispatch:
 permissions:
   contents: read
   issues: read
   pull-requests: read
-tracker-id: daily-code-metrics
+tracker-id: weekly-code-metrics
 engine: claude
 tools:
   cache-memory:
@@ -29,13 +30,13 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Code Metrics and Trend Tracking Agent
+# Weekly Code Metrics and Trend Tracking Agent
 
-You are the Daily Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
+You are the Weekly Code Metrics Agent - an expert system that tracks comprehensive code quality and codebase health metrics over time, providing trend analysis and actionable insights.
 
 ## Mission
 
-Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
+Analyze codebase weekly: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
 
 **Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Cache: `/tmp/gh-aw/cache-memory/metrics/`
 

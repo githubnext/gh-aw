@@ -1,9 +1,9 @@
 ---
-description: Generates a daily news digest of repository activity including issues, PRs, discussions, and workflow runs
+description: Generates a weekly news digest of repository activity including issues, PRs, discussions, and workflow runs
 on:
   schedule:
-    # Every day at 9am UTC, all days except Saturday and Sunday
-    - cron: "0 9 * * 1-5"
+    # Every Monday at 9am UTC
+    - cron: "0 9 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +13,7 @@ permissions:
   discussions: read
   actions: read
 
-tracker-id: daily-news-weekday
+tracker-id: weekly-news
 engine: copilot
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
@@ -29,8 +29,8 @@ sandbox:
 safe-outputs:
   upload-assets:
   create-discussion:
-    expires: 3d
-    category: "daily-news"
+    expires: 7d
+    category: "weekly-news"
     max: 1
     close-older-discussions: true
 
@@ -227,7 +227,7 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily News
+# Weekly News
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
@@ -349,7 +349,7 @@ Generate exactly **2 high-quality trend charts**:
 
 **Phase 5: Embed Charts in Discussion**
 
-Include the charts in your daily news discussion report with this structure:
+Include the charts in your weekly news discussion report with this structure:
 
 ```markdown
 ## 📈 Trend Analysis
@@ -413,6 +413,6 @@ If insufficient data is available (less than 7 days):
   * Date range of data analyzed
   * Any data limitations encountered
 
-Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
+Create a new GitHub discussion with a title containing today's date (e.g., "Weekly Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 
 Only a new discussion should be created, do not close or update any existing discussions.

@@ -1,7 +1,8 @@
 ---
-description: Daily report analyzing repository issues with clustering, metrics, and trend charts
+description: Weekly report analyzing repository issues with clustering, metrics, and trend charts
 on:
-  schedule: daily
+  schedule:
+    - cron: "0 11 * * 1"  # Weekly on Mondays at 11 AM UTC
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,16 +12,16 @@ permissions:
   discussions: write
 engine: codex
 strict: true
-tracker-id: daily-issues-report
+tracker-id: weekly-issues-report
 tools:
   github:
     toolsets: [default, discussions]
 safe-outputs:
   upload-assets:
   create-discussion:
-    expires: 3d
+    expires: 7d
     category: "General"
-    title-prefix: "[daily issues] "
+    title-prefix: "[weekly issues] "
     max: 1
     close-older-discussions: true
   close-discussion:
@@ -36,18 +37,18 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Issues Report Generator
+# Weekly Issues Report Generator
 
-You are an expert analyst that generates comprehensive daily reports about repository issues, using Python for clustering and visualization.
+You are an expert analyst that generates comprehensive weekly reports about repository issues, using Python for clustering and visualization.
 
 ## Mission
 
-Generate a daily report analyzing up to 1000 issues from the repository:
+Generate a weekly report analyzing up to 1000 issues from the repository:
 1. Cluster issues by topic/theme using natural language analysis
 2. Calculate various metrics (open/closed rates, response times, label distribution)
 3. Generate trend charts showing issue activity over time
 4. Create a new discussion with the report
-5. Close previous daily issues discussions to avoid clutter
+5. Close previous weekly issues discussions to avoid clutter
 
 ## Current Context
 
@@ -221,11 +222,11 @@ Use the `upload asset` tool to upload both charts:
 
 ## Phase 5: Close Previous Discussions
 
-Before creating the new discussion, find and close previous daily issues discussions:
+Before creating the new discussion, find and close previous weekly issues discussions:
 
-1. Search for discussions with title prefix "[daily issues]"
+1. Search for discussions with title prefix "[weekly issues]"
 2. Close each found discussion with reason "OUTDATED"
-3. Add a closing comment: "This discussion has been superseded by a newer daily issues report."
+3. Add a closing comment: "This discussion has been superseded by a newer weekly issues report."
 
 Use the `close_discussion` safe output for each discussion found.
 
@@ -235,7 +236,7 @@ Create a new discussion with the comprehensive report.
 
 ### Discussion Format
 
-**Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
+**Title**: `[weekly issues] Daily Issues Report - YYYY-MM-DD`
 
 **Body**:
 
@@ -348,7 +349,7 @@ A successful run will:
 - ✅ Cluster issues into meaningful themes
 - ✅ Generate 2 high-quality trend charts
 - ✅ Upload charts as assets
-- ✅ Close previous daily issues discussions
+- ✅ Close previous weekly issues discussions
 - ✅ Create a new discussion with comprehensive report
 - ✅ Include all required metrics and visualizations
 

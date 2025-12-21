@@ -1,8 +1,8 @@
 ---
-description: Posts a daily poetic verse about the gh-aw project to a discussion thread
+description: Posts a weekly poetic verse about the gh-aw project to a discussion thread
 on:
   schedule:
-    - cron: "0 11 * * 1-5"  # 11 AM UTC, weekdays only
+    - cron: "0 11 * * 1"  # 11 AM UTC on Mondays
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,7 +10,7 @@ permissions:
   pull-requests: read
   actions: read
   discussions: read
-tracker-id: daily-fact-thread
+tracker-id: weekly-fact-thread
 engine:
   id: codex
   model: gpt-5-mini
@@ -39,7 +39,7 @@ safe-outputs:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Fact About gh-aw
+# Weekly Fact About gh-aw
 
 Your task is to post a poetic, whimsical fact about the ${{ github.repository }} project to discussion #4750.
 
@@ -69,7 +69,7 @@ Mine recent activity from the repository to find interesting facts. Focus on:
 - **Be specific**: Include PR numbers, issue references, or release tags when relevant
 - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
 - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
-- **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
+- **Add variety**: Don't repeat the same type of fact every week (e.g., alternate between PRs, issues, releases, contributors, code patterns)
 
 ## Output Format
 

@@ -1,10 +1,10 @@
 ---
-name: Daily Documentation Updater
+name: Weekly Documentation Updater
 description: Automatically reviews and updates documentation to ensure accuracy and completeness
 on:
   schedule:
-    # Every day at 6am UTC
-    - cron: daily
+    # Every Monday at 6am UTC
+    - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
   issues: read
   pull-requests: read
 
-tracker-id: daily-doc-updater
+tracker-id: weekly-doc-updater
 engine: claude
 strict: true
 

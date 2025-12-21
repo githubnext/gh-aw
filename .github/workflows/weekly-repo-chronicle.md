@@ -1,15 +1,15 @@
 ---
-description: Creates a narrative chronicle of daily repository activity including commits, PRs, issues, and discussions
+description: Creates a narrative chronicle of weekly repository activity including commits, PRs, issues, and discussions
 on:
   schedule:
-    - cron: "0 16 * * 1-5"  # 8 AM PST (4 PM UTC), weekdays only
+    - cron: "0 16 * * 1"  # Weekly on Mondays at 4 PM UTC
   workflow_dispatch:
 permissions:
   contents: read
   issues: read
   pull-requests: read
   discussions: read
-tracker-id: daily-repo-chronicle
+tracker-id: weekly-repo-chronicle
 engine: copilot
 
 timeout-minutes: 45
@@ -42,7 +42,7 @@ imports:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# The Daily Repository Chronicle
+# The Weekly Repository Chronicle
 
 You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for ${{ github.repository }}.
 
