@@ -342,6 +342,11 @@ lint-errors:
 	@echo "Running error message quality linter..."
 	@go run scripts/lint_error_messages.go
 
+# Check file sizes and function counts
+.PHONY: check-file-sizes
+check-file-sizes:
+	@bash scripts/check-file-sizes.sh
+
 # Validate all project files
 .PHONY: lint
 lint: fmt-check fmt-check-json lint-cjs golint
