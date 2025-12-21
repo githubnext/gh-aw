@@ -298,3 +298,218 @@ func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
 		}
 	})
 }
+
+// TestValidateCopilotNetworkConfig tests the validateCopilotNetworkConfig function
+func TestValidateCopilotNetworkConfig(t *testing.T) {
+	tests := []struct {
+		name               string
+		engineID           string
+		networkPermissions *NetworkPermissions
+		tools              *Tools
+		expectError        bool
+		errorMsg           string
+	}{
+		{
+			name:     "non-Copilot engine is allowed api.github.com",
+			engineID: "claude",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com", "anthropic.com"},
+			},
+			tools:       nil,
+			expectError: false,
+		},
+		{
+			name:     "Copilot engine without api.github.com in network allowed",
+			engineID: "copilot",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"example.com", "trusted.org"},
+			},
+			tools:       nil,
+			expectError: false,
+		},
+		{
+			name:     "Copilot engine with api.github.com but has GitHub MCP configured",
+			engineID: "copilot",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com", "example.com"},
+			},
+			tools: NewTools(map[string]any{
+				"github": map[string]any{
+					"mode":     "remote",
+					"toolsets": []any{"default"},
+				},
+			}),
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
+		},
+		{
+			name:     "Copilot engine with api.github.com and no GitHub MCP configured",
+			engineID: "copilot",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com", "example.com"},
+			},
+			tools:       NewTools(map[string]any{}),
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
+		},
+		{
+			name:               "Copilot engine with empty network permissions",
+			engineID:           "copilot",
+			networkPermissions: &NetworkPermissions{Mode: "defaults"},
+			tools:              nil,
+			expectError:        false,
+		},
+		{
+			name:               "Copilot engine with nil network permissions",
+			engineID:           "copilot",
+			networkPermissions: nil,
+			tools:              nil,
+			expectError:        false,
+		},
+		{
+			name:     "Copilot engine with api.github.com among other domains",
+			engineID: "copilot",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"example.com", "api.github.com", "trusted.org"},
+			},
+			tools:       nil,
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
+		},
+		{
+			name:     "Copilot engine with only api.github.com in allowed list",
+			engineID: "copilot",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com"},
+			},
+			tools:       nil,
+			expectError: true,
+			errorMsg:    "cannot directly access api.github.com",
+		},
+		{
+			name:     "codex engine is allowed api.github.com",
+			engineID: "codex",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com", "api.openai.com"},
+			},
+			tools:       nil,
+			expectError: false,
+		},
+		{
+			name:     "custom engine is allowed api.github.com",
+			engineID: "custom",
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.github.com"},
+			},
+			tools:       nil,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "")
+			err := compiler.validateCopilotNetworkConfig(tt.engineID, tt.networkPermissions, tt.tools)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected validation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected validation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
+
+// TestValidateCopilotNetworkConfigErrorMessageQuality verifies error messages are helpful
+func TestValidateCopilotNetworkConfigErrorMessageQuality(t *testing.T) {
+	compiler := NewCompiler(false, "", "")
+
+	t.Run("error message suggests GitHub MCP configuration when not present", func(t *testing.T) {
+		networkPermissions := &NetworkPermissions{
+			Mode:    "custom",
+			Allowed: []string{"api.github.com"},
+		}
+		tools := NewTools(map[string]any{})
+
+		err := compiler.validateCopilotNetworkConfig("copilot", networkPermissions, tools)
+
+		if err == nil {
+			t.Fatal("Expected validation to fail for Copilot with api.github.com")
+		}
+
+		errorMsg := err.Error()
+
+		// Error should explain the problem
+		if !strings.Contains(errorMsg, "cannot directly access api.github.com") {
+			t.Errorf("Error should explain api.github.com cannot be accessed directly, got: %s", errorMsg)
+		}
+
+		// Error should mention GitHub MCP server requirement
+		if !strings.Contains(errorMsg, "GitHub MCP server") {
+			t.Errorf("Error should mention GitHub MCP server, got: %s", errorMsg)
+		}
+
+		// Error should include remote mode example
+		if !strings.Contains(errorMsg, "mode: remote") {
+			t.Errorf("Error should include remote mode example, got: %s", errorMsg)
+		}
+
+		// Error should include local mode example
+		if !strings.Contains(errorMsg, "mode: local") {
+			t.Errorf("Error should include local mode example, got: %s", errorMsg)
+		}
+
+		// Error should suggest removing api.github.com
+		if !strings.Contains(errorMsg, "remove 'api.github.com'") {
+			t.Errorf("Error should suggest removing api.github.com, got: %s", errorMsg)
+		}
+
+		// Error should include documentation link
+		if !strings.Contains(errorMsg, "https://githubnext.github.io/gh-aw") {
+			t.Errorf("Error should include documentation link, got: %s", errorMsg)
+		}
+	})
+
+	t.Run("error message mentions existing GitHub MCP config when present", func(t *testing.T) {
+		networkPermissions := &NetworkPermissions{
+			Mode:    "custom",
+			Allowed: []string{"api.github.com", "example.com"},
+		}
+		tools := NewTools(map[string]any{
+			"github": map[string]any{
+				"mode":     "remote",
+				"toolsets": []any{"default"},
+			},
+		})
+
+		err := compiler.validateCopilotNetworkConfig("copilot", networkPermissions, tools)
+
+		if err == nil {
+			t.Fatal("Expected validation to fail for Copilot with api.github.com")
+		}
+
+		errorMsg := err.Error()
+
+		// Error should mention that GitHub MCP is already configured
+		if !strings.Contains(errorMsg, "GitHub MCP configured") {
+			t.Errorf("Error should mention GitHub MCP is configured, got: %s", errorMsg)
+		}
+
+		// Error should suggest removing api.github.com from network list
+		if !strings.Contains(errorMsg, "remove 'api.github.com'") {
+			t.Errorf("Error should suggest removing api.github.com from network list, got: %s", errorMsg)
+		}
+	})
+}

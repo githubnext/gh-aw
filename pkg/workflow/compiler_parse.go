@@ -340,6 +340,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate Copilot workflows use GitHub MCP instead of direct api.github.com access
+	parsedTools := NewTools(tools)
+	if err := c.validateCopilotNetworkConfig(engineSetting, networkPermissions, parsedTools); err != nil {
+		return nil, err
+	}
+
 	if !agenticEngine.SupportsToolsAllowlist() {
 		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))

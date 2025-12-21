@@ -10,6 +10,7 @@
 //
 //   - validateEngine() - Validates that a given engine ID is supported
 //   - validateSingleEngineSpecification() - Validates that only one engine field exists across all files
+//   - validateCopilotNetworkConfig() - Validates Copilot workflows use GitHub MCP instead of direct api.github.com access
 //
 // # Validation Pattern: Engine Registry
 //
@@ -35,6 +36,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -117,4 +119,59 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	return "", fmt.Errorf("invalid engine configuration in included file, missing or invalid 'id' field. Expected string or object with 'id' field. Example (string): engine: copilot or (object): engine:\\n  id: copilot\\n  model: gpt-4")
+}
+
+// validateCopilotNetworkConfig validates that Copilot workflows use GitHub MCP server
+// instead of attempting direct api.github.com access
+//
+// The Copilot agent cannot directly access api.github.com due to network restrictions.
+// All GitHub API operations must go through the GitHub MCP server.
+func (c *Compiler) validateCopilotNetworkConfig(engineID string, networkPermissions *NetworkPermissions, tools *Tools) error {
+	// Only validate for Copilot engine
+	if engineID != "copilot" {
+		return nil
+	}
+
+	engineValidationLog.Printf("Validating Copilot network configuration")
+
+	// Check if api.github.com is in the network allowed list
+	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
+		for _, domain := range networkPermissions.Allowed {
+			if domain == "api.github.com" {
+				engineValidationLog.Printf("Found api.github.com in network allowed list for Copilot workflow")
+
+				// Check if GitHub MCP is configured
+				hasGitHubMCP := tools != nil && tools.GitHub != nil
+
+				// Build error message
+				var errorMsg strings.Builder
+				errorMsg.WriteString("Copilot workflows cannot directly access api.github.com. ")
+				errorMsg.WriteString("The Copilot agent requires the GitHub MCP server for GitHub API operations.\n\n")
+
+				if hasGitHubMCP {
+					errorMsg.WriteString("You have GitHub MCP configured, so you can remove 'api.github.com' from your network.allowed list.\n\n")
+				} else {
+					errorMsg.WriteString("Configure the GitHub MCP server instead:\n\n")
+					errorMsg.WriteString("Option 1 - Remote mode (hosted):\n")
+					errorMsg.WriteString("  tools:\n")
+					errorMsg.WriteString("    github:\n")
+					errorMsg.WriteString("      mode: remote\n")
+					errorMsg.WriteString("      toolsets: [default]\n\n")
+					errorMsg.WriteString("Option 2 - Local mode (Docker):\n")
+					errorMsg.WriteString("  tools:\n")
+					errorMsg.WriteString("    github:\n")
+					errorMsg.WriteString("      mode: local\n")
+					errorMsg.WriteString("      toolsets: [default]\n\n")
+				}
+
+				errorMsg.WriteString("Then remove 'api.github.com' from your network.allowed list.\n\n")
+				errorMsg.WriteString("See: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default")
+
+				return fmt.Errorf("%s", errorMsg.String())
+			}
+		}
+	}
+
+	engineValidationLog.Printf("Copilot network configuration validation passed")
+	return nil
 }
