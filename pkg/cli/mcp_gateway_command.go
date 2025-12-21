@@ -51,7 +51,7 @@ type MCPGatewayServer struct {
 
 // NewMCPGatewayCommand creates the mcp-gateway command
 func NewMCPGatewayCommand() *cobra.Command {
-	var configFile string
+	var configFiles []string
 	var port int
 	var logDir string
 
@@ -69,8 +69,10 @@ The gateway:
 - Provides extensive logging to file in the MCP log folder
 
 Configuration can be provided via:
-1. --config flag pointing to a JSON config file
+1. --config flag(s) pointing to JSON config file(s) (can be specified multiple times)
 2. stdin (reads JSON configuration from standard input)
+
+Multiple config files are merged in order, with later files overriding earlier ones.
 
 Configuration format:
 {
@@ -88,16 +90,17 @@ Configuration format:
 }
 
 Examples:
-  awmg --config config.json                    # From file
+  awmg --config config.json                    # From single file
+  awmg --config base.json --config override.json # From multiple files (merged)
   awmg --port 8080                             # From stdin
   echo '{"mcpServers":{...}}' | awmg           # Pipe config
   awmg --config config.json --log-dir /tmp/logs # Custom log dir`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMCPGateway(configFile, port, logDir)
+			return runMCPGateway(configFiles, port, logDir)
 		},
 	}
 
-	cmd.Flags().StringVarP(&configFile, "config", "c", "", "Path to MCP gateway configuration JSON file")
+	cmd.Flags().StringArrayVarP(&configFiles, "config", "c", []string{}, "Path to MCP gateway configuration JSON file (can be specified multiple times)")
 	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to run HTTP gateway on")
 	cmd.Flags().StringVar(&logDir, "log-dir", "/tmp/gh-aw/mcp-gateway-logs", "Directory for MCP gateway logs")
 
@@ -105,12 +108,12 @@ Examples:
 }
 
 // runMCPGateway starts the MCP gateway server
-func runMCPGateway(configFile string, port int, logDir string) error {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP gateway (port: %d, logDir: %s, configFile: %q)", port, logDir, configFile)))
+func runMCPGateway(configFiles []string, port int, logDir string) error {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP gateway (port: %d, logDir: %s, configFiles: %v)", port, logDir, configFiles)))
 	gatewayLog.Printf("Starting MCP gateway on port %d", port)
 
 	// Read configuration
-	config, err := readGatewayConfig(configFile)
+	config, err := readGatewayConfig(configFiles)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read configuration: %v", err)))
 		return fmt.Errorf("failed to read gateway configuration: %w", err)
@@ -144,35 +147,50 @@ func runMCPGateway(configFile string, port int, logDir string) error {
 	return gateway.startHTTPServer()
 }
 
-// readGatewayConfig reads the gateway configuration from file or stdin
-func readGatewayConfig(configFile string) (*MCPGatewayConfig, error) {
-	var data []byte
-	var err error
-
-	if configFile != "" {
-		// Read from file
-		gatewayLog.Printf("Reading configuration from file: %s", configFile)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading configuration from file: %s", configFile)))
-		
-		// Check if file exists
-		if _, err := os.Stat(configFile); os.IsNotExist(err) {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Configuration file not found: %s", configFile)))
-			gatewayLog.Printf("Configuration file not found: %s", configFile)
-			return nil, fmt.Errorf("configuration file not found: %s", configFile)
+// readGatewayConfig reads the gateway configuration from files or stdin
+func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, error) {
+	var configs []*MCPGatewayConfig
+	
+	if len(configFiles) > 0 {
+		// Read from file(s)
+		for _, configFile := range configFiles {
+			gatewayLog.Printf("Reading configuration from file: %s", configFile)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading configuration from file: %s", configFile)))
+			
+			// Check if file exists
+			if _, err := os.Stat(configFile); os.IsNotExist(err) {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Configuration file not found: %s", configFile)))
+				gatewayLog.Printf("Configuration file not found: %s", configFile)
+				return nil, fmt.Errorf("configuration file not found: %s", configFile)
+			}
+			
+			data, err := os.ReadFile(configFile)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read config file: %v", err)))
+				return nil, fmt.Errorf("failed to read config file: %w", err)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from file", len(data))))
+			gatewayLog.Printf("Read %d bytes from file", len(data))
+			
+			// Validate we have data
+			if len(data) == 0 {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
+				gatewayLog.Print("Configuration data is empty")
+				return nil, fmt.Errorf("configuration data is empty")
+			}
+			
+			config, err := parseGatewayConfig(data)
+			if err != nil {
+				return nil, err
+			}
+			
+			configs = append(configs, config)
 		}
-		
-		data, err = os.ReadFile(configFile)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read config file: %v", err)))
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from file", len(data))))
-		gatewayLog.Printf("Read %d bytes from file", len(data))
 	} else {
 		// Read from stdin
 		gatewayLog.Print("Reading configuration from stdin")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Reading configuration from stdin..."))
-		data, err = io.ReadAll(os.Stdin)
+		data, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read from stdin: %v", err)))
 			return nil, fmt.Errorf("failed to read from stdin: %w", err)
@@ -186,15 +204,63 @@ func readGatewayConfig(configFile string) (*MCPGatewayConfig, error) {
 			gatewayLog.Print("No data received from stdin")
 			return nil, fmt.Errorf("no configuration data received from stdin")
 		}
+		
+		// Validate we have data
+		if len(data) == 0 {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
+			gatewayLog.Print("Configuration data is empty")
+			return nil, fmt.Errorf("configuration data is empty")
+		}
+		
+		config, err := parseGatewayConfig(data)
+		if err != nil {
+			return nil, err
+		}
+		
+		configs = append(configs, config)
 	}
-
-	// Validate we have data
-	if len(data) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
-		gatewayLog.Print("Configuration data is empty")
-		return nil, fmt.Errorf("configuration data is empty")
+	
+	// Merge all configs
+	if len(configs) == 0 {
+		return nil, fmt.Errorf("no configuration loaded")
 	}
+	
+	mergedConfig := configs[0]
+	for i := 1; i < len(configs); i++ {
+		gatewayLog.Printf("Merging configuration %d of %d", i+1, len(configs))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Merging configuration %d of %d", i+1, len(configs))))
+		mergedConfig = mergeConfigs(mergedConfig, configs[i])
+	}
+	
+	gatewayLog.Printf("Successfully merged %d configuration(s)", len(configs))
+	if len(configs) > 1 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully merged %d configurations", len(configs))))
+	}
+	
+	gatewayLog.Printf("Loaded configuration with %d MCP servers", len(mergedConfig.MCPServers))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully loaded configuration with %d MCP servers", len(mergedConfig.MCPServers))))
+	
+	// Validate we have at least one server configured
+	if len(mergedConfig.MCPServers) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No MCP servers configured in configuration"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration must include at least one MCP server in 'mcpServers' section"))
+		gatewayLog.Print("No MCP servers configured")
+		return nil, fmt.Errorf("no MCP servers configured in configuration")
+	}
+	
+	// Log server names for debugging
+	serverNames := make([]string, 0, len(mergedConfig.MCPServers))
+	for name := range mergedConfig.MCPServers {
+		serverNames = append(serverNames, name)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
+	gatewayLog.Printf("MCP servers configured: %v", serverNames)
+	
+	return mergedConfig, nil
+}
 
+// parseGatewayConfig parses raw JSON data into a gateway config
+func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 	gatewayLog.Printf("Parsing %d bytes of configuration data", len(data))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %d bytes of configuration data", len(data))))
 	
@@ -207,26 +273,38 @@ func readGatewayConfig(configFile string) (*MCPGatewayConfig, error) {
 	}
 
 	gatewayLog.Printf("Successfully parsed JSON configuration")
-	gatewayLog.Printf("Loaded configuration with %d MCP servers", len(config.MCPServers))
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully loaded configuration with %d MCP servers", len(config.MCPServers))))
-	
-	// Validate we have at least one server configured
-	if len(config.MCPServers) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No MCP servers configured in configuration"))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration must include at least one MCP server in 'mcpServers' section"))
-		gatewayLog.Print("No MCP servers configured")
-		return nil, fmt.Errorf("no MCP servers configured in configuration")
-	}
-	
-	// Log server names for debugging
-	serverNames := make([]string, 0, len(config.MCPServers))
-	for name := range config.MCPServers {
-		serverNames = append(serverNames, name)
-	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
-	gatewayLog.Printf("MCP servers configured: %v", serverNames)
-	
 	return &config, nil
+}
+
+// mergeConfigs merges two gateway configurations, with the second overriding the first
+func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
+	result := &MCPGatewayConfig{
+		MCPServers: make(map[string]MCPServerConfig),
+		Gateway:    base.Gateway,
+	}
+	
+	// Copy all servers from base
+	for name, config := range base.MCPServers {
+		result.MCPServers[name] = config
+	}
+	
+	// Override/add servers from override config
+	for name, config := range override.MCPServers {
+		gatewayLog.Printf("Merging server config for: %s", name)
+		result.MCPServers[name] = config
+	}
+	
+	// Override gateway settings if provided
+	if override.Gateway.Port != 0 {
+		result.Gateway.Port = override.Gateway.Port
+		gatewayLog.Printf("Override gateway port: %d", override.Gateway.Port)
+	}
+	if override.Gateway.APIKey != "" {
+		result.Gateway.APIKey = override.Gateway.APIKey
+		gatewayLog.Printf("Override gateway API key (length: %d)", len(override.Gateway.APIKey))
+	}
+	
+	return result
 }
 
 // initializeSessions creates MCP sessions for all configured servers
