@@ -1,3 +1,63 @@
+// Package workflow provides helper functions for updating GitHub entities.
+//
+// This file contains shared utilities for building update entity jobs (issues,
+// pull requests, discussions, releases). These helpers extract common patterns
+// used across the four update entity implementations to reduce code duplication
+// and ensure consistency in configuration parsing and job generation.
+//
+// # Organization Rationale
+//
+// These update entity helpers are grouped here because they:
+//   - Provide generic update entity functionality used by 4 entity types
+//   - Share common configuration patterns (target, max, field updates)
+//   - Support two field parsing modes (key existence vs. bool value)
+//   - Enable DRY principles for update operations
+//
+// This follows the helper file conventions documented in the developer instructions.
+// See skills/developer/SKILL.md#helper-file-conventions for details.
+//
+// # Key Functions
+//
+// Configuration Parsing:
+//   - parseUpdateEntityConfig() - Generic update entity configuration parser
+//   - parseUpdateEntityBase() - Parse base configuration (max, target, target-repo)
+//   - parseUpdateEntityConfigWithFields() - Parse config with entity-specific fields
+//   - parseUpdateEntityBoolField() - Generic boolean field parser with mode support
+//
+// Field Parsing Modes:
+//   - FieldParsingKeyExistence - Field presence indicates it can be updated (issues, discussions)
+//   - FieldParsingBoolValue - Field's boolean value determines update permission (pull requests)
+//
+// # Usage Patterns
+//
+// The update entity helpers support two parsing strategies:
+//
+//  1. **Key Existence Mode** (for issues and discussions):
+//     Fields are enabled if the key exists in config, regardless of value:
+//     ```yaml
+//     update-issue:
+//     title: null    # Can update title (key exists)
+//     body: null     # Can update body (key exists)
+//     ```
+//
+//  2. **Bool Value Mode** (for pull requests):
+//     Fields are enabled based on explicit boolean values:
+//     ```yaml
+//     update-pull-request:
+//     title: true    # Can update title
+//     body: false    # Cannot update body
+//     ```
+//
+// # When to Use vs Alternatives
+//
+// Use these helpers when:
+//   - Implementing update operations for GitHub entities
+//   - Parsing update entity configurations from workflow YAML
+//   - Building update entity jobs with consistent patterns
+//
+// For create/close operations, see:
+//   - create_*.go files for entity creation logic
+//   - close_entity_helpers.go for entity close logic
 package workflow
 
 import (
