@@ -85,6 +85,7 @@ package workflow
 import (
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
@@ -270,4 +271,40 @@ func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice 
 	}
 
 	return orderedData
+}
+
+// CleanYAMLNullValues removes " null" from YAML key-value pairs where the value is null.
+//
+// GitHub Actions YAML treats workflow_dispatch: and workflow_dispatch: null identically,
+// but the former is more concise and matches GitHub's documentation style.
+// This function post-processes YAML strings to convert `: null` to `:` for better readability.
+//
+// The function only replaces null values at the end of lines (after a colon and optional whitespace)
+// to avoid incorrectly modifying string values that contain the word "null".
+//
+// Parameters:
+//   - yamlStr: The YAML string to process
+//
+// Returns:
+//   - The YAML string with `: null` replaced by `:`
+//
+// Example:
+//
+//	input := "on:\n  workflow_dispatch: null\n  schedule:\n    - cron: '0 0 * * *'"
+//	result := CleanYAMLNullValues(input)
+//	// result: "on:\n  workflow_dispatch:\n  schedule:\n    - cron: '0 0 * * *'"
+func CleanYAMLNullValues(yamlStr string) string {
+	yamlLog.Print("Cleaning null values from YAML")
+
+	// Create a regex pattern that matches `: null` at the end of a line
+	// Pattern: colon + optional whitespace + "null" + optional whitespace + end of line
+	pattern := regexp.MustCompile(`:\s*null\s*$`)
+
+	// Split into lines, process each line, and rejoin
+	lines := strings.Split(yamlStr, "\n")
+	for i, line := range lines {
+		lines[i] = pattern.ReplaceAllString(line, ":")
+	}
+
+	return strings.Join(lines, "\n")
 }

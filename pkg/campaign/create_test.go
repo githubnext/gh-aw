@@ -51,6 +51,27 @@ func TestCreateSpecSkeleton_Basic(t *testing.T) {
 	if !strings.Contains(contentStr, "project-url: https://github.com/orgs/ORG/projects/1") {
 		t.Error("Expected file to contain 'project-url: https://github.com/orgs/ORG/projects/1'")
 	}
+	if !strings.Contains(contentStr, "governance:") {
+		t.Error("Expected file to contain 'governance:'")
+	}
+	if !strings.Contains(contentStr, "max-new-items-per-run: 25") {
+		t.Error("Expected file to contain 'max-new-items-per-run: 25'")
+	}
+	if !strings.Contains(contentStr, "max-discovery-items-per-run: 200") {
+		t.Error("Expected file to contain 'max-discovery-items-per-run: 200'")
+	}
+	if !strings.Contains(contentStr, "max-discovery-pages-per-run: 10") {
+		t.Error("Expected file to contain 'max-discovery-pages-per-run: 10'")
+	}
+	if !strings.Contains(contentStr, "max-project-updates-per-run: 10") {
+		t.Error("Expected file to contain 'max-project-updates-per-run: 10'")
+	}
+	if !strings.Contains(contentStr, "max-comments-per-run: 10") {
+		t.Error("Expected file to contain 'max-comments-per-run: 10'")
+	}
+	if !strings.Contains(contentStr, "cursor-glob: memory/campaigns/test-campaign/cursor.json") {
+		t.Error("Expected file to contain 'cursor-glob: memory/campaigns/test-campaign/cursor.json'")
+	}
 }
 
 func TestCreateSpecSkeleton_InvalidID_Empty(t *testing.T) {

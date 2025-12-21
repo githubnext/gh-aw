@@ -36,6 +36,16 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"),
           expect(mockCore.setFailed).not.toHaveBeenCalled());
       }),
+      it("should skip locking if issue is a pull request", async () => {
+        (mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !1, pull_request: { url: "https://api.github.com/repos/testowner/testrepo/pulls/42" } } }),
+          await eval(`(async () => { ${lockIssueScript} })()`),
+          expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 42 }),
+          expect(mockGithub.rest.issues.lock).not.toHaveBeenCalled(),
+          expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is already locked"),
+          expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is a pull request, skipping lock operation"),
+          expect(mockCore.setOutput).toHaveBeenCalledWith("locked", "false"),
+          expect(mockCore.setFailed).not.toHaveBeenCalled());
+      }),
       it("should fail when issue number is not found in context", async () => {
         ((global.context.issue = {}),
           delete global.context.payload.issue,

@@ -36,20 +36,20 @@ func TestLoadCampaignSpecs_Basic(t *testing.T) {
 	// Ensure we can find the example campaign spec we ship in this repo.
 	found := false
 	for _, spec := range specs {
-		if spec.ID == "go-file-size-reduction" {
+		if spec.ID == "go-file-size-reduction-project64" {
 			found = true
 			if spec.Name == "" {
-				t.Errorf("Expected Name for go-file-size-reduction to be non-empty")
+				t.Errorf("Expected Name for go-file-size-reduction-project64 to be non-empty")
 			}
-			if !strings.Contains(spec.ConfigPath, ".github/workflows/go-file-size-reduction.campaign.md") {
-				t.Errorf("Expected ConfigPath to point to go-file-size-reduction .campaign.md spec, got %s", spec.ConfigPath)
+			if !strings.Contains(spec.ConfigPath, ".github/workflows/go-file-size-reduction-project64.campaign.md") {
+				t.Errorf("Expected ConfigPath to point to go-file-size-reduction-project64 .campaign.md spec, got %s", spec.ConfigPath)
 			}
 			break
 		}
 	}
 
 	if !found {
-		t.Errorf("Expected to find go-file-size-reduction campaign spec in loaded specs")
+		t.Errorf("Expected to find go-file-size-reduction-project64 campaign spec in loaded specs")
 	}
 }
 
@@ -75,19 +75,19 @@ func TestComputeCompiledStateForCampaign_UsesLockFiles(t *testing.T) {
 	var incident CampaignSpec
 	found := false
 	for _, spec := range specs {
-		if spec.ID == "go-file-size-reduction" {
+		if spec.ID == "go-file-size-reduction-project64" {
 			incident = spec
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Skip("go-file-size-reduction campaign spec not found; skipping compiled-state test")
+		t.Skip("go-file-size-reduction-project64 campaign spec not found; skipping compiled-state test")
 	}
 
 	state := ComputeCompiledState(incident, ".github/workflows")
 	if state == "Missing workflow" {
-		t.Fatalf("Expected go-file-size-reduction workflows to exist, got compiled state: %s", state)
+		t.Fatalf("Expected go-file-size-reduction-project64 workflows to exist, got compiled state: %s", state)
 	}
 }
 

@@ -34,6 +34,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is not locked, skipping unlock operation"),
           expect(mockCore.setFailed).not.toHaveBeenCalled());
       }),
+      it("should skip unlocking if issue is a pull request", async () => {
+        (mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, locked: !0, pull_request: { url: "https://api.github.com/repos/testowner/testrepo/pulls/42" } } }),
+          await eval(`(async () => { ${unlockIssueScript} })()`),
+          expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 42 }),
+          expect(mockGithub.rest.issues.unlock).not.toHaveBeenCalled(),
+          expect(mockCore.info).toHaveBeenCalledWith("Checking if issue #42 is locked"),
+          expect(mockCore.info).toHaveBeenCalledWith("ℹ️ Issue #42 is a pull request, skipping unlock operation"),
+          expect(mockCore.setFailed).not.toHaveBeenCalled());
+      }),
       it("should fail when issue number is not found in context", async () => {
         ((global.context.issue = {}),
           delete global.context.payload.issue,

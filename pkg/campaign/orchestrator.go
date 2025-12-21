@@ -38,6 +38,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Default triggers: daily schedule plus manual workflow_dispatch.
 	onSection := "on:\n  schedule:\n    - cron: \"0 18 * * *\"\n  workflow_dispatch:\n"
 
+	// Prevent overlapping runs. This reduces sustained automated traffic on GitHub's
+	// infrastructure by ensuring only one orchestrator run executes at a time per ref.
+	concurrency := fmt.Sprintf("concurrency:\n  group: \"campaign-%s-orchestrator-${{ github.ref }}\"\n  cancel-in-progress: false", spec.ID)
+
 	// Simple markdown body giving the agent context about the campaign.
 	markdownBuilder := &strings.Builder{}
 	markdownBuilder.WriteString("# Campaign Orchestrator\n\n")
@@ -66,9 +70,45 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		markdownBuilder.WriteString(fmt.Sprintf("- Metrics glob: `%s`\n", spec.MetricsGlob))
 		hasDetails = true
 	}
+	if spec.CursorGlob != "" {
+		markdownBuilder.WriteString(fmt.Sprintf("- Cursor glob: `%s`\n", spec.CursorGlob))
+		hasDetails = true
+	}
 	if strings.TrimSpace(spec.ProjectURL) != "" {
 		markdownBuilder.WriteString(fmt.Sprintf("- Project URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
 		hasDetails = true
+	}
+	if spec.Governance != nil {
+		if spec.Governance.MaxNewItemsPerRun > 0 {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max new items per run: %d\n", spec.Governance.MaxNewItemsPerRun))
+			hasDetails = true
+		}
+		if spec.Governance.MaxDiscoveryItemsPerRun > 0 {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max discovery items per run: %d\n", spec.Governance.MaxDiscoveryItemsPerRun))
+			hasDetails = true
+		}
+		if spec.Governance.MaxDiscoveryPagesPerRun > 0 {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max discovery pages per run: %d\n", spec.Governance.MaxDiscoveryPagesPerRun))
+			hasDetails = true
+		}
+		if len(spec.Governance.OptOutLabels) > 0 {
+			markdownBuilder.WriteString("- Governance: opt-out labels: ")
+			markdownBuilder.WriteString(strings.Join(spec.Governance.OptOutLabels, ", "))
+			markdownBuilder.WriteString("\n")
+			hasDetails = true
+		}
+		if spec.Governance.DoNotDowngradeDoneItems != nil {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: do not downgrade done items: %t\n", *spec.Governance.DoNotDowngradeDoneItems))
+			hasDetails = true
+		}
+		if spec.Governance.MaxProjectUpdatesPerRun > 0 {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max project updates per run: %d\n", spec.Governance.MaxProjectUpdatesPerRun))
+			hasDetails = true
+		}
+		if spec.Governance.MaxCommentsPerRun > 0 {
+			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max comments per run: %d\n", spec.Governance.MaxCommentsPerRun))
+			hasDetails = true
+		}
 	}
 
 	// Return nil if the campaign spec has no meaningful details for the prompt
@@ -82,8 +122,12 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
-	promptData := CampaignPromptData{
-		ProjectURL: strings.TrimSpace(spec.ProjectURL),
+	promptData := CampaignPromptData{ProjectURL: strings.TrimSpace(spec.ProjectURL)}
+	promptData.TrackerLabel = strings.TrimSpace(spec.TrackerLabel)
+	promptData.CursorGlob = strings.TrimSpace(spec.CursorGlob)
+	if spec.Governance != nil {
+		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
+		promptData.MaxDiscoveryPagesPerRun = spec.Governance.MaxDiscoveryPagesPerRun
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
@@ -100,11 +144,22 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Enable safe outputs needed for campaign coordination.
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
 	// the generated markdown; safe-output jobs have their own scoped permissions.
+	maxComments := 10
+	maxProjectUpdates := 10
+	if spec.Governance != nil {
+		if spec.Governance.MaxCommentsPerRun > 0 {
+			maxComments = spec.Governance.MaxCommentsPerRun
+		}
+		if spec.Governance.MaxProjectUpdatesPerRun > 0 {
+			maxProjectUpdates = spec.Governance.MaxProjectUpdatesPerRun
+		}
+	}
+
 	safeOutputs := &workflow.SafeOutputsConfig{}
 	// Always allow commenting on tracker issues (or other issues/PRs if needed).
-	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
 	// Allow updating the campaign's GitHub Project dashboard.
-	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}}
+	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates}}
 	// If the campaign spec specifies a custom GitHub token for Projects v2 operations,
 	// pass it to the update-project configuration.
 	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
@@ -120,6 +175,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		Description:     description,
 		MarkdownContent: markdownBuilder.String(),
 		On:              onSection,
+		Concurrency:     concurrency,
 		// Use a standard Ubuntu runner for the main agent job so the
 		// compiled orchestrator always has a valid runs-on value.
 		RunsOn: "runs-on: ubuntu-latest",

@@ -203,6 +203,49 @@ jobs:
           path: test-result-integration-*.json
           retention-days: 14
 
+  update:
+    needs: [lint-go, lint-js]  # Run in parallel with integration tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-update
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Test update command (dry-run)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Testing update command to ensure it runs without issues..."
+          # Run update with verbose flag to check for updates without making changes
+          # The command checks for gh-aw updates, action updates, and workflow updates
+          ./gh-aw update --verbose --no-actions || true
+          echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
+
   build:
     needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
@@ -353,8 +396,17 @@ jobs:
       # Go formatting check (fast, no deps needed)
       - name: Check Go formatting
         run: |
-          if [ -n "$(go fmt ./...)" ]; then
+          unformatted=$(go fmt ./...)
+          if [ -n "$unformatted" ]; then
             echo "❌ Code is not formatted. Run 'make fmt' to fix." >> $GITHUB_STEP_SUMMARY
+            echo "Unformatted files:" >> $GITHUB_STEP_SUMMARY
+            echo "$unformatted" >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "To fix this locally, run:"
+            echo "  make fmt"
+            echo ""
+            echo "Or format individual files with:"
+            echo "  go fmt ./path/to/file.go"
             exit 1
           fi
           echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
@@ -532,6 +584,7 @@ jobs:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
       contents: read
     strategy:

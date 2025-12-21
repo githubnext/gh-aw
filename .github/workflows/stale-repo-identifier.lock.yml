@@ -133,12 +133,12 @@ jobs:
           retention-days: 30
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
-      - name: Setup Python environment for trending
-        run: "# Create working directory structure\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Cache memory: /tmp/gh-aw/cache-memory/\"\n"
-      - name: Install Python scientific libraries
-        run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
+      - name: Setup Python environment
+        run: |
+          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
+          pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
-        name: Upload generated charts
+        name: Upload charts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
@@ -146,7 +146,7 @@ jobs:
           path: /tmp/gh-aw/python/charts/*.png
           retention-days: 30
       - if: always()
-        name: Upload source files and data
+        name: Upload source and data
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
@@ -2335,291 +2335,47 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          # Trending Charts - Quick Start Guide
+          # Python Environment Ready
           
-          You have a complete Python environment with scientific libraries ready for generating trend charts with persistent data storage.
+          Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
+          Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
           
-          ## Cache-Memory for Trending Data
-          
-          Persistent cache-memory is available at `/tmp/gh-aw/cache-memory/` that survives across workflow runs. Use it to store historical trending data.
-          
-          **Recommended Structure:**
-          ```
-          /tmp/gh-aw/cache-memory/
-          ├── trending/
-          │   ├── <metric-name>/
-          │   │   └── history.jsonl      # Time-series data (JSON Lines format)
-          │   └── index.json              # Index of all tracked metrics
-          ```
-          
-          ## Quick Start Pattern 1: Daily Metrics Tracking
-          
-          Track daily metrics and visualize trends over time:
+          ## Store Historical Data (JSON Lines)
           
           ```python
-          #!/usr/bin/env python3
-          """Daily metrics trending"""
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
           import json
-          import os
           from datetime import datetime
           
-          # Configuration
-          CACHE_DIR = '/tmp/gh-aw/cache-memory/trending'
-          METRIC_NAME = 'daily_metrics'
-          HISTORY_FILE = f'{CACHE_DIR}/{METRIC_NAME}/history.jsonl'
-          CHARTS_DIR = '/tmp/gh-aw/python/charts'
-          
-          # Ensure directories exist
-          os.makedirs(f'{CACHE_DIR}/{METRIC_NAME}', exist_ok=True)
-          os.makedirs(CHARTS_DIR, exist_ok=True)
-          
-          # Collect today's data (customize this section)
-          today_data = {
-              "timestamp": datetime.now().isoformat(),
-              "metric_a": 42,
-              "metric_b": 85,
-              "metric_c": 23
-          }
-          
-          # Append to history
-          with open(HISTORY_FILE, 'a') as f:
-              f.write(json.dumps(today_data) + '\n')
-          
-          # Load all historical data
-          if os.path.exists(HISTORY_FILE):
-              df = pd.read_json(HISTORY_FILE, lines=True)
-              df['date'] = pd.to_datetime(df['timestamp']).dt.date
-              df = df.sort_values('timestamp')
-              daily_stats = df.groupby('date').sum()
-              
-              # Generate trend chart
-              sns.set_style("whitegrid")
-              sns.set_palette("husl")
-              
-              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-              daily_stats.plot(ax=ax, marker='o', linewidth=2)
-              ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Count', fontsize=12)
-              ax.legend(loc='best')
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              
-              plt.savefig(f'{CHARTS_DIR}/daily_metrics_trend.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              
-              print(f"✅ Chart generated with {len(df)} data points")
-          else:
-              print("No historical data yet. Run again tomorrow to see trends.")
+          # Append data point
+          with open('/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl', 'a') as f:
+              f.write(json.dumps({"timestamp": datetime.now().isoformat(), "value": 42}) + '\n')
           ```
           
-          ## Quick Start Pattern 2: Moving Averages
-          
-          Smooth volatile data with moving averages:
+          ## Generate Charts
           
           ```python
-          #!/usr/bin/env python3
-          """Moving average trending"""
           import pandas as pd
           import matplotlib.pyplot as plt
           import seaborn as sns
-          import os
           
-          # Load historical data
-          history_file = '/tmp/gh-aw/cache-memory/trending/metrics/history.jsonl'
-          if os.path.exists(history_file):
-              df = pd.read_json(history_file, lines=True)
-              df['date'] = pd.to_datetime(df['timestamp']).dt.date
-              df = df.sort_values('timestamp')
-              
-              # Calculate 7-day moving average
-              df['rolling_avg'] = df['value'].rolling(window=7, min_periods=1).mean()
-              
-              # Plot with trend line
-              sns.set_style("whitegrid")
-              fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-              ax.plot(df['date'], df['value'], label='Actual', alpha=0.5, marker='o')
-              ax.plot(df['date'], df['rolling_avg'], label='7-day Average', linewidth=2.5)
-              ax.fill_between(df['date'], df['value'], df['rolling_avg'], alpha=0.2)
-              ax.set_title('Trend with Moving Average', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Value', fontsize=12)
-              ax.legend(loc='best')
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              plt.savefig('/tmp/gh-aw/python/charts/moving_average_trend.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              print("✅ Moving average chart generated")
-          ```
+          df = pd.read_json('history.jsonl', lines=True)
+          df['date'] = pd.to_datetime(df['timestamp']).dt.date
           
-          ## Quick Start Pattern 3: Comparative Trends
-          
-          Compare multiple metrics over time:
-          
-          ```python
-          #!/usr/bin/env python3
-          """Comparative trending"""
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          import os
-          
-          history_file = '/tmp/gh-aw/cache-memory/trending/multi_metrics/history.jsonl'
-          if os.path.exists(history_file):
-              df = pd.read_json(history_file, lines=True)
-              df['timestamp'] = pd.to_datetime(df['timestamp'])
-              
-              # Plot multiple metrics
-              sns.set_style("whitegrid")
-              sns.set_palette("husl")
-              fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
-              
-              for metric in df['metric'].unique():
-                  metric_data = df[df['metric'] == metric]
-                  ax.plot(metric_data['timestamp'], metric_data['value'], 
-                          marker='o', label=metric, linewidth=2)
-              
-              ax.set_title('Comparative Metrics Trends', fontsize=16, fontweight='bold')
-              ax.set_xlabel('Date', fontsize=12)
-              ax.set_ylabel('Value', fontsize=12)
-              ax.legend(loc='best', fontsize=12)
-              ax.grid(True, alpha=0.3)
-              plt.xticks(rotation=45)
-              plt.tight_layout()
-              plt.savefig('/tmp/gh-aw/python/charts/comparative_trends.png',
-                          dpi=300, bbox_inches='tight', facecolor='white')
-              print("✅ Comparative trends chart generated")
+          sns.set_style("whitegrid")
+          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+          df.groupby('date')['value'].mean().plot(ax=ax, marker='o')
+          ax.set_title('Trend', fontsize=16, fontweight='bold')
+          plt.xticks(rotation=45)
+          plt.tight_layout()
+          plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
           ```
           
           ## Best Practices
           
-          ### 1. Use JSON Lines Format
-          
-          Store trending data as JSON Lines (`.jsonl`) for efficient append-only storage:
-          ```python
-          # Append new data point
-          with open(history_file, 'a') as f:
-              f.write(json.dumps(data_point) + '\n')
-          
-          # Load all data
-          df = pd.read_json(history_file, lines=True)
-          ```
-          
-          ### 2. Include Timestamps
-          
-          Always include ISO 8601 timestamps:
-          ```python
-          data_point = {
-              "timestamp": datetime.now().isoformat(),
-              "metric": "issue_count",
-              "value": 42
-          }
-          ```
-          
-          ### 3. Data Retention
-          
-          Implement retention policies to prevent unbounded growth:
-          ```python
-          from datetime import datetime, timedelta
-          
-          # Keep only last 90 days
-          cutoff_date = datetime.now() - timedelta(days=90)
-          df = df[df['timestamp'] >= cutoff_date]
-          
-          # Save pruned data
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          df.to_json(history_file, orient='records', lines=True)
-          ```
-          
-          ## Directory Structure
-          
-          ```
-          /tmp/gh-aw/
-          ├── python/
-          │   ├── data/          # Current run data files
-          │   ├── charts/        # Generated charts (auto-uploaded as artifacts)
-          │   ├── artifacts/     # Additional output files
-          │   └── *.py           # Python scripts
-          └── cache-memory/
-              └── trending/      # Persistent historical data (survives runs)
-                  └── <metric>/
-                      └── history.jsonl
-          ```
-          
-          ## Chart Quality Guidelines
-          
-          - **DPI**: Use 300 or higher for publication quality
-          - **Figure Size**: Standard is 12x7 inches for trend charts
-          - **Labels**: Always include clear axis labels and titles
-          - **Legend**: Add legends when plotting multiple series
-          - **Grid**: Enable grid lines for easier reading
-          - **Colors**: Use colorblind-friendly palettes (seaborn defaults)
-          
-          ## Tips for Success
-          
-          1. **Consistency**: Use same metric names across runs
-          2. **Validation**: Check data quality before appending
-          3. **Documentation**: Comment your data schemas
-          4. **Testing**: Validate charts before uploading
-          5. **Cleanup**: Implement retention policies for cache-memory
-          
-          ---
-          
-          Remember: The power of trending comes from consistent data collection over time. Use cache-memory to build a rich historical dataset that reveals insights and patterns!
+          - Use JSON Lines (`.jsonl`) for append-only storage
+          - Include ISO 8601 timestamps in all data points
+          - Implement 90-day retention: `df[df['timestamp'] >= cutoff_date]`
+          - Charts: 300 DPI, 12x7 inches, clear labels, seaborn style
           
           # Stale Repository Identifier 🔍
           
@@ -2767,6 +2523,56 @@ jobs:
           
           - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
           - **Already Archived**: If a repository is already archived, skip it (no issue needed)
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        with:
+          script: |
+            const fs = require("fs"),
+              substitutePlaceholders = async ({ file, substitutions }) => {
+                if (!file) throw new Error("file parameter is required");
+                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
+                let content;
+                try {
+                  content = fs.readFileSync(file, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to read file ${file}: ${error.message}`);
+                }
+                for (const [key, value] of Object.entries(substitutions)) {
+                  const placeholder = `__${key}__`;
+                  content = content.split(placeholder).join(value);
+                }
+                try {
+                  fs.writeFileSync(file, content, "utf8");
+                } catch (error) {
+                  throw new Error(`Failed to write file ${file}: ${error.message}`);
+                }
+                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
+              };
+            
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
           - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
           - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
@@ -2895,7 +2701,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
@@ -3070,7 +2876,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -7380,6 +7186,9 @@ jobs:
       issues: write
     timeout-minutes: 15
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
       GH_AW_WORKFLOW_ID: "stale-repo-identifier"

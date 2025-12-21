@@ -1,3 +1,71 @@
+// Package workflow provides helper functions for generating prompt workflow steps.
+//
+// This file contains utilities for building GitHub Actions workflow steps that
+// append prompt text to prompt files used by AI engines. These helpers extract
+// common patterns used across multiple prompt generators (XPIA, temp folder,
+// playwright, edit tool, etc.) to reduce code duplication and ensure security.
+//
+// # Organization Rationale
+//
+// These prompt step helpers are grouped here because they:
+//   - Provide common patterns for prompt text generation used by 5+ generators
+//   - Handle GitHub Actions expression extraction for security
+//   - Ensure consistent prompt step formatting across engines
+//   - Centralize template injection prevention logic
+//
+// This follows the helper file conventions documented in the developer instructions.
+// See skills/developer/SKILL.md#helper-file-conventions for details.
+//
+// # Key Functions
+//
+// Static Prompt Generation:
+//   - generateStaticPromptStep() - Generate steps for static prompt text
+//   - generateStaticPromptStepWithExpressions() - Generate steps with secure expression handling
+//
+// # Usage Patterns
+//
+// These helpers are used when generating workflow steps that append text to
+// prompt files. They follow two patterns:
+//
+//  1. **Static Text** (no GitHub Actions expressions):
+//     ```go
+//     generateStaticPromptStep(yaml,
+//     "Append XPIA security instructions to prompt",
+//     xpiaPromptText,
+//     data.SafetyPrompt)
+//     ```
+//
+//  2. **Text with Expressions** (contains ${{ ... }}):
+//     ```go
+//     generateStaticPromptStepWithExpressions(yaml,
+//     "Append dynamic context to prompt",
+//     promptWithExpressions,
+//     shouldInclude)
+//     ```
+//
+// The expression-aware helper extracts GitHub Actions expressions into
+// environment variables to prevent template injection vulnerabilities.
+//
+// # Security Considerations
+//
+// Always use generateStaticPromptStepWithExpressions() when prompt text
+// contains GitHub Actions expressions (${{ ... }}). This ensures:
+//   - Expressions are evaluated in controlled env: context
+//   - No inline shell script interpolation (prevents injection)
+//   - Safe placeholder substitution via JavaScript
+//
+// See specs/template-injection-prevention.md for security details.
+//
+// # When to Use vs Alternatives
+//
+// Use these helpers when:
+//   - Generating workflow steps that append text to prompt files
+//   - Working with static or expression-containing prompt text
+//   - Need consistent prompt step formatting across engines
+//
+// For other prompt-related functionality, see:
+//   - *_engine.go files for engine-specific prompt generation
+//   - engine_helpers.go for shared engine utilities
 package workflow
 
 import (

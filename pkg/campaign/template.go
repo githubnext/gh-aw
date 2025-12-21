@@ -24,6 +24,18 @@ var closingInstructionsTemplate string
 type CampaignPromptData struct {
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
+
+	// TrackerLabel is the label used to associate issues/PRs with this campaign.
+	TrackerLabel string
+
+	// CursorGlob is a glob for locating the durable cursor/checkpoint file in repo-memory.
+	CursorGlob string
+
+	// MaxDiscoveryItemsPerRun caps how many candidate items may be scanned during discovery.
+	MaxDiscoveryItemsPerRun int
+
+	// MaxDiscoveryPagesPerRun caps how many pages may be fetched during discovery.
+	MaxDiscoveryPagesPerRun int
 }
 
 // renderTemplate renders a template string with the given data

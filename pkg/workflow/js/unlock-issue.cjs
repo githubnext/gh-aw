@@ -33,6 +33,12 @@ async function main() {
       issue_number: issueNumber,
     });
 
+    // Skip unlocking if this is a pull request (PRs cannot be unlocked via issues API)
+    if (issue.pull_request) {
+      core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping unlock operation`);
+      return;
+    }
+
     if (!issue.locked) {
       core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
       return;

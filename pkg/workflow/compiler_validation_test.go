@@ -63,7 +63,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 		{
 			name:     "top-level on section should be found",
 			key:      "on",
-			expected: "\"on\":\n  workflow_dispatch: null",
+			expected: "\"on\":\n  workflow_dispatch:",
 		},
 		{
 			name:     "top-level timeout-minutes should be found",
@@ -182,7 +182,7 @@ This is a test workflow with nested env.
 	expectedSections := []string{
 		"name:",
 		"on:",
-		"  workflow_dispatch: null",
+		"  workflow_dispatch:",
 		"permissions:",
 		"  contents: read",
 		"  models: read",

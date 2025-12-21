@@ -62,6 +62,10 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 		b.WriteString(strings.TrimSuffix(data.On, "\n"))
 		b.WriteString("\n")
 	}
+	if strings.TrimSpace(data.Concurrency) != "" {
+		b.WriteString(strings.TrimSuffix(data.Concurrency, "\n"))
+		b.WriteString("\n")
+	}
 
 	// Make the orchestrator runnable by default.
 	b.WriteString("engine: copilot\n")

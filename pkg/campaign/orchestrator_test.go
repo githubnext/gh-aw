@@ -7,20 +7,20 @@ import (
 
 func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "go-file-size-reduction",
-		Name:         "Campaign: Go File Size Reduction",
+		ID:           "go-file-size-reduction-project64",
+		Name:         "Campaign: Go File Size Reduction (Project 64)",
 		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
-		ProjectURL:   "https://github.com/orgs/githubnext/projects/1",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
 		Workflows:    []string{"daily-file-diet"},
-		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-*/**"},
-		MetricsGlob:  "memory/campaigns/go-file-size-reduction-*/metrics/*.json",
-		TrackerLabel: "campaign:go-file-size-reduction",
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+		TrackerLabel: "campaign:go-file-size-reduction-project64",
 	}
 
-	mdPath := ".github/workflows/go-file-size-reduction.campaign.md"
+	mdPath := ".github/workflows/go-file-size-reduction-project64.campaign.md"
 	data, orchestratorPath := BuildOrchestrator(spec, mdPath)
 
-	if orchestratorPath != ".github/workflows/go-file-size-reduction.campaign.g.md" {
+	if orchestratorPath != ".github/workflows/go-file-size-reduction-project64.campaign.g.md" {
 		t.Fatalf("unexpected orchestrator path: got %q", orchestratorPath)
 	}
 
@@ -38,6 +38,13 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 
 	if !strings.Contains(data.On, "schedule:") || !strings.Contains(data.On, "0 18 * * *") {
 		t.Fatalf("expected On section with daily schedule cron, got %q", data.On)
+	}
+
+	if strings.TrimSpace(data.Concurrency) == "" || !strings.Contains(data.Concurrency, "concurrency:") {
+		t.Fatalf("expected workflow-level concurrency to be set, got %q", data.Concurrency)
+	}
+	if !strings.Contains(data.Concurrency, "campaign-go-file-size-reduction-project64-orchestrator") {
+		t.Fatalf("expected concurrency group to include campaign id, got %q", data.Concurrency)
 	}
 
 	if !strings.Contains(data.MarkdownContent, "Go File Size Reduction") {
@@ -232,4 +239,33 @@ func TestBuildOrchestrator_GitHubToken(t *testing.T) {
 				data.SafeOutputs.UpdateProjects.GitHubToken)
 		}
 	})
+}
+
+func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/test/projects/1",
+		Workflows:    []string{"test-workflow"},
+		TrackerLabel: "campaign:test",
+		Governance: &CampaignGovernancePolicy{
+			MaxCommentsPerRun:       3,
+			MaxProjectUpdatesPerRun: 4,
+		},
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil || data.SafeOutputs.UpdateProjects == nil {
+		t.Fatalf("expected SafeOutputs add-comment and update-project to be configured")
+	}
+	if data.SafeOutputs.AddComments.Max != 3 {
+		t.Fatalf("unexpected add-comment max: got %d, want %d", data.SafeOutputs.AddComments.Max, 3)
+	}
+	if data.SafeOutputs.UpdateProjects.Max != 4 {
+		t.Fatalf("unexpected update-project max: got %d, want %d", data.SafeOutputs.UpdateProjects.Max, 4)
+	}
 }

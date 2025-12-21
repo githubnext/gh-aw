@@ -25,12 +25,30 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Check if "on" is a string - might be a schedule expression shorthand
+	// Check if "on" is a string - might be a schedule expression or slash command shorthand
 	if onStr, ok := onValue.(string); ok {
+		schedulePreprocessingLog.Printf("Processing on field as string: %s", onStr)
+
+		// Check if it's a slash command shorthand (starts with /)
+		commandName, isSlashCommand, err := parseSlashCommandShorthand(onStr)
+		if err != nil {
+			return err
+		}
+		if isSlashCommand {
+			schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to slash_command + workflow_dispatch", onStr)
+
+			// Create the expanded format
+			onMap := expandSlashCommandShorthand(commandName)
+			frontmatter["on"] = onMap
+
+			return nil
+		}
+
 		// Try to parse as a schedule expression
 		parsedCron, original, err := parser.ParseSchedule(onStr)
 		if err != nil {
 			// Not a schedule expression, treat as a simple event trigger
+			schedulePreprocessingLog.Printf("Not a schedule expression: %s", onStr)
 			return nil
 		}
 
