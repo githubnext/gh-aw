@@ -33,7 +33,7 @@ type TriggerIR struct {
 func ParseTriggerShorthand(input string) (*TriggerIR, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return nil, fmt.Errorf("trigger shorthand cannot be empty. Expected format: 'push to <branch>', 'issue opened', 'pull_request merged', etc.")
+		return nil, fmt.Errorf("trigger shorthand cannot be empty")
 	}
 
 	triggerParserLog.Printf("Parsing trigger shorthand: %s", input)

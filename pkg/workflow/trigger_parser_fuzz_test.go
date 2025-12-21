@@ -301,18 +301,18 @@ func FuzzTriggerIRToYAMLMap(f *testing.F) {
 func validateTriggerIR(t *testing.T, ir *TriggerIR, input string) {
 	// Event should be from the expected set of GitHub Actions events
 	validEvents := map[string]bool{
-		"push":                 true,
-		"pull_request":         true,
-		"issues":               true,
-		"discussion":           true,
-		"release":              true,
-		"watch":                true,
-		"fork":                 true,
-		"issue_comment":        true,
-		"workflow_run":         true,
-		"repository_dispatch":  true,
-		"code_scanning_alert":  true,
-		"":                     true, // Empty is valid for manual-only triggers
+		"push":                true,
+		"pull_request":        true,
+		"issues":              true,
+		"discussion":          true,
+		"release":             true,
+		"watch":               true,
+		"fork":                true,
+		"issue_comment":       true,
+		"workflow_run":        true,
+		"repository_dispatch": true,
+		"code_scanning_alert": true,
+		"":                    true, // Empty is valid for manual-only triggers
 	}
 
 	if !validEvents[ir.Event] {
@@ -355,7 +355,7 @@ func validateTriggerIR(t *testing.T, ir *TriggerIR, input string) {
 	}
 
 	// Validate that if Event is empty, AdditionalEvents should have something
-	if ir.Event == "" && (ir.AdditionalEvents == nil || len(ir.AdditionalEvents) == 0) {
+	if ir.Event == "" && len(ir.AdditionalEvents) == 0 {
 		t.Errorf("TriggerIR has empty Event but no AdditionalEvents for input: %q", input)
 	}
 }

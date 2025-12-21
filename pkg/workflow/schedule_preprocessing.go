@@ -345,17 +345,17 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 // createTriggerParseError creates a detailed error for trigger parsing issues with source location
 func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string, err error) error {
 	schedulePreprocessingLog.Printf("Creating trigger parse error for: %s", triggerStr)
-	
+
 	lines := strings.Split(content, "\n")
-	
+
 	// Find the line where "on:" appears in the frontmatter
 	var onLine int
 	var onColumn int
 	inFrontmatter := false
-	
+
 	for i, line := range lines {
 		lineNum := i + 1
-		
+
 		// Check for frontmatter delimiter
 		if strings.TrimSpace(line) == "---" {
 			if !inFrontmatter {
@@ -366,7 +366,7 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 			}
 			continue
 		}
-		
+
 		if inFrontmatter {
 			// Look for "on:" field
 			trimmed := strings.TrimSpace(line)
@@ -378,20 +378,20 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 			}
 		}
 	}
-	
+
 	// If we found the line, create a formatted error
 	if onLine > 0 {
 		// Create context lines around the error
 		var context []string
 		startLine := max(1, onLine-2)
 		endLine := min(len(lines), onLine+2)
-		
+
 		for i := startLine; i <= endLine; i++ {
 			if i-1 < len(lines) {
 				context = append(context, lines[i-1])
 			}
 		}
-		
+
 		compilerErr := console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   filePath,
@@ -402,12 +402,12 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 			Message: fmt.Sprintf("trigger syntax error: %s", err.Error()),
 			Context: context,
 		}
-		
+
 		// Format and return the error
 		formattedErr := console.FormatError(compilerErr)
 		return errors.New(formattedErr)
 	}
-	
+
 	// Fallback to original error if we can't find the line
 	schedulePreprocessingLog.Printf("Could not find 'on:' line in frontmatter, using fallback error")
 	return fmt.Errorf("trigger syntax error: %w", err)
