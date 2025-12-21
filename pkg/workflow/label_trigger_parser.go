@@ -94,7 +94,7 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	triggerConfig := map[string]any{
 		"types": []any{"labeled"},
 	}
-	
+
 	// Only add names field for issues and pull_request (GitHub Actions supports it)
 	// For discussions, names field is not supported by GitHub Actions
 	if entityType == "issues" || entityType == "pull_request" {

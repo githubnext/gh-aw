@@ -26,23 +26,23 @@ func FuzzParseLabelTriggerShorthand(f *testing.F) {
 	f.Add("issue  labeled  bug  enhancement")
 	f.Add("ISSUE LABELED BUG")
 	f.Add("Issue Labeled Bug")
-	
+
 	f.Fuzz(func(t *testing.T, input string) {
 		// The function should never panic regardless of input
 		entityType, labelNames, isLabelTrigger, err := parseLabelTriggerShorthand(input)
-		
+
 		// Validate the output is consistent
 		if isLabelTrigger {
 			// If it's recognized as a label trigger, must have entity type
 			if entityType == "" {
 				t.Errorf("isLabelTrigger=true but entityType is empty for input: %q", input)
 			}
-			
+
 			// If no error, must have at least one label name
 			if err == nil && len(labelNames) == 0 {
 				t.Errorf("isLabelTrigger=true and err=nil but no label names for input: %q", input)
 			}
-			
+
 			// If error is present, label names should be nil or empty
 			if err != nil && len(labelNames) > 0 {
 				t.Errorf("isLabelTrigger=true with error but labelNames is not empty for input: %q", input)
@@ -52,23 +52,23 @@ func FuzzParseLabelTriggerShorthand(f *testing.F) {
 			if entityType != "" {
 				t.Errorf("isLabelTrigger=false but entityType=%q for input: %q", entityType, input)
 			}
-			
+
 			// If not a label trigger, label names should be nil
 			if labelNames != nil {
 				t.Errorf("isLabelTrigger=false but labelNames=%v for input: %q", labelNames, input)
 			}
-			
+
 			// If not a label trigger, should not have an error
 			if err != nil {
 				t.Errorf("isLabelTrigger=false but has error for input: %q, error: %v", input, err)
 			}
 		}
-		
+
 		// Validate entity types are only the expected ones
 		if entityType != "" && entityType != "issues" && entityType != "pull_request" && entityType != "discussion" {
 			t.Errorf("unexpected entityType=%q for input: %q", entityType, input)
 		}
-		
+
 		// Validate label names don't contain empty strings
 		for _, label := range labelNames {
 			if label == "" {
@@ -88,7 +88,7 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 	f.Add("issues", "bug,enhancement,priority-high")
 	f.Add("unknown", "test")
 	f.Add("", "bug")
-	
+
 	f.Fuzz(func(t *testing.T, entityType string, labelsStr string) {
 		// Parse labels string into array
 		var labelNames []string
@@ -99,32 +99,32 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 				}
 			}
 		}
-		
+
 		if len(labelNames) == 0 {
 			// Skip if no labels
 			return
 		}
-		
+
 		// The function should never panic
 		result := expandLabelTriggerShorthand(entityType, labelNames)
-		
+
 		// Validate result structure
 		if result == nil {
 			t.Errorf("expandLabelTriggerShorthand returned nil for entityType=%q, labels=%v", entityType, labelNames)
 			return
 		}
-		
+
 		// Check for workflow_dispatch
 		if _, hasDispatch := result["workflow_dispatch"]; !hasDispatch {
 			t.Errorf("result missing workflow_dispatch for entityType=%q", entityType)
 		}
-		
+
 		// Check for trigger key (issues, pull_request, or discussion)
 		hasTrigger := false
 		for key := range result {
 			if key == "issues" || key == "pull_request" || key == "discussion" {
 				hasTrigger = true
-				
+
 				// Validate trigger structure
 				if triggerMap, ok := result[key].(map[string]any); ok {
 					// Check for types field
@@ -135,7 +135,7 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 					} else if len(typeArray) == 0 {
 						t.Errorf("types array is empty for entityType=%q", entityType)
 					}
-					
+
 					// Check for names field
 					if names, hasNames := triggerMap["names"]; !hasNames {
 						t.Errorf("trigger missing names field for entityType=%q", entityType)
@@ -147,7 +147,7 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 				}
 			}
 		}
-		
+
 		if !hasTrigger {
 			t.Errorf("result missing trigger key (issues/pull_request/discussion) for entityType=%q", entityType)
 		}

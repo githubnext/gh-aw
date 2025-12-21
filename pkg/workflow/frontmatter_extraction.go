@@ -130,7 +130,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
-	
+
 	// Check frontmatter for native label filter markers
 	nativeLabelFilterSections := make(map[string]bool)
 	if onValue, exists := frontmatter["on"]; exists {
@@ -306,42 +306,42 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			// Look back to see if the previous uncommented line was "names:"
 			// Only do this if NOT using native label filtering for this section
 			if !nativeLabelFilterSections[currentSection] {
-			if len(result) > 0 {
-				for i := len(result) - 1; i >= 0; i-- {
-					prevLine := result[i]
-					prevTrimmed := strings.TrimSpace(prevLine)
+				if len(result) > 0 {
+					for i := len(result) - 1; i >= 0; i-- {
+						prevLine := result[i]
+						prevTrimmed := strings.TrimSpace(prevLine)
 
-					// Skip empty lines
-					if prevTrimmed == "" {
-						continue
-					}
-
-					// If we find "names:", and current line is an array item, comment it
-					if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
-						if strings.HasPrefix(trimmedLine, "-") {
-							shouldComment = true
-							commentReason = " # Label filtering applied via job conditions"
+						// Skip empty lines
+						if prevTrimmed == "" {
+							continue
 						}
+
+						// If we find "names:", and current line is an array item, comment it
+						if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
+							if strings.HasPrefix(trimmedLine, "-") {
+								shouldComment = true
+								commentReason = " # Label filtering applied via job conditions"
+							}
+							break
+						}
+
+						// If we find a different field or commented names array item, break
+						if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
+							break
+						}
+
+						// If it's a commented names array item, continue
+						if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
+							if strings.HasPrefix(trimmedLine, "-") {
+								shouldComment = true
+								commentReason = " # Label filtering applied via job conditions"
+							}
+							continue
+						}
+
 						break
 					}
-
-					// If we find a different field or commented names array item, break
-					if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
-						break
-					}
-
-					// If it's a commented names array item, continue
-					if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
-						if strings.HasPrefix(trimmedLine, "-") {
-							shouldComment = true
-							commentReason = " # Label filtering applied via job conditions"
-						}
-						continue
-					}
-
-					break
 				}
-			}
 			} // Close native filter check
 		}
 
