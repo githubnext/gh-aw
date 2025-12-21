@@ -46,7 +46,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter); err != nil {
+	if err := c.preprocessScheduleFields(result.Frontmatter, markdownPath, string(content)); err != nil {
 		return nil, err
 	}
 

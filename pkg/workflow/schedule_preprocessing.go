@@ -1,9 +1,11 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -16,7 +18,7 @@ var scheduleFriendlyFormats = make(map[string]map[int]string)
 
 // preprocessScheduleFields converts human-friendly schedule expressions to cron expressions
 // in the frontmatter's "on" section. It modifies the frontmatter map in place.
-func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
+func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdownPath string, content string) error {
 	schedulePreprocessingLog.Print("Preprocessing schedule fields in frontmatter")
 
 	// Check if "on" field exists
@@ -25,7 +27,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Check if "on" is a string - might be a schedule expression, slash command shorthand, or label trigger shorthand
+	// Check if "on" is a string - might be a schedule expression, slash command shorthand, label trigger shorthand, or other trigger shorthand
 	if onStr, ok := onValue.(string); ok {
 		schedulePreprocessingLog.Printf("Processing on field as string: %s", onStr)
 
@@ -59,11 +61,28 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 			return nil
 		}
 
-		// Try to parse as a schedule expression
+		// Try the new unified trigger parser for other trigger shorthands
+		triggerIR, err := ParseTriggerShorthand(onStr)
+		if err != nil {
+			// Wrap the error with source location information
+			return c.createTriggerParseError(markdownPath, content, onStr, err)
+		}
+		if triggerIR != nil {
+			schedulePreprocessingLog.Printf("Converting shorthand 'on: %s' to structured trigger", onStr)
+
+			// Convert IR to YAML map
+			onMap := triggerIR.ToYAMLMap()
+			frontmatter["on"] = onMap
+
+			return nil
+		}
+
+		// Try to parse as a schedule expression (only if not already recognized as another trigger type)
 		parsedCron, original, err := parser.ParseSchedule(onStr)
 		if err != nil {
-			// Not a schedule expression, treat as a simple event trigger
-			schedulePreprocessingLog.Printf("Not a schedule expression: %s", onStr)
+			// Not a schedule expression either - leave as simple string trigger
+			// (simple event names like "push", "fork", etc. are valid)
+			schedulePreprocessingLog.Printf("Not a recognized shorthand or schedule: %s - leaving as-is", onStr)
 			return nil
 		}
 
@@ -321,6 +340,77 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any) error {
 	}
 
 	return nil
+}
+
+// createTriggerParseError creates a detailed error for trigger parsing issues with source location
+func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string, err error) error {
+	schedulePreprocessingLog.Printf("Creating trigger parse error for: %s", triggerStr)
+	
+	lines := strings.Split(content, "\n")
+	
+	// Find the line where "on:" appears in the frontmatter
+	var onLine int
+	var onColumn int
+	inFrontmatter := false
+	
+	for i, line := range lines {
+		lineNum := i + 1
+		
+		// Check for frontmatter delimiter
+		if strings.TrimSpace(line) == "---" {
+			if !inFrontmatter {
+				inFrontmatter = true
+			} else {
+				// End of frontmatter
+				break
+			}
+			continue
+		}
+		
+		if inFrontmatter {
+			// Look for "on:" field
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "on:") {
+				onLine = lineNum
+				// Find the column where "on:" starts
+				onColumn = strings.Index(line, "on:") + 1
+				break
+			}
+		}
+	}
+	
+	// If we found the line, create a formatted error
+	if onLine > 0 {
+		// Create context lines around the error
+		var context []string
+		startLine := max(1, onLine-2)
+		endLine := min(len(lines), onLine+2)
+		
+		for i := startLine; i <= endLine; i++ {
+			if i-1 < len(lines) {
+				context = append(context, lines[i-1])
+			}
+		}
+		
+		compilerErr := console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   filePath,
+				Line:   onLine,
+				Column: onColumn,
+			},
+			Type:    "error",
+			Message: fmt.Sprintf("trigger syntax error: %s", err.Error()),
+			Context: context,
+		}
+		
+		// Format and return the error
+		formattedErr := console.FormatError(compilerErr)
+		return errors.New(formattedErr)
+	}
+	
+	// Fallback to original error if we can't find the line
+	schedulePreprocessingLog.Printf("Could not find 'on:' line in frontmatter, using fallback error")
+	return fmt.Errorf("trigger syntax error: %w", err)
 }
 
 // addFriendlyScheduleComments adds comments showing the original friendly format for schedule cron expressions
