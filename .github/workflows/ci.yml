@@ -411,9 +411,9 @@ jobs:
           fi
           echo "✅ Go formatting check passed" >> $GITHUB_STEP_SUMMARY
 
-      # Install golangci-lint (cached by setup-go action)
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
+      # Install build tools from tools.go
+      - name: Install build tools
+        run: make tools
 
       # Run golangci-lint via Makefile for consistency
       - name: Run golangci-lint
