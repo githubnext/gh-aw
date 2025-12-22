@@ -606,20 +606,11 @@ if customURL != expectedCustomURL {
 t.Errorf("Expected custom URL %s, got %s", expectedCustomURL, customURL)
 }
 
-// Verify gateway settings are preserved
-gateway, ok := rewrittenConfig["gateway"].(map[string]any)
-if !ok {
-t.Fatal("gateway settings not found")
-}
-
-port, ok := gateway["port"].(float64) // JSON numbers unmarshal to float64
-if !ok {
-t.Fatal("gateway port not found")
-}
-
-if int(port) != 8080 {
-t.Errorf("Expected port 8080, got %d", int(port))
-}
+	// Verify gateway settings are NOT included in rewritten config
+	_, hasGateway := rewrittenConfig["gateway"]
+	if hasGateway {
+		t.Error("Gateway section should not be included in rewritten config")
+	}
 }
 
 func TestRewriteMCPConfigForGateway_WithAPIKey(t *testing.T) {

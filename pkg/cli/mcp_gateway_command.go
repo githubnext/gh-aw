@@ -347,6 +347,22 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	gatewayLog.Printf("Rewriting MCP config file: %s", configPath)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Rewriting MCP config file: %s", configPath)))
 	
+	// Read the original config file to preserve non-proxied servers
+	gatewayLog.Printf("Reading original config from %s", configPath)
+	originalConfigData, err := os.ReadFile(configPath)
+	if err != nil {
+		gatewayLog.Printf("Failed to read original config: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read original config: %v", err)))
+		return fmt.Errorf("failed to read original config: %w", err)
+	}
+	
+	var originalConfig map[string]any
+	if err := json.Unmarshal(originalConfigData, &originalConfig); err != nil {
+		gatewayLog.Printf("Failed to parse original config: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse original config: %v", err)))
+		return fmt.Errorf("failed to parse original config: %w", err)
+	}
+	
 	port := config.Gateway.Port
 	if port == 0 {
 		port = 8080
@@ -356,13 +372,27 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))
 	
-	// Create new config that points all servers to the gateway
+	// Get original mcpServers to preserve non-proxied servers
+	var originalMCPServers map[string]any
+	if servers, ok := originalConfig["mcpServers"].(map[string]any); ok {
+		originalMCPServers = servers
+	} else {
+		originalMCPServers = make(map[string]any)
+	}
+	
+	// Create merged config with rewritten proxied servers and preserved non-proxied servers
 	rewrittenConfig := make(map[string]any)
 	mcpServers := make(map[string]any)
 	
-	gatewayLog.Printf("Transforming %d servers to point to gateway", len(config.MCPServers))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Transforming %d servers to point to gateway", len(config.MCPServers))))
+	// First, copy all servers from original (preserves non-proxied servers like safeinputs/safeoutputs)
+	for serverName, serverConfig := range originalMCPServers {
+		mcpServers[serverName] = serverConfig
+	}
 	
+	gatewayLog.Printf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))))
+	
+	// Then, overwrite with gateway URLs for proxied servers only
 	for serverName := range config.MCPServers {
 		serverURL := fmt.Sprintf("%s/mcp/%s", gatewayURL, serverName)
 		
@@ -386,18 +416,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	
 	rewrittenConfig["mcpServers"] = mcpServers
 	
-	// Preserve gateway settings
-	if config.Gateway.Port != 0 || config.Gateway.APIKey != "" {
-		gatewayLog.Print("Preserving gateway settings in rewritten config")
-		gatewaySettings := make(map[string]any)
-		if config.Gateway.Port != 0 {
-			gatewaySettings["port"] = config.Gateway.Port
-		}
-		if config.Gateway.APIKey != "" {
-			gatewaySettings["apiKey"] = config.Gateway.APIKey
-		}
-		rewrittenConfig["gateway"] = gatewaySettings
-	}
+	// Do NOT include gateway section in rewritten config (per requirement)
+	gatewayLog.Print("Gateway section removed from rewritten config")
 	
 	// Marshal to JSON with indentation
 	data, err := json.MarshalIndent(rewrittenConfig, "", "  ")
@@ -419,7 +439,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	
 	gatewayLog.Printf("Successfully rewrote MCP config file")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully rewrote MCP config: %s", configPath)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d servers now point to gateway at %s", len(config.MCPServers), gatewayURL)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d proxied servers now point to gateway at %s", len(config.MCPServers), gatewayURL)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d total servers in config", len(mcpServers))))
 	
 	return nil
 }
