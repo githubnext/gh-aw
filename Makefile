@@ -257,19 +257,23 @@ check-node-version:
 	fi; \
 	echo "✓ Node.js version check passed ($$NODE_VERSION)"
 
+.PHONY: tools
+tools: ## Install build-time tools from tools.go
+	@echo "Installing build tools..."
+	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	@echo "✓ Tools installed successfully"
+
 # Install dependencies
 .PHONY: deps
 deps: check-node-version
 	go mod download
 	go mod tidy
-	go install golang.org/x/tools/gopls@latest
-	go install github.com/rhysd/actionlint/cmd/actionlint@latest
 	cd pkg/workflow/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps download-github-actions-schema
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+deps-dev: check-node-version deps tools download-github-actions-schema
+	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
@@ -505,7 +509,9 @@ help:
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
+	@echo "  tools            - Install build-time tools from tools.go"
 	@echo "  deps             - Install dependencies"
+	@echo "  deps-dev         - Install development dependencies (includes tools)"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
