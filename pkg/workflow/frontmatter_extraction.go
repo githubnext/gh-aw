@@ -15,7 +15,7 @@ var frontmatterLog = logger.New("workflow:frontmatter_extraction")
 
 // Note: extractStringValue, parseIntValue, and filterMapKeys have been moved to map_helpers.go
 // Note: addCustomSafeOutputEnvVars, addSafeOutputGitHubToken, addSafeOutputGitHubTokenForConfig,
-//       and addSafeOutputCopilotGitHubTokenForConfig have been moved to safe_outputs_env_helpers.go
+//       and addSafeOutputCopilotGitHubTokenForConfig have been moved to safe_outputs_env.go
 
 // extractYAMLValue extracts a scalar value from the frontmatter map
 func (c *Compiler) extractYAMLValue(frontmatter map[string]any, key string) string {
