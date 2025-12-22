@@ -211,7 +211,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
 			latestCompatible = release
 			latestCompatibleVersion = releaseVer
-		} else if !releaseVer.isNewer(latestCompatibleVersion) && 
+		} else if !releaseVer.isNewer(latestCompatibleVersion) &&
 			releaseVer.major == latestCompatibleVersion.major &&
 			releaseVer.minor == latestCompatibleVersion.minor &&
 			releaseVer.patch == latestCompatibleVersion.patch {
@@ -310,7 +310,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
 			latestCompatible = release
 			latestCompatibleVersion = releaseVer
-		} else if !releaseVer.isNewer(latestCompatibleVersion) && 
+		} else if !releaseVer.isNewer(latestCompatibleVersion) &&
 			releaseVer.major == latestCompatibleVersion.major &&
 			releaseVer.minor == latestCompatibleVersion.minor &&
 			releaseVer.patch == latestCompatibleVersion.patch {
