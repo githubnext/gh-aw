@@ -18,11 +18,13 @@ func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) 
 
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
 func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
+	log.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
 	const maxDepth = 10
 	currentContent := content
 	visited := make(map[string]bool)
 
 	for depth := 0; depth < maxDepth; depth++ {
+		log.Printf("Include expansion depth: %d", depth)
 		// Process includes in current content
 		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
 		if err != nil {
@@ -59,6 +61,7 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 		}
 	}
 
+	log.Printf("Include expansion complete: visited_files=%d", len(includedFiles))
 	if extractTools {
 		// For tools mode, merge all extracted JSON objects
 		mergedTools, err := mergeToolsFromJSON(currentContent)
