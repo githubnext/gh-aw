@@ -9,6 +9,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    mode: local
     toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators
