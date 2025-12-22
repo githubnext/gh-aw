@@ -65,14 +65,7 @@ func TestActionModeDetection(t *testing.T) {
 			expectedMode: ActionModeDev,
 			description:  "Local development (no GITHUB_REF) should use dev mode",
 		},
-		{
-			name:         "env override to inline",
-			githubRef:    "refs/heads/main",
-			githubEvent:  "push",
-			envOverride:  "inline",
-			expectedMode: ActionModeInline,
-			description:  "Environment variable should override detection",
-		},
+		// Removed inline mode test case as inline mode no longer exists
 		{
 			name:         "env override to dev",
 			githubRef:    "refs/heads/main",

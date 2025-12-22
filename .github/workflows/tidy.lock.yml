@@ -63,8 +63,13 @@ jobs:
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@35a9ba5
+        uses: ./actions/setup-activation
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -6473,8 +6478,13 @@ jobs:
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@35a9ba5
+        uses: ./actions/setup-activation
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for command workflow

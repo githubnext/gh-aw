@@ -12,8 +12,9 @@ func TestActionModeValidation(t *testing.T) {
 		mode  ActionMode
 		valid bool
 	}{
-		{ActionModeInline, true},
+		// Removed ActionModeInline as it no longer exists
 		{ActionModeDev, true},
+		{ActionModeRelease, true},
 		{ActionMode("invalid"), false},
 		{ActionMode(""), false},
 	}
@@ -33,8 +34,9 @@ func TestActionModeString(t *testing.T) {
 		mode ActionMode
 		want string
 	}{
-		{ActionModeInline, "inline"},
+		// Removed ActionModeInline as it no longer exists
 		{ActionModeDev, "dev"},
+		{ActionModeRelease, "release"},
 	}
 
 	for _, tt := range tests {
@@ -46,11 +48,11 @@ func TestActionModeString(t *testing.T) {
 	}
 }
 
-// TestCompilerActionModeDefault tests that the compiler defaults to inline mode
+// TestCompilerActionModeDefault tests that the compiler defaults to dev mode
 func TestCompilerActionModeDefault(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
-	if compiler.GetActionMode() != ActionModeInline {
-		t.Errorf("Default action mode should be inline, got %s", compiler.GetActionMode())
+	if compiler.GetActionMode() != ActionModeDev {
+		t.Errorf("Default action mode should be dev, got %s", compiler.GetActionMode())
 	}
 }
 
@@ -58,14 +60,14 @@ func TestCompilerActionModeDefault(t *testing.T) {
 func TestCompilerSetActionMode(t *testing.T) {
 	compiler := NewCompiler(false, "", "1.0.0")
 
+	compiler.SetActionMode(ActionModeRelease)
+	if compiler.GetActionMode() != ActionModeRelease {
+		t.Errorf("Expected action mode release, got %s", compiler.GetActionMode())
+	}
+
 	compiler.SetActionMode(ActionModeDev)
 	if compiler.GetActionMode() != ActionModeDev {
 		t.Errorf("Expected action mode dev, got %s", compiler.GetActionMode())
-	}
-
-	compiler.SetActionMode(ActionModeInline)
-	if compiler.GetActionMode() != ActionModeInline {
-		t.Errorf("Expected action mode inline, got %s", compiler.GetActionMode())
 	}
 }
 
@@ -201,7 +203,7 @@ safe-outputs:
     max: 1
 ---
 
-Test workflow with inline mode.
+Test workflow with dev mode.
 `
 
 	workflowPath := tempDir + "/test-workflow.md"
@@ -209,9 +211,9 @@ Test workflow with inline mode.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	// Compile with inline mode (default)
+	// Compile with dev mode (default)
 	compiler := NewCompiler(false, "", "1.0.0")
-	compiler.SetActionMode(ActionModeInline)
+	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {

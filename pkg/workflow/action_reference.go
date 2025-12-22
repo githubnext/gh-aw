@@ -18,7 +18,6 @@ const (
 // based on the current action mode (dev vs release).
 // For dev mode: returns the local path as-is (e.g., "./actions/create-issue")
 // For release mode: converts to SHA-pinned remote reference (e.g., "githubnext/gh-aw/actions/create-issue@SHA # tag")
-// For inline mode: returns empty string to fallback to inline mode
 func (c *Compiler) resolveActionReference(localActionPath string, data *WorkflowData) string {
 	switch c.actionMode {
 	case ActionModeDev:
@@ -36,14 +35,10 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 		actionRefLog.Printf("Release mode: using remote action reference: %s", remoteRef)
 		return remoteRef
 
-	case ActionModeInline:
-		// Return empty to fallback to inline mode
-		actionRefLog.Print("Inline mode: returning empty to use inline JavaScript")
-		return ""
-
 	default:
-		actionRefLog.Printf("WARNING: Unknown action mode %s, returning empty", c.actionMode)
-		return ""
+		// Default to dev mode for unknown modes
+		actionRefLog.Printf("WARNING: Unknown action mode %s, defaulting to dev mode", c.actionMode)
+		return localActionPath
 	}
 }
 

@@ -55,8 +55,13 @@ jobs:
       reaction_id: ${{ steps.react.outputs.reaction-id }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@35a9ba5
+        uses: ./actions/setup-activation
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -2227,7 +2232,7 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v1
+        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2.0.4
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -4331,8 +4336,13 @@ jobs:
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@35a9ba5
+        uses: ./actions/setup-activation
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow

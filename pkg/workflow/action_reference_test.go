@@ -83,14 +83,7 @@ func TestResolveActionReference(t *testing.T) {
 			shouldBeEmpty: true,
 			description:   "Release mode with 'dev' version should return empty",
 		},
-		{
-			name:          "inline mode",
-			actionMode:    ActionModeInline,
-			localPath:     "./actions/create-issue",
-			version:       "v1.0.0",
-			shouldBeEmpty: true,
-			description:   "Inline mode should return empty string",
-		},
+		// Removed inline mode test case as inline mode no longer exists
 	}
 
 	for _, tt := range tests {

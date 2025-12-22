@@ -13,10 +13,7 @@ var actionModeLog = logger.New("workflow:action_mode")
 type ActionMode string
 
 const (
-	// ActionModeInline embeds JavaScript inline using actions/github-script (current behavior)
-	ActionModeInline ActionMode = "inline"
-
-	// ActionModeDev references custom actions using local paths (development mode)
+	// ActionModeDev references custom actions using local paths (development mode, default)
 	ActionModeDev ActionMode = "dev"
 
 	// ActionModeRelease references custom actions using SHA-pinned remote paths (release mode)
@@ -30,7 +27,7 @@ func (m ActionMode) String() string {
 
 // IsValid checks if the action mode is valid
 func (m ActionMode) IsValid() bool {
-	return m == ActionModeInline || m == ActionModeDev || m == ActionModeRelease
+	return m == ActionModeDev || m == ActionModeRelease
 }
 
 // IsDev returns true if the action mode is development mode
@@ -43,21 +40,17 @@ func (m ActionMode) IsRelease() bool {
 	return m == ActionModeRelease
 }
 
-// IsInline returns true if the action mode is inline mode
-func (m ActionMode) IsInline() bool {
-	return m == ActionModeInline
-}
-
-// UsesExternalActions returns true if the action mode uses external action files (dev or release)
+// UsesExternalActions returns true (always true since inline mode was removed)
 func (m ActionMode) UsesExternalActions() bool {
-	return m == ActionModeDev || m == ActionModeRelease
+	return true
 }
 
 // DetectActionMode determines the appropriate action mode based on environment and version.
 // Returns ActionModeRelease if the binary version is a release tag,
-// ActionModeDev for development builds, or ActionModeInline as fallback.
+// otherwise returns ActionModeDev as the default.
 // Can be overridden with GH_AW_ACTION_MODE environment variable.
 // If version parameter is provided, it will be used to determine release mode.
+// Never uses dirty SHA - only clean version tags or dev mode with local paths.
 func DetectActionMode(version string) ActionMode {
 	actionModeLog.Printf("Detecting action mode: version=%s", version)
 
@@ -94,20 +87,11 @@ func DetectActionMode(version string) ActionMode {
 		return ActionModeRelease
 	}
 
-	// Dev mode conditions:
+	// Default to dev mode for all other cases:
 	// 1. Running on a PR (refs/pull/*)
 	// 2. Running locally (no GITHUB_REF)
 	// 3. Running on any other branch (including main)
-	// 4. Version is "dev"
-	if strings.HasPrefix(githubRef, "refs/pull/") ||
-		githubRef == "" ||
-		strings.HasPrefix(githubRef, "refs/heads/") ||
-		version == "dev" {
-		actionModeLog.Printf("Detected dev mode: version=%s, ref=%s", version, githubRef)
-		return ActionModeDev
-	}
-
-	// Fallback to inline mode for backwards compatibility
-	actionModeLog.Print("Using fallback inline mode")
-	return ActionModeInline
+	// 4. Version is "dev" or empty
+	actionModeLog.Printf("Detected dev mode (default): version=%s, ref=%s", version, githubRef)
+	return ActionModeDev
 }
