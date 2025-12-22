@@ -250,3 +250,204 @@ func TestActionCacheEmptySaveDeletesExistingFile(t *testing.T) {
 		t.Error("Empty cache should delete existing file")
 	}
 }
+
+// TestActionCacheDeduplication tests that duplicate entries are removed
+func TestActionCacheDeduplication(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add duplicate entries - same repo and SHA but different version references
+	// Both point to the same version v5.0.1
+	cache.Entries["actions/checkout@v5"] = ActionCacheEntry{
+		Repo:    "actions/checkout",
+		Version: "v5.0.1",
+		SHA:     "abc123",
+	}
+	cache.Entries["actions/checkout@v5.0.1"] = ActionCacheEntry{
+		Repo:    "actions/checkout",
+		Version: "v5.0.1",
+		SHA:     "abc123",
+	}
+
+	// Verify we have 2 entries before deduplication
+	if len(cache.Entries) != 2 {
+		t.Fatalf("Expected 2 entries before deduplication, got %d", len(cache.Entries))
+	}
+
+	// Save (which triggers deduplication)
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Verify only the more precise version remains
+	if len(cache.Entries) != 1 {
+		t.Errorf("Expected 1 entry after deduplication, got %d", len(cache.Entries))
+	}
+
+	// Verify the correct entry remains (v5.0.1 is more precise than v5)
+	if _, exists := cache.Entries["actions/checkout@v5.0.1"]; !exists {
+		t.Error("Expected actions/checkout@v5.0.1 to remain after deduplication")
+	}
+
+	if _, exists := cache.Entries["actions/checkout@v5"]; exists {
+		t.Error("Expected actions/checkout@v5 to be removed after deduplication")
+	}
+}
+
+// TestActionCacheDeduplicationMultipleActions tests deduplication with multiple actions
+func TestActionCacheDeduplicationMultipleActions(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add multiple actions with duplicates
+	// actions/cache: v4 and v4.3.0 both point to same SHA and version
+	cache.Entries["actions/cache@v4"] = ActionCacheEntry{
+		Repo:    "actions/cache",
+		Version: "v4.3.0",
+		SHA:     "sha1",
+	}
+	cache.Entries["actions/cache@v4.3.0"] = ActionCacheEntry{
+		Repo:    "actions/cache",
+		Version: "v4.3.0",
+		SHA:     "sha1",
+	}
+
+	// actions/setup-go: v6 and v6.1.0 both point to same SHA and version
+	cache.Entries["actions/setup-go@v6"] = ActionCacheEntry{
+		Repo:    "actions/setup-go",
+		Version: "v6.1.0",
+		SHA:     "sha2",
+	}
+	cache.Entries["actions/setup-go@v6.1.0"] = ActionCacheEntry{
+		Repo:    "actions/setup-go",
+		Version: "v6.1.0",
+		SHA:     "sha2",
+	}
+
+	// actions/setup-node: no duplicates
+	cache.Set("actions/setup-node", "v6.1.0", "sha3")
+
+	// Verify we have 5 entries before deduplication
+	if len(cache.Entries) != 5 {
+		t.Fatalf("Expected 5 entries before deduplication, got %d", len(cache.Entries))
+	}
+
+	// Save (which triggers deduplication)
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Verify only 3 entries remain (one for each action)
+	if len(cache.Entries) != 3 {
+		t.Errorf("Expected 3 entries after deduplication, got %d", len(cache.Entries))
+	}
+
+	// Verify the correct entries remain
+	if _, exists := cache.Entries["actions/cache@v4.3.0"]; !exists {
+		t.Error("Expected actions/cache@v4.3.0 to remain")
+	}
+	if _, exists := cache.Entries["actions/cache@v4"]; exists {
+		t.Error("Expected actions/cache@v4 to be removed")
+	}
+
+	if _, exists := cache.Entries["actions/setup-go@v6.1.0"]; !exists {
+		t.Error("Expected actions/setup-go@v6.1.0 to remain")
+	}
+	if _, exists := cache.Entries["actions/setup-go@v6"]; exists {
+		t.Error("Expected actions/setup-go@v6 to be removed")
+	}
+
+	if _, exists := cache.Entries["actions/setup-node@v6.1.0"]; !exists {
+		t.Error("Expected actions/setup-node@v6.1.0 to remain")
+	}
+}
+
+// TestActionCacheDeduplicationPreservesUnique tests that unique entries are preserved
+func TestActionCacheDeduplicationPreservesUnique(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+
+	// Add entries with different SHAs - no duplicates
+	cache.Set("actions/checkout", "v5", "sha1")
+	cache.Set("actions/checkout", "v5.0.1", "sha2") // Different SHA
+
+	// Verify we have 2 entries before deduplication
+	if len(cache.Entries) != 2 {
+		t.Fatalf("Expected 2 entries before deduplication, got %d", len(cache.Entries))
+	}
+
+	// Save (which triggers deduplication)
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Verify both entries remain (different SHAs)
+	if len(cache.Entries) != 2 {
+		t.Errorf("Expected 2 entries after deduplication (different SHAs), got %d", len(cache.Entries))
+	}
+}
+
+// TestIsMorePreciseVersion tests the version precision comparison
+func TestIsMorePreciseVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		v1       string
+		v2       string
+		expected bool
+	}{
+		{
+			name:     "v4.3.0 is more precise than v4",
+			v1:       "v4.3.0",
+			v2:       "v4",
+			expected: true,
+		},
+		{
+			name:     "v4 is less precise than v4.3.0",
+			v1:       "v4",
+			v2:       "v4.3.0",
+			expected: false,
+		},
+		{
+			name:     "v5.0.1 is more precise than v5",
+			v1:       "v5.0.1",
+			v2:       "v5",
+			expected: true,
+		},
+		{
+			name:     "v6.1.0 is more precise than v6",
+			v1:       "v6.1.0",
+			v2:       "v6",
+			expected: true,
+		},
+		{
+			name:     "v1.2.3 vs v1.2.3 (same precision)",
+			v1:       "v1.2.3",
+			v2:       "v1.2.3",
+			expected: false,
+		},
+		{
+			name:     "v1.2.10 vs v1.2.3 (same precision, lexicographic)",
+			v1:       "v1.2.10",
+			v2:       "v1.2.3",
+			expected: false, // "v1.2.3" > "v1.2.10" lexicographically
+		},
+		{
+			name:     "v8.0.0 is more precise than v8",
+			v1:       "v8.0.0",
+			v2:       "v8",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isMorePreciseVersion(tt.v1, tt.v2)
+			if result != tt.expected {
+				t.Errorf("isMorePreciseVersion(%q, %q) = %v, want %v", tt.v1, tt.v2, result, tt.expected)
+			}
+		})
+	}
+}
