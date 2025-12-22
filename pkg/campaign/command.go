@@ -168,13 +168,13 @@ Examples:
 			}
 
 			jsonOutput, _ := cmd.Flags().GetBool("json")
-			strict, _ := cmd.Flags().GetBool("strict")
-			return runValidate(pattern, jsonOutput, strict)
+			noStrict, _ := cmd.Flags().GetBool("no-strict")
+			return runValidate(pattern, jsonOutput, !noStrict)
 		},
 	}
 
 	validateCmd.Flags().Bool("json", false, "Output campaign validation results in JSON format")
-	validateCmd.Flags().Bool("strict", true, "Exit with non-zero status if any problems are found")
+	validateCmd.Flags().Bool("no-strict", false, "Report problems without exiting with non-zero status")
 	cmd.AddCommand(validateCmd)
 
 	return cmd
