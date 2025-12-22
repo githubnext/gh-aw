@@ -5027,7 +5027,16 @@
               "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
             },
             "max-turns": {
-              "type": "integer",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "description": "Maximum number of chat iterations per run as an integer value"
+                },
+                {
+                  "type": "string",
+                  "description": "Maximum number of chat iterations per run as a string value"
+                }
+              ],
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
             },
             "concurrency": {
