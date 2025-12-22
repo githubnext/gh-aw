@@ -64,7 +64,7 @@ func TestSecretsExpressionPattern(t *testing.T) {
 }
 
 // TestValidateSecretsExpressionErrorMessages tests that error messages are descriptive
-// but do NOT include sensitive values to prevent clear-text logging
+// but do NOT include sensitive values OR KEY NAMES to prevent clear-text logging
 func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -74,24 +74,25 @@ func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 		notExpectedInErrs []string
 	}{
 		{
-			name:              "plaintext does NOT show value in error",
+			name:              "plaintext does NOT show value OR key name in error",
 			key:               "token",
 			value:             "plaintext",
-			expectedInErrs:    []string{"jobs.secrets.token"},
-			notExpectedInErrs: []string{"plaintext"},
+			expectedInErrs:    []string{"invalid secrets expression", "must be a GitHub Actions expression"},
+			notExpectedInErrs: []string{"plaintext", "token"},
 		},
 		{
-			name:              "env context does NOT show value in error",
+			name:              "env context does NOT show value OR key name in error",
 			key:               "api_key",
 			value:             "${{ env.TOKEN }}",
-			expectedInErrs:    []string{"jobs.secrets.api_key"},
-			notExpectedInErrs: []string{"${{ env.TOKEN }}"},
+			expectedInErrs:    []string{"invalid secrets expression"},
+			notExpectedInErrs: []string{"${{ env.TOKEN }}", "api_key"},
 		},
 		{
-			name:           "key name in error",
-			key:            "database_password",
-			value:          "hardcoded",
-			expectedInErrs: []string{"jobs.secrets.database_password"},
+			name:              "key name NOT in error (security fix)",
+			key:               "database_password",
+			value:             "hardcoded",
+			expectedInErrs:    []string{"invalid secrets expression"},
+			notExpectedInErrs: []string{"database_password"},
 		},
 		{
 			name:           "example format in error",
@@ -106,11 +107,11 @@ func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 			expectedInErrs: []string{"${{ secrets.SECRET1 || secrets.SECRET2 }}"},
 		},
 		{
-			name:              "mixed context error does NOT show value",
-			key:               "token",
+			name:              "mixed context error does NOT show value OR key name",
+			key:               "deploy_token",
 			value:             "${{ secrets.TOKEN || env.FALLBACK }}",
-			expectedInErrs:    []string{"jobs.secrets.token"},
-			notExpectedInErrs: []string{"${{ secrets.TOKEN || env.FALLBACK }}"},
+			expectedInErrs:    []string{"invalid secrets expression"},
+			notExpectedInErrs: []string{"${{ secrets.TOKEN || env.FALLBACK }}", "deploy_token"},
 		},
 	}
 
@@ -164,9 +165,14 @@ func TestValidateSecretsExpressionWithDifferentKeys(t *testing.T) {
 			if err == nil {
 				t.Errorf("Expected error for invalid value with key %q, got nil", key)
 			}
-			// Error message should include the key name (if not empty)
-			if key != "" && !strings.Contains(err.Error(), "jobs.secrets."+key) {
-				t.Errorf("Expected error to contain key name %q, got: %s", key, err.Error())
+			// Security fix: Error message should NOT include the key name to prevent
+			// logging sensitive information about the organization's security infrastructure
+			if key != "" && strings.Contains(err.Error(), key) {
+				t.Errorf("Error should NOT contain sensitive key name %q, but got: %s", key, err.Error())
+			}
+			// Error should still be descriptive
+			if !strings.Contains(err.Error(), "invalid secrets expression") {
+				t.Errorf("Error should contain descriptive message, got: %s", err.Error())
 			}
 		})
 	}
