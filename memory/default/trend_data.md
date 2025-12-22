@@ -1,3 +1,10 @@
+## Trend Data (as of 2025-12-22T15:11:25Z)
+
+- Workflow snapshot (last ~20 runs): 10 runs, 33.6m total duration, 2,123,217 tokens, ~$2.42 estimated cost, 199 errors, 109 warnings, 2 missing-tool incidents. Outcomes: 1 failure (Weekly Issue Summary), 1 cancelled (Tidy), remainder success with multiple green AI Moderator runs.
+- Missing tools: GitHub MCP read_issue missing in Dev workflow (run §20435819459); safeinputs-gh required in Daily Copilot PR Merged (run §20435787142).
+- Issue stats (weekly slice): 232 total; 45 open / 187 closed. Created since Dec 19: 85; closed since Dec 19: 66. Unlabeled issues: 19 total (5 open). Label leaders: ai-generated 112, plan 112, enhancement 44, documentation 35, automation 34, automated-analysis 29.
+- Discussion cadence: Dec 22 delivered repository tree map (#7273), lock file stats (#7270), dependency quality (#7251), issue-linking arborist (#7259), static analysis (#7257), firewall (#7242), prompt/MCP analyses (#7238, #7236), doc noob test (#7222), Go type consistency (#7235), plus daily status/prompt clustering/portfolio updates.
+
 ## Trend Data (as of 2025-12-20T23:58:21Z)
 
 - Workflow snapshot (last 30 runs): 1.9h total duration, 17,615,499 tokens, ~$4.70 estimated cost, 509 errors, 268 warnings, 6 missing-tool incidents. Failures cluster in AI Moderator issue_comment runs (e.g., §20401747970, §20401612678, §20401610443, §20401406395).

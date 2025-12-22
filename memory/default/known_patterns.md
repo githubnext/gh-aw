@@ -1,3 +1,11 @@
+## Known Patterns (2025-12-22)
+
+- Issue intake spike: 85 issues created in last 3 days with 66 closures; open count rose to 45 (was 21 on 12/20), signaling backlog growth despite healthy throughput.
+- Reporting coverage broadened: new automated briefs (repository tree map, dependency quality, issue-linking arborist, static analysis, prompt/MCP analyses) keep daily visibility high.
+- Missing-tool cases persist but are localized: Dev workflow lacks GitHub MCP read_issue capability; Daily Copilot PR Merged relies on safeinputs-gh and failed once without it.
+- Weekly Issue Summary workflow is currently red, contrasting with mostly green AI Moderator runs (several successes in latest 20 runs).
+- Unlabeled issues remain a small but present backlog (19 total, 5 open), risking triage drift.
+
 ## Known Patterns (2025-12-20)
 
 - Safe outputs config gap persists: Daily Issues Report safe_outputs failed once for missing `GH_AW_ASSETS_BRANCH`, indicating workflows still ship without required env vars.

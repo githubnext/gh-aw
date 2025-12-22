@@ -1,3 +1,11 @@
+## Flagged Items for Monitoring (2025-12-22)
+
+- Weekly Issue Summary workflow failing (last 7d logs show single failure among 10 runs); needs triage to restore weekly reporting.
+- Missing GitHub MCP read_issue capability in Dev workflow causing missing-tool error (run §20435819459); add tool or adjust permissions.
+- Daily Copilot PR Merged needs safeinputs-gh tool to avoid missing-tool failures (run §20435787142); ensure workflow wiring matches instructions.
+- Issue backlog uptick: open issues climbed to 45 (was 21 on 12/20) with 85 created in last 3 days; watch for sustained growth.
+- Unlabeled issues remain (19 total, 5 open); consider triage to prevent drift.
+
 ## Flagged Items for Monitoring (2025-12-20)
 
 - Safe outputs env var miss: Daily Issues Report generator lacks `GH_AW_ASSETS_BRANCH`, causing the lone safe_outputs failure; needs workflow config fix.
