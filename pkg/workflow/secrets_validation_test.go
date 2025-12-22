@@ -64,24 +64,28 @@ func TestSecretsExpressionPattern(t *testing.T) {
 }
 
 // TestValidateSecretsExpressionErrorMessages tests that error messages are descriptive
+// but do NOT include sensitive values to prevent clear-text logging
 func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 	tests := []struct {
-		name           string
-		key            string
-		value          string
-		expectedInErrs []string
+		name              string
+		key               string
+		value             string
+		expectedInErrs    []string
+		notExpectedInErrs []string
 	}{
 		{
-			name:           "plaintext shows value in error",
-			key:            "token",
-			value:          "plaintext",
-			expectedInErrs: []string{"plaintext", "jobs.secrets.token"},
+			name:              "plaintext does NOT show value in error",
+			key:               "token",
+			value:             "plaintext",
+			expectedInErrs:    []string{"jobs.secrets.token"},
+			notExpectedInErrs: []string{"plaintext"},
 		},
 		{
-			name:           "env context shows value in error",
-			key:            "api_key",
-			value:          "${{ env.TOKEN }}",
-			expectedInErrs: []string{"${{ env.TOKEN }}", "jobs.secrets.api_key"},
+			name:              "env context does NOT show value in error",
+			key:               "api_key",
+			value:             "${{ env.TOKEN }}",
+			expectedInErrs:    []string{"jobs.secrets.api_key"},
+			notExpectedInErrs: []string{"${{ env.TOKEN }}"},
 		},
 		{
 			name:           "key name in error",
@@ -102,10 +106,11 @@ func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 			expectedInErrs: []string{"${{ secrets.SECRET1 || secrets.SECRET2 }}"},
 		},
 		{
-			name:           "mixed context error",
-			key:            "token",
-			value:          "${{ secrets.TOKEN || env.FALLBACK }}",
-			expectedInErrs: []string{"${{ secrets.TOKEN || env.FALLBACK }}"},
+			name:              "mixed context error does NOT show value",
+			key:               "token",
+			value:             "${{ secrets.TOKEN || env.FALLBACK }}",
+			expectedInErrs:    []string{"jobs.secrets.token"},
+			notExpectedInErrs: []string{"${{ secrets.TOKEN || env.FALLBACK }}"},
 		},
 	}
 
@@ -119,6 +124,11 @@ func TestValidateSecretsExpressionErrorMessages(t *testing.T) {
 			for _, expected := range tt.expectedInErrs {
 				if !strings.Contains(errMsg, expected) {
 					t.Errorf("Expected error to contain %q, got: %s", expected, errMsg)
+				}
+			}
+			for _, notExpected := range tt.notExpectedInErrs {
+				if strings.Contains(errMsg, notExpected) {
+					t.Errorf("Expected error NOT to contain sensitive value %q, but it does. Got: %s", notExpected, errMsg)
 				}
 			}
 		})
