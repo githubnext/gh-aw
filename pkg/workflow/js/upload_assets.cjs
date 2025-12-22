@@ -121,7 +121,7 @@ async function main() {
     }
 
     // Process each asset
-    for (const asset of uploadAssetItems) {
+    for (const asset of allUploadItems) {
       try {
         const { fileName, sha, size, targetFileName } = asset;
 
@@ -179,7 +179,7 @@ async function main() {
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }
 
-      for (const asset of uploadAssetItems) {
+      for (const asset of allUploadItems) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
         }
