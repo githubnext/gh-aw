@@ -1,11 +1,9 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -16,9 +14,6 @@ import (
 )
 
 var interactiveLog = logger.New("cli:interactive")
-
-// workflowNameRegex validates workflow names contain only alphanumeric characters, hyphens, and underscores
-var workflowNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // commonWorkflowNames contains common workflow name patterns for autocomplete suggestions
 var commonWorkflowNames = []string{
@@ -32,12 +27,6 @@ var commonWorkflowNames = []string{
 	"bug-reporter",
 	"dependency-update",
 	"documentation-check",
-}
-
-// isValidWorkflowName checks if the provided workflow name contains only valid characters.
-// Returns false for empty strings (which should be checked separately for a more specific error message).
-func isValidWorkflowName(name string) bool {
-	return workflowNameRegex.MatchString(name)
 }
 
 // isAccessibleMode detects if accessibility mode should be enabled based on environment variables
@@ -128,15 +117,7 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 				Description("Enter a descriptive name for your workflow (e.g., 'issue-triage', 'code-review-helper')").
 				Suggestions(commonWorkflowNames).
 				Value(&b.WorkflowName).
-				Validate(func(s string) error {
-					if s == "" {
-						return errors.New("workflow name cannot be empty")
-					}
-					if !isValidWorkflowName(s) {
-						return errors.New("workflow name must contain only alphanumeric characters, hyphens, and underscores")
-					}
-					return nil
-				}),
+				Validate(ValidateWorkflowName),
 		),
 	).WithAccessible(isAccessibleMode())
 

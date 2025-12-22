@@ -6,69 +6,70 @@ import (
 	"testing"
 )
 
-func TestIsValidWorkflowName(t *testing.T) {
+func TestValidateWorkflowName_Integration(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected bool
+		name        string
+		input       string
+		expectError bool
 	}{
 		{
-			name:     "valid simple name",
-			input:    "my-workflow",
-			expected: true,
+			name:        "valid simple name",
+			input:       "my-workflow",
+			expectError: false,
 		},
 		{
-			name:     "valid with underscores",
-			input:    "my_workflow",
-			expected: true,
+			name:        "valid with underscores",
+			input:       "my_workflow",
+			expectError: false,
 		},
 		{
-			name:     "valid alphanumeric",
-			input:    "workflow123",
-			expected: true,
+			name:        "valid alphanumeric",
+			input:       "workflow123",
+			expectError: false,
 		},
 		{
-			name:     "valid mixed",
-			input:    "my-workflow_v2",
-			expected: true,
+			name:        "valid mixed",
+			input:       "my-workflow_v2",
+			expectError: false,
 		},
 		{
-			name:     "invalid with spaces",
-			input:    "my workflow",
-			expected: false,
+			name:        "invalid with spaces",
+			input:       "my workflow",
+			expectError: true,
 		},
 		{
-			name:     "invalid with special chars",
-			input:    "my@workflow!",
-			expected: false,
+			name:        "invalid with special chars",
+			input:       "my@workflow!",
+			expectError: true,
 		},
 		{
-			name:     "invalid with dots",
-			input:    "my.workflow",
-			expected: false,
+			name:        "invalid with dots",
+			input:       "my.workflow",
+			expectError: true,
 		},
 		{
-			name:     "invalid with slashes",
-			input:    "my/workflow",
-			expected: false,
+			name:        "invalid with slashes",
+			input:       "my/workflow",
+			expectError: true,
 		},
 		{
-			name:     "empty string",
-			input:    "",
-			expected: false,
+			name:        "empty string",
+			input:       "",
+			expectError: true,
 		},
 		{
-			name:     "valid uppercase",
-			input:    "MyWorkflow",
-			expected: true,
+			name:        "valid uppercase",
+			input:       "MyWorkflow",
+			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isValidWorkflowName(tt.input)
-			if result != tt.expected {
-				t.Errorf("isValidWorkflowName(%q) = %v, want %v", tt.input, result, tt.expected)
+			err := ValidateWorkflowName(tt.input)
+			hasError := err != nil
+			if hasError != tt.expectError {
+				t.Errorf("ValidateWorkflowName(%q) error = %v, expectError %v", tt.input, err, tt.expectError)
 			}
 		})
 	}
@@ -81,8 +82,8 @@ func TestCommonWorkflowNamesAreValid(t *testing.T) {
 	}
 
 	for _, name := range commonWorkflowNames {
-		if !isValidWorkflowName(name) {
-			t.Errorf("commonWorkflowNames contains invalid workflow name: %q", name)
+		if err := ValidateWorkflowName(name); err != nil {
+			t.Errorf("commonWorkflowNames contains invalid workflow name: %q (error: %v)", name, err)
 		}
 	}
 }
