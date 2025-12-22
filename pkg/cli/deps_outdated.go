@@ -172,12 +172,12 @@ func parseGoMod(path string) ([]DependencyInfo, error) {
 		if inRequire || strings.HasPrefix(line, "require ") {
 			// Remove "require " prefix if present
 			line = strings.TrimPrefix(line, "require ")
-			
+
 			// Skip lines with // indirect comment (indirect dependencies)
 			if strings.Contains(line, "// indirect") {
 				continue
 			}
-			
+
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
 				deps = append(deps, DependencyInfo{
@@ -197,7 +197,7 @@ func getLatestVersion(modulePath, currentVersion string, verbose bool) (string, 
 
 	// Query Go proxy API
 	url := fmt.Sprintf("https://proxy.golang.org/%s/@latest", modulePath)
-	
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {

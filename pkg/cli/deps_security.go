@@ -42,9 +42,7 @@ type GitHubAdvisoryResponse struct {
 			Name      string `json:"name"`
 		} `json:"package"`
 		VulnerableVersionRange string `json:"vulnerable_version_range"`
-		FirstPatchedVersion    struct {
-			Identifier string `json:"identifier"`
-		} `json:"first_patched_version"`
+		FirstPatchedVersion    string `json:"first_patched_version"`
 	} `json:"vulnerabilities"`
 }
 
@@ -106,23 +104,23 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 	for _, adv := range advisories {
 		icon := getSeverityIcon(adv.Severity)
 		header := fmt.Sprintf("%s %s: %s", icon, strings.ToUpper(adv.Severity), adv.Package)
-		
+
 		if adv.Severity == "critical" || adv.Severity == "high" {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(header))
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(header))
 		}
-		
+
 		fmt.Fprintf(os.Stderr, "    %s", adv.Summary)
 		if adv.CVE != "" {
 			fmt.Fprintf(os.Stderr, " (%s)", adv.CVE)
 		}
 		fmt.Fprintln(os.Stderr, "")
-		
+
 		if len(adv.PatchedVers) > 0 {
 			fmt.Fprintf(os.Stderr, "    Fixed in: %s\n", strings.Join(adv.PatchedVers, ", "))
 		}
-		
+
 		fmt.Fprintf(os.Stderr, "    %s\n", adv.URL)
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -184,12 +182,12 @@ func querySecurityAdvisories(depVersions map[string]string, verbose bool) ([]Sec
 					}
 
 					// Add patched version if available
-					if vuln.FirstPatchedVersion.Identifier != "" {
-						adv.PatchedVers = []string{vuln.FirstPatchedVersion.Identifier}
+					if vuln.FirstPatchedVersion != "" {
+						adv.PatchedVers = []string{vuln.FirstPatchedVersion}
 					}
 
 					matchingAdvisories = append(matchingAdvisories, adv)
-					
+
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(
 							fmt.Sprintf("Found advisory for %s: %s", vuln.Package.Name, apiAdv.GHSAID)))

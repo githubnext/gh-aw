@@ -13,14 +13,14 @@ var depsReportLog = logger.New("cli:deps_report")
 
 // DependencyReport contains all dependency health information
 type DependencyReport struct {
-	TotalDeps     int
-	DirectDeps    int
-	IndirectDeps  int
-	Outdated      []OutdatedDependency
-	Advisories    []SecurityAdvisory
-	V0Count       int
-	V1PlusCount   int
-	V2PlusCount   int
+	TotalDeps    int
+	DirectDeps   int
+	IndirectDeps int
+	Outdated     []OutdatedDependency
+	Advisories   []SecurityAdvisory
+	V0Count      int
+	V1PlusCount  int
+	V2PlusCount  int
 }
 
 // GenerateDependencyReport creates a comprehensive dependency health report
@@ -107,14 +107,14 @@ func DisplayDependencyReport(report *DependencyReport) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("-------"))
 	fmt.Fprintf(os.Stderr, "Total dependencies: %d (%d direct, %d indirect)\n", report.TotalDeps, report.DirectDeps, report.IndirectDeps)
-	
+
 	outdatedPercentage := 0.0
 	if report.DirectDeps > 0 {
 		outdatedPercentage = float64(len(report.Outdated)) / float64(report.DirectDeps) * 100
 	}
 	fmt.Fprintf(os.Stderr, "Outdated: %d (%.0f%%)\n", len(report.Outdated), outdatedPercentage)
 	fmt.Fprintf(os.Stderr, "Security advisories: %d\n", len(report.Advisories))
-	
+
 	v0Percentage := 0.0
 	if report.TotalDeps > 0 {
 		v0Percentage = float64(report.V0Count) / float64(report.TotalDeps) * 100
@@ -152,13 +152,13 @@ func DisplayDependencyReport(report *DependencyReport) {
 		fmt.Fprintf(os.Stderr, " ⚠️")
 	}
 	fmt.Fprintln(os.Stderr, "")
-	
+
 	v1Percentage := 0.0
 	if report.TotalDeps > 0 {
 		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
 	}
 	fmt.Fprintf(os.Stderr, "v1.x (stable): %d (%.0f%%)\n", report.V1PlusCount, v1Percentage)
-	
+
 	v2Percentage := 0.0
 	if report.TotalDeps > 0 {
 		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
@@ -170,19 +170,19 @@ func DisplayDependencyReport(report *DependencyReport) {
 	if len(report.Outdated) > 0 || len(report.Advisories) > 0 || v0Percentage > 30 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recommendations"))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("---------------"))
-		
+
 		if len(report.Advisories) > 0 {
 			fmt.Fprintf(os.Stderr, "🔴 CRITICAL: Address %d security %s immediately\n", len(report.Advisories), pluralize("advisory", len(report.Advisories)))
 		}
-		
+
 		if len(report.Outdated) > 0 {
 			fmt.Fprintf(os.Stderr, "📦 Update %d outdated %s\n", len(report.Outdated), pluralize("dependency", len(report.Outdated)))
 		}
-		
+
 		if v0Percentage > 30 {
 			fmt.Fprintf(os.Stderr, "⚠️  Reduce v0.x exposure from %.0f%% to <30%%\n", v0Percentage)
 		}
-		
+
 		fmt.Fprintln(os.Stderr, "")
 	}
 }
@@ -221,10 +221,10 @@ func parseGoModWithIndirect(path string) ([]DependencyInfoWithIndirect, error) {
 		if inRequire || strings.HasPrefix(line, "require ") {
 			// Remove "require " prefix if present
 			line = strings.TrimPrefix(line, "require ")
-			
+
 			// Check if indirect before splitting (preserve the comment)
 			indirect := strings.Contains(line, "// indirect")
-			
+
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
 				deps = append(deps, DependencyInfoWithIndirect{
