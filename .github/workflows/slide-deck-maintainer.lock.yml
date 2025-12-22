@@ -7247,6 +7247,7 @@ jobs:
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_PR_EXPIRES: "1"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
