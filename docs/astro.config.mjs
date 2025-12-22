@@ -127,7 +127,7 @@ export default defineConfig({
 						{ label: 'ResearchPlanAssign', link: '/guides/researchplanassign/' },
 						{ label: 'MultiRepoOps', link: '/guides/multirepoops/' },
 						{ label: 'SideRepoOps', link: '/guides/siderepoops/' },
-						{ label: 'TrialOps', link: '/guides/trialops/', badge: { text: 'Part of SideRepoOps', variant: 'note' } },
+						{ label: 'TrialOps', link: '/guides/trialops/' },
 					],
 				},
 				{
