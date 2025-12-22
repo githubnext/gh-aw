@@ -348,9 +348,9 @@ func isValidUseSyntax(use string) bool {
 		// - [arg]...  (optional multiple)
 
 		validPatterns := []string{
-			`^<[a-z][a-z0-9-]*>$`,      // <required>
-			`^<[a-z][a-z0-9-]*>\.\.\.$`, // <required>...
-			`^\[[a-z][a-z0-9-]*\]$`,     // [optional]
+			`^<[a-z][a-z0-9-]*>$`,         // <required>
+			`^<[a-z][a-z0-9-]*>\.\.\.$`,   // <required>...
+			`^\[[a-z][a-z0-9-]*\]$`,       // [optional]
 			`^\[[a-z][a-z0-9-]*\]\.\.\.$`, // [optional]...
 		}
 
@@ -399,13 +399,13 @@ func TestArgumentNamingConventions(t *testing.T) {
 
 	// Define naming conventions
 	conventions := map[string]string{
-		"workflow":    "Workflow-related commands should use 'workflow' for consistency",
-		"pattern":     "Filter/search commands should use 'pattern' or 'filter'",
-		"run-id":      "Audit command should use 'run-id' for clarity",
+		"workflow":      "Workflow-related commands should use 'workflow' for consistency",
+		"pattern":       "Filter/search commands should use 'pattern' or 'filter'",
+		"run-id":        "Audit command should use 'run-id' for clarity",
 		"workflow-spec": "Trial command should use 'workflow-spec' to indicate special format",
-		"campaign-id": "Campaign new should use 'campaign-id' for clarity",
-		"pr-url":      "PR transfer should use 'pr-url' for clarity",
-		"server":      "MCP commands should use 'server' for MCP server names",
+		"campaign-id":   "Campaign new should use 'campaign-id' for clarity",
+		"pr-url":        "PR transfer should use 'pr-url' for clarity",
+		"server":        "MCP commands should use 'server' for MCP server names",
 	}
 
 	for _, cmd := range commands {
