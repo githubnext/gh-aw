@@ -3300,6 +3300,17 @@ jobs:
           cat /home/runner/.copilot/mcp-config.json || echo 'No MCP config file found'
           echo ''
           
+          # Verify safeinputs and safeoutputs are present in config
+          if ! grep -q '"safeinputs"' /home/runner/.copilot/mcp-config.json; then
+            echo 'ERROR: safeinputs server not found in MCP configuration'
+            exit 1
+          fi
+          if ! grep -q '"safeoutputs"' /home/runner/.copilot/mcp-config.json; then
+            echo 'ERROR: safeoutputs server not found in MCP configuration'
+            exit 1
+          fi
+          echo 'Verified: safeinputs and safeoutputs are present in configuration'
+          
           max_retries=30
           retry_count=0
           gateway_url="http://localhost:8080"

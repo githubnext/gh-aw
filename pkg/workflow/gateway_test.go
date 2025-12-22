@@ -266,6 +266,10 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	// Verify MCP config file content is displayed
 	assert.Contains(t, stepStr, "MCP Configuration:")
 	assert.Contains(t, stepStr, "cat /home/runner/.copilot/mcp-config.json")
+	// Verify safeinputs and safeoutputs presence is checked
+	assert.Contains(t, stepStr, "grep -q '\"safeinputs\"'")
+	assert.Contains(t, stepStr, "grep -q '\"safeoutputs\"'")
+	assert.Contains(t, stepStr, "Verified: safeinputs and safeoutputs are present in configuration")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
