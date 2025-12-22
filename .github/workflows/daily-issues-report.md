@@ -14,7 +14,7 @@ tools:
   github:
     toolsets: [default, discussions]
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     expires: 3d
     category: "General"

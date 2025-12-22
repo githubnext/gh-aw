@@ -2546,7 +2546,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_pull_request, missing_tool, noop, upload_assets
+          **Available tools**: add_comment, create_pull_request, missing_tool, noop, upload_asset
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -8774,9 +8774,12 @@ jobs:
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
-              const uploadItems = result.items.filter( item => item.type === "upload_assets");
-              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
-              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              const uploadItems = result.items.filter( item => item.type === "upload_asset");
+              const legacyUploadAssetsItems = result.items.filter( item => item.type === "upload-assets");
+              if (legacyUploadAssetsItems.length > 0) {
+                core.warning(`Found ${legacyUploadAssetsItems.length} item(s) with legacy type "upload-assets" (plural). This type is deprecated. Use "upload_asset" (singular) instead.`);
+              }
+              const allUploadItems = [...uploadItems, ...legacyUploadAssetsItems];
               if (allUploadItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");

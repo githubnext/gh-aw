@@ -36,7 +36,7 @@ safe-outputs:
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis]
     max: 10
-  upload-assets:
+  upload-asset:
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"
     run-started: "🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity..."

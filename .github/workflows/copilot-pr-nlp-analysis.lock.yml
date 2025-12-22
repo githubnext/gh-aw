@@ -147,6 +147,9 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
@@ -174,7 +177,7 @@ jobs:
         run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: data-charts
@@ -182,7 +185,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -348,7 +351,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -377,6 +380,23 @@ jobs:
                 "type": "object"
               },
               "name": "create_discussion"
+            },
+            {
+              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object"
+              },
+              "name": "upload_asset"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -481,6 +501,15 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                }
+              }
+            },
+            "upload_asset": {
+              "defaultMax": 10,
+              "fields": {
+                "path": {
+                  "required": true,
+                  "type": "string"
                 }
               }
             }
@@ -1823,6 +1852,9 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -2902,7 +2934,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop
+          **Available tools**: create_discussion, missing_tool, noop, upload_asset
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3199,6 +3231,9 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -6236,6 +6271,13 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -7245,10 +7287,13 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
+      contents: write
       discussions: write
     timeout-minutes: 15
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "copilot-pr-nlp-analysis"
       GH_AW_WORKFLOW_NAME: "Copilot PR Conversation NLP Analysis"
@@ -8430,6 +8475,145 @@ jobs:
                 await core.summary.addRaw(summaryContent).write();
               }
               core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+            }
+            (async () => { await main(); })();
+      - name: Upload Assets
+        id: upload_assets
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            globalThis.github = github;
+            globalThis.context = context;
+            globalThis.core = core;
+            globalThis.exec = exec;
+            globalThis.io = io;
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadItems = result.items.filter( item => item.type === "upload_asset");
+              const legacyUploadAssetsItems = result.items.filter( item => item.type === "upload-assets");
+              if (legacyUploadAssetsItems.length > 0) {
+                core.warning(`Found ${legacyUploadAssetsItems.length} item(s) with legacy type "upload-assets" (plural). This type is deprecated. Use "upload_asset" (singular) instead.`);
+              }
+              const allUploadItems = [...uploadItems, ...legacyUploadAssetsItems];
+              if (allUploadItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of allUploadItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of allUploadItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
             }
             (async () => { await main(); })();
 

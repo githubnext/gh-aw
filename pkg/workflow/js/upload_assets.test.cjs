@@ -64,7 +64,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
       }),
       describe("legacy upload-assets type handling", () => {
         it("should warn about legacy upload-assets type (plural hyphenated)", async () => {
-          (process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false");
+          ((process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
           const assetDir = "/tmp/gh-aw/safeoutputs/assets";
           fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
           const assetPath = path.join(assetDir, "test.png");

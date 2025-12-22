@@ -28,7 +28,7 @@ safe-outputs:
     title-prefix: "[portfolio] "
     category: "Audits"
     close-older-discussions: true
-  upload-assets:
+  upload-asset:
 timeout-minutes: 20
 imports:
   - shared/mcp/gh-aw.md

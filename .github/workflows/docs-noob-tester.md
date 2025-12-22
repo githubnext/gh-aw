@@ -16,7 +16,7 @@ tools:
   bash:
     - "*"
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     category: "General"
     close-older-discussions: true

@@ -119,7 +119,7 @@ safe-outputs:
     base: main
 
   # Upload assets
-  upload-assets:
+  upload-asset:
 
   # Missing tool reporting
   missing-tool:

@@ -8,7 +8,7 @@ on:
       - pelikhan/*
 safe-outputs:
   staged: true
-  upload-assets:
+  upload-asset:
   create-issue:
     title-prefix: "[docs] "
 engine: 
