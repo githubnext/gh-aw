@@ -386,7 +386,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 							for key, val := range secretsMap {
 								if valStr, ok := val.(string); ok {
 									// Validate that the secret value is a proper GitHub Actions expression
-									if err := validateSecretsExpression(key, valStr); err != nil {
+									// Note: We don't pass the key to validateSecretsExpression to prevent
+									// CodeQL from detecting sensitive data flow to error messages/logs
+									if err := validateSecretsExpression(valStr); err != nil {
 										return err
 									}
 									job.Secrets[key] = valStr
