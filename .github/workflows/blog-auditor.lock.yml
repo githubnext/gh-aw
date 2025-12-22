@@ -2013,11 +2013,11 @@ jobs:
              - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
              - Store the temporary directory path in a variable for cleanup
           
-          4. **Validate All Snippets**: Use `gh aw compile` with the `--workflows-dir` flag to validate all snippets at once
+          4. **Validate All Snippets**: Use `gh aw compile` with the `--dir` flag to validate all snippets at once
              ```bash
-             gh aw compile --no-emit --validate --workflows-dir "$TEMP_DIR"
+             gh aw compile --no-emit --validate --dir "$TEMP_DIR"
              ```
-             - The `--workflows-dir` flag specifies the temporary directory containing snippet files
+             - The `--dir` flag specifies the temporary directory containing snippet files
              - The `--no-emit` flag validates without generating lock files
              - The `--validate` flag enables schema validation
              - Capture any validation errors or warnings from the compile output
