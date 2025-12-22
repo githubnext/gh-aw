@@ -74,6 +74,7 @@ Examples:
 			noActions, _ := cmd.Flags().GetBool("no-actions")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			dryRunFlag, _ := cmd.Flags().GetBool("dry-run")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
@@ -81,7 +82,7 @@ Examples:
 
 			// Handle audit mode
 			if auditFlag {
-				return runDependencyAudit(verbose)
+				return runDependencyAudit(verbose, jsonOutput)
 			}
 
 			// Handle dry-run mode
@@ -105,6 +106,7 @@ Examples:
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing updates (implies --dry-run)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
+	cmd.Flags().Bool("json", false, "Output audit results in JSON format (only with --audit)")
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -115,7 +117,7 @@ Examples:
 }
 
 // runDependencyAudit performs a dependency health audit
-func runDependencyAudit(verbose bool) error {
+func runDependencyAudit(verbose bool, jsonOutput bool) error {
 	updateLog.Print("Running dependency health audit")
 
 	// Generate comprehensive report
@@ -125,6 +127,9 @@ func runDependencyAudit(verbose bool) error {
 	}
 
 	// Display the report
+	if jsonOutput {
+		return DisplayDependencyReportJSON(report)
+	}
 	DisplayDependencyReport(report)
 
 	return nil

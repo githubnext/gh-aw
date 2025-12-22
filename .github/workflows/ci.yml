@@ -462,6 +462,78 @@ jobs:
       - name: Check JSON formatting
         run: make fmt-check-json
 
+  audit:
+    needs: [lint-go, lint-js]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-audit
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Run dependency audit (human-readable)
+        run: |
+          echo "## Dependency Health Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          ./gh-aw update --audit 2>&1 | tee audit_output.txt || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          head -100 audit_output.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run dependency audit (JSON)
+        id: audit_json
+        run: |
+          # Run audit with JSON output for agent-friendly parsing
+          ./gh-aw update --audit --json > audit.json 2>&1
+          
+          # Display summary in GitHub Actions
+          echo "✅ Dependency audit completed" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract key metrics
+          TOTAL_DEPS=$(jq '.summary.total_dependencies' audit.json)
+          OUTDATED=$(jq '.summary.outdated_count' audit.json)
+          SECURITY=$(jq '.summary.security_advisories' audit.json)
+          V0_PERCENT=$(jq '.summary.v0_percentage' audit.json)
+          
+          echo "📊 **Audit Results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Total dependencies: $TOTAL_DEPS" >> $GITHUB_STEP_SUMMARY
+          echo "- Outdated: $OUTDATED" >> $GITHUB_STEP_SUMMARY
+          echo "- Security advisories: $SECURITY" >> $GITHUB_STEP_SUMMARY
+          echo "- v0.x exposure: ${V0_PERCENT}%" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dependency-audit
+          path: |
+            audit.json
+            audit_output.txt
+          retention-days: 30
+
   actions-build:
     needs: [lint-go, lint-js]
     runs-on: ubuntu-latest

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -185,6 +186,80 @@ func DisplayDependencyReport(report *DependencyReport) {
 
 		fmt.Fprintln(os.Stderr, "")
 	}
+}
+
+// DisplayDependencyReportJSON outputs the dependency report in JSON format
+func DisplayDependencyReportJSON(report *DependencyReport) error {
+	// Calculate percentages
+	outdatedPercentage := 0.0
+	if report.DirectDeps > 0 {
+		outdatedPercentage = float64(len(report.Outdated)) / float64(report.DirectDeps) * 100
+	}
+	
+	v0Percentage := 0.0
+	v1Percentage := 0.0
+	v2Percentage := 0.0
+	if report.TotalDeps > 0 {
+		v0Percentage = float64(report.V0Count) / float64(report.TotalDeps) * 100
+		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
+		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
+	}
+	
+	// Build JSON-friendly output structure
+	output := map[string]any{
+		"summary": map[string]any{
+			"total_dependencies":    report.TotalDeps,
+			"direct_dependencies":   report.DirectDeps,
+			"indirect_dependencies": report.IndirectDeps,
+			"outdated_count":        len(report.Outdated),
+			"outdated_percentage":   outdatedPercentage,
+			"security_advisories":   len(report.Advisories),
+			"v0_count":              report.V0Count,
+			"v0_percentage":         v0Percentage,
+			"v1_count":              report.V1PlusCount,
+			"v1_percentage":         v1Percentage,
+			"v2_count":              report.V2PlusCount,
+			"v2_percentage":         v2Percentage,
+		},
+		"outdated": report.Outdated,
+		"security": report.Advisories,
+		"maturity": map[string]any{
+			"v0_unstable": map[string]any{
+				"count":      report.V0Count,
+				"percentage": v0Percentage,
+			},
+			"v1_stable": map[string]any{
+				"count":      report.V1PlusCount,
+				"percentage": v1Percentage,
+			},
+			"v2_mature": map[string]any{
+				"count":      report.V2PlusCount,
+				"percentage": v2Percentage,
+			},
+		},
+	}
+	
+	// Add recommendations
+	recommendations := []string{}
+	if len(report.Advisories) > 0 {
+		recommendations = append(recommendations, fmt.Sprintf("Address %d security %s immediately", len(report.Advisories), pluralize("advisory", len(report.Advisories))))
+	}
+	if len(report.Outdated) > 0 {
+		recommendations = append(recommendations, fmt.Sprintf("Update %d outdated %s", len(report.Outdated), pluralize("dependency", len(report.Outdated))))
+	}
+	if v0Percentage > 30 {
+		recommendations = append(recommendations, fmt.Sprintf("Reduce v0.x exposure from %.0f%% to <30%%", v0Percentage))
+	}
+	output["recommendations"] = recommendations
+	
+	// Marshal and output to stdout
+	jsonData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	
+	fmt.Println(string(jsonData))
+	return nil
 }
 
 // DependencyInfoWithIndirect extends DependencyInfo to track indirect dependencies
