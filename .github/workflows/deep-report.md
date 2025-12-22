@@ -26,7 +26,7 @@ network:
     - node
 
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     category: "reports"
     max: 1

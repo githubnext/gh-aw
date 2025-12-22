@@ -456,7 +456,7 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.UpdatePullRequests != nil
 	case "push-to-pull-request-branch":
 		return config.PushToPullRequestBranch != nil
-	case "upload-assets":
+	case "upload-asset":
 		return config.UploadAssets != nil
 	case "update-release":
 		return config.UpdateRelease != nil

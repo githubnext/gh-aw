@@ -320,7 +320,7 @@ tools:
   playwright:      # Headless browser automation
 safe-outputs:
   create-issue:
-  upload-assets:   # Attach screenshots to artifacts
+  upload-asset:   # Attach screenshots to artifacts
 ---
 Test the web application:
 1. Navigate to the deployed preview URL

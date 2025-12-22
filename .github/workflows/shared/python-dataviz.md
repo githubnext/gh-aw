@@ -26,7 +26,7 @@ network:
     - python
 
 safe-outputs:
-  upload-assets:
+  upload-asset:
 
 steps:
   - name: Setup Python environment

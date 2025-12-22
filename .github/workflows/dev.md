@@ -2,7 +2,7 @@
 on: 
   workflow_dispatch:
 name: Dev
-description: Test MCP gateway with issue creation in staged mode
+description: Test upload-asset with Python graph generation
 timeout-minutes: 5
 strict: true
 engine: copilot
@@ -18,27 +18,31 @@ sandbox:
 tools:
   github:
     toolsets: [issues]
+
 safe-outputs:
+  upload-asset:
+    allowed-exts: [".png", ".jpg"]
+    max: 5
   create-issue:
-    title-prefix: "[Poetry Test] "
+    title-prefix: "[Dev Test] "
     max: 1
+
 imports:
   - shared/gh.md
+  - shared/python-dataviz.md
 ---
 
-# Test MCP Gateway: Read Last Issue and Write Poem in Staged Mode
+# Test Upload Asset with Python Graph Generation
 
-Read the most recent issue from the repository and write a creative poem about it in a new issue using **staged mode** (preview mode).
+Create a dummy graph using Python and matplotlib, then upload it as an asset.
 
 **Requirements:**
-1. Use the GitHub tools to fetch the most recent issue from this repository
-2. Read the issue title and body to understand what it's about
-3. Write a short, creative poem (4-6 lines) inspired by the content of that issue
-4. Create a new issue with:
-   - Title: Start with the prefix "[Poetry Test]" followed by a creative title that relates to the original issue
-   - Body: Your poem about the issue, plus a reference to the original issue number
-5. **IMPORTANT**: Use staged mode (add `staged: true` to your create-issue call) so the issue is previewed with the 🎭 indicator but not actually created
-6. Confirm that:
-   - You successfully read the last issue
-   - You created a poem inspired by it
-   - The new issue was created in staged mode with the 🎭 indicator
+1. Use Python to create a simple graph (e.g., a sine wave or bar chart) using matplotlib
+2. Save the graph as a PNG file to /tmp/graph.png
+3. Use the `upload_asset` tool to upload the graph
+4. The tool should return a URL where the graph can be accessed
+5. Create an issue that includes the graph using markdown image syntax
+6. Verify that:
+   - The graph file was created successfully
+   - The asset was uploaded and a URL was returned
+   - The issue was created with the embedded graph image

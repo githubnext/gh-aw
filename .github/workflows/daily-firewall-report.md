@@ -16,7 +16,7 @@ tracker-id: daily-firewall-report
 timeout-minutes: 45
 
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     expires: 3d
     category: "audits"
