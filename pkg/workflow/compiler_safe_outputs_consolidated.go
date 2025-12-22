@@ -473,11 +473,28 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
 		// Prepend app token steps (after artifact download but before safe output steps)
 		insertIndex := len(buildAgentOutputDownloadSteps())
-		newSteps := make([]string, 0, len(steps)+len(appTokenSteps))
-		newSteps = append(newSteps, steps[:insertIndex]...)
-		newSteps = append(newSteps, appTokenSteps...)
-		newSteps = append(newSteps, steps[insertIndex:]...)
-		steps = newSteps
+
+		// Check for potential integer overflow before allocation (important for 32-bit systems)
+		stepsLen := len(steps)
+		appTokenStepsLen := len(appTokenSteps)
+		const maxInt = int(^uint(0) >> 1)
+
+		if stepsLen > maxInt-appTokenStepsLen {
+			// If overflow would occur, fall back to dynamic append without pre-allocation
+			consolidatedSafeOutputsLog.Printf("Warning: potential overflow detected in slice capacity calculation, using dynamic append")
+			newSteps := make([]string, 0)
+			newSteps = append(newSteps, steps[:insertIndex]...)
+			newSteps = append(newSteps, appTokenSteps...)
+			newSteps = append(newSteps, steps[insertIndex:]...)
+			steps = newSteps
+		} else {
+			// Safe to pre-allocate with computed capacity
+			newSteps := make([]string, 0, stepsLen+appTokenStepsLen)
+			newSteps = append(newSteps, steps[:insertIndex]...)
+			newSteps = append(newSteps, appTokenSteps...)
+			newSteps = append(newSteps, steps[insertIndex:]...)
+			steps = newSteps
+		}
 	}
 
 	// Add GitHub App token invalidation step at the end if app is configured
