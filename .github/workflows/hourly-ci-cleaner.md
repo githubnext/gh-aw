@@ -43,26 +43,22 @@ steps:
         echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
         echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
       fi
-  - name: Install Make
-    run: |
-      sudo apt-get update
-      sudo apt-get install -y make
-  - name: Setup Go
-    uses: actions/setup-go@v6
-    with:
-      go-version-file: go.mod
-      cache: true
   - name: Set up Node.js
-    uses: actions/setup-node@v6
+    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: pkg/workflow/js/package-lock.json
+  - name: Set up Go
+    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+    with:
+      go-version-file: go.mod
+      cache: true
   - name: Install npm dependencies
     run: npm ci
     working-directory: ./pkg/workflow/js
-  - name: Install dev dependencies
-    run: make deps-dev
+  - name: Build code
+    run: make build
 safe-outputs:
   create-pull-request:
     title-prefix: "[ca] "

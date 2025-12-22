@@ -175,11 +175,7 @@ jobs:
         id: ci_check
         name: Check last CI workflow run status on main branch
         run: "# Get the last CI workflow run on main branch, excluding pending and cancelled runs\nLAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \\\n  | jq -r '[.[] | select(.status == \"completed\" and (.conclusion == \"success\" or .conclusion == \"failure\"))] | .[0]')\n\nCONCLUSION=$(echo \"$LAST_RUN\" | jq -r '.conclusion')\nRUN_ID=$(echo \"$LAST_RUN\" | jq -r '.databaseId')\n\necho \"Last CI run conclusion: ${CONCLUSION}\"\necho \"Run ID: ${RUN_ID}\"\n\n# Write to environment and step summary\necho \"CI_STATUS=${CONCLUSION}\" >> \"$GITHUB_ENV\"\necho \"CI_RUN_ID=${RUN_ID}\" >> \"$GITHUB_ENV\"\n\nif [ \"$CONCLUSION\" = \"success\" ]; then\n  echo \"✅ CI is passing on main branch - no action needed\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=false\" >> \"$GITHUB_ENV\"\n  exit 1\nelse\n  echo \"❌ CI is failing on main branch - agent will attempt to fix\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"Run ID: ${RUN_ID}\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=true\" >> \"$GITHUB_ENV\"\nfi\n"
-      - name: Install Make
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y make
-      - name: Setup Go
+      - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           cache: true
@@ -187,8 +183,8 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
         working-directory: ./pkg/workflow/js
-      - name: Install dev dependencies
-        run: make deps-dev
+      - name: Build code
+        run: make build
 
       - name: Configure Git credentials
         env:
