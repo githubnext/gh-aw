@@ -93,23 +93,3 @@ func (c *Compiler) buildHideCommentStepConfig(data *WorkflowData, mainJobName st
 		Token:         cfg.GitHubToken,
 	}
 }
-
-// buildUploadAssetsStepConfig builds the configuration for uploading assets
-func (c *Compiler) buildUploadAssetsStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.UploadAssets
-
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	condition := BuildSafeOutputType("upload_asset")
-
-	return SafeOutputStepConfig{
-		StepName:      "Upload Assets",
-		StepID:        "upload_assets",
-		ScriptName:    "upload_assets",
-		Script:        getUploadAssetsScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}

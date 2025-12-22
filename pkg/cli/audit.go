@@ -23,8 +23,8 @@ var auditLog = logger.New("cli:audit")
 
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
-	auditCmd := &cobra.Command{
-		Use:   "audit <run-id-or-url>",
+	cmd := &cobra.Command{
+		Use:   "audit <run-id>",
 		Short: "Investigate a single GitHub Actions workflow run and generate a concise report",
 		Long: `Audit a single workflow run by downloading artifacts and logs, detecting errors,
 analyzing MCP tool usage, and generating a concise Markdown report suitable for AI agents.
@@ -72,14 +72,14 @@ Examples:
 	}
 
 	// Add flags to audit command
-	addOutputFlag(auditCmd, defaultLogsOutputDir)
-	addJSONFlag(auditCmd)
-	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	addOutputFlag(cmd, defaultLogsOutputDir)
+	addJSONFlag(cmd)
+	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 
 	// Register completions for audit command
-	RegisterDirFlagCompletion(auditCmd, "output")
+	RegisterDirFlagCompletion(cmd, "output")
 
-	return auditCmd
+	return cmd
 }
 
 // extractRunID extracts the run ID from either a numeric string or a GitHub Actions URL

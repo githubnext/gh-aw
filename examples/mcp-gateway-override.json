@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"],
+      "env": {
+        "DEBUG": "mcp:*"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    }
+  },
+  "gateway": {
+    "port": 9090,
+    "apiKey": "optional-api-key"
+  }
+}

@@ -9,7 +9,7 @@ func TestUploadAssetsConfigDefaults(t *testing.T) {
 
 	// Test default configuration
 	outputMap := map[string]any{
-		"upload-assets": nil,
+		"upload-asset": nil,
 	}
 
 	config := compiler.parseUploadAssetConfig(outputMap)
@@ -40,7 +40,7 @@ func TestUploadAssetsConfigCustomExtensions(t *testing.T) {
 
 	// Test custom configuration like dev.md
 	outputMap := map[string]any{
-		"upload-assets": map[string]any{
+		"upload-asset": map[string]any{
 			"allowed-exts": []any{".txt"},
 			"max-size":     1024,
 		},

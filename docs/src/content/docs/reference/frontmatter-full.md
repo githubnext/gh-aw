@@ -2629,7 +2629,7 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for publishing assets to an orphaned git branch
-  upload-assets:
+  upload-asset:
     # Branch name (default: 'assets/${{ github.workflow }}')
     # (optional)
     branch: "example-value"
@@ -2653,7 +2653,7 @@ safe-outputs:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
   # Option 2: Enable asset publishing with default configuration
-  upload-assets: null
+  upload-asset: null
 
   # (optional)
   # This field supports multiple formats (oneOf):

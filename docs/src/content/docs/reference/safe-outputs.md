@@ -57,7 +57,7 @@ This declares that the workflow should create at most one new issue. The AI agen
 | [**Assign to User**](#assign-to-user-assign-to-user) | `assign-to-user:` | Assign users to issues | 1 | ✅ |
 | [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
 | [**Update Release**](#release-updates-update-release) | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
-| [**Upload Assets**](#asset-uploads-upload-assets) | `upload-assets:` | Upload files to orphaned git branch | 10 | ❌ |
+| [**Upload Assets**](#asset-uploads-upload-asset) | `upload-asset:` | Upload files to orphaned git branch | 10 | ❌ |
 | [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
 | [**No-Op**](#no-op-logging-noop) | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
 | [**Missing Tool**](#missing-tool-reporting-missing-tool) | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
@@ -462,7 +462,7 @@ safe-outputs:
 
 Agent output format: `{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "..."}`. The `tag` field is optional for release events (inferred from context). Workflow needs read access; only the generated job receives write permissions.
 
-### Asset Uploads (`upload-assets:`)
+### Asset Uploads (`upload-asset:`)
 
 Uploads generated files (screenshots, charts, reports, diagrams) to an orphaned git branch for persistent, version-controlled storage. Assets are uploaded without requiring elevated permissions during agent execution—a separate job with `contents: write` handles the actual commit and push.
 
@@ -475,7 +475,7 @@ Uploads generated files (screenshots, charts, reports, diagrams) to an orphaned 
 
 ```yaml wrap
 safe-outputs:
-  upload-assets:
+  upload-asset:
     branch: "assets/my-workflow"     # branch name (default: `"assets/${{ github.workflow }}"`)
     max-size: 5120                   # max file size in KB (default: 10240 = 10MB)
     allowed-exts: [.png, .jpg, .svg] # allowed extensions (default: [.png, .jpg, .jpeg])
@@ -567,7 +567,7 @@ on: schedule
 tools:
   playwright:
 safe-outputs:
-  upload-assets:
+  upload-asset:
     branch: "assets/screenshots"
     allowed-exts: [.png]
     max: 50
@@ -587,7 +587,7 @@ on: schedule
 tools:
   bash:
 safe-outputs:
-  upload-assets:
+  upload-asset:
     branch: "assets/charts" 
     allowed-exts: [.png, .svg]
     max-size: 2048

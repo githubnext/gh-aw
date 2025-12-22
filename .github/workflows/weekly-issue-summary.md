@@ -25,7 +25,7 @@ tools:
     toolsets: 
       - issues
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     title-prefix: "[Weekly Summary] "
     category: "Audits"

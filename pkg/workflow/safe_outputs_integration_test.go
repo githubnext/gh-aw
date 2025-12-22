@@ -181,7 +181,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 			},
 			requiredEnvVar: "GH_AW_WORKFLOW_ID",
 			jobBuilder: func(c *Compiler, data *WorkflowData, mainJobName string) (*Job, error) {
-				return c.buildUploadAssetsJob(data, mainJobName)
+				return c.buildUploadAssetsJob(data, mainJobName, false)
 			},
 		},
 		{

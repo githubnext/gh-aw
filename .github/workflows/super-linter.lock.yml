@@ -48,7 +48,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@3fc7118-dirty
+        uses: githubnext/gh-aw/actions/setup-activation@90f7e0a-dirty
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -97,7 +97,7 @@ jobs:
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Download super-linter log
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -1677,8 +1677,12 @@ jobs:
                   dynamicTool.inputSchema.required = [];
                   Object.keys(jobConfig.inputs).forEach(inputName => {
                     const inputDef = jobConfig.inputs[inputName];
+                    let jsonSchemaType = inputDef.type || "string";
+                    if (jsonSchemaType === "choice") {
+                      jsonSchemaType = "string";
+                    }
                     const propSchema = {
-                      type: inputDef.type || "string",
+                      type: jsonSchemaType,
                       description: inputDef.description || `Input parameter: ${inputName}`,
                     };
                     if (Array.isArray(inputDef.options)) {
@@ -7467,7 +7471,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -7495,7 +7499,7 @@ jobs:
           fi
       - name: Upload super-linter log
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: super-linter-log
           path: super-linter.log

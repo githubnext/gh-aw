@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -19,8 +20,8 @@ type UploadAssetsConfig struct {
 
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
-	if configData, exists := outputMap["upload-assets"]; exists {
-		publishAssetsLog.Print("Parsing upload-assets configuration")
+	if configData, exists := outputMap["upload-asset"]; exists {
+		publishAssetsLog.Print("Parsing upload-asset configuration")
 		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:  10240,                           // Default 10MB
@@ -64,10 +65,10 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
-			publishAssetsLog.Printf("Parsed upload-assets config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
+			publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
 		} else if configData == nil {
 			// Handle null case: create config with defaults
-			publishAssetsLog.Print("Using default upload-assets configuration")
+			publishAssetsLog.Print("Using default upload-asset configuration")
 			return config
 		}
 
@@ -78,8 +79,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 }
 
 // buildUploadAssetsJob creates the publish_assets job
-func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s", data.Name, mainJobName)
+func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) (*Job, error) {
+	publishAssetsLog.Printf("Building upload_assets job: workflow=%s, main_job=%s, threat_detection=%v", data.Name, mainJobName, threatDetectionEnabled)
 
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
@@ -129,6 +130,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset")
 
+	// Build job dependencies
+	needs := []string{mainJobName}
+	if threatDetectionEnabled {
+		needs = append(needs, constants.DetectionJobName)
+		publishAssetsLog.Printf("Added detection job dependency for upload_assets")
+	}
+
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:       "upload_assets",
@@ -142,5 +150,6 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 		Condition:     jobCondition,
 		PreSteps:      preSteps,
 		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
+		Needs:         needs,
 	})
 }

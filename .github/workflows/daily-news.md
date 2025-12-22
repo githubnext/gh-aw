@@ -27,7 +27,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     expires: 3d
     category: "daily-news"

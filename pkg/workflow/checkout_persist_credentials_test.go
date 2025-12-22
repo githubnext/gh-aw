@@ -99,7 +99,7 @@ permissions:
   issues: read
   pull-requests: read
 safe-outputs:
-  upload-assets:
+  upload-asset:
 engine: claude
 strict: false
 ---`,

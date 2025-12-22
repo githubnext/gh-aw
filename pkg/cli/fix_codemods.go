@@ -45,6 +45,7 @@ func GetAllCodemods() []Codemod {
 		getNetworkFirewallCodemod(),
 		getCommandToSlashCommandCodemod(),
 		getSafeInputsModeCodemod(),
+		getUploadAssetsCodemod(),
 	}
 }
 
@@ -484,6 +485,104 @@ func getSafeInputsModeCodemod() Codemod {
 
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied safe-inputs.mode removal")
+			return newContent, true, nil
+		},
+	}
+}
+
+// getUploadAssetsCodemod creates a codemod for migrating upload-assets to upload-asset (plural to singular)
+func getUploadAssetsCodemod() Codemod {
+	return Codemod{
+		ID:           "upload-assets-to-upload-asset-migration",
+		Name:         "Migrate upload-assets to upload-asset",
+		Description:  "Replaces deprecated 'safe-outputs.upload-assets' field with 'safe-outputs.upload-asset' (plural to singular)",
+		IntroducedIn: "0.3.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if safe-outputs.upload-assets exists
+			safeOutputsValue, hasSafeOutputs := frontmatter["safe-outputs"]
+			if !hasSafeOutputs {
+				return content, false, nil
+			}
+
+			safeOutputsMap, ok := safeOutputsValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if upload-assets field exists in safe-outputs (plural is deprecated)
+			_, hasUploadAssets := safeOutputsMap["upload-assets"]
+			if !hasUploadAssets {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and replace upload-assets with upload-asset within the safe-outputs block
+			var modified bool
+			var inSafeOutputsBlock bool
+			var safeOutputsIndent string
+
+			frontmatterLines := make([]string, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the safe-outputs block
+				if strings.HasPrefix(trimmedLine, "safe-outputs:") {
+					inSafeOutputsBlock = true
+					safeOutputsIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines[i] = line
+					continue
+				}
+
+				// Check if we've left the safe-outputs block (new top-level key with same or less indentation)
+				if inSafeOutputsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(safeOutputsIndent) && strings.Contains(line, ":") {
+						inSafeOutputsBlock = false
+					}
+				}
+
+				// Replace upload-assets with upload-asset if in safe-outputs block
+				if inSafeOutputsBlock && strings.HasPrefix(trimmedLine, "upload-assets:") {
+					// Preserve indentation
+					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+
+					// Extract the value and any trailing comment
+					parts := strings.SplitN(line, ":", 2)
+					if len(parts) >= 2 {
+						valueAndComment := parts[1]
+						frontmatterLines[i] = fmt.Sprintf("%supload-asset:%s", leadingSpace, valueAndComment)
+						modified = true
+						codemodsLog.Printf("Replaced safe-outputs.upload-assets with safe-outputs.upload-asset on line %d", i+1)
+					} else {
+						frontmatterLines[i] = line
+					}
+				} else {
+					frontmatterLines[i] = line
+				}
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied upload-assets to upload-asset migration")
 			return newContent, true, nil
 		},
 	}

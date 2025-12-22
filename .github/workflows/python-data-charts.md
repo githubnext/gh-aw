@@ -14,7 +14,7 @@ tools:
 imports:
   - shared/charts-with-trending.md
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     category: "artifacts"
     max: 1
@@ -169,4 +169,3 @@ This report contains data visualizations and trending analysis generated using P
 - ✅ **Document Cache**: Report on cache status and trending capabilities
 
 Refer to the Charts with Trending Guide (imported above) for complete examples, trending patterns, cache-memory integration, and best practices.
-
