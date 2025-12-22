@@ -12,8 +12,8 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
 		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
 		Workflows:    []string{"daily-file-diet"},
-			MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64/**"},
-			MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64/metrics/*.json",
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64/metrics/*.json",
 		TrackerLabel: "campaign:go-file-size-reduction-project64",
 	}
 
