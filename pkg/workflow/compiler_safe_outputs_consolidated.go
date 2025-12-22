@@ -473,7 +473,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
 		// Prepend app token steps (after artifact download but before safe output steps)
 		insertIndex := len(buildAgentOutputDownloadSteps())
-		newSteps := make([]string, 0, len(steps)+len(appTokenSteps))
+		newSteps := make([]string, 0)
 		newSteps = append(newSteps, steps[:insertIndex]...)
 		newSteps = append(newSteps, appTokenSteps...)
 		newSteps = append(newSteps, steps[insertIndex:]...)
