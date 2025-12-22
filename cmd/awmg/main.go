@@ -19,7 +19,7 @@ func main() {
 
 	// Create the mcp-gateway command
 	cmd := cli.NewMCPGatewayCommand()
-	
+
 	// Update command usage to reflect standalone binary
 	cmd.Use = "awmg"
 	cmd.Short = "MCP Gateway - Aggregate multiple MCP servers into a single HTTP gateway"

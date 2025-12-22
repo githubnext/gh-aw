@@ -164,25 +164,25 @@ func runMCPGateway(configFiles []string, port int, logDir string) error {
 func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) {
 	var configs []*MCPGatewayConfig
 	var originalConfigPath string
-	
+
 	if len(configFiles) > 0 {
 		// Read from file(s)
 		for i, configFile := range configFiles {
 			gatewayLog.Printf("Reading configuration from file: %s", configFile)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reading configuration from file: %s", configFile)))
-			
+
 			// Store the first config file path for rewriting
 			if i == 0 {
 				originalConfigPath = configFile
 			}
-			
+
 			// Check if file exists
 			if _, err := os.Stat(configFile); os.IsNotExist(err) {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Configuration file not found: %s", configFile)))
 				gatewayLog.Printf("Configuration file not found: %s", configFile)
 				return nil, "", fmt.Errorf("configuration file not found: %s", configFile)
 			}
-			
+
 			data, err := os.ReadFile(configFile)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read config file: %v", err)))
@@ -190,19 +190,19 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 			}
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from file", len(data))))
 			gatewayLog.Printf("Read %d bytes from file", len(data))
-			
+
 			// Validate we have data
 			if len(data) == 0 {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
 				gatewayLog.Print("Configuration data is empty")
 				return nil, "", fmt.Errorf("configuration data is empty")
 			}
-			
+
 			config, err := parseGatewayConfig(data)
 			if err != nil {
 				return nil, "", err
 			}
-			
+
 			configs = append(configs, config)
 		}
 	} else {
@@ -216,51 +216,51 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Read %d bytes from stdin", len(data))))
 		gatewayLog.Printf("Read %d bytes from stdin", len(data))
-		
+
 		if len(data) == 0 {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No configuration data received from stdin"))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please provide configuration via --config flag or pipe JSON to stdin"))
 			gatewayLog.Print("No data received from stdin")
 			return nil, "", fmt.Errorf("no configuration data received from stdin")
 		}
-		
+
 		// Validate we have data
 		if len(data) == 0 {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Configuration data is empty"))
 			gatewayLog.Print("Configuration data is empty")
 			return nil, "", fmt.Errorf("configuration data is empty")
 		}
-		
+
 		config, err := parseGatewayConfig(data)
 		if err != nil {
 			return nil, "", err
 		}
-		
+
 		configs = append(configs, config)
 		// No config file path when reading from stdin
 		originalConfigPath = ""
 	}
-	
+
 	// Merge all configs
 	if len(configs) == 0 {
 		return nil, "", fmt.Errorf("no configuration loaded")
 	}
-	
+
 	mergedConfig := configs[0]
 	for i := 1; i < len(configs); i++ {
 		gatewayLog.Printf("Merging configuration %d of %d", i+1, len(configs))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Merging configuration %d of %d", i+1, len(configs))))
 		mergedConfig = mergeConfigs(mergedConfig, configs[i])
 	}
-	
+
 	gatewayLog.Printf("Successfully merged %d configuration(s)", len(configs))
 	if len(configs) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully merged %d configurations", len(configs))))
 	}
-	
+
 	gatewayLog.Printf("Loaded configuration with %d MCP servers", len(mergedConfig.MCPServers))
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully loaded configuration with %d MCP servers", len(mergedConfig.MCPServers))))
-	
+
 	// Validate we have at least one server configured
 	if len(mergedConfig.MCPServers) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: No MCP servers configured in configuration"))
@@ -268,7 +268,7 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 		gatewayLog.Print("No MCP servers configured")
 		return nil, "", fmt.Errorf("no MCP servers configured in configuration")
 	}
-	
+
 	// Log server names for debugging
 	serverNames := make([]string, 0, len(mergedConfig.MCPServers))
 	for name := range mergedConfig.MCPServers {
@@ -276,7 +276,7 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("MCP servers configured: %v", serverNames)))
 	gatewayLog.Printf("MCP servers configured: %v", serverNames)
-	
+
 	return mergedConfig, originalConfigPath, nil
 }
 
@@ -284,7 +284,7 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 	gatewayLog.Printf("Parsing %d bytes of configuration data", len(data))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %d bytes of configuration data", len(data))))
-	
+
 	var config MCPGatewayConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse JSON: %v", err)))
@@ -294,7 +294,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 	}
 
 	gatewayLog.Printf("Successfully parsed JSON configuration")
-	
+
 	// Filter out internal workflow MCP servers (safeinputs and safeoutputs)
 	// These are used internally by the workflow and should not be proxied by the gateway
 	filteredServers := make(map[string]MCPServerConfig)
@@ -307,7 +307,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 		filteredServers[name] = serverConfig
 	}
 	config.MCPServers = filteredServers
-	
+
 	return &config, nil
 }
 
@@ -317,18 +317,18 @@ func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 		MCPServers: make(map[string]MCPServerConfig),
 		Gateway:    base.Gateway,
 	}
-	
+
 	// Copy all servers from base
 	for name, config := range base.MCPServers {
 		result.MCPServers[name] = config
 	}
-	
+
 	// Override/add servers from override config
 	for name, config := range override.MCPServers {
 		gatewayLog.Printf("Merging server config for: %s", name)
 		result.MCPServers[name] = config
 	}
-	
+
 	// Override gateway settings if provided
 	if override.Gateway.Port != 0 {
 		result.Gateway.Port = override.Gateway.Port
@@ -338,7 +338,7 @@ func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 		result.Gateway.APIKey = override.Gateway.APIKey
 		gatewayLog.Printf("Override gateway API key (length: %d)", len(override.Gateway.APIKey))
 	}
-	
+
 	return result
 }
 
@@ -346,7 +346,7 @@ func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) error {
 	gatewayLog.Printf("Rewriting MCP config file: %s", configPath)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Rewriting MCP config file: %s", configPath)))
-	
+
 	// Read the original config file to preserve non-proxied servers
 	gatewayLog.Printf("Reading original config from %s", configPath)
 	originalConfigData, err := os.ReadFile(configPath)
@@ -355,24 +355,24 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read original config: %v", err)))
 		return fmt.Errorf("failed to read original config: %w", err)
 	}
-	
+
 	var originalConfig map[string]any
 	if err := json.Unmarshal(originalConfigData, &originalConfig); err != nil {
 		gatewayLog.Printf("Failed to parse original config: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse original config: %v", err)))
 		return fmt.Errorf("failed to parse original config: %w", err)
 	}
-	
+
 	port := config.Gateway.Port
 	if port == 0 {
 		port = 8080
 	}
 	// Use host.docker.internal instead of localhost to allow Docker containers to reach the gateway
 	gatewayURL := fmt.Sprintf("http://host.docker.internal:%d", port)
-	
+
 	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))
-	
+
 	// Get original mcpServers to preserve non-proxied servers
 	var originalMCPServers map[string]any
 	if servers, ok := originalConfig["mcpServers"].(map[string]any); ok {
@@ -380,32 +380,32 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	} else {
 		originalMCPServers = make(map[string]any)
 	}
-	
+
 	// Create merged config with rewritten proxied servers and preserved non-proxied servers
 	rewrittenConfig := make(map[string]any)
 	mcpServers := make(map[string]any)
-	
+
 	// First, copy all servers from original (preserves non-proxied servers like safeinputs/safeoutputs)
 	for serverName, serverConfig := range originalMCPServers {
 		mcpServers[serverName] = serverConfig
 	}
-	
+
 	gatewayLog.Printf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))))
-	
+
 	// Then, overwrite with gateway URLs for proxied servers only
 	for serverName := range config.MCPServers {
 		serverURL := fmt.Sprintf("%s/mcp/%s", gatewayURL, serverName)
-		
+
 		gatewayLog.Printf("Rewriting server '%s' to use gateway URL: %s", serverName, serverURL)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s -> %s", serverName, serverURL)))
-		
+
 		serverConfig := map[string]any{
 			"type":  "http",
 			"url":   serverURL,
 			"tools": []string{"*"},
 		}
-		
+
 		// Add authentication header if API key is configured
 		if config.Gateway.APIKey != "" {
 			gatewayLog.Printf("Adding authorization header for server '%s'", serverName)
@@ -413,15 +413,15 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 				"Authorization": fmt.Sprintf("Bearer %s", config.Gateway.APIKey),
 			}
 		}
-		
+
 		mcpServers[serverName] = serverConfig
 	}
-	
+
 	rewrittenConfig["mcpServers"] = mcpServers
-	
+
 	// Do NOT include gateway section in rewritten config (per requirement)
 	gatewayLog.Print("Gateway section removed from rewritten config")
-	
+
 	// Marshal to JSON with indentation
 	data, err := json.MarshalIndent(rewrittenConfig, "", "  ")
 	if err != nil {
@@ -429,22 +429,22 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to marshal rewritten config: %v", err)))
 		return fmt.Errorf("failed to marshal rewritten config: %w", err)
 	}
-	
+
 	gatewayLog.Printf("Writing %d bytes to config file", len(data))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file", len(data))))
-	
+
 	// Write back to file
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		gatewayLog.Printf("Failed to write rewritten config: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
 		return fmt.Errorf("failed to write rewritten config: %w", err)
 	}
-	
+
 	gatewayLog.Printf("Successfully rewrote MCP config file")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully rewrote MCP config: %s", configPath)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d proxied servers now point to gateway at %s", len(config.MCPServers), gatewayURL)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %d total servers in config", len(mcpServers))))
-	
+
 	return nil
 }
 
@@ -492,7 +492,7 @@ func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerC
 	logFile := filepath.Join(g.logDir, fmt.Sprintf("%s.log", serverName))
 	gatewayLog.Printf("Creating log file for %s: %s", serverName, logFile)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating log file for %s: %s", serverName, logFile)))
-	
+
 	logFd, err := os.Create(logFile)
 	if err != nil {
 		gatewayLog.Printf("Failed to create log file for %s: %v", serverName, err)
@@ -538,7 +538,7 @@ func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerC
 
 		gatewayLog.Printf("Connecting to MCP server %s with 30s timeout", serverName)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Connecting to %s...", serverName)))
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 

@@ -25,7 +25,7 @@ func TestMCPGateway_InspectWithPlaywright(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
-	
+
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		t.Skipf("Skipping test: gh-aw binary not found at %s. Run 'make build' first.", binaryPath)
 	}
@@ -144,7 +144,7 @@ This workflow tests the MCP gateway configuration and tool list.
 
 	output, err := inspectCmd.CombinedOutput()
 	outputStr := string(output)
-	
+
 	if err != nil {
 		t.Logf("mcp inspect output:\n%s", outputStr)
 		t.Fatalf("mcp inspect failed: %v", err)
@@ -167,7 +167,7 @@ This workflow tests the MCP gateway configuration and tool list.
 
 	serverOutput, err := inspectServerCmd.CombinedOutput()
 	serverOutputStr := string(serverOutput)
-	
+
 	if err != nil {
 		t.Logf("mcp inspect --server output:\n%s", serverOutputStr)
 		// This might fail if playwright server isn't available, which is okay
@@ -186,7 +186,7 @@ This workflow tests the MCP gateway configuration and tool list.
 
 	listOutput, err := listCmd.CombinedOutput()
 	listOutputStr := string(listOutput)
-	
+
 	if err != nil {
 		t.Logf("mcp list output:\n%s", listOutputStr)
 		t.Fatalf("mcp list failed: %v", err)
@@ -209,14 +209,14 @@ This workflow tests the MCP gateway configuration and tool list.
 
 	toolsOutput, err := listToolsCmd.CombinedOutput()
 	toolsOutputStr := string(toolsOutput)
-	
+
 	if err != nil {
 		t.Logf("mcp list-tools output:\n%s", toolsOutputStr)
 		// This might fail depending on MCP server configuration
 		t.Logf("Warning: mcp list-tools failed: %v", err)
 	} else {
 		t.Logf("mcp list-tools output:\n%s", toolsOutputStr)
-		
+
 		// If successful, verify we have tool information
 		if strings.Contains(toolsOutputStr, "No tools") {
 			t.Log("Note: No tools found in MCP servers (this may be expected)")
@@ -246,7 +246,7 @@ func TestMCPGateway_InspectToolList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get absolute path: %v", err)
 	}
-	
+
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		t.Skipf("Skipping test: gh-aw binary not found at %s. Run 'make build' first.", binaryPath)
 	}
@@ -291,7 +291,7 @@ Test workflow for verifying tool list via mcp inspect.
 
 	output, err := inspectCmd.CombinedOutput()
 	outputStr := string(output)
-	
+
 	t.Logf("mcp inspect output:\n%s", outputStr)
 
 	// Check if inspection was successful or at least attempted

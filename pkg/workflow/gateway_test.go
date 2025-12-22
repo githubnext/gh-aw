@@ -53,7 +53,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			},
 		},
 		{
-			name: "empty config",
+			name:  "empty config",
 			input: map[string]any{},
 			expected: &MCPGatewayConfig{
 				Port: DefaultMCPGatewayPort,
