@@ -500,14 +500,19 @@ gh aw pr transfer <pr-url> --repo target-owner/target-repo
 
 #### `mcp-server`
 
-Start MCP server exposing CLI commands as tools (`status`, `compile`, `logs`, `audit`). Enables AI assistants to interact with gh-aw programmatically. Supports both local (stdio) and remote (HTTP) transports.
+Run an MCP server exposing gh-aw commands as tools for integration with MCP-compatible applications.
 
 ```bash wrap
-gh aw mcp-server              # stdio transport (local)
-gh aw mcp-server --port 3000  # HTTP/SSE transport (workflows)
+gh aw mcp-server              # Run with stdio transport
+gh aw mcp-server --port 8080  # Run HTTP server on port 8080
+gh aw mcp-server --cmd ./gh-aw # Use custom gh-aw binary
 ```
 
-**Options:** `--port N` (start HTTP server on specified port, defaults to stdio transport)
+**Options:** `--port` (run HTTP server with SSE transport), `--cmd` (path to gh-aw binary)
+
+**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update
+
+The server spawns subprocess calls for each tool invocation to ensure GitHub tokens and secrets are not shared with the MCP server process.
 
 See **[MCP Server Guide](/gh-aw/setup/mcp-server/)** for integration details.
 
