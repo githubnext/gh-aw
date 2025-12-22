@@ -407,6 +407,31 @@ For GitHub tools, `allowed:` can be combined with `toolsets:` to further restric
 
 ## Troubleshooting
 
+### Feature Flags
+
+**Issue**: Feature flag not taking effect
+- **Solution**: 
+  - For local (Docker) mode: Ensure `args: ["--features=feature-name"]` is in the GitHub tool configuration
+  - For remote mode: Feature flags are typically not needed as the hosted server has all features enabled
+  - Verify the feature flag name is correct (e.g., "consolidated-actions")
+  - Check that the GitHub MCP Server version supports the feature (v0.26.0+ for feature flags)
+
+**Issue**: Custom args not appearing in generated workflow
+- **Cause**: Incorrect syntax for args field
+- **Solution**: Use array syntax: `args: ["--flag1", "--flag2"]`
+- **Verify**: Check the compiled `.lock.yml` file for the Docker args
+
+### Octicon Icons
+
+**Issue**: Icons not displaying in client
+- **Cause**: Client doesn't support MCP icons specification
+- **Solution**: Update to a client that supports icons (VS Code MCP extension v0.26.0+, Claude Desktop with latest MCP)
+- **Note**: Icons are optional - tools work normally without them
+
+**Issue**: Icon compatibility errors
+- **Solution**: Ensure using GitHub MCP Server v0.26.1+ which includes icon compatibility fixes
+- **Details**: v0.26.1 fixed icon size field compatibility with older clients
+
 ### Common Issues
 
 **Issue**: Tool not found or not available
@@ -426,6 +451,7 @@ For GitHub tools, `allowed:` can be combined with `toolsets:` to further restric
 2. **Add specific toolsets as needed**: Incrementally add toolsets like `actions`, `discussions`, etc.
 3. **Use `gh aw mcp inspect`**: Verify which tools are actually available
 4. **Check tool-to-toolset mapping**: Reference the tables above to find the right toolset
+5. **Verify feature flags**: For local mode, check `.lock.yml` to confirm flags are passed correctly
 
 ## References
 
