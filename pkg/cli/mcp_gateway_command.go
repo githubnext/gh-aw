@@ -672,7 +672,9 @@ func (g *MCPGatewayServer) handleMCPRequest(w http.ResponseWriter, r *http.Reque
 
 	// Send response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		gatewayLog.Printf("Failed to encode JSON response: %v", err)
+	}
 }
 
 // handleInitialize handles the initialize method
@@ -772,5 +774,7 @@ func (g *MCPGatewayServer) handleListServers(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		gatewayLog.Printf("Failed to encode JSON response: %v", err)
+	}
 }
