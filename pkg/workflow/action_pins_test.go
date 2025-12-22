@@ -345,7 +345,11 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
+<<<<<<< HEAD
+	// Verify we got all the pins (should be 39 after adding specific version entries)
+=======
 	// Verify we got all the pins (should be 39 as of this test)
+>>>>>>> origin/main
 	if len(pins) != 39 {
 		t.Errorf("getActionPins() returned %d pins, expected 39", len(pins))
 	}
