@@ -51,7 +51,7 @@ func TestMCPGateway_BasicStartup(t *testing.T) {
 	// Use the runMCPGateway function directly in a goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- runMCPGateway(configFile, 8088, tmpDir)
+		errChan <- runMCPGateway([]string{configFile}, 8088, tmpDir)
 	}()
 
 	// Wait for server to start
