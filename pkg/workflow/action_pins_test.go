@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 37 after adding specific version entries)
-	if len(pins) != 37 {
-		t.Errorf("getActionPins() returned %d pins, expected 37", len(pins))
+	// Verify we got all the pins (should be 39 as of this test)
+	if len(pins) != 39 {
+		t.Errorf("getActionPins() returned %d pins, expected 39", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -578,5 +578,60 @@ func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
 	result.Name = "Modified name"
 	if originalStep.Name == "Modified name" {
 		t.Errorf("ApplyActionPinToTypedStep() did not return an independent copy")
+	}
+}
+
+// TestGetActionPinSemverPreference verifies that when multiple versions exist for the same repo,
+// the latest version by semver is returned
+func TestGetActionPinSemverPreference(t *testing.T) {
+	tests := []struct {
+		name            string
+		repo            string
+		expectedVersion string
+	}{
+		{
+			name:            "setup-go prefers v6.1.0 over v6",
+			repo:            "actions/setup-go",
+			expectedVersion: "v6.1.0",
+		},
+		{
+			name:            "setup-node prefers v6.1.0 over v6",
+			repo:            "actions/setup-node",
+			expectedVersion: "v6.1.0",
+		},
+		{
+			name:            "upload-artifact prefers v5.0.0 over v5 and v4",
+			repo:            "actions/upload-artifact",
+			expectedVersion: "v5.0.0",
+		},
+		{
+			name:            "setup-python prefers v5.6.0 over v5",
+			repo:            "actions/setup-python",
+			expectedVersion: "v5.6.0",
+		},
+		{
+			name:            "cache prefers v4.3.0 over v4",
+			repo:            "actions/cache",
+			expectedVersion: "v4.3.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test GetActionPin
+			result := GetActionPin(tt.repo)
+			if !strings.Contains(result, "# "+tt.expectedVersion) {
+				t.Errorf("GetActionPin(%s) = %s, expected version %s", tt.repo, result, tt.expectedVersion)
+			}
+
+			// Test GetActionPinByRepo
+			pin, exists := GetActionPinByRepo(tt.repo)
+			if !exists {
+				t.Fatalf("GetActionPinByRepo(%s) returned false, expected true", tt.repo)
+			}
+			if pin.Version != tt.expectedVersion {
+				t.Errorf("GetActionPinByRepo(%s).Version = %s, expected %s", tt.repo, pin.Version, tt.expectedVersion)
+			}
+		})
 	}
 }
