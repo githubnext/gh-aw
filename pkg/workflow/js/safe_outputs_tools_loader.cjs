@@ -9,7 +9,7 @@ const fs = require("fs");
  */
 function loadTools(server) {
   const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
-  
+
   server.debug(`Reading tools from file: ${toolsPath}`);
 
   if (!fs.existsSync(toolsPath)) {
@@ -52,7 +52,7 @@ function attachHandlers(tools, handlers) {
       tool.handler = handler;
     }
   });
-  
+
   return tools;
 }
 
@@ -126,7 +126,7 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
 
       Object.keys(jobConfig.inputs).forEach(inputName => {
         const inputDef = jobConfig.inputs[inputName];
-        
+
         // Convert GitHub Actions choice type to JSON Schema string type
         // GitHub Actions uses "choice" type with "options" array
         // JSON Schema requires "string" type with "enum" array
@@ -134,7 +134,7 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
         if (jsonSchemaType === "choice") {
           jsonSchemaType = "string";
         }
-        
+
         const propSchema = {
           type: jsonSchemaType,
           description: inputDef.description || `Input parameter: ${inputName}`,
