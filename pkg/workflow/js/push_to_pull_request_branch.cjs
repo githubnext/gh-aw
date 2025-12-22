@@ -211,7 +211,7 @@ async function main() {
     const { data: pullRequest } = await github.rest.pulls.get({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      pull_number: pullNumber
+      pull_number: pullNumber,
     });
     branchName = pullRequest.head.ref;
     prTitle = pullRequest.title || "";
