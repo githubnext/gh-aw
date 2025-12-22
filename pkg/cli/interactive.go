@@ -314,7 +314,24 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 
 	// Check if destination file already exists
 	if _, err := os.Stat(destFile); err == nil && !force {
-		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
+		var overwrite bool
+		confirmForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewConfirm().
+					Title(fmt.Sprintf("Workflow file '%s' already exists. Overwrite?", filepath.Base(destFile))).
+					Affirmative("Yes, overwrite").
+					Negative("No, cancel").
+					Value(&overwrite),
+			),
+		).WithAccessible(isAccessibleMode())
+
+		if err := confirmForm.Run(); err != nil {
+			return fmt.Errorf("confirmation failed: %w", err)
+		}
+
+		if !overwrite {
+			return fmt.Errorf("workflow creation cancelled")
+		}
 	}
 
 	// Generate workflow content
