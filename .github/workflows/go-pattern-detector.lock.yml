@@ -48,7 +48,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@974b172
+        uses: githubnext/gh-aw/actions/setup-activation@35a9ba5
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
