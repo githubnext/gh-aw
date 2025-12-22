@@ -3318,6 +3318,38 @@ jobs:
             if curl -s -o /dev/null -w "%{http_code}" "${gateway_url}/health" | grep -q "200\|204"; then
               echo "MCP Gateway is ready!"
               curl -s "${gateway_url}/servers" || echo "Could not fetch servers list"
+              
+              # Test MCP server connectivity through gateway
+              echo ''
+              echo 'Testing MCP server connectivity...'
+              
+              # Extract first external MCP server name from config (excluding safeinputs/safeoutputs)
+              mcp_server=$(jq -r '.mcpServers | to_entries[] | select(.key != "safeinputs" and .key != "safeoutputs") | .key' /home/runner/.copilot/mcp-config.json | head -n 1)
+              if [ -n "$mcp_server" ]; then
+                echo "Testing connectivity to MCP server: $mcp_server"
+                mcp_url="${gateway_url}/mcp/${mcp_server}"
+                echo "MCP URL: $mcp_url"
+                
+                # Test with MCP initialize call
+                response=$(curl -s -w "\n%{http_code}" -X POST "$mcp_url" \
+                  -H "Content-Type: application/json" \
+                  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}')
+                
+                http_code=$(echo "$response" | tail -n 1)
+                body=$(echo "$response" | head -n -1)
+                
+                echo "HTTP Status: $http_code"
+                echo "Response: $body"
+                
+                if [ "$http_code" = "200" ]; then
+                  echo "✓ MCP server connectivity test passed"
+                else
+                  echo "⚠ MCP server returned HTTP $http_code (may need authentication or different request)"
+                fi
+              else
+                echo "No external MCP servers configured for testing"
+              fi
+              
               exit 0
             fi
             retry_count=$((retry_count + 1))

@@ -270,6 +270,14 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	assert.Contains(t, stepStr, "grep -q '\"safeinputs\"'")
 	assert.Contains(t, stepStr, "grep -q '\"safeoutputs\"'")
 	assert.Contains(t, stepStr, "Verified: safeinputs and safeoutputs are present in configuration")
+	// Verify MCP server connectivity test is included
+	assert.Contains(t, stepStr, "Testing MCP server connectivity...")
+	assert.Contains(t, stepStr, "jq -r '.mcpServers | to_entries[]")
+	assert.Contains(t, stepStr, "select(.key != \"safeinputs\" and .key != \"safeoutputs\")")
+	assert.Contains(t, stepStr, "mcp_url=\"${gateway_url}/mcp/${mcp_server}\"")
+	assert.Contains(t, stepStr, "curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\"")
+	assert.Contains(t, stepStr, "\"method\":\"initialize\"")
+	assert.Contains(t, stepStr, "✓ MCP server connectivity test passed")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
