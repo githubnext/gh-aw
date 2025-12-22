@@ -366,7 +366,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Haskell",
-				"haskell-actions/setup@782a7c5aa54495c3d21d7c8d5f03a8a2113a1ff7",
+				"haskell-actions/setup@55073cbd0e96181a9abd6ff4e7d289867dffc98d",
 				"ghc-version: '9.10'",
 			},
 		},
