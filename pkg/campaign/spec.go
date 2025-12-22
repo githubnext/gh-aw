@@ -14,6 +14,14 @@ type CampaignSpec struct {
 	Name        string `yaml:"name" json:"name" console:"header:Name,maxlen:30"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty,maxlen:60"`
 
+	// Objective is an optional outcome-owned statement describing what success means
+	// for this campaign.
+	Objective string `yaml:"objective,omitempty" json:"objective,omitempty" console:"header:Objective,omitempty,maxlen:60"`
+
+	// KPIs is an optional list of KPIs used to measure progress toward the objective.
+	// Recommended: 1 primary KPI plus up to 2 supporting KPIs.
+	KPIs []CampaignKPI `yaml:"kpis,omitempty" json:"kpis,omitempty"`
+
 	// ProjectURL points to the GitHub Project used as the primary campaign
 	// dashboard.
 	ProjectURL string `yaml:"project-url,omitempty" json:"project_url,omitempty" console:"header:Project URL,omitempty,maxlen:40"`
@@ -27,7 +35,7 @@ type CampaignSpec struct {
 	Workflows []string `yaml:"workflows,omitempty" json:"workflows,omitempty" console:"header:Workflows,omitempty,maxlen:40"`
 
 	// MemoryPaths documents where this campaign writes its repo-memory
-	// (for example: memory/campaigns/incident-*/**).
+	// (for example: memory/campaigns/incident-response/**).
 	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty,maxlen:40"`
 
 	// MetricsGlob is an optional glob (relative to the repository root)
@@ -90,6 +98,39 @@ type CampaignSpec struct {
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
+}
+
+// CampaignKPI defines a single KPI used for campaign measurement.
+type CampaignKPI struct {
+	// ID is an optional stable identifier for this KPI.
+	ID string `yaml:"id,omitempty" json:"id,omitempty"`
+
+	// Name is a human-readable KPI name.
+	Name string `yaml:"name" json:"name"`
+
+	// Priority indicates whether this KPI is the primary KPI or a supporting KPI.
+	// Expected values: primary, supporting.
+	Priority string `yaml:"priority,omitempty" json:"priority,omitempty"`
+
+	// Unit is an optional unit string (e.g., percent, days, count).
+	Unit string `yaml:"unit,omitempty" json:"unit,omitempty"`
+
+	// Baseline is the baseline KPI value.
+	Baseline float64 `yaml:"baseline" json:"baseline"`
+
+	// Target is the target KPI value.
+	Target float64 `yaml:"target" json:"target"`
+
+	// TimeWindowDays is the rolling time window (in days) used to compute the KPI.
+	TimeWindowDays int `yaml:"time-window-days" json:"time-window-days"`
+
+	// Direction indicates whether improvement means increasing or decreasing.
+	// Expected values: increase, decrease.
+	Direction string `yaml:"direction,omitempty" json:"direction,omitempty"`
+
+	// Source describes the signal source used to compute the KPI.
+	// Expected values: ci, pull_requests, code_security, custom.
+	Source string `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // CampaignGovernancePolicy captures lightweight pacing and opt-out policies.

@@ -20,6 +20,68 @@
       "type": "string",
       "description": "Brief description of the campaign"
     },
+    "objective": {
+      "type": "string",
+      "description": "Outcome-owned objective statement for the campaign (what success means)",
+      "minLength": 1
+    },
+    "kpis": {
+      "type": "array",
+      "description": "Up to 3 KPIs used to measure the campaign objective",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional stable identifier for the KPI (lowercase letters, digits, and hyphens)",
+            "pattern": "^[a-z0-9-]+$",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable KPI name",
+            "minLength": 1
+          },
+          "priority": {
+            "type": "string",
+            "description": "KPI priority: primary (exactly one per campaign) or supporting",
+            "enum": ["primary", "supporting"]
+          },
+          "unit": {
+            "type": "string",
+            "description": "Optional KPI unit (e.g., percent, days, count)",
+            "minLength": 1
+          },
+          "baseline": {
+            "type": "number",
+            "description": "Baseline KPI value"
+          },
+          "target": {
+            "type": "number",
+            "description": "Target KPI value"
+          },
+          "time-window-days": {
+            "type": "integer",
+            "description": "Rolling time window, in days, used for KPI measurement (e.g., 7, 14, 30)",
+            "minimum": 1
+          },
+          "direction": {
+            "type": "string",
+            "description": "Whether improvement means increasing or decreasing the KPI",
+            "enum": ["increase", "decrease"]
+          },
+          "source": {
+            "type": "string",
+            "description": "Signal source used to compute this KPI",
+            "enum": ["ci", "pull_requests", "code_security", "custom"]
+          }
+        },
+        "required": ["name", "baseline", "target", "time-window-days"]
+      }
+    },
     "project-url": {
       "type": "string",
       "description": "URL of the GitHub Project used as the primary campaign dashboard",

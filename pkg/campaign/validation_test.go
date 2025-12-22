@@ -308,3 +308,199 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 		t.Errorf("Expected no validation problems for complete spec, got: %v", problems)
 	}
 }
+
+func TestValidateSpec_ObjectiveWithoutKPIs(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve CI stability",
+		// KPIs intentionally omitted
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for objective without kpis")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "kpis should include at least one KPI") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected objective/kpis coupling validation problem, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_KPIsWithoutObjective(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		KPIs: []CampaignKPI{
+			{
+				Name:           "Build success rate",
+				Priority:       "primary",
+				Baseline:       0.8,
+				Target:         0.95,
+				TimeWindowDays: 7,
+			},
+		},
+		// Objective intentionally omitted
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for kpis without objective")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "objective should be set when kpis") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected objective/kpis coupling validation problem, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_KPIsMultipleWithoutPrimary(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve delivery",
+		KPIs: []CampaignKPI{
+			{Name: "PR cycle time", Priority: "supporting", Baseline: 10, Target: 7, TimeWindowDays: 30},
+			{Name: "Open PRs", Priority: "supporting", Baseline: 20, Target: 10, TimeWindowDays: 30},
+		},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for multiple KPIs without a primary")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "exactly one primary KPI") && strings.Contains(p, "priority: primary") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected primary KPI validation problem, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve delivery",
+		KPIs: []CampaignKPI{
+			{Name: "Build success rate", Priority: "primary", Baseline: 0.8, Target: 0.95, TimeWindowDays: 7},
+			{Name: "PR cycle time", Priority: "primary", Baseline: 10, Target: 7, TimeWindowDays: 30},
+		},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for multiple primary KPIs")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "multiple primary KPIs found") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected multiple primary KPI validation problem, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_SingleKPIOmitsPriorityIsAllowed(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve CI stability",
+		KPIs: []CampaignKPI{
+			{
+				Name: "Build success rate",
+				// Priority intentionally omitted; should be implicitly primary.
+				Baseline:       0.8,
+				Target:         0.95,
+				TimeWindowDays: 7,
+			},
+		},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) != 0 {
+		t.Errorf("Expected no validation problems for single KPI with omitted priority, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_KPIFieldConstraints(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve CI stability",
+		KPIs: []CampaignKPI{
+			{
+				Name:           "Build success rate",
+				Priority:       "primary",
+				Baseline:       0.8,
+				Target:         0.95,
+				TimeWindowDays: 0,
+				Direction:      "up",
+				Source:         "unknown",
+			},
+		},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for invalid KPI fields")
+	}
+
+	expectSubstrings := []string{
+		"time-window-days must be >= 1",
+		"direction must be one of: increase, decrease",
+		"source must be one of: ci, pull_requests, code_security, custom",
+	}
+	for _, needle := range expectSubstrings {
+		found := false
+		for _, p := range problems {
+			if strings.Contains(p, needle) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected validation problem containing %q, got: %v", needle, problems)
+		}
+	}
+}

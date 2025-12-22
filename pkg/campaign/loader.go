@@ -155,6 +155,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 		Version:      "v1",
 		State:        "planned",
 		TrackerLabel: "campaign:" + id,
+		MemoryPaths:  []string{"memory/campaigns/" + id + "/**"},
+		MetricsGlob:  "memory/campaigns/" + id + "/metrics/*.json",
 		CursorGlob:   "memory/campaigns/" + id + "/cursor.json",
 		Governance: &CampaignGovernancePolicy{
 			MaxNewItemsPerRun:       25,
