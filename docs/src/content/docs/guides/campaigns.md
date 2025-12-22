@@ -1,117 +1,45 @@
 ---
 title: "Agentic campaigns"
-description: "Run structured, visible automation initiatives with GitHub Agentic Workflows and GitHub Projects."
+description: "Run structured, visible delegation initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-An agentic campaign is a finite **initiative** with explicit ownership, review gates, and clear tracking. It helps you run large automation efforts—migrations, upgrades, and rollouts—in a way that is structured and visible.
+Agentic Campaigns are bounded, goal-driven efforts where agents carry out work over time.
 
-Agentic workflows still do the hands-on work. Agentic campaigns sit above them and add the *initiative layer*: a shared definition of scope, consistent tracking, and standard progress reporting.
+In practice, it is the step from automation to delegation. Workflows are already capable of running continuously (scheduled, event-driven, and re-run), and many initiatives should be automated that way. An agentic campaign is the convention that makes that continuous work easy to see, review, and steer toward a specific goal.
 
-If you are deciding whether you need an agentic campaign, start here.
+For example, a GitHub Agentic Workflows workflow can run an agent on a schedule, decide whether a repo needs a dependency bump, and then emit a `create_pull_request` safe-output to open the PR. An agentic campaign uses that same kind of agentic workflow as a repeatable worker and adds the coordination layer: it defines the objective and KPIs, applies a tracker label like `campaign:<id>`, keeps a GitHub Project updated, and writes durable progress (a `cursor.json` checkpoint plus `metrics/*.json` snapshots) to repo-memory until the goal is met.
 
-## When to use agentic campaigns
+## When to use a campaign
 
-Use an agentic campaign when you need to run a finite initiative and you want it to be easy to review, operate, and report on.
+Use a campaign when you care about progress across days or weeks (scope, tracking, and reporting), not just the output of one execution.
 
-Example: "Upgrade a dependency across 50 repositories over two weeks, with an approval gate, daily progress updates, and a final summary."
+If what you need is run-level automation with logs, artifacts, and pass/fail, agentic workflows are enough. If what you need is a bounded, goal-driven initiative with a dashboard, a tracker label, and ongoing reporting, you want the campaign pattern.
 
-| If you care about… | Use… |
-|---|---|
-| The result of each run (success/failure, logs, artifacts) | A regular workflow |
-| The overall outcome across many runs, repos, and days/weeks | An agentic campaign |
+## What you get
 
-Why just-a-label stops being enough at scale: it does not define scope, it is easy to apply inconsistently, and it does not give you a standard status view.
+You get a GitHub Project as the dashboard, a generated orchestrator workflow that keeps that dashboard in sync, and a spec file that makes the effort reviewable (objective, KPIs, governance, and wiring). The orchestrator is just another workflow; campaigns are a way of wiring workflows together around a shared goal.
 
-Use an agentic campaign when any of these are true:
+## What it is in the repo
 
-- The work runs for days/weeks and needs handoffs and a durable status view.
-- The scope spans many repos/teams and you need a single source of truth.
-- You need approvals, staged rollouts, or other explicit decision points.
-- You want repeatability: baselines + metrics + learnings for the next run.
+A campaign is defined by a spec file and, when needed, a generated orchestrator. The spec lives at `.github/workflows/<id>.campaign.md`. When the spec includes meaningful campaign wiring, compilation also generates `.github/workflows/<id>.campaign.g.md` and compiles it to a `.lock.yml` workflow.
 
-What agentic campaigns add:
+The spec is the source of truth for what success means (the objective), how progress is measured (KPIs, with exactly one marked `primary`), where progress is shown (the GitHub Project URL), what participates (the workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
 
-- An agentic campaign spec file declares the initiative (Project dashboard URL, tracker label, referenced workflows, and optional memory/metrics locations).
-- `gh aw compile` validates the spec and can generate an orchestrator workflow (`.campaign.g.md`).
-- The CLI gives consistent inventory and status (`gh aw campaign`, `gh aw campaign status`).
+## How it works
 
-You do not need agentic campaigns just to run a workflow across many repositories (or org boundaries). That is primarily an authentication/permissions problem. Agentic campaigns solve definition, validation, and consistent tracking.
+Most campaigns follow the same shape. The GitHub Project is the human-facing status view. The orchestrator workflow discovers tracked items and updates the Project. Worker workflows (when you use them) do the real work, such as opening pull requests or applying fixes.
 
-## How agentic campaigns work
+Workers stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker and the orchestrator can search for it.
 
-Once you decide to use an agentic campaign, most implementations follow the same shape:
+## Durable state (repo-memory)
 
-- **Orchestrator workflow (generated)**: maintains the campaign dashboard by syncing tracker-labeled issues/PRs to the GitHub Project board, updating status fields, and posting periodic reports. The orchestrator handles both initial discovery and ongoing synchronization.
-- **Worker workflows (optional)**: process campaign-labeled issues to do the actual work (open PRs, apply fixes, etc.). Workers include a `tracker-id` so the orchestrator can discover their created assets.
+Campaigns become repeatable when they also write durable state to repo-memory (a git branch used for snapshots). The recommended layout is `memory/campaigns/<campaign-id>/cursor.json` for the checkpoint (treated as an opaque JSON object) and `memory/campaigns/<campaign-id>/metrics/<date>.json` for append-only metrics snapshots.
 
-You can track agentic campaigns with just labels and issues, but agentic campaigns become much more reusable when you also store baselines, metrics, and learnings in repo-memory (a git branch used for machine-generated snapshots).
+Campaign tooling enforces this durability contract at push time: when a campaign writes repo-memory, it must include a cursor and at least one metrics snapshot.
 
-### Orchestrator and Worker Coordination
+## Next steps
 
-Agentic campaigns use a **tracker-id** mechanism to coordinate between orchestrators and workers. This architecture maintains clean separation of concerns: workers execute tasks without campaign awareness, while orchestrators manage coordination and tracking.
-
-#### The Coordination Pattern
-
-1. **Worker workflows** include a `tracker-id` in their frontmatter (e.g., `tracker-id: "daily-file-diet"`). This identifier is automatically embedded in all assets created by the workflow (issues, PRs, discussions, comments) as an XML comment marker: `<!-- agentic-workflow: WorkflowName, tracker-id: daily-file-diet, ... -->`
-
-2. **Orchestrator workflows** discover work created by workers by searching for issues containing the worker's tracker-id. For example, to find issues created by a worker with `tracker-id: "daily-file-diet"`:
-   ```
-   repo:owner/repo "tracker-id: daily-file-diet" in:body
-   ```
-
-3. The orchestrator then adds discovered issues to the agentic campaign's GitHub Project board and updates their status as work progresses.
-
-This design allows workers to operate independently without knowledge of the agentic campaign, while orchestrators maintain a centralized view of all campaign work by searching for tracker-id markers.
-
-#### Orchestrator Workflow Phases
-
-Generated orchestrator workflows follow a four-phase execution model each time they run:
-
-**Phase 1: Read State (Discovery)**
-- Query for tracker-labeled issues/PRs matching the campaign
-- Query for worker-created issues using tracker-id search (if workers are configured)
-- Read current state of the GitHub Project board
-- Compare discovered items against board state to identify gaps
-
-**Phase 2: Make Decisions (Planning)**
-- Decide which new items to add to the board (respecting governance limits)
-- Determine status updates for existing items (respecting governance rules like no-downgrade)
-- Check campaign completion criteria
-
-**Phase 3: Write State (Execution)**
-- Add new items to project board via `update-project` safe output
-- Update status fields for existing board items
-- Record completion state if campaign is done
-
-**Phase 4: Report (Output)**
-- Generate status report summarizing execution
-- Record metrics: items discovered, added, updated, skipped
-- Report any failures encountered
-
-#### Core Design Principles
-
-The orchestrator/worker pattern enforces these principles:
-
-- **Workers are immutable** - Worker workflows never change based on campaign state
-- **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
-- **Campaign logic is external** - All orchestration happens in the orchestrator, not workers
-- **Single source of truth** - The GitHub Project board is the authoritative campaign state
-- **Idempotent operations** - Re-execution produces the same result without corruption
-- **Governed operations** - Orchestrators respect pacing limits and opt-out policies
-
-These principles ensure workers can be reused across agentic campaigns and remain simple, while orchestrators handle all coordination complexity.
-
-## Next Steps
-
-- **[Campaign Specs](/gh-aw/guides/campaigns/specs/)** - Learn about spec files and configuration
-- **[Getting Started](/gh-aw/guides/campaigns/getting-started/)** - Quick start guide and walkthrough
-- **[Project Management](/gh-aw/guides/campaigns/project-management/)** - Using GitHub Projects with roadmap views
-- **[CLI Commands](/gh-aw/guides/campaigns/cli-commands/)** - Command reference for campaign management
-
-## Related Patterns
-
-- **[ResearchPlanAssign](/gh-aw/guides/researchplanassign/)** - Research → generate coordinated work
-- **[ProjectOps](/gh-aw/examples/issue-pr-events/projectops/)** - Project board integration for campaigns
-- **[MultiRepoOps](/gh-aw/guides/multirepoops/)** - Cross-repository operations
-- **[Cache & Memory](/gh-aw/reference/memory/)** - Persistent storage for campaign data
-- **[Safe Outputs](/gh-aw/reference/safe-outputs/)** - `create-issue`, `add-comment` for campaigns
+- [Getting started](/gh-aw/guides/campaigns/getting-started/) – create a campaign quickly
+- [Campaign specs](/gh-aw/guides/campaigns/specs/) – spec fields (objective/KPIs, governance, memory)
+- [Project management](/gh-aw/guides/campaigns/project-management/) – project board setup tips
+- [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – CLI reference
