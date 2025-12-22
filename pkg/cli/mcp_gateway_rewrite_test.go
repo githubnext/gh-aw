@@ -132,6 +132,21 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 		t.Errorf("Expected github URL %s, got %s", expectedURL, githubURL)
 	}
 
+	// Verify github server has type: http
+	githubType, ok := github["type"].(string)
+	if !ok || githubType != "http" {
+		t.Errorf("Expected github server to have type 'http', got %v", githubType)
+	}
+
+	// Verify github server has tools: ["*"]
+	githubTools, ok := github["tools"].([]any)
+	if !ok {
+		t.Fatal("github server should have tools array")
+	}
+	if len(githubTools) != 1 || githubTools[0].(string) != "*" {
+		t.Errorf("Expected github server to have tools ['*'], got %v", githubTools)
+	}
+
 	// Verify github server does NOT have command/args (was rewritten)
 	if _, hasCommand := github["command"]; hasCommand {
 		t.Error("Rewritten github server should not have 'command' field")
@@ -207,5 +222,42 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 	_, hasMCPServers := rewrittenConfig["mcpServers"]
 	if !hasMCPServers {
 		t.Error("mcpServers section should be present in rewritten config")
+	}
+
+	// Verify the rewritten server has type and tools
+	mcpServers, ok := rewrittenConfig["mcpServers"].(map[string]any)
+	if !ok {
+		t.Fatal("mcpServers not found or wrong type")
+	}
+
+	github, ok := mcpServers["github"].(map[string]any)
+	if !ok {
+		t.Fatal("github server not found")
+	}
+
+	// Check type field
+	githubType, ok := github["type"].(string)
+	if !ok || githubType != "http" {
+		t.Errorf("Expected github server to have type 'http', got %v", githubType)
+	}
+
+	// Check tools field
+	githubTools, ok := github["tools"].([]any)
+	if !ok {
+		t.Fatal("github server should have tools array")
+	}
+	if len(githubTools) != 1 || githubTools[0].(string) != "*" {
+		t.Errorf("Expected github server to have tools ['*'], got %v", githubTools)
+	}
+
+	// Check headers field (API key was configured)
+	githubHeaders, ok := github["headers"].(map[string]any)
+	if !ok {
+		t.Fatal("github server should have headers (API key configured)")
+	}
+
+	authHeader, ok := githubHeaders["Authorization"].(string)
+	if !ok || authHeader != "Bearer test-key" {
+		t.Errorf("Expected Authorization header 'Bearer test-key', got %v", authHeader)
 	}
 }

@@ -400,7 +400,9 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  %s -> %s", serverName, serverURL)))
 		
 		serverConfig := map[string]any{
-			"url": serverURL,
+			"type":  "http",
+			"url":   serverURL,
+			"tools": []string{"*"},
 		}
 		
 		// Add authentication header if API key is configured
