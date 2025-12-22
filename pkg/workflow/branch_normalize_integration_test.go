@@ -105,7 +105,7 @@ func TestUploadAssetsJobHasInlinedNormalization(t *testing.T) {
 	}
 
 	// Build the upload_assets job
-	job, err := compiler.buildUploadAssetsJob(data, "agent")
+	job, err := compiler.buildUploadAssetsJob(data, "agent", false)
 	if err != nil {
 		t.Fatalf("Failed to build upload_assets job: %v", err)
 	}

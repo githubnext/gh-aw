@@ -70,7 +70,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// 3. Different permissions (contents: write)
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
 		compilerSafeOutputJobsLog.Print("Building separate upload_assets job")
-		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName)
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, threatDetectionEnabled)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}

@@ -126,7 +126,7 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildUploadAssetsJob(data, "agent")
+	job, err := c.buildUploadAssetsJob(data, "agent", false)
 	if err != nil {
 		t.Fatalf("Failed to build upload assets job: %v", err)
 	}
