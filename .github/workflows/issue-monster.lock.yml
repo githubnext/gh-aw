@@ -27,7 +27,7 @@ name: "Issue Monster"
   - cron: "49 */1 * * *"
     # Friendly format: every 1h (scattered)
   # skip-if-match: # Skip-if-match processed as search check in pre-activation job
-    # max: 5
+    # max: 9
     # query: is:pr is:open is:draft author:app/copilot-swe-agent
   workflow_dispatch:
 
@@ -6715,7 +6715,7 @@ jobs:
         env:
           GH_AW_SKIP_QUERY: "is:pr is:open is:draft author:app/copilot-swe-agent"
           GH_AW_WORKFLOW_NAME: "Issue Monster"
-          GH_AW_SKIP_MAX_MATCHES: "5"
+          GH_AW_SKIP_MAX_MATCHES: "9"
         with:
           script: |
             async function main() {

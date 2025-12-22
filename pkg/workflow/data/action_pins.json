@@ -2,15 +2,25 @@
   "entries": {
     "actions/ai-inference@v1": {
       "repo": "actions/ai-inference",
-      "version": "v1.2.8",
-      "sha": "b81b2afb8390ee6839b494a404766bef6493c7d9"
+      "version": "v2.0.4",
+      "sha": "334892bb203895caaed82ec52d23c1ed9385151e"
     },
     "actions/cache/restore@v4": {
       "repo": "actions/cache/restore",
       "version": "v4.3.0",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
     },
+    "actions/cache/restore@v4.3.0": {
+      "repo": "actions/cache/restore",
+      "version": "v4.3.0",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
     "actions/cache/save@v4": {
+      "repo": "actions/cache/save",
+      "version": "v4.3.0",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
+    "actions/cache/save@v4.3.0": {
       "repo": "actions/cache/save",
       "version": "v4.3.0",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"

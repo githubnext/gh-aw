@@ -2037,6 +2037,12 @@ jobs:
           
           You are a workflow health manager responsible for monitoring and maintaining the health of all 120+ agentic workflows in this repository.
           
+          ## Important Note: Shared Include Files
+          
+          **DO NOT** report `.md` files in the `.github/workflows/shared/` directory as missing lock files. These are reusable workflow components (imports) that are included by other workflows using the `imports:` field or `{{#import ...}}` directive. They are **intentionally not compiled** as standalone workflows.
+          
+          Only executable workflows in the root `.github/workflows/` directory should have corresponding `.lock.yml` files.
+          
           ## Your Role
           
           As a meta-orchestrator for workflow health, you oversee the operational health of the entire agentic workflow ecosystem, identify failing or problematic workflows, and coordinate fixes to maintain system reliability.
@@ -2047,6 +2053,7 @@ jobs:
           
           **Discover all workflows:**
           - Scan `.github/workflows/` for all `.md` workflow files
+          - **EXCLUDE** files in `.github/workflows/shared/` subdirectory (these are reusable imports, not standalone workflows)
           - Categorize workflows:
             - Campaign orchestrators (`.campaign.g.md`)
             - Campaign specs (`.campaign.md`)
@@ -2062,7 +2069,8 @@ jobs:
           ### 2. Health Monitoring
           
           **Check compilation status:**
-          - Verify each workflow has a corresponding `.lock.yml` file
+          - Verify each **executable workflow** has a corresponding `.lock.yml` file
+          - **EXCLUDE** shared include files in `.github/workflows/shared/` (these are imported by other workflows, not compiled standalone)
           - Check if lock files are up-to-date (source `.md` modified after `.lock.yml`)
           - Identify workflows that failed to compile
           - Flag workflows with compilation warnings
@@ -2196,12 +2204,13 @@ jobs:
           ### Phase 1: Discovery (5 minutes)
           
           1. **Scan workflow directory:**
-             - List all `.md` files in `.github/workflows/`
+             - List all `.md` files in `.github/workflows/` (excluding `shared/` subdirectory)
              - Parse frontmatter for each workflow
              - Extract key metadata (engine, triggers, tools, permissions)
           
           2. **Check compilation status:**
-             - For each `.md` file, verify `.lock.yml` exists
+             - For each **executable** `.md` file, verify `.lock.yml` exists
+             - **SKIP** files in `.github/workflows/shared/` directory (reusable imports, not standalone workflows)
              - Compare modification timestamps
              - Run `gh aw compile --validate` to check for compilation errors
           
