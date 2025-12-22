@@ -273,6 +273,14 @@ tools:
 
 Enable verbose compilation (`gh aw compile --verbose`), set `ACTIONS_STEP_DEBUG = true` for debug logging, inspect generated lock files (`cat .github/workflows/my-workflow.lock.yml`), check MCP configuration (`gh aw mcp inspect my-workflow`), and review logs (`gh aw logs my-workflow` or `gh aw audit RUN_ID`).
 
+## Operational Runbooks
+
+For systematic investigation and resolution of workflow health issues, see:
+
+- [**Workflow Health Monitoring Runbook**](https://github.com/githubnext/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) - Comprehensive guide for diagnosing missing-tool errors, authentication failures, and configuration issues
+
+The runbook includes step-by-step procedures, case studies from real incidents, and quick reference commands for workflow troubleshooting.
+
 ## Getting Help
 
 Review [reference docs](/gh-aw/reference/workflow-structure/), search [existing issues](https://github.com/githubnext/gh-aw/issues), enable debugging with verbose flags, or create a new issue with reproduction steps. See also: [Error Reference](/gh-aw/troubleshooting/errors/) and [Frontmatter Reference](/gh-aw/reference/frontmatter/).
