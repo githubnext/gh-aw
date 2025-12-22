@@ -1,0 +1,112 @@
+---
+title: Interactive Playground
+description: Learn GitHub Agentic Workflows through interactive examples and step-by-step guides
+sidebar:
+  order: 100
+---
+
+import WorkflowPlayground from '../../../components/WorkflowPlayground.astro';
+
+Explore GitHub Agentic Workflows through interactive examples. Each playground demonstrates a complete workflow with step-by-step explanations to help you understand how workflows are structured and what each section does.
+
+## Getting Started Example
+
+This is a simple workflow that creates a daily team status report. Follow along with the step-by-step guide to understand each component.
+
+<WorkflowPlayground
+  title="Daily Team Status Workflow"
+  playgroundUrl="https://github.com/sombriks/gh-actions-playground"
+  workflowContent={`---
+timeout-minutes: 10
+strict: true
+on:
+  schedule:
+  - cron: 0 9 * * 1-5
+  workflow_dispatch: null
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+safe-outputs:
+  create-discussion:
+    expires: 3d
+    category: announcements
+    title-prefix: "[team-status] "
+tools:
+  github: null
+---
+
+# Daily Team Status
+
+Create an upbeat daily status report for the team.
+
+## What to include
+
+- Recent repository activity (issues, PRs, discussions)
+- Team productivity suggestions
+- Community engagement highlights
+
+## Style
+
+- Be positive and encouraging 🌟
+- Use emojis moderately for engagement
+- Keep it concise but informative`}
+  steps={[
+    {
+      id: "frontmatter",
+      title: "Frontmatter Configuration",
+      description: "The YAML frontmatter defines workflow triggers, permissions, and settings. This workflow runs on a schedule (weekdays at 9 AM) and can be manually triggered.",
+      codeLines: [1, 18]
+    },
+    {
+      id: "safe-outputs",
+      title: "Safe Outputs",
+      description: "Configure how the AI agent can interact with your repository. This workflow creates discussions in the 'announcements' category with a '[team-status]' prefix.",
+      codeLines: [11, 14]
+    },
+    {
+      id: "tools",
+      title: "Tools Configuration",
+      description: "Enable tools for the AI agent. The 'github' tool allows the agent to read repository information like issues, PRs, and discussions.",
+      codeLines: [15, 16]
+    },
+    {
+      id: "instructions",
+      title: "Natural Language Instructions",
+      description: "Write your instructions in plain markdown. The AI agent will follow these instructions to complete the task. Be clear and specific about what you want.",
+      codeLines: [20, 36]
+    }
+  ]}
+/>
+
+## Try It Yourself
+
+Ready to experiment with GitHub Agentic Workflows? Here are some ways to get started:
+
+1. **Clone the playground repository**: Fork or clone [gh-actions-playground](https://github.com/sombriks/gh-actions-playground) to experiment safely
+2. **Install gh-aw**: Follow the [Quick Start guide](/gh-aw/setup/quick-start/) to install the extension
+3. **Create your first workflow**: Copy the example above, save it as `.github/workflows/my-workflow.md`, and compile it with `gh aw compile`
+
+## More Examples
+
+Explore different workflow patterns and use cases:
+
+- [ChatOps](/gh-aw/examples/comment-triggered/chatops/) - Trigger workflows from issue comments
+- [IssueOps](/gh-aw/examples/issue-pr-events/issueops/) - Automate issue management
+- [Research & Planning](/gh-aw/examples/scheduled/research-planning/) - Scheduled analysis workflows
+
+## GitHub Actions Resources
+
+New to GitHub Actions? These resources will help you understand the underlying platform:
+
+- [GitHub Actions Hero](https://github-actions-hero.vercel.app) - Interactive tutorial for learning GitHub Actions
+- [GitHub Actions Documentation](https://docs.github.com/en/actions) - Official documentation
+- [Astro GitHub Actions Guide](https://docs.astro.build/en/guides/deploy/github/) - Deploy Astro sites with GitHub Actions
+
+## Deployment
+
+This documentation site is deployed using GitHub Actions. Check out the deployment workflow to see how we use GitHub Actions to build and publish these docs to GitHub Pages.
+
+:::tip[Deploy Your Own Docs]
+Want to create your own Astro Starlight documentation site? Use the [Astro + Starlight GH Pages template](https://github.com/30DaysOf/astro-starlight-ghpages) to get started quickly.
+:::
