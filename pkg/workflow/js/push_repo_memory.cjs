@@ -171,10 +171,7 @@ async function main() {
         if (!entry.isFile()) {
           continue;
         }
-        const relPath = path.posix
-          .relative(rootDir, absPath)
-          .split(path.sep)
-          .join("/");
+        const relPath = path.posix.relative(rootDir, absPath).split(path.sep).join("/");
         const stats = fs.statSync(absPath);
         result.push({ relPath, absPath, size: stats.size });
       }
@@ -205,9 +202,7 @@ async function main() {
   // Check if artifact memory directory exists
   if (!fs.existsSync(sourceMemoryPath)) {
     if (isCampaignMode) {
-      core.setFailed(
-        `Campaign repo-memory is enabled but no campaign state was written. Expected to find cursor and metrics under: ${sourceMemoryPath}/${campaignId}/`
-      );
+      core.setFailed(`Campaign repo-memory is enabled but no campaign state was written. Expected to find cursor and metrics under: ${sourceMemoryPath}/${campaignId}/`);
       return;
     }
     core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
@@ -259,12 +254,7 @@ async function main() {
   let filesToCopy = [];
   try {
     const files = listFilesRecursively(sourceMemoryPath);
-    const patterns = fileGlobFilter
-      ? fileGlobFilter
-          .split(/\s+/)
-          .filter(Boolean)
-          .map(globToRegExp)
-      : [];
+    const patterns = fileGlobFilter ? fileGlobFilter.split(/\s+/).filter(Boolean).map(globToRegExp) : [];
 
     if (isCampaignMode) {
       const expectedCursorRel = `${campaignId}/cursor.json`;

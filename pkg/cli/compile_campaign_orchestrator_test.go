@@ -21,7 +21,7 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		Description:  "A test campaign",
 		Workflows:    []string{"example-workflow"},
 		TrackerLabel: "campaign:test-campaign",
-			MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
+		MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
 	}
 
 	compiler := workflow.NewCompiler(false, "", GetVersion())
@@ -131,7 +131,7 @@ func TestCampaignSourceCommentStability(t *testing.T) {
 		Description:  "A test campaign for path stability",
 		Workflows:    []string{"example-workflow"},
 		TrackerLabel: "campaign:test-campaign",
-			MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
+		MemoryPaths:  []string{"memory/campaigns/test-campaign/**"},
 	}
 
 	compiler := workflow.NewCompiler(false, "", GetVersion())
