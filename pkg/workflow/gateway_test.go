@@ -392,3 +392,156 @@ func TestSandboxConfigWithMCP(t *testing.T) {
 	require.NotNil(t, sandboxConfig.Agent)
 	assert.Equal(t, SandboxTypeAWF, sandboxConfig.Agent.Type)
 }
+
+func TestGenerateContainerStartCommands(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
+		Args:      []string{"--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-p", "8000:8000", "--entrypoint", "/app/flowguard-go"},
+		EntrypointArgs: []string{"--routed", "--listen", "0.0.0.0:8000", "--config-stdin"},
+		Port: 8000,
+		Env: map[string]string{
+			"DOCKER_API_VERSION": "1.44",
+		},
+	}
+
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
+	lines := generateContainerStartCommands(config, mcpConfigPath, 8000)
+	output := strings.Join(lines, "\n")
+
+	// Verify container mode is indicated
+	assert.Contains(t, output, "Start MCP gateway using Docker container")
+	assert.Contains(t, output, "ghcr.io/githubnext/gh-aw-mcpg:latest")
+
+	// Verify docker run command is constructed correctly
+	assert.Contains(t, output, "docker run")
+	assert.Contains(t, output, "--rm")
+	assert.Contains(t, output, "-i")
+	assert.Contains(t, output, "-v")
+	assert.Contains(t, output, "/var/run/docker.sock:/var/run/docker.sock")
+	assert.Contains(t, output, "-p")
+	assert.Contains(t, output, "8000:8000")
+	assert.Contains(t, output, "--entrypoint")
+	assert.Contains(t, output, "/app/flowguard-go")
+
+	// Verify environment variables are set
+	assert.Contains(t, output, "-e DOCKER_API_VERSION=\"1.44\"")
+
+	// Verify entrypoint args
+	assert.Contains(t, output, "--routed")
+	assert.Contains(t, output, "--listen")
+	assert.Contains(t, output, "0.0.0.0:8000")
+	assert.Contains(t, output, "--config-stdin")
+
+	// Verify config is piped via stdin
+	assert.Contains(t, output, "cat /home/runner/.copilot/mcp-config.json |")
+	assert.Contains(t, output, MCPGatewayLogsFolder)
+}
+
+func TestGenerateCommandStartCommands(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Command: "/usr/local/bin/mcp-gateway",
+		Args:    []string{"--port", "8080", "--verbose"},
+		Port:    8080,
+		Env: map[string]string{
+			"LOG_LEVEL": "debug",
+			"API_KEY":   "test-key",
+		},
+	}
+
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
+	lines := generateCommandStartCommands(config, mcpConfigPath, 8080)
+	output := strings.Join(lines, "\n")
+
+	// Verify command mode is indicated
+	assert.Contains(t, output, "Start MCP gateway using custom command")
+	assert.Contains(t, output, "/usr/local/bin/mcp-gateway")
+
+	// Verify command with args
+	assert.Contains(t, output, "/usr/local/bin/mcp-gateway --port 8080 --verbose")
+
+	// Verify environment variables are exported
+	assert.Contains(t, output, "export LOG_LEVEL=\"debug\"")
+	assert.Contains(t, output, "export API_KEY=\"test-key\"")
+
+	// Verify config is piped via stdin
+	assert.Contains(t, output, "cat /home/runner/.copilot/mcp-config.json |")
+	assert.Contains(t, output, MCPGatewayLogsFolder)
+}
+
+func TestGenerateDefaultAWMGCommands(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Port: 8080,
+	}
+
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
+	lines := generateDefaultAWMGCommands(config, mcpConfigPath, 8080)
+	output := strings.Join(lines, "\n")
+
+	// Verify awmg binary handling
+	assert.Contains(t, output, "awmg")
+	assert.Contains(t, output, "AWMG_CMD")
+
+	// Verify config file and port
+	assert.Contains(t, output, "--config /home/runner/.copilot/mcp-config.json")
+	assert.Contains(t, output, "--port 8080")
+	assert.Contains(t, output, MCPGatewayLogsFolder)
+}
+
+func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
+		Args:           []string{"--rm", "-i"},
+		EntrypointArgs: []string{"--config-stdin"},
+		Port:           8000,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+
+	step := generateMCPGatewayStartStep(config, mcpServers)
+	stepStr := strings.Join(step, "\n")
+
+	// Should use container mode
+	assert.Contains(t, stepStr, "Start MCP Gateway")
+	assert.Contains(t, stepStr, "docker run")
+	assert.Contains(t, stepStr, "ghcr.io/githubnext/gh-aw-mcpg:latest")
+	assert.NotContains(t, stepStr, "awmg") // Should not use awmg
+}
+
+func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Command: "/usr/local/bin/custom-gateway",
+		Args:    []string{"--debug"},
+		Port:    9000,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+
+	step := generateMCPGatewayStartStep(config, mcpServers)
+	stepStr := strings.Join(step, "\n")
+
+	// Should use command mode
+	assert.Contains(t, stepStr, "Start MCP Gateway")
+	assert.Contains(t, stepStr, "/usr/local/bin/custom-gateway --debug")
+	assert.NotContains(t, stepStr, "docker run") // Should not use docker
+	assert.NotContains(t, stepStr, "awmg")       // Should not use awmg
+}
+
+func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
+	config := &MCPGatewayConfig{
+		Port: 8080,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+
+	step := generateMCPGatewayStartStep(config, mcpServers)
+	stepStr := strings.Join(step, "\n")
+
+	// Should use default awmg mode
+	assert.Contains(t, stepStr, "Start MCP Gateway")
+	assert.Contains(t, stepStr, "awmg")
+	assert.NotContains(t, stepStr, "docker run")                      // Should not use docker
+	assert.NotContains(t, stepStr, "/usr/local/bin/custom-gateway") // Should not use custom command
+}

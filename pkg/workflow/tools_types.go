@@ -233,10 +233,11 @@ type CacheMemoryToolConfig struct {
 // MCPGatewayConfig represents the configuration for the MCP gateway
 // The gateway routes MCP server calls through a unified HTTP endpoint
 type MCPGatewayConfig struct {
-	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway
+	Command        string            `yaml:"command,omitempty"`        // Custom command to execute (mutually exclusive with Container)
+	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway (mutually exclusive with Command)
 	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
-	Args           []string          `yaml:"args,omitempty"`           // Arguments for container execution
-	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments after the container image
+	Args           []string          `yaml:"args,omitempty"`           // Arguments for command or docker run
+	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint (container only)
 	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway
 	Port           int               `yaml:"port,omitempty"`           // Port for the gateway HTTP server (default: 8080)
 	APIKey         string            `yaml:"api-key,omitempty"`        // API key for gateway authentication
