@@ -1005,7 +1005,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -3122,7 +3122,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3250,7 +3250,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -3427,7 +3427,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -7692,7 +7692,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -7995,6 +7995,9 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -8027,6 +8030,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
       - name: Setup JavaScript files
         id: setup_scripts
         shell: bash
@@ -10529,7 +10538,7 @@ jobs:
           };
           
           EOF_4d21ccbd
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_5e2e1ea7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -10888,15 +10897,77 @@ jobs:
             };
           }
           
+          /**
+           * @typedef {Object} UpdateHandlerConfig
+           * @property {string} itemType - Type of item in agent output (e.g., "update_issue")
+           * @property {string} displayName - Human-readable name (e.g., "issue")
+           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues")
+           * @property {string} numberField - Field name for explicit number (e.g., "issue_number")
+           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number")
+           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url")
+           * @property {string} entityName - Display name for entity (e.g., "Issue", "Pull Request")
+           * @property {string} entityPrefix - Prefix for summary lines (e.g., "Issue", "PR")
+           * @property {string} targetLabel - Label for target in staged preview (e.g., "Target Issue:")
+           * @property {string} currentTargetText - Text for current target (e.g., "Current issue")
+           * @property {boolean} supportsStatus - Whether this type supports status updates
+           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
+           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
+           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
+           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
+           */
+          
+          /**
+           * Create an update handler from configuration
+           * This factory function eliminates boilerplate by generating all the
+           * render functions, summary line generators, and the main handler
+           * @param {UpdateHandlerConfig} config - Handler configuration
+           * @returns {() => Promise<any[]|undefined>} Main handler function
+           */
+          function createUpdateHandler(config) {
+            // Create render function for staged preview
+            const renderStagedItem = createRenderStagedItem({
+              entityName: config.entityName,
+              numberField: config.numberField,
+              targetLabel: config.targetLabel,
+              currentTargetText: config.currentTargetText,
+              includeOperation: config.supportsOperation,
+            });
+          
+            // Create summary line generator
+            const getSummaryLine = createGetSummaryLine({
+              entityPrefix: config.entityPrefix,
+            });
+          
+            // Return the main handler function
+            return async function main() {
+              return await runUpdateWorkflow({
+                itemType: config.itemType,
+                displayName: config.displayName,
+                displayNamePlural: config.displayNamePlural,
+                numberField: config.numberField,
+                outputNumberKey: config.outputNumberKey,
+                outputUrlKey: config.outputUrlKey,
+                isValidContext: config.isValidContext,
+                getContextNumber: config.getContextNumber,
+                supportsStatus: config.supportsStatus,
+                supportsOperation: config.supportsOperation,
+                renderStagedItem,
+                executeUpdate: config.executeUpdate,
+                getSummaryLine,
+              });
+            };
+          }
+          
           module.exports = {
             runUpdateWorkflow,
             resolveTargetNumber,
             buildUpdateData,
             createRenderStagedItem,
             createGetSummaryLine,
+            createUpdateHandler,
           };
           
-          EOF_60283df2
+          EOF_5e2e1ea7
       - name: Create Issue
         id: create_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
@@ -11483,6 +11554,25 @@ jobs:
               core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
             (async () => { await main(); })();
+      - name: Checkout repository
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure Git credentials
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Create Pull Request
         id: create_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
@@ -11747,8 +11837,8 @@ jobs:
               }
               core.info(`Generated branch name: ${branchName}`);
               core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
+              core.info(`Fetching base branch: ${baseBranch}`);
+              await exec.exec(`git fetch origin ${baseBranch}:${baseBranch}`);
               await exec.exec(`git checkout ${baseBranch}`);
               core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
               await exec.exec(`git checkout -b ${branchName}`);
@@ -12805,15 +12895,8 @@ jobs:
             globalThis.core = core;
             globalThis.exec = exec;
             globalThis.io = io;
-            const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
+            const { createUpdateHandler } = require('/tmp/gh-aw/scripts/update_runner.cjs');
             const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
-            const renderStagedItem = createRenderStagedItem({
-              entityName: "Issue",
-              numberField: "issue_number",
-              targetLabel: "Target Issue:",
-              currentTargetText: "Current issue",
-              includeOperation: false,
-            });
             async function executeIssueUpdate(github, context, issueNumber, updateData) {
               const { _operation, _rawBody, ...apiData } = updateData;
               const { data: issue } = await github.rest.issues.update({
@@ -12824,27 +12907,43 @@ jobs:
               });
               return issue;
             }
-            const getSummaryLine = createGetSummaryLine({
+            const main = createUpdateHandler({
+              itemType: "update_issue",
+              displayName: "issue",
+              displayNamePlural: "issues",
+              numberField: "issue_number",
+              outputNumberKey: "issue_number",
+              outputUrlKey: "issue_url",
+              entityName: "Issue",
               entityPrefix: "Issue",
+              targetLabel: "Target Issue:",
+              currentTargetText: "Current issue",
+              supportsStatus: true,
+              supportsOperation: false,
+              isValidContext: isIssueContext,
+              getContextNumber: getIssueNumber,
+              executeUpdate: executeIssueUpdate,
             });
-            async function main() {
-              return await runUpdateWorkflow({
-                itemType: "update_issue",
-                displayName: "issue",
-                displayNamePlural: "issues",
-                numberField: "issue_number",
-                outputNumberKey: "issue_number",
-                outputUrlKey: "issue_url",
-                isValidContext: isIssueContext,
-                getContextNumber: getIssueNumber,
-                supportsStatus: true,
-                supportsOperation: false,
-                renderStagedItem,
-                executeUpdate: executeIssueUpdate,
-                getSummaryLine,
-              });
-            }
             (async () => { await main(); })();
+      - name: Checkout repository
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          token: ${{ github.token }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure Git credentials
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
@@ -13009,16 +13108,19 @@ jobs:
               let branchName;
               let prTitle = "";
               let prLabels = [];
+              if (!pullNumber) {
+                core.setFailed("Pull request number is required but not found");
+                return;
+              }
               try {
-                const prInfoRes = await exec.getExecOutput(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: (.labels // [] | map(.name))}`]);
-                if (prInfoRes.exitCode === 0) {
-                  const prData = JSON.parse(prInfoRes.stdout.trim());
-                  branchName = prData.headRefName;
-                  prTitle = prData.title || "";
-                  prLabels = prData.labels || [];
-                } else {
-                  throw new Error("No PR data found");
-                }
+                const { data: pullRequest } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pullNumber,
+                });
+                branchName = pullRequest.head.ref;
+                prTitle = pullRequest.title || "";
+                prLabels = pullRequest.labels.map(label => label.name);
               } catch (error) {
                 core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
                 core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
@@ -13050,9 +13152,10 @@ jobs:
               const hasChanges = !isEmpty;
               core.info(`Switching to branch: ${branchName}`);
               try {
-                await exec.exec("git fetch origin");
+                core.info(`Fetching branch: ${branchName}`);
+                await exec.exec(`git fetch origin ${branchName}:refs/remotes/origin/${branchName}`);
               } catch (fetchError) {
-                core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                core.setFailed(`Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
                 return;
               }
               try {

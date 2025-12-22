@@ -1,3 +1,52 @@
+// Package workflow provides helper functions for closing GitHub entities.
+//
+// This file contains shared utilities for building close entity jobs (issues,
+// pull requests, discussions). These helpers extract common patterns used across
+// the three close entity implementations to reduce code duplication and ensure
+// consistency in configuration parsing and job generation.
+//
+// # Organization Rationale
+//
+// These close entity helpers are grouped here because they:
+//   - Provide generic close entity functionality used by 3 entity types
+//   - Share common configuration patterns (target, filters, max)
+//   - Follow a consistent entity registry pattern
+//   - Enable DRY principles for close operations
+//
+// This follows the helper file conventions documented in the developer instructions.
+// See skills/developer/SKILL.md#helper-file-conventions for details.
+//
+// # Key Functions
+//
+// Configuration Parsing:
+//   - parseCloseEntityConfig() - Generic close entity configuration parser
+//   - parseCloseIssuesConfig() - Parse close-issue configuration
+//   - parseClosePullRequestsConfig() - Parse close-pull-request configuration
+//   - parseCloseDiscussionsConfig() - Parse close-discussion configuration
+//
+// Entity Registry:
+//   - closeEntityRegistry - Central registry of all close entity definitions
+//   - closeEntityDefinition - Definition structure for close entity types
+//
+// # Usage Patterns
+//
+// The close entity helpers follow a registry pattern where each entity type
+// (issue, pull request, discussion) is defined with its specific parameters
+// (config keys, environment variables, permissions, scripts). This allows:
+//   - Consistent configuration parsing across entity types
+//   - Easy addition of new close entity types
+//   - Centralized entity type definitions
+//
+// # When to Use vs Alternatives
+//
+// Use these helpers when:
+//   - Implementing close operations for GitHub entities
+//   - Parsing close entity configurations from workflow YAML
+//   - Building close entity jobs with consistent patterns
+//
+// For create/update operations, see:
+//   - create_*.go files for entity creation logic
+//   - update_entity_helpers.go for entity update logic
 package workflow
 
 import (

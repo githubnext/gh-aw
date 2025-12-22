@@ -2,12 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -86,7 +88,12 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// Build the Docker command with JSON output for easier parsing
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir rhysd/actionlint:latest -format '{{json .}}' <file>
-	cmd := exec.Command(
+	// Set a timeout context to prevent Docker from hanging indefinitely (5 minutes should be sufficient)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
 		"docker",
 		"run",
 		"--rm",
@@ -114,6 +121,11 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// Run the command
 	err = cmd.Run()
+
+	// Check for timeout
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("actionlint timed out after 5 minutes on %s - this may indicate a Docker or network issue", filepath.Base(lockFile))
+	}
 
 	// Parse and reformat the output, get total error count
 	totalErrors, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)

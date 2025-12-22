@@ -1,17 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const { createUpdateHandler } = require("./update_runner.cjs");
 const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs");
-
-// Use shared helper for staged preview rendering
-const renderStagedItem = createRenderStagedItem({
-  entityName: "Issue",
-  numberField: "issue_number",
-  targetLabel: "Target Issue:",
-  currentTargetText: "Current issue",
-  includeOperation: false,
-});
 
 /**
  * Execute the issue update API call
@@ -35,27 +26,23 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   return issue;
 }
 
-// Use shared helper for summary line generation
-const getSummaryLine = createGetSummaryLine({
+// Create the handler using the factory
+const main = createUpdateHandler({
+  itemType: "update_issue",
+  displayName: "issue",
+  displayNamePlural: "issues",
+  numberField: "issue_number",
+  outputNumberKey: "issue_number",
+  outputUrlKey: "issue_url",
+  entityName: "Issue",
   entityPrefix: "Issue",
+  targetLabel: "Target Issue:",
+  currentTargetText: "Current issue",
+  supportsStatus: true,
+  supportsOperation: false,
+  isValidContext: isIssueContext,
+  getContextNumber: getIssueNumber,
+  executeUpdate: executeIssueUpdate,
 });
-
-async function main() {
-  return await runUpdateWorkflow({
-    itemType: "update_issue",
-    displayName: "issue",
-    displayNamePlural: "issues",
-    numberField: "issue_number",
-    outputNumberKey: "issue_number",
-    outputUrlKey: "issue_url",
-    isValidContext: isIssueContext,
-    getContextNumber: getIssueNumber,
-    supportsStatus: true,
-    supportsOperation: false,
-    renderStagedItem,
-    executeUpdate: executeIssueUpdate,
-    getSummaryLine,
-  });
-}
 
 await main();

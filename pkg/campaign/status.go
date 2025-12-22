@@ -188,10 +188,69 @@ func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, e
 	return &snapshot, nil
 }
 
+// FetchCursorFreshnessFromRepoMemory finds the latest cursor/checkpoint file
+// matching cursorGlob in the memory/campaigns branch and returns the matched
+// path along with a best-effort freshness timestamp derived from git history.
+//
+// Errors are treated as "no cursor" rather than failing the command.
+func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, cursorUpdatedAt string) {
+	if strings.TrimSpace(cursorGlob) == "" {
+		return "", ""
+	}
+
+	cmd := exec.Command("git", "ls-tree", "-r", "--name-only", "memory/campaigns")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Unable to list repo-memory branch for cursor (memory/campaigns): %v", err)
+		return "", ""
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	var matches []string
+	for scanner.Scan() {
+		pathStr := strings.TrimSpace(scanner.Text())
+		if pathStr == "" {
+			continue
+		}
+		matched, err := path.Match(cursorGlob, pathStr)
+		if err != nil {
+			log.Printf("Invalid cursor_glob '%s': %v", cursorGlob, err)
+			return "", ""
+		}
+		if matched {
+			matches = append(matches, pathStr)
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", ""
+	}
+
+	latest := matches[0]
+	for _, m := range matches[1:] {
+		if m > latest {
+			latest = m
+		}
+	}
+
+	// Best-effort: use git log to get the last commit time for this path
+	// on the memory/campaigns branch.
+	logCmd := exec.Command("git", "log", "-1", "--format=%cI", "memory/campaigns", "--", latest)
+	logOut, err := logCmd.Output()
+	if err != nil {
+		log.Printf("Failed to read cursor freshness for '%s' from memory/campaigns: %v", latest, err)
+		return latest, ""
+	}
+
+	return latest, strings.TrimSpace(string(logOut))
+}
+
 // BuildRuntimeStatus builds a CampaignRuntimeStatus for a single campaign spec.
 func BuildRuntimeStatus(spec CampaignSpec, workflowsDir string) CampaignRuntimeStatus {
 	compiled := ComputeCompiledState(spec, workflowsDir)
 	issuesOpen, issuesClosed, prsOpen, prsMerged := FetchItemCounts(spec.TrackerLabel)
+
+	cursorPath, cursorUpdatedAt := FetchCursorFreshnessFromRepoMemory(spec.CursorGlob)
 
 	var metricsTasksTotal, metricsTasksCompleted int
 	var metricsVelocity float64
@@ -221,5 +280,7 @@ func BuildRuntimeStatus(spec CampaignSpec, workflowsDir string) CampaignRuntimeS
 		MetricsTasksCompleted:      metricsTasksCompleted,
 		MetricsVelocityPerDay:      metricsVelocity,
 		MetricsEstimatedCompletion: metricsETA,
+		CursorPath:                 cursorPath,
+		CursorUpdatedAt:            cursorUpdatedAt,
 	}
 }

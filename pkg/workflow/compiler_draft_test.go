@@ -214,14 +214,14 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
         paths:
             - go.mod
             - go.sum
-    workflow_dispatch: null`,
+    workflow_dispatch:`,
 			expected: `on:
     pull_request:
         # draft: false # Draft filtering applied via job conditions
         paths:
             - go.mod
             - go.sum
-    workflow_dispatch: null`,
+    workflow_dispatch:`,
 			description: "Should comment out draft but keep paths",
 		},
 		{
@@ -245,11 +245,11 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 			input: `on:
     pull_request:
         draft: false
-    workflow_dispatch: null`,
+    workflow_dispatch:`,
 			expected: `on:
     pull_request:
         # draft: false # Draft filtering applied via job conditions
-    workflow_dispatch: null`,
+    workflow_dispatch:`,
 			description: "Should comment out draft even when it's the only field",
 		},
 		{
@@ -273,12 +273,12 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 		{
 			name: "no pull_request section",
 			input: `on:
-    workflow_dispatch: null
+    workflow_dispatch:
     push:
         branches:
             - main`,
 			expected: `on:
-    workflow_dispatch: null
+    workflow_dispatch:
     push:
         branches:
             - main`,
@@ -300,7 +300,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.commentOutProcessedFieldsInOnSection(tt.input)
+			result := compiler.commentOutProcessedFieldsInOnSection(tt.input, map[string]any{})
 
 			if result != tt.expected {
 				t.Errorf("%s\nExpected:\n%s\nGot:\n%s", tt.description, tt.expected, result)

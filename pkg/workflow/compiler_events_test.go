@@ -40,7 +40,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedOn: `"on":
-  workflow_dispatch: null`,
+  workflow_dispatch:`,
 		},
 		{
 			name: "custom on with push",
@@ -82,7 +82,7 @@ tools:
     - closed
   schedule:
   - cron: "0 8 * * *"
-  workflow_dispatch: null`,
+  workflow_dispatch:`,
 		},
 	}
 
@@ -272,7 +272,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-dispatch.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
+			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "test-bot",
 			shouldError:     false,
@@ -309,7 +309,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-multiple.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
+			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch:",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "multi-bot",
 			shouldError:     false,

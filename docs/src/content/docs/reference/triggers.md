@@ -278,11 +278,18 @@ on:
     name: my-bot
 ```
 
-**Shorthand Format:**
+**Shorthand Format (String):**
 ```yaml wrap
 on:
   slash_command: "my-bot"
 ```
+
+**Shorthand Format (Slash Command):**
+```yaml wrap
+on: /my-bot
+```
+
+This ultra-short syntax automatically expands to include `slash_command` and `workflow_dispatch` triggers, similar to how `on: daily` expands to include schedule and workflow_dispatch.
 
 **With Event Filtering:**
 ```yaml wrap
@@ -340,6 +347,49 @@ on:
 ```
 
 This filtering is especially useful for [LabelOps workflows](/gh-aw/examples/issue-pr-events/labelops/) where specific labels trigger different automation behaviors.
+
+#### Shorthand Syntax for Label Triggers
+
+GitHub Agentic Workflows provides convenient shorthand syntax for label-based triggers:
+
+**Basic format:**
+```yaml wrap
+on: issue labeled bug
+```
+
+**Multiple labels (space-separated):**
+```yaml wrap
+on: issue labeled bug enhancement priority-high
+```
+
+**Multiple labels (comma-separated):**
+```yaml wrap
+on: issue labeled bug, enhancement, priority-high
+```
+
+**With explicit item type:**
+```yaml wrap
+on: pull_request labeled needs-review, ready-to-merge
+```
+
+All shorthand formats compile to the standard GitHub Actions syntax:
+
+```yaml wrap
+on:
+  issues:  # or pull_request
+    types: [labeled]
+    names:
+      - bug
+      - enhancement
+      - priority-high
+```
+
+**Supported entity types:**
+- `issue labeled <labels>` - Issue label events
+- `pull_request labeled <labels>` - Pull request label events
+- `discussion labeled <labels>` - Discussion label events (GitHub Actions doesn't support `names` for discussions, so only the `types` filter is applied)
+
+The shorthand syntax automatically includes `workflow_dispatch` trigger, similar to how `on: daily` expands to include both schedule and workflow_dispatch.
 
 ### Reactions (`reaction:`)
 

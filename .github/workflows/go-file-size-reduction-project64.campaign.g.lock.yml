@@ -25,12 +25,13 @@ name: "Go File Size Reduction Campaign (Project 64)"
 "on":
   schedule:
   - cron: "0 18 * * *"
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: false
+  group: campaign-go-file-size-reduction-project64-orchestrator-${{ github.ref }}
 
 run-name: "Go File Size Reduction Campaign (Project 64)"
 
@@ -239,7 +240,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1906,7 +1907,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Go File Size Reduction Campaign (Project 64)",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2001,6 +2002,18 @@ jobs:
           ## Campaign Orchestrator Rules
           
           This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination:
+          
+          ### Traffic and rate limits (required)
+          
+          - Minimize API calls: avoid full rescans when possible and avoid repeated reads of the same data in a single run.
+          - Prefer incremental processing: use deterministic ordering (e.g., by updated time) and process a bounded slice each run.
+          - Use strict pagination budgets: if a query would require many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint: persist the last processed boundary (e.g., updatedAt cutoff + last seen ID) so the next run can continue without rescanning.
+          - On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
+          
+          
+          
+          
           
           ### Core Principles
           
@@ -2264,7 +2277,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -6461,7 +6474,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh

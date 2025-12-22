@@ -45,7 +45,7 @@ Optional but recommended for "kanban lanes":
 
 ### 3. Have workflows keep the board in sync using `GITHUB_TOKEN`
 
-Enable the `update-project` safe output in the launcher/monitor workflows.
+The generated orchestrator workflow automatically keeps the board in sync using the `update-project` safe output.
 
 Default behavior is **update-only**: if the board does not exist, the project job fails with instructions.
 

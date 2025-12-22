@@ -26,12 +26,8 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 
 ```markdown
 ---
-on:
-  schedule:
-    - cron: "0 6 * * *"
-
+on: daily
 permissions: read
-
 safe-outputs:
   create-discussion:
 ---

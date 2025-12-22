@@ -506,7 +506,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 3: Generate API key and choose port for HTTP server using JavaScript
 		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
 		yaml.WriteString("        id: safe-inputs-config\n")
-		yaml.WriteString("        uses: actions/github-script@v8.0.0\n")
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 

@@ -1,6 +1,24 @@
 ## Campaign Orchestrator Rules
 
-This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination:
+This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with the campaign's tracker label.
+
+### Traffic and rate limits (required)
+
+- Minimize API calls: avoid full rescans when possible and avoid repeated reads of the same data in a single run.
+- Prefer incremental processing: use deterministic ordering (e.g., by updated time) and process a bounded slice each run.
+- Use strict pagination budgets: if a query would require many pages, stop early and continue next run.
+- Use a durable cursor/checkpoint: persist the last processed boundary (e.g., updatedAt cutoff + last seen ID) so the next run can continue without rescanning.
+- On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
+
+{{ if .CursorGlob }}
+**Cursor file (repo-memory)**: `{{ .CursorGlob }}`
+{{ end }}
+{{ if gt .MaxDiscoveryItemsPerRun 0 }}
+**Read budget**: max discovery items per run: {{ .MaxDiscoveryItemsPerRun }}
+{{ end }}
+{{ if gt .MaxDiscoveryPagesPerRun 0 }}
+**Read budget**: max discovery pages per run: {{ .MaxDiscoveryPagesPerRun }}
+{{ end }}
 
 ### Core Principles
 
@@ -16,6 +34,7 @@ This orchestrator follows system-agnostic rules that enforce clean separation be
 10. **Predefined fields only** - Only update explicitly defined project board fields
 11. **Explicit outcomes** - Record actual outcomes, never infer status
 12. **Idempotent operations** - Re-execution produces the same result without corruption
+13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
 
 ### Orchestration Workflow
 
@@ -23,62 +42,72 @@ Execute these steps in sequence each time this orchestrator runs:
 
 #### Phase 1: Read State (Discovery)
 
-1. **Query worker-created issues** - Search for issues containing the worker's tracker-id
+1. **Query tracker-labeled items** - Search for issues and PRs matching the campaign's tracker label
+   - Search: `repo:OWNER/REPO label:TRACKER_LABEL` for all open and closed items
+   - If governance opt-out labels are configured, exclude items with those labels
+   - Collect all matching issue/PR URLs
+   - Record metadata: number, title, state (open/closed), created date, updated date
+
+2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
    - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
    - Collect all matching issue URLs
    - Record issue metadata: number, title, state (open/closed), created date, updated date
 
-2. **Query current project state** - Read the GitHub Project board
+3. **Query current project state** - Read the GitHub Project board
    - Retrieve all items currently on the project board
    - For each item, record: issue URL, status field value, other predefined field values
    - Create a snapshot of current board state
 
-3. **Compare and identify gaps** - Determine what needs updating
-   - Issues found in step 1 but not on board = **new work to add**
-   - Issues on board with state mismatch = **status to update**
-   - Issues on board but no longer found = **check if archived/deleted**
+4. **Compare and identify gaps** - Determine what needs updating
+   - Items from step 1 or 2 not on board = **new work to add**
+   - Items on board with state mismatch = **status to update**
+   - Items on board but no longer found = **check if archived/deleted**
 
 #### Phase 2: Make Decisions (Planning)
 
-4. **Decide additions** - For each new issue discovered:
-   - Decision: Add to board? (Default: yes for all issues with tracker-id)
-   - Determine initial status field value based on issue state:
-     - Open issue → "Todo" status
-     - Closed issue → "Done" status
+5. **Decide additions (with pacing)** - For each new item discovered:
+   - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)
+   - If `governance.max-new-items-per-run` is set, add at most that many new items
+   - Prefer adding oldest (or least recently updated) missing items first
+   - Determine initial status field value based on item state:
+     - Open issue/PR → "Todo" status
+     - Closed issue/PR → "Done" status
 
-5. **Decide updates** - For each existing board item with mismatched state:
-   - Decision: Update status field? (Default: yes if issue state changed)
+6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
+   - Decision: Update status field? (Default: yes if item state changed)
+   - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
    - Determine new status field value:
-     - Open issue → "In Progress" or "Todo"
-     - Closed issue → "Done"
+     - Open issue/PR → "In Progress" or "Todo"
+     - Closed issue/PR → "Done"
 
-6. **Decide completion** - Check campaign completion criteria:
+7. **Decide completion** - Check campaign completion criteria:
    - If all discovered issues are closed AND all board items are "Done" → Campaign complete
    - Otherwise → Campaign in progress
 
 #### Phase 3: Write State (Execution)
 
-7. **Execute additions** - Add new issues to project board
-   - Use `update-project` safe-output for each new issue
+8. **Execute additions** - Add new items to project board
+   - Use `update-project` safe-output for each new item
    - Set predefined fields: `status` (required), optionally `priority`, `size`
    - Record outcome: success or failure with error details
 
-8. **Execute updates** - Update existing board items
+9. **Execute updates** - Update existing board items
    - Use `update-project` safe-output for each status change
    - Update only predefined fields: `status` and related metadata
    - Record outcome: success or failure with error details
 
-9. **Record completion state** - If campaign is complete:
-   - Mark project metadata field `campaign_status` as "completed"
-   - Do NOT create new work or modify existing items
-   - This is a terminal state
+10. **Record completion state** - If campaign is complete:
+    - Mark project metadata field `campaign_status` as "completed"
+    - Do NOT create new work or modify existing items
+    - This is a terminal state
 
 #### Phase 4: Report (Output)
 
-10. **Generate status report** - Summarize execution results:
-    - Total issues discovered via tracker-id
-    - Issues added to board this run (count and URLs)
-    - Issues updated on board this run (count and status changes)
+11. **Generate status report** - Summarize execution results:
+    - Total items discovered via tracker label and worker tracker-ids
+    - Items added to board this run (count and URLs)
+    - Items updated on board this run (count and status changes)
+    - Items skipped due to governance limits (and why)
     - Current campaign metrics: open vs closed, progress percentage
     - Any failures encountered during writes
     - Campaign completion status

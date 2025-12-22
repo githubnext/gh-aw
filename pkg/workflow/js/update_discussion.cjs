@@ -1,18 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require("./update_runner.cjs");
+const { createUpdateHandler } = require("./update_runner.cjs");
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
-
-// Use shared helper for staged preview rendering
-const renderStagedItem = createRenderStagedItem({
-  entityName: "Discussion",
-  numberField: "discussion_number",
-  targetLabel: "Target Discussion:",
-  currentTargetText: "Current discussion",
-  includeOperation: false,
-});
 
 /**
  * Execute the discussion update API call using GraphQL
@@ -271,27 +262,23 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
   };
 }
 
-// Use shared helper for summary line generation
-const getSummaryLine = createGetSummaryLine({
+// Create the handler using the factory
+const main = createUpdateHandler({
+  itemType: "update_discussion",
+  displayName: "discussion",
+  displayNamePlural: "discussions",
+  numberField: "discussion_number",
+  outputNumberKey: "discussion_number",
+  outputUrlKey: "discussion_url",
+  entityName: "Discussion",
   entityPrefix: "Discussion",
+  targetLabel: "Target Discussion:",
+  currentTargetText: "Current discussion",
+  supportsStatus: false,
+  supportsOperation: false,
+  isValidContext: isDiscussionContext,
+  getContextNumber: getDiscussionNumber,
+  executeUpdate: executeDiscussionUpdate,
 });
-
-async function main() {
-  return await runUpdateWorkflow({
-    itemType: "update_discussion",
-    displayName: "discussion",
-    displayNamePlural: "discussions",
-    numberField: "discussion_number",
-    outputNumberKey: "discussion_number",
-    outputUrlKey: "discussion_url",
-    isValidContext: isDiscussionContext,
-    getContextNumber: getDiscussionNumber,
-    supportsStatus: false,
-    supportsOperation: false,
-    renderStagedItem,
-    executeUpdate: executeDiscussionUpdate,
-    getSummaryLine,
-  });
-}
 
 await main();

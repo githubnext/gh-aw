@@ -200,17 +200,22 @@ async function main() {
   let prTitle = "";
   let prLabels = [];
 
+  // Validate pull number is defined before fetching
+  if (!pullNumber) {
+    core.setFailed("Pull request number is required but not found");
+    return;
+  }
+
   // Fetch the specific PR to get its head branch, title, and labels
   try {
-    const prInfoRes = await exec.getExecOutput(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: (.labels // [] | map(.name))}`]);
-    if (prInfoRes.exitCode === 0) {
-      const prData = JSON.parse(prInfoRes.stdout.trim());
-      branchName = prData.headRefName;
-      prTitle = prData.title || "";
-      prLabels = prData.labels || [];
-    } else {
-      throw new Error("No PR data found");
-    }
+    const { data: pullRequest } = await github.rest.pulls.get({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: pullNumber,
+    });
+    branchName = pullRequest.head.ref;
+    prTitle = pullRequest.title || "";
+    prLabels = pullRequest.labels.map(label => label.name);
   } catch (error) {
     core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
     // Exit with failure if we cannot determine the branch name
@@ -253,11 +258,12 @@ async function main() {
   // Switch to or create the target branch
   core.info(`Switching to branch: ${branchName}`);
 
-  // Fetch latest changes from origin
+  // Fetch the specific target branch from origin (since we use shallow checkout)
   try {
-    await exec.exec("git fetch origin");
+    core.info(`Fetching branch: ${branchName}`);
+    await exec.exec(`git fetch origin ${branchName}:refs/remotes/origin/${branchName}`);
   } catch (fetchError) {
-    core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+    core.setFailed(`Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
     return;
   }
 

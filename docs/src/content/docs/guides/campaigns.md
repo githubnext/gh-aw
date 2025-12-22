@@ -41,9 +41,8 @@ You do not need agentic campaigns just to run a workflow across many repositorie
 
 Once you decide to use an agentic campaign, most implementations follow the same shape:
 
-- **Launcher workflow (required)**: finds work and creates tracking artifacts (issues/Project items), plus (optionally) a baseline in repo-memory.
-- **Worker workflows (optional)**: process campaign-labeled issues to do the actual work (open PRs, apply fixes, etc.).
-- **Monitor/orchestrator (recommended for multi-day work)**: posts periodic status updates and stores metrics snapshots.
+- **Orchestrator workflow (generated)**: maintains the campaign dashboard by syncing tracker-labeled issues/PRs to the GitHub Project board, updating status fields, and posting periodic reports. The orchestrator handles both initial discovery and ongoing synchronization.
+- **Worker workflows (optional)**: process campaign-labeled issues to do the actual work (open PRs, apply fixes, etc.). Workers include a `tracker-id` so the orchestrator can discover their created assets.
 
 You can track agentic campaigns with just labels and issues, but agentic campaigns become much more reusable when you also store baselines, metrics, and learnings in repo-memory (a git branch used for machine-generated snapshots).
 
@@ -69,23 +68,24 @@ This design allows workers to operate independently without knowledge of the age
 Generated orchestrator workflows follow a four-phase execution model each time they run:
 
 **Phase 1: Read State (Discovery)**
-- Query for worker-created issues using tracker-id search
+- Query for tracker-labeled issues/PRs matching the campaign
+- Query for worker-created issues using tracker-id search (if workers are configured)
 - Read current state of the GitHub Project board
-- Compare discovered issues against board state to identify gaps
+- Compare discovered items against board state to identify gaps
 
 **Phase 2: Make Decisions (Planning)**
-- Decide which new issues to add to the board
-- Determine status updates for existing items
+- Decide which new items to add to the board (respecting governance limits)
+- Determine status updates for existing items (respecting governance rules like no-downgrade)
 - Check campaign completion criteria
 
 **Phase 3: Write State (Execution)**
-- Add new issues to project board via `update-project` safe output
+- Add new items to project board via `update-project` safe output
 - Update status fields for existing board items
 - Record completion state if campaign is done
 
 **Phase 4: Report (Output)**
 - Generate status report summarizing execution
-- Record metrics: issues discovered, added, updated
+- Record metrics: items discovered, added, updated, skipped
 - Report any failures encountered
 
 #### Core Design Principles
@@ -97,6 +97,7 @@ The orchestrator/worker pattern enforces these principles:
 - **Campaign logic is external** - All orchestration happens in the orchestrator, not workers
 - **Single source of truth** - The GitHub Project board is the authoritative campaign state
 - **Idempotent operations** - Re-execution produces the same result without corruption
+- **Governed operations** - Orchestrators respect pacing limits and opt-out policies
 
 These principles ensure workers can be reused across agentic campaigns and remain simple, while orchestrators handle all coordination complexity.
 

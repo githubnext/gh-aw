@@ -264,7 +264,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -276,7 +276,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
 		},
 		{
 			name: "step with unpinned action",
@@ -303,7 +303,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 	}
 
@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 28 after adding super-linter v8.2.1)
-	if len(pins) != 28 {
-		t.Errorf("getActionPins() returned %d pins, expected 28", len(pins))
+	// Verify we got all the pins (should be 37 after adding specific version entries)
+	if len(pins) != 37 {
+		t.Errorf("getActionPins() returned %d pins, expected 37", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -387,13 +387,13 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/checkout",
 			expectExists: true,
 			expectRepo:   "actions/checkout",
-			expectVer:    "v5",
+			expectVer:    "v5.0.1",
 		},
 		{
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v6",
+			expectVer:    "v6.1.0",
 		},
 		{
 			repo:         "unknown/action",
@@ -443,7 +443,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -455,7 +455,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
 		},
 		{
 			name: "step with unpinned action",
@@ -495,7 +495,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 	}
 

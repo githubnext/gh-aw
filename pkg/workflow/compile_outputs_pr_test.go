@@ -432,3 +432,76 @@ This workflow tests the default if-no-changes behavior.
 		t.Error("Expected GH_AW_PR_IF_NO_CHANGES environment variable to be set in generated workflow")
 	}
 }
+
+// TestCreatePullRequestPatchArtifactDownload verifies that when create-pull-request
+// is enabled, the safe_outputs job includes a step to download the aw.patch artifact
+func TestCreatePullRequestPatchArtifactDownload(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create a test markdown file with create-pull-request configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[bot] "
+---
+
+# Test Create Pull Request Patch Download
+
+This test verifies that the aw.patch artifact is downloaded in the safe_outputs job.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-create-pr-patch-download.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that safe_outputs job exists
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Fatalf("Generated workflow should contain safe_outputs job")
+	}
+
+	// Verify that patch download step exists in safe_outputs job
+	if !strings.Contains(lockContentStr, "- name: Download patch artifact") {
+		t.Errorf("Expected 'Download patch artifact' step in safe_outputs job when create-pull-request is enabled")
+	}
+
+	// Verify that patch is downloaded to correct path
+	if !strings.Contains(lockContentStr, "name: aw.patch") {
+		t.Errorf("Expected patch artifact to be named 'aw.patch'")
+	}
+
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/") {
+		t.Errorf("Expected patch artifact to be downloaded to '/tmp/gh-aw/'")
+	}
+
+	// Verify that the create_pull_request step exists
+	if !strings.Contains(lockContentStr, "- name: Create Pull Request") {
+		t.Errorf("Expected 'Create Pull Request' step in safe_outputs job")
+	}
+
+	// Verify that the condition checks for create_pull_request output type
+	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'create_pull_request')") {
+		t.Errorf("Expected condition to check for 'create_pull_request' in output_types")
+	}
+}

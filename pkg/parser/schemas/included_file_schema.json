@@ -480,7 +480,16 @@
               "description": "Optional LLM model to use"
             },
             "max-turns": {
-              "type": "integer",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "description": "Maximum number of chat iterations per run as an integer value"
+                },
+                {
+                  "type": "string",
+                  "description": "Maximum number of chat iterations per run as a string value"
+                }
+              ],
               "description": "Maximum number of chat iterations per run"
             },
             "env": {

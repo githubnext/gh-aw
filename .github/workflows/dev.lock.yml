@@ -27,7 +27,7 @@
 
 name: "Dev"
 "on":
-  workflow_dispatch: null
+  workflow_dispatch:
 
 permissions: {}
 
@@ -240,7 +240,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -3085,7 +3085,7 @@ jobs:
           
       - name: Generate Safe Inputs MCP Server Config
         id: safe-inputs-config
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             function generateSafeInputsConfig({ core, crypto }) {
@@ -3331,7 +3331,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Dev",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3540,7 +3540,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -7747,7 +7747,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -8483,6 +8483,67 @@ jobs:
           function serializeTemporaryIdMap(tempIdMap) {
             const obj = Object.fromEntries(tempIdMap);
             return JSON.stringify(obj);
+          }
+          
+          /**
+           * @typedef {Object} UpdateHandlerConfig
+           * @property {string} itemType - Type of item in agent output (e.g., "update_issue")
+           * @property {string} displayName - Human-readable name (e.g., "issue")
+           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues")
+           * @property {string} numberField - Field name for explicit number (e.g., "issue_number")
+           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number")
+           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url")
+           * @property {string} entityName - Display name for entity (e.g., "Issue", "Pull Request")
+           * @property {string} entityPrefix - Prefix for summary lines (e.g., "Issue", "PR")
+           * @property {string} targetLabel - Label for target in staged preview (e.g., "Target Issue:")
+           * @property {string} currentTargetText - Text for current target (e.g., "Current issue")
+           * @property {boolean} supportsStatus - Whether this type supports status updates
+           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
+           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
+           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
+           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
+           */
+          
+          /**
+           * Create an update handler from configuration
+           * This factory function eliminates boilerplate by generating all the
+           * render functions, summary line generators, and the main handler
+           * @param {UpdateHandlerConfig} config - Handler configuration
+           * @returns {() => Promise<any[]|undefined>} Main handler function
+           */
+          function createUpdateHandler(config) {
+            // Create render function for staged preview
+            const renderStagedItem = createRenderStagedItem({
+              entityName: config.entityName,
+              numberField: config.numberField,
+              targetLabel: config.targetLabel,
+              currentTargetText: config.currentTargetText,
+              includeOperation: config.supportsOperation,
+            });
+          
+            // Create summary line generator
+            const getSummaryLine = createGetSummaryLine({
+              entityPrefix: config.entityPrefix,
+            });
+          
+            // Return the main handler function
+            return async function main() {
+              return await runUpdateWorkflow({
+                itemType: config.itemType,
+                displayName: config.displayName,
+                displayNamePlural: config.displayNamePlural,
+                numberField: config.numberField,
+                outputNumberKey: config.outputNumberKey,
+                outputUrlKey: config.outputUrlKey,
+                isValidContext: config.isValidContext,
+                getContextNumber: config.getContextNumber,
+                supportsStatus: config.supportsStatus,
+                supportsOperation: config.supportsOperation,
+                renderStagedItem,
+                executeUpdate: config.executeUpdate,
+                getSummaryLine,
+              });
+            };
           }
           
           module.exports = {

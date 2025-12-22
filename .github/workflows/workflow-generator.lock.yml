@@ -24,7 +24,7 @@
 name: "Workflow Generator"
 "on":
   issues:
-    lock-for-agent: true
+    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
     - labeled
@@ -157,6 +157,11 @@ jobs:
                   repo,
                   issue_number: issueNumber,
                 });
+                if (issue.pull_request) {
+                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
                 if (issue.locked) {
                   core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
                   core.setOutput("locked", "false");
@@ -287,7 +292,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1934,7 +1939,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Workflow Generator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2093,7 +2098,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -2224,7 +2229,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -6267,6 +6272,10 @@ jobs:
                   repo,
                   issue_number: issueNumber,
                 });
+                if (issue.pull_request) {
+                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping unlock operation`);
+                  return;
+                }
                 if (!issue.locked) {
                   core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
                   return;
@@ -6461,7 +6470,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -7426,7 +7435,7 @@ jobs:
           };
           
           EOF_4d21ccbd
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_60283df2'
+          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_5e2e1ea7'
           // @ts-check
           /// <reference types="@actions/github-script" />
           
@@ -7785,15 +7794,77 @@ jobs:
             };
           }
           
+          /**
+           * @typedef {Object} UpdateHandlerConfig
+           * @property {string} itemType - Type of item in agent output (e.g., "update_issue")
+           * @property {string} displayName - Human-readable name (e.g., "issue")
+           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues")
+           * @property {string} numberField - Field name for explicit number (e.g., "issue_number")
+           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number")
+           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url")
+           * @property {string} entityName - Display name for entity (e.g., "Issue", "Pull Request")
+           * @property {string} entityPrefix - Prefix for summary lines (e.g., "Issue", "PR")
+           * @property {string} targetLabel - Label for target in staged preview (e.g., "Target Issue:")
+           * @property {string} currentTargetText - Text for current target (e.g., "Current issue")
+           * @property {boolean} supportsStatus - Whether this type supports status updates
+           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
+           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
+           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
+           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
+           */
+          
+          /**
+           * Create an update handler from configuration
+           * This factory function eliminates boilerplate by generating all the
+           * render functions, summary line generators, and the main handler
+           * @param {UpdateHandlerConfig} config - Handler configuration
+           * @returns {() => Promise<any[]|undefined>} Main handler function
+           */
+          function createUpdateHandler(config) {
+            // Create render function for staged preview
+            const renderStagedItem = createRenderStagedItem({
+              entityName: config.entityName,
+              numberField: config.numberField,
+              targetLabel: config.targetLabel,
+              currentTargetText: config.currentTargetText,
+              includeOperation: config.supportsOperation,
+            });
+          
+            // Create summary line generator
+            const getSummaryLine = createGetSummaryLine({
+              entityPrefix: config.entityPrefix,
+            });
+          
+            // Return the main handler function
+            return async function main() {
+              return await runUpdateWorkflow({
+                itemType: config.itemType,
+                displayName: config.displayName,
+                displayNamePlural: config.displayNamePlural,
+                numberField: config.numberField,
+                outputNumberKey: config.outputNumberKey,
+                outputUrlKey: config.outputUrlKey,
+                isValidContext: config.isValidContext,
+                getContextNumber: config.getContextNumber,
+                supportsStatus: config.supportsStatus,
+                supportsOperation: config.supportsOperation,
+                renderStagedItem,
+                executeUpdate: config.executeUpdate,
+                getSummaryLine,
+              });
+            };
+          }
+          
           module.exports = {
             runUpdateWorkflow,
             resolveTargetNumber,
             buildUpdateData,
             createRenderStagedItem,
             createGetSummaryLine,
+            createUpdateHandler,
           };
           
-          EOF_60283df2
+          EOF_5e2e1ea7
       - name: Assign To Agent
         id: assign_to_agent
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
@@ -7986,15 +8057,8 @@ jobs:
             globalThis.core = core;
             globalThis.exec = exec;
             globalThis.io = io;
-            const { runUpdateWorkflow, createRenderStagedItem, createGetSummaryLine } = require('/tmp/gh-aw/scripts/update_runner.cjs');
+            const { createUpdateHandler } = require('/tmp/gh-aw/scripts/update_runner.cjs');
             const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
-            const renderStagedItem = createRenderStagedItem({
-              entityName: "Issue",
-              numberField: "issue_number",
-              targetLabel: "Target Issue:",
-              currentTargetText: "Current issue",
-              includeOperation: false,
-            });
             async function executeIssueUpdate(github, context, issueNumber, updateData) {
               const { _operation, _rawBody, ...apiData } = updateData;
               const { data: issue } = await github.rest.issues.update({
@@ -8005,25 +8069,22 @@ jobs:
               });
               return issue;
             }
-            const getSummaryLine = createGetSummaryLine({
+            const main = createUpdateHandler({
+              itemType: "update_issue",
+              displayName: "issue",
+              displayNamePlural: "issues",
+              numberField: "issue_number",
+              outputNumberKey: "issue_number",
+              outputUrlKey: "issue_url",
+              entityName: "Issue",
               entityPrefix: "Issue",
+              targetLabel: "Target Issue:",
+              currentTargetText: "Current issue",
+              supportsStatus: true,
+              supportsOperation: false,
+              isValidContext: isIssueContext,
+              getContextNumber: getIssueNumber,
+              executeUpdate: executeIssueUpdate,
             });
-            async function main() {
-              return await runUpdateWorkflow({
-                itemType: "update_issue",
-                displayName: "issue",
-                displayNamePlural: "issues",
-                numberField: "issue_number",
-                outputNumberKey: "issue_number",
-                outputUrlKey: "issue_url",
-                isValidContext: isIssueContext,
-                getContextNumber: getIssueNumber,
-                supportsStatus: true,
-                supportsOperation: false,
-                renderStagedItem,
-                executeUpdate: executeIssueUpdate,
-                getSummaryLine,
-              });
-            }
             (async () => { await main(); })();
 
