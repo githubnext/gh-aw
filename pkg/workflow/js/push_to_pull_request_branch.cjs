@@ -258,11 +258,12 @@ async function main() {
   // Switch to or create the target branch
   core.info(`Switching to branch: ${branchName}`);
 
-  // Fetch latest changes from origin
+  // Fetch the specific target branch from origin (since we use shallow checkout)
   try {
-    await exec.exec("git fetch origin");
+    core.info(`Fetching branch: ${branchName}`);
+    await exec.exec(`git fetch origin ${branchName}:refs/remotes/origin/${branchName}`);
   } catch (fetchError) {
-    core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+    core.setFailed(`Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
     return;
   }
 

@@ -11560,7 +11560,7 @@ jobs:
         with:
           token: ${{ github.token }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Configure Git credentials
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
         env:
@@ -11837,8 +11837,8 @@ jobs:
               }
               core.info(`Generated branch name: ${branchName}`);
               core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
+              core.info(`Fetching base branch: ${baseBranch}`);
+              await exec.exec(`git fetch origin ${baseBranch}:${baseBranch}`);
               await exec.exec(`git checkout ${baseBranch}`);
               core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
               await exec.exec(`git checkout -b ${branchName}`);
@@ -12931,7 +12931,7 @@ jobs:
         with:
           token: ${{ github.token }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Configure Git credentials
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
         env:
@@ -13152,9 +13152,10 @@ jobs:
               const hasChanges = !isEmpty;
               core.info(`Switching to branch: ${branchName}`);
               try {
-                await exec.exec("git fetch origin");
+                core.info(`Fetching branch: ${branchName}`);
+                await exec.exec(`git fetch origin ${branchName}:refs/remotes/origin/${branchName}`);
               } catch (fetchError) {
-                core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                core.setFailed(`Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
                 return;
               }
               try {
