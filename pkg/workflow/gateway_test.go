@@ -395,10 +395,10 @@ func TestSandboxConfigWithMCP(t *testing.T) {
 
 func TestGenerateContainerStartCommands(t *testing.T) {
 	config := &MCPGatewayConfig{
-		Container: "ghcr.io/githubnext/gh-aw-mcpg:latest",
-		Args:      []string{"--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-p", "8000:8000", "--entrypoint", "/app/flowguard-go"},
+		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
+		Args:           []string{"--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-p", "8000:8000", "--entrypoint", "/app/flowguard-go"},
 		EntrypointArgs: []string{"--routed", "--listen", "0.0.0.0:8000", "--config-stdin"},
-		Port: 8000,
+		Port:           8000,
 		Env: map[string]string{
 			"DOCKER_API_VERSION": "1.44",
 		},
@@ -542,6 +542,6 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	// Should use default awmg mode
 	assert.Contains(t, stepStr, "Start MCP Gateway")
 	assert.Contains(t, stepStr, "awmg")
-	assert.NotContains(t, stepStr, "docker run")                      // Should not use docker
+	assert.NotContains(t, stepStr, "docker run")                    // Should not use docker
 	assert.NotContains(t, stepStr, "/usr/local/bin/custom-gateway") // Should not use custom command
 }

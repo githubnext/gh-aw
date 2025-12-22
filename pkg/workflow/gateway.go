@@ -122,26 +122,26 @@ func generateContainerStartCommands(config *MCPGatewayConfig, mcpConfigPath stri
 
 	// Build docker run command with args
 	dockerCmd := "docker run"
-	
+
 	// Add args (e.g., --rm, -i, -v, -p)
 	if len(config.Args) > 0 {
 		for _, arg := range config.Args {
 			dockerCmd += " " + arg
 		}
 	}
-	
+
 	// Add environment variables
 	if envFlagsStr != "" {
 		dockerCmd += " " + envFlagsStr
 	}
-	
+
 	// Add container image
 	containerImage := config.Container
 	if config.Version != "" {
 		containerImage += ":" + config.Version
 	}
 	dockerCmd += " " + containerImage
-	
+
 	// Add entrypoint args
 	if len(config.EntrypointArgs) > 0 {
 		for _, arg := range config.EntrypointArgs {
@@ -326,7 +326,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          echo 'Waiting for MCP Gateway to be ready...'",
 		"          ",
 		"          # Show MCP config file content",
-		fmt.Sprintf("          echo 'MCP Configuration:'"),
+		"          echo 'MCP Configuration:'",
 		fmt.Sprintf("          cat %s || echo 'No MCP config file found'", mcpConfigPath),
 		"          echo ''",
 		"          ",
@@ -389,7 +389,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          echo \"Error: MCP Gateway failed to start after $max_retries attempts\"",
 		"          ",
 		"          # Show gateway logs for debugging",
-		fmt.Sprintf("          echo 'Gateway logs:'"),
+		"          echo 'Gateway logs:'",
 		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
 		"          exit 1",
 	}
