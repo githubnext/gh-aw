@@ -185,7 +185,7 @@ async function updateProject(output) {
     (hasIssue && core.warning('Field "issue" deprecated; use "content_number" instead.'), hasPullRequest && core.warning('Field "pull_request" deprecated; use "content_number" instead.'));
 
     if ("draft_issue" === output.content_type) {
-      (values.length > 0 && core.warning('content_number/issue/pull_request is ignored when content_type is "draft_issue".'));
+      values.length > 0 && core.warning('content_number/issue/pull_request is ignored when content_type is "draft_issue".');
       const draftTitle = "string" == typeof output.draft_title ? output.draft_title.trim() : "";
       if (!draftTitle) throw new Error('Invalid draft_title. When content_type is "draft_issue", draft_title is required and must be a non-empty string.');
       const draftBody = "string" == typeof output.draft_body ? output.draft_body : void 0;
