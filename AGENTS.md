@@ -376,6 +376,11 @@ make minor-release  # Automated via GitHub Actions
 - Use conventional commits for commit messages
 - do NOT commit explanation markdown files about the fixes
 
+## Operational Runbooks
+
+For investigating and resolving workflow issues:
+- **[Workflow Health Monitoring](.github/aw/runbooks/workflow-health.md)** - Comprehensive runbook for diagnosing missing-tool errors, authentication failures, MCP configuration issues, and safe-input/output problems. Includes step-by-step investigation procedures, resolution examples, and case studies from real incidents.
+
 ## Available Skills Reference
 
 Skills provide specialized, detailed knowledge on specific topics. **Use them only when needed** - don't load skills preemptively.
