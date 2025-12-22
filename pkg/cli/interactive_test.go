@@ -329,3 +329,74 @@ func TestInteractiveWorkflowBuilder_describeTrigger(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateWorkflowInteractively_InAutomatedEnvironment(t *testing.T) {
+	// Save original environment
+	origTestMode := os.Getenv("GO_TEST_MODE")
+	origCI := os.Getenv("CI")
+
+	// Set test mode
+	os.Setenv("GO_TEST_MODE", "true")
+
+	// Clean up after test
+	t.Cleanup(func() {
+		if origTestMode != "" {
+			os.Setenv("GO_TEST_MODE", origTestMode)
+		} else {
+			os.Unsetenv("GO_TEST_MODE")
+		}
+		if origCI != "" {
+			os.Setenv("CI", origCI)
+		} else {
+			os.Unsetenv("CI")
+		}
+	})
+
+	// Test should fail in automated environment
+	err := CreateWorkflowInteractively("test-workflow", false, false)
+	if err == nil {
+		t.Error("Expected error in automated environment, got nil")
+	}
+
+	expectedErrMsg := "interactive workflow creation cannot be used in automated tests or CI environments"
+	if !strings.Contains(err.Error(), expectedErrMsg) {
+		t.Errorf("Expected error containing %q, got %q", expectedErrMsg, err.Error())
+	}
+}
+
+func TestCreateWorkflowInteractively_WithForceFlag(t *testing.T) {
+	// This test verifies the force flag is passed through correctly
+	// We can't test the interactive UI, but we can verify the logic
+	// by checking error messages in CI environment
+
+	origTestMode := os.Getenv("GO_TEST_MODE")
+	origCI := os.Getenv("CI")
+
+	os.Setenv("GO_TEST_MODE", "true")
+
+	t.Cleanup(func() {
+		if origTestMode != "" {
+			os.Setenv("GO_TEST_MODE", origTestMode)
+		} else {
+			os.Unsetenv("GO_TEST_MODE")
+		}
+		if origCI != "" {
+			os.Setenv("CI", origCI)
+		} else {
+			os.Unsetenv("CI")
+		}
+	})
+
+	// Both with and without force should fail in CI
+	err1 := CreateWorkflowInteractively("test-workflow", false, false)
+	err2 := CreateWorkflowInteractively("test-workflow", false, true)
+
+	if err1 == nil || err2 == nil {
+		t.Error("Expected errors in CI environment")
+	}
+
+	// Both should have the same error since CI check happens first
+	if err1.Error() != err2.Error() {
+		t.Errorf("Expected same error for force=false and force=true in CI, got %q and %q", err1.Error(), err2.Error())
+	}
+}
