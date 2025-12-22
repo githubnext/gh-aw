@@ -33,6 +33,26 @@ func (m ActionMode) IsValid() bool {
 	return m == ActionModeInline || m == ActionModeDev || m == ActionModeRelease
 }
 
+// IsDev returns true if the action mode is development mode
+func (m ActionMode) IsDev() bool {
+	return m == ActionModeDev
+}
+
+// IsRelease returns true if the action mode is release mode
+func (m ActionMode) IsRelease() bool {
+	return m == ActionModeRelease
+}
+
+// IsInline returns true if the action mode is inline mode
+func (m ActionMode) IsInline() bool {
+	return m == ActionModeInline
+}
+
+// UsesExternalActions returns true if the action mode uses external action files (dev or release)
+func (m ActionMode) UsesExternalActions() bool {
+	return m == ActionModeDev || m == ActionModeRelease
+}
+
 // DetectActionMode determines the appropriate action mode based on environment and version.
 // Returns ActionModeRelease if the binary version is a release tag,
 // ActionModeDev for development builds, or ActionModeInline as fallback.

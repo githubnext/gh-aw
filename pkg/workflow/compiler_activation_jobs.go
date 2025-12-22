@@ -27,7 +27,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
 	if setupActivationActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		if c.actionMode == ActionModeDev {
+		if c.actionMode.IsDev() {
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
@@ -340,7 +340,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
 	if setupActivationActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		if c.actionMode == ActionModeDev {
+		if c.actionMode.IsDev() {
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")

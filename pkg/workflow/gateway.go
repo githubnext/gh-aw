@@ -221,7 +221,7 @@ func generateDefaultAWMGCommands(config *MCPGatewayConfig, mcpConfigPath string,
 	gatewayLog.Printf("Generating gateway step for action mode: %s", actionMode)
 
 	// Generate different installation code based on compile-time mode
-	if actionMode == ActionModeDev {
+	if actionMode.IsDev() {
 		// Development mode: build from sources
 		gatewayLog.Print("Using development mode - will build awmg from sources")
 		lines = append(lines,
