@@ -2,8 +2,8 @@
   "entries": {
     "actions/ai-inference@v1": {
       "repo": "actions/ai-inference",
-      "version": "v1.2.8",
-      "sha": "b81b2afb8390ee6839b494a404766bef6493c7d9"
+      "version": "v2.0.4",
+      "sha": "334892bb203895caaed82ec52d23c1ed9385151e"
     },
     "actions/cache/restore@v4": {
       "repo": "actions/cache/restore",
