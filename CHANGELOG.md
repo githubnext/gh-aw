@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.12 - 2025-12-22
+
+### Bug Fixes
+
+#### Add standalone `awmg` CLI for MCP server aggregation. The new CLI provides a
+
+lightweight MCP gateway and utilities to start and manage MCP servers for local
+integration and testing.
+
+This is a non-breaking tooling addition.
+
+#### Clean and modernize `pkg/workflow/js/safe_outputs_tools_loader.cjs` by refactoring
+
+internal functions (`loadTools`, `attachHandlers`, `registerDynamicTools`) to use
+modern JavaScript patterns (optional chaining, nullish coalescing, handler map)
+and reduce nesting and complexity. No behavioral changes.
+
+#### Standardize safe output references to singular "upload-asset" across schemas,
+
+parsing, and processing logic. Includes a codemod to migrate existing workflows
+and updates to tests and documentation. This is a non-breaking internal
+standardization and tooling change.
+
+
 ## v0.33.11 - 2025-12-22
 
 Maintenance release with dependency updates and minor improvements.
