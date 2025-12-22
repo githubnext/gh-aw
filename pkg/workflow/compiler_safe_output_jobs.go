@@ -63,6 +63,24 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	safeOutputJobNames = append(safeOutputJobNames, safeJobNames...)
 	compilerSafeOutputJobsLog.Printf("Added %d custom safe-job names to conclusion dependencies", len(safeJobNames))
 
+	// Build upload_assets job as a separate job if configured
+	// This needs to be separate from the consolidated safe_outputs job because it requires:
+	// 1. Git configuration for pushing to orphaned branches
+	// 2. Checkout with proper credentials
+	// 3. Different permissions (contents: write)
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
+		compilerSafeOutputJobsLog.Print("Building separate upload_assets job")
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build upload_assets job: %w", err)
+		}
+		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
+			return fmt.Errorf("failed to add upload_assets job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
+		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
+	}
+
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
