@@ -189,6 +189,17 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Build gh-aw
+        run: |
+          echo "Building gh-aw binary..."
+          make build
+          echo "✅ gh-aw binary built successfully"
+          ./gh-aw --version
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Pre-download workflow logs
