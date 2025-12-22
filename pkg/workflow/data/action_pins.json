@@ -57,12 +57,12 @@
     },
     "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",
-      "version": "v6",
+      "version": "v6.0.0",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
     "actions/download-artifact@v6.0.0": {
       "repo": "actions/download-artifact",
-      "version": "v6",
+      "version": "v6.0.0",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
     "actions/github-script@v7.0.1": {
@@ -122,12 +122,12 @@
     },
     "actions/upload-artifact@v5": {
       "repo": "actions/upload-artifact",
-      "version": "v5",
+      "version": "v5.0.0",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
     "actions/upload-artifact@v5.0.0": {
       "repo": "actions/upload-artifact",
-      "version": "v5",
+      "version": "v5.0.0",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
     "anchore/sbom-action@v0": {
@@ -167,18 +167,18 @@
     },
     "github/codeql-action/upload-sarif@v3": {
       "repo": "github/codeql-action/upload-sarif",
-      "version": "v3.31.9",
-      "sha": "70c165ac82ca0e33a10e9741508dd0ccb4dcf080"
+      "version": "v3",
+      "sha": "c37a8b7cd97e31de3fcbd9d84c401870edeb8d34"
     },
     "github/stale-repos@v3": {
       "repo": "github/stale-repos",
-      "version": "v3.0.2",
-      "sha": "a21e55567b83cf3c3f3f9085d3038dc6cee02598"
+      "version": "v3",
+      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
     },
     "haskell-actions/setup@v2": {
       "repo": "haskell-actions/setup",
-      "version": "v2.9.1",
-      "sha": "55073cbd0e96181a9abd6ff4e7d289867dffc98d"
+      "version": "v2.9.0",
+      "sha": "782a7c5aa54495c3d21d7c8d5f03a8a2113a1ff7"
     },
     "oven-sh/setup-bun@v2": {
       "repo": "oven-sh/setup-bun",
