@@ -154,15 +154,18 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 	key := repo + "@" + version
 	entry, exists := c.Entries[key]
 	if !exists {
+		actionCacheLog.Printf("Cache miss for key=%s", key)
 		return "", false
 	}
 
+	actionCacheLog.Printf("Cache hit for key=%s, sha=%s", key, entry.SHA)
 	return entry.SHA, true
 }
 
 // Set stores a new cache entry
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := repo + "@" + version
+	actionCacheLog.Printf("Setting cache entry: key=%s, sha=%s", key, sha)
 	c.Entries[key] = ActionCacheEntry{
 		Repo:    repo,
 		Version: version,
