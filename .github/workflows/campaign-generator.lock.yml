@@ -49,34 +49,140 @@ jobs:
       comment_repo: ""
       issue_locked: ${{ steps.lock-issue.outputs.locked }}
     steps:
-      - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@ab1b4ae
-        with:
-          destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_WORKFLOW_FILE: "campaign-generator.lock.yml"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
-            require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
+            async function main() {
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+                return;
+              }
+              const workflowBasename = workflowFile.replace(".lock.yml", "");
+              const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
+              const lockFilePath = `.github/workflows/${workflowFile}`;
+              core.info(`Checking workflow timestamps using GitHub API:`);
+              core.info(`  Source: ${workflowMdPath}`);
+              core.info(`  Lock file: ${lockFilePath}`);
+              const { owner, repo } = context.repo;
+              const ref = context.sha;
+              async function getLastCommitForFile(path) {
+                try {
+                  const response = await github.rest.repos.listCommits({
+                    owner,
+                    repo,
+                    path,
+                    per_page: 1,
+                    sha: ref,
+                  });
+                  if (response.data && response.data.length > 0) {
+                    const commit = response.data[0];
+                    return {
+                      sha: commit.sha,
+                      date: commit.commit.committer.date,
+                      message: commit.commit.message,
+                    };
+                  }
+                  return null;
+                } catch (error) {
+                  core.info(`Could not fetch commit for ${path}: ${error.message}`);
+                  return null;
+                }
+              }
+              const workflowCommit = await getLastCommitForFile(workflowMdPath);
+              const lockCommit = await getLastCommitForFile(lockFilePath);
+              if (!workflowCommit) {
+                core.info(`Source file does not exist: ${workflowMdPath}`);
+              }
+              if (!lockCommit) {
+                core.info(`Lock file does not exist: ${lockFilePath}`);
+              }
+              if (!workflowCommit || !lockCommit) {
+                core.info("Skipping timestamp check - one or both files not found");
+                return;
+              }
+              const workflowDate = new Date(workflowCommit.date);
+              const lockDate = new Date(lockCommit.date);
+              core.info(`  Source last commit: ${workflowDate.toISOString()} (${workflowCommit.sha.substring(0, 7)})`);
+              core.info(`  Lock last commit: ${lockDate.toISOString()} (${lockCommit.sha.substring(0, 7)})`);
+              if (workflowDate > lockDate) {
+                const warningMessage = `WARNING: Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                core.error(warningMessage);
+                const workflowTimestamp = workflowDate.toISOString();
+                const lockTimestamp = lockDate.toISOString();
+                let summary = core.summary
+                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
+                  .addRaw("**Files:**\n")
+                  .addRaw(`- Source: \`${workflowMdPath}\`\n`)
+                  .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
+                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
+                  .addRaw(`- Lock: \`${lockFilePath}\`\n`)
+                  .addRaw(`  - Last commit: ${lockTimestamp}\n`)
+                  .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
+                  .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+                await summary.write();
+              } else if (workflowCommit.sha === lockCommit.sha) {
+                core.info("✅ Lock file is up to date (same commit)");
+              } else {
+                core.info("✅ Lock file is up to date");
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
       - name: Lock issue for agent workflow
         id: lock-issue
         if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
-            require('/tmp/gh-aw/actions/activation/lock-issue.cjs');
+            async function main() {
+              core.info(`Lock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
+              const issueNumber = context.issue.number;
+              if (!issueNumber) {
+                core.setFailed("Issue number not found in context");
+                return;
+              }
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              core.info(`Lock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
+              try {
+                core.info(`Checking if issue #${issueNumber} is already locked`);
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                if (issue.pull_request) {
+                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
+                if (issue.locked) {
+                  core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
+                  core.setOutput("locked", "false");
+                  return;
+                }
+                core.info(`Locking issue #${issueNumber} for agent workflow execution`);
+                await github.rest.issues.lock({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+                core.info(`✅ Successfully locked issue #${issueNumber}`);
+                core.setOutput("locked", "true");
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to lock issue: ${errorMessage}`);
+                core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
+                core.setOutput("locked", "false");
+              }
+            }
+            await main();
 
   agent:
     needs: activation
@@ -6428,10 +6534,6 @@ jobs:
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
-      - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@ab1b4ae
-        with:
-          destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

@@ -370,6 +370,13 @@ func buildSetupActivationAction(actionsDir, actionName string) error {
 // getActionDependencies returns the list of JavaScript dependencies for an action
 // This mapping defines which files from pkg/workflow/js/ are needed for each action
 func getActionDependencies(actionName string) []string {
+	// For setup-activation (or setup), use the dynamic script discovery
+	// This ensures all .cjs files are included automatically
+	if actionName == "setup-activation" || actionName == "setup" {
+		return workflow.GetAllScriptFilenames()
+	}
+
+	// Static dependencies for other actions
 	dependencyMap := map[string][]string{
 		"setup-safe-outputs": {
 			"safe_outputs_mcp_server.cjs",
@@ -390,20 +397,6 @@ func getActionDependencies(actionName string) []string {
 			"safe_inputs_validation.cjs",
 			"mcp_server_core.cjs",
 			"mcp_logger.cjs",
-		},
-		"setup-activation": {
-			"check_stop_time.cjs",
-			"check_skip_if_match.cjs",
-			"check_command_position.cjs",
-			"check_workflow_timestamp_api.cjs",
-			"lock-issue.cjs",
-			"compute_text.cjs",
-			"add_reaction_and_edit_comment.cjs",
-			// Dependencies for compute_text.cjs and add_reaction_and_edit_comment.cjs
-			"sanitize_incoming_text.cjs",
-			"messages_run_status.cjs",
-			"messages_core.cjs",
-			"sanitize_content_core.cjs",
 		},
 		"noop": {
 			"load_agent_output.cjs",
