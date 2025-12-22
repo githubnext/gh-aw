@@ -170,7 +170,7 @@ jobs:
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
         with:
           cache: true
           go-version-file: go.mod
@@ -190,7 +190,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -198,7 +198,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -8332,7 +8332,7 @@ jobs:
                   await exec.exec(`git rm -rf .`);
                   await exec.exec(`git clean -fdx`);
                 }
-                for (const asset of uploadAssetItems) {
+                for (const asset of allUploadItems) {
                   try {
                     const { fileName, sha, size, targetFileName } = asset;
                     if (!fileName || !sha || !targetFileName) {
@@ -8373,7 +8373,7 @@ jobs:
                     core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
                     core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
-                  for (const asset of uploadAssetItems) {
+                  for (const asset of allUploadItems) {
                     if (asset.fileName && asset.sha && asset.size && asset.url) {
                       core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
                     }
