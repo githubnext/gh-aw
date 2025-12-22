@@ -48,12 +48,12 @@ steps:
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
-    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+    uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
       cache: true
   - name: Set up Node.js
-    uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+    uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm
