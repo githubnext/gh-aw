@@ -367,7 +367,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) err
 	if port == 0 {
 		port = 8080
 	}
-	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
+	// Use host.docker.internal instead of localhost to allow Docker containers to reach the gateway
+	gatewayURL := fmt.Sprintf("http://host.docker.internal:%d", port)
 	
 	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))
