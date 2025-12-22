@@ -414,7 +414,7 @@ sync-action-pins:
 recompile: sync-templates build
 	./$(BINARY_NAME) init --codespaces
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
-#	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
+#	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
 # Apply automatic fixes to workflow files
 .PHONY: fix

@@ -1723,8 +1723,12 @@ jobs:
                   dynamicTool.inputSchema.required = [];
                   Object.keys(jobConfig.inputs).forEach(inputName => {
                     const inputDef = jobConfig.inputs[inputName];
+                    let jsonSchemaType = inputDef.type || "string";
+                    if (jsonSchemaType === "choice") {
+                      jsonSchemaType = "string";
+                    }
                     const propSchema = {
-                      type: inputDef.type || "string",
+                      type: jsonSchemaType,
                       description: inputDef.description || `Input parameter: ${inputName}`,
                     };
                     if (Array.isArray(inputDef.options)) {
@@ -5380,7 +5384,7 @@ jobs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
       - name: Install ast-grep

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -80,10 +81,6 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 	// MCP config file path (created by RenderMCPConfig)
 	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
 
-	// Detect action mode at compile time
-	actionMode := DetectActionMode()
-	gatewayLog.Printf("Generating gateway step for action mode: %s", actionMode)
-
 	stepLines := []string{
 		"      - name: Start MCP Gateway",
 		"        run: |",
@@ -92,11 +89,141 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"          ",
 	}
 
+	// Check which mode to use: container, command, or default (awmg binary)
+	if config.Container != "" {
+		// Container mode
+		gatewayLog.Printf("Using container mode: %s", config.Container)
+		stepLines = append(stepLines, generateContainerStartCommands(config, mcpConfigPath, port)...)
+	} else if config.Command != "" {
+		// Custom command mode
+		gatewayLog.Printf("Using custom command mode: %s", config.Command)
+		stepLines = append(stepLines, generateCommandStartCommands(config, mcpConfigPath, port)...)
+	} else {
+		// Default mode: use awmg binary
+		gatewayLog.Print("Using default mode: awmg binary")
+		stepLines = append(stepLines, generateDefaultAWMGCommands(config, mcpConfigPath, port)...)
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateContainerStartCommands generates shell commands to start the MCP gateway using a Docker container
+func generateContainerStartCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+	var lines []string
+
+	// Build environment variables
+	var envFlags []string
+	if len(config.Env) > 0 {
+		for key, value := range config.Env {
+			envFlags = append(envFlags, fmt.Sprintf("-e %s=\"%s\"", key, value))
+		}
+	}
+	envFlagsStr := strings.Join(envFlags, " ")
+
+	// Build docker run command with args
+	dockerCmd := "docker run"
+
+	// Add args (e.g., --rm, -i, -v, -p)
+	if len(config.Args) > 0 {
+		for _, arg := range config.Args {
+			dockerCmd += " " + arg
+		}
+	}
+
+	// Add environment variables
+	if envFlagsStr != "" {
+		dockerCmd += " " + envFlagsStr
+	}
+
+	// Add container image
+	containerImage := config.Container
+	if config.Version != "" {
+		containerImage += ":" + config.Version
+	}
+	dockerCmd += " " + containerImage
+
+	// Add entrypoint args
+	if len(config.EntrypointArgs) > 0 {
+		for _, arg := range config.EntrypointArgs {
+			dockerCmd += " " + arg
+		}
+	}
+
+	lines = append(lines,
+		"          # Start MCP gateway using Docker container",
+		fmt.Sprintf("          echo 'Starting MCP Gateway container: %s'", config.Container),
+		"          ",
+		"          # Pipe MCP config to container via stdin",
+		fmt.Sprintf("          cat %s | %s > %s/gateway.log 2>&1 &", mcpConfigPath, dockerCmd, MCPGatewayLogsFolder),
+		"          GATEWAY_PID=$!",
+		"          echo \"MCP Gateway container started with PID $GATEWAY_PID\"",
+		"          ",
+		"          # Give the gateway a moment to start",
+		"          sleep 2",
+	)
+
+	return lines
+}
+
+// generateCommandStartCommands generates shell commands to start the MCP gateway using a custom command
+func generateCommandStartCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+	var lines []string
+
+	// Build the command with args
+	command := config.Command
+	if len(config.Args) > 0 {
+		command += " " + strings.Join(config.Args, " ")
+	}
+
+	// Build environment variables
+	var envVars []string
+	if len(config.Env) > 0 {
+		for key, value := range config.Env {
+			envVars = append(envVars, fmt.Sprintf("export %s=\"%s\"", key, value))
+		}
+	}
+
+	lines = append(lines,
+		"          # Start MCP gateway using custom command",
+		fmt.Sprintf("          echo 'Starting MCP Gateway with command: %s'", config.Command),
+		"          ",
+	)
+
+	// Add environment variables if any
+	if len(envVars) > 0 {
+		lines = append(lines, "          # Set environment variables")
+		for _, envVar := range envVars {
+			lines = append(lines, "          "+envVar)
+		}
+		lines = append(lines, "          ")
+	}
+
+	lines = append(lines,
+		"          # Start the command in background",
+		fmt.Sprintf("          cat %s | %s > %s/gateway.log 2>&1 &", mcpConfigPath, command, MCPGatewayLogsFolder),
+		"          GATEWAY_PID=$!",
+		"          echo \"MCP Gateway started with PID $GATEWAY_PID\"",
+		"          ",
+		"          # Give the gateway a moment to start",
+		"          sleep 2",
+	)
+
+	return lines
+}
+
+// generateDefaultAWMGCommands generates shell commands to start the MCP gateway using the default awmg binary
+func generateDefaultAWMGCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+	var lines []string
+
+	// Detect action mode at compile time
+	actionMode := DetectActionMode()
+	gatewayLog.Printf("Generating gateway step for action mode: %s", actionMode)
+
 	// Generate different installation code based on compile-time mode
 	if actionMode == ActionModeDev {
 		// Development mode: build from sources
 		gatewayLog.Print("Using development mode - will build awmg from sources")
-		stepLines = append(stepLines,
+		lines = append(lines,
 			"          # Development mode: Build awmg from sources",
 			"          if [ -f \"cmd/awmg/main.go\" ] && [ -f \"Makefile\" ]; then",
 			"            echo 'Building awmg from sources (development mode)...'",
@@ -125,7 +252,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 	} else {
 		// Release mode: download from GitHub releases
 		gatewayLog.Print("Using release mode - will download awmg from releases")
-		stepLines = append(stepLines,
+		lines = append(lines,
 			"          # Release mode: Download awmg from releases",
 			"          # Check if awmg is already in PATH",
 			"          if command -v awmg &> /dev/null; then",
@@ -165,7 +292,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		)
 	}
 
-	stepLines = append(stepLines,
+	lines = append(lines,
 		"          ",
 		"          # Start MCP gateway in background with config file",
 		fmt.Sprintf("          $AWMG_CMD --config %s --port %d --log-dir %s > %s/gateway.log 2>&1 &", mcpConfigPath, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
@@ -176,7 +303,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		"          sleep 2",
 	)
 
-	return GitHubActionStep(stepLines)
+	return lines
 }
 
 // generateMCPGatewayHealthCheckStep generates the step that pings the gateway to verify it's running
@@ -199,7 +326,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          echo 'Waiting for MCP Gateway to be ready...'",
 		"          ",
 		"          # Show MCP config file content",
-		fmt.Sprintf("          echo 'MCP Configuration:'"),
+		"          echo 'MCP Configuration:'",
 		fmt.Sprintf("          cat %s || echo 'No MCP config file found'", mcpConfigPath),
 		"          echo ''",
 		"          ",
@@ -262,7 +389,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"          echo \"Error: MCP Gateway failed to start after $max_retries attempts\"",
 		"          ",
 		"          # Show gateway logs for debugging",
-		fmt.Sprintf("          echo 'Gateway logs:'"),
+		"          echo 'Gateway logs:'",
 		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
 		"          exit 1",
 	}

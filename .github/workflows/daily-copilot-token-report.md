@@ -18,6 +18,19 @@ tools:
   bash:
     - "*"
 steps:
+  - name: Set up Go
+    uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+    with:
+      go-version-file: go.mod
+      cache: true
+
+  - name: Build gh-aw
+    run: |
+      echo "Building gh-aw binary..."
+      make build
+      echo "✅ gh-aw binary built successfully"
+      ./gh-aw --version
+
   - name: Pre-download workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

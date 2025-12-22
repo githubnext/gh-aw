@@ -320,8 +320,8 @@ func TestDisplayToolsList(t *testing.T) {
 func TestNewMCPListToolsSubcommand(t *testing.T) {
 	cmd := NewMCPListToolsSubcommand()
 
-	if cmd.Use != "list-tools <mcp-server> [workflow-id-or-file]" {
-		t.Errorf("Expected Use to be 'list-tools <mcp-server> [workflow-id-or-file]', got: %s", cmd.Use)
+	if cmd.Use != "list-tools <server> [workflow]" {
+		t.Errorf("Expected Use to be 'list-tools <server> [workflow]', got: %s", cmd.Use)
 	}
 
 	if cmd.Short != "List available tools for a specific MCP server" {

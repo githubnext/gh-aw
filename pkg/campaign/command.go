@@ -86,7 +86,7 @@ Examples:
 
 	// Subcommand: campaign new
 	newCmd := &cobra.Command{
-		Use:   "new <id>",
+		Use:   "new <campaign-id>",
 		Short: "Create a new Markdown campaign spec under .github/workflows/",
 		Long: `Create a new campaign spec Markdown file under .github/workflows/.
 

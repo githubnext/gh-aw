@@ -326,5 +326,20 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate MCP gateway configuration
+	if sandboxConfig.MCP != nil {
+		mcpConfig := sandboxConfig.MCP
+
+		// Validate mutual exclusivity of command and container
+		if mcpConfig.Command != "" && mcpConfig.Container != "" {
+			return fmt.Errorf("sandbox.mcp: cannot specify both 'command' and 'container', use one or the other")
+		}
+
+		// Validate entrypointArgs is only used with container
+		if len(mcpConfig.EntrypointArgs) > 0 && mcpConfig.Container == "" {
+			return fmt.Errorf("sandbox.mcp: 'entrypointArgs' can only be used with 'container'")
+		}
+	}
+
 	return nil
 }

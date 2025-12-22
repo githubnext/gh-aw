@@ -19,13 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Scheduled workflow that recursively closes parent issues when all sub-issues are 100% complete
+# Daily test workflow using Claude with custom safe-output job containing choice inputs
 
-name: "Sub-Issue Closer"
+name: "Daily Choice Type Test"
 "on":
   schedule:
-  - cron: "42 23 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 12 * * 1-5"
   workflow_dispatch:
 
 permissions: {}
@@ -33,7 +32,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Sub-Issue Closer"
+run-name: "Daily Choice Type Test"
 
 jobs:
   activation:
@@ -47,7 +46,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "sub-issue-closer.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-choice-test.lock.yml"
         with:
           script: |
             async function main() {
@@ -137,7 +136,7 @@ jobs:
       contents: read
       issues: read
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -207,19 +206,19 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate COPILOT_GITHUB_TOKEN secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
             {
-              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
+              echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+              echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
           
@@ -227,31 +226,28 @@ jobs:
           echo "<details>"
           echo "<summary>Agent Environment Validation</summary>"
           echo ""
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "✅ CLAUDE_CODE_OAUTH_TOKEN: Configured"
+          else
+            echo "✅ ANTHROPIC_API_KEY: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
           echo "</details>"
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
           which awf
           awf --version
+      - name: Install Claude Code CLI
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Downloading container images
         run: |
           set -e
@@ -287,65 +283,10 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":20,"target":"*"},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":20}}
+          {"missing_tool":{"max":0},"noop":{"max":1},"test_environment":{"description":"A test job with choice input","inputs":{"environment":{"default":null,"description":"Target environment","options":["staging","production"],"required":true,"type":"choice"},"test_type":{"default":null,"description":"Type of test to run","options":["smoke","integration","e2e"],"required":true,"type":"choice"}},"output":"Environment test completed successfully"}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 20 comment(s) can be added. Target: *.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.",
-                    "type": "string"
-                  },
-                  "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "body",
-                  "item_number"
-                ],
-                "type": "object"
-              },
-              "name": "add_comment"
-            },
-            {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 20 issue(s) can be updated. Target: *.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to update. Required when the workflow target is '*' (any issue).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
-                    "enum": [
-                      "open",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "New issue title to replace the existing title.",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "name": "update_issue"
-            },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
@@ -393,20 +334,6 @@ jobs:
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "add_comment": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "item_number": {
-                  "issueOrPRNumber": true
-                }
-              }
-            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -439,32 +366,6 @@ jobs:
                   "maxLength": 65000
                 }
               }
-            },
-            "update_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
             }
           }
           EOF
@@ -1811,12 +1712,10 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
               "github": {
-                "type": "local",
                 "command": "docker",
                 "args": [
                   "run",
@@ -1827,44 +1726,34 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=issues",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
-                "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
                 }
               },
               "safeoutputs": {
-                "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
-                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
-                  "GITHUB_SHA": "\${GITHUB_SHA}",
-                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
-                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
+                  "GH_AW_MCP_LOG_DIR": "$GH_AW_MCP_LOG_DIR",
+                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
+                  "GITHUB_SHA": "$GITHUB_SHA",
+                  "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
                 }
               }
             }
           }
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1873,13 +1762,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
-              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
+              engine_id: "claude",
+              engine_name: "Claude Code",
+              model: "claude-opus-4.5",
               version: "",
-              agent_version: "0.0.372",
-              workflow_name: "Sub-Issue Closer",
-              experimental: false,
+              agent_version: "2.0.75",
+              workflow_name: "Daily Choice Type Test",
+              experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -1890,7 +1779,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               network_mode: "defaults",
               allowed_domains: ["defaults"],
               firewall_enabled: true,
@@ -1952,165 +1841,27 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Sub-Issue Closer 🔒
+          # Daily Choice Type Test
           
-          You are an intelligent agent that automatically closes parent issues when all their sub-issues are 100% complete.
+          This workflow tests the choice type functionality in safe-output jobs with Claude.
           
           ## Task
           
-          Recursively process GitHub issues in repository **__GH_AW_GITHUB_REPOSITORY__** and close parent issues that have all their sub-issues completed.
+          Use the `test_environment` tool to configure a test deployment. Choose:
+          1. An environment: staging or production
+          2. A test type: smoke, integration, or e2e
           
-          ## Process
+          Make your selection based on the day of the week:
+          - Monday/Wednesday/Friday: Use "staging" environment with "smoke" tests
+          - Tuesday/Thursday: Use "production" environment with "integration" tests
           
-          ### Step 1: Find Open Parent Issues
-          
-          Use the GitHub MCP server to search for open issues that have sub-issues. Look for:
-          - Issues with state = "OPEN"
-          - Issues that have tracked issues (sub-issues)
-          - Issues that appear to be tracking/parent issues based on their structure
-          
-          You can use the `search_issues` tool to find issues with sub-issues, or use `list_issues` to get all open issues and filter those with sub-issues.
-          
-          ### Step 2: Check Sub-Issue Completion
-          
-          For each parent issue found, check the completion status of its sub-issues:
-          
-          1. Get the sub-issues for the parent issue using the GitHub API
-          2. Check if ALL sub-issues are in state "CLOSED"
-          3. Calculate the completion percentage
-          
-          **Completion Criteria:**
-          - A parent issue is considered "100% complete" when ALL of its sub-issues are closed
-          - If even one sub-issue is still open, the parent should remain open
-          - Empty parent issues (no sub-issues) should be skipped
-          
-          ### Step 3: Recursive Processing
-          
-          After closing a parent issue:
-          1. Check if that issue itself is a sub-issue of another parent
-          2. If it has a parent issue, check that parent's completion status
-          3. Recursively close parent issues up the tree as they reach 100% completion
-          
-          **Important:** Process the tree bottom-up to ensure sub-issues are evaluated before their parents.
-          
-          ### Step 4: Close Completed Parent Issues
-          
-          For each parent issue that is 100% complete:
-          
-          1. **Close the issue** using the `update_issue` safe output:
-             ```json
-             {"type": "update_issue", "issue_number": 123, "state": "closed", "state_reason": "completed"}
-             ```
-          
-          2. **Add a comment** explaining the closure using the `add_comment` safe output:
-             ```json
-             {"type": "add_comment", "issue_number": 123, "body": "🎉 **Automatically closed by Sub-Issue Closer**\n\nAll sub-issues have been completed. This parent issue is now closed automatically.\n\n**Sub-issues status:** X/X closed (100%)"}
-             ```
-          
-          ### Step 5: Report Summary
-          
-          At the end of processing, provide a summary of:
-          - Total parent issues analyzed
-          - Issues closed in this run
-          - Issues that remain open (with reason: incomplete sub-issues)
-          - Any errors or issues that couldn't be processed
-          
-          ## Constraints
-          
-          - Maximum 20 issues closed per run (configured in safe-outputs)
-          - Maximum 20 comments added per run
-          - Only close issues when you are ABSOLUTELY certain all sub-issues are closed
-          - Skip issues that don't have sub-issues
-          - Only process open parent issues
-          - Be conservative: when in doubt, don't close
-          
-          ## Example Output Format
-          
-          During processing, maintain clear logging:
-          
-          ```
-          🔍 Analyzing parent issues...
-          
-          📋 Issue #42: "Feature: Add dark mode"
-             State: OPEN
-             Sub-issues: 5 total
-             - #43: "Design dark mode colors" [CLOSED]
-             - #44: "Implement dark mode toggle" [CLOSED]
-             - #45: "Add dark mode to settings" [CLOSED]
-             - #46: "Test dark mode" [CLOSED]
-             - #47: "Document dark mode" [CLOSED]
-             Status: 5/5 closed (100%)
-             ✅ All sub-issues complete - CLOSING
-          
-          📋 Issue #50: "Feature: User authentication"
-             State: OPEN
-             Sub-issues: 3 total
-             - #51: "Add login page" [CLOSED]
-             - #52: "Add logout functionality" [OPEN]
-             - #53: "Add password reset" [CLOSED]
-             Status: 2/3 closed (67%)
-             ⏸️  Incomplete - keeping open
-          
-          ✅ Summary:
-             - Parent issues analyzed: 2
-             - Issues closed: 1
-             - Issues remaining open: 1
-          ```
-          
-          ## Important Notes
-          
-          - This is a scheduled workflow that runs daily (fuzzy scheduling)
-          - It complements the existing event-triggered auto-close-parent-issues.yml workflow
-          - The event-triggered workflow runs when a sub-issue is closed
-          - This scheduled workflow catches any issues that were missed or changed outside the normal flow
-          - Use the GitHub MCP server tools to query issues and their relationships
-          - Be careful with recursive processing to avoid infinite loops
-          - Always verify the completion status before closing an issue
-          - Add clear, informative comments when closing issues for transparency
+          Provide a brief explanation of why you chose this configuration.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-        with:
-          script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2157,7 +1908,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, missing_tool, noop, update_issue
+          **Available tools**: missing_tool, noop, test_environment
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -2260,7 +2011,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -2441,30 +2191,91 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute GitHub Copilot CLI
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        timeout-minutes: 15
+        # Allowed tools (sorted):
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - LS
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
+        # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__issue_read
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
+        timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --tty --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --allow-domains '*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+            -- export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --model claude-opus-4.5 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -2576,8 +2387,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -2593,7 +2405,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,anthropic.com,api.anthropic.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,cdn.playwright.dev,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,ghcr.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,playwright.download.prss.microsoft.com,ppa.launchpad.net,pypi.org,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,sentry.io,statsig.anthropic.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3828,14 +3640,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/sandbox/agent/logs/
-            /tmp/gh-aw/redacted-urls.log
-          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -3847,7 +3651,7 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             const MAX_TOOL_OUTPUT_LENGTH = 256;
@@ -4829,495 +4633,83 @@ jobs:
             }
             function main() {
               runLogParser({
-                parseLog: parseCopilotLog,
-                parserName: "Copilot",
-                supportsDirectories: true,
+                parseLog: parseClaudeLog,
+                parserName: "Claude",
+                supportsDirectories: false,
               });
             }
-            function extractPremiumRequestCount(logContent) {
-              const patterns = [/premium\s+requests?\s+consumed:?\s*(\d+)/i, /(\d+)\s+premium\s+requests?\s+consumed/i, /consumed\s+(\d+)\s+premium\s+requests?/i];
-              for (const pattern of patterns) {
-                const match = logContent.match(pattern);
-                if (match && match[1]) {
-                  const count = parseInt(match[1], 10);
-                  if (!isNaN(count) && count > 0) {
-                    return count;
-                  }
-                }
-              }
-              return 1;
-            }
-            function parseCopilotLog(logContent) {
+            function parseClaudeLog(logContent) {
               try {
-                let logEntries;
-                try {
-                  logEntries = JSON.parse(logContent);
-                  if (!Array.isArray(logEntries)) {
-                    throw new Error("Not a JSON array");
-                  }
-                } catch (jsonArrayError) {
-                  const debugLogEntries = parseDebugLogFormat(logContent);
-                  if (debugLogEntries && debugLogEntries.length > 0) {
-                    logEntries = debugLogEntries;
-                  } else {
-                    logEntries = parseLogEntries(logContent);
-                  }
+                const logEntries = parseLogEntries(logContent);
+                if (!logEntries) {
+                  return {
+                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+                    mcpFailures: [],
+                    maxTurnsHit: false,
+                    logEntries: [],
+                  };
                 }
-                if (!logEntries || logEntries.length === 0) {
-                  return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
-                }
+                const mcpFailures = [];
                 const conversationResult = generateConversationMarkdown(logEntries, {
-                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
-                  formatInitCallback: initEntry =>
-                    formatInitializationSummary(initEntry, {
-                      includeSlashCommands: false,
-                      modelInfoCallback: entry => {
-                        if (!entry.model_info) return "";
-                        const modelInfo = entry.model_info;
-                        let markdown = "";
-                        if (modelInfo.name) {
-                          markdown += `**Model Name:** ${modelInfo.name}`;
-                          if (modelInfo.vendor) {
-                            markdown += ` (${modelInfo.vendor})`;
-                          }
-                          markdown += "\n\n";
+                  formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: false }),
+                  formatInitCallback: initEntry => {
+                    const result = formatInitializationSummary(initEntry, {
+                      includeSlashCommands: true,
+                      mcpFailureCallback: server => {
+                        const errorDetails = [];
+                        if (server.error) {
+                          errorDetails.push(`**Error:** ${server.error}`);
                         }
-                        if (modelInfo.billing) {
-                          const billing = modelInfo.billing;
-                          if (billing.is_premium === true) {
-                            markdown += `**Premium Model:** Yes`;
-                            if (billing.multiplier && billing.multiplier !== 1) {
-                              markdown += ` (${billing.multiplier}x cost multiplier)`;
-                            }
-                            markdown += "\n";
-                            if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-                              markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-                            }
-                            markdown += "\n";
-                          } else if (billing.is_premium === false) {
-                            markdown += `**Premium Model:** No\n\n`;
-                          }
+                        if (server.stderr) {
+                          const maxStderrLength = 500;
+                          const stderr = server.stderr.length > maxStderrLength ? server.stderr.substring(0, maxStderrLength) + "..." : server.stderr;
+                          errorDetails.push(`**Stderr:** \`${stderr}\``);
                         }
-                        return markdown;
+                        if (server.exitCode !== undefined && server.exitCode !== null) {
+                          errorDetails.push(`**Exit Code:** ${server.exitCode}`);
+                        }
+                        if (server.command) {
+                          errorDetails.push(`**Command:** \`${server.command}\``);
+                        }
+                        if (server.message) {
+                          errorDetails.push(`**Message:** ${server.message}`);
+                        }
+                        if (server.reason) {
+                          errorDetails.push(`**Reason:** ${server.reason}`);
+                        }
+                        if (errorDetails.length > 0) {
+                          return errorDetails.map(detail => `  - ${detail}\n`).join("");
+                        }
+                        return "";
                       },
-                    }),
+                    });
+                    if (result.mcpFailures) {
+                      mcpFailures.push(...result.mcpFailures);
+                    }
+                    return result;
+                  },
                 });
                 let markdown = conversationResult.markdown;
                 const lastEntry = logEntries[logEntries.length - 1];
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                markdown += generateInformationSection(lastEntry, {
-                  additionalInfoCallback: entry => {
-                    const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-                    if (isPremiumModel) {
-                      const premiumRequestCount = extractPremiumRequestCount(logContent);
-                      return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
-                    }
-                    return "";
-                  },
-                });
-                return { markdown, logEntries };
+                markdown += generateInformationSection(lastEntry);
+                let maxTurnsHit = false;
+                const maxTurns = process.env.GH_AW_MAX_TURNS;
+                if (maxTurns && lastEntry && lastEntry.num_turns) {
+                  const configuredMaxTurns = parseInt(maxTurns, 10);
+                  if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
+                    maxTurnsHit = true;
+                  }
+                }
+                return { markdown, mcpFailures, maxTurnsHit, logEntries };
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 return {
-                  markdown: `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  mcpFailures: [],
+                  maxTurnsHit: false,
                   logEntries: [],
                 };
               }
-            }
-            function scanForToolErrors(logContent) {
-              const toolErrors = new Map();
-              const lines = logContent.split("\n");
-              const recentToolCalls = [];
-              const MAX_RECENT_TOOLS = 10;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
-                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
-                    const nextLine = lines[j];
-                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
-                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
-                    if (idMatch) {
-                      const toolId = idMatch[1];
-                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
-                        const nameLine = lines[k];
-                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
-                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
-                          const toolName = funcNameMatch[1];
-                          recentToolCalls.unshift({ id: toolId, name: toolName });
-                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
-                            recentToolCalls.pop();
-                          }
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
-                if (errorMatch) {
-                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
-                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
-                  if (toolNameMatch) {
-                    const toolName = toolNameMatch[1];
-                    toolErrors.set(toolName, true);
-                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
-                    if (matchingTool) {
-                      toolErrors.set(matchingTool.id, true);
-                    }
-                  } else if (toolIdMatch) {
-                    toolErrors.set(toolIdMatch[1], true);
-                  } else if (recentToolCalls.length > 0) {
-                    const lastTool = recentToolCalls[0];
-                    toolErrors.set(lastTool.id, true);
-                    toolErrors.set(lastTool.name, true);
-                  }
-                }
-              }
-              return toolErrors;
-            }
-            function parseDebugLogFormat(logContent) {
-              const entries = [];
-              const lines = logContent.split("\n");
-              const toolErrors = scanForToolErrors(logContent);
-              let model = "unknown";
-              let sessionId = null;
-              let modelInfo = null;
-              let tools = [];
-              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
-              if (modelMatch) {
-                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
-              }
-              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
-              if (gotModelInfoIndex !== -1) {
-                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
-                if (jsonStart !== -1) {
-                  let braceCount = 0;
-                  let inString = false;
-                  let escapeNext = false;
-                  let jsonEnd = -1;
-                  for (let i = jsonStart; i < logContent.length; i++) {
-                    const char = logContent[i];
-                    if (escapeNext) {
-                      escapeNext = false;
-                      continue;
-                    }
-                    if (char === "\\") {
-                      escapeNext = true;
-                      continue;
-                    }
-                    if (char === '"' && !escapeNext) {
-                      inString = !inString;
-                      continue;
-                    }
-                    if (inString) continue;
-                    if (char === "{") {
-                      braceCount++;
-                    } else if (char === "}") {
-                      braceCount--;
-                      if (braceCount === 0) {
-                        jsonEnd = i + 1;
-                        break;
-                      }
-                    }
-                  }
-                  if (jsonEnd !== -1) {
-                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
-                    try {
-                      modelInfo = JSON.parse(modelInfoJson);
-                    } catch (e) {
-                    }
-                  }
-                }
-              }
-              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
-              if (toolsIndex !== -1) {
-                const afterToolsLine = logContent.indexOf("\n", toolsIndex);
-                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
-                if (toolsStart !== -1) {
-                  toolsStart = logContent.indexOf("[", toolsStart + 7); 
-                }
-                if (toolsStart !== -1) {
-                  let bracketCount = 0;
-                  let inString = false;
-                  let escapeNext = false;
-                  let toolsEnd = -1;
-                  for (let i = toolsStart; i < logContent.length; i++) {
-                    const char = logContent[i];
-                    if (escapeNext) {
-                      escapeNext = false;
-                      continue;
-                    }
-                    if (char === "\\") {
-                      escapeNext = true;
-                      continue;
-                    }
-                    if (char === '"' && !escapeNext) {
-                      inString = !inString;
-                      continue;
-                    }
-                    if (inString) continue;
-                    if (char === "[") {
-                      bracketCount++;
-                    } else if (char === "]") {
-                      bracketCount--;
-                      if (bracketCount === 0) {
-                        toolsEnd = i + 1;
-                        break;
-                      }
-                    }
-                  }
-                  if (toolsEnd !== -1) {
-                    let toolsJson = logContent.substring(toolsStart, toolsEnd);
-                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
-                    try {
-                      const toolsArray = JSON.parse(toolsJson);
-                      if (Array.isArray(toolsArray)) {
-                        tools = toolsArray
-                          .map(tool => {
-                            if (tool.type === "function" && tool.function && tool.function.name) {
-                              let name = tool.function.name;
-                              if (name.startsWith("github-")) {
-                                name = "mcp__github__" + name.substring(7);
-                              } else if (name.startsWith("safe_outputs-")) {
-                                name = name; 
-                              }
-                              return name;
-                            }
-                            return null;
-                          })
-                          .filter(name => name !== null);
-                      }
-                    } catch (e) {
-                    }
-                  }
-                }
-              }
-              let inDataBlock = false;
-              let currentJsonLines = [];
-              let turnCount = 0;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes("[DEBUG] data:")) {
-                  inDataBlock = true;
-                  currentJsonLines = [];
-                  continue;
-                }
-                if (inDataBlock) {
-                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-                  if (hasTimestamp) {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
-                    if (!isJsonContent) {
-                      if (currentJsonLines.length > 0) {
-                        try {
-                          const jsonStr = currentJsonLines.join("\n");
-                          const jsonData = JSON.parse(jsonStr);
-                          if (jsonData.model) {
-                            model = jsonData.model;
-                          }
-                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                            for (const choice of jsonData.choices) {
-                              if (choice.message) {
-                                const message = choice.message;
-                                const content = [];
-                                const toolResults = []; 
-                                if (message.content && message.content.trim()) {
-                                  content.push({
-                                    type: "text",
-                                    text: message.content,
-                                  });
-                                }
-                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                  for (const toolCall of message.tool_calls) {
-                                    if (toolCall.function) {
-                                      let toolName = toolCall.function.name;
-                                      const originalToolName = toolName; 
-                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                                      let args = {};
-                                      if (toolName.startsWith("github-")) {
-                                        toolName = "mcp__github__" + toolName.substring(7);
-                                      } else if (toolName === "bash") {
-                                        toolName = "Bash";
-                                      }
-                                      try {
-                                        args = JSON.parse(toolCall.function.arguments);
-                                      } catch (e) {
-                                        args = {};
-                                      }
-                                      content.push({
-                                        type: "tool_use",
-                                        id: toolId,
-                                        name: toolName,
-                                        input: args,
-                                      });
-                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
-                                      toolResults.push({
-                                        type: "tool_result",
-                                        tool_use_id: toolId,
-                                        content: hasError ? "Permission denied or tool execution failed" : "", 
-                                        is_error: hasError, 
-                                      });
-                                    }
-                                  }
-                                }
-                                if (content.length > 0) {
-                                  entries.push({
-                                    type: "assistant",
-                                    message: { content },
-                                  });
-                                  turnCount++;
-                                  if (toolResults.length > 0) {
-                                    entries.push({
-                                      type: "user",
-                                      message: { content: toolResults },
-                                    });
-                                  }
-                                }
-                              }
-                            }
-                            if (jsonData.usage) {
-                              if (!entries._accumulatedUsage) {
-                                entries._accumulatedUsage = {
-                                  input_tokens: 0,
-                                  output_tokens: 0,
-                                };
-                              }
-                              if (jsonData.usage.prompt_tokens) {
-                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                              }
-                              if (jsonData.usage.completion_tokens) {
-                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                              }
-                              entries._lastResult = {
-                                type: "result",
-                                num_turns: turnCount,
-                                usage: entries._accumulatedUsage,
-                              };
-                            }
-                          }
-                        } catch (e) {
-                        }
-                      }
-                      inDataBlock = false;
-                      currentJsonLines = [];
-                      continue; 
-                    } else if (hasTimestamp && isJsonContent) {
-                      currentJsonLines.push(cleanLine);
-                    }
-                  } else {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    currentJsonLines.push(cleanLine);
-                  }
-                }
-              }
-              if (inDataBlock && currentJsonLines.length > 0) {
-                try {
-                  const jsonStr = currentJsonLines.join("\n");
-                  const jsonData = JSON.parse(jsonStr);
-                  if (jsonData.model) {
-                    model = jsonData.model;
-                  }
-                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                    for (const choice of jsonData.choices) {
-                      if (choice.message) {
-                        const message = choice.message;
-                        const content = [];
-                        const toolResults = []; 
-                        if (message.content && message.content.trim()) {
-                          content.push({
-                            type: "text",
-                            text: message.content,
-                          });
-                        }
-                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                          for (const toolCall of message.tool_calls) {
-                            if (toolCall.function) {
-                              let toolName = toolCall.function.name;
-                              const originalToolName = toolName;
-                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                              let args = {};
-                              if (toolName.startsWith("github-")) {
-                                toolName = "mcp__github__" + toolName.substring(7);
-                              } else if (toolName === "bash") {
-                                toolName = "Bash";
-                              }
-                              try {
-                                args = JSON.parse(toolCall.function.arguments);
-                              } catch (e) {
-                                args = {};
-                              }
-                              content.push({
-                                type: "tool_use",
-                                id: toolId,
-                                name: toolName,
-                                input: args,
-                              });
-                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
-                              toolResults.push({
-                                type: "tool_result",
-                                tool_use_id: toolId,
-                                content: hasError ? "Permission denied or tool execution failed" : "",
-                                is_error: hasError,
-                              });
-                            }
-                          }
-                        }
-                        if (content.length > 0) {
-                          entries.push({
-                            type: "assistant",
-                            message: { content },
-                          });
-                          turnCount++;
-                          if (toolResults.length > 0) {
-                            entries.push({
-                              type: "user",
-                              message: { content: toolResults },
-                            });
-                          }
-                        }
-                      }
-                    }
-                    if (jsonData.usage) {
-                      if (!entries._accumulatedUsage) {
-                        entries._accumulatedUsage = {
-                          input_tokens: 0,
-                          output_tokens: 0,
-                        };
-                      }
-                      if (jsonData.usage.prompt_tokens) {
-                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                      }
-                      if (jsonData.usage.completion_tokens) {
-                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                      }
-                      entries._lastResult = {
-                        type: "result",
-                        num_turns: turnCount,
-                        usage: entries._accumulatedUsage,
-                      };
-                    }
-                  }
-                } catch (e) {
-                }
-              }
-              if (entries.length > 0) {
-                const initEntry = {
-                  type: "system",
-                  subtype: "init",
-                  session_id: sessionId,
-                  model: model,
-                  tools: tools, 
-                };
-                if (modelInfo) {
-                  initEntry.model_info = modelInfo;
-                }
-                entries.unshift(initEntry);
-                if (entries._lastResult) {
-                  entries.push(entries._lastResult);
-                  delete entries._lastResult;
-                }
-              }
-              return entries;
             }
             main();
       - name: Upload Firewall Logs
@@ -5325,7 +4717,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-sub-issue-closer
+          name: firewall-logs-daily-choice-type-test
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5490,8 +4882,8 @@ jobs:
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"}]"
         with:
           script: |
             function main() {
@@ -5728,7 +5120,7 @@ jobs:
       - activation
       - agent
       - detection
-      - safe_outputs
+      - test_environment
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -5769,7 +5161,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Sub-Issue Closer"
+          GH_AW_WORKFLOW_NAME: "Daily Choice Type Test"
+          GH_AW_TRACKER_ID: "daily-choice-test"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5861,7 +5254,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Sub-Issue Closer"
+          GH_AW_WORKFLOW_NAME: "Daily Choice Type Test"
+          GH_AW_TRACKER_ID: "daily-choice-test"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5972,7 +5366,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Sub-Issue Closer"
+          GH_AW_WORKFLOW_NAME: "Daily Choice Type Test"
+          GH_AW_TRACKER_ID: "daily-choice-test"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -6233,7 +5628,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -6265,8 +5660,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Sub-Issue Closer"
-          WORKFLOW_DESCRIPTION: "Scheduled workflow that recursively closes parent issues when all sub-issues are 100% complete"
+          WORKFLOW_NAME: "Daily Choice Type Test"
+          WORKFLOW_DESCRIPTION: "Daily test workflow using Claude with custom safe-output job containing choice inputs"
         with:
           script: |
             const fs = require('fs');
@@ -6372,19 +5767,19 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_GITHUB_TOKEN secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
             {
-              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
+              echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+              echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
               echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
             echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
           
@@ -6392,54 +5787,59 @@ jobs:
           echo "<details>"
           echo "<summary>Agent Environment Validation</summary>"
           echo ""
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "✅ CLAUDE_CODE_OAUTH_TOKEN: Configured"
+          else
+            echo "✅ ANTHROPIC_API_KEY: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
           fi
           echo "</details>"
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
-      - name: Execute GitHub Copilot CLI
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Claude Code CLI
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
+        # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    # Execute Claude Code CLI with prompt from file
+                    export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --model claude-opus-4.5 --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASH_DEFAULT_TIMEOUT_MS: 60000
+          BASH_MAX_TIMEOUT_MS: 60000
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DISABLE_BUG_COMMAND: 1
+          DISABLE_ERROR_REPORTING: 1
+          DISABLE_TELEMETRY: 1
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_HEAD_REF: ${{ github.head_ref }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          XDG_CONFIG_HOME: /home/runner
+          MCP_TIMEOUT: 120000
+          MCP_TOOL_TIMEOUT: 60000
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6487,1706 +5887,35 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  safe_outputs:
+  test_environment:
+    name: Test Environment Deployment
     needs:
       - agent
       - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 15
-    env:
-      GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "sub-issue-closer"
-      GH_AW_WORKFLOW_NAME: "Sub-Issue Closer"
-    outputs:
-      add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'test_environment'))
+    runs-on: ubuntu-latest
     steps:
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
+          path: /tmp/gh-aw/safe-jobs/
+      - name: Setup Safe Job Environment Variables
         run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Setup JavaScript files
-        id: setup_scripts
-        shell: bash
-        run: |
-          mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/get_repository_url.cjs << 'EOF_75ff5f42'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Get the repository URL for different purposes
-           * This helper handles trial mode where target repository URLs are different from execution context
-           * @returns {string} Repository URL
-           */
-          function getRepositoryUrl() {
-            // For trial mode, use target repository for issue/PR URLs but execution context for action runs
-            const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-          
-            if (targetRepoSlug) {
-              // Use target repository for issue/PR URLs in trial mode
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              return `${githubServer}/${targetRepoSlug}`;
-            } else if (context.payload.repository?.html_url) {
-              // Use execution context repository (default behavior)
-              return context.payload.repository.html_url;
-            } else {
-              // Final fallback for action runs when context repo is not available
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-            }
-          }
-          
-          module.exports = {
-            getRepositoryUrl,
-          };
-          
-          EOF_75ff5f42
-          cat > /tmp/gh-aw/scripts/get_tracker_id.cjs << 'EOF_bfad4250'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Get tracker-id from environment variable, log it, and optionally format it
-           * @param {string} [format] - Output format: "markdown" for HTML comment, "text" for plain text, or undefined for raw value
-           * @returns {string} Tracker ID in requested format or empty string
-           */
-          function getTrackerID(format) {
-            const trackerID = process.env.GH_AW_TRACKER_ID || "";
-            if (trackerID) {
-              core.info(`Tracker ID: ${trackerID}`);
-              return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-            }
-            return "";
-          }
-          
-          module.exports = {
-            getTrackerID,
-          };
-          
-          EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          
-          /**
-           * Maximum content length to log for debugging purposes
-           * @type {number}
-           */
-          const MAX_LOG_CONTENT_LENGTH = 10000;
-          
-          /**
-           * Truncate content for logging if it exceeds the maximum length
-           * @param {string} content - Content to potentially truncate
-           * @returns {string} Truncated content with indicator if truncated
-           */
-          function truncateForLogging(content) {
-            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-              return content;
-            }
-            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-          }
-          
-          /**
-           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
-           *
-           * This utility handles the common pattern of:
-           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
-           * 2. Loading the file content
-           * 3. Validating the JSON structure
-           * 4. Returning parsed items array
-           *
-           * @returns {{
-           *   success: true,
-           *   items: any[]
-           * } | {
-           *   success: false,
-           *   items?: undefined,
-           *   error?: string
-           * }} Result object with success flag and items array (if successful) or error message
-           */
-          function loadAgentOutput() {
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-          
-            // No agent output file specified
-            if (!agentOutputFile) {
-              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-              return { success: false };
-            }
-          
-            // Read agent output from file
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(agentOutputFile, "utf8");
-            } catch (error) {
-              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Check for empty content
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-              return { success: false };
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Validate items array exists
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.info("No valid items found in agent output");
-              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-              return { success: false };
-            }
-          
-            return { success: true, items: validatedOutput.items };
-          }
-          
-          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
-          
-          EOF_b93f537f
-          cat > /tmp/gh-aw/scripts/messages_core.cjs << 'EOF_6cdb27e0'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Core Message Utilities Module
-           *
-           * This module provides shared utilities for message template processing.
-           * It includes configuration parsing and template rendering functions.
-           *
-           * Supported placeholders:
-           * - {workflow_name} - Name of the workflow
-           * - {run_url} - URL to the workflow run
-           * - {workflow_source} - Source specification (owner/repo/path@ref)
-           * - {workflow_source_url} - GitHub URL for the workflow source
-           * - {triggering_number} - Issue/PR/Discussion number that triggered this workflow
-           * - {operation} - Operation name (for staged mode titles/descriptions)
-           * - {event_type} - Event type description (for run-started messages)
-           * - {status} - Workflow status text (for run-failure messages)
-           *
-           * Both camelCase and snake_case placeholder formats are supported.
-           */
-          
-          /**
-           * @typedef {Object} SafeOutputMessages
-           * @property {string} [footer] - Custom footer message template
-           * @property {string} [footerInstall] - Custom installation instructions template
-           * @property {string} [stagedTitle] - Custom staged mode title template
-           * @property {string} [stagedDescription] - Custom staged mode description template
-           * @property {string} [runStarted] - Custom workflow activation message template
-           * @property {string} [runSuccess] - Custom workflow success message template
-           * @property {string} [runFailure] - Custom workflow failure message template
-           * @property {string} [detectionFailure] - Custom detection job failure message template
-           * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
-           */
-          
-          /**
-           * Get the safe-output messages configuration from environment variable.
-           * @returns {SafeOutputMessages|null} Parsed messages config or null if not set
-           */
-          function getMessages() {
-            const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-            if (!messagesEnv) {
-              return null;
-            }
-          
-            try {
-              // Parse JSON with camelCase keys from Go struct (using json struct tags)
-              return JSON.parse(messagesEnv);
-            } catch (error) {
-              core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-              return null;
-            }
-          }
-          
-          /**
-           * Replace placeholders in a template string with values from context.
-           * Supports {key} syntax for placeholder replacement.
-           * @param {string} template - Template string with {key} placeholders
-           * @param {Record<string, string|number|undefined>} context - Key-value pairs for replacement
-           * @returns {string} Template with placeholders replaced
-           */
-          function renderTemplate(template, context) {
-            return template.replace(/\{(\w+)\}/g, (match, key) => {
-              const value = context[key];
-              return value !== undefined && value !== null ? String(value) : match;
-            });
-          }
-          
-          /**
-           * Convert context object keys to snake_case for template rendering
-           * @param {Record<string, any>} obj - Object with camelCase keys
-           * @returns {Record<string, any>} Object with snake_case keys
-           */
-          function toSnakeCase(obj) {
-            /** @type {Record<string, any>} */
-            const result = {};
-            for (const [key, value] of Object.entries(obj)) {
-              // Convert camelCase to snake_case
-              const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-              result[snakeKey] = value;
-              // Also keep original key for backwards compatibility
-              result[key] = value;
-            }
-            return result;
-          }
-          
-          module.exports = {
-            getMessages,
-            renderTemplate,
-            toSnakeCase,
-          };
-          
-          EOF_6cdb27e0
-          cat > /tmp/gh-aw/scripts/messages_footer.cjs << 'EOF_c14886c6'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Footer Message Module
-           *
-           * This module provides footer and installation instructions generation
-           * for safe-output workflows.
-           */
-          
-          const { getMessages, renderTemplate, toSnakeCase } = require('/tmp/gh-aw/scripts/messages_core.cjs');
-          
-          /**
-           * @typedef {Object} FooterContext
-           * @property {string} workflowName - Name of the workflow
-           * @property {string} runUrl - URL of the workflow run
-           * @property {string} [workflowSource] - Source of the workflow (owner/repo/path@ref)
-           * @property {string} [workflowSourceUrl] - GitHub URL for the workflow source
-           * @property {number|string} [triggeringNumber] - Issue, PR, or discussion number that triggered this workflow
-           */
-          
-          /**
-           * Get the footer message, using custom template if configured.
-           * @param {FooterContext} ctx - Context for footer generation
-           * @returns {string} Footer message
-           */
-          function getFooterMessage(ctx) {
-            const messages = getMessages();
-          
-            // Create context with both camelCase and snake_case keys
-            const templateContext = toSnakeCase(ctx);
-          
-            // Default footer template - pirate themed! 🏴‍☠️
-            const defaultFooter = "> Ahoy! This treasure was crafted by [🏴‍☠️ {workflow_name}]({run_url})";
-          
-            // Use custom footer if configured
-            let footer = messages?.footer ? renderTemplate(messages.footer, templateContext) : renderTemplate(defaultFooter, templateContext);
-          
-            // Add triggering reference if available
-            if (ctx.triggeringNumber) {
-              footer += ` fer issue #{triggering_number} 🗺️`.replace("{triggering_number}", String(ctx.triggeringNumber));
-            }
-          
-            return footer;
-          }
-          
-          /**
-           * Get the footer installation instructions, using custom template if configured.
-           * @param {FooterContext} ctx - Context for footer generation
-           * @returns {string} Footer installation message or empty string if no source
-           */
-          function getFooterInstallMessage(ctx) {
-            if (!ctx.workflowSource || !ctx.workflowSourceUrl) {
-              return "";
-            }
-          
-            const messages = getMessages();
-          
-            // Create context with both camelCase and snake_case keys
-            const templateContext = toSnakeCase(ctx);
-          
-            // Default installation template - pirate themed! 🏴‍☠️
-            const defaultInstall = "> Arr! To plunder this workflow fer yer own ship, run `gh aw add {workflow_source}`. Chart yer course at [🦜 {workflow_source_url}]({workflow_source_url})!";
-          
-            // Use custom installation message if configured
-            return messages?.footerInstall ? renderTemplate(messages.footerInstall, templateContext) : renderTemplate(defaultInstall, templateContext);
-          }
-          
-          /**
-           * Generates an XML comment marker with agentic workflow metadata for traceability.
-           * This marker enables searching and tracing back items generated by an agentic workflow.
-           *
-           * The marker format is:
-           * <!-- agentic-workflow: workflow-name, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/... -->
-           *
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @returns {string} XML comment marker with workflow metadata
-           */
-          function generateXMLMarker(workflowName, runUrl) {
-            // Read engine metadata from environment variables
-            const engineId = process.env.GH_AW_ENGINE_ID || "";
-            const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
-            const engineModel = process.env.GH_AW_ENGINE_MODEL || "";
-            const trackerId = process.env.GH_AW_TRACKER_ID || "";
-          
-            // Build the key-value pairs for the marker
-            const parts = [];
-          
-            // Always include agentic-workflow name
-            parts.push(`agentic-workflow: ${workflowName}`);
-          
-            // Add tracker-id if available (for searchability and tracing)
-            if (trackerId) {
-              parts.push(`tracker-id: ${trackerId}`);
-            }
-          
-            // Add engine ID if available
-            if (engineId) {
-              parts.push(`engine: ${engineId}`);
-            }
-          
-            // Add version if available
-            if (engineVersion) {
-              parts.push(`version: ${engineVersion}`);
-            }
-          
-            // Add model if available
-            if (engineModel) {
-              parts.push(`model: ${engineModel}`);
-            }
-          
-            // Always include run URL
-            parts.push(`run: ${runUrl}`);
-          
-            // Return the XML comment marker
-            return `<!-- ${parts.join(", ")} -->`;
-          }
-          
-          /**
-           * Generate the complete footer with AI attribution and optional installation instructions.
-           * This is a drop-in replacement for the original generateFooter function.
-           * @param {string} workflowName - Name of the workflow
-           * @param {string} runUrl - URL of the workflow run
-           * @param {string} workflowSource - Source of the workflow (owner/repo/path@ref)
-           * @param {string} workflowSourceURL - GitHub URL for the workflow source
-           * @param {number|undefined} triggeringIssueNumber - Issue number that triggered this workflow
-           * @param {number|undefined} triggeringPRNumber - Pull request number that triggered this workflow
-           * @param {number|undefined} triggeringDiscussionNumber - Discussion number that triggered this workflow
-           * @returns {string} Complete footer text
-           */
-          function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber) {
-            // Determine triggering number (issue takes precedence, then PR, then discussion)
-            let triggeringNumber;
-            if (triggeringIssueNumber) {
-              triggeringNumber = triggeringIssueNumber;
-            } else if (triggeringPRNumber) {
-              triggeringNumber = triggeringPRNumber;
-            } else if (triggeringDiscussionNumber) {
-              triggeringNumber = `discussion #${triggeringDiscussionNumber}`;
-            }
-          
-            const ctx = {
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceUrl: workflowSourceURL,
-              triggeringNumber,
-            };
-          
-            let footer = "\n\n" + getFooterMessage(ctx);
-          
-            // Add installation instructions if source is available
-            const installMessage = getFooterInstallMessage(ctx);
-            if (installMessage) {
-              footer += "\n>\n" + installMessage;
-            }
-          
-            // Add XML comment marker for traceability
-            footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
-          
-            footer += "\n";
-            return footer;
-          }
-          
-          module.exports = {
-            getFooterMessage,
-            getFooterInstallMessage,
-            generateFooterWithMessages,
-            generateXMLMarker,
-          };
-          
-          EOF_c14886c6
-          cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
-          // @ts-check
-          /**
-           * Remove duplicate title from description
-           * @module remove_duplicate_title
-           */
-          
-          /**
-           * Removes duplicate title from the beginning of description content.
-           * If the description starts with a header (# or ## or ### etc.) that matches
-           * the title, it will be removed along with any trailing newlines.
-           *
-           * @param {string} title - The title text to match and remove
-           * @param {string} description - The description content that may contain duplicate title
-           * @returns {string} The description with duplicate title removed
-           */
-          function removeDuplicateTitleFromDescription(title, description) {
-            // Handle null/undefined/empty inputs
-            if (!title || typeof title !== "string") {
-              return description || "";
-            }
-            if (!description || typeof description !== "string") {
-              return "";
-            }
-          
-            const trimmedTitle = title.trim();
-            const trimmedDescription = description.trim();
-          
-            if (!trimmedTitle || !trimmedDescription) {
-              return trimmedDescription;
-            }
-          
-            // Match any header level (# to ######) followed by the title at the start
-            // This regex matches:
-            // - Start of string
-            // - One or more # characters
-            // - One or more spaces
-            // - The exact title (escaped for regex special chars)
-            // - Optional trailing spaces
-            // - Optional newlines after the header
-            const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
-          
-            if (headerRegex.test(trimmedDescription)) {
-              return trimmedDescription.replace(headerRegex, "").trim();
-            }
-          
-            return trimmedDescription;
-          }
-          
-          module.exports = { removeDuplicateTitleFromDescription };
-          
-          EOF_bb4a8126
-          cat > /tmp/gh-aw/scripts/staged_preview.cjs << 'EOF_8386ee20'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Generate a staged mode preview summary and write it to the step summary.
-           *
-           * @param {Object} options - Configuration options for the preview
-           * @param {string} options.title - The main title for the preview (e.g., "Create Issues")
-           * @param {string} options.description - Description of what would happen if staged mode was disabled
-           * @param {Array<any>} options.items - Array of items to preview
-           * @param {(item: any, index: number) => string} options.renderItem - Function to render each item as markdown
-           * @returns {Promise<void>}
-           */
-          async function generateStagedPreview(options) {
-            const { title, description, items, renderItem } = options;
-          
-            let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-            summaryContent += `${description}\n\n`;
-          
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              summaryContent += renderItem(item, i);
-              summaryContent += "---\n\n";
-            }
-          
-            try {
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
-            } catch (error) {
-              core.setFailed(error instanceof Error ? error : String(error));
-            }
-          }
-          
-          module.exports = { generateStagedPreview };
-          
-          EOF_8386ee20
-          cat > /tmp/gh-aw/scripts/temporary_id.cjs << 'EOF_795429aa'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const crypto = require("crypto");
-          
-          /**
-           * Regex pattern for matching temporary ID references in text
-           * Format: #aw_XXXXXXXXXXXX (aw_ prefix + 12 hex characters)
-           */
-          const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
-          
-          /**
-           * @typedef {Object} RepoIssuePair
-           * @property {string} repo - Repository slug in "owner/repo" format
-           * @property {number} number - Issue or discussion number
-           */
-          
-          /**
-           * Generate a temporary ID with aw_ prefix for temporary issue IDs
-           * @returns {string} A temporary ID in format aw_XXXXXXXXXXXX (12 hex characters)
-           */
-          function generateTemporaryId() {
-            return "aw_" + crypto.randomBytes(6).toString("hex");
-          }
-          
-          /**
-           * Check if a value is a valid temporary ID (aw_ prefix + 12-character hex string)
-           * @param {any} value - The value to check
-           * @returns {boolean} True if the value is a valid temporary ID
-           */
-          function isTemporaryId(value) {
-            if (typeof value === "string") {
-              return /^aw_[0-9a-f]{12}$/i.test(value);
-            }
-            return false;
-          }
-          
-          /**
-           * Normalize a temporary ID to lowercase for consistent map lookups
-           * @param {string} tempId - The temporary ID to normalize
-           * @returns {string} Lowercase temporary ID
-           */
-          function normalizeTemporaryId(tempId) {
-            return String(tempId).toLowerCase();
-          }
-          
-          /**
-           * Replace temporary ID references in text with actual issue numbers
-           * Format: #aw_XXXXXXXXXXXX -> #123 (same repo) or owner/repo#123 (cross-repo)
-           * @param {string} text - The text to process
-           * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
-           * @param {string} [currentRepo] - Current repository slug for same-repo references
-           * @returns {string} Text with temporary IDs replaced with issue numbers
-           */
-          function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
-            return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
-              const resolved = tempIdMap.get(normalizeTemporaryId(tempId));
-              if (resolved !== undefined) {
-                // If we have a currentRepo and the issue is in the same repo, use short format
-                if (currentRepo && resolved.repo === currentRepo) {
-                  return `#${resolved.number}`;
-                }
-                // Otherwise use full repo#number format for cross-repo references
-                return `${resolved.repo}#${resolved.number}`;
-              }
-              // Return original if not found (it may be created later)
-              return match;
-            });
-          }
-          
-          /**
-           * Replace temporary ID references in text with actual issue numbers (legacy format)
-           * This is a compatibility function that works with Map<string, number>
-           * Format: #aw_XXXXXXXXXXXX -> #123
-           * @param {string} text - The text to process
-           * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
-           * @returns {string} Text with temporary IDs replaced with issue numbers
-           */
-          function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
-            return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
-              const issueNumber = tempIdMap.get(normalizeTemporaryId(tempId));
-              if (issueNumber !== undefined) {
-                return `#${issueNumber}`;
-              }
-              // Return original if not found (it may be created later)
-              return match;
-            });
-          }
-          
-          /**
-           * Load the temporary ID map from environment variable
-           * Supports both old format (temporary_id -> number) and new format (temporary_id -> {repo, number})
-           * @returns {Map<string, RepoIssuePair>} Map of temporary_id to {repo, number}
-           */
-          function loadTemporaryIdMap() {
-            const mapJson = process.env.GH_AW_TEMPORARY_ID_MAP;
-            if (!mapJson || mapJson === "{}") {
-              return new Map();
-            }
-            try {
-              const mapObject = JSON.parse(mapJson);
-              /** @type {Map<string, RepoIssuePair>} */
-              const result = new Map();
-          
-              for (const [key, value] of Object.entries(mapObject)) {
-                const normalizedKey = normalizeTemporaryId(key);
-                if (typeof value === "number") {
-                  // Legacy format: number only, use context repo
-                  const contextRepo = `${context.repo.owner}/${context.repo.repo}`;
-                  result.set(normalizedKey, { repo: contextRepo, number: value });
-                } else if (typeof value === "object" && value !== null && "repo" in value && "number" in value) {
-                  // New format: {repo, number}
-                  result.set(normalizedKey, { repo: String(value.repo), number: Number(value.number) });
-                }
-              }
-              return result;
-            } catch (error) {
-              if (typeof core !== "undefined") {
-                core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
-              }
-              return new Map();
-            }
-          }
-          
-          /**
-           * Resolve an issue number that may be a temporary ID or an actual issue number
-           * Returns structured result with the resolved number, repo, and metadata
-           * @param {any} value - The value to resolve (can be temporary ID, number, or string)
-           * @param {Map<string, RepoIssuePair>} temporaryIdMap - Map of temporary ID to {repo, number}
-           * @returns {{resolved: RepoIssuePair|null, wasTemporaryId: boolean, errorMessage: string|null}}
-           */
-          function resolveIssueNumber(value, temporaryIdMap) {
-            if (value === undefined || value === null) {
-              return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
-            }
-          
-            // Check if it's a temporary ID
-            const valueStr = String(value);
-            if (isTemporaryId(valueStr)) {
-              const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
-              if (resolvedPair !== undefined) {
-                return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
-              }
-              return {
-                resolved: null,
-                wasTemporaryId: true,
-                errorMessage: `Temporary ID '${valueStr}' not found in map. Ensure the issue was created before linking.`,
-              };
-            }
-          
-            // It's a real issue number - use context repo as default
-            const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
-            if (isNaN(issueNumber) || issueNumber <= 0) {
-              return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
-            }
-          
-            const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
-            return { resolved: { repo: contextRepo, number: issueNumber }, wasTemporaryId: false, errorMessage: null };
-          }
-          
-          /**
-           * Serialize the temporary ID map to JSON for output
-           * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
-           * @returns {string} JSON string of the map
-           */
-          function serializeTemporaryIdMap(tempIdMap) {
-            const obj = Object.fromEntries(tempIdMap);
-            return JSON.stringify(obj);
-          }
-          
-          module.exports = {
-            TEMPORARY_ID_PATTERN,
-            generateTemporaryId,
-            isTemporaryId,
-            normalizeTemporaryId,
-            replaceTemporaryIdReferences,
-            replaceTemporaryIdReferencesLegacy,
-            loadTemporaryIdMap,
-            resolveIssueNumber,
-            serializeTemporaryIdMap,
-          };
-          
-          EOF_795429aa
-          cat > /tmp/gh-aw/scripts/update_context_helpers.cjs << 'EOF_4d21ccbd'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Shared context helper functions for update workflows (issues, pull requests, etc.)
-           *
-           * This module provides reusable functions for determining if we're in a valid
-           * context for updating a specific entity type and extracting entity numbers
-           * from GitHub event payloads.
-           *
-           * @module update_context_helpers
-           */
-          
-          /**
-           * Check if the current context is a valid issue context
-           * @param {string} eventName - GitHub event name
-           * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
-           * @returns {boolean} Whether context is valid for issue updates
-           */
-          function isIssueContext(eventName, _payload) {
-            return eventName === "issues" || eventName === "issue_comment";
-          }
-          
-          /**
-           * Get issue number from the context payload
-           * @param {any} payload - GitHub event payload
-           * @returns {number|undefined} Issue number or undefined
-           */
-          function getIssueNumber(payload) {
-            return payload?.issue?.number;
-          }
-          
-          /**
-           * Check if the current context is a valid pull request context
-           * @param {string} eventName - GitHub event name
-           * @param {any} payload - GitHub event payload
-           * @returns {boolean} Whether context is valid for PR updates
-           */
-          function isPRContext(eventName, payload) {
-            const isPR = eventName === "pull_request" || eventName === "pull_request_review" || eventName === "pull_request_review_comment" || eventName === "pull_request_target";
-          
-            // Also check for issue_comment on a PR
-            const isIssueCommentOnPR = eventName === "issue_comment" && payload?.issue && payload?.issue?.pull_request;
-          
-            return isPR || !!isIssueCommentOnPR;
-          }
-          
-          /**
-           * Get pull request number from the context payload
-           * @param {any} payload - GitHub event payload
-           * @returns {number|undefined} PR number or undefined
-           */
-          function getPRNumber(payload) {
-            if (payload?.pull_request) {
-              return payload.pull_request.number;
-            }
-            // For issue_comment events on PRs, the PR number is in issue.number
-            if (payload?.issue && payload?.issue?.pull_request) {
-              return payload.issue.number;
-            }
-            return undefined;
-          }
-          
-          /**
-           * Check if the current context is a valid discussion context
-           * @param {string} eventName - GitHub event name
-           * @param {any} _payload - GitHub event payload (unused but kept for interface consistency)
-           * @returns {boolean} Whether context is valid for discussion updates
-           */
-          function isDiscussionContext(eventName, _payload) {
-            return eventName === "discussion" || eventName === "discussion_comment";
-          }
-          
-          /**
-           * Get discussion number from the context payload
-           * @param {any} payload - GitHub event payload
-           * @returns {number|undefined} Discussion number or undefined
-           */
-          function getDiscussionNumber(payload) {
-            return payload?.discussion?.number;
-          }
-          
-          module.exports = {
-            isIssueContext,
-            getIssueNumber,
-            isPRContext,
-            getPRNumber,
-            isDiscussionContext,
-            getDiscussionNumber,
-          };
-          
-          EOF_4d21ccbd
-          cat > /tmp/gh-aw/scripts/update_runner.cjs << 'EOF_5e2e1ea7'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Shared update runner for safe-output scripts (update_issue, update_pull_request, etc.)
-           *
-           * This module depends on GitHub Actions environment globals provided by actions/github-script:
-           * - core: @actions/core module for logging and outputs
-           * - github: @octokit/rest instance for GitHub API calls
-           * - context: GitHub Actions context with event payload and repository info
-           *
-           * @module update_runner
-           */
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-          const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-          
-          /**
-           * @typedef {Object} UpdateRunnerConfig
-           * @property {string} itemType - Type of item in agent output (e.g., "update_issue", "update_pull_request")
-           * @property {string} displayName - Human-readable name (e.g., "issue", "pull request")
-           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues", "pull requests")
-           * @property {string} numberField - Field name for explicit number (e.g., "issue_number", "pull_request_number")
-           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number", "pull_request_number")
-           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url", "pull_request_url")
-           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
-           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
-           * @property {boolean} supportsStatus - Whether this type supports status updates
-           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
-           * @property {(item: any, index: number) => string} renderStagedItem - Function to render item for staged preview
-           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
-           * @property {(result: any) => string} getSummaryLine - Function to generate summary line for an updated item
-           */
-          
-          /**
-           * Resolve the target number for an update operation
-           * @param {Object} params - Resolution parameters
-           * @param {string} params.updateTarget - Target configuration ("triggering", "*", or explicit number)
-           * @param {any} params.item - Update item with optional explicit number field
-           * @param {string} params.numberField - Field name for explicit number
-           * @param {boolean} params.isValidContext - Whether current context is valid
-           * @param {number|undefined} params.contextNumber - Number from triggering context
-           * @param {string} params.displayName - Display name for error messages
-           * @returns {{success: true, number: number} | {success: false, error: string}}
-           */
-          function resolveTargetNumber(params) {
-            const { updateTarget, item, numberField, isValidContext, contextNumber, displayName } = params;
-          
-            if (updateTarget === "*") {
-              // For target "*", we need an explicit number from the update item
-              const explicitNumber = item[numberField];
-              if (explicitNumber) {
-                const parsed = parseInt(explicitNumber, 10);
-                if (isNaN(parsed) || parsed <= 0) {
-                  return { success: false, error: `Invalid ${numberField} specified: ${explicitNumber}` };
-                }
-                return { success: true, number: parsed };
-              } else {
-                return { success: false, error: `Target is "*" but no ${numberField} specified in update item` };
-              }
-            } else if (updateTarget && updateTarget !== "triggering") {
-              // Explicit number specified in target
-              const parsed = parseInt(updateTarget, 10);
-              if (isNaN(parsed) || parsed <= 0) {
-                return { success: false, error: `Invalid ${displayName} number in target configuration: ${updateTarget}` };
-              }
-              return { success: true, number: parsed };
-            } else {
-              // Default behavior: use triggering context
-              if (isValidContext && contextNumber) {
-                return { success: true, number: contextNumber };
-              }
-              return { success: false, error: `Could not determine ${displayName} number` };
-            }
-          }
-          
-          /**
-           * Build update data based on allowed fields and provided values
-           * @param {Object} params - Build parameters
-           * @param {any} params.item - Update item with field values
-           * @param {boolean} params.canUpdateStatus - Whether status updates are allowed
-           * @param {boolean} params.canUpdateTitle - Whether title updates are allowed
-           * @param {boolean} params.canUpdateBody - Whether body updates are allowed
-           * @param {boolean} [params.canUpdateLabels] - Whether label updates are allowed
-           * @param {boolean} params.supportsStatus - Whether this type supports status
-           * @returns {{hasUpdates: boolean, updateData: any, logMessages: string[]}}
-           */
-          function buildUpdateData(params) {
-            const { item, canUpdateStatus, canUpdateTitle, canUpdateBody, canUpdateLabels, supportsStatus } = params;
-          
-            /** @type {any} */
-            const updateData = {};
-            let hasUpdates = false;
-            const logMessages = [];
-          
-            // Handle status update (only for types that support it, like issues)
-            if (supportsStatus && canUpdateStatus && item.status !== undefined) {
-              if (item.status === "open" || item.status === "closed") {
-                updateData.state = item.status;
-                hasUpdates = true;
-                logMessages.push(`Will update status to: ${item.status}`);
-              } else {
-                logMessages.push(`Invalid status value: ${item.status}. Must be 'open' or 'closed'`);
-              }
-            }
-          
-            // Handle title update
-            let titleForDedup = null;
-            if (canUpdateTitle && item.title !== undefined) {
-              const trimmedTitle = typeof item.title === "string" ? item.title.trim() : "";
-              if (trimmedTitle.length > 0) {
-                updateData.title = trimmedTitle;
-                titleForDedup = trimmedTitle;
-                hasUpdates = true;
-                logMessages.push(`Will update title to: ${trimmedTitle}`);
-              } else {
-                logMessages.push("Invalid title value: must be a non-empty string");
-              }
-            }
-          
-            // Handle body update (with title deduplication)
-            if (canUpdateBody && item.body !== undefined) {
-              if (typeof item.body === "string") {
-                let processedBody = item.body;
-          
-                // If we're updating the title at the same time, remove duplicate title from body
-                if (titleForDedup) {
-                  processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
-                }
-          
-                updateData.body = processedBody;
-                hasUpdates = true;
-                logMessages.push(`Will update body (length: ${processedBody.length})`);
-              } else {
-                logMessages.push("Invalid body value: must be a string");
-              }
-            }
-          
-            // Handle labels update
-            if (canUpdateLabels && item.labels !== undefined) {
-              if (Array.isArray(item.labels)) {
-                updateData.labels = item.labels;
-                hasUpdates = true;
-                logMessages.push(`Will update labels to: ${item.labels.join(", ")}`);
-              } else {
-                logMessages.push("Invalid labels value: must be an array");
-              }
-            }
-          
-            return { hasUpdates, updateData, logMessages };
-          }
-          
-          /**
-           * Run the update workflow with the provided configuration
-           * @param {UpdateRunnerConfig} config - Configuration for the update runner
-           * @returns {Promise<any[]|undefined>} Array of updated items or undefined
-           */
-          async function runUpdateWorkflow(config) {
-            const { itemType, displayName, displayNamePlural, numberField, outputNumberKey, outputUrlKey, isValidContext, getContextNumber, supportsStatus, supportsOperation, renderStagedItem, executeUpdate, getSummaryLine } = config;
-          
-            // Check if we're in staged mode
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-          
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return;
-            }
-          
-            // Find all update items
-            const updateItems = result.items.filter(/** @param {any} item */ item => item.type === itemType);
-            if (updateItems.length === 0) {
-              core.info(`No ${itemType} items found in agent output`);
-              return;
-            }
-          
-            core.info(`Found ${updateItems.length} ${itemType} item(s)`);
-          
-            // If in staged mode, emit step summary instead of updating
-            if (isStaged) {
-              await generateStagedPreview({
-                title: `Update ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}`,
-                description: `The following ${displayName} updates would be applied if staged mode was disabled:`,
-                items: updateItems,
-                renderItem: renderStagedItem,
-              });
-              return;
-            }
-          
-            // Get the configuration from environment variables
-            const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
-            const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
-            const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
-            const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
-            const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
-          
-            core.info(`Update target configuration: ${updateTarget}`);
-            if (supportsStatus) {
-              core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
-            } else {
-              core.info(`Can update title: ${canUpdateTitle}, body: ${canUpdateBody}, labels: ${canUpdateLabels}`);
-            }
-          
-            // Check context validity
-            const contextIsValid = isValidContext(context.eventName, context.payload);
-            const contextNumber = getContextNumber(context.payload);
-          
-            // Validate context based on target configuration
-            if (updateTarget === "triggering" && !contextIsValid) {
-              core.info(`Target is "triggering" but not running in ${displayName} context, skipping ${displayName} update`);
-              return;
-            }
-          
-            const updatedItems = [];
-          
-            // Process each update item
-            for (let i = 0; i < updateItems.length; i++) {
-              const updateItem = updateItems[i];
-              core.info(`Processing ${itemType} item ${i + 1}/${updateItems.length}`);
-          
-              // Resolve target number
-              const targetResult = resolveTargetNumber({
-                updateTarget,
-                item: updateItem,
-                numberField,
-                isValidContext: contextIsValid,
-                contextNumber,
-                displayName,
-              });
-          
-              if (!targetResult.success) {
-                core.info(targetResult.error);
-                continue;
-              }
-          
-              const targetNumber = targetResult.number;
-              core.info(`Updating ${displayName} #${targetNumber}`);
-          
-              // Build update data
-              const { hasUpdates, updateData, logMessages } = buildUpdateData({
-                item: updateItem,
-                canUpdateStatus,
-                canUpdateTitle,
-                canUpdateBody,
-                canUpdateLabels,
-                supportsStatus,
-              });
-          
-              // Log all messages
-              for (const msg of logMessages) {
-                core.info(msg);
-              }
-          
-              // Handle body operation for types that support it (like PRs with append/prepend)
-              if (supportsOperation && canUpdateBody && updateItem.body !== undefined && typeof updateItem.body === "string") {
-                // The body was already added by buildUpdateData, but we need to handle operations
-                // This will be handled by the executeUpdate function for PR-specific logic
-                updateData._operation = updateItem.operation || "append";
-                updateData._rawBody = updateItem.body;
-              }
-          
-              if (!hasUpdates) {
-                core.info("No valid updates to apply for this item");
-                continue;
-              }
-          
-              try {
-                // Execute the update using the provided function
-                const updatedItem = await executeUpdate(github, context, targetNumber, updateData);
-                core.info(`Updated ${displayName} #${updatedItem.number}: ${updatedItem.html_url}`);
-                updatedItems.push(updatedItem);
-          
-                // Set output for the last updated item (for backward compatibility)
-                if (i === updateItems.length - 1) {
-                  core.setOutput(outputNumberKey, updatedItem.number);
-                  core.setOutput(outputUrlKey, updatedItem.html_url);
-                }
-              } catch (error) {
-                core.error(`✗ Failed to update ${displayName} #${targetNumber}: ${error instanceof Error ? error.message : String(error)}`);
-                throw error;
-              }
-            }
-          
-            // Write summary for all updated items
-            if (updatedItems.length > 0) {
-              let summaryContent = `\n\n## Updated ${displayNamePlural.charAt(0).toUpperCase() + displayNamePlural.slice(1)}\n`;
-              for (const item of updatedItems) {
-                summaryContent += getSummaryLine(item);
-              }
-              await core.summary.addRaw(summaryContent).write();
-            }
-          
-            core.info(`Successfully updated ${updatedItems.length} ${displayName}(s)`);
-            return updatedItems;
-          }
-          
-          /**
-           * @typedef {Object} RenderStagedItemConfig
-           * @property {string} entityName - Display name for the entity (e.g., "Issue", "Pull Request")
-           * @property {string} numberField - Field name for the target number (e.g., "issue_number", "pull_request_number")
-           * @property {string} targetLabel - Label for the target (e.g., "Target Issue:", "Target PR:")
-           * @property {string} currentTargetText - Text when targeting current entity (e.g., "Current issue", "Current pull request")
-           * @property {boolean} [includeOperation=false] - Whether to include operation field for body updates
-           */
-          
-          /**
-           * Create a render function for staged preview items
-           * @param {RenderStagedItemConfig} config - Configuration for the renderer
-           * @returns {(item: any, index: number) => string} Render function
-           */
-          function createRenderStagedItem(config) {
-            const { entityName, numberField, targetLabel, currentTargetText, includeOperation = false } = config;
-          
-            return function renderStagedItem(item, index) {
-              let content = `#### ${entityName} Update ${index + 1}\n`;
-              if (item[numberField]) {
-                content += `**${targetLabel}** #${item[numberField]}\n\n`;
-              } else {
-                content += `**Target:** ${currentTargetText}\n\n`;
-              }
-          
-              if (item.title !== undefined) {
-                content += `**New Title:** ${item.title}\n\n`;
-              }
-              if (item.body !== undefined) {
-                if (includeOperation) {
-                  const operation = item.operation || "append";
-                  content += `**Operation:** ${operation}\n`;
-                  content += `**Body Content:**\n${item.body}\n\n`;
-                } else {
-                  content += `**New Body:**\n${item.body}\n\n`;
-                }
-              }
-              if (item.status !== undefined) {
-                content += `**New Status:** ${item.status}\n\n`;
-              }
-              return content;
-            };
-          }
-          
-          /**
-           * @typedef {Object} SummaryLineConfig
-           * @property {string} entityPrefix - Prefix for the summary line (e.g., "Issue", "PR")
-           */
-          
-          /**
-           * Create a summary line generator function
-           * @param {SummaryLineConfig} config - Configuration for the summary generator
-           * @returns {(item: any) => string} Summary line generator function
-           */
-          function createGetSummaryLine(config) {
-            const { entityPrefix } = config;
-          
-            return function getSummaryLine(item) {
-              return `- ${entityPrefix} #${item.number}: [${item.title}](${item.html_url})\n`;
-            };
-          }
-          
-          /**
-           * @typedef {Object} UpdateHandlerConfig
-           * @property {string} itemType - Type of item in agent output (e.g., "update_issue")
-           * @property {string} displayName - Human-readable name (e.g., "issue")
-           * @property {string} displayNamePlural - Human-readable plural name (e.g., "issues")
-           * @property {string} numberField - Field name for explicit number (e.g., "issue_number")
-           * @property {string} outputNumberKey - Output key for number (e.g., "issue_number")
-           * @property {string} outputUrlKey - Output key for URL (e.g., "issue_url")
-           * @property {string} entityName - Display name for entity (e.g., "Issue", "Pull Request")
-           * @property {string} entityPrefix - Prefix for summary lines (e.g., "Issue", "PR")
-           * @property {string} targetLabel - Label for target in staged preview (e.g., "Target Issue:")
-           * @property {string} currentTargetText - Text for current target (e.g., "Current issue")
-           * @property {boolean} supportsStatus - Whether this type supports status updates
-           * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
-           * @property {(eventName: string, payload: any) => boolean} isValidContext - Function to check if context is valid
-           * @property {(payload: any) => number|undefined} getContextNumber - Function to get number from context payload
-           * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
-           */
-          
-          /**
-           * Create an update handler from configuration
-           * This factory function eliminates boilerplate by generating all the
-           * render functions, summary line generators, and the main handler
-           * @param {UpdateHandlerConfig} config - Handler configuration
-           * @returns {() => Promise<any[]|undefined>} Main handler function
-           */
-          function createUpdateHandler(config) {
-            // Create render function for staged preview
-            const renderStagedItem = createRenderStagedItem({
-              entityName: config.entityName,
-              numberField: config.numberField,
-              targetLabel: config.targetLabel,
-              currentTargetText: config.currentTargetText,
-              includeOperation: config.supportsOperation,
-            });
-          
-            // Create summary line generator
-            const getSummaryLine = createGetSummaryLine({
-              entityPrefix: config.entityPrefix,
-            });
-          
-            // Return the main handler function
-            return async function main() {
-              return await runUpdateWorkflow({
-                itemType: config.itemType,
-                displayName: config.displayName,
-                displayNamePlural: config.displayNamePlural,
-                numberField: config.numberField,
-                outputNumberKey: config.outputNumberKey,
-                outputUrlKey: config.outputUrlKey,
-                isValidContext: config.isValidContext,
-                getContextNumber: config.getContextNumber,
-                supportsStatus: config.supportsStatus,
-                supportsOperation: config.supportsOperation,
-                renderStagedItem,
-                executeUpdate: config.executeUpdate,
-                getSummaryLine,
-              });
-            };
-          }
-          
-          module.exports = {
-            runUpdateWorkflow,
-            resolveTargetNumber,
-            buildUpdateData,
-            createRenderStagedItem,
-            createGetSummaryLine,
-            createUpdateHandler,
-          };
-          
-          EOF_5e2e1ea7
-      - name: Add Comment
-        id: add_comment
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_TARGET: "*"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            const { generateFooterWithMessages } = require('/tmp/gh-aw/scripts/messages_footer.cjs');
-            const { getRepositoryUrl } = require('/tmp/gh-aw/scripts/get_repository_url.cjs');
-            const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require('/tmp/gh-aw/scripts/temporary_id.cjs');
-            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-            async function minimizeComment(github, nodeId, reason = "outdated") {
-              const query =  `
-                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
-                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
-                    minimizedComment {
-                      isMinimized
-                    }
-                  }
-                }
-              `;
-              const result = await github.graphql(query, { nodeId, classifier: reason });
-              return {
-                id: nodeId,
-                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
-              };
-            }
-            async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workflowId) {
-              const comments = [];
-              let page = 1;
-              const perPage = 100;
-              while (true) {
-                const { data } = await github.rest.issues.listComments({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  per_page: perPage,
-                  page,
-                });
-                if (data.length === 0) {
-                  break;
-                }
-                const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
-                comments.push(...filteredComments);
-                if (data.length < perPage) {
-                  break;
-                }
-                page++;
-              }
-              return comments;
-            }
-            async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussionNumber, workflowId) {
-              const query =  `
-                query ($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) {
-                      comments(first: 100, after: $cursor) {
-                        nodes {
-                          id
-                          body
-                        }
-                        pageInfo {
-                          hasNextPage
-                          endCursor
-                        }
-                      }
-                    }
-                  }
-                }
-              `;
-              const comments = [];
-              let cursor = null;
-              while (true) {
-                const result = await github.graphql(query, { owner, repo, num: discussionNumber, cursor });
-                if (!result.repository?.discussion?.comments?.nodes) {
-                  break;
-                }
-                const filteredComments = result.repository.discussion.comments.nodes
-                  .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
-                  .map(({ id, body }) => ({ id, body }));
-                comments.push(...filteredComments);
-                if (!result.repository.discussion.comments.pageInfo.hasNextPage) {
-                  break;
-                }
-                cursor = result.repository.discussion.comments.pageInfo.endCursor;
-              }
-              return comments;
-            }
-            async function hideOlderComments(github, owner, repo, itemNumber, workflowId, isDiscussion, reason = "outdated", allowedReasons = null) {
-              if (!workflowId) {
-                core.info("No workflow ID available, skipping hide-older-comments");
-                return 0;
-              }
-              const normalizedReason = reason.toUpperCase();
-              if (allowedReasons && allowedReasons.length > 0) {
-                const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
-                if (!normalizedAllowedReasons.includes(normalizedReason)) {
-                  core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping hide-older-comments.`);
-                  return 0;
-                }
-              }
-              core.info(`Searching for previous comments with workflow ID: ${workflowId}`);
-              let comments;
-              if (isDiscussion) {
-                comments = await findDiscussionCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
-              } else {
-                comments = await findCommentsWithTrackerId(github, owner, repo, itemNumber, workflowId);
-              }
-              if (comments.length === 0) {
-                core.info("No previous comments found with matching workflow ID");
-                return 0;
-              }
-              core.info(`Found ${comments.length} previous comment(s) to hide with reason: ${normalizedReason}`);
-              let hiddenCount = 0;
-              for (const comment of comments) {
-                const nodeId = isDiscussion ? String(comment.id) : comment.node_id;
-                core.info(`Hiding comment: ${nodeId}`);
-                const result = await minimizeComment(github, nodeId, normalizedReason);
-                hiddenCount++;
-                core.info(`✓ Hidden comment: ${nodeId}`);
-              }
-              core.info(`Successfully hidden ${hiddenCount} comment(s)`);
-              return hiddenCount;
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              const mutation = replyToId
-                ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`
-                : `mutation($dId: ID!, $body: String!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`;
-              const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
-              const result = await github.graphql(mutation, variables);
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
-              const temporaryIdMap = loadTemporaryIdMap();
-              if (temporaryIdMap.size > 0) {
-                core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-              }
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const commentItems = result.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getTargetNumber(item) {
-                return item.item_number;
-              }
-              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              const workflowId = process.env.GITHUB_WORKFLOW || "";
-              const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
-                ? (() => {
-                    try {
-                      const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
-                      core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
-                      return parsed;
-                    } catch (error) {
-                      core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
-                      return null;
-                    }
-                  })()
-                : null;
-              if (hideOlderCommentsEnabled) {
-                core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
-              }
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "#### Related Items\n\n";
-                  if (createdIssueUrl && createdIssueNumber) {
-                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  }
-                  if (createdDiscussionUrl && createdDiscussionNumber) {
-                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  }
-                  if (createdPullRequestUrl && createdPullRequestNumber) {
-                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  }
-                  summaryContent += "\n";
-                }
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-                return;
-              }
-              const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let itemNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    itemNumber = parseInt(targetNumber, 10);
-                    if (isNaN(itemNumber) || itemNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
-                      continue;
-                    }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
-                  } else {
-                    core.info(`Target is "*" but no number specified in comment item`);
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  itemNumber = parseInt(commentTarget, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  if (isIssueContext) {
-                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                    if (context.payload.issue) {
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                    if (context.payload.pull_request) {
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  } else if (isDiscussionContext) {
-                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!itemNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
-                  continue;
-                }
-                let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                const references = [
-                  createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
-                  createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
-                  createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
-                ].filter(Boolean);
-                if (references.length > 0) {
-                  body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                if (workflowId) {
-                  body += `\n\n<!-- workflow-id: ${workflowId} -->`;
-                }
-                const trackerIDComment = getTrackerID("markdown");
-                if (trackerIDComment) {
-                  body += trackerIDComment;
-                }
-                body += `\n\n<!-- comment-type: add-comment -->`;
-                body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
-                if (hideOlderCommentsEnabled && workflowId) {
-                  core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-                  await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
-                }
-                let comment;
-                if (commentEndpoint === "discussions") {
-                  core.info(`Creating comment on discussion #${itemNumber}`);
-                  core.info(`Comment content length: ${body.length}`);
-                  const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
-                  if (replyToId) {
-                    core.info(`Creating threaded reply to comment ${replyToId}`);
-                  }
-                  comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                  core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                  comment.discussion_url = comment.discussion_url;
-                } else {
-                  core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                  core.info(`Comment content length: ${body.length}`);
-                  const { data: restComment } = await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: itemNumber,
-                    body: body,
-                  });
-                  comment = restComment;
-                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                }
-                createdComments.push(comment);
-                if (i === commentItems.length - 1) {
-                  core.setOutput("comment_id", comment.id);
-                  core.setOutput("comment_url", comment.html_url);
-                }
-              }
-              if (createdComments.length > 0) {
-                const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            (async () => { await main(); })();
-      - name: Update Issue
-        id: update_issue
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { createUpdateHandler } = require('/tmp/gh-aw/scripts/update_runner.cjs');
-            const { isIssueContext, getIssueNumber } = require('/tmp/gh-aw/scripts/update_context_helpers.cjs');
-            async function executeIssueUpdate(github, context, issueNumber, updateData) {
-              const { _operation, _rawBody, ...apiData } = updateData;
-              const { data: issue } = await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                ...apiData,
-              });
-              return issue;
-            }
-            const main = createUpdateHandler({
-              itemType: "update_issue",
-              displayName: "issue",
-              displayNamePlural: "issues",
-              numberField: "issue_number",
-              outputNumberKey: "issue_number",
-              outputUrlKey: "issue_url",
-              entityName: "Issue",
-              entityPrefix: "Issue",
-              targetLabel: "Target Issue:",
-              currentTargetText: "Current issue",
-              supportsStatus: true,
-              supportsOperation: false,
-              isValidContext: isIssueContext,
-              getContextNumber: getIssueNumber,
-              executeUpdate: executeIssueUpdate,
-            });
-            (async () => { await main(); })();
+          find "/tmp/gh-aw/safe-jobs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Display test configuration
+        run: |-
+          if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+            ENVIRONMENT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .environment')
+            TEST_TYPE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "test_environment") | .test_type')
+            echo "### Test Configuration" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Environment: $ENVIRONMENT" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Test Type: $TEST_TYPE" >> "$GITHUB_STEP_SUMMARY"
+            echo "Test would be executed on $ENVIRONMENT environment with $TEST_TYPE tests"
+          else
+            echo "No agent output found"
+          fi
 

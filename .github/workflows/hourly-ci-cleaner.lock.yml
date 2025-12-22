@@ -1739,8 +1739,12 @@ jobs:
                   dynamicTool.inputSchema.required = [];
                   Object.keys(jobConfig.inputs).forEach(inputName => {
                     const inputDef = jobConfig.inputs[inputName];
+                    let jsonSchemaType = inputDef.type || "string";
+                    if (jsonSchemaType === "choice") {
+                      jsonSchemaType = "string";
+                    }
                     const propSchema = {
-                      type: inputDef.type || "string",
+                      type: jsonSchemaType,
                       description: inputDef.description || `Input parameter: ${inputName}`,
                     };
                     if (Array.isArray(inputDef.options)) {
@@ -2684,7 +2688,7 @@ jobs:
         timeout-minutes: 45
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro --mount /usr/bin/go:/usr/bin/go:ro --mount /usr/bin/make:/usr/bin/make:ro --mount /usr/local/bin/node:/usr/local/bin/node:ro --mount /usr/local/bin/npm:/usr/local/bin/npm:ro --mount /usr/local/lib/node_modules:/usr/local/lib/node_modules:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent ci-cleaner --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:

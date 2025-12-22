@@ -220,7 +220,7 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 // NewMCPListSubcommand creates the mcp list subcommand
 func NewMCPListSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [workflow-id-or-file]",
+		Use:   "list [workflow]",
 		Short: "List MCP servers defined in agentic workflows",
 		Long: `List MCP servers defined in agentic workflows.
 
