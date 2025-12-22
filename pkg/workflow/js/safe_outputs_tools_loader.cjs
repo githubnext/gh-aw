@@ -9,7 +9,7 @@ const fs = require("fs");
  */
 function loadTools(server) {
   const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
-
+  
   server.debug(`Reading tools from file: ${toolsPath}`);
 
   if (!fs.existsSync(toolsPath)) {
@@ -52,7 +52,7 @@ function attachHandlers(tools, handlers) {
       tool.handler = handler;
     }
   });
-
+  
   return tools;
 }
 
