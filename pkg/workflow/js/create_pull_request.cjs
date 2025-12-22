@@ -346,9 +346,9 @@ async function main() {
 
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
-  // First, fetch latest changes and checkout the base branch
-  core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-  await exec.exec("git fetch origin");
+  // First, fetch the base branch specifically (since we use shallow checkout)
+  core.info(`Fetching base branch: ${baseBranch}`);
+  await exec.exec(`git fetch origin ${baseBranch}:${baseBranch}`);
   await exec.exec(`git checkout ${baseBranch}`);
 
   // Handle branch creation/checkout

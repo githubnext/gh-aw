@@ -29,8 +29,8 @@ const mockCore = {
     summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
   },
   mockContext = { eventName: "pull_request", payload: { pull_request: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }, repo: { owner: "testowner", repo: "testrepo" } },
-  mockGithub = { 
-    graphql: vi.fn(), 
+  mockGithub = {
+    graphql: vi.fn(),
     request: vi.fn(),
     rest: {
       pulls: {
@@ -38,11 +38,11 @@ const mockCore = {
           data: {
             head: { ref: "feature-branch" },
             title: "Test PR Title",
-            labels: [{ name: "bug" }, { name: "enhancement" }]
-          }
-        })
-      }
-    }
+            labels: [{ name: "bug" }, { name: "enhancement" }],
+          },
+        }),
+      },
+    },
   };
 ((global.core = mockCore),
   (global.context = mockContext),
@@ -256,8 +256,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "[bot] Add new feature",
-                  labels: []
-                }
+                  labels: [],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[bot] "'),
@@ -272,8 +272,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "Add new feature",
-                  labels: []
-                }
+                  labels: [],
+                },
               }),
               await executeScript(),
               expect(mockCore.setFailed).toHaveBeenCalledWith('Pull request title "Add new feature" does not start with required prefix "[bot] "'));
@@ -287,8 +287,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "Add new feature",
-                  labels: [{ name: "automation" }, { name: "enhancement" }, { name: "feature" }]
-                }
+                  labels: [{ name: "automation" }, { name: "enhancement" }, { name: "feature" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith("✓ Labels validation passed: automation,enhancement"),
@@ -303,8 +303,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "Add new feature",
-                  labels: [{ name: "feature" }]
-                }
+                  labels: [{ name: "feature" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request is missing required labels: automation, enhancement. Current labels: feature"));
@@ -319,8 +319,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "[automated] Add new feature",
-                  labels: [{ name: "bot" }, { name: "feature" }, { name: "enhancement" }]
-                }
+                  labels: [{ name: "bot" }, { name: "feature" }, { name: "enhancement" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[automated] "'),
@@ -404,8 +404,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "Test PR Title",
-                  labels: [{ name: "bug" }, { name: "enhancement" }]
-                }
+                  labels: [{ name: "bug" }, { name: "enhancement" }],
+                },
               }),
               mockExec.getExecOutput.mockImplementation(async (command, args) => {
                 return "git" === command && args && "status" === args[0]
@@ -452,8 +452,8 @@ const mockCore = {
                 data: {
                   head: { ref: "feature-branch" },
                   title: "Test PR Title",
-                  labels: []
-                }
+                  labels: [],
+                },
               }),
               mockExec.getExecOutput.mockImplementation(async (command, args) => {
                 if ("git" === command) throw new Error("Git command failed");
