@@ -52,7 +52,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@90f7e0a-dirty
+        uses: githubnext/gh-aw/actions/setup-activation@f3dba14
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -98,7 +98,7 @@ jobs:
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           cache: npm
           cache-dependency-path: docs/package-lock.json
@@ -6639,7 +6639,7 @@ jobs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@90f7e0a-dirty
+        uses: githubnext/gh-aw/actions/setup-activation@f3dba14
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow
