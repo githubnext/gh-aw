@@ -46,17 +46,21 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter); err != nil {
+	if err := c.preprocessScheduleFields(result.Frontmatter, markdownPath, string(content)); err != nil {
 		return nil, err
 	}
 
+	// Create a copy of frontmatter without internal markers for schema validation
+	// Keep the original frontmatter with markers for YAML generation
+	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
+
 	// Validate main workflow frontmatter contains only expected entries
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(result.Frontmatter, markdownPath); err != nil {
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, markdownPath); err != nil {
 		return nil, err
 	}
 
 	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
-	if err := ValidateEventFilters(result.Frontmatter); err != nil {
+	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
 		return nil, err
 	}
 
@@ -724,6 +728,45 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.applyLabelFilter(workflowData, result.Frontmatter)
 
 	return workflowData, nil
+}
+
+// copyFrontmatterWithoutInternalMarkers creates a deep copy of frontmatter without internal marker fields
+// This is used for schema validation while preserving markers in the original for YAML generation
+func (c *Compiler) copyFrontmatterWithoutInternalMarkers(frontmatter map[string]any) map[string]any {
+	// Create a shallow copy of the top level
+	copy := make(map[string]any)
+	for k, v := range frontmatter {
+		if k == "on" {
+			// Special handling for "on" field - need to deep copy and remove markers
+			if onMap, ok := v.(map[string]any); ok {
+				onCopy := make(map[string]any)
+				for onKey, onValue := range onMap {
+					if onKey == "issues" || onKey == "pull_request" || onKey == "discussion" {
+						// Deep copy the section and remove marker
+						if sectionMap, ok := onValue.(map[string]any); ok {
+							sectionCopy := make(map[string]any)
+							for sectionKey, sectionValue := range sectionMap {
+								if sectionKey != "__gh_aw_native_label_filter__" {
+									sectionCopy[sectionKey] = sectionValue
+								}
+							}
+							onCopy[onKey] = sectionCopy
+						} else {
+							onCopy[onKey] = onValue
+						}
+					} else {
+						onCopy[onKey] = onValue
+					}
+				}
+				copy[k] = onCopy
+			} else {
+				copy[k] = v
+			}
+		} else {
+			copy[k] = v
+		}
+	}
+	return copy
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}

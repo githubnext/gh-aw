@@ -300,7 +300,7 @@ func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.commentOutProcessedFieldsInOnSection(tt.input)
+			result := compiler.commentOutProcessedFieldsInOnSection(tt.input, map[string]any{})
 
 			if result != tt.expected {
 				t.Errorf("%s\nExpected:\n%s\nGot:\n%s", tt.description, tt.expected, result)

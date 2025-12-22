@@ -15,6 +15,7 @@ import (
 // ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
+	log.Printf("Processing includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
 	visited := make(map[string]bool)
 	return processIncludesWithVisited(content, baseDir, extractTools, visited)
 }
@@ -60,6 +61,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			// Resolve file path first to get the canonical path
 			fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
 			if err != nil {
+				log.Printf("Failed to resolve include path '%s': %v", filePath, err)
 				if isOptional {
 					// For optional includes, show a friendly informational message to stdout
 					if !extractTools {
@@ -73,6 +75,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 
 			// Check for repeated imports using the resolved full path
 			if visited[fullPath] {
+				log.Printf("Skipping already included file: %s", fullPath)
 				if !extractTools {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
 				}
@@ -80,6 +83,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			}
 
 			// Mark as visited using the resolved full path
+			log.Printf("Processing include file: %s", fullPath)
 			visited[fullPath] = true
 
 			// Process the included file
@@ -152,6 +156,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"secret-masking": true,
 					"applyTo":        true,
 					"inputs":         true,
+					"infer":          true, // Custom agent format field (Copilot)
 				}
 
 				// Check for unexpected frontmatter fields

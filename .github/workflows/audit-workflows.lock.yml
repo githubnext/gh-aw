@@ -102,7 +102,7 @@ jobs:
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Set up Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           cache: true
           go-version-file: go.mod
@@ -124,7 +124,7 @@ jobs:
           pip install --user --quiet numpy pandas matplotlib seaborn scipy
       - if: always()
         name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           if-no-files-found: warn
           name: trending-charts
@@ -132,7 +132,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           if-no-files-found: warn
           name: trending-source-and-data
@@ -153,7 +153,7 @@ jobs:
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: trending-data-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -251,7 +251,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Downloading container images
         run: |
           set -e
@@ -1862,7 +1862,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.73",
+              agent_version: "2.0.75",
               workflow_name: "Agentic Workflow Audit Agent",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6242,7 +6242,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -7678,7 +7678,7 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: trending-data-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory

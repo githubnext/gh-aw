@@ -144,7 +144,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			// Post-process YAML to ensure cron expressions are quoted
 			yamlStr = parser.QuoteCronExpressions(yamlStr)
 			// Apply comment processing to filter fields (draft, forks, names)
-			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
+			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, frontmatter)
 			// Add zizmor ignore comment if workflow_run trigger is present
 			yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
 			// Keep "on" quoted as it's a YAML boolean keyword

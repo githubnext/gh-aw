@@ -7,10 +7,13 @@ import (
 	"sort"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
 	"gopkg.in/yaml.v3"
 )
+
+var compileStatsLog = logger.New("cli:compile_stats")
 
 // WorkflowStats holds statistics about a compiled workflow
 type WorkflowStats struct {
@@ -26,9 +29,11 @@ type WorkflowStats struct {
 
 // collectWorkflowStats parses a lock file and collects statistics
 func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
+	compileStatsLog.Printf("Collecting workflow stats: file=%s", lockFilePath)
 	// Get file size
 	fileInfo, err := os.Stat(lockFilePath)
 	if err != nil {
+		compileStatsLog.Printf("Failed to stat file: %v", err)
 		return nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
@@ -51,6 +56,7 @@ func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
 	// Count jobs and steps
 	if jobs, ok := workflowYAML["jobs"].(map[string]any); ok {
 		stats.Jobs = len(jobs)
+		compileStatsLog.Printf("Workflow has %d jobs", stats.Jobs)
 
 		// Iterate through jobs to count steps and scripts
 		for _, jobData := range jobs {
@@ -79,11 +85,14 @@ func collectWorkflowStats(lockFilePath string) (*WorkflowStats, error) {
 		}
 	}
 
+	compileStatsLog.Printf("Stats collected: jobs=%d, steps=%d, scripts=%d, size=%d bytes",
+		stats.Jobs, stats.Steps, stats.ScriptCount, stats.FileSize)
 	return stats, nil
 }
 
 // displayStatsTable displays workflow statistics in a sorted table
 func displayStatsTable(statsList []*WorkflowStats) {
+	compileStatsLog.Printf("Displaying stats table: workflow_count=%d", len(statsList))
 	if len(statsList) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow statistics to display"))
 		return

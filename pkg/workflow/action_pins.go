@@ -67,18 +67,42 @@ func getActionPins() []ActionPin {
 }
 
 // GetActionPin returns the pinned action reference for a given action repository
-// It uses the golden/default version defined in actionPins
+// When multiple versions exist for the same repo, it returns the latest version by semver
 // If no pin is found, it returns an empty string
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
+
+	// Find all pins matching the repo
+	var matchingPins []ActionPin
 	for _, pin := range actionPins {
 		if pin.Repo == actionRepo {
-			return actionRepo + "@" + pin.SHA + " # " + pin.Version
+			matchingPins = append(matchingPins, pin)
 		}
 	}
-	// If no pin exists, return empty string to signal that this action is not pinned
-	return ""
+
+	if len(matchingPins) == 0 {
+		// If no pin exists, return empty string to signal that this action is not pinned
+		return ""
+	}
+
+	// Sort matching pins by version (descending - latest first)
+	// Use bubble sort for simplicity since we typically have few matches
+	for i := 0; i < len(matchingPins); i++ {
+		for j := i + 1; j < len(matchingPins); j++ {
+			// Strip 'v' prefix for comparison
+			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
+			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
+			if compareVersions(v1, v2) < 0 {
+				// v1 < v2, swap to get descending order
+				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
+			}
+		}
+	}
+
+	// Return the latest version (first after sorting)
+	latestPin := matchingPins[0]
+	return actionRepo + "@" + latestPin.SHA + " # " + latestPin.Version
 }
 
 // GetActionPinWithData returns the pinned action reference for a given action@version
@@ -111,7 +135,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			if !data.StrictMode {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 					actionRepo, version, actionRepo, pin.Version)
-				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 			break
@@ -124,7 +148,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if data.ActionResolver != nil {
 			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
 		}
-		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
@@ -133,7 +157,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	if data.ActionResolver != nil {
 		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
 	}
-	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	return "", nil
 }
 
@@ -251,12 +275,36 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 }
 
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
+// When multiple versions exist for the same repo, it returns the latest version by semver
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	actionPins := getActionPins()
+
+	// Find all pins matching the repo
+	var matchingPins []ActionPin
 	for _, pin := range actionPins {
 		if pin.Repo == repo {
-			return pin, true
+			matchingPins = append(matchingPins, pin)
 		}
 	}
-	return ActionPin{}, false
+
+	if len(matchingPins) == 0 {
+		return ActionPin{}, false
+	}
+
+	// Sort matching pins by version (descending - latest first)
+	// Use bubble sort for simplicity since we typically have few matches
+	for i := 0; i < len(matchingPins); i++ {
+		for j := i + 1; j < len(matchingPins); j++ {
+			// Strip 'v' prefix for comparison
+			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
+			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
+			if compareVersions(v1, v2) < 0 {
+				// v1 < v2, swap to get descending order
+				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
+			}
+		}
+	}
+
+	// Return the latest version (first after sorting)
+	return matchingPins[0], true
 }

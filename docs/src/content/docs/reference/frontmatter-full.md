@@ -68,7 +68,8 @@ imports: []
 
 # Option 1: Simple trigger event name (e.g., 'push', 'issues', 'pull_request',
 # 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch',
-# 'workflow_call')
+# 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command
+# shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)
 on: "example-value"
 
 # Option 2: Complex trigger configuration with event-specific filters and options
@@ -1151,7 +1152,13 @@ engine:
   # control costs. Has sensible defaults and can typically be omitted. Note: Only
   # supported by the claude engine.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Maximum number of chat iterations per run as an integer value
   max-turns: 1
+
+  # Option 2: Maximum number of chat iterations per run as a string value
+  max-turns: "example-value"
 
   # Agent job concurrency configuration. Defaults to single job per engine across
   # all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions
@@ -1740,7 +1747,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable issue creation with default configuration
@@ -1865,16 +1872,15 @@ safe-outputs:
     close-older-discussions: true
 
     # Time until the discussion expires and should be automatically closed. Supports
-    # integer (days) or relative time format like '20h' (20 hours), '7d' (7 days),
-    # '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow
-    # will be generated.
+    # integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m'
+    # (1 month), '1y' (1 year). When set, a maintenance workflow will be generated.
     # (optional)
     # This field supports multiple formats (oneOf):
 
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable discussion creation with default configuration
@@ -2164,7 +2170,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '20h', '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
     expires: "example-value"
 
   # Option 2: Enable pull request creation with default configuration

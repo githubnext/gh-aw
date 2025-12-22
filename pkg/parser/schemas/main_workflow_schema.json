@@ -3086,8 +3086,8 @@
                     },
                     {
                       "type": "string",
-                      "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '20h', '7d', '2w', '1m', '1y')"
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
                     }
                   ],
                   "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. When set, a maintenance workflow will be generated."
@@ -3248,11 +3248,11 @@
                     },
                     {
                       "type": "string",
-                      "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '20h', '7d', '2w', '1m', '1y')"
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
                     }
                   ],
-                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '20h' (20 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow will be generated."
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -3634,8 +3634,8 @@
                     },
                     {
                       "type": "string",
-                      "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '20h', '7d', '2w', '1m', '1y')"
+                      "pattern": "^[0-9]+[dDwWmMyY]$",
+                      "description": "Relative time (e.g., '7d', '2w', '1m', '1y')"
                     }
                   ],
                   "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format."
@@ -5027,7 +5027,16 @@
               "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
             },
             "max-turns": {
-              "type": "integer",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "description": "Maximum number of chat iterations per run as an integer value"
+                },
+                {
+                  "type": "string",
+                  "description": "Maximum number of chat iterations per run as a string value"
+                }
+              ],
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
             },
             "concurrency": {

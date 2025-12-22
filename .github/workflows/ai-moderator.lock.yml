@@ -23,11 +23,11 @@
 name: "AI Moderator"
 "on":
   issue_comment:
-    lock-for-agent: true
+    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - created
   issues:
-    lock-for-agent: true
+    # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
   workflow_dispatch:
@@ -195,7 +195,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -1812,7 +1812,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "AI Moderator",
               experimental: false,
               supports_tools_allowlist: true,
@@ -5711,9 +5711,10 @@ jobs:
             const actor = context.actor;
             const { owner, repo } = context.repo;
 
-            // Skip if the issue was opened by GitHub Action bot
-            if (actor.endsWith('[bot]') && (actor === 'github-actions[bot]' || actor === 'github-actions')) {
-              core.info(`⏭️  Skipping workflow - issue opened by GitHub Action bot: ${actor}`);
+            // Skip if the issue was opened by GitHub Action bot or Copilot bot
+            const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
+            if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
+              core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
               core.setOutput('should_run', 'false');
               return;
             }

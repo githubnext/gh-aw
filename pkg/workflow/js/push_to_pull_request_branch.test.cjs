@@ -29,7 +29,21 @@ const mockCore = {
     summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
   },
   mockContext = { eventName: "pull_request", payload: { pull_request: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }, repo: { owner: "testowner", repo: "testrepo" } },
-  mockGithub = { graphql: vi.fn(), request: vi.fn() };
+  mockGithub = {
+    graphql: vi.fn(),
+    request: vi.fn(),
+    rest: {
+      pulls: {
+        get: vi.fn().mockResolvedValue({
+          data: {
+            head: { ref: "feature-branch" },
+            title: "Test PR Title",
+            labels: [{ name: "bug" }, { name: "enhancement" }],
+          },
+        }),
+      },
+    },
+  };
 ((global.core = mockCore),
   (global.context = mockContext),
   (global.github = mockGithub),
@@ -64,10 +78,6 @@ const mockCore = {
         (mockExec = {
           exec: vi.fn().mockResolvedValue(0),
           getExecOutput: vi.fn().mockImplementation((command, args) => {
-            if ("gh" === command && args && "pr" === args[0] && "view" === args[1] && args.includes("--json") && args.includes("headRefName,title,labels")) {
-              const prData = JSON.stringify({ headRefName: "feature-branch", title: "Test PR Title", labels: ["bug", "enhancement"] });
-              return Promise.resolve({ exitCode: 0, stdout: prData + "\n", stderr: "" });
-            }
             return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
           }),
         }),
@@ -242,12 +252,12 @@ const mockCore = {
               (process.env.GH_AW_PR_TITLE_PREFIX = "[bot] "),
               mockFs.existsSync.mockReturnValue(!0),
               mockPatchContent("diff --git a/file.txt b/file.txt\n+new content"),
-              mockExec.getExecOutput.mockImplementation((command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "[bot] Add new feature", labels: [] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData), stderr: "" });
-                }
-                return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "[bot] Add new feature",
+                  labels: [],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[bot] "'),
@@ -258,12 +268,12 @@ const mockCore = {
               (process.env.GH_AW_PR_TITLE_PREFIX = "[bot] "),
               mockFs.existsSync.mockReturnValue(!0),
               mockPatchContent("diff --git a/file.txt b/file.txt\n+new content"),
-              mockExec.getExecOutput.mockImplementation((command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "Add new feature", labels: [] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData), stderr: "" });
-                }
-                return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "Add new feature",
+                  labels: [],
+                },
               }),
               await executeScript(),
               expect(mockCore.setFailed).toHaveBeenCalledWith('Pull request title "Add new feature" does not start with required prefix "[bot] "'));
@@ -273,12 +283,12 @@ const mockCore = {
               (process.env.GH_AW_PR_LABELS = "automation,enhancement"),
               mockFs.existsSync.mockReturnValue(!0),
               mockPatchContent("diff --git a/file.txt b/file.txt\n+new content"),
-              mockExec.getExecOutput.mockImplementation((command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "Add new feature", labels: ["automation", "enhancement", "feature"] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData), stderr: "" });
-                }
-                return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "Add new feature",
+                  labels: [{ name: "automation" }, { name: "enhancement" }, { name: "feature" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith("✓ Labels validation passed: automation,enhancement"),
@@ -289,12 +299,12 @@ const mockCore = {
               (process.env.GH_AW_PR_LABELS = "automation,enhancement"),
               mockFs.existsSync.mockReturnValue(!0),
               mockPatchContent("diff --git a/file.txt b/file.txt\n+new content"),
-              mockExec.getExecOutput.mockImplementation((command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "Add new feature", labels: ["feature"] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData), stderr: "" });
-                }
-                return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "Add new feature",
+                  labels: [{ name: "feature" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Pull request is missing required labels: automation, enhancement. Current labels: feature"));
@@ -305,12 +315,12 @@ const mockCore = {
               (process.env.GH_AW_PR_LABELS = "bot,feature"),
               mockFs.existsSync.mockReturnValue(!0),
               mockPatchContent("diff --git a/file.txt b/file.txt\n+new content"),
-              mockExec.getExecOutput.mockImplementation((command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "[automated] Add new feature", labels: ["bot", "feature", "enhancement"] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData), stderr: "" });
-                }
-                return "git" === command && args && "rev-parse" === args[0] && "HEAD" === args[1] ? Promise.resolve({ exitCode: 0, stdout: "abc123def456\n", stderr: "" }) : Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "[automated] Add new feature",
+                  labels: [{ name: "bot" }, { name: "feature" }, { name: "enhancement" }],
+                },
               }),
               await executeScript(),
               expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[automated] "'),
@@ -390,11 +400,14 @@ const mockCore = {
               if ("string" == typeof cmd && cmd.includes("git am")) throw ((gitAmCalled = !0), new Error("Patch does not apply"));
               return 0;
             }),
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "Test PR Title",
+                  labels: [{ name: "bug" }, { name: "enhancement" }],
+                },
+              }),
               mockExec.getExecOutput.mockImplementation(async (command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "Test PR Title", labels: ["bug", "enhancement"] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData) + "\n", stderr: "" });
-                }
                 return "git" === command && args && "status" === args[0]
                   ? Promise.resolve({ exitCode: 0, stdout: "On branch feature-branch\nYour branch is up to date\n", stderr: "" })
                   : "git" === command && args && "log" === args[0] && "--oneline" === args[1] && "-5" === args[2]
@@ -435,11 +448,14 @@ const mockCore = {
                 if ("string" == typeof cmd && cmd.includes("git am")) throw new Error("Patch does not apply");
                 return 0;
               }),
+              mockGithub.rest.pulls.get.mockResolvedValueOnce({
+                data: {
+                  head: { ref: "feature-branch" },
+                  title: "Test PR Title",
+                  labels: [],
+                },
+              }),
               mockExec.getExecOutput.mockImplementation(async (command, args) => {
-                if ("gh" === command && args && "pr" === args[0] && "view" === args[1]) {
-                  const prData = { headRefName: "feature-branch", title: "Test PR Title", labels: [] };
-                  return Promise.resolve({ exitCode: 0, stdout: JSON.stringify(prData) + "\n", stderr: "" });
-                }
                 if ("git" === command) throw new Error("Git command failed");
                 return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
               }),

@@ -87,11 +87,11 @@ func TestCollectRequiredPermissions(t *testing.T) {
 			},
 		},
 		{
-			name:     "Projects toolset",
+			name:     "Projects toolset (requires PAT - no permissions)",
 			toolsets: []string{"projects"},
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionRepositoryProj: PermissionWrite,
+				// No permissions required - projects require PAT, not GITHUB_TOKEN
 			},
 		},
 	}

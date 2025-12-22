@@ -2,17 +2,27 @@
   "entries": {
     "actions/ai-inference@v1": {
       "repo": "actions/ai-inference",
-      "version": "v1.2.8",
-      "sha": "b81b2afb8390ee6839b494a404766bef6493c7d9"
+      "version": "v2.0.4",
+      "sha": "334892bb203895caaed82ec52d23c1ed9385151e"
     },
     "actions/cache/restore@v4": {
       "repo": "actions/cache/restore",
-      "version": "v4",
+      "version": "v4.3.0",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
+    "actions/cache/restore@v4.3.0": {
+      "repo": "actions/cache/restore",
+      "version": "v4.3.0",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
     },
     "actions/cache/save@v4": {
       "repo": "actions/cache/save",
-      "version": "v4",
+      "version": "v4.3.0",
+      "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
+    "actions/cache/save@v4.3.0": {
+      "repo": "actions/cache/save",
+      "version": "v4.3.0",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
     },
     "actions/cache@v4": {
@@ -177,8 +187,8 @@
     },
     "ruby/setup-ruby@v1": {
       "repo": "ruby/setup-ruby",
-      "version": "v1.274.0",
-      "sha": "ed55d55e820a01da7d3e4863a8c51a61d73c3228"
+      "version": "v1.275.0",
+      "sha": "d354de180d0c9e813cfddfcbdc079945d4be589b"
     },
     "super-linter/super-linter@v8.2.1": {
       "repo": "super-linter/super-linter",

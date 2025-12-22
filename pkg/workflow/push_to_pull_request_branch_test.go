@@ -804,3 +804,75 @@ Test that the push-to-pull-request-branch job receives activation comment enviro
 		t.Errorf("Generated workflow should contain GH_AW_COMMENT_REPO environment variable")
 	}
 }
+
+// TestPushToPullRequestBranchPatchArtifactDownload verifies that when push-to-pull-request-branch
+// is enabled, the safe_outputs job includes a step to download the aw.patch artifact
+func TestPushToPullRequestBranchPatchArtifactDownload(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create a test markdown file with push-to-pull-request-branch configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+safe-outputs:
+  push-to-pull-request-branch:
+---
+
+# Test Push to PR Branch Patch Download
+
+This test verifies that the aw.patch artifact is downloaded in the safe_outputs job.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-patch-download.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that safe_outputs job exists
+	if !strings.Contains(lockContentStr, "safe_outputs:") {
+		t.Fatalf("Generated workflow should contain safe_outputs job")
+	}
+
+	// Verify that patch download step exists in safe_outputs job
+	if !strings.Contains(lockContentStr, "- name: Download patch artifact") {
+		t.Errorf("Expected 'Download patch artifact' step in safe_outputs job when push-to-pull-request-branch is enabled")
+	}
+
+	// Verify that patch is downloaded to correct path
+	if !strings.Contains(lockContentStr, "name: aw.patch") {
+		t.Errorf("Expected patch artifact to be named 'aw.patch'")
+	}
+
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/") {
+		t.Errorf("Expected patch artifact to be downloaded to '/tmp/gh-aw/'")
+	}
+
+	// Verify that the push step exists and references the patch file
+	if !strings.Contains(lockContentStr, "- name: Push To Pull Request Branch") {
+		t.Errorf("Expected 'Push To Pull Request Branch' step in safe_outputs job")
+	}
+
+	// Verify that the condition checks for push_to_pull_request_branch output type
+	if !strings.Contains(lockContentStr, "contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')") {
+		t.Errorf("Expected condition to check for 'push_to_pull_request_branch' in output_types")
+	}
+}

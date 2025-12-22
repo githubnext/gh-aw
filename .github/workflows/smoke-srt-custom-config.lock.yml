@@ -180,7 +180,7 @@ jobs:
           npm install @anthropic-ai/sandbox-runtime
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install --silent @github/copilot@0.0.371
+        run: npm install --silent @github/copilot@0.0.372
       - name: Downloading container images
         run: |
           set -e
@@ -262,7 +262,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Smoke SRT Custom Config",
               experimental: false,
               supports_tools_allowlist: true,

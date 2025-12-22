@@ -145,7 +145,7 @@ jobs:
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -233,7 +233,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -3282,7 +3282,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "docker",
-                "args": ["run", "-i", "--rm", "--init", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
+                "args": ["run", "-i", "--rm", "--init", "--network", "host", "mcr.microsoft.com/playwright/mcp", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright", "--allowed-hosts", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com", "--save-trace"],
                 "tools": ["*"]
               },
               "safeinputs": {
@@ -3347,7 +3347,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.371",
+              agent_version: "0.0.372",
               workflow_name: "Smoke Copilot Playwright",
               experimental: false,
               supports_tools_allowlist: true,
@@ -7182,7 +7182,7 @@ jobs:
         run: "echo \"📋 Collecting Playwright MCP logs...\"\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/playwright-debug-logs\n\n# Copy any playwright logs from the MCP logs directory\nif [ -d \"/tmp/gh-aw/mcp-logs/playwright\" ]; then\n  echo \"Found Playwright MCP logs directory\"\n  cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true\n  ls -la /tmp/gh-aw/playwright-debug-logs/\nelse\n  echo \"No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright\"\nfi\n\n# List all trace files if any\necho \"Looking for trace files...\"\nfind /tmp -name \"*.zip\" -o -name \"trace*\" 2>/dev/null | head -20 || true\n\n# Show docker container logs if any containers are still running\necho \"Checking for running Docker containers...\"\ndocker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Image}}\" 2>/dev/null || true\n"
       - if: always()
         name: Upload Playwright Debug Logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           if-no-files-found: ignore
           name: playwright-debug-logs-${{ github.run_id }}
@@ -7871,7 +7871,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.371 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -10531,7 +10531,7 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory

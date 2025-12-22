@@ -346,10 +346,21 @@ async function main() {
 
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
-  // First, fetch latest changes and checkout the base branch
-  core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-  await exec.exec("git fetch origin");
-  await exec.exec(`git checkout ${baseBranch}`);
+  // First, fetch the base branch specifically (since we use shallow checkout)
+  core.info(`Fetching base branch: ${baseBranch}`);
+
+  // Fetch without creating/updating local branch to avoid conflicts with current branch
+  // This works even when we're already on the base branch
+  await exec.exec(`git fetch origin ${baseBranch}`);
+
+  // Checkout the base branch (using origin/${baseBranch} if local doesn't exist)
+  try {
+    await exec.exec(`git checkout ${baseBranch}`);
+  } catch (checkoutError) {
+    // If local branch doesn't exist, create it from origin
+    core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
+    await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
+  }
 
   // Handle branch creation/checkout
   core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);

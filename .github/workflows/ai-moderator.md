@@ -47,9 +47,10 @@ jobs:
             const actor = context.actor;
             const { owner, repo } = context.repo;
             
-            // Skip if the issue was opened by GitHub Action bot
-            if (actor.endsWith('[bot]') && (actor === 'github-actions[bot]' || actor === 'github-actions')) {
-              core.info(`⏭️  Skipping workflow - issue opened by GitHub Action bot: ${actor}`);
+            // Skip if the issue was opened by GitHub Action bot or Copilot bot
+            const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
+            if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
+              core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
               core.setOutput('should_run', 'false');
               return;
             }

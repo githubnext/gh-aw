@@ -81,9 +81,9 @@
       "tools": ["list_org_repository_security_advisories"]
     },
     "projects": {
-      "description": "GitHub Projects",
-      "read_permissions": ["repository-projects"],
-      "write_permissions": ["repository-projects"],
+      "description": "GitHub Projects (requires PAT - not supported by GITHUB_TOKEN)",
+      "read_permissions": [],
+      "write_permissions": [],
       "tools": ["get_project", "get_project_field", "get_project_item", "list_project_fields", "list_project_items", "list_projects"]
     },
     "secret_protection": {

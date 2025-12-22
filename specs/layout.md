@@ -24,7 +24,7 @@ Common GitHub Actions used across workflows (pinned to specific commit SHAs):
 | actions/cache | 0057852bfaa89a56745cba8c7296529d2fc39830 | Caches dependencies | Improves workflow performance |
 | actions/cache/restore | 0057852bfaa89a56745cba8c7296529d2fc39830 | Restores cached dependencies | Used with cache/save for granular control |
 | actions/cache/save | 0057852bfaa89a56745cba8c7296529d2fc39830 | Saves dependencies to cache | Used with cache/restore for granular control |
-| actions/ai-inference | b81b2afb8390ee6839b494a404766bef6493c7d9 | Runs AI inference | Used for AI-powered analysis |
+| actions/ai-inference | 334892bb203895caaed82ec52d23c1ed9385151e | Runs AI inference | Used for AI-powered analysis |
 | actions/create-github-app-token | 29824e69f54612133e76f7eaac726eef6c875baf | Creates GitHub App token | Used for authentication in workflows |
 | github/codeql-action/upload-sarif | 323fb8c0ad5be63b7a6ebf1f32c35882fcfea2cf | Uploads code scanning results | Used for security scanning workflows |
 | super-linter/super-linter | 2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 | Runs super-linter | Used for code quality checks |

@@ -105,7 +105,7 @@ jobs:
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -202,7 +202,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Downloading container images
         run: |
           set -e
@@ -1801,7 +1801,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.73",
+              agent_version: "2.0.75",
               workflow_name: "CLI Version Checker",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6245,7 +6245,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -7315,7 +7315,7 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory

@@ -264,7 +264,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -276,7 +276,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
 		},
 		{
 			name: "step with unpinned action",
@@ -303,7 +303,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 	}
 
@@ -345,9 +345,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 28 after adding super-linter v8.2.1)
-	if len(pins) != 28 {
-		t.Errorf("getActionPins() returned %d pins, expected 28", len(pins))
+	// Verify we got all the pins (should be 39 as of this test)
+	if len(pins) != 39 {
+		t.Errorf("getActionPins() returned %d pins, expected 39", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -387,13 +387,13 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/checkout",
 			expectExists: true,
 			expectRepo:   "actions/checkout",
-			expectVer:    "v5",
+			expectVer:    "v5.0.1",
 		},
 		{
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v6",
+			expectVer:    "v6.1.0",
 		},
 		{
 			repo:         "unknown/action",
@@ -443,7 +443,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -455,7 +455,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6",
+			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
 		},
 		{
 			name: "step with unpinned action",
@@ -495,7 +495,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
 		},
 	}
 
@@ -578,5 +578,60 @@ func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
 	result.Name = "Modified name"
 	if originalStep.Name == "Modified name" {
 		t.Errorf("ApplyActionPinToTypedStep() did not return an independent copy")
+	}
+}
+
+// TestGetActionPinSemverPreference verifies that when multiple versions exist for the same repo,
+// the latest version by semver is returned
+func TestGetActionPinSemverPreference(t *testing.T) {
+	tests := []struct {
+		name            string
+		repo            string
+		expectedVersion string
+	}{
+		{
+			name:            "setup-go prefers v6.1.0 over v6",
+			repo:            "actions/setup-go",
+			expectedVersion: "v6.1.0",
+		},
+		{
+			name:            "setup-node prefers v6.1.0 over v6",
+			repo:            "actions/setup-node",
+			expectedVersion: "v6.1.0",
+		},
+		{
+			name:            "upload-artifact prefers v5.0.0 over v5 and v4",
+			repo:            "actions/upload-artifact",
+			expectedVersion: "v5.0.0",
+		},
+		{
+			name:            "setup-python prefers v5.6.0 over v5",
+			repo:            "actions/setup-python",
+			expectedVersion: "v5.6.0",
+		},
+		{
+			name:            "cache prefers v4.3.0 over v4",
+			repo:            "actions/cache",
+			expectedVersion: "v4.3.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test GetActionPin
+			result := GetActionPin(tt.repo)
+			if !strings.Contains(result, "# "+tt.expectedVersion) {
+				t.Errorf("GetActionPin(%s) = %s, expected version %s", tt.repo, result, tt.expectedVersion)
+			}
+
+			// Test GetActionPinByRepo
+			pin, exists := GetActionPinByRepo(tt.repo)
+			if !exists {
+				t.Fatalf("GetActionPinByRepo(%s) returned false, expected true", tt.repo)
+			}
+			if pin.Version != tt.expectedVersion {
+				t.Errorf("GetActionPinByRepo(%s).Version = %s, expected %s", tt.repo, pin.Version, tt.expectedVersion)
+			}
+		})
 	}
 }

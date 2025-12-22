@@ -186,7 +186,7 @@ jobs:
           which awf
           awf --version
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Downloading container images
         run: |
           set -e
@@ -1796,7 +1796,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.0.73",
+              agent_version: "2.0.75",
               workflow_name: "Go Pattern Detector",
               experimental: true,
               supports_tools_allowlist: true,
@@ -5322,7 +5322,7 @@ jobs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
       - name: Install ast-grep
@@ -6033,7 +6033,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.0.73
+        run: npm install -g --silent @anthropic-ai/claude-code@2.0.75
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

@@ -80,7 +80,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081",
+				"astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86",
 			},
 		},
 		{

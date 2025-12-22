@@ -41,7 +41,7 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[slides] "
-    expires: 20h
+    expires: 1d
 network:
   allowed:
     - node

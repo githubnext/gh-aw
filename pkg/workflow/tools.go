@@ -73,7 +73,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 				// Post-process YAML to ensure cron expressions are quoted
 				yamlStr = parser.QuoteCronExpressions(yamlStr)
 				// Apply comment processing to filter fields (draft, forks, names)
-				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
+				// Pass empty frontmatter since this is for command triggers
+				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
 				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {

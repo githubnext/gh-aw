@@ -192,7 +192,7 @@ engine:
 			expectError: false,
 		},
 		{
-			name: "invalid string max-turns",
+			name: "valid string max-turns",
 			content: `---
 on:
   workflow_dispatch:
@@ -202,11 +202,11 @@ permissions:
   pull-requests: read
 engine:
   id: claude
-  max-turns: "invalid"
+  max-turns: "5"
 ---
 
-# Invalid Max Turns`,
-			expectError: true,
+# Valid String Max Turns`,
+			expectError: false,
 		},
 		{
 			name: "zero max-turns",

@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.33.11 - 2025-12-22
+
+Maintenance release with dependency updates and minor improvements.
+
+## v0.33.10 - 2025-12-22
+
+### Bug Fixes
+
+#### Fix: Ensure `create-pull-request` and `push-to-pull-request-branch` safe outputs
+
+are applied correctly by downloading the patch artifact, checking out the
+repository, configuring git, and using the appropriate token when available.
+
+This is an internal tooling fix for action workflows; it does not change the
+public CLI API.
+
+--
+PR: #7167
+
+#### Optimize safe output checkout to use shallow fetch and targeted branch fetching
+
+Safe output jobs for `create-pull-request` and `push-to-pull-request-branch` used
+full repository checkouts (`fetch-depth: 0`). This change documents the optimization
+to use shallow clones (`fetch-depth: 1`) and explicit branch fetches to reduce
+network transfer and clone time for large repositories.
+
+#### Optimize safe output jobs to use shallow repository checkouts and targeted
+
+branch fetching for `create-pull-request` and
+`push-to-pull-request-branch` safe output jobs. This reduces network transfer and
+clone time for large repositories by using `fetch-depth: 1` and fetching only the
+required branch.
+
+
 ## v0.33.9 - 2025-12-21
 
 Maintenance release with dependency updates and minor improvements.

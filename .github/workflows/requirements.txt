@@ -1,2 +1,3 @@
 markitdown-mcp
+numpy
 scikit-learn

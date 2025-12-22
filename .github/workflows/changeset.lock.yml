@@ -223,7 +223,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.75.0
+        run: npm install -g --silent @openai/codex@0.77.0
       - name: Install awf binary
         run: |
           echo "Installing awf via installer script (requested version: v0.7.0)"
@@ -1856,7 +1856,7 @@ jobs:
               engine_name: "Codex",
               model: "gpt-5-mini",
               version: "",
-              agent_version: "0.75.0",
+              agent_version: "0.77.0",
               workflow_name: "Changeset Generator",
               experimental: true,
               supports_tools_allowlist: true,
@@ -6714,6 +6714,12 @@ jobs:
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
       - name: Setup JavaScript files
         id: setup_scripts
         shell: bash
@@ -8052,6 +8058,25 @@ jobs:
               executeUpdate: executePRUpdate,
             });
             (async () => { await main(); })();
+      - name: Checkout repository
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Configure Git credentials
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ steps.app-token.outputs.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
@@ -8216,16 +8241,19 @@ jobs:
               let branchName;
               let prTitle = "";
               let prLabels = [];
+              if (!pullNumber) {
+                core.setFailed("Pull request number is required but not found");
+                return;
+              }
               try {
-                const prInfoRes = await exec.getExecOutput(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: (.labels // [] | map(.name))}`]);
-                if (prInfoRes.exitCode === 0) {
-                  const prData = JSON.parse(prInfoRes.stdout.trim());
-                  branchName = prData.headRefName;
-                  prTitle = prData.title || "";
-                  prLabels = prData.labels || [];
-                } else {
-                  throw new Error("No PR data found");
-                }
+                const { data: pullRequest } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pullNumber,
+                });
+                branchName = pullRequest.head.ref;
+                prTitle = pullRequest.title || "";
+                prLabels = pullRequest.labels.map(label => label.name);
               } catch (error) {
                 core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
                 core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
@@ -8257,9 +8285,10 @@ jobs:
               const hasChanges = !isEmpty;
               core.info(`Switching to branch: ${branchName}`);
               try {
-                await exec.exec("git fetch origin");
+                core.info(`Fetching branch: ${branchName}`);
+                await exec.exec(`git fetch origin ${branchName}:refs/remotes/origin/${branchName}`);
               } catch (fetchError) {
-                core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                core.setFailed(`Failed to fetch branch ${branchName}: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
                 return;
               }
               try {
