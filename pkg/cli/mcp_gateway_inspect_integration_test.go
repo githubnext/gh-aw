@@ -94,7 +94,7 @@ This workflow tests the MCP gateway configuration and tool list.
 	go func() {
 		// Use context for gateway lifecycle
 		_ = ctx // Mark as used
-		gatewayErrChan <- runMCPGateway(configFile, 8089, tmpDir)
+		gatewayErrChan <- runMCPGateway([]string{configFile}, 8089, tmpDir)
 	}()
 
 	// Wait for gateway to start
