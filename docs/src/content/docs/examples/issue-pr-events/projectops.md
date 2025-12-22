@@ -5,50 +5,51 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-ProjectOps brings intelligent automation to GitHub Projects, enabling AI agents to add items, update status fields, and track campaigns. GitHub Agentic Workflows makes ProjectOps natural through the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output that handles all [Projects v2 API](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects) complexity while maintaining security with minimal permissions.
+ProjectOps keeps [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) up to date using AI.
 
-If you’re running a structured, multi-day initiative with a spec file, approvals, and a single dashboard, use [Campaigns](/gh-aw/guides/campaigns/) (which commonly uses ProjectOps under the hood for Project tracking).
+When a new issue or pull request arrives, the agent reads it and decides where it belongs, what status to start in, and which fields to set (priority, effort, etc.).
 
-By default, `update-project` is update-only: create the Project once in the GitHub UI, then let workflows keep it in sync. If you intentionally want workflows to create missing Projects, opt in via the agent output field `create_if_missing: true` and ensure your token has sufficient org Project permissions.
+Then the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) safe output applies those choices in a separate, scoped job—the agent job never sees the Projects token so everything remains secure.
 
-**Important**: GitHub Projects v2 requires a PAT or GitHub App token - the default `GITHUB_TOKEN` cannot access Projects v2. Configure [`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) before using `update-project`.
+## Prerequisites
 
-## Token Requirements for Projects v2
+1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
 
-The type of Personal Access Token (PAT) you need depends on whether you're working with **user-owned** or **organization-owned** Projects:
-
-### User-owned Projects (v2)
-
-**Must use a classic PAT** - Fine-grained PATs do **not** work with user-owned Projects.
+2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned** 
+For user-owned projects, use a **classic PAT** with `read:project` scope (for queries) or `project` scope (for queries and mutations).
 
 Required scopes:
+
 - `project` (required for user Projects)
 - `repo` (required if accessing private repositories)
 
 Create at: [https://github.com/settings/tokens/new](https://github.com/settings/tokens/new)
 
-### Organization-owned Projects (v2)
+#### Organization-owned Projects (v2)
 
-**Can use either classic or fine-grained PAT**:
+You can use either a classic or fine-grained PAT.
 
-**Option 1: Classic PAT**
+**Classic PAT** scopes:
+
 - `project` (required)
 - `read:org` (required for org Projects)
 - `repo` (required if accessing private repositories)
 
-**Option 2: Fine-grained PAT**
+**Fine-grained PAT** settings:
+
 - Repository access: Select specific repos or "All repositories"
-- **Organization permissions** (must be explicitly granted):
-  - **Organization access**: Must be granted to the target organization
-  - **Projects**: Read+Write
-- **Important**: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
+- Organization access: Must be granted to the target organization
+- Organization permissions: Projects = Read+Write
+- Important: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
 
 Create at: [https://github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
 
-**Setup**: After creating your PAT, add it to your repository:
+### 3) Store the token as a secret
+
+After creating your token, add it to your repository:
 
 ```bash
-gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_TOKEN"
 ```
 
 See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) for complete details.
@@ -58,7 +59,7 @@ See the [GitHub Projects v2 token reference](/gh-aw/reference/tokens/#gh_aw_proj
 ProjectOps complements [GitHub's built-in Projects automation](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) with AI-powered intelligence:
 
 - **Content-based routing** - Analyze issue content to determine which project board and what priority (native automation only supports label/status triggers)
-- **Multi-issue coordination** - Create campaign boards with multiple issues and apply campaign labels automatically
+- **Multi-issue coordination** - Add a set of related issues/PRs to an existing initiative project and apply consistent tracking labels
 - **Dynamic field assignment** - Set priority, effort, and custom fields based on AI analysis of issue content
 
 ## How It Works
@@ -107,11 +108,12 @@ safe-outputs:
 ```
 
 The `update-project` tool provides intelligent project management:
-- **Optional create**: Can create the Project only when explicitly opted in (for example, `create_if_missing: true`)
-- **Auto-adds items**: Checks if issue already on board before adding (prevents duplicates)
-- **Updates fields**: Sets status, priority, custom fields
-- **Applies campaign labels**: Adds `campaign:<id>` label for tracking
-- **Returns metadata**: Provides campaign ID, project ID, and item ID as outputs
+
+- **Update-only**: Does not create Projects (create the Project in the GitHub UI first)
+- **Auto-adds items**: Checks if issue/PR is already on the board before adding (prevents duplicates)
+- **Updates fields**: Sets status, priority, and other custom fields
+- **Applies a tracking label**: When adding a new item, it can apply a consistent tracking label to the underlying issue/PR
+- **Returns outputs**: Exposes the Project item ID (`item-id`) for downstream steps
 
 ## Accessing Issue Context
 
@@ -126,19 +128,21 @@ Analyze this issue to determine priority: "${{ needs.activation.outputs.text }}"
 
 ## Common ProjectOps Patterns
 
-### Campaign Launch and Tracking
+### Initiative Launch and Tracking
 
-Create a project board for a focused initiative and add all related issues with tracking metadata.
+Use an existing project board for a focused initiative and add related issues with tracking metadata.
 
-This goes beyond native GitHub automation by analyzing the codebase to generate campaign issues and coordinating multiple related work items.
+Create the initiative Project in the GitHub UI first (the `update-project` safe output does not create Projects).
+
+This goes beyond native GitHub automation by analyzing the codebase to generate related issues and coordinating multiple related work items.
 
 ```aw wrap
 ---
 on:
   workflow_dispatch:
     inputs:
-      campaign_name:
-        description: "Campaign name"
+      initiative_name:
+        description: "Initiative name"
         required: true
 permissions:
   contents: read
@@ -150,23 +154,23 @@ safe-outputs:
     max: 20
 ---
 
-# Launch Campaign
+# Launch Initiative
 
-Create a new campaign project board: "{{inputs.campaign_name}}"
+Use the initiative project board: "{{inputs.initiative_name}}"
 
-Analyze the repository to identify tasks needed for this campaign.
+Analyze the repository to identify tasks needed for this initiative.
 
 For each task:
 1. Create an issue with detailed description
-2. Add the issue to the campaign project board
+2. Add the issue to the initiative project board
 3. Set status to "Todo"
 4. Set priority based on impact
-5. Apply campaign label for tracking
+5. Apply a tracking label for reporting
 
-The campaign board provides a visual dashboard showing all related work.
+The initiative board provides a visual dashboard showing all related work.
 ```
 
-See the [Agentic Campaign Workflows Guide](/gh-aw/guides/campaigns/) for comprehensive campaign patterns and coordination strategies.
+
 
 ### Content-Based Priority Assignment
 
@@ -206,10 +210,10 @@ Add to "Engineering Backlog" project with calculated priority and effort fields.
 
 The `update-project` safe output provides intelligent automation:
 
-- **Auto-creates boards** - Creates project if it doesn't exist, finds existing boards automatically
+- **Update-only** - Expects the Project to already exist (creates no Projects)
 - **Duplicate prevention** - Checks if issue already on board before adding
 - **Custom field support** - Set status, priority, effort, sprint, team, or any custom fields
-- **Campaign tracking** - Auto-generates campaign IDs, applies labels, stores metadata
+- **Tracking** - Can apply a consistent tracking label when adding new items
 - **Cross-repo support** - Works with organization-level projects spanning multiple repositories
 
 ## Cross-Repository Considerations
@@ -224,15 +228,15 @@ Project boards can span multiple repositories, but the `update-project` tool ope
 
 **Use descriptive project names** that clearly indicate purpose and scope. Prefer "Performance Optimization Q1 2025" over "Project 1".
 
-**Leverage campaign IDs** for tracking related work across issues and PRs. Query by campaign label for reporting and metrics.
+**Leverage a tracking label** for grouping related work across issues and PRs.
 
 **Set meaningful field values** like status, priority, and effort to enable effective filtering and sorting on boards.
 
-**Combine with issue creation** for campaign workflows that generate multiple tracked tasks automatically.
+**Combine with issue creation** for initiative workflows that generate multiple tracked tasks automatically.
 
 **Update status progressively** as work moves through stages (Todo → In Progress → In Review → Done).
 
-**Archive completed campaigns** rather than deleting them to preserve historical context and learnings.
+**Archive completed initiatives** rather than deleting them to preserve historical context and learnings.
 
 ## Common Challenges
 
@@ -246,7 +250,6 @@ Project boards can span multiple repositories, but the `update-project` tool ope
 
 ## Additional Resources
 
-- [Agentic Campaign Workflows Guide](/gh-aw/guides/campaigns/) - Comprehensive campaign pattern documentation
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
 - [Update Project API](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed API reference
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration

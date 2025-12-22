@@ -429,26 +429,64 @@ jobs:
               "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
               "inputSchema": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "properties": {
+                      "content_type": {
+                        "enum": [
+                          "issue",
+                          "pull_request"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "content_type",
+                      "content_number"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "content_type": {
+                        "const": "draft_issue"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "content_type",
+                      "draft_title"
+                    ]
+                  }
+                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
                     "type": "string"
                   },
                   "content_number": {
-                    "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123).",
+                    "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123). Required when content_type is 'issue' or 'pull_request'.",
                     "type": "number"
                   },
                   "content_type": {
-                    "description": "Type of content to add to the project. Must be either 'issue' or 'pull_request'.",
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
                     "enum": [
                       "issue",
-                      "pull_request"
+                      "pull_request",
+                      "draft_issue"
                     ],
                     "type": "string"
                   },
                   "create_if_missing": {
                     "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
                     "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
                   },
                   "fields": {
                     "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
@@ -460,11 +498,6 @@ jobs:
                     "type": "string"
                   }
                 },
-                "required": [
-                  "project",
-                  "content_type",
-                  "content_number"
-                ],
                 "type": "object"
               },
               "name": "update_project"
@@ -9629,7 +9662,7 @@ jobs:
                 } catch (linkError) {
                   (linkError.message && linkError.message.includes("already linked")) || (logGraphQLError(linkError, "Linking project to repository"), core.warning(`Could not link project: ${linkError.message}`));
                 }
-                (core.info("✓ Project linked to repository"), core.info("[4/5] Processing content (issue/PR) if specified..."));
+                (core.info("✓ Project linked to repository"), core.info("[4/5] Processing content (issue/PR/draft) if specified..."));
                 const hasContentNumber = void 0 !== output.content_number && null !== output.content_number,
                   hasIssue = void 0 !== output.issue && null !== output.issue,
                   hasPullRequest = void 0 !== output.pull_request && null !== output.pull_request,
@@ -9646,6 +9679,89 @@ jobs:
                   core.warning(`Multiple content number fields (${descriptor}): ${list}. Using priority content_number > issue > pull_request.`);
                 }
                 (hasIssue && core.warning('Field "issue" deprecated; use "content_number" instead.'), hasPullRequest && core.warning('Field "pull_request" deprecated; use "content_number" instead.'));
+                if ("draft_issue" === output.content_type) {
+                  (values.length > 0 && core.warning('content_number/issue/pull_request is ignored when content_type is "draft_issue".'));
+                  const draftTitle = "string" == typeof output.draft_title ? output.draft_title.trim() : "";
+                  if (!draftTitle) throw new Error('Invalid draft_title. When content_type is "draft_issue", draft_title is required and must be a non-empty string.');
+                  const draftBody = "string" == typeof output.draft_body ? output.draft_body : void 0;
+                  const itemId = (
+                    await github.graphql(
+                      "mutation($projectId: ID!, $title: String!, $body: String) {\n          addProjectV2DraftIssue(input: {\n            projectId: $projectId,\n            title: $title,\n            body: $body\n          }) {\n            projectItem {\n              id\n            }\n          }\n        }",
+                      { projectId, title: draftTitle, body: draftBody }
+                    )
+                  ).addProjectV2DraftIssue.projectItem.id;
+                  const fieldsToUpdate = output.fields ? { ...output.fields } : {};
+                  if (Object.keys(fieldsToUpdate).length > 0) {
+                    const projectFields = (
+                      await github.graphql(
+                        "query($projectId: ID!) {\n            node(id: $projectId) {\n              ... on ProjectV2 {\n                fields(first: 20) {\n                  nodes {\n                    ... on ProjectV2Field {\n                      id\n                      name\n                      dataType\n                    }\n                    ... on ProjectV2SingleSelectField {\n                      id\n                      name\n                      dataType\n                      options {\n                        id\n                        name\n                        color\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }",
+                        { projectId }
+                      )
+                    ).node.fields.nodes;
+                    for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
+                      const normalizedFieldName = fieldName
+                        .split(/[\s_-]+/)
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .join(" ");
+                      let valueToSet,
+                        field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+                      if (!field)
+                        if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+                          try {
+                            field = (
+                              await github.graphql(
+                                "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
+                                { projectId, name: normalizedFieldName, dataType: "TEXT" }
+                              )
+                            ).createProjectV2Field.projectV2Field;
+                          } catch (createError) {
+                            core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                            continue;
+                          }
+                        else
+                          try {
+                            field = (
+                              await github.graphql(
+                                "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
+                                { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                              )
+                            ).createProjectV2Field.projectV2Field;
+                          } catch (createError) {
+                            core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                            continue;
+                          }
+                      if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
+                      else if (field.options) {
+                        let option = field.options.find(o => o.name === fieldValue);
+                        if (!option)
+                          try {
+                            const allOptions = [...field.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(fieldValue), description: "", color: "GRAY" }],
+                              updatedField = (
+                                await github.graphql(
+                                  "mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    updateProjectV2Field(input: {\n                      fieldId: $fieldId,\n                      name: $fieldName,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          options {\n                            id\n                            name\n                          }\n                        }\n                      }\n                    }\n                  }",
+                                  { fieldId: field.id, fieldName: field.name, options: allOptions }
+                                )
+                              ).updateProjectV2Field.projectV2Field;
+                            ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
+                          } catch (createError) {
+                            core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
+                            continue;
+                          }
+                        if (!option) {
+                          core.warning(`Could not get option ID for "${fieldValue}" in field "${fieldName}"`);
+                          continue;
+                        }
+                        valueToSet = { singleSelectOptionId: option.id };
+                      } else valueToSet = { text: String(fieldValue) };
+                      await github.graphql(
+                        "mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {\n              updateProjectV2ItemFieldValue(input: {\n                projectId: $projectId,\n                itemId: $itemId,\n                fieldId: $fieldId,\n                value: $value\n              }) {\n                projectV2Item {\n                  id\n                }\n              }\n            }",
+                        { projectId, itemId, fieldId: field.id, value: valueToSet }
+                      );
+                    }
+                  }
+                  core.setOutput("item-id", itemId);
+                  return;
+                }
                 let contentNumber = null;
                 if (hasContentNumber || hasIssue || hasPullRequest) {
                   const rawContentNumber = hasContentNumber ? output.content_number : hasIssue ? output.issue : output.pull_request,
