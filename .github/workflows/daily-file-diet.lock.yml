@@ -54,7 +54,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@f3dba14
+        uses: githubnext/gh-aw/actions/setup-activation@50bc698
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -7298,7 +7298,7 @@ jobs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@f3dba14
+        uses: githubnext/gh-aw/actions/setup-activation@50bc698
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow

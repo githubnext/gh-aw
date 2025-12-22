@@ -33,7 +33,6 @@ name: "Daily News"
 "on":
   schedule:
   - cron: "0 9 * * 1-5"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
@@ -53,7 +52,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Activation Scripts
-        uses: githubnext/gh-aw/actions/setup-activation@f3dba14
+        uses: githubnext/gh-aw/actions/setup-activation@50bc698
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps

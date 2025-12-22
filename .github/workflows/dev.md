@@ -1,8 +1,13 @@
 ---
 on: 
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to read
+        required: true
+        type: string
 name: Dev
-description: Test upload-asset with Python graph generation
+description: Read an issue and post a poem about it
 timeout-minutes: 5
 strict: true
 engine: copilot
@@ -11,38 +16,23 @@ permissions:
   contents: read
   issues: read
 
-sandbox:
-  mcp:
-    port: 8080
-
 tools:
   github:
     toolsets: [issues]
 
 safe-outputs:
-  upload-asset:
-    allowed-exts: [".png", ".jpg"]
-    max: 5
-  create-issue:
-    title-prefix: "[Dev Test] "
+  staged: true
+  add-comment:
     max: 1
-
-imports:
-  - shared/gh.md
-  - shared/python-dataviz.md
 ---
 
-# Test Upload Asset with Python Graph Generation
+# Read Issue and Post Poem
 
-Create a dummy graph using Python and matplotlib, then upload it as an asset.
+Read a single issue and post a poem about it as a comment in staged mode.
 
 **Requirements:**
-1. Use Python to create a simple graph (e.g., a sine wave or bar chart) using matplotlib
-2. Save the graph as a PNG file to /tmp/graph.png
-3. Use the `upload_asset` tool to upload the graph
-4. The tool should return a URL where the graph can be accessed
-5. Create an issue that includes the graph using markdown image syntax
-6. Verify that:
-   - The graph file was created successfully
-   - The asset was uploaded and a URL was returned
-   - The issue was created with the embedded graph image
+1. Read the issue specified by the `issue_number` input
+2. Understand the issue's title, body, and context
+3. Write a creative poem inspired by the issue content
+4. Post the poem as a comment on the issue using `create_issue_comment` in staged mode
+5. The poem should be relevant, creative, and engaging
