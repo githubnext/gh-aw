@@ -56,6 +56,19 @@ func parseVersion(v string) *semanticVersion {
 	return ver
 }
 
+// isPreciseVersion returns true if this version has explicit minor and patch components
+// For example, "v6.0.0" is precise, but "v6" is not
+func (v *semanticVersion) isPreciseVersion() bool {
+	// Check if raw version has at least two dots (major.minor.patch format)
+	// or at least one dot for major.minor format
+	// "v6" -> not precise
+	// "v6.0" -> somewhat precise (has minor)
+	// "v6.0.0" -> precise (has minor and patch)
+	versionPart := strings.TrimPrefix(v.raw, "v")
+	dotCount := strings.Count(versionPart, ".")
+	return dotCount >= 2 // Require at least major.minor.patch
+}
+
 // isNewer returns true if this version is newer than the other
 func (v *semanticVersion) isNewer(other *semanticVersion) bool {
 	if v.major != other.major {
