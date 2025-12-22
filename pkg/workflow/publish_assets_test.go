@@ -16,7 +16,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 		{
 			name: "upload-asset config with custom values",
 			input: map[string]any{
-				"upload-assets": map[string]any{
+				"upload-asset": map[string]any{
 					"branch":       "my-assets/${{ github.event.repository.name }}",
 					"max-size":     5120,
 					"allowed-exts": []any{".jpg", ".png", ".txt"},
@@ -33,7 +33,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 		{
 			name: "upload-asset config with max",
 			input: map[string]any{
-				"upload-assets": map[string]any{
+				"upload-asset": map[string]any{
 					"max": 5,
 				},
 			},

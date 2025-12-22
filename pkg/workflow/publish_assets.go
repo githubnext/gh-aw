@@ -19,8 +19,8 @@ type UploadAssetsConfig struct {
 
 // parseUploadAssetConfig handles upload-asset configuration
 func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAssetsConfig {
-	if configData, exists := outputMap["upload-assets"]; exists {
-		publishAssetsLog.Print("Parsing upload-assets configuration")
+	if configData, exists := outputMap["upload-asset"]; exists {
+		publishAssetsLog.Print("Parsing upload-asset configuration")
 		config := &UploadAssetsConfig{
 			BranchName: "assets/${{ github.workflow }}", // Default branch name
 			MaxSizeKB:  10240,                           // Default 10MB
@@ -64,10 +64,10 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 
 			// Parse common base fields with default max of 0 (no limit)
 			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 0)
-			publishAssetsLog.Printf("Parsed upload-assets config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
+			publishAssetsLog.Printf("Parsed upload-asset config: branch=%s, max_size_kb=%d, allowed_exts=%d", config.BranchName, config.MaxSizeKB, len(config.AllowedExts))
 		} else if configData == nil {
 			// Handle null case: create config with defaults
-			publishAssetsLog.Print("Using default upload-assets configuration")
+			publishAssetsLog.Print("Using default upload-asset configuration")
 			return config
 		}
 

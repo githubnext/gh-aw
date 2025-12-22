@@ -76,13 +76,16 @@ async function main() {
     return;
   }
 
-  // Find all upload-assets items
-  const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_assets");
+  // Find all upload-asset items (singular is the standard)
+  const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
 
-  // Also check for legacy upload-asset items
-  const uploadAssetItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
+  // Handle legacy upload-assets (plural, hyphenated) with warning
+  const legacyUploadAssetsItems = result.items.filter(/** @param {any} item */ item => item.type === "upload-assets");
+  if (legacyUploadAssetsItems.length > 0) {
+    core.warning(`Found ${legacyUploadAssetsItems.length} item(s) with legacy type "upload-assets" (plural). This type is deprecated. Use "upload_asset" (singular) instead.`);
+  }
 
-  const allUploadItems = [...uploadItems, ...uploadAssetItems];
+  const allUploadItems = [...uploadItems, ...legacyUploadAssetsItems];
 
   if (allUploadItems.length === 0) {
     core.info("No upload-asset items found in agent output");
