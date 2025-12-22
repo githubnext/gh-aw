@@ -62,7 +62,7 @@ jobs:
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_WORKFLOW_FILE: "poem-bot.lock.yml"
         with:
@@ -148,7 +148,7 @@ jobs:
             });
       - name: Compute current body text
         id: compute-text
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const redactedDomains = [];
@@ -479,7 +479,7 @@ jobs:
       - name: Add eyes reaction to the triggering item
         id: react
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_REACTION: "eyes"
           GH_AW_COMMAND: poem-bot
@@ -938,7 +938,7 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -2905,36 +2905,36 @@ jobs:
             const fs = require("fs");
             function loadTools(server) {
               const toolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || "/tmp/gh-aw/safeoutputs/tools.json";
-              let ALL_TOOLS = [];
               server.debug(`Reading tools from file: ${toolsPath}`);
+              if (!fs.existsSync(toolsPath)) {
+                server.debug(`Tools file does not exist at: ${toolsPath}`);
+                server.debug(`Using empty tools array`);
+                return [];
+              }
               try {
-                if (fs.existsSync(toolsPath)) {
-                  server.debug(`Tools file exists at: ${toolsPath}`);
-                  const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
-                  server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
-                  server.debug(`Tools file read successfully, attempting to parse JSON`);
-                  ALL_TOOLS = JSON.parse(toolsFileContent);
-                  server.debug(`Successfully parsed ${ALL_TOOLS.length} tools from file`);
-                } else {
-                  server.debug(`Tools file does not exist at: ${toolsPath}`);
-                  server.debug(`Using empty tools array`);
-                  ALL_TOOLS = [];
-                }
+                server.debug(`Tools file exists at: ${toolsPath}`);
+                const toolsFileContent = fs.readFileSync(toolsPath, "utf8");
+                server.debug(`Tools file content length: ${toolsFileContent.length} characters`);
+                server.debug(`Tools file read successfully, attempting to parse JSON`);
+                const tools = JSON.parse(toolsFileContent);
+                server.debug(`Successfully parsed ${tools.length} tools from file`);
+                return tools;
               } catch (error) {
                 server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
                 server.debug(`Falling back to empty tools array`);
-                ALL_TOOLS = [];
+                return [];
               }
-              return ALL_TOOLS;
             }
             function attachHandlers(tools, handlers) {
+              const handlerMap = {
+                create_pull_request: handlers.createPullRequestHandler,
+                push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
+                upload_asset: handlers.uploadAssetHandler,
+              };
               tools.forEach(tool => {
-                if (tool.name === "create_pull_request") {
-                  tool.handler = handlers.createPullRequestHandler;
-                } else if (tool.name === "push_to_pull_request_branch") {
-                  tool.handler = handlers.pushToPullRequestBranchHandler;
-                } else if (tool.name === "upload_asset") {
-                  tool.handler = handlers.uploadAssetHandler;
+                const handler = handlerMap[tool.name];
+                if (handler) {
+                  tool.handler = handler;
                 }
               });
               return tools;
@@ -2949,57 +2949,50 @@ jobs:
             function registerDynamicTools(server, tools, config, outputFile, registerTool, normalizeTool) {
               Object.keys(config).forEach(configKey => {
                 const normalizedKey = normalizeTool(configKey);
-                if (server.tools[normalizedKey]) {
+                if (server.tools[normalizedKey] || tools.find(t => t.name === normalizedKey)) {
                   return;
                 }
-                if (!tools.find(t => t.name === normalizedKey)) {
-                  const jobConfig = config[configKey];
-                  const dynamicTool = {
-                    name: normalizedKey,
-                    description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
-                    inputSchema: {
-                      type: "object",
-                      properties: {},
-                      additionalProperties: true, 
-                    },
-                    handler: args => {
-                      const entry = {
-                        type: normalizedKey,
-                        ...args,
-                      };
-                      const entryJSON = JSON.stringify(entry);
-                      fs.appendFileSync(outputFile, entryJSON + "\n");
-                      const outputText = jobConfig && jobConfig.output ? jobConfig.output : `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
-                      return {
-                        content: [
-                          {
-                            type: "text",
-                            text: JSON.stringify({ result: outputText }),
-                          },
-                        ],
-                      };
-                    },
-                  };
-                  if (jobConfig && jobConfig.inputs) {
-                    dynamicTool.inputSchema.properties = {};
-                    dynamicTool.inputSchema.required = [];
-                    Object.keys(jobConfig.inputs).forEach(inputName => {
-                      const inputDef = jobConfig.inputs[inputName];
-                      const propSchema = {
-                        type: inputDef.type || "string",
-                        description: inputDef.description || `Input parameter: ${inputName}`,
-                      };
-                      if (inputDef.options && Array.isArray(inputDef.options)) {
-                        propSchema.enum = inputDef.options;
-                      }
-                      dynamicTool.inputSchema.properties[inputName] = propSchema;
-                      if (inputDef.required) {
-                        dynamicTool.inputSchema.required.push(inputName);
-                      }
-                    });
-                  }
-                  registerTool(server, dynamicTool);
+                const jobConfig = config[configKey];
+                const dynamicTool = {
+                  name: normalizedKey,
+                  description: jobConfig?.description ?? `Custom safe-job: ${configKey}`,
+                  inputSchema: {
+                    type: "object",
+                    properties: {},
+                    additionalProperties: true, 
+                  },
+                  handler: args => {
+                    const entry = { type: normalizedKey, ...args };
+                    fs.appendFileSync(outputFile, `${JSON.stringify(entry)}\n`);
+                    const outputText = jobConfig?.output ?? `Safe-job '${configKey}' executed successfully with arguments: ${JSON.stringify(args)}`;
+                    return {
+                      content: [{ type: "text", text: JSON.stringify({ result: outputText }) }],
+                    };
+                  },
+                };
+                if (jobConfig?.inputs) {
+                  dynamicTool.inputSchema.properties = {};
+                  dynamicTool.inputSchema.required = [];
+                  Object.keys(jobConfig.inputs).forEach(inputName => {
+                    const inputDef = jobConfig.inputs[inputName];
+                    let jsonSchemaType = inputDef.type || "string";
+                    if (jsonSchemaType === "choice") {
+                      jsonSchemaType = "string";
+                    }
+                    const propSchema = {
+                      type: jsonSchemaType,
+                      description: inputDef.description || `Input parameter: ${inputName}`,
+                    };
+                    if (Array.isArray(inputDef.options)) {
+                      propSchema.enum = inputDef.options;
+                    }
+                    dynamicTool.inputSchema.properties[inputName] = propSchema;
+                    if (inputDef.required) {
+                      dynamicTool.inputSchema.required.push(inputName);
+                    }
+                  });
                 }
+                registerTool(server, dynamicTool);
               });
             }
             module.exports = {
@@ -3112,7 +3105,7 @@ jobs:
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Generate agentic run info
         id: generate_aw_info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const fs = require('fs');
@@ -3155,7 +3148,7 @@ jobs:
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
       - name: Generate workflow overview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const fs = require('fs');
@@ -3250,7 +3243,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -3378,7 +3371,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, add_labels, close_pull_request, create_agent_task, create_discussion, create_issue, create_pull_request, create_pull_request_review_comment, link_sub_issue, missing_tool, noop, push_to_pull_request_branch, update_issue, upload_assets
+          **Available tools**: add_comment, add_labels, close_pull_request, create_agent_task, create_discussion, create_issue, create_pull_request, create_pull_request_review_comment, link_sub_issue, missing_tool, noop, push_to_pull_request_branch, update_issue, upload_asset
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -3427,7 +3420,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -3496,7 +3489,7 @@ jobs:
           
           PROMPT_EOF
       - name: Interpolate variables and render templates
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -3733,7 +3726,7 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const fs = require("fs");
@@ -3856,7 +3849,7 @@ jobs:
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
@@ -5112,7 +5105,7 @@ jobs:
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
@@ -6597,7 +6590,7 @@ jobs:
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             function sanitizeWorkflowName(name) {
@@ -6769,7 +6762,7 @@ jobs:
           if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
@@ -7018,6 +7011,7 @@ jobs:
       - detection
       - safe_outputs
       - update_cache_memory
+      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -7054,7 +7048,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
@@ -7147,7 +7141,7 @@ jobs:
             await main();
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
@@ -7255,7 +7249,7 @@ jobs:
             });
       - name: Update reaction comment with completion status
         id: conclusion
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -7551,7 +7545,7 @@ jobs:
         run: |
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           WORKFLOW_DESCRIPTION: "Generates creative poems on specified themes when invoked with /poem-bot command"
@@ -7729,7 +7723,7 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const fs = require('fs');
@@ -7784,7 +7778,7 @@ jobs:
     steps:
       - name: Check team membership for command workflow
         id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
@@ -7927,7 +7921,7 @@ jobs:
             await main();
       - name: Check command position
         id: check_command_position
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_COMMAND: poem-bot
         with:
@@ -7995,9 +7989,6 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "gpt-5"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -10971,7 +10962,7 @@ jobs:
       - name: Create Issue
         id: create_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
@@ -11272,7 +11263,7 @@ jobs:
       - name: Create Discussion
         id: create_discussion
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -11576,7 +11567,7 @@ jobs:
       - name: Create Pull Request
         id: create_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
@@ -12085,7 +12076,7 @@ jobs:
       - name: Add Comment
         id: add_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_TARGET: "*"
@@ -12501,7 +12492,7 @@ jobs:
       - name: Close Pull Request
         id: close_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'close_pull_request'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -12554,7 +12545,7 @@ jobs:
       - name: Create PR Review Comment
         id: create_pr_review_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
@@ -12765,7 +12756,7 @@ jobs:
       - name: Add Labels
         id: add_labels
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
@@ -12888,7 +12879,7 @@ jobs:
       - name: Update Issue
         id: update_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_issue'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -12952,7 +12943,7 @@ jobs:
       - name: Push To Pull Request Branch
         id: push_to_pull_request_branch
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
@@ -13269,147 +13260,10 @@ jobs:
               await core.summary.addRaw(summaryContent).write();
             }
             (async () => { await main(); })();
-      - name: Upload Assets
-        id: upload_assets
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const fs = require("fs");
-            const path = require("path");
-            const crypto = require("crypto");
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            function normalizeBranchName(branchName) {
-              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-                return branchName;
-              }
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              return normalized;
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GH_AW_ASSETS_BRANCH;
-              if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
-                return;
-              }
-              const normalizedBranchName = normalizeBranchName(branchName);
-              core.info(`Using assets branch: ${normalizedBranchName}`);
-              const result = loadAgentOutput();
-              if (!result.success) {
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              const uploadItems = result.items.filter( item => item.type === "upload_assets");
-              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
-              const allUploadItems = [...uploadItems, ...uploadAssetItems];
-              if (allUploadItems.length === 0) {
-                core.info("No upload-asset items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
-              let uploadCount = 0;
-              let hasChanges = false;
-              try {
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
-                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
-                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
-                } catch (originError) {
-                  if (!normalizedBranchName.startsWith("assets/")) {
-                    core.setFailed(
-                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
-                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
-                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
-                    );
-                    return;
-                  }
-                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
-                  await exec.exec(`git rm -rf .`);
-                  await exec.exec(`git clean -fdx`);
-                }
-                for (const asset of uploadAssetItems) {
-                  try {
-                    const { fileName, sha, size, targetFileName } = asset;
-                    if (!fileName || !sha || !targetFileName) {
-                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-                      continue;
-                    }
-                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
-                    if (!fs.existsSync(assetSourcePath)) {
-                      core.warning(`Asset file not found: ${assetSourcePath}`);
-                      continue;
-                    }
-                    const fileContent = fs.readFileSync(assetSourcePath);
-                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                    if (computedSha !== sha) {
-                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-                      continue;
-                    }
-                    if (fs.existsSync(targetFileName)) {
-                      core.info(`Asset ${targetFileName} already exists, skipping`);
-                      continue;
-                    }
-                    fs.copyFileSync(assetSourcePath, targetFileName);
-                    await exec.exec(`git add "${targetFileName}"`);
-                    uploadCount++;
-                    hasChanges = true;
-                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
-                  } catch (error) {
-                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
-                  }
-                }
-                if (hasChanges) {
-                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
-                  if (isStaged) {
-                    core.summary.addRaw("## Staged Asset Publication");
-                  } else {
-                    await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
-                  }
-                  for (const asset of uploadAssetItems) {
-                    if (asset.fileName && asset.sha && asset.size && asset.url) {
-                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-                    }
-                  }
-                  core.summary.write();
-                } else {
-                  core.info("No new assets to upload");
-                }
-              } catch (error) {
-                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", normalizedBranchName);
-            }
-            (async () => { await main(); })();
       - name: Link Sub Issue
         id: link_sub_issue
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'link_sub_issue'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
@@ -13724,7 +13578,7 @@ jobs:
       - name: Create Agent Task
         id: create_agent_task
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_agent_task'))
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -13881,4 +13735,233 @@ jobs:
         with:
           key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safeoutputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_ENGINE_ID: "copilot"
+          GH_AW_ENGINE_MODEL: "gpt-5"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            const MAX_LOG_CONTENT_LENGTH = 10000;
+            function truncateForLogging(content) {
+              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
+                return content;
+              }
+              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
+            }
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.error(errorMessage);
+                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadItems = result.items.filter( item => item.type === "upload_asset");
+              if (uploadItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${uploadItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  if (!normalizedBranchName.startsWith("assets/")) {
+                    core.setFailed(
+                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
+                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
+                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
+                    );
+                    return;
+                  }
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
+            }
+            await main();
 

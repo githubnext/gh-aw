@@ -34,7 +34,7 @@ tools:
     - "pwd*"     # Print working directory
     - "cd*"      # Change directory
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-issue:
 
 network:

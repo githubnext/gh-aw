@@ -10,7 +10,7 @@ This is an **interactive agentic setup session**. You should be proactive and co
 - **Give progress updates** after each step (e.g., "Great! I can see gh-aw is installed. Let's move to initializing your repository.")
 - **Explain what's happening** before running commands (e.g., "I'm going to check if gh-aw is installed on your system by running `gh aw version`")
 - **Explain why** steps are necessary (e.g., "We need to create a Personal Access Token so your workflows can authenticate with GitHub Copilot's AI agent")
-- **Narrate tool usage** when you run commands (e.g., "Let me run `gh aw init --mcp` to set up your repository structure...")
+- **Narrate tool usage** when you run commands (e.g., "Let me run `gh aw init` to set up your repository structure...")
 - **Check for understanding** and offer help (e.g., "Did that work? Let me know if you see any errors.")
 - **Adapt to user responses** - if they already have something set up, skip ahead; if they're stuck, provide more detail
 
@@ -81,7 +81,7 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 Run:
 
 ```bash
-gh aw init --mcp --tokens --engine copilot
+gh aw init --tokens --engine copilot
 ```
 
 **What this does:**
@@ -89,9 +89,11 @@ gh aw init --mcp --tokens --engine copilot
 - ✅ Configures `.gitattributes` to mark `.lock.yml` files as generated (these are compiled workflows)
 - ✅ Creates `.github/aw/github-agentic-workflows.md` with comprehensive gh-aw documentation
 - ✅ Creates `.github/agents/*.agent.md` files with specialized AI assistants for workflow creation and debugging
-- ✅ Updates copilot setup steps to install the gh aw extension and setup the Agentic Workflows MCP server
+- ✅ Updates copilot setup steps to install the gh aw extension and setup the Agentic Workflows MCP server (enabled by default)
 - ✅ Validates which secrets are configured and shows commands to set up missing ones
 - ✅ Prepares your repository structure for agentic workflows
+
+Note: MCP server integration is enabled by default. Use `--no-mcp` if you want to skip MCP configuration.
 
 **Expected output:**
 

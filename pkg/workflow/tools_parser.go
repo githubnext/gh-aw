@@ -431,6 +431,9 @@ func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 		Port: DefaultMCPGatewayPort,
 	}
 
+	if command, ok := configMap["command"].(string); ok {
+		config.Command = command
+	}
 	if container, ok := configMap["container"].(string); ok {
 		config.Container = container
 	}

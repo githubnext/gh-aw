@@ -5,7 +5,7 @@ permissions: read-all
 engine: claude
 safe-outputs:
   staged: true
-  upload-assets:
+  upload-asset:
   create-issue:
     title-prefix: "[test] "
 tools:

@@ -1977,10 +1977,14 @@
               "description": "MCP Gateway configuration for routing MCP server calls through a unified HTTP gateway. Requires the 'mcp-gateway' feature flag to be enabled.",
               "type": "object",
               "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Custom command to execute the MCP gateway (mutually exclusive with 'container')"
+                },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-                  "description": "Container image for the MCP gateway executable"
+                  "description": "Container image for the MCP gateway executable (mutually exclusive with 'command')"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -1992,14 +1996,14 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments for container execution"
+                  "description": "Arguments for command or docker run"
                 },
                 "entrypointArgs": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments to add after the container image (container entrypoint arguments)"
+                  "description": "Arguments to add after the container image (container entrypoint arguments, only valid with 'container')"
                 },
                 "env": {
                   "type": "object",
@@ -2023,7 +2027,6 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "required": ["container"],
               "additionalProperties": false
             }
           },
@@ -4197,7 +4200,7 @@
             }
           ]
         },
-        "upload-assets": {
+        "upload-asset": {
           "oneOf": [
             {
               "type": "object",

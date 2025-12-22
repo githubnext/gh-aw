@@ -64,7 +64,6 @@ features:
 
 sandbox:
   mcp:
-    container: "ghcr.io/your-org/mcp-gateway"
     port: 8080
     api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
 ```
@@ -80,7 +79,6 @@ features:
 sandbox:
   agent: awf
   mcp:
-    container: "ghcr.io/your-org/mcp-gateway"
     port: 8080
 ```
 
@@ -227,24 +225,34 @@ The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enab
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `container` | `string` | Yes | Container image for the MCP gateway |
+| `command` | `string` | No | Custom command to execute (mutually exclusive with `container`) |
+| `container` | `string` | No | Container image for the MCP gateway (mutually exclusive with `command`) |
 | `version` | `string` | No | Version tag for the container image |
 | `port` | `integer` | No | HTTP server port (default: 8080) |
 | `api-key` | `string` | No | API key for gateway authentication |
-| `args` | `string[]` | No | Container execution arguments |
-| `entrypointArgs` | `string[]` | No | Container entrypoint arguments |
+| `args` | `string[]` | No | Command/container execution arguments |
+| `entrypointArgs` | `string[]` | No | Container entrypoint arguments (only valid with `container`) |
 | `env` | `object` | No | Environment variables for the gateway |
+
+:::note[Execution Modes]
+The MCP gateway supports three execution modes:
+1. **Custom command** - Use `command` field to specify a custom binary or script
+2. **Container** - Use `container` field for Docker-based execution
+3. **Default** - If neither `command` nor `container` is specified, uses the standalone `awmg` binary
+
+The `command` and `container` fields are mutually exclusive - only one can be specified.
+:::
 
 ### How It Works
 
 When MCP gateway is enabled:
 
-1. A Docker container runs the gateway in the background
+1. The gateway starts using one of three execution modes (command, container, or default awmg binary)
 2. A health check verifies the gateway is ready
 3. All MCP server configurations are transformed to route through the gateway
-4. The gateway receives server configs via stdin in JSON format
+4. The gateway receives server configs via a configuration file
 
-### Example with Full Configuration
+### Example: Default Mode (awmg binary)
 
 ```yaml wrap
 features:
@@ -252,13 +260,38 @@ features:
 
 sandbox:
   mcp:
-    container: "ghcr.io/githubnext/mcp-gateway"
-    version: "v1.0.0"
-    port: 9000
+    port: 8080
     api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
+```
+
+### Example: Custom Command Mode
+
+```yaml wrap
+features:
+  mcp-gateway: true
+
+sandbox:
+  mcp:
+    command: "/usr/local/bin/mcp-gateway"
+    args: ["--port", "9000", "--verbose"]
     env:
       LOG_LEVEL: "debug"
-    args: ["-v"]
+```
+
+### Example: Container Mode
+
+```yaml wrap
+features:
+  mcp-gateway: true
+
+sandbox:
+  mcp:
+    container: "ghcr.io/githubnext/gh-aw-mcpg:latest"
+    args: ["--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
+    entrypointArgs: ["--routed", "--listen", "0.0.0.0:8000", "--config-stdin"]
+    port: 8000
+    env:
+      DOCKER_API_VERSION: "1.44"
 ```
 
 ## Legacy Format

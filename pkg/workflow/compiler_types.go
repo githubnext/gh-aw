@@ -295,7 +295,7 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	UpdatePullRequests              *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
-	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
+	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
 	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`    // Update GitHub release descriptions
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)

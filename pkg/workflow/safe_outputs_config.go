@@ -130,7 +130,7 @@ func GetEnabledSafeOutputToolNames(safeOutputs *SafeOutputsConfig) []string {
 		tools = append(tools, "push_to_pull_request_branch")
 	}
 	if safeOutputs.UploadAssets != nil {
-		tools = append(tools, "upload_assets")
+		tools = append(tools, "upload_asset")
 	}
 	if safeOutputs.UpdateRelease != nil {
 		tools = append(tools, "update_release")

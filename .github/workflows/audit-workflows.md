@@ -19,7 +19,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     category: "audits"
     max: 1

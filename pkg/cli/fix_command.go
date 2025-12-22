@@ -30,7 +30,7 @@ func RunFix(config FixConfig) error {
 // NewFixCommand creates the fix command
 func NewFixCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fix [workflow-id]...",
+		Use:   "fix [workflow]...",
 		Short: "Apply automatic codemod-style fixes to agentic workflow files",
 		Long: `Apply automatic codemod-style fixes to agentic workflow Markdown files.
 

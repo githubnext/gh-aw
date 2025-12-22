@@ -69,7 +69,7 @@ safe-outputs:
     draft: true
   add-comment:
     max: 1
-  upload-assets:
+  upload-asset:
   messages:
     footer: "> 🗜️ *Compressed by [{workflow_name}]({run_url})*"
     run-started: "📦 Time to slim down! [{workflow_name}]({run_url}) is trimming the excess from this {event_type}..."

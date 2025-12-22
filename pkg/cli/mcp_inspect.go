@@ -873,7 +873,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 	var checkSecrets bool
 
 	cmd := &cobra.Command{
-		Use:   "inspect [workflow-id-or-file]",
+		Use:   "inspect [workflow]",
 		Short: "Inspect MCP servers and list available tools, resources, and roots",
 		Long: `Inspect MCP servers used by a workflow and display available tools, resources, and roots.
 
