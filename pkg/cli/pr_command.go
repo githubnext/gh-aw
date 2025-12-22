@@ -58,7 +58,7 @@ Available subcommands:
 // NewPRTransferSubcommand creates the pr transfer subcommand
 func NewPRTransferSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "transfer <pull-request-url>",
+		Use:   "transfer <pr-url>",
 		Short: "Transfer a pull request to another repository",
 		Long: `Transfer a pull request from one repository to another.
 

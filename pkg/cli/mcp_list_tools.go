@@ -165,7 +165,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 // NewMCPListToolsSubcommand creates the mcp list-tools subcommand
 func NewMCPListToolsSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list-tools <mcp-server> [workflow-id-or-file]",
+		Use:   "list-tools <server> [workflow]",
 		Short: "List available tools for a specific MCP server",
 		Long: `List available tools for a specific MCP server.
 
