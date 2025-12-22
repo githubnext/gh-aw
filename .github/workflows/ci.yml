@@ -324,7 +324,7 @@ jobs:
       - name: Run tests
         run: cd pkg/workflow/js && npm test
   bench:
-    needs: [test]
+    needs: [lint-go, lint-js]
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -499,7 +499,7 @@ jobs:
         run: make actions-validate
 
   fuzz:
-    needs: [test]
+    needs: [lint-go, lint-js]
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
