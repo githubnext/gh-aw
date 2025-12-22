@@ -37,10 +37,10 @@ gh aw mcp-server --port 8080
 Configure GitHub Copilot Agent to use gh-aw MCP server:
 
 ```bash wrap
-gh aw init --mcp
+gh aw init
 ```
 
-This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub CLI, and gh-aw extension before agent sessions start, making workflow management tools available to the agent.
+This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub CLI, and gh-aw extension before agent sessions start, making workflow management tools available to the agent. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
 
 ## Configuring with Copilot CLI
 
@@ -55,10 +55,10 @@ Add the MCP server to GitHub Copilot CLI:
 Configure VS Code Copilot Chat to use gh-aw MCP server:
 
 ```bash wrap
-gh aw init --mcp
+gh aw init
 ```
 
-This creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml`.
+This creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml`. MCP server integration is enabled by default. Use `gh aw init --no-mcp` to skip MCP configuration.
 
 Alternatively, create `.vscode/mcp.json` manually:
 
