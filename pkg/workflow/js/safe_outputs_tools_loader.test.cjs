@@ -26,7 +26,7 @@ describe("safe_outputs_tools_loader", () => {
       }
       const testDir = path.dirname(testToolsPath);
       if (fs.existsSync(testDir)) {
-        fs.rmdirSync(testDir, { recursive: true });
+        fs.rmSync(testDir, { recursive: true, force: true });
       }
     } catch (error) {
       // Ignore cleanup errors
@@ -80,7 +80,7 @@ describe("safe_outputs_tools_loader", () => {
         fs.unlinkSync(defaultPath);
       }
       if (fs.existsSync(defaultDir)) {
-        fs.rmdirSync(defaultDir, { recursive: true });
+        fs.rmSync(defaultDir, { recursive: true, force: true });
       }
 
       const result = loadTools(mockServer);
