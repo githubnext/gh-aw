@@ -1,5 +1,4 @@
 //go:build tools
-// +build tools
 
 // Package tools tracks build-time tool dependencies.
 // Import tools here with blank imports to include them in go.mod.
