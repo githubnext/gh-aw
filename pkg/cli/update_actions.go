@@ -104,8 +104,6 @@ func UpdateActions(allowMajor, verbose bool) error {
 
 	// Show summary
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Actions Update Summary ==="))
-	fmt.Fprintln(os.Stderr, "")
 
 	if len(updatedActions) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(updatedActions))))

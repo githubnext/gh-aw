@@ -10,8 +10,6 @@ import (
 // showUpdateSummary displays a summary of workflow updates using console helpers
 func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure) {
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Update Summary ==="))
-	fmt.Fprintln(os.Stderr, "")
 
 	// Show successful updates
 	if len(successfulUpdates) > 0 {
@@ -26,7 +24,7 @@ func showUpdateSummary(successfulUpdates []string, failedUpdates []updateFailure
 	if len(failedUpdates) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to update %d workflow(s):", len(failedUpdates))))
 		for _, failure := range failedUpdates {
-			fmt.Fprintf(os.Stderr, "  %s %s: %s\n", console.FormatErrorMessage("✗"), failure.Name, failure.Error)
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", failure.Name, failure.Error)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
