@@ -111,7 +111,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.github.rest.pulls.create.mockResolvedValue({ data: mockPullRequest });
       const mainFunction = createMainFunction(mockDependencies);
       (await mainFunction(),
-        expect(global.exec.exec).toHaveBeenCalledWith("git fetch origin"),
+        expect(global.exec.exec).toHaveBeenCalledWith("git fetch origin main"),
         expect(global.exec.exec).toHaveBeenCalledWith("git checkout main"),
         expect(global.exec.exec).toHaveBeenCalledWith("git checkout -b test-workflow-1234567890abcdef"),
         expect(global.exec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch"),

@@ -111,7 +111,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			if !data.StrictMode {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 					actionRepo, version, actionRepo, pin.Version)
-				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 			break
@@ -124,7 +124,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if data.ActionResolver != nil {
 			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
 		}
-		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
@@ -133,7 +133,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	if data.ActionResolver != nil {
 		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
 	}
-	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	return "", nil
 }
 

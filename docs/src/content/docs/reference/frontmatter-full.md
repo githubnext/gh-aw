@@ -68,7 +68,8 @@ imports: []
 
 # Option 1: Simple trigger event name (e.g., 'push', 'issues', 'pull_request',
 # 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch',
-# 'workflow_call')
+# 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command
+# shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)
 on: "example-value"
 
 # Option 2: Complex trigger configuration with event-specific filters and options
@@ -1151,7 +1152,13 @@ engine:
   # control costs. Has sensible defaults and can typically be omitted. Note: Only
   # supported by the claude engine.
   # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Maximum number of chat iterations per run as an integer value
   max-turns: 1
+
+  # Option 2: Maximum number of chat iterations per run as a string value
+  max-turns: "example-value"
 
   # Agent job concurrency configuration. Defaults to single job per engine across
   # all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions

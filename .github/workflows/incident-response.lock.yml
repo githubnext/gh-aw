@@ -9545,8 +9545,13 @@ jobs:
               core.info(`Generated branch name: ${branchName}`);
               core.info(`Base branch: ${baseBranch}`);
               core.info(`Fetching base branch: ${baseBranch}`);
-              await exec.exec(`git fetch origin ${baseBranch}:${baseBranch}`);
-              await exec.exec(`git checkout ${baseBranch}`);
+              await exec.exec(`git fetch origin ${baseBranch}`);
+              try {
+                await exec.exec(`git checkout ${baseBranch}`);
+              } catch (checkoutError) {
+                core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
+                await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
+              }
               core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
               await exec.exec(`git checkout -b ${branchName}`);
               core.info(`Created new branch from base: ${branchName}`);
