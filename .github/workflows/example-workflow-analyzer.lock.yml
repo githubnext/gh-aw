@@ -1713,8 +1713,12 @@ jobs:
                   dynamicTool.inputSchema.required = [];
                   Object.keys(jobConfig.inputs).forEach(inputName => {
                     const inputDef = jobConfig.inputs[inputName];
+                    let jsonSchemaType = inputDef.type || "string";
+                    if (jsonSchemaType === "choice") {
+                      jsonSchemaType = "string";
+                    }
                     const propSchema = {
-                      type: inputDef.type || "string",
+                      type: jsonSchemaType,
                       description: inputDef.description || `Input parameter: ${inputName}`,
                     };
                     if (Array.isArray(inputDef.options)) {

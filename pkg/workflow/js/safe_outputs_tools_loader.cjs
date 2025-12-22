@@ -126,8 +126,17 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
 
       Object.keys(jobConfig.inputs).forEach(inputName => {
         const inputDef = jobConfig.inputs[inputName];
+
+        // Convert GitHub Actions choice type to JSON Schema string type
+        // GitHub Actions uses "choice" type with "options" array
+        // JSON Schema requires "string" type with "enum" array
+        let jsonSchemaType = inputDef.type || "string";
+        if (jsonSchemaType === "choice") {
+          jsonSchemaType = "string";
+        }
+
         const propSchema = {
-          type: inputDef.type || "string",
+          type: jsonSchemaType,
           description: inputDef.description || `Input parameter: ${inputName}`,
         };
 
