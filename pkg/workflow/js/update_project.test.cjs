@@ -557,128 +557,7 @@ describe("updateProject", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
   });
 
-  it("automatically populates Start Date from issue createdAt timestamp", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = {
-      type: "update_project",
-      project: projectUrl,
-      content_type: "issue",
-      content_number: 42,
-    };
-
-    const issueWithTimestamps = {
-      repository: {
-        issue: {
-          id: "issue-id-42",
-          createdAt: "2025-12-15T10:30:00Z",
-          closedAt: null,
-        },
-      },
-    };
-
-    queueResponses([
-      repoResponse(),
-      viewerResponse(),
-      orgProjectV2Response(projectUrl, 60, "project-dates"),
-      linkResponse,
-      issueWithTimestamps,
-      emptyItemsResponse(),
-      { addProjectV2ItemById: { item: { id: "item-dates" } } },
-      fieldsResponse([{ id: "field-start", name: "Start Date", dataType: "DATE" }]),
-      updateFieldValueResponse(),
-    ]);
-
-    await updateProject(output);
-
-    expect(mockCore.info).toHaveBeenCalledWith("Auto-populating Start Date from createdAt: 2025-12-15");
-    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
-    expect(updateCall).toBeDefined();
-    expect(updateCall[1].value).toEqual({ date: "2025-12-15" });
-  });
-
-  it("automatically populates End Date from closed issue closedAt timestamp", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = {
-      type: "update_project",
-      project: projectUrl,
-      content_type: "issue",
-      content_number: 99,
-    };
-
-    const closedIssue = {
-      repository: {
-        issue: {
-          id: "issue-id-99",
-          createdAt: "2025-12-01T08:00:00Z",
-          closedAt: "2025-12-15T16:45:00Z",
-        },
-      },
-    };
-
-    queueResponses([
-      repoResponse(),
-      viewerResponse(),
-      orgProjectV2Response(projectUrl, 60, "project-closed"),
-      linkResponse,
-      closedIssue,
-      emptyItemsResponse(),
-      { addProjectV2ItemById: { item: { id: "item-closed" } } },
-      fieldsResponse([
-        { id: "field-start", name: "Start Date", dataType: "DATE" },
-        { id: "field-end", name: "End Date", dataType: "DATE" },
-      ]),
-      updateFieldValueResponse(),
-      updateFieldValueResponse(),
-    ]);
-
-    await updateProject(output);
-
-    expect(mockCore.info).toHaveBeenCalledWith("Auto-populating Start Date from createdAt: 2025-12-01");
-    expect(mockCore.info).toHaveBeenCalledWith("Auto-populating End Date from closedAt: 2025-12-15");
-  });
-
-  it("automatically populates dates from pull request timestamps", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = {
-      type: "update_project",
-      project: projectUrl,
-      content_type: "pull_request",
-      content_number: 123,
-    };
-
-    const prWithTimestamps = {
-      repository: {
-        pullRequest: {
-          id: "pr-id-123",
-          createdAt: "2025-12-10T14:20:00Z",
-          closedAt: "2025-12-18T09:15:00Z",
-        },
-      },
-    };
-
-    queueResponses([
-      repoResponse(),
-      viewerResponse(),
-      orgProjectV2Response(projectUrl, 60, "project-pr-dates"),
-      linkResponse,
-      prWithTimestamps,
-      emptyItemsResponse(),
-      { addProjectV2ItemById: { item: { id: "pr-item-dates" } } },
-      fieldsResponse([
-        { id: "field-start", name: "Start Date", dataType: "DATE" },
-        { id: "field-end", name: "End Date", dataType: "DATE" },
-      ]),
-      updateFieldValueResponse(),
-      updateFieldValueResponse(),
-    ]);
-
-    await updateProject(output);
-
-    expect(mockCore.info).toHaveBeenCalledWith("Auto-populating Start Date from createdAt: 2025-12-10");
-    expect(mockCore.info).toHaveBeenCalledWith("Auto-populating End Date from closedAt: 2025-12-18");
-  });
-
-  it("respects user-provided date fields over automatic timestamps", async () => {
+  it("updates date fields only when provided", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
       type: "update_project",
@@ -719,7 +598,7 @@ describe("updateProject", () => {
 
     await updateProject(output);
 
-    // Should NOT log auto-population since user provided values
+    // Should NOT auto-populate any date fields
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Auto-populating"));
 
     // Verify user-provided values are used

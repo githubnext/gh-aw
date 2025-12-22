@@ -318,22 +318,7 @@ async function updateProject(output) {
           core.warning(`Failed to add campaign label: ${labelError.message}`);
         }
       }
-      // Automatically populate date fields from issue/PR timestamps for roadmap views
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};
-      if (createdAt) {
-        const startDate = new Date(createdAt).toISOString().split("T")[0];
-        if (!fieldsToUpdate.start_date && !fieldsToUpdate["Start Date"] && !fieldsToUpdate.StartDate) {
-          fieldsToUpdate.start_date = startDate;
-          core.info(`Auto-populating Start Date from createdAt: ${startDate}`);
-        }
-      }
-      if (closedAt) {
-        const endDate = new Date(closedAt).toISOString().split("T")[0];
-        if (!fieldsToUpdate.end_date && !fieldsToUpdate["End Date"] && !fieldsToUpdate.EndDate) {
-          fieldsToUpdate.end_date = endDate;
-          core.info(`Auto-populating End Date from closedAt: ${endDate}`);
-        }
-      }
       if (Object.keys(fieldsToUpdate).length > 0) {
         const projectFields = (
           await github.graphql(
