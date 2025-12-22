@@ -6,7 +6,7 @@ on:
   schedule: every 1h
   skip-if-match:
     query: "is:pr is:open is:draft author:app/copilot-swe-agent"
-    max: 5
+    max: 9
 
 permissions:
   contents: read
