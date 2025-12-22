@@ -104,22 +104,10 @@ The YAML frontmatter supports these fields:
 
 - **`description:`** - Human-readable workflow description (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
-- **`labels:`** - Workflow labels for categorization (array)
-  - Use to organize and filter workflows in status/list commands
-  - Example: `labels: [automation, security, docs]`
-- **`metadata:`** - Custom metadata key-value pairs (object)
-  - Compatible with custom agent spec
-  - Key names: max 64 characters
-  - Values: max 1024 characters
-  - Example: `metadata: {author: "John Doe", version: "1.0.0"}`
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
-- **`bots:`** - Bot allowlist for triggering workflows (array)
-  - Bots in this list can trigger workflows even without required role permissions
-  - Bot must be installed/active on the repository
-  - Example: `bots: [dependabot, renovate]`
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
@@ -524,23 +512,6 @@ The YAML frontmatter supports these fields:
 - **`command:`** - Command trigger configuration for /mention workflows
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
-- **`sandbox:`** - Sandbox configuration for AI engines (object or string)
-  - Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway
-  - Agent sandbox options: `awf` (Agent Workflow Firewall, default), `srt` (Sandbox Runtime, experimental), `false` (disable)
-  - MCP gateway routes MCP server calls through unified HTTP gateway (experimental)
-  - Example: `sandbox: { agent: awf, mcp: { port: 8080 } }`
-  - See documentation for detailed configuration options
-- **`safe-inputs:`** - Custom lightweight MCP tools (object)
-  - Define tools as JavaScript, shell scripts, or Python
-  - Tools mounted in MCP server with access to specified secrets
-  - Use `script:` (JavaScript), `run:` (shell), or `py:` (Python) per tool
-  - Example:
-    ```yaml
-    safe-inputs:
-      my-tool:
-        script: "return { result: 'hello' }"
-        secrets: [MY_SECRET]
-    ```
 
 ### Cache Configuration
 
