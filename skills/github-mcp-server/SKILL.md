@@ -14,7 +14,15 @@ This file contains comprehensive documentation about the GitHub MCP (Model Conte
 
 ## Overview
 
-The GitHub MCP server provides AI agents with programmatic access to GitHub's API through the Model Context Protocol. It supports two modes of operation:
+The GitHub MCP server provides AI agents with programmatic access to GitHub's API through the Model Context Protocol. It supports two modes of operation.
+
+**Current Version**: gh-aw uses GitHub MCP Server v0.26.3 by default, which includes:
+- Octicon icons for tools, resources, and prompts (v0.26.0+)
+- Feature flag support via `--features` CLI flag or `GITHUB_MCP_FEATURES` environment variable (v0.26.0+)
+- Consolidated actions toolsets (v0.26.0+)
+- Ring buffer panic fixes and icon compatibility improvements (v0.26.1 hotfix)
+
+### Modes of Operation
 
 ### Local Mode (Docker-based)
 - Runs as a Docker container on the GitHub Actions runner
@@ -215,6 +223,80 @@ The local mode uses environment variables:
 - `GITHUB_PERSONAL_ACCESS_TOKEN` - Required for authentication
 - `GITHUB_READ_ONLY=1` - Optional, enables read-only mode
 - `GITHUB_TOOLSETS=<comma-separated-list>` - Optional, specifies enabled toolsets
+
+## New Features (v0.26.0+)
+
+### Octicon Icons Support
+
+Starting with GitHub MCP Server v0.26.0, Octicon icons are automatically added to tools, resources, and prompts. MCP clients that support the icons specification will display these familiar GitHub icons, making it easier to identify capabilities at a glance.
+
+**What this means for users**:
+- Icons appear automatically in supporting clients (e.g., VS Code with MCP extension)
+- No configuration changes needed - icons are added by the server
+- Backward compatible with older clients that don't support icons
+- Improves UI clarity and recognition of GitHub-related tools
+
+**Icon rendering**:
+- ✅ VS Code MCP extension (v0.26.0+)
+- ✅ Claude Desktop (with latest MCP protocol support)
+- ✅ Other clients implementing MCP icons specification
+- ⚠️ Older clients simply ignore icons (no errors)
+
+### Feature Flag Support
+
+GitHub MCP Server v0.26.0+ introduces feature flag infrastructure for enabling experimental or optional functionality. Feature flags can be set via CLI or environment variables.
+
+**Configuration Methods**:
+
+1. **CLI Flag** (when running server directly):
+   ```bash
+   github-mcp-server --features=experimental-feature
+   ```
+
+2. **Environment Variable** (in workflow configuration):
+   ```yaml
+   tools:
+     github:
+       mode: "local"
+       toolsets: [default]
+       env:
+         GITHUB_MCP_FEATURES: "experimental-feature"
+   ```
+
+   Or for multiple features:
+   ```yaml
+   tools:
+     github:
+       mode: "local"
+       toolsets: [default]
+       env:
+         GITHUB_MCP_FEATURES: "feature1,feature2"
+   ```
+
+**Current Feature Flags**:
+- **Consolidated Actions Toolsets**: Organizes GitHub Actions-related tools under improved toolset structure
+- Additional features may be added in future releases
+
+**Use Cases**:
+- Testing experimental functionality before general availability
+- Enabling organization-specific features
+- Gradual rollout of new capabilities
+- A/B testing of feature implementations
+
+### Consolidated Actions Toolsets
+
+The consolidated actions toolsets (available via feature flag) provide better organization of GitHub Actions-related tools:
+
+**Before**: Individual action tools scattered across different categories
+**After**: Organized into logical groupings within the actions toolset
+
+**Benefits**:
+- More intuitive organization of workflow-related tools
+- Easier discovery of Actions functionality
+- Better alignment with GitHub Actions concepts
+- Improved performance through optimized tool loading
+
+**Note**: This feature requires the appropriate feature flag to be enabled. The default actions toolset works without any feature flags.
 
 ## Best Practices
 
