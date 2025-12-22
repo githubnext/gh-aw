@@ -55,6 +55,63 @@ A more complex configuration demonstrating all three server types:
 }
 ```
 
+### Multi-Config Example
+
+Use multiple configuration files that are merged together:
+
+**Base Configuration (`mcp-gateway-base.json`)** - Common servers:
+```json
+{
+  "mcpServers": {
+    "gh-aw": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"]
+    },
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"]
+    }
+  },
+  "gateway": {
+    "port": 8088
+  }
+}
+```
+
+**Override Configuration (`mcp-gateway-override.json`)** - Environment-specific overrides:
+```json
+{
+  "mcpServers": {
+    "time": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-time"],
+      "env": {
+        "DEBUG": "mcp:*"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    }
+  },
+  "gateway": {
+    "port": 9090,
+    "apiKey": "optional-api-key"
+  }
+}
+```
+
+**Usage:**
+```bash
+awmg --config mcp-gateway-base.json --config mcp-gateway-override.json
+```
+
+**Result:** The merged configuration will have:
+- `gh-aw` server (from base)
+- `time` server with debug environment variable (overridden from override)
+- `memory` server (added from override)
+- Port 9090 and API key (overridden from override)
+
 ## Server Types
 
 ### Stdio Servers
@@ -100,31 +157,49 @@ Use the `container` field to run an MCP server in a Docker container:
 ### Start the Gateway
 
 ```bash
-# Use default port 8088
-gh aw mcp-gateway mcp-gateway-config.json
+# From a single config file
+awmg --config mcp-gateway-config.json
+
+# From multiple config files (merged in order)
+awmg --config base-config.json --config override-config.json
 
 # Specify a custom port
-gh aw mcp-gateway --port 9000 mcp-gateway-config.json
+awmg --config mcp-gateway-config.json --port 9000
 ```
+
+### Multiple Configuration Files
+
+The gateway supports loading multiple configuration files which are merged in order. Later files override settings from earlier files:
+
+```bash
+# Base configuration with common servers
+awmg --config common-servers.json --config team-specific.json
+
+# Add environment-specific overrides
+awmg --config base.json --config staging.json
+```
+
+**Merge Behavior:**
+- **MCP Servers**: Later configurations override servers with the same name
+- **Gateway Settings**: Later configurations override gateway port and API key (if specified)
+- **Example**: If `base.json` defines `server1` and `server2`, and `override.json` redefines `server2` and adds `server3`, the result will have all three servers with `server2` coming from `override.json`
 
 ### Enable API Key Authentication
 
 ```bash
-gh aw mcp-gateway --api-key secret123 mcp-gateway-config.json
+awmg --config mcp-gateway-config.json --api-key secret123
 ```
 
 When API key authentication is enabled, clients must include the API key in the `Authorization` header:
 
 ```bash
-curl -H "Authorization: ******" http://localhost:8088/...
-# or
-curl -H "Authorization: secret123" http://localhost:8088/...
+curl -H "Authorization: Bearer secret123" http://localhost:8088/...
 ```
 
 ### Write Debug Logs to File
 
 ```bash
-gh aw mcp-gateway --logs-dir /tmp/gateway-logs mcp-gateway-config.json
+awmg --config mcp-gateway-config.json --log-dir /tmp/gateway-logs
 ```
 
 This creates the specified directory and prepares it for logging output.
@@ -132,23 +207,24 @@ This creates the specified directory and prepares it for logging output.
 ### Combined Example
 
 ```bash
-gh aw mcp-gateway \
+awmg \
+  --config base-config.json \
+  --config override-config.json \
   --port 9000 \
   --api-key mySecretKey \
-  --logs-dir /var/log/mcp-gateway \
-  mcp-gateway-config.json
+  --log-dir /var/log/mcp-gateway
 ```
 
 ### Enable Verbose Logging
 
 ```bash
-DEBUG=* gh aw mcp-gateway mcp-gateway-config.json
+DEBUG=* awmg --config mcp-gateway-config.json
 ```
 
 Or for specific modules:
 
 ```bash
-DEBUG=pkg:gateway gh aw mcp-gateway mcp-gateway-config.json
+DEBUG=cli:mcp_gateway awmg --config mcp-gateway-config.json
 ```
 
 ## How It Works

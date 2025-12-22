@@ -1,11 +1,8 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -17,18 +14,6 @@ const (
 	// MCPGatewayLogsFolder is the folder where MCP gateway logs are stored
 	MCPGatewayLogsFolder = "/tmp/gh-aw/mcp-gateway-logs"
 )
-
-// MCPGatewayStdinConfig represents the configuration passed to the MCP gateway via stdin
-type MCPGatewayStdinConfig struct {
-	MCPServers map[string]any     `json:"mcpServers"`
-	Gateway    MCPGatewaySettings `json:"gateway"`
-}
-
-// MCPGatewaySettings represents the gateway-specific settings
-type MCPGatewaySettings struct {
-	Port   int    `json:"port"`
-	APIKey string `json:"apiKey,omitempty"`
-}
 
 // isMCPGatewayEnabled checks if the MCP gateway feature is enabled for the workflow
 func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
@@ -44,8 +29,8 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 		return false
 	}
 
-	// Then check if the feature flag is enabled
-	return isFeatureEnabled(constants.MCPGatewayFeatureFlag, workflowData)
+	// MCP gateway is enabled by default when sandbox.mcp is configured
+	return true
 }
 
 // getMCPGatewayConfig extracts the MCPGatewayConfig from sandbox configuration
@@ -64,11 +49,11 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	}
 
 	config := getMCPGatewayConfig(workflowData)
-	if config == nil || config.Container == "" {
+	if config == nil {
 		return nil
 	}
 
-	gatewayLog.Printf("Generating MCP gateway steps for container: %s", config.Container)
+	gatewayLog.Print("Generating MCP gateway steps")
 
 	var steps []GitHubActionStep
 
@@ -92,59 +77,104 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 		port = DefaultMCPGatewayPort
 	}
 
-	// Build the gateway stdin configuration
-	gatewayConfig := MCPGatewayStdinConfig{
-		MCPServers: mcpServersConfig,
-		Gateway: MCPGatewaySettings{
-			Port:   port,
-			APIKey: config.APIKey,
-		},
-	}
+	// MCP config file path (created by RenderMCPConfig)
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
 
-	configJSON, err := json.Marshal(gatewayConfig)
-	if err != nil {
-		gatewayLog.Printf("Failed to marshal gateway config: %v", err)
-		configJSON = []byte("{}")
-	}
-
-	// Build docker run command
-	var dockerArgs []string
-	dockerArgs = append(dockerArgs, "run", "-d", "--rm", "--init")
-	dockerArgs = append(dockerArgs, "--name", "mcp-gateway")
-	dockerArgs = append(dockerArgs, "-p", fmt.Sprintf("%d:%d", port, port))
-
-	// Add environment variables
-	dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("MCP_GATEWAY_LOG_DIR=%s", MCPGatewayLogsFolder))
-	for k, v := range config.Env {
-		dockerArgs = append(dockerArgs, "-e", fmt.Sprintf("%s=%s", k, v))
-	}
-
-	// Mount logs folder
-	dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", MCPGatewayLogsFolder, MCPGatewayLogsFolder))
-
-	// Container image with optional version
-	containerImage := config.Container
-	if config.Version != "" {
-		containerImage = fmt.Sprintf("%s:%s", config.Container, config.Version)
-	}
-	dockerArgs = append(dockerArgs, containerImage)
-
-	// Add container args
-	dockerArgs = append(dockerArgs, config.Args...)
-	dockerArgs = append(dockerArgs, config.EntrypointArgs...)
-
-	// Escape single quotes in JSON for shell
-	escapedJSON := strings.ReplaceAll(string(configJSON), "'", "'\\''")
+	// Detect action mode at compile time
+	actionMode := DetectActionMode()
+	gatewayLog.Printf("Generating gateway step for action mode: %s", actionMode)
 
 	stepLines := []string{
 		"      - name: Start MCP Gateway",
 		"        run: |",
 		"          mkdir -p " + MCPGatewayLogsFolder,
 		"          echo 'Starting MCP Gateway...'",
-		"          # Start MCP gateway in background with config piped via stdin",
-		fmt.Sprintf("          echo '%s' | docker %s", escapedJSON, strings.Join(dockerArgs, " ")),
-		"          echo 'MCP Gateway started'",
+		"          ",
 	}
+
+	// Generate different installation code based on compile-time mode
+	if actionMode == ActionModeDev {
+		// Development mode: build from sources
+		gatewayLog.Print("Using development mode - will build awmg from sources")
+		stepLines = append(stepLines,
+			"          # Development mode: Build awmg from sources",
+			"          if [ -f \"cmd/awmg/main.go\" ] && [ -f \"Makefile\" ]; then",
+			"            echo 'Building awmg from sources (development mode)...'",
+			"            make build-awmg",
+			"            if [ -f \"./awmg\" ]; then",
+			"              echo 'Built awmg successfully'",
+			"              AWMG_CMD=\"./awmg\"",
+			"            else",
+			"              echo 'ERROR: Failed to build awmg from sources'",
+			"              exit 1",
+			"            fi",
+			"          # Check if awmg is already in PATH",
+			"          elif command -v awmg &> /dev/null; then",
+			"            echo 'awmg is already available in PATH'",
+			"            AWMG_CMD=\"awmg\"",
+			"          # Check for local awmg build",
+			"          elif [ -f \"./awmg\" ]; then",
+			"            echo 'Using existing local awmg build'",
+			"            AWMG_CMD=\"./awmg\"",
+			"          else",
+			"            echo 'ERROR: Could not find awmg binary or source files'",
+			"            echo 'Please build awmg with: make build-awmg'",
+			"            exit 1",
+			"          fi",
+		)
+	} else {
+		// Release mode: download from GitHub releases
+		gatewayLog.Print("Using release mode - will download awmg from releases")
+		stepLines = append(stepLines,
+			"          # Release mode: Download awmg from releases",
+			"          # Check if awmg is already in PATH",
+			"          if command -v awmg &> /dev/null; then",
+			"            echo 'awmg is already available in PATH'",
+			"            AWMG_CMD=\"awmg\"",
+			"          # Check for local awmg build",
+			"          elif [ -f \"./awmg\" ]; then",
+			"            echo 'Using existing local awmg build'",
+			"            AWMG_CMD=\"./awmg\"",
+			"          else",
+			"            # Download awmg from releases",
+			"            echo 'Downloading awmg from GitHub releases...'",
+			"            ",
+			"            # Detect platform",
+			"            OS=$(uname -s | tr '[:upper:]' '[:lower:]')",
+			"            ARCH=$(uname -m)",
+			"            if [ \"$ARCH\" = \"x86_64\" ]; then ARCH=\"amd64\"; fi",
+			"            if [ \"$ARCH\" = \"aarch64\" ]; then ARCH=\"arm64\"; fi",
+			"            ",
+			"            AWMG_BINARY=\"awmg-${OS}-${ARCH}\"",
+			"            if [ \"$OS\" = \"windows\" ]; then AWMG_BINARY=\"${AWMG_BINARY}.exe\"; fi",
+			"            ",
+			"            # Download from releases using curl (no gh CLI dependency)",
+			"            RELEASE_URL=\"https://github.com/githubnext/gh-aw/releases/latest/download/$AWMG_BINARY\"",
+			"            echo \"Downloading from $RELEASE_URL\"",
+			"            if curl -L -f -o \"/tmp/$AWMG_BINARY\" \"$RELEASE_URL\"; then",
+			"              chmod +x \"/tmp/$AWMG_BINARY\"",
+			"              AWMG_CMD=\"/tmp/$AWMG_BINARY\"",
+			"              echo 'Downloaded awmg successfully'",
+			"            else",
+			"              echo 'ERROR: Could not download awmg binary'",
+			"              echo 'Please ensure awmg is available or download it from:'",
+			"              echo 'https://github.com/githubnext/gh-aw/releases'",
+			"              exit 1",
+			"            fi",
+			"          fi",
+		)
+	}
+
+	stepLines = append(stepLines,
+		"          ",
+		"          # Start MCP gateway in background with config file",
+		fmt.Sprintf("          $AWMG_CMD --config %s --port %d --log-dir %s > %s/gateway.log 2>&1 &", mcpConfigPath, port, MCPGatewayLogsFolder, MCPGatewayLogsFolder),
+		"          GATEWAY_PID=$!",
+		"          echo \"MCP Gateway started with PID $GATEWAY_PID\"",
+		"          ",
+		"          # Give the gateway a moment to start",
+		"          sleep 2",
+	)
 
 	return GitHubActionStep(stepLines)
 }
@@ -160,16 +190,69 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 
 	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
 
+	// MCP config file path (created by RenderMCPConfig)
+	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
+
 	stepLines := []string{
 		"      - name: Verify MCP Gateway Health",
 		"        run: |",
 		"          echo 'Waiting for MCP Gateway to be ready...'",
+		"          ",
+		"          # Show MCP config file content",
+		fmt.Sprintf("          echo 'MCP Configuration:'"),
+		fmt.Sprintf("          cat %s || echo 'No MCP config file found'", mcpConfigPath),
+		"          echo ''",
+		"          ",
+		"          # Verify safeinputs and safeoutputs are present in config",
+		fmt.Sprintf("          if ! grep -q '\"safeinputs\"' %s; then", mcpConfigPath),
+		"            echo 'ERROR: safeinputs server not found in MCP configuration'",
+		"            exit 1",
+		"          fi",
+		fmt.Sprintf("          if ! grep -q '\"safeoutputs\"' %s; then", mcpConfigPath),
+		"            echo 'ERROR: safeoutputs server not found in MCP configuration'",
+		"            exit 1",
+		"          fi",
+		"          echo 'Verified: safeinputs and safeoutputs are present in configuration'",
+		"          ",
 		"          max_retries=30",
 		"          retry_count=0",
 		fmt.Sprintf("          gateway_url=\"%s\"", gatewayURL),
 		"          while [ $retry_count -lt $max_retries ]; do",
 		"            if curl -s -o /dev/null -w \"%{http_code}\" \"${gateway_url}/health\" | grep -q \"200\\|204\"; then",
 		"              echo \"MCP Gateway is ready!\"",
+		"              curl -s \"${gateway_url}/servers\" || echo \"Could not fetch servers list\"",
+		"              ",
+		"              # Test MCP server connectivity through gateway",
+		"              echo ''",
+		"              echo 'Testing MCP server connectivity...'",
+		"              ",
+		"              # Extract first external MCP server name from config (excluding safeinputs/safeoutputs)",
+		fmt.Sprintf("              mcp_server=$(jq -r '.mcpServers | to_entries[] | select(.key != \"safeinputs\" and .key != \"safeoutputs\") | .key' %s | head -n 1)", mcpConfigPath),
+		"              if [ -n \"$mcp_server\" ]; then",
+		"                echo \"Testing connectivity to MCP server: $mcp_server\"",
+		"                mcp_url=\"${gateway_url}/mcp/${mcp_server}\"",
+		"                echo \"MCP URL: $mcp_url\"",
+		"                ",
+		"                # Test with MCP initialize call",
+		"                response=$(curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\" \\",
+		"                  -H \"Content-Type: application/json\" \\",
+		"                  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0.0\"}}}')",
+		"                ",
+		"                http_code=$(echo \"$response\" | tail -n 1)",
+		"                body=$(echo \"$response\" | head -n -1)",
+		"                ",
+		"                echo \"HTTP Status: $http_code\"",
+		"                echo \"Response: $body\"",
+		"                ",
+		"                if [ \"$http_code\" = \"200\" ]; then",
+		"                  echo \"✓ MCP server connectivity test passed\"",
+		"                else",
+		"                  echo \"⚠ MCP server returned HTTP $http_code (may need authentication or different request)\"",
+		"                fi",
+		"              else",
+		"                echo \"No external MCP servers configured for testing\"",
+		"              fi",
+		"              ",
 		"              exit 0",
 		"            fi",
 		"            retry_count=$((retry_count + 1))",
@@ -177,7 +260,10 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		"            sleep 1",
 		"          done",
 		"          echo \"Error: MCP Gateway failed to start after $max_retries attempts\"",
-		"          docker logs mcp-gateway || true",
+		"          ",
+		"          # Show gateway logs for debugging",
+		fmt.Sprintf("          echo 'Gateway logs:'"),
+		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
 		"          exit 1",
 	}
 

@@ -75,6 +75,11 @@
       "version": "v8.0.0",
       "sha": "ed597411d8f924073f98dfc5c65a23a2325f34cd"
     },
+    "actions/github-script@v8.0.0": {
+      "repo": "actions/github-script",
+      "version": "v8.0.0",
+      "sha": "ed597411d8f924073f98dfc5c65a23a2325f34cd"
+    },
     "actions/setup-dotnet@v4": {
       "repo": "actions/setup-dotnet",
       "version": "v4.3.1",
