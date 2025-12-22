@@ -76,25 +76,17 @@ async function main() {
     return;
   }
 
-  // Find all upload-asset items (singular is the standard)
+  // Find all upload-asset items
   const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
 
-  // Handle legacy upload-assets (plural, hyphenated) with warning
-  const legacyUploadAssetsItems = result.items.filter(/** @param {any} item */ item => item.type === "upload-assets");
-  if (legacyUploadAssetsItems.length > 0) {
-    core.warning(`Found ${legacyUploadAssetsItems.length} item(s) with legacy type "upload-assets" (plural). This type is deprecated. Use "upload_asset" (singular) instead.`);
-  }
-
-  const allUploadItems = [...uploadItems, ...legacyUploadAssetsItems];
-
-  if (allUploadItems.length === 0) {
+  if (uploadItems.length === 0) {
     core.info("No upload-asset items found in agent output");
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;
   }
 
-  core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+  core.info(`Found ${uploadItems.length} upload-asset item(s)`);
 
   let uploadCount = 0;
   let hasChanges = false;
@@ -124,7 +116,7 @@ async function main() {
     }
 
     // Process each asset
-    for (const asset of allUploadItems) {
+    for (const asset of uploadItems) {
       try {
         const { fileName, sha, size, targetFileName } = asset;
 
@@ -182,7 +174,7 @@ async function main() {
         core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
       }
 
-      for (const asset of allUploadItems) {
+      for (const asset of uploadItems) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
         }

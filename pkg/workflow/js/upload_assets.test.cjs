@@ -62,25 +62,6 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), notice: vi.fn(), warning: vi.f
           (expect(branchNameCall).toBeDefined(), expect(branchNameCall[1]).toBe("assets/my-branch"));
         });
       }),
-      describe("legacy upload-assets type handling", () => {
-        it("should warn about legacy upload-assets type (plural hyphenated)", async () => {
-          ((process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
-          const assetDir = "/tmp/gh-aw/safeoutputs/assets";
-          fs.existsSync(assetDir) || fs.mkdirSync(assetDir, { recursive: !0 });
-          const assetPath = path.join(assetDir, "test.png");
-          fs.writeFileSync(assetPath, "fake png data");
-          const crypto = require("crypto"),
-            fileContent = fs.readFileSync(assetPath),
-            agentOutput = {
-              items: [{ type: "upload-assets", fileName: "test.png", sha: crypto.createHash("sha256").update(fileContent).digest("hex"), size: fileContent.length, targetFileName: "test.png", url: "https://example.com/test.png" }],
-            };
-          setAgentOutput(agentOutput);
-          (mockExec.exec.mockImplementation(async () => 0), await executeScript());
-          const warningCalls = mockCore.warning.mock.calls.filter(call => call[0].includes("legacy type"));
-          (expect(warningCalls.length).toBeGreaterThan(0), expect(warningCalls[0][0]).toContain("upload-assets"), expect(warningCalls[0][0]).toContain("deprecated"));
-          fs.existsSync(assetPath) && fs.unlinkSync(assetPath);
-        });
-      }),
       describe("branch prefix validation", () => {
         (it("should allow creating orphaned branch with 'assets/' prefix when branch doesn't exist", async () => {
           (fs.existsSync("test.png") && fs.unlinkSync("test.png"), (process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow"), (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false"));
