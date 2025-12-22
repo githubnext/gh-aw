@@ -72,7 +72,7 @@ func getActionPins() []ActionPin {
 // The returned reference includes a comment with the version tag (e.g., "repo@sha # v1")
 func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
-	
+
 	// Find all pins matching the repo
 	var matchingPins []ActionPin
 	for _, pin := range actionPins {
@@ -80,12 +80,12 @@ func GetActionPin(actionRepo string) string {
 			matchingPins = append(matchingPins, pin)
 		}
 	}
-	
+
 	if len(matchingPins) == 0 {
 		// If no pin exists, return empty string to signal that this action is not pinned
 		return ""
 	}
-	
+
 	// Sort matching pins by version (descending - latest first)
 	// Use bubble sort for simplicity since we typically have few matches
 	for i := 0; i < len(matchingPins); i++ {
@@ -99,7 +99,7 @@ func GetActionPin(actionRepo string) string {
 			}
 		}
 	}
-	
+
 	// Return the latest version (first after sorting)
 	latestPin := matchingPins[0]
 	return actionRepo + "@" + latestPin.SHA + " # " + latestPin.Version
@@ -278,7 +278,7 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 // When multiple versions exist for the same repo, it returns the latest version by semver
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	actionPins := getActionPins()
-	
+
 	// Find all pins matching the repo
 	var matchingPins []ActionPin
 	for _, pin := range actionPins {
@@ -286,11 +286,11 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 			matchingPins = append(matchingPins, pin)
 		}
 	}
-	
+
 	if len(matchingPins) == 0 {
 		return ActionPin{}, false
 	}
-	
+
 	// Sort matching pins by version (descending - latest first)
 	// Use bubble sort for simplicity since we typically have few matches
 	for i := 0; i < len(matchingPins); i++ {
@@ -304,7 +304,7 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 			}
 		}
 	}
-	
+
 	// Return the latest version (first after sorting)
 	return matchingPins[0], true
 }
