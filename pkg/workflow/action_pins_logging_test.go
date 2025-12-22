@@ -15,39 +15,39 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 	// version v2.0.4, causing the wrong SHA to be returned
 
 	tests := []struct {
-		name            string
-		repo            string
-		requestedVer    string
-		expectedPinVer  string // The version in the hardcoded pin
-		expectMismatch  bool
+		name           string
+		repo           string
+		requestedVer   string
+		expectedPinVer string // The version in the hardcoded pin
+		expectMismatch bool
 	}{
 		{
-			name:            "ai-inference v1 resolves to v2.0.4 pin",
-			repo:            "actions/ai-inference",
-			requestedVer:    "v1",
-			expectedPinVer:  "v2.0.4",
-			expectMismatch:  true,
+			name:           "ai-inference v1 resolves to v2.0.4 pin",
+			repo:           "actions/ai-inference",
+			requestedVer:   "v1",
+			expectedPinVer: "v2.0.4",
+			expectMismatch: true,
 		},
 		{
-			name:            "setup-dotnet v4 resolves to v4.3.1 pin",
-			repo:            "actions/setup-dotnet",
-			requestedVer:    "v4",
-			expectedPinVer:  "v4.3.1",
-			expectMismatch:  true,
+			name:           "setup-dotnet v4 resolves to v4.3.1 pin",
+			repo:           "actions/setup-dotnet",
+			requestedVer:   "v4",
+			expectedPinVer: "v4.3.1",
+			expectMismatch: true,
 		},
 		{
-			name:            "github-script v7.0.1 resolves to v8.0.0 pin (latest version)",
-			repo:            "actions/github-script",
-			requestedVer:    "v7.0.1",
-			expectedPinVer:  "v8.0.0", // Returns latest version for this repo
-			expectMismatch:  true,
+			name:           "github-script v7.0.1 resolves to v8.0.0 pin (latest version)",
+			repo:           "actions/github-script",
+			requestedVer:   "v7.0.1",
+			expectedPinVer: "v8.0.0", // Returns latest version for this repo
+			expectMismatch: true,
 		},
 		{
-			name:            "checkout v5.0.1 exact match",
-			repo:            "actions/checkout",
-			requestedVer:    "v5.0.1",
-			expectedPinVer:  "v5.0.1",
-			expectMismatch:  false,
+			name:           "checkout v5.0.1 exact match",
+			repo:           "actions/checkout",
+			requestedVer:   "v5.0.1",
+			expectedPinVer: "v5.0.1",
+			expectMismatch: false,
 		},
 	}
 
