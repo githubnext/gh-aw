@@ -408,12 +408,12 @@ func deduplicateRequires(content string) string {
 	getIndentation := func(line string) int {
 		count := 0
 		for _, ch := range line {
-			switch ch {
-			case ' ':
+			//nolint:staticcheck // switch would require label for break; if-else is clearer here
+			if ch == ' ' {
 				count++
-			case '\t':
+			} else if ch == '\t' {
 				count += 2 // Treat tab as 2 spaces for comparison
-			default:
+			} else {
 				break
 			}
 		}
