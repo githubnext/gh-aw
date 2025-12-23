@@ -454,6 +454,19 @@ The YAML frontmatter supports these fields:
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
     ```
     Not supported for cross-repository operations.
+  - `update-discussion:` - Update discussion title, body, or labels
+    ```yaml
+    safe-outputs:
+      update-discussion:
+        title: true                     # Optional: enable title updates
+        body: true                      # Optional: enable body updates
+        labels: true                    # Optional: enable label updates
+        allowed-labels: [status, type]  # Optional: restrict to specific labels
+        max: 1                          # Optional: max updates (default: 1)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    When using `safe-outputs.update-discussion`, the main job does **not** need `discussions: write` permission since updates are handled by a separate job with appropriate permissions.
   - `update-release:` - Update GitHub release descriptions
     ```yaml
     safe-outputs:
@@ -463,6 +476,17 @@ The YAML frontmatter supports these fields:
         github-token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: custom token
     ```
     Operation types: `replace`, `append`, `prepend`.
+  - `upload-asset:` - Publish files to orphaned git branch
+    ```yaml
+    safe-outputs:
+      upload-asset:
+        branch: "assets/${{ github.workflow }}"  # Optional: branch name
+        max-size: 10240                 # Optional: max file size in KB (default: 10MB)
+        allowed-exts: [.png, .jpg, .pdf] # Optional: allowed file extensions
+        max: 10                         # Optional: max assets (default: 10)
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
   - `create-code-scanning-alert:` - Generate SARIF security advisories
     ```yaml
     safe-outputs:
@@ -486,6 +510,28 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Requires PAT with elevated permissions as `GH_AW_AGENT_TOKEN`.
+  - `assign-to-user:` - Assign users to issues or pull requests
+    ```yaml
+    safe-outputs:
+      assign-to-user:
+        assignees: [user1, user2]       # Optional: restrict to specific users
+        max: 3                          # Optional: max assignments (default: 3)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    When using `safe-outputs.assign-to-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission since user assignment is handled by a separate job with appropriate permissions.
+  - `hide-comment:` - Hide comments on issues, PRs, or discussions
+    ```yaml
+    safe-outputs:
+      hide-comment:
+        max: 5                          # Optional: max comments to hide (default: 5)
+        allowed-reasons:                 # Optional: restrict hide reasons
+          - spam
+          - outdated
+          - resolved
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated`, `resolved`. When using `safe-outputs.hide-comment`, the main job does **not** need write permissions since comment hiding is handled by a separate job.
   - `noop:` - Log completion message for transparency (auto-enabled)
     ```yaml
     safe-outputs:
