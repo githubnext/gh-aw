@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
@@ -16,6 +17,67 @@ import (
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
+
+// secretKeyPatterns contains regex patterns to detect and redact potential secret key names
+// These patterns match common secret naming conventions that might appear in error messages
+var secretKeyPatterns = []*regexp.Regexp{
+	// Match uppercase snake_case secret names (e.g., GITHUB_TOKEN, API_KEY, MY_SECRET)
+	regexp.MustCompile(`\b[A-Z][A-Z0-9_]{2,}\b`),
+	// Match camelCase or PascalCase identifiers that might be secret names
+	regexp.MustCompile(`\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b`),
+}
+
+// sanitizeErrorMessage removes or redacts potential secret key names from error messages.
+// This function is critical for preventing sensitive information disclosure via JSON output.
+// It replaces potential secret key names with [REDACTED] to break the data flow that CodeQL
+// detects from secretKeys variables to JSON output.
+func sanitizeErrorMessage(message string) string {
+	if message == "" {
+		return message
+	}
+
+	sanitized := message
+	for _, pattern := range secretKeyPatterns {
+		// Replace matches with [REDACTED] but preserve the error message structure
+		sanitized = pattern.ReplaceAllStringFunc(sanitized, func(match string) string {
+			// Don't redact common words or Go keywords
+			switch match {
+			case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT",
+				"OK", "ERROR", "WARNING", "INFO", "DEBUG",
+				"TRUE", "FALSE", "NULL",
+				"YAML", "JSON", "XML", "HTML", "CSV", "PDF",
+				"HTTP", "HTTPS", "SSH", "FTP", "SMTP",
+				"UTC", "GMT", "ISO", "RFC",
+				"CPU", "RAM", "GPU", "API", "URL", "URI", "SDK", "CLI":
+				return match
+			default:
+				// Redact potential secret key names
+				return "[REDACTED]"
+			}
+		})
+	}
+
+	return sanitized
+}
+
+// sanitizeValidationResults sanitizes all error and warning messages in validation results
+// to prevent disclosure of sensitive information (e.g., secret key names) via JSON output.
+// This breaks the data flow that CodeQL detects from secretKeys to JSON marshaling.
+func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
+	sanitized := make([]ValidationResult, len(results))
+	for i, result := range results {
+		sanitized[i] = result
+		// Sanitize error messages
+		for j := range sanitized[i].Errors {
+			sanitized[i].Errors[j].Message = sanitizeErrorMessage(sanitized[i].Errors[j].Message)
+		}
+		// Sanitize warning messages
+		for j := range sanitized[i].Warnings {
+			sanitized[i].Warnings[j].Message = sanitizeErrorMessage(sanitized[i].Warnings[j].Message)
+		}
+	}
+	return sanitized
+}
 
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
 // This ensures stable workflow identifiers regardless of where the repository is cloned
@@ -579,7 +641,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Output JSON if requested
 		if jsonOutput {
-			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+			// Sanitize validation results to prevent disclosure of sensitive information
+			sanitized := sanitizeValidationResults(validationResults)
+			jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
 			if err != nil {
 				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 			}
@@ -974,7 +1038,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Output JSON if requested
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+		// Sanitize validation results to prevent disclosure of sensitive information
+		sanitized := sanitizeValidationResults(validationResults)
+		jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
 		if err != nil {
 			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
