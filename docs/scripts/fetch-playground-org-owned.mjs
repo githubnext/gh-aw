@@ -13,9 +13,6 @@ const SAFE_BASENAME = /^[a-z0-9][a-z0-9._-]{0,200}$/;
 
 async function main() {
   // Comma-separated list of repo-relative file paths to copy into the docs bundle.
-  // Example:
-  //   .github/workflows/playground-executor.md,
-  //   .github/workflows/playground-executor.lock.yml
   const filesCsv = process.env.PLAYGROUND_ORG_WORKFLOWS_FILES || '';
 
   const files = filesCsv
