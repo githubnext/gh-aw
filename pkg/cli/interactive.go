@@ -518,7 +518,11 @@ func (b *InteractiveWorkflowBuilder) describeTrigger() string {
 
 // compileWorkflow automatically compiles the generated workflow
 func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling the generated workflow..."))
+	interactiveLog.Printf("Starting workflow compilation: name=%s, verbose=%v", b.WorkflowName, verbose)
+
+	// Create spinner for compilation progress
+	spinner := console.NewSpinner("Compiling your workflow...")
+	spinner.Start()
 
 	// Use the existing compile functionality
 	config := CompileConfig{
@@ -534,6 +538,18 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
+
 	_, err := CompileWorkflows(config)
-	return err
+
+	if err != nil {
+		spinner.Stop()
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Compilation failed: %v", err)))
+		return err
+	}
+
+	// Stop spinner with success message
+	spinner.StopWithMessage(console.FormatSuccessMessage("✓ Workflow compiled successfully!"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("You can now find your compiled workflow at .github/workflows/%s.lock.yml", b.WorkflowName)))
+
+	return nil
 }

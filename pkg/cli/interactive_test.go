@@ -461,3 +461,26 @@ func TestCreateWorkflowInteractively_WithForceFlag(t *testing.T) {
 		t.Errorf("Expected same error for force=false and force=true in CI, got %q and %q", err1.Error(), err2.Error())
 	}
 }
+
+func TestInteractiveWorkflowBuilder_compileWorkflow_SpinnerIntegration(t *testing.T) {
+	// This test verifies that the spinner integration doesn't panic
+	// and handles errors correctly. We can't directly test the spinner
+	// UI output, but we can verify the method works correctly.
+
+	builder := &InteractiveWorkflowBuilder{
+		WorkflowName: "test-spinner-workflow",
+	}
+
+	// Test with invalid workflow (should handle error correctly)
+	// This will fail compilation but should not panic
+	err := builder.compileWorkflow(false)
+
+	// We expect an error since the workflow doesn't exist
+	if err == nil {
+		t.Error("Expected error when compiling non-existent workflow")
+	}
+
+	// Verify error handling doesn't panic
+	// The spinner should be stopped even on error
+	t.Logf("Compilation error (expected): %v", err)
+}
