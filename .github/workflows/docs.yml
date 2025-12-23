@@ -49,11 +49,6 @@ jobs:
 
       - name: Fetch org-owned playground workflows
         working-directory: ./docs
-        env:
-          # Repo-relative file paths to copy into docs bundle (comma-separated).
-          PLAYGROUND_ORG_WORKFLOWS_FILES: >-
-            .github/workflows/playground-executor.md,
-            .github/workflows/playground-executor.lock.yml
         run: npm run fetch-playground-org-owned
 
       - name: Validate Playground fetch configuration (optional)
