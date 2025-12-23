@@ -581,9 +581,6 @@ func main() {
 	// Set version information in the CLI package
 	cli.SetVersionInfo(version)
 
-	// Set release flag in the CLI package
-	cli.SetIsRelease(isRelease == "true")
-
 	// Set version information in the workflow package for generated file headers
 	workflow.SetVersion(version)
 

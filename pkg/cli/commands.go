@@ -18,8 +18,7 @@ var commandsLog = logger.New("cli:commands")
 
 // Package-level version information
 var (
-	version   = "dev"
-	isRelease = false
+	version = "dev"
 )
 
 //go:embed templates/github-agentic-workflows.md
@@ -42,16 +41,6 @@ func SetVersionInfo(v string) {
 // GetVersion returns the current version
 func GetVersion() string {
 	return version
-}
-
-// SetIsRelease sets whether this is a release build
-func SetIsRelease(release bool) {
-	isRelease = release
-}
-
-// IsRelease returns whether this is a release build
-func IsRelease() bool {
-	return isRelease
 }
 
 func isGHCLIAvailable() bool {
