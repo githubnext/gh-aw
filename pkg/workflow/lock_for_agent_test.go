@@ -59,7 +59,7 @@ Test workflow with lock-for-agent enabled.
 		"Lock issue for agent workflow",
 		"Unlock issue after agent workflow",
 		"GH_AW_LOCK_FOR_AGENT: \"true\"",
-		"lock-issue.cjs", // Check for require() call to lock-issue script
+		"lock-issue.cjs",   // Check for require() call to lock-issue script
 		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
 
@@ -378,7 +378,7 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		"Lock issue for agent workflow",
 		"Unlock issue after agent workflow",
 		"GH_AW_LOCK_FOR_AGENT: \"true\"",
-		"lock-issue.cjs", // Check for require() call to lock-issue script
+		"lock-issue.cjs",   // Check for require() call to lock-issue script
 		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
 
