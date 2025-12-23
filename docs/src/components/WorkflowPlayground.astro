@@ -20,7 +20,6 @@ const { title, workflowContent, steps, playgroundUrl } = Astro.props;
 const playIcon = octicons['play'].toSVG({ width: 16, height: 16 });
 const copyIcon = octicons['copy'].toSVG({ width: 16, height: 16 });
 const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
-const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
 ---
 
 <div class="workflow-playground">
@@ -34,41 +33,34 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     )}
   </div>
 
-  <div class="playground-container">
-    <div class="workflow-viewer">
-      <div class="viewer-header">
-        <span class="viewer-title">workflow.md</span>
-        <button class="copy-button" data-copy-content={workflowContent}>
-          <span class="copy-icon" set:html={copyIcon} />
-          <span class="check-icon" set:html={checkIcon} />
-          <span class="button-text">Copy</span>
-        </button>
-      </div>
-      <div class="code-container">
-        <pre class="workflow-code" data-workflow-content={workflowContent}><code>{workflowContent}</code></pre>
-      </div>
+  <div class="workflow-viewer">
+    <div class="viewer-header">
+      <span class="viewer-title">workflow.md</span>
+      <button class="copy-button" data-copy-content={workflowContent}>
+        <span class="copy-icon" set:html={copyIcon} />
+        <span class="check-icon" set:html={checkIcon} />
+        <span class="button-text">Copy</span>
+      </button>
     </div>
+    <div class="code-container">
+      <pre class="workflow-code" data-workflow-content={workflowContent}><code>{workflowContent}</code></pre>
+    </div>
+  </div>
 
-    <div class="steps-panel">
-      <div class="steps-header">
-        <span set:html={infoIcon} />
-        Step-by-Step Guide
-      </div>
-      <div class="steps-list">
-        {steps.map((step, index) => (
-          <div 
-            class="step-item" 
-            data-step-id={step.id}
-            data-code-lines={step.codeLines ? JSON.stringify(step.codeLines) : null}
-          >
-            <div class="step-number">{index + 1}</div>
-            <div class="step-content">
-              <h4 class="step-title">{step.title}</h4>
-              <p class="step-description">{step.description}</p>
-            </div>
+  <div class="steps-section">
+    <h4 class="steps-heading">Understanding the Workflow</h4>
+    <div class="steps-list">
+      {steps.map((step, index) => (
+        <details class="step-item" data-step-id={step.id}>
+          <summary class="step-summary">
+            <span class="step-number">{index + 1}</span>
+            <span class="step-title">{step.title}</span>
+          </summary>
+          <div class="step-content">
+            <p>{step.description}</p>
           </div>
-        ))}
-      </div>
+        </details>
+      ))}
     </div>
   </div>
 </div>
@@ -94,56 +86,6 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
         }
       });
     });
-
-    // Step highlighting functionality
-    const stepItems = document.querySelectorAll('.step-item');
-    const codeElements = document.querySelectorAll('.workflow-code');
-
-    stepItems.forEach(stepItem => {
-      stepItem.addEventListener('mouseenter', () => {
-        // Remove active state from all steps
-        stepItems.forEach(item => item.classList.remove('active'));
-        
-        // Add active state to current step
-        stepItem.classList.add('active');
-
-        // Highlight corresponding code lines
-        const codeLinesAttr = stepItem.getAttribute('data-code-lines');
-        if (codeLinesAttr) {
-          const codeLines = JSON.parse(codeLinesAttr);
-          highlightCodeLines(codeLines);
-        }
-      });
-
-      stepItem.addEventListener('mouseleave', () => {
-        stepItem.classList.remove('active');
-        clearHighlights();
-      });
-    });
-
-    function highlightCodeLines(lines: [number, number]) {
-      const [start, end] = lines;
-      const codeElement = document.querySelector('.workflow-code code');
-      if (!codeElement) return;
-
-      const codeText = codeElement.textContent || '';
-      const codeLineArray = codeText.split('\n');
-      
-      // Add highlight class to lines (simple approach)
-      const container = codeElement.closest('.code-container');
-      if (container) {
-        container.setAttribute('data-highlight-start', String(start));
-        container.setAttribute('data-highlight-end', String(end));
-      }
-    }
-
-    function clearHighlights() {
-      const containers = document.querySelectorAll('.code-container');
-      containers.forEach(container => {
-        container.removeAttribute('data-highlight-start');
-        container.removeAttribute('data-highlight-end');
-      });
-    }
   });
 </script>
 
@@ -164,6 +106,8 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     padding: 1.5rem;
     border-bottom: 1px solid var(--sl-color-hairline);
     background: rgba(13, 17, 23, 0.6);
+    flex-wrap: wrap;
+    gap: 1rem;
   }
 
   .playground-title {
@@ -200,30 +144,9 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     fill: currentColor;
   }
 
-  .playground-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    min-height: 500px;
-  }
-
-  @media (max-width: 768px) {
-    .playground-container {
-      grid-template-columns: 1fr;
-    }
-  }
-
   .workflow-viewer {
-    border-right: 1px solid var(--sl-color-hairline);
     display: flex;
     flex-direction: column;
-  }
-
-  @media (max-width: 768px) {
-    .workflow-viewer {
-      border-right: none;
-      border-bottom: 1px solid var(--sl-color-hairline);
-    }
   }
 
   .viewer-header {
@@ -233,6 +156,8 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     padding: 1rem 1.5rem;
     background: rgba(13, 17, 23, 0.6);
     border-bottom: 1px solid var(--sl-color-hairline);
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 
   .viewer-title {
@@ -285,9 +210,8 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
   }
 
   .code-container {
-    flex: 1;
     overflow: auto;
-    position: relative;
+    max-height: 500px;
   }
 
   .workflow-code {
@@ -308,55 +232,58 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     padding: 0 !important;
   }
 
-  .steps-panel {
-    display: flex;
-    flex-direction: column;
+  .steps-section {
+    padding: 1.5rem;
     background: rgba(13, 17, 23, 0.3);
+    border-top: 1px solid var(--sl-color-hairline);
   }
 
-  .steps-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem 1.5rem;
-    background: rgba(13, 17, 23, 0.6);
-    border-bottom: 1px solid var(--sl-color-hairline);
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--sl-color-gray-3);
-  }
-
-  .steps-header :global(svg) {
-    fill: currentColor;
+  .steps-heading {
+    margin: 0 0 1rem 0 !important;
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    color: var(--sl-color-text);
   }
 
   .steps-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .step-item {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
     border: 1px solid rgba(139, 92, 246, 0.15);
     border-radius: 6px;
     background: rgba(13, 17, 23, 0.4);
-    cursor: pointer;
     transition: all 0.2s ease;
   }
 
-  .step-item:last-child {
-    margin-bottom: 0;
+  .step-item:hover {
+    background: rgba(139, 92, 246, 0.05);
+    border-color: rgba(139, 92, 246, 0.25);
   }
 
-  .step-item:hover,
-  .step-item.active {
+  .step-item[open] {
     background: rgba(139, 92, 246, 0.08);
     border-color: rgba(139, 92, 246, 0.3);
-    transform: translateX(4px);
+  }
+
+  .step-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .step-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .step-summary::marker {
+    display: none;
   }
 
   .step-number {
@@ -372,32 +299,32 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     font-weight: 700;
     font-size: 0.875rem;
     color: #c4b5fd;
+    transition: all 0.2s ease;
   }
 
-  .step-item.active .step-number {
+  .step-item[open] .step-number {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(139, 92, 246, 0.2));
     border-color: rgba(139, 92, 246, 0.5);
     color: #ddd6fe;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
   }
 
-  .step-content {
-    flex: 1;
-    min-width: 0;
-  }
-
   .step-title {
-    margin: 0 0 0.5rem 0 !important;
-    font-size: 1rem !important;
-    font-weight: 600 !important;
+    flex: 1;
+    font-size: 1rem;
+    font-weight: 600;
     color: var(--sl-color-text);
   }
 
-  .step-description {
-    margin: 0 !important;
-    font-size: 0.875rem !important;
-    line-height: 1.5 !important;
+  .step-content {
+    padding: 0 1rem 1rem 1rem;
     color: var(--sl-color-gray-3);
+  }
+
+  .step-content p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
   }
 
   /* Light theme adjustments */
@@ -407,8 +334,7 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
   }
 
   :global([data-theme='light']) .playground-header,
-  :global([data-theme='light']) .viewer-header,
-  :global([data-theme='light']) .steps-header {
+  :global([data-theme='light']) .viewer-header {
     background: rgba(246, 248, 250, 0.8);
   }
 
@@ -424,7 +350,7 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     color: #8250df;
   }
 
-  :global([data-theme='light']) .steps-panel {
+  :global([data-theme='light']) .steps-section {
     background: rgba(246, 248, 250, 0.5);
   }
 
@@ -433,8 +359,12 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     border-color: rgba(130, 80, 223, 0.15);
   }
 
-  :global([data-theme='light']) .step-item:hover,
-  :global([data-theme='light']) .step-item.active {
+  :global([data-theme='light']) .step-item:hover {
+    background: rgba(130, 80, 223, 0.05);
+    border-color: rgba(130, 80, 223, 0.25);
+  }
+
+  :global([data-theme='light']) .step-item[open] {
     background: rgba(130, 80, 223, 0.08);
     border-color: rgba(130, 80, 223, 0.3);
   }
@@ -456,7 +386,7 @@ const infoIcon = octicons['info'].toSVG({ width: 16, height: 16 });
     color: #6639ba;
   }
 
-  :global([data-theme='light']) .step-item.active .step-number {
+  :global([data-theme='light']) .step-item[open] .step-number {
     background: linear-gradient(135deg, rgba(130, 80, 223, 0.3), rgba(130, 80, 223, 0.15));
     border-color: rgba(130, 80, 223, 0.5);
     color: #8250df;
