@@ -1,5 +1,5 @@
 ---
-description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend.
+description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
 on:
   schedule:
     # Peak hours (9 AM - 5 PM UTC): Every 2 hours
@@ -31,6 +31,8 @@ sandbox:
       - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
       - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
 steps:
+  # Early exit guard: Check if there's work to do before consuming tokens
+  # If CI is passing, the workflow exits early without running the agent
   - name: Check last CI workflow run status on main branch
     id: ci_check
     env:
@@ -53,31 +55,35 @@ steps:
       if [ "$CONCLUSION" = "success" ]; then
         echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
         echo "CI_NEEDS_FIX=false" >> "$GITHUB_ENV"
-        exit 1
       else
         echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
         echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
         echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
       fi
   - name: Install Make
+    if: env.CI_NEEDS_FIX == 'true'
     run: |
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
+    if: env.CI_NEEDS_FIX == 'true'
     uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
       cache: true
   - name: Set up Node.js
+    if: env.CI_NEEDS_FIX == 'true'
     uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: pkg/workflow/js/package-lock.json
   - name: Install npm dependencies
+    if: env.CI_NEEDS_FIX == 'true'
     run: npm ci
     working-directory: ./pkg/workflow/js
   - name: Install dev dependencies
+    if: env.CI_NEEDS_FIX == 'true'
     run: make deps-dev
 safe-outputs:
   create-pull-request:
@@ -107,7 +113,13 @@ When CI fails on the main branch, automatically diagnose and fix the issues by:
 
 ## Your Task
 
-The CI workflow has failed on the main branch. Follow the instructions from the ci-cleaner agent to:
+**IMPORTANT**: Check the CI status first:
+- **CI Status**: ${{ env.CI_STATUS }}
+- **CI Needs Fix**: ${{ env.CI_NEEDS_FIX }}
+
+If `CI_NEEDS_FIX` is `false` or `CI_STATUS` is `success`, then **CI is passing and no action is needed**. Simply report that CI is healthy and exit successfully without making any changes.
+
+If CI has failed on the main branch, follow the instructions from the ci-cleaner agent to:
 
 1. **Format sources** - Run `make fmt` to format all code
 2. **Run linters** - Run `make lint` and fix any issues

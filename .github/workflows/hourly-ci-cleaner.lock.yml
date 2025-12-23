@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend.
+# CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -175,20 +175,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: ci_check
         name: Check last CI workflow run status on main branch
-        run: "# Get the last CI workflow run on main branch, excluding pending and cancelled runs\nLAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \\\n  | jq -r '[.[] | select(.status == \"completed\" and (.conclusion == \"success\" or .conclusion == \"failure\"))] | .[0]')\n\nCONCLUSION=$(echo \"$LAST_RUN\" | jq -r '.conclusion')\nRUN_ID=$(echo \"$LAST_RUN\" | jq -r '.databaseId')\n\necho \"Last CI run conclusion: ${CONCLUSION}\"\necho \"Run ID: ${RUN_ID}\"\n\n# Write to environment and step summary\necho \"CI_STATUS=${CONCLUSION}\" >> \"$GITHUB_ENV\"\necho \"CI_RUN_ID=${RUN_ID}\" >> \"$GITHUB_ENV\"\n\nif [ \"$CONCLUSION\" = \"success\" ]; then\n  echo \"✅ CI is passing on main branch - no action needed\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=false\" >> \"$GITHUB_ENV\"\n  exit 1\nelse\n  echo \"❌ CI is failing on main branch - agent will attempt to fix\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"Run ID: ${RUN_ID}\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=true\" >> \"$GITHUB_ENV\"\nfi\n"
-      - name: Install Make
+        run: "# Get the last CI workflow run on main branch, excluding pending and cancelled runs\nLAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \\\n  | jq -r '[.[] | select(.status == \"completed\" and (.conclusion == \"success\" or .conclusion == \"failure\"))] | .[0]')\n\nCONCLUSION=$(echo \"$LAST_RUN\" | jq -r '.conclusion')\nRUN_ID=$(echo \"$LAST_RUN\" | jq -r '.databaseId')\n\necho \"Last CI run conclusion: ${CONCLUSION}\"\necho \"Run ID: ${RUN_ID}\"\n\n# Write to environment and step summary\necho \"CI_STATUS=${CONCLUSION}\" >> \"$GITHUB_ENV\"\necho \"CI_RUN_ID=${RUN_ID}\" >> \"$GITHUB_ENV\"\n\nif [ \"$CONCLUSION\" = \"success\" ]; then\n  echo \"✅ CI is passing on main branch - no action needed\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=false\" >> \"$GITHUB_ENV\"\nelse\n  echo \"❌ CI is failing on main branch - agent will attempt to fix\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"Run ID: ${RUN_ID}\" >> \"$GITHUB_STEP_SUMMARY\"\n  echo \"CI_NEEDS_FIX=true\" >> \"$GITHUB_ENV\"\nfi\n"
+      - if: env.CI_NEEDS_FIX == 'true'
+        name: Install Make
         run: |
           sudo apt-get update
           sudo apt-get install -y make
-      - name: Setup Go
+      - if: env.CI_NEEDS_FIX == 'true'
+        name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           cache: true
           go-version-file: go.mod
-      - name: Install npm dependencies
+      - if: env.CI_NEEDS_FIX == 'true'
+        name: Install npm dependencies
         run: npm ci
         working-directory: ./pkg/workflow/js
-      - name: Install dev dependencies
+      - if: env.CI_NEEDS_FIX == 'true'
+        name: Install dev dependencies
         run: make deps-dev
 
       - name: Configure Git credentials
@@ -1952,6 +1956,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ENV_CI_NEEDS_FIX: ${{ env.CI_NEEDS_FIX }}
           GH_AW_ENV_CI_STATUS: ${{ env.CI_STATUS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
@@ -2254,7 +2259,13 @@ jobs:
           
           ## Your Task
           
-          The CI workflow has failed on the main branch. Follow the instructions from the ci-cleaner agent to:
+          **IMPORTANT**: Check the CI status first:
+          - **CI Status**: __GH_AW_ENV_CI_STATUS__
+          - **CI Needs Fix**: __GH_AW_ENV_CI_NEEDS_FIX__
+          
+          If `CI_NEEDS_FIX` is `false` or `CI_STATUS` is `success`, then **CI is passing and no action is needed**. Simply report that CI is healthy and exit successfully without making any changes.
+          
+          If CI has failed on the main branch, follow the instructions from the ci-cleaner agent to:
           
           1. **Format sources** - Run `make fmt` to format all code
           2. **Run linters** - Run `make lint` and fix any issues
@@ -2299,6 +2310,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_CI_NEEDS_FIX: ${{ env.CI_NEEDS_FIX }}
           GH_AW_ENV_CI_STATUS: ${{ env.CI_STATUS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
@@ -2331,6 +2343,7 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_ENV_CI_NEEDS_FIX: process.env.GH_AW_ENV_CI_NEEDS_FIX,
                 GH_AW_ENV_CI_STATUS: process.env.GH_AW_ENV_CI_STATUS,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_NUMBER: process.env.GH_AW_GITHUB_RUN_NUMBER
@@ -2500,6 +2513,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_ENV_CI_NEEDS_FIX: ${{ env.CI_NEEDS_FIX }}
           GH_AW_ENV_CI_STATUS: ${{ env.CI_STATUS }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_NUMBER: ${{ github.run_number }}
@@ -6516,7 +6530,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "CI Cleaner"
-          WORKFLOW_DESCRIPTION: "CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend."
+          WORKFLOW_DESCRIPTION: "CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption."
         with:
           script: |
             const fs = require('fs');
