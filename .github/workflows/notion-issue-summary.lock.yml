@@ -43,7 +43,7 @@ run-name: "Issue Summary to Notion"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -5511,7 +5511,7 @@ jobs:
       - detection
       - notion_add_comment
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write

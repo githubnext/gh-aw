@@ -40,7 +40,7 @@ run-name: "Hourly CI Cleaner"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -5921,7 +5921,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6296,7 +6296,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write
@@ -6317,7 +6317,7 @@ jobs:
           sparse-checkout: |
             actions
       - name: Setup Scripts
-        uses: actions/setup
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact

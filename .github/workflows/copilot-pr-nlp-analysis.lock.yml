@@ -43,7 +43,7 @@ run-name: "Copilot PR Conversation NLP Analysis"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -6473,7 +6473,7 @@ jobs:
       - update_cache_memory
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6844,7 +6844,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6863,7 +6863,7 @@ jobs:
           sparse-checkout: |
             actions
       - name: Setup Scripts
-        uses: actions/setup
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
@@ -6928,7 +6928,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     timeout-minutes: 10

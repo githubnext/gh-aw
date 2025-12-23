@@ -68,7 +68,7 @@ jobs:
       (github.event_name == 'discussion') &&
       (contains(github.event.discussion.body, '/speckit')) || (github.event_name == 'discussion_comment') &&
       (contains(github.event.comment.body, '/speckit')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6080,7 +6080,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6456,7 +6456,7 @@ jobs:
       (contains(github.event.pull_request.body, '/speckit')) || (github.event_name == 'discussion') &&
       (contains(github.event.discussion.body, '/speckit')) ||
       (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/speckit'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -6631,7 +6631,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6656,7 +6656,7 @@ jobs:
           sparse-checkout: |
             actions
       - name: Setup Scripts
-        uses: actions/setup
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact

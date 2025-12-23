@@ -47,7 +47,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'firewall-escape-test'))))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -2945,7 +2945,7 @@ jobs:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'firewall-escape-test')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:

@@ -62,7 +62,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// Add setup action to copy JavaScript files
-	setupActionRef := c.resolveActionReference("actions/setup", data)
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
 		if c.actionMode.IsDev() {
@@ -389,7 +389,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		insertIndex := 0
 		
 		// Count setup action steps (checkout + setup if in dev mode, or just setup)
-		setupActionRef := c.resolveActionReference("actions/setup", data)
+		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
 			if c.actionMode.IsDev() {
 				insertIndex += 5 // Checkout step (5 lines: name, uses, with, sparse-checkout header, path)

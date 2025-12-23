@@ -37,7 +37,7 @@ run-name: "Daily Malicious Code Scan Agent"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -5859,7 +5859,7 @@ jobs:
       - agent
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5961,7 +5961,7 @@ jobs:
   safe_outputs:
     needs: agent
     if: (!cancelled()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       security-events: write
@@ -5978,7 +5978,7 @@ jobs:
           sparse-checkout: |
             actions
       - name: Setup Scripts
-        uses: actions/setup
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact

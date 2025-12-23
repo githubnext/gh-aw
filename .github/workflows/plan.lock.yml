@@ -45,7 +45,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) &&
       (github.event.issue.pull_request == null)) || (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/plan')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5841,7 +5841,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6209,7 +6209,7 @@ jobs:
     if: >
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/plan'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -6384,7 +6384,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6405,7 +6405,7 @@ jobs:
           sparse-checkout: |
             actions
       - name: Setup Scripts
-        uses: actions/setup
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
