@@ -221,7 +221,8 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, fmt.Sprintf("            require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, "            await main();\n")
 	} else {
 		// Add the formatted JavaScript script (inline)
 		formattedScript := FormatJavaScriptForYAML(config.Script)

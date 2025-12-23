@@ -65,4 +65,4 @@ async function main() {
   core.info(`Successfully processed ${noopItems.length} noop message(s)`);
 }
 
-await main();
+module.exports = { main };

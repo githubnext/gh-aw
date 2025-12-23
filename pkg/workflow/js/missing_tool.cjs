@@ -132,7 +132,4 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  core.error(`Error processing missing-tool reports: ${error}`);
-  core.setFailed(`Error processing missing-tool reports: ${error}`);
-});
+module.exports = { main };

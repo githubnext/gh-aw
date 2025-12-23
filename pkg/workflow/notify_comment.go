@@ -222,7 +222,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            require('"+SetupActionDestination+"/unlock-issue.cjs');\n")
+		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/unlock-issue.cjs');\n")
+		steps = append(steps, "            await main();\n")
 
 		notifyCommentLog.Print("Added unlock issue step to conclusion job")
 	}

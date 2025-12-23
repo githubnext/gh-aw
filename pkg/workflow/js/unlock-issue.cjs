@@ -61,4 +61,4 @@ async function main() {
   }
 }
 
-await main();
+module.exports = { main };
