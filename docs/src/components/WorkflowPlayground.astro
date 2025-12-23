@@ -1,5 +1,6 @@
 ---
 import octicons from '@primer/octicons';
+import { Steps } from '@astrojs/starlight/components';
 
 interface Step {
   id: string;
@@ -49,19 +50,16 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
 
   <div class="steps-section">
     <h4 class="steps-heading">Understanding the Workflow</h4>
-    <div class="steps-list">
-      {steps.map((step, index) => (
-        <details class="step-item" data-step-id={step.id}>
-          <summary class="step-summary">
-            <span class="step-number">{index + 1}</span>
-            <span class="step-title">{step.title}</span>
-          </summary>
-          <div class="step-content">
+    <Steps>
+      <ol>
+        {steps.map((step) => (
+          <li>
+            <strong>{step.title}</strong>
             <p>{step.description}</p>
-          </div>
-        </details>
-      ))}
-    </div>
+          </li>
+        ))}
+      </ol>
+    </Steps>
   </div>
 </div>
 
@@ -245,88 +243,6 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
     color: var(--sl-color-text);
   }
 
-  .steps-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .step-item {
-    border: 1px solid rgba(139, 92, 246, 0.15);
-    border-radius: 6px;
-    background: rgba(13, 17, 23, 0.4);
-    transition: all 0.2s ease;
-  }
-
-  .step-item:hover {
-    background: rgba(139, 92, 246, 0.05);
-    border-color: rgba(139, 92, 246, 0.25);
-  }
-
-  .step-item[open] {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.3);
-  }
-
-  .step-summary {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    cursor: pointer;
-    user-select: none;
-    list-style: none;
-  }
-
-  .step-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .step-summary::marker {
-    display: none;
-  }
-
-  .step-number {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.1));
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 0.875rem;
-    color: #c4b5fd;
-    transition: all 0.2s ease;
-  }
-
-  .step-item[open] .step-number {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(139, 92, 246, 0.2));
-    border-color: rgba(139, 92, 246, 0.5);
-    color: #ddd6fe;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-  }
-
-  .step-title {
-    flex: 1;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--sl-color-text);
-  }
-
-  .step-content {
-    padding: 0 1rem 1rem 1rem;
-    color: var(--sl-color-gray-3);
-  }
-
-  .step-content p {
-    margin: 0;
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
   /* Light theme adjustments */
   :global([data-theme='light']) .workflow-playground {
     background: rgba(255, 255, 255, 0.8);
@@ -354,21 +270,6 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
     background: rgba(246, 248, 250, 0.5);
   }
 
-  :global([data-theme='light']) .step-item {
-    background: rgba(255, 255, 255, 0.8);
-    border-color: rgba(130, 80, 223, 0.15);
-  }
-
-  :global([data-theme='light']) .step-item:hover {
-    background: rgba(130, 80, 223, 0.05);
-    border-color: rgba(130, 80, 223, 0.25);
-  }
-
-  :global([data-theme='light']) .step-item[open] {
-    background: rgba(130, 80, 223, 0.08);
-    border-color: rgba(130, 80, 223, 0.3);
-  }
-
   :global([data-theme='light']) .copy-button {
     background: rgba(130, 80, 223, 0.1);
     border-color: rgba(130, 80, 223, 0.2);
@@ -380,23 +281,9 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
     border-color: rgba(130, 80, 223, 0.3);
   }
 
-  :global([data-theme='light']) .step-number {
-    background: linear-gradient(135deg, rgba(130, 80, 223, 0.15), rgba(130, 80, 223, 0.08));
-    border-color: rgba(130, 80, 223, 0.3);
-    color: #6639ba;
-  }
-
-  :global([data-theme='light']) .step-item[open] .step-number {
-    background: linear-gradient(135deg, rgba(130, 80, 223, 0.3), rgba(130, 80, 223, 0.15));
-    border-color: rgba(130, 80, 223, 0.5);
-    color: #8250df;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .playground-link,
-    .copy-button,
-    .step-item,
-    .step-number {
+    .copy-button {
       transition: none;
     }
   }
