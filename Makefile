@@ -263,6 +263,21 @@ tools: ## Install build-time tools from tools.go
 	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
 	@echo "✓ Tools installed successfully"
 
+# License compliance checking
+.PHONY: license-check
+license-check: ## Check dependency licenses for compliance
+	@echo "Checking dependency licenses..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses check --disallowed_types=forbidden,reciprocal,restricted,unknown ./...
+	@echo "✓ License check passed"
+
+.PHONY: license-report
+license-report: ## Generate CSV license report
+	@echo "Generating license report..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses csv ./... > licenses.csv 2>&1 || true
+	@echo "✓ Report saved to licenses.csv"
+
 # Install dependencies
 .PHONY: deps
 deps: check-node-version
@@ -510,6 +525,8 @@ help:
 	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
 	@echo "  tools            - Install build-time tools from tools.go"
+	@echo "  license-check    - Check dependency licenses for compliance"
+	@echo "  license-report   - Generate CSV license report"
 	@echo "  deps             - Install dependencies"
 	@echo "  deps-dev         - Install development dependencies (includes tools)"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
