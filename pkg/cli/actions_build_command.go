@@ -129,7 +129,26 @@ func ActionsCleanCommand() error {
 			}
 		}
 
-		// Note: setup uses setup.sh as template, so we don't clean it
+		// Clean js/ and sh/ directories for setup action
+		if actionName == "setup" {
+			jsDir := filepath.Join(actionsDir, actionName, "js")
+			if _, err := os.Stat(jsDir); err == nil {
+				if err := os.RemoveAll(jsDir); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
+				cleanedCount++
+			}
+
+			shDir := filepath.Join(actionsDir, actionName, "sh")
+			if _, err := os.Stat(shDir); err == nil {
+				if err := os.RemoveAll(shDir); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", shDir, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/sh/", actionName)))
+				cleanedCount++
+			}
+		}
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
@@ -324,13 +343,15 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 }
 
 // buildSetupAction builds the setup action by copying JavaScript files to js/ directory
+// and shell scripts to sh/ directory
 func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")
+	shDir := filepath.Join(actionPath, "sh")
 
 	// Get dependencies for this action
 	dependencies := getActionDependencies(actionName)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d JavaScript dependencies", len(dependencies))))
 
 	// Get all JavaScript sources
 	sources := workflow.GetJavaScriptSources()
@@ -356,6 +377,29 @@ func buildSetupAction(actionsDir, actionName string) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
+
+	// Get bundled shell scripts
+	shellScripts := workflow.GetBundledShellScripts()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d shell scripts", len(shellScripts))))
+
+	// Create sh directory if it doesn't exist
+	if err := os.MkdirAll(shDir, 0755); err != nil {
+		return fmt.Errorf("failed to create sh directory: %w", err)
+	}
+
+	// Copy each shell script to the sh directory
+	shCopiedCount := 0
+	for filename, content := range shellScripts {
+		destPath := filepath.Join(shDir, filename)
+		// Shell scripts should be executable (0755)
+		if err := os.WriteFile(destPath, []byte(content), 0755); err != nil {
+			return fmt.Errorf("failed to write %s: %w", filename, err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", filename)))
+		shCopiedCount++
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d shell scripts to sh/", shCopiedCount)))
 
 	return nil
 }

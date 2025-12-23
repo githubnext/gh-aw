@@ -46,6 +46,20 @@ var playwrightPromptText string
 //go:embed prompts/edit_tool_prompt.md
 var editToolPromptText string
 
+// GetBundledShellScripts returns a map of shell scripts that should be bundled with the setup action.
+// These are scripts that do NOT use GitHub Actions templating (like ${{ }} expressions).
+// Scripts with templating must remain embedded inline in the workflow YAML.
+func GetBundledShellScripts() map[string]string {
+	return map[string]string{
+		"create_gh_aw_tmp_dir.sh":        createGhAwTmpDirScript,
+		"start_safe_inputs_server.sh":    startSafeInputsServerScript,
+		"print_prompt_summary.sh":        printPromptSummaryScript,
+		"generate_git_patch.sh":          generateGitPatchScript,
+		"create_cache_memory_dir.sh":     createCacheMemoryDirScript,
+		"create_prompt_first.sh":         createPromptFirstScript,
+	}
+}
+
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")
