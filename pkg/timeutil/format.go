@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// FormatDuration formats a duration for display like the debug npm package
-// It provides granular formatting from nanoseconds to hours
+// FormatDuration formats a duration for display like the debug npm package.
+// It provides granular formatting from nanoseconds to hours.
 func FormatDuration(d time.Duration) string {
 	if d < time.Microsecond {
 		return fmt.Sprintf("%dns", d.Nanoseconds())

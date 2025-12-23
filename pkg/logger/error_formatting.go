@@ -5,19 +5,19 @@ import (
 	"strings"
 )
 
-// Pre-compiled regexes for performance (avoid recompiling in hot paths)
+// Pre-compiled regexes for performance (avoid recompiling in hot paths).
 var (
 	// Timestamp patterns for log cleanup
-	// Pattern 1: ISO 8601 with T or space separator (e.g., "2024-01-01T12:00:00.123Z " or "2024-01-01 12:00:00 ")
+	// Pattern 1: ISO 8601 with T or space separator (e.g., "2024-01-01T12:00:00.123Z " or "2024-01-01 12:00:00 ").
 	timestampPattern1 = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?\s*`)
-	// Pattern 2: Bracketed date-time (e.g., "[2024-01-01 12:00:00] ")
+	// Pattern 2: Bracketed date-time (e.g., "[2024-01-01 12:00:00] ").
 	timestampPattern2 = regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*`)
-	// Pattern 3: Bracketed time only (e.g., "[12:00:00] ")
+	// Pattern 3: Bracketed time only (e.g., "[12:00:00] ").
 	timestampPattern3 = regexp.MustCompile(`^\[\d{2}:\d{2}:\d{2}\]\s+`)
-	// Pattern 4: Time only with optional milliseconds (e.g., "12:00:00.123 ")
+	// Pattern 4: Time only with optional milliseconds (e.g., "12:00:00.123 ").
 	timestampPattern4 = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}(\.\d+)?\s+`)
 
-	// Log level pattern for message cleanup (case-insensitive)
+	// Log level pattern for message cleanup (case-insensitive).
 	logLevelPattern = regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
 )
 

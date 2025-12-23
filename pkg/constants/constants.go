@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension
+// CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension.
 const CLIExtensionPrefix = "gh aw"
 
 // Semantic types for measurements and identifiers
@@ -44,23 +44,24 @@ type LineLength int
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
-// FeatureFlag represents a feature flag identifier
+// FeatureFlag represents a feature flag identifier.
 type FeatureFlag string
 
-// MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline
+// MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.
 const MaxExpressionLineLength LineLength = 120
 
-// ExpressionBreakThreshold is the threshold for breaking long lines at logical points
+// ExpressionBreakThreshold is the threshold for breaking long lines at logical points.
 const ExpressionBreakThreshold LineLength = 100
 
-// DefaultMCPRegistryURL is the default MCP registry URL
+// DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
-// DefaultClaudeCodeVersion is the default version of the Claude Code CLI
+// DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
 const DefaultClaudeCodeVersion Version = "2.0.75"
 
-// DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-// WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY
+// DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
+//
+// WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
 const DefaultCopilotVersion Version = "0.0.372"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job

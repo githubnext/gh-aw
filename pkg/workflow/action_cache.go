@@ -13,18 +13,18 @@ import (
 var actionCacheLog = logger.New("workflow:action_cache")
 
 const (
-	// CacheFileName is the name of the cache file in .github/aw/
+	// CacheFileName is the name of the cache file in .github/aw/.
 	CacheFileName = "actions-lock.json"
 )
 
-// ActionCacheEntry represents a cached action pin resolution
+// ActionCacheEntry represents a cached action pin resolution.
 type ActionCacheEntry struct {
 	Repo    string `json:"repo"`
 	Version string `json:"version"`
 	SHA     string `json:"sha"`
 }
 
-// ActionCache manages cached action pin resolutions
+// ActionCache manages cached action pin resolutions.
 type ActionCache struct {
 	Entries map[string]ActionCacheEntry `json:"entries"` // key: "repo@version"
 	path    string
