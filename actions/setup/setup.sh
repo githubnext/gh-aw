@@ -72,6 +72,23 @@ for file in "${JS_SOURCE_DIR}"/*.json; do
   fi
 done
 
+# Copy shell scripts from sh/ directory with executable permissions
+SH_SOURCE_DIR="${SCRIPT_DIR}/sh"
+if [ -d "${SH_SOURCE_DIR}" ]; then
+  echo "::debug::Found shell scripts directory: ${SH_SOURCE_DIR}"
+  for file in "${SH_SOURCE_DIR}"/*.sh; do
+    if [ -f "$file" ]; then
+      filename=$(basename "$file")
+      cp "$file" "${DESTINATION}/${filename}"
+      chmod +x "${DESTINATION}/${filename}"
+      echo "::notice::Copied shell script: ${filename}"
+      FILE_COUNT=$((FILE_COUNT + 1))
+    fi
+  done
+else
+  echo "::debug::No shell scripts directory found at ${SH_SOURCE_DIR}"
+fi
+
 echo "::notice::Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
 # Set output

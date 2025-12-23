@@ -119,10 +119,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Setup Python environment
         run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
       - name: Install Python scientific libraries
@@ -184,11 +181,7 @@ jobs:
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
+        run: bash /tmp/gh-aw/actions/create_cache_memory_dir.sh
       - name: Restore cache memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -693,8 +686,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
-          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
-          mkdir -p "$PROMPT_DIR"
+          bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Python Data Visualization Guide
           
@@ -1779,21 +1771,7 @@ jobs:
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # Print prompt to workflow logs (equivalent to core.info)
-          echo "Generated Prompt:"
-          cat "$GH_AW_PROMPT"
-          # Print prompt to step summary
-          {
-            echo "<details>"
-            echo "<summary>Generated Prompt</summary>"
-            echo ""
-            echo '``````markdown'
-            cat "$GH_AW_PROMPT"
-            echo '``````'
-            echo ""
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

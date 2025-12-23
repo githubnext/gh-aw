@@ -8,7 +8,7 @@ import (
 
 var ansiStripLog = logger.New("parser:ansi_strip")
 
-// StripANSI removes ANSI escape codes from a string
+// StripANSI removes ANSI escape codes from a string.
 func StripANSI(s string) string {
 	if ansiStripLog.Enabled() {
 		ansiStripLog.Printf("Stripping ANSI codes from string: length=%d", len(s))

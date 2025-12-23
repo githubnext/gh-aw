@@ -101,10 +101,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Repo memory git-based storage configuration from frontmatter processed below
       - name: Clone repo-memory branch (default)
         env:
@@ -598,8 +595,7 @@ jobs:
           GH_AW_GITHUB_EVENT_INPUTS_SCOPE: ${{ github.event.inputs.scope }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
-          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
-          mkdir -p "$PROMPT_DIR"
+          bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Human-AI Collaboration Campaign Pattern
           
@@ -1418,21 +1414,7 @@ jobs:
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # Print prompt to workflow logs (equivalent to core.info)
-          echo "Generated Prompt:"
-          cat "$GH_AW_PROMPT"
-          # Print prompt to step summary
-          {
-            echo "<details>"
-            echo "<summary>Generated Prompt</summary>"
-            echo ""
-            echo '``````markdown'
-            cat "$GH_AW_PROMPT"
-            echo '``````'
-            echo ""
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

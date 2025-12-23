@@ -20,7 +20,7 @@ var projectUpdateInstructionsTemplate string
 //go:embed prompts/closing_instructions.md
 var closingInstructionsTemplate string
 
-// CampaignPromptData holds data for rendering campaign orchestrator prompts
+// CampaignPromptData holds data for rendering campaign orchestrator prompts.
 type CampaignPromptData struct {
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
@@ -38,7 +38,7 @@ type CampaignPromptData struct {
 	MaxDiscoveryPagesPerRun int
 }
 
-// renderTemplate renders a template string with the given data
+// renderTemplate renders a template string with the given data.
 func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	// Create custom template functions for Handlebars-style conditionals
 	funcMap := template.FuncMap{
@@ -66,7 +66,7 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 	return buf.String(), nil
 }
 
-// RenderOrchestratorInstructions renders the orchestrator instructions with the given data
+// RenderOrchestratorInstructions renders the orchestrator instructions with the given data.
 func RenderOrchestratorInstructions(data CampaignPromptData) string {
 	result, err := renderTemplate(orchestratorInstructionsTemplate, data)
 	if err != nil {

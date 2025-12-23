@@ -35,6 +35,8 @@ name: "Tidy"
     - "**/*.js"
     - "**/*.cjs"
     - "**/*.ts"
+  schedule:
+  - cron: "0 7 * * *"
   workflow_dispatch: null
 
 permissions: {}
@@ -133,10 +135,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
@@ -649,8 +648,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
-          mkdir -p "$PROMPT_DIR"
+          bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           # Code Tidying Agent
           
@@ -1063,21 +1061,7 @@ jobs:
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # Print prompt to workflow logs (equivalent to core.info)
-          echo "Generated Prompt:"
-          cat "$GH_AW_PROMPT"
-          # Print prompt to step summary
-          {
-            echo "<details>"
-            echo "<summary>Generated Prompt</summary>"
-            echo ""
-            echo '``````markdown'
-            cat "$GH_AW_PROMPT"
-            echo '``````'
-            echo ""
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

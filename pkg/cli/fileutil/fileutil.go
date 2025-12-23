@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// FileExists checks if a file exists and is not a directory
+// FileExists checks if a file exists and is not a directory.
 func FileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -15,7 +15,7 @@ func FileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// DirExists checks if a directory exists
+// DirExists checks if a directory exists.
 func DirExists(path string) bool {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -24,7 +24,7 @@ func DirExists(path string) bool {
 	return info.IsDir()
 }
 
-// IsDirEmpty checks if a directory is empty
+// IsDirEmpty checks if a directory is empty.
 func IsDirEmpty(path string) bool {
 	files, err := os.ReadDir(path)
 	if err != nil {
@@ -33,7 +33,7 @@ func IsDirEmpty(path string) bool {
 	return len(files) == 0
 }
 
-// CopyFile copies a file from src to dst using buffered IO
+// CopyFile copies a file from src to dst using buffered IO.
 func CopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -53,7 +53,7 @@ func CopyFile(src, dst string) error {
 	return out.Sync()
 }
 
-// CalculateDirectorySize recursively calculates the total size of files in a directory
+// CalculateDirectorySize recursively calculates the total size of files in a directory.
 func CalculateDirectorySize(dirPath string) int64 {
 	var totalSize int64
 

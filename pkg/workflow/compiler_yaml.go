@@ -209,7 +209,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
+	yaml.WriteString("          bash /tmp/gh-aw/actions/create_prompt_first.sh\n")
 
 	if len(chunks) > 0 {
 		// Write template with placeholders directly to target file
@@ -309,8 +309,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
+	yaml.WriteString("        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh\n")
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {

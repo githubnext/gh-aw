@@ -8,7 +8,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
-// Build-time variables
+// Build-time variables.
 var (
 	version = "dev"
 )

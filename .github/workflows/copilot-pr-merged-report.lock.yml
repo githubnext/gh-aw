@@ -105,10 +105,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1692,69 +1689,7 @@ jobs:
           export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
           export GH_DEBUG="${GH_DEBUG}"
           
-          cd /tmp/gh-aw/safe-inputs
-          # Verify required files exist
-          echo "Verifying safe-inputs setup..."
-          if [ ! -f mcp-server.cjs ]; then
-            echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          if [ ! -f tools.json ]; then
-            echo "ERROR: tools.json not found in /tmp/gh-aw/safe-inputs"
-            ls -la /tmp/gh-aw/safe-inputs/
-            exit 1
-          fi
-          echo "Configuration files verified"
-          # Log environment configuration
-          echo "Server configuration:"
-          echo "  Port: $GH_AW_SAFE_INPUTS_PORT"
-          echo "  API Key: ${GH_AW_SAFE_INPUTS_API_KEY:0:8}..."
-          echo "  Working directory: $(pwd)"
-          # Ensure logs directory exists
-          mkdir -p /tmp/gh-aw/safe-inputs/logs
-          # Create initial server.log file for artifact upload
-          {
-            echo "Safe Inputs MCP Server Log"
-            echo "Start time: $(date)"
-            echo "==========================================="
-            echo ""
-          } > /tmp/gh-aw/safe-inputs/logs/server.log
-          # Start the HTTP server in the background
-          echo "Starting safe-inputs MCP HTTP server..."
-          node mcp-server.cjs >> /tmp/gh-aw/safe-inputs/logs/server.log 2>&1 &
-          SERVER_PID=$!
-          echo "Started safe-inputs MCP server with PID $SERVER_PID"
-          # Wait for server to be ready (max 10 seconds)
-          echo "Waiting for server to become ready..."
-          for i in {1..10}; do
-            # Check if process is still running
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-              echo "ERROR: Server process $SERVER_PID has died"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              exit 1
-            fi
-            # Check if server is responding
-            if curl -s -f "http://localhost:$GH_AW_SAFE_INPUTS_PORT/health" > /dev/null 2>&1; then
-              echo "Safe Inputs MCP server is ready (attempt $i/10)"
-              break
-            fi
-            if [ "$i" -eq 10 ]; then
-              echo "ERROR: Safe Inputs MCP server failed to start after 10 seconds"
-              echo "Process status: $(pgrep -f 'mcp-server.cjs' || echo 'not running')"
-              echo "Server log contents:"
-              cat /tmp/gh-aw/safe-inputs/logs/server.log
-              echo "Checking port availability:"
-              netstat -tuln | grep "$GH_AW_SAFE_INPUTS_PORT" || echo "Port $GH_AW_SAFE_INPUTS_PORT not listening"
-              exit 1
-            fi
-            echo "Waiting for server... (attempt $i/10)"
-            sleep 1
-          done
-          # Output the configuration for the MCP client
-          echo "port=$GH_AW_SAFE_INPUTS_PORT" >> "$GITHUB_OUTPUT"
-          echo "api_key=$GH_AW_SAFE_INPUTS_API_KEY" >> "$GITHUB_OUTPUT"
+          bash /tmp/gh-aw/actions/start_safe_inputs_server.sh
           
       - name: Setup MCPs
         env:
@@ -1903,8 +1838,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
-          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
-          mkdir -p "$PROMPT_DIR"
+          bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
@@ -2419,21 +2353,7 @@ jobs:
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # Print prompt to workflow logs (equivalent to core.info)
-          echo "Generated Prompt:"
-          cat "$GH_AW_PROMPT"
-          # Print prompt to step summary
-          {
-            echo "<details>"
-            echo "<summary>Generated Prompt</summary>"
-            echo ""
-            echo '``````markdown'
-            cat "$GH_AW_PROMPT"
-            echo '``````'
-            echo ""
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

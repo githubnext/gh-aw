@@ -20,26 +20,26 @@ import (
 
 var gatewayLog = logger.New("awmg:gateway")
 
-// version is set by the main package
+// version is set by the main package.
 var version = "dev"
 
-// SetVersionInfo sets the version information for the awmg package
+// SetVersionInfo sets the version information for the awmg package.
 func SetVersionInfo(v string) {
 	version = v
 }
 
-// GetVersion returns the current version
+// GetVersion returns the current version.
 func GetVersion() string {
 	return version
 }
 
-// MCPGatewayConfig represents the configuration for the MCP gateway
+// MCPGatewayConfig represents the configuration for the MCP gateway.
 type MCPGatewayConfig struct {
 	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
 	Gateway    GatewaySettings            `json:"gateway,omitempty"`
 }
 
-// MCPServerConfig represents configuration for a single MCP server
+// MCPServerConfig represents configuration for a single MCP server.
 type MCPServerConfig struct {
 	Command   string            `json:"command,omitempty"`
 	Args      []string          `json:"args,omitempty"`
@@ -48,7 +48,7 @@ type MCPServerConfig struct {
 	Container string            `json:"container,omitempty"`
 }
 
-// GatewaySettings represents gateway-specific settings
+// GatewaySettings represents gateway-specific settings.
 type GatewaySettings struct {
 	Port   int    `json:"port,omitempty"`
 	APIKey string `json:"apiKey,omitempty"`
