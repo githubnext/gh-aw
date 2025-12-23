@@ -17,6 +17,8 @@ runs:
   steps:
     - name: Setup Activation Scripts
       shell: bash
+      env:
+        INPUT_DESTINATION: ${{ inputs.destination }}
       run: ${{ github.action_path }}/setup.sh
 
 branding:
