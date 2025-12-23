@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -112,9 +111,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		scriptNames = append(scriptNames, "push_to_pull_request_branch")
 	}
-	if data.SafeOutputs.UploadAssets != nil {
-		scriptNames = append(scriptNames, "upload_assets")
-	}
+	// Upload Assets is handled as a separate job (not in consolidated job)
+	// See buildUploadAssetsJob for the separate job implementation
 	if data.SafeOutputs.UpdateRelease != nil {
 		scriptNames = append(scriptNames, "update_release")
 	}
@@ -397,15 +395,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 	}
 
-	// 18. Upload Assets step
-	if data.SafeOutputs.UploadAssets != nil {
-		stepConfig := c.buildUploadAssetsStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsWrite())
-	}
+	// 18. Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
+	// This was moved out of the consolidated job to allow proper git configuration
+	// for pushing to orphaned branches
 
 	// 19. Update Release step
 	if data.SafeOutputs.UpdateRelease != nil {
@@ -655,12 +647,8 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		}
 	}
 
-	// Add asset upload configuration if present (applies to all steps)
-	if data.SafeOutputs.UploadAssets != nil {
-		envVars["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-		envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
-		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
-	}
+	// Note: Asset upload configuration is not needed here because upload_assets
+	// is now handled as a separate job (see buildUploadAssetsJob)
 
 	return envVars
 }

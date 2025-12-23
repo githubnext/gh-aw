@@ -23,7 +23,7 @@ import (
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
-		Use:   "logs [workflow-id]",
+		Use:   "logs [workflow]",
 		Short: "Download and analyze agentic workflow logs with aggregated metrics",
 		Long: `Download workflow run logs and artifacts from GitHub Actions for agentic workflows.
 

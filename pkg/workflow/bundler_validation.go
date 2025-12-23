@@ -306,7 +306,7 @@ func validateNoGitHubScriptGlobals(scriptName string, content string, mode Runti
 
 	if len(foundUsages) > 0 {
 		bundlerValidationLog.Printf("Validation failed: found %d GitHub Actions global usage(s) in %s", len(foundUsages), scriptName)
-		return fmt.Errorf("Node.js mode script '%s' contains %d GitHub Actions global usage(s):\n  %s\n\nNode.js scripts should not use GitHub Actions globals (core.*, exec.*, github.*)",
+		return fmt.Errorf("node.js mode script '%s' contains %d GitHub Actions global usage(s):\n  %s\n\nNode.js scripts should not use GitHub Actions globals (core.*, exec.*, github.*)",
 			scriptName, len(foundUsages), strings.Join(foundUsages, "\n  "))
 	}
 

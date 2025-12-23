@@ -125,7 +125,7 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
-		Short: "Check and suggest setup for gh-aw GitHub token secrets",
+		Short: "Check and suggest setup for gh aw GitHub token secrets",
 		Long: `Check which recommended GitHub token secrets (like GH_AW_GITHUB_TOKEN)
 are configured for the current repository, and print least-privilege setup
 instructions for any that are missing.
@@ -149,6 +149,7 @@ reference in the documentation.`,
 }
 
 func runTokensBootstrap(engine, owner, repo string) error {
+	secretsLog.Printf("Running tokens bootstrap: engine=%s, owner=%s, repo=%s", engine, owner, repo)
 	var repoSlug string
 	var err error
 
@@ -170,9 +171,11 @@ func runTokensBootstrap(engine, owner, repo string) error {
 	var tokensToCheck []tokenSpec
 	if engine != "" {
 		tokensToCheck = getRecommendedTokensForEngine(engine)
+		secretsLog.Printf("Checking tokens for specific engine: %s (%d tokens)", engine, len(tokensToCheck))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking tokens for engine: %s", engine)))
 	} else {
 		tokensToCheck = recommendedTokenSpecs
+		secretsLog.Printf("Checking all recommended tokens: count=%d", len(tokensToCheck))
 	}
 
 	missing := make([]tokenSpec, 0, len(tokensToCheck))
@@ -189,10 +192,12 @@ func runTokensBootstrap(engine, owner, repo string) error {
 	}
 
 	if len(missing) == 0 {
+		secretsLog.Print("All required tokens present")
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All recommended gh-aw token secrets are present in this repository."))
 		return nil
 	}
 
+	secretsLog.Printf("Found missing tokens: count=%d", len(missing))
 	// Separate required and optional missing secrets
 	var requiredMissing, optionalMissing []tokenSpec
 	for _, spec := range missing {

@@ -26,7 +26,7 @@ describe("safe_outputs_tools_loader", () => {
       }
       const testDir = path.dirname(testToolsPath);
       if (fs.existsSync(testDir)) {
-        fs.rmdirSync(testDir, { recursive: true });
+        fs.rmSync(testDir, { recursive: true, force: true });
       }
     } catch (error) {
       // Ignore cleanup errors
@@ -80,7 +80,7 @@ describe("safe_outputs_tools_loader", () => {
         fs.unlinkSync(defaultPath);
       }
       if (fs.existsSync(defaultDir)) {
-        fs.rmdirSync(defaultDir, { recursive: true });
+        fs.rmSync(defaultDir, { recursive: true, force: true });
       }
 
       const result = loadTools(mockServer);
@@ -301,6 +301,33 @@ describe("safe_outputs_tools_loader", () => {
 
       const toolArg = registerTool.mock.calls[0][1];
       expect(toolArg.inputSchema.properties.status.enum).toEqual(["success", "failure", "pending"]);
+    });
+
+    it("should convert choice type to string type with enum", () => {
+      const tools = [];
+      const config = {
+        custom_job: {
+          inputs: {
+            environment: {
+              type: "choice",
+              description: "Target environment",
+              required: true,
+              options: ["staging", "production"],
+            },
+          },
+        },
+      };
+      const outputFile = "/tmp/test-output.jsonl";
+      const registerTool = vi.fn();
+      const normalizeTool = name => name.replace(/-/g, "_");
+
+      registerDynamicTools(mockServer, tools, config, outputFile, registerTool, normalizeTool);
+
+      const toolArg = registerTool.mock.calls[0][1];
+      expect(toolArg.inputSchema.properties.environment.type).toBe("string");
+      expect(toolArg.inputSchema.properties.environment.enum).toEqual(["staging", "production"]);
+      expect(toolArg.inputSchema.properties.environment.description).toBe("Target environment");
+      expect(toolArg.inputSchema.required).toEqual(["environment"]);
     });
 
     it("should use default description if not provided", () => {

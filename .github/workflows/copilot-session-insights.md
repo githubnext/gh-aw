@@ -23,7 +23,7 @@ network:
     - python
 
 safe-outputs:
-  upload-assets:
+  upload-asset:
   create-discussion:
     title-prefix: "[copilot-session-insights] "
     category: "audits"
@@ -744,4 +744,3 @@ A successful analysis includes:
 ---
 
 Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
-

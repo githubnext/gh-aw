@@ -321,36 +321,35 @@ Test workflow with additional text in secret.`,
 func TestValidateSecretsExpression(t *testing.T) {
 	tests := []struct {
 		name        string
-		key         string
 		value       string
 		expectError bool
 	}{
 		// Valid cases
-		{"valid simple secret", "token", "${{ secrets.GITHUB_TOKEN }}", false},
-		{"valid with fallback", "token", "${{ secrets.TOKEN1 || secrets.TOKEN2 }}", false},
-		{"valid with multiple fallbacks", "token", "${{ secrets.TOKEN1 || secrets.TOKEN2 || secrets.TOKEN3 }}", false},
-		{"valid with spaces", "token", "${{  secrets.MY_TOKEN  }}", false},
-		{"valid underscore prefix", "token", "${{ secrets._PRIVATE }}", false},
-		{"valid with numbers", "token", "${{ secrets.TOKEN_V2 }}", false},
+		{"valid simple secret", "${{ secrets.GITHUB_TOKEN }}", false},
+		{"valid with fallback", "${{ secrets.TOKEN1 || secrets.TOKEN2 }}", false},
+		{"valid with multiple fallbacks", "${{ secrets.TOKEN1 || secrets.TOKEN2 || secrets.TOKEN3 }}", false},
+		{"valid with spaces", "${{  secrets.MY_TOKEN  }}", false},
+		{"valid underscore prefix", "${{ secrets._PRIVATE }}", false},
+		{"valid with numbers", "${{ secrets.TOKEN_V2 }}", false},
 
 		// Invalid cases
-		{"invalid plaintext", "token", "my-secret", true},
-		{"invalid GitHub PAT", "token", "ghp_1234567890abcdef", true},
-		{"invalid env reference", "token", "${{ env.MY_TOKEN }}", true},
-		{"invalid vars reference", "token", "${{ vars.MY_TOKEN }}", true},
-		{"invalid github context", "token", "${{ github.token }}", true},
-		{"invalid missing closing", "token", "${{ secrets.MY_TOKEN", true},
-		{"invalid missing opening", "token", "secrets.MY_TOKEN }}", true},
-		{"invalid empty", "token", "", true},
-		{"invalid with text prefix", "token", "Bearer ${{ secrets.TOKEN }}", true},
-		{"invalid with text suffix", "token", "${{ secrets.TOKEN }} extra", true},
-		{"invalid mixed contexts", "token", "${{ secrets.TOKEN || env.FALLBACK }}", true},
-		{"invalid number prefix", "token", "${{ secrets.123TOKEN }}", true},
+		{"invalid plaintext", "my-secret", true},
+		{"invalid GitHub PAT", "ghp_1234567890abcdef", true},
+		{"invalid env reference", "${{ env.MY_TOKEN }}", true},
+		{"invalid vars reference", "${{ vars.MY_TOKEN }}", true},
+		{"invalid github context", "${{ github.token }}", true},
+		{"invalid missing closing", "${{ secrets.MY_TOKEN", true},
+		{"invalid missing opening", "secrets.MY_TOKEN }}", true},
+		{"invalid empty", "", true},
+		{"invalid with text prefix", "Bearer ${{ secrets.TOKEN }}", true},
+		{"invalid with text suffix", "${{ secrets.TOKEN }} extra", true},
+		{"invalid mixed contexts", "${{ secrets.TOKEN || env.FALLBACK }}", true},
+		{"invalid number prefix", "${{ secrets.123TOKEN }}", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateSecretsExpression(tt.key, tt.value)
+			err := validateSecretsExpression(tt.value)
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error, got nil")
 			} else if !tt.expectError && err != nil {

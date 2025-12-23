@@ -140,7 +140,7 @@ Each safe output type has additional environment variables specific to its confi
 | `GH_AW_COMMENT_ID` | Comment ID from activation job | Command-triggered workflow | From activation job output |
 | `GH_AW_COMMENT_REPO` | Repository containing comment | Command-triggered workflow | From activation job output |
 
-### Upload Assets (`upload-assets:`)
+### Upload Assets (`upload-asset:`)
 
 | Variable | Description | Set When | Example |
 |----------|-------------|----------|---------|

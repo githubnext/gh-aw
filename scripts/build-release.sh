@@ -50,7 +50,7 @@ for p in "${platforms[@]}"; do
   echo "Building $p..."
   GOOS="$goos" GOARCH="$goarch" go build \
     -trimpath \
-    -ldflags="-s -w -X main.version=${VERSION}" \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
     -o "dist/${p}${ext}" \
     ./cmd/gh-aw
 done

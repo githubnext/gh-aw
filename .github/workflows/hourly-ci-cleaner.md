@@ -11,9 +11,22 @@ permissions:
   pull-requests: read
 tracker-id: hourly-ci-cleaner
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - go
 tools:
   bash: ["*"]
   edit:
+sandbox:
+  agent:
+    mounts:
+      - "/usr/bin/make:/usr/bin/make:ro"
+      - "/usr/bin/go:/usr/bin/go:ro"
+      - "/usr/local/bin/node:/usr/local/bin/node:ro"
+      - "/usr/local/bin/npm:/usr/local/bin/npm:ro"
+      - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
+      - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
 steps:
   - name: Check last CI workflow run status on main branch
     id: ci_check

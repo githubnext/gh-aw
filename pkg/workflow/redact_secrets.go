@@ -66,7 +66,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	} else {
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 
@@ -82,7 +82,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		for i, ref := range secretReferences {
 			escapedRefs[i] = escapeSingleQuote(ref)
 		}
-		yaml.WriteString(fmt.Sprintf("          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
+		fmt.Fprintf(yaml, "          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ","))
 
 		// Pass the actual secret values as environment variables so they can be redacted
 		// Each secret will be available as an environment variable
@@ -91,7 +91,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 			escapedSecretName := escapeSingleQuote(secretName)
 			// Use original secretName in GitHub Actions expression since it's already validated
 			// to only contain safe characters (uppercase letters, numbers, underscores)
-			yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
+			fmt.Fprintf(yaml, "          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName)
 		}
 	}
 
@@ -141,22 +141,22 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 			case string:
 				// Handle multi-line strings (especially for 'run' field)
 				if field == "run" && strings.Contains(v, "\n") {
-					yaml.WriteString(fmt.Sprintf("%s: |\n", field))
+					fmt.Fprintf(yaml, "%s: |\n", field)
 					lines := strings.Split(v, "\n")
 					for _, line := range lines {
-						yaml.WriteString(fmt.Sprintf("%s    %s\n", indent, line))
+						fmt.Fprintf(yaml, "%s    %s\n", indent, line)
 					}
 				} else {
-					yaml.WriteString(fmt.Sprintf("%s: %s\n", field, v))
+					fmt.Fprintf(yaml, "%s: %s\n", field, v)
 				}
 			case map[string]any:
 				// For complex fields like "with" or "env"
-				yaml.WriteString(fmt.Sprintf("%s:\n", field))
+				fmt.Fprintf(yaml, "%s:\n", field)
 				for key, val := range v {
-					yaml.WriteString(fmt.Sprintf("%s    %s: %v\n", indent, key, val))
+					fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
 				}
 			default:
-				yaml.WriteString(fmt.Sprintf("%s: %v\n", field, v))
+				fmt.Fprintf(yaml, "%s: %v\n", field, v)
 			}
 		}
 	}
@@ -184,21 +184,21 @@ func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any,
 		case string:
 			// Handle multi-line strings
 			if strings.Contains(v, "\n") {
-				yaml.WriteString(fmt.Sprintf("%s: |\n", field))
+				fmt.Fprintf(yaml, "%s: |\n", field)
 				lines := strings.Split(v, "\n")
 				for _, line := range lines {
-					yaml.WriteString(fmt.Sprintf("%s    %s\n", indent, line))
+					fmt.Fprintf(yaml, "%s    %s\n", indent, line)
 				}
 			} else {
-				yaml.WriteString(fmt.Sprintf("%s: %s\n", field, v))
+				fmt.Fprintf(yaml, "%s: %s\n", field, v)
 			}
 		case map[string]any:
-			yaml.WriteString(fmt.Sprintf("%s:\n", field))
+			fmt.Fprintf(yaml, "%s:\n", field)
 			for key, val := range v {
-				yaml.WriteString(fmt.Sprintf("%s    %s: %v\n", indent, key, val))
+				fmt.Fprintf(yaml, "%s    %s: %v\n", indent, key, val)
 			}
 		default:
-			yaml.WriteString(fmt.Sprintf("%s: %v\n", field, v))
+			fmt.Fprintf(yaml, "%s: %v\n", field, v)
 		}
 	}
 }

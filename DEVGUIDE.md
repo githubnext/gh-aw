@@ -38,9 +38,66 @@ make lint
 # Build and test the binary
 make build
 ./gh-aw --help
+
+# Build the awmg (MCP gateway) standalone binary
+make build-awmg
+./awmg --help
+
+# Build both binaries
+make all
 ```
 
 ### 4. Install the Extension Locally for Testing
+
+```bash
+# Install the local version of gh-aw extension
+make install
+
+# Verify installation
+gh aw --help
+```
+
+## Build Tools
+
+This project uses `tools.go` to track build-time tool dependencies. This ensures everyone uses the same tool versions.
+
+### Install Tools
+
+```bash
+make tools
+```
+
+This installs all tools listed in `tools.go` at the versions specified in `go.mod`:
+
+- **golangci-lint**: Go linter with comprehensive checks
+- **actionlint**: GitHub Actions workflow linter
+- **gosec**: Go security linter
+- **gopls**: Go language server for IDE support
+- **govulncheck**: Go vulnerability scanner
+
+### Adding a New Tool
+
+1. Add blank import to `tools.go`:
+   ```go
+   _ "github.com/example/tool/cmd/tool"
+   ```
+
+2. Update dependencies:
+   ```bash
+   go get github.com/example/tool/cmd/tool@latest
+   go mod tidy
+   ```
+
+3. Install: `make tools`
+
+### Tool Version Management
+
+Tool versions are locked in `go.mod` and `go.sum`, ensuring:
+
+- **Consistency**: Same tool versions in CI and local development
+- **Reproducibility**: Tool versions are version-controlled
+- **Simplicity**: Single command to install all tools
+- **Discoverability**: `tools.go` shows all build tools at a glance
 
 ```bash
 # Install the local version of gh-aw extension

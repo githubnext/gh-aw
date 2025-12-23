@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -64,6 +65,7 @@ func (c *ActionCache) Load() error {
 
 // Save saves the cache to disk with sorted entries
 // If the cache is empty, the file is not created or is deleted if it exists
+// Deduplicates entries by keeping only the most precise version reference for each repo+SHA combination
 func (c *ActionCache) Save() error {
 	actionCacheLog.Printf("Saving action cache to: %s with %d entries", c.path, len(c.Entries))
 
@@ -80,6 +82,9 @@ func (c *ActionCache) Save() error {
 		}
 		return nil
 	}
+
+	// Deduplicate entries before saving
+	c.deduplicateEntries()
 
 	// Ensure directory exists
 	dir := filepath.Dir(c.path)
@@ -149,15 +154,18 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 	key := repo + "@" + version
 	entry, exists := c.Entries[key]
 	if !exists {
+		actionCacheLog.Printf("Cache miss for key=%s", key)
 		return "", false
 	}
 
+	actionCacheLog.Printf("Cache hit for key=%s, sha=%s", key, entry.SHA)
 	return entry.SHA, true
 }
 
 // Set stores a new cache entry
 func (c *ActionCache) Set(repo, version, sha string) {
 	key := repo + "@" + version
+	actionCacheLog.Printf("Setting cache entry: key=%s, sha=%s", key, sha)
 	c.Entries[key] = ActionCacheEntry{
 		Repo:    repo,
 		Version: version,
@@ -168,4 +176,82 @@ func (c *ActionCache) Set(repo, version, sha string) {
 // GetCachePath returns the path to the cache file
 func (c *ActionCache) GetCachePath() string {
 	return c.path
+}
+
+// deduplicateEntries removes duplicate entries by keeping only the most precise version reference
+// for each repo+SHA combination. For example, if both "actions/cache@v4" and "actions/cache@v4.3.0"
+// point to the same SHA and version, only "actions/cache@v4.3.0" is kept.
+func (c *ActionCache) deduplicateEntries() {
+	// Group entries by repo+SHA
+	type entryKey struct {
+		repo string
+		sha  string
+	}
+	groups := make(map[entryKey][]string)
+
+	for key, entry := range c.Entries {
+		ek := entryKey{repo: entry.Repo, sha: entry.SHA}
+		groups[ek] = append(groups[ek], key)
+	}
+
+	// For each group with multiple entries, keep only the most precise one
+	toDelete := make([]string, 0)
+	for _, keys := range groups {
+		if len(keys) <= 1 {
+			continue
+		}
+
+		// Find the most precise version reference
+		// Extract the version reference from each key (format: "repo@versionRef")
+		type keyInfo struct {
+			key        string
+			versionRef string
+		}
+		keyInfos := make([]keyInfo, len(keys))
+		for i, key := range keys {
+			parts := strings.SplitN(key, "@", 2)
+			versionRef := ""
+			if len(parts) == 2 {
+				versionRef = parts[1]
+			}
+			keyInfos[i] = keyInfo{key: key, versionRef: versionRef}
+		}
+
+		// Sort by version precision (most precise first)
+		sort.Slice(keyInfos, func(i, j int) bool {
+			return isMorePreciseVersion(keyInfos[i].versionRef, keyInfos[j].versionRef)
+		})
+
+		// Keep the most precise version, mark others for deletion
+		for i := 1; i < len(keyInfos); i++ {
+			toDelete = append(toDelete, keyInfos[i].key)
+			actionCacheLog.Printf("Deduplicating: keeping %s, removing %s", keyInfos[0].key, keyInfos[i].key)
+		}
+	}
+
+	// Delete the less precise entries
+	for _, key := range toDelete {
+		delete(c.Entries, key)
+	}
+
+	if len(toDelete) > 0 {
+		actionCacheLog.Printf("Deduplicated %d entries, %d entries remaining", len(toDelete), len(c.Entries))
+	}
+}
+
+// isMorePreciseVersion returns true if v1 is more precise than v2
+// For example: "v4.3.0" is more precise than "v4"
+func isMorePreciseVersion(v1, v2 string) bool {
+	// Count the number of dots in each version string
+	// More dots means more precision
+	dots1 := strings.Count(v1, ".")
+	dots2 := strings.Count(v2, ".")
+
+	if dots1 != dots2 {
+		return dots1 > dots2
+	}
+
+	// If same number of dots, compare lexicographically
+	// This handles cases like "v1.2.3" vs "v1.2.10" correctly
+	return v1 > v2
 }

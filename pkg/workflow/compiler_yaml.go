@@ -48,14 +48,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
 		for _, line := range descriptionLines {
-			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
+			fmt.Fprintf(&yaml, "# %s\n", strings.TrimSpace(line))
 		}
 	}
 
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
-		yaml.WriteString(fmt.Sprintf("# Source: %s\n", data.Source))
+		fmt.Fprintf(&yaml, "# Source: %s\n", data.Source)
 	}
 
 	// Add manifest of imported/included files if any exist
@@ -66,14 +66,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
-				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+				fmt.Fprintf(&yaml, "#     - %s\n", file)
 			}
 		}
 
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
-				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+				fmt.Fprintf(&yaml, "#     - %s\n", file)
 			}
 		}
 	}
@@ -81,19 +81,19 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
-		yaml.WriteString(fmt.Sprintf("# Effective stop-time: %s\n", data.StopTime))
+		fmt.Fprintf(&yaml, "# Effective stop-time: %s\n", data.StopTime)
 	}
 
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
-		yaml.WriteString(fmt.Sprintf("# Manual approval required: environment '%s'\n", data.ManualApproval))
+		fmt.Fprintf(&yaml, "# Manual approval required: environment '%s'\n", data.ManualApproval)
 	}
 
 	yaml.WriteString("\n")
 
 	// Write basic workflow structure
-	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
+	fmt.Fprintf(&yaml, "name: \"%s\"\n", data.Name)
 	yaml.WriteString(data.On + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
@@ -232,7 +232,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Create additional steps for remaining chunks
 	for i, chunk := range chunks[1:] {
 		stepNum := i + 2
-		yaml.WriteString(fmt.Sprintf("      - name: Append prompt (part %d)\n", stepNum))
+		fmt.Fprintf(yaml, "      - name: Append prompt (part %d)\n", stepNum)
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		// Add environment variables for extracted expressions
@@ -282,7 +282,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 		yaml.WriteString("          ## Note\n")
-		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
+		fmt.Fprintf(yaml, "          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug)
 		yaml.WriteString("          PROMPT_EOF\n")
 	}
 
@@ -338,70 +338,10 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	}
 }
 
-// IsReleasedVersion checks if a version string represents a released build.
-// It validates that the version matches semantic versioning format (x.y.z or x.y.z-prerelease)
-// and excludes development builds (containing "dev", "dirty", or "test").
-func IsReleasedVersion(version string) bool {
-	if version == "" {
-		return false
-	}
-	// Filter out development/test versions
-	excludePatterns := []string{"dev", "dirty", "test"}
-	for _, pattern := range excludePatterns {
-		if strings.Contains(version, pattern) {
-			return false
-		}
-	}
-
-	// Validate semantic version format: must start with digit and contain at least one dot
-	// Examples: "1.2.3", "1.2.3-beta.1", "0.1.0-rc.2+build.123"
-	// Non-examples: "e63fd5a", "abc", "v1.2.3" (should start with digit)
-	if len(version) == 0 {
-		return false
-	}
-
-	// Must start with a digit
-	if version[0] < '0' || version[0] > '9' {
-		return false
-	}
-
-	// Must contain at least one dot (to have major.minor.patch)
-	if !strings.Contains(version, ".") {
-		return false
-	}
-
-	// Extract the version core (before any prerelease or metadata)
-	versionCore := version
-	if idx := strings.IndexAny(version, "-+"); idx != -1 {
-		versionCore = version[:idx]
-	}
-
-	// Validate that the core contains only digits and dots
-	// Split by dots and ensure at least 2 parts (major.minor at minimum)
-	parts := strings.Split(versionCore, ".")
-	if len(parts) < 2 {
-		return false
-	}
-
-	// Each part should be numeric
-	for _, part := range parts {
-		if part == "" {
-			return false
-		}
-		for _, ch := range part {
-			if ch < '0' || ch > '9' {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const fs = require('fs');\n")
@@ -552,7 +492,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 // Uses HTML details/summary tags for collapsible output.
 func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate workflow overview\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -603,7 +543,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
@@ -611,7 +551,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
@@ -654,7 +594,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_output.json\n")
 	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")

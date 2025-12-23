@@ -4,11 +4,16 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var prSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_prs")
 
 // buildCreatePullRequestStepConfig builds the configuration for creating a pull request
 func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreatePullRequests
+	prSafeOutputsLog.Printf("Building create pull request step config: draft=%v, if_no_changes=%s",
+		cfg.Draft != nil && *cfg.Draft, cfg.IfNoChanges)
 
 	var customEnvVars []string
 	// Pass the base branch from GitHub context (required by create_pull_request.cjs)
@@ -68,6 +73,7 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 // buildUpdatePullRequestStepConfig builds the configuration for updating a pull request
 func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdatePullRequests
+	prSafeOutputsLog.Print("Building update pull request step config")
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
@@ -202,6 +208,8 @@ func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName st
 // buildCreatePullRequestPreStepsConsolidated builds the pre-steps for create-pull-request
 // in the consolidated safe outputs job
 func (c *Compiler) buildCreatePullRequestPreStepsConsolidated(data *WorkflowData, cfg *CreatePullRequestsConfig, condition ConditionNode) []string {
+	prSafeOutputsLog.Printf("Building create PR pre-steps: app_configured=%v, trial_mode=%v",
+		data.SafeOutputs.App != nil, c.trialMode)
 	var preSteps []string
 
 	// Determine which token to use for checkout

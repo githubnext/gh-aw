@@ -578,7 +578,6 @@
     "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
     "inputSchema": {
       "type": "object",
-      "required": ["project", "content_type", "content_number"],
       "properties": {
         "project": {
           "type": "string",
@@ -587,12 +586,20 @@
         },
         "content_type": {
           "type": "string",
-          "enum": ["issue", "pull_request"],
-          "description": "Type of content to add to the project. Must be either 'issue' or 'pull_request'."
+          "enum": ["issue", "pull_request", "draft_issue"],
+          "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project."
         },
         "content_number": {
           "type": "number",
-          "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123)."
+          "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123). Required when content_type is 'issue' or 'pull_request'."
+        },
+        "draft_title": {
+          "type": "string",
+          "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'."
+        },
+        "draft_body": {
+          "type": "string",
+          "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'."
         },
         "fields": {
           "type": "object",
@@ -607,6 +614,20 @@
           "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true."
         }
       },
+      "oneOf": [
+        {
+          "required": ["project", "content_type", "content_number"],
+          "properties": {
+            "content_type": { "enum": ["issue", "pull_request"] }
+          }
+        },
+        {
+          "required": ["project", "content_type", "draft_title"],
+          "properties": {
+            "content_type": { "const": "draft_issue" }
+          }
+        }
+      ],
       "additionalProperties": false
     }
   }

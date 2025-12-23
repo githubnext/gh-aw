@@ -207,20 +207,20 @@ func formatGuardrailMessage(guardrail MCPLogsGuardrailResponse) string {
 	builder.WriteString("\n\n")
 
 	builder.WriteString("📋 Output Schema:\n")
-	builder.WriteString(fmt.Sprintf("  Type: %s\n", guardrail.Schema.Type))
-	builder.WriteString(fmt.Sprintf("  Description: %s\n\n", guardrail.Schema.Description))
+	fmt.Fprintf(&builder, "  Type: %s\n", guardrail.Schema.Type)
+	fmt.Fprintf(&builder, "  Description: %s\n\n", guardrail.Schema.Description)
 
 	builder.WriteString("Available fields:\n")
 	for field, schema := range guardrail.Schema.Fields {
-		builder.WriteString(fmt.Sprintf("  - %s (%s): %s\n", field, schema.Type, schema.Description))
+		fmt.Fprintf(&builder, "  - %s (%s): %s\n", field, schema.Type, schema.Description)
 	}
 
 	builder.WriteString("\n💡 Suggested jq Queries:\n")
 	for i, query := range guardrail.SuggestedQueries {
-		builder.WriteString(fmt.Sprintf("  %d. %s\n", i+1, query.Description))
-		builder.WriteString(fmt.Sprintf("     Query: %s\n", query.Query))
+		fmt.Fprintf(&builder, "  %d. %s\n", i+1, query.Description)
+		fmt.Fprintf(&builder, "     Query: %s\n", query.Query)
 		if query.Example != "" {
-			builder.WriteString(fmt.Sprintf("     %s\n", query.Example))
+			fmt.Fprintf(&builder, "     %s\n", query.Example)
 		}
 		builder.WriteString("\n")
 	}

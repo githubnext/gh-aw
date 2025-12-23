@@ -113,56 +113,111 @@ func TestCommonWorkflowNamesHasExpectedPatterns(t *testing.T) {
 
 func TestIsAccessibleMode(t *testing.T) {
 	tests := []struct {
-		name     string
-		term     string
-		noColor  string
-		expected bool
+		name       string
+		accessible string
+		term       string
+		noColor    string
+		expected   bool
 	}{
 		{
-			name:     "TERM=dumb enables accessibility",
-			term:     "dumb",
-			noColor:  "",
-			expected: true,
+			name:       "ACCESSIBLE=1 enables accessibility",
+			accessible: "1",
+			term:       "xterm",
+			noColor:    "",
+			expected:   true,
 		},
 		{
-			name:     "NO_COLOR=1 enables accessibility",
-			term:     "xterm",
-			noColor:  "1",
-			expected: true,
+			name:       "ACCESSIBLE=true enables accessibility",
+			accessible: "true",
+			term:       "xterm",
+			noColor:    "",
+			expected:   true,
 		},
 		{
-			name:     "NO_COLOR=true enables accessibility",
-			term:     "xterm",
-			noColor:  "true",
-			expected: true,
+			name:       "ACCESSIBLE with any non-empty value enables accessibility",
+			accessible: "yes",
+			term:       "xterm",
+			noColor:    "",
+			expected:   true,
 		},
 		{
-			name:     "normal terminal without NO_COLOR",
-			term:     "xterm-256color",
-			noColor:  "",
-			expected: false,
+			name:       "TERM=dumb enables accessibility",
+			accessible: "",
+			term:       "dumb",
+			noColor:    "",
+			expected:   true,
 		},
 		{
-			name:     "both TERM=dumb and NO_COLOR set",
-			term:     "dumb",
-			noColor:  "1",
-			expected: true,
+			name:       "NO_COLOR=1 enables accessibility",
+			accessible: "",
+			term:       "xterm",
+			noColor:    "1",
+			expected:   true,
 		},
 		{
-			name:     "empty TERM without NO_COLOR",
-			term:     "",
-			noColor:  "",
-			expected: false,
+			name:       "NO_COLOR=true enables accessibility",
+			accessible: "",
+			term:       "xterm",
+			noColor:    "true",
+			expected:   true,
+		},
+		{
+			name:       "normal terminal without any accessibility flags",
+			accessible: "",
+			term:       "xterm-256color",
+			noColor:    "",
+			expected:   false,
+		},
+		{
+			name:       "all accessibility flags set",
+			accessible: "1",
+			term:       "dumb",
+			noColor:    "1",
+			expected:   true,
+		},
+		{
+			name:       "ACCESSIBLE and TERM=dumb both set",
+			accessible: "1",
+			term:       "dumb",
+			noColor:    "",
+			expected:   true,
+		},
+		{
+			name:       "ACCESSIBLE and NO_COLOR both set",
+			accessible: "1",
+			term:       "xterm",
+			noColor:    "1",
+			expected:   true,
+		},
+		{
+			name:       "both TERM=dumb and NO_COLOR set",
+			accessible: "",
+			term:       "dumb",
+			noColor:    "1",
+			expected:   true,
+		},
+		{
+			name:       "empty TERM without any accessibility flags",
+			accessible: "",
+			term:       "",
+			noColor:    "",
+			expected:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original values
+			origAccessible := os.Getenv("ACCESSIBLE")
 			origTerm := os.Getenv("TERM")
 			origNoColor := os.Getenv("NO_COLOR")
 
 			// Set test values
+			if tt.accessible != "" {
+				os.Setenv("ACCESSIBLE", tt.accessible)
+			} else {
+				os.Unsetenv("ACCESSIBLE")
+			}
 			os.Setenv("TERM", tt.term)
 			if tt.noColor != "" {
 				os.Setenv("NO_COLOR", tt.noColor)
@@ -173,6 +228,11 @@ func TestIsAccessibleMode(t *testing.T) {
 			result := isAccessibleMode()
 
 			// Restore original values
+			if origAccessible != "" {
+				os.Setenv("ACCESSIBLE", origAccessible)
+			} else {
+				os.Unsetenv("ACCESSIBLE")
+			}
 			if origTerm != "" {
 				os.Setenv("TERM", origTerm)
 			} else {
@@ -185,8 +245,8 @@ func TestIsAccessibleMode(t *testing.T) {
 			}
 
 			if result != tt.expected {
-				t.Errorf("isAccessibleMode() with TERM=%q NO_COLOR=%q = %v, want %v",
-					tt.term, tt.noColor, result, tt.expected)
+				t.Errorf("isAccessibleMode() with ACCESSIBLE=%q TERM=%q NO_COLOR=%q = %v, want %v",
+					tt.accessible, tt.term, tt.noColor, result, tt.expected)
 			}
 		})
 	}
@@ -400,4 +460,27 @@ func TestCreateWorkflowInteractively_WithForceFlag(t *testing.T) {
 	if err1.Error() != err2.Error() {
 		t.Errorf("Expected same error for force=false and force=true in CI, got %q and %q", err1.Error(), err2.Error())
 	}
+}
+
+func TestInteractiveWorkflowBuilder_compileWorkflow_SpinnerIntegration(t *testing.T) {
+	// This test verifies that the spinner integration doesn't panic
+	// and handles errors correctly. We can't directly test the spinner
+	// UI output, but we can verify the method works correctly.
+
+	builder := &InteractiveWorkflowBuilder{
+		WorkflowName: "test-spinner-workflow",
+	}
+
+	// Test with invalid workflow (should handle error correctly)
+	// This will fail compilation but should not panic
+	err := builder.compileWorkflow(false)
+
+	// We expect an error since the workflow doesn't exist
+	if err == nil {
+		t.Error("Expected error when compiling non-existent workflow")
+	}
+
+	// Verify error handling doesn't panic
+	// The spinner should be stopped even on error
+	t.Logf("Compilation error (expected): %v", err)
 }

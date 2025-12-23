@@ -27,7 +27,7 @@ describe("safe_outputs_append", () => {
       }
       const testDir = path.dirname(testOutputFile);
       if (fs.existsSync(testDir)) {
-        fs.rmdirSync(testDir, { recursive: true });
+        fs.rmSync(testDir, { recursive: true, force: true });
       }
     } catch (error) {
       // Ignore cleanup errors
@@ -124,7 +124,7 @@ describe("safe_outputs_append", () => {
       expect(() => appendFn(entry)).toThrow("Failed to write to output file");
 
       // Clean up the directory
-      fs.rmdirSync(testOutputFile, { recursive: true });
+      fs.rmSync(testOutputFile, { recursive: true, force: true });
     });
 
     it("should handle entries with nested objects", () => {

@@ -23,8 +23,8 @@ var auditLog = logger.New("cli:audit")
 
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
-	auditCmd := &cobra.Command{
-		Use:   "audit <run-id-or-url>",
+	cmd := &cobra.Command{
+		Use:   "audit <run-id>",
 		Short: "Investigate a single GitHub Actions workflow run and generate a concise report",
 		Long: `Audit a single workflow run by downloading artifacts and logs, detecting errors,
 analyzing MCP tool usage, and generating a concise Markdown report suitable for AI agents.
@@ -72,14 +72,14 @@ Examples:
 	}
 
 	// Add flags to audit command
-	addOutputFlag(auditCmd, defaultLogsOutputDir)
-	addJSONFlag(auditCmd)
-	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
+	addOutputFlag(cmd, defaultLogsOutputDir)
+	addJSONFlag(cmd)
+	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 
 	// Register completions for audit command
-	RegisterDirFlagCompletion(auditCmd, "output")
+	RegisterDirFlagCompletion(cmd, "output")
 
-	return auditCmd
+	return cmd
 }
 
 // extractRunID extracts the run ID from either a numeric string or a GitHub Actions URL
@@ -411,41 +411,41 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 
 	// Basic information
 	report.WriteString("## Overview\n\n")
-	report.WriteString(fmt.Sprintf("- **Run ID**: %d\n", run.DatabaseID))
-	report.WriteString(fmt.Sprintf("- **Workflow**: %s\n", run.WorkflowName))
-	report.WriteString(fmt.Sprintf("- **Status**: %s", run.Status))
+	fmt.Fprintf(&report, "- **Run ID**: %d\n", run.DatabaseID)
+	fmt.Fprintf(&report, "- **Workflow**: %s\n", run.WorkflowName)
+	fmt.Fprintf(&report, "- **Status**: %s", run.Status)
 	if run.Conclusion != "" && run.Status == "completed" {
-		report.WriteString(fmt.Sprintf(" (%s)", run.Conclusion))
+		fmt.Fprintf(&report, " (%s)", run.Conclusion)
 	}
 	report.WriteString("\n")
-	report.WriteString(fmt.Sprintf("- **Created**: %s\n", run.CreatedAt.Format(time.RFC3339)))
+	fmt.Fprintf(&report, "- **Created**: %s\n", run.CreatedAt.Format(time.RFC3339))
 	if !run.StartedAt.IsZero() {
-		report.WriteString(fmt.Sprintf("- **Started**: %s\n", run.StartedAt.Format(time.RFC3339)))
+		fmt.Fprintf(&report, "- **Started**: %s\n", run.StartedAt.Format(time.RFC3339))
 	}
 	if !run.UpdatedAt.IsZero() {
-		report.WriteString(fmt.Sprintf("- **Updated**: %s\n", run.UpdatedAt.Format(time.RFC3339)))
+		fmt.Fprintf(&report, "- **Updated**: %s\n", run.UpdatedAt.Format(time.RFC3339))
 	}
 	if run.Duration > 0 {
-		report.WriteString(fmt.Sprintf("- **Duration**: %s\n", timeutil.FormatDuration(run.Duration)))
+		fmt.Fprintf(&report, "- **Duration**: %s\n", timeutil.FormatDuration(run.Duration))
 	}
-	report.WriteString(fmt.Sprintf("- **Event**: %s\n", run.Event))
-	report.WriteString(fmt.Sprintf("- **Branch**: %s\n", run.HeadBranch))
-	report.WriteString(fmt.Sprintf("- **URL**: %s\n", run.URL))
+	fmt.Fprintf(&report, "- **Event**: %s\n", run.Event)
+	fmt.Fprintf(&report, "- **Branch**: %s\n", run.HeadBranch)
+	fmt.Fprintf(&report, "- **URL**: %s\n", run.URL)
 	report.WriteString("\n")
 
 	// Metrics
 	report.WriteString("## Metrics\n\n")
 	if run.TokenUsage > 0 {
-		report.WriteString(fmt.Sprintf("- **Token Usage**: %s\n", console.FormatNumber(run.TokenUsage)))
+		fmt.Fprintf(&report, "- **Token Usage**: %s\n", console.FormatNumber(run.TokenUsage))
 	}
 	if run.EstimatedCost > 0 {
-		report.WriteString(fmt.Sprintf("- **Estimated Cost**: $%.3f\n", run.EstimatedCost))
+		fmt.Fprintf(&report, "- **Estimated Cost**: $%.3f\n", run.EstimatedCost)
 	}
 	if run.Turns > 0 {
-		report.WriteString(fmt.Sprintf("- **Turns**: %d\n", run.Turns))
+		fmt.Fprintf(&report, "- **Turns**: %d\n", run.Turns)
 	}
-	report.WriteString(fmt.Sprintf("- **Errors**: %d\n", run.ErrorCount))
-	report.WriteString(fmt.Sprintf("- **Warnings**: %d\n", run.WarningCount))
+	fmt.Fprintf(&report, "- **Errors**: %d\n", run.ErrorCount)
+	fmt.Fprintf(&report, "- **Warnings**: %d\n", run.WarningCount)
 	report.WriteString("\n")
 
 	// MCP Tool Usage
@@ -501,8 +501,8 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 			if tool.MaxDuration > 0 {
 				durationStr = timeutil.FormatDuration(tool.MaxDuration)
 			}
-			report.WriteString(fmt.Sprintf("| %s | %d | %s | %s | %s |\n",
-				name, tool.CallCount, inputStr, outputStr, durationStr))
+			fmt.Fprintf(&report, "| %s | %d | %s | %s | %s |\n",
+				name, tool.CallCount, inputStr, outputStr, durationStr)
 		}
 		report.WriteString("\n")
 	}
@@ -511,7 +511,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if len(processedRun.MCPFailures) > 0 {
 		report.WriteString("## MCP Server Failures\n\n")
 		for _, failure := range processedRun.MCPFailures {
-			report.WriteString(fmt.Sprintf("- **%s**: %s\n", failure.ServerName, failure.Status))
+			fmt.Fprintf(&report, "- **%s**: %s\n", failure.ServerName, failure.Status)
 		}
 		report.WriteString("\n")
 	}
@@ -520,16 +520,16 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.TotalRequests > 0 {
 		report.WriteString("## Firewall Analysis\n\n")
 		fw := processedRun.FirewallAnalysis
-		report.WriteString(fmt.Sprintf("- **Total Requests**: %d\n", fw.TotalRequests))
-		report.WriteString(fmt.Sprintf("- **Allowed Requests**: %d\n", fw.AllowedRequests))
-		report.WriteString(fmt.Sprintf("- **Denied Requests**: %d\n", fw.DeniedRequests))
+		fmt.Fprintf(&report, "- **Total Requests**: %d\n", fw.TotalRequests)
+		fmt.Fprintf(&report, "- **Allowed Requests**: %d\n", fw.AllowedRequests)
+		fmt.Fprintf(&report, "- **Denied Requests**: %d\n", fw.DeniedRequests)
 		report.WriteString("\n")
 
 		if len(fw.AllowedDomains) > 0 {
 			report.WriteString("### Allowed Domains\n\n")
 			for _, domain := range fw.AllowedDomains {
 				if stats, ok := fw.RequestsByDomain[domain]; ok {
-					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Allowed))
+					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Allowed)
 				}
 			}
 			report.WriteString("\n")
@@ -539,7 +539,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 			report.WriteString("### Denied Domains\n\n")
 			for _, domain := range fw.DeniedDomains {
 				if stats, ok := fw.RequestsByDomain[domain]; ok {
-					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Denied))
+					fmt.Fprintf(&report, "- %s (%d requests)\n", domain, stats.Denied)
 				}
 			}
 			report.WriteString("\n")
@@ -550,13 +550,13 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if len(processedRun.MissingTools) > 0 {
 		report.WriteString("## Missing Tools\n\n")
 		for _, tool := range processedRun.MissingTools {
-			report.WriteString(fmt.Sprintf("### %s\n\n", tool.Tool))
-			report.WriteString(fmt.Sprintf("- **Reason**: %s\n", tool.Reason))
+			fmt.Fprintf(&report, "### %s\n\n", tool.Tool)
+			fmt.Fprintf(&report, "- **Reason**: %s\n", tool.Reason)
 			if tool.Alternatives != "" {
-				report.WriteString(fmt.Sprintf("- **Alternatives**: %s\n", tool.Alternatives))
+				fmt.Fprintf(&report, "- **Alternatives**: %s\n", tool.Alternatives)
 			}
 			if tool.Timestamp != "" {
-				report.WriteString(fmt.Sprintf("- **Timestamp**: %s\n", tool.Timestamp))
+				fmt.Fprintf(&report, "- **Timestamp**: %s\n", tool.Timestamp)
 			}
 			report.WriteString("\n")
 		}
@@ -566,10 +566,10 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if len(processedRun.Noops) > 0 {
 		report.WriteString("## No-Op Messages\n\n")
 		for i, noop := range processedRun.Noops {
-			report.WriteString(fmt.Sprintf("### Message %d\n\n", i+1))
-			report.WriteString(fmt.Sprintf("%s\n\n", noop.Message))
+			fmt.Fprintf(&report, "### Message %d\n\n", i+1)
+			fmt.Fprintf(&report, "%s\n\n", noop.Message)
 			if noop.Timestamp != "" {
-				report.WriteString(fmt.Sprintf("**Timestamp**: %s\n\n", noop.Timestamp))
+				fmt.Fprintf(&report, "**Timestamp**: %s\n\n", noop.Timestamp)
 			}
 		}
 	}
@@ -578,10 +578,10 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 	if run.ErrorCount > 0 || run.WarningCount > 0 {
 		report.WriteString("## Issue Summary\n\n")
 		if run.ErrorCount > 0 {
-			report.WriteString(fmt.Sprintf("This run encountered **%d error(s)**. ", run.ErrorCount))
+			fmt.Fprintf(&report, "This run encountered **%d error(s)**. ", run.ErrorCount)
 		}
 		if run.WarningCount > 0 {
-			report.WriteString(fmt.Sprintf("This run had **%d warning(s)**. ", run.WarningCount))
+			fmt.Fprintf(&report, "This run had **%d warning(s)**. ", run.WarningCount)
 		}
 		report.WriteString("\n\n")
 
@@ -610,16 +610,16 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, download
 
 	// Downloaded Files Section
 	report.WriteString("## Downloaded Files\n\n")
-	report.WriteString(fmt.Sprintf("Logs and artifacts are available at: `%s`\n\n", run.LogsPath))
+	fmt.Fprintf(&report, "Logs and artifacts are available at: `%s`\n\n", run.LogsPath)
 
 	if len(downloadedFiles) > 0 {
 		// Display all downloaded files with size and description
 		for _, file := range downloadedFiles {
 			formattedSize := console.FormatFileSize(file.Size)
-			report.WriteString(fmt.Sprintf("- **%s** (%s)", file.Path, formattedSize))
+			fmt.Fprintf(&report, "- **%s** (%s)", file.Path, formattedSize)
 			// Add description if available
 			if file.Description != "" {
-				report.WriteString(fmt.Sprintf(" - %s", file.Description))
+				fmt.Fprintf(&report, " - %s", file.Description)
 			}
 			report.WriteString("\n")
 		}

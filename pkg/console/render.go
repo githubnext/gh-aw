@@ -59,9 +59,9 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(fmt.Sprintf("# %s\n\n", title))
+			fmt.Fprintf(output, "# %s\n\n", title)
 		} else {
-			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
+			fmt.Fprintf(output, "%s %s\n\n", strings.Repeat("#", depth+1), title)
 		}
 	}
 
@@ -139,7 +139,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		} else {
 			// Simple field - render as key-value pair with proper alignment
 			paddedName := fmt.Sprintf("%-*s", maxFieldLen, fieldName)
-			output.WriteString(fmt.Sprintf("  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag)))
+			fmt.Fprintf(output, "  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag))
 		}
 	}
 
@@ -155,9 +155,9 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(fmt.Sprintf("# %s\n\n", title))
+			fmt.Fprintf(output, "# %s\n\n", title)
 		} else {
-			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
+			fmt.Fprintf(output, "%s %s\n\n", strings.Repeat("#", depth+1), title)
 		}
 	}
 
@@ -175,7 +175,7 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 		// Render as list
 		for i := 0; i < val.Len(); i++ {
 			elem := val.Index(i)
-			output.WriteString(fmt.Sprintf("  • %v\n", formatFieldValue(elem)))
+			fmt.Fprintf(output, "  • %v\n", formatFieldValue(elem))
 		}
 		output.WriteString("\n")
 	}
@@ -190,16 +190,16 @@ func renderMap(val reflect.Value, title string, output *strings.Builder, depth i
 	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(fmt.Sprintf("# %s\n\n", title))
+			fmt.Fprintf(output, "# %s\n\n", title)
 		} else {
-			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
+			fmt.Fprintf(output, "%s %s\n\n", strings.Repeat("#", depth+1), title)
 		}
 	}
 
 	// Render map entries
 	for _, key := range val.MapKeys() {
 		mapValue := val.MapIndex(key)
-		output.WriteString(fmt.Sprintf("  %-18s %v\n", fmt.Sprintf("%v:", key), formatFieldValue(mapValue)))
+		fmt.Fprintf(output, "  %-18s %v\n", fmt.Sprintf("%v:", key), formatFieldValue(mapValue))
 	}
 	output.WriteString("\n")
 }

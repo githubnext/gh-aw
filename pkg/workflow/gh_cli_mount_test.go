@@ -106,7 +106,7 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 		}
 
 		// Verify order: /tmp < workspace < gh
-		if !(tmpMountPos < workspaceMountPos && workspaceMountPos < ghMountPos) {
+		if tmpMountPos >= workspaceMountPos || workspaceMountPos >= ghMountPos {
 			t.Error("Expected mount order: /tmp, workspace, gh CLI")
 		}
 	})

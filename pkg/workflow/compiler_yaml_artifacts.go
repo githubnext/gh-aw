@@ -90,7 +90,7 @@ func (c *Compiler) generateGitPatchUploadStep(yaml *strings.Builder) {
 	compilerYamlArtifactsLog.Print("Generating git patch upload step")
 	yaml.WriteString("      - name: Upload git patch\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw.patch\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")

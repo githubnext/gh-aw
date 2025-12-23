@@ -9,12 +9,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
 // Build-time variables set by GoReleaser
 var (
-	version = "dev"
+	version   = "dev"
+	isRelease = "false" // Set to "true" during release builds
 )
 
 // Global flags
@@ -56,7 +58,7 @@ For detailed help on any command, use:
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new [workflow-id]",
+	Use:   "new [workflow]",
 	Short: "Create a new workflow Markdown file with example configuration",
 	Long: `Create a new workflow Markdown file with commented examples and explanations of all available options.
 
@@ -107,7 +109,7 @@ Examples:
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [workflow-id-pattern]",
+	Use:   "remove [pattern]",
 	Short: "Remove agentic workflow files matching the given name prefix",
 	Long: `Remove workflow files matching the given workflow-id pattern.
 
@@ -128,7 +130,7 @@ Examples:
 }
 
 var enableCmd = &cobra.Command{
-	Use:   "enable [workflow-id]...",
+	Use:   "enable [workflow]...",
 	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by ID, or all workflows if no IDs are provided.
 
@@ -147,7 +149,7 @@ Examples:
 }
 
 var disableCmd = &cobra.Command{
-	Use:   "disable [workflow-id]...",
+	Use:   "disable [workflow]...",
 	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by ID, or all workflows if no IDs are provided.
 
@@ -166,7 +168,7 @@ Examples:
 }
 
 var compileCmd = &cobra.Command{
-	Use:   "compile [workflow-id]...",
+	Use:   "compile [workflow]...",
 	Short: "Compile agentic workflow Markdown to GitHub Actions YAML",
 	Long: `Compile one or more agentic workflows to YAML workflows.
 
@@ -276,7 +278,7 @@ Examples:
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <workflow-id>...",
+	Use:   "run <workflow>...",
 	Short: "Run one or more agentic workflows on GitHub Actions",
 	Long: `Run one or more agentic workflows on GitHub Actions using the workflow_dispatch trigger.
 
@@ -578,6 +580,12 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 func main() {
 	// Set version information in the CLI package
 	cli.SetVersionInfo(version)
+
+	// Set version information in the workflow package for generated file headers
+	workflow.SetVersion(version)
+
+	// Set release flag in the workflow package
+	workflow.SetIsRelease(isRelease == "true")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))

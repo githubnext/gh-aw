@@ -58,7 +58,7 @@ Available subcommands:
 // NewPRTransferSubcommand creates the pr transfer subcommand
 func NewPRTransferSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "transfer <pull-request-url>",
+		Use:   "transfer <pr-url>",
 		Short: "Transfer a pull request to another repository",
 		Long: `Transfer a pull request from one repository to another.
 
@@ -239,19 +239,19 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	var patchBuilder strings.Builder
 
 	// Required mailbox format headers for git am
-	patchBuilder.WriteString(fmt.Sprintf("From %s Mon Sep 17 00:00:00 2001\n", prInfo.HeadSHA))
-	patchBuilder.WriteString(fmt.Sprintf("From: %s <%s@users.noreply.github.com>\n", prInfo.AuthorLogin, prInfo.AuthorLogin))
-	patchBuilder.WriteString(fmt.Sprintf("Date: %s\n", time.Now().Format(time.RFC1123)))
-	patchBuilder.WriteString(fmt.Sprintf("Subject: [PATCH] %s\n", prInfo.Title))
+	fmt.Fprintf(&patchBuilder, "From %s Mon Sep 17 00:00:00 2001\n", prInfo.HeadSHA)
+	fmt.Fprintf(&patchBuilder, "From: %s <%s@users.noreply.github.com>\n", prInfo.AuthorLogin, prInfo.AuthorLogin)
+	fmt.Fprintf(&patchBuilder, "Date: %s\n", time.Now().Format(time.RFC1123))
+	fmt.Fprintf(&patchBuilder, "Subject: [PATCH] %s\n", prInfo.Title)
 	patchBuilder.WriteString("\n")
 
 	if prInfo.Body != "" {
-		patchBuilder.WriteString(fmt.Sprintf("%s\n", prInfo.Body))
+		fmt.Fprintf(&patchBuilder, "%s\n", prInfo.Body)
 		patchBuilder.WriteString("\n")
 	}
 
-	patchBuilder.WriteString(fmt.Sprintf("Original-PR: %s#%d\n", prInfo.SourceRepo, prInfo.Number))
-	patchBuilder.WriteString(fmt.Sprintf("Original-Author: %s\n", prInfo.AuthorLogin))
+	fmt.Fprintf(&patchBuilder, "Original-PR: %s#%d\n", prInfo.SourceRepo, prInfo.Number)
+	fmt.Fprintf(&patchBuilder, "Original-Author: %s\n", prInfo.AuthorLogin)
 	patchBuilder.WriteString("---\n")
 
 	// Add the actual diff content

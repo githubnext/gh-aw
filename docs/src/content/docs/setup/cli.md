@@ -84,15 +84,71 @@ Install the GitHub CLI extension:
 gh extension install githubnext/gh-aw
 ```
 
+### Pinning to a Specific Version
+
+For production environments or to ensure reproducible builds, you can pin the installation to a specific version using the `@REF` syntax:
+
+```bash wrap
+# Pin to a specific release tag
+gh extension install githubnext/gh-aw@v0.1.0
+
+# Pin to a specific commit SHA
+gh extension install githubnext/gh-aw@abc123def456
+```
+
+:::tip[When to pin versions]
+Pinning is recommended when:
+- Deploying to production environments
+- Ensuring consistency across team members
+- Testing specific versions before upgrading
+- Avoiding unexpected breaking changes from automatic updates
+:::
+
+**Checking your current version:**
+
+```bash wrap
+gh aw version
+```
+
+**Upgrading to a new pinned version:**
+
+```bash wrap
+# Remove the current installation
+gh extension remove gh-aw
+
+# Install the new pinned version
+gh extension install githubnext/gh-aw@v0.2.0
+```
+
 ### Alternative: Standalone Installer
 
 If the extension installation fails (common in Codespaces outside the githubnext organization or when authentication issues occur), use the standalone installer:
 
 ```bash wrap
+# Install latest version
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+
+# Install specific version
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash -s v0.1.0
 ```
 
 After standalone installation, the binary is installed to `~/.local/share/gh/extensions/gh-aw/gh-aw` and can be used with `gh aw` commands just like the extension installation.
+
+**Pinning with the standalone installer:**
+
+To ensure reproducible installations, you can pin to a specific version by passing the version tag as an argument:
+
+```bash wrap
+# Download and run with a specific version
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash -s v0.1.0
+
+# Or download the script first, then run with version argument
+curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh -o install-gh-aw.sh
+chmod +x install-gh-aw.sh
+./install-gh-aw.sh v0.1.0
+```
+
+The installer will download the specified version's pre-built binary for your platform (Linux, macOS, FreeBSD, or Windows) and install it to the standard extension directory.
 
 ### GitHub Enterprise Server Support
 
@@ -144,11 +200,11 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize your repository for agentic workflows.
 
 ```bash wrap
-gh aw init       # Configure .gitattributes, Copilot instructions, prompts
-gh aw init --mcp # Also setup MCP server integration for Copilot Agent
+gh aw init         # Configure .gitattributes, Copilot instructions (MCP enabled by default)
+gh aw init --no-mcp # Skip MCP server integration
 ```
 
-Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, sets up prompt files for workflow creation, and creates `.github/aw/logs/.gitignore` to prevent workflow logs from being committed. The `--mcp` flag additionally creates GitHub Actions workflow for MCP server setup, configures `.vscode/mcp.json` for VS Code integration, and enables gh-aw MCP tools in Copilot Agent.
+Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, sets up prompt files for workflow creation, and creates `.github/aw/logs/.gitignore` to prevent workflow logs from being committed. MCP server integration is enabled by default, creating GitHub Actions workflow for MCP server setup, configuring `.vscode/mcp.json` for VS Code integration, and enabling gh-aw MCP tools in Copilot Agent. Use `--no-mcp` to skip MCP server integration.
 
 #### `add`
 
@@ -500,14 +556,19 @@ gh aw pr transfer <pr-url> --repo target-owner/target-repo
 
 #### `mcp-server`
 
-Start MCP server exposing CLI commands as tools (`status`, `compile`, `logs`, `audit`). Enables AI assistants to interact with gh-aw programmatically. Supports both local (stdio) and remote (HTTP) transports.
+Run an MCP server exposing gh-aw commands as tools for integration with MCP-compatible applications.
 
 ```bash wrap
-gh aw mcp-server              # stdio transport (local)
-gh aw mcp-server --port 3000  # HTTP/SSE transport (workflows)
+gh aw mcp-server              # Run with stdio transport
+gh aw mcp-server --port 8080  # Run HTTP server on port 8080
+gh aw mcp-server --cmd ./gh-aw # Use custom gh-aw binary
 ```
 
-**Options:** `--port N` (start HTTP server on specified port, defaults to stdio transport)
+**Options:** `--port` (run HTTP server with SSE transport), `--cmd` (path to gh-aw binary)
+
+**Available Tools:** status, compile, logs, audit, mcp-inspect, add, update
+
+The server spawns subprocess calls for each tool invocation to ensure GitHub tokens and secrets are not shared with the MCP server process.
 
 See **[MCP Server Guide](/gh-aw/setup/mcp-server/)** for integration details.
 

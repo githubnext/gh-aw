@@ -38,7 +38,8 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 			continue
 		}
 
-		if toolset == "default" {
+		switch toolset {
+		case "default":
 			// Add default toolsets
 			toolsetsLog.Printf("Expanding 'default' to %d toolsets", len(DefaultGitHubToolsets))
 			for _, dt := range DefaultGitHubToolsets {
@@ -47,7 +48,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 					seenToolsets[dt] = true
 				}
 			}
-		} else if toolset == "action-friendly" {
+		case "action-friendly":
 			// Add action-friendly toolsets (excludes "users" which GitHub Actions tokens don't support)
 			toolsetsLog.Printf("Expanding 'action-friendly' to %d toolsets", len(ActionFriendlyGitHubToolsets))
 			for _, dt := range ActionFriendlyGitHubToolsets {
@@ -56,7 +57,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 					seenToolsets[dt] = true
 				}
 			}
-		} else if toolset == "all" {
+		case "all":
 			// Add all toolsets from the toolset permissions map
 			toolsetsLog.Printf("Expanding 'all' to %d toolsets from permissions map", len(toolsetPermissionsMap))
 			for t := range toolsetPermissionsMap {
@@ -65,7 +66,7 @@ func ParseGitHubToolsets(toolsetsStr string) []string {
 					seenToolsets[t] = true
 				}
 			}
-		} else {
+		default:
 			// Add individual toolset
 			if !seenToolsets[toolset] {
 				expanded = append(expanded, toolset)

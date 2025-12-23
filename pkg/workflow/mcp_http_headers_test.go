@@ -333,7 +333,7 @@ func TestRenderSharedMCPConfig_PropertyOrder(t *testing.T) {
 	}
 
 	// Check order: type < url < headers < tools < env
-	if !(typeIdx < urlIdx && urlIdx < headersIdx && headersIdx < toolsIdx && toolsIdx < envIdx) {
+	if typeIdx >= urlIdx || urlIdx >= headersIdx || headersIdx >= toolsIdx || toolsIdx >= envIdx {
 		t.Errorf("Properties are not in expected order (type, url, headers, tools, env):\n%s", result)
 	}
 }

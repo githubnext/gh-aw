@@ -17,21 +17,21 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add checkout step first if needed
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
 		// Always add with section for persist-credentials
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          persist-credentials: false\n")
 		// In trial mode without cloning, checkout the logical repo if specified
 		if c.trialMode {
 			if c.trialLogicalRepoSlug != "" {
-				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+				fmt.Fprintf(yaml, "          repository: %s\n", c.trialLogicalRepoSlug)
 				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 				// if len(trialTargetRepoName) == 2 {
 				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 				// }
 			}
 			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
-			yaml.WriteString(fmt.Sprintf("          token: %s\n", effectiveToken))
+			fmt.Fprintf(yaml, "          token: %s\n", effectiveToken)
 		}
 	}
 
@@ -273,7 +273,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// upload agent logs
-	var _ string = logFile
+	var _ = logFile
 	c.generateUploadAgentLogs(yaml, logFileFull)
 
 	// Add post-execution cleanup step for Copilot engine

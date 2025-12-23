@@ -65,10 +65,11 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 	}
 
 	// Generate participant-specific steps
-	if config.ParticipantType == "assignee" {
+	switch config.ParticipantType {
+	case "assignee":
 		copilotParticipantLog.Printf("Generating issue assignee steps for %d participants", len(config.Participants))
 		steps = append(steps, buildIssueAssigneeSteps(config, effectiveToken)...)
-	} else if config.ParticipantType == "reviewer" {
+	case "reviewer":
 		copilotParticipantLog.Printf("Generating PR reviewer steps for %d participants", len(config.Participants))
 		steps = append(steps, buildPRReviewerSteps(config, effectiveToken)...)
 	}

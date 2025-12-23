@@ -1062,19 +1062,26 @@ sandbox:
   # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
   # (optional)
   mcp:
-    # Container image for the MCP gateway executable
+    # Custom command to execute the MCP gateway (mutually exclusive with 'container')
+    # (optional)
+    command: "example-value"
+
+    # Container image for the MCP gateway executable (mutually exclusive with
+    # 'command')
+    # (optional)
     container: "example-value"
 
     # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
     # (optional)
     version: null
 
-    # Arguments for container execution
+    # Arguments for command or docker run
     # (optional)
     args: []
       # Array of strings
 
-    # Arguments to add after the container image (container entrypoint arguments)
+    # Arguments to add after the container image (container entrypoint arguments, only
+    # valid with 'container')
     # (optional)
     entrypointArgs: []
       # Array of strings
@@ -2629,7 +2636,7 @@ safe-outputs:
   # This field supports multiple formats (oneOf):
 
   # Option 1: Configuration for publishing assets to an orphaned git branch
-  upload-assets:
+  upload-asset:
     # Branch name (default: 'assets/${{ github.workflow }}')
     # (optional)
     branch: "example-value"
@@ -2653,7 +2660,7 @@ safe-outputs:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
   # Option 2: Enable asset publishing with default configuration
-  upload-assets: null
+  upload-asset: null
 
   # (optional)
   # This field supports multiple formats (oneOf):

@@ -137,7 +137,8 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 					}
 
 					// Check for names field (only for issues and pull_request, not discussion)
-					if entityType == "issues" || entityType == "pull_request" {
+					switch entityType {
+					case "issues", "pull_request":
 						if names, hasNames := triggerMap["names"]; !hasNames {
 							t.Errorf("trigger missing names field for entityType=%q", entityType)
 						} else if namesArray, ok := names.([]string); !ok {
@@ -145,7 +146,7 @@ func FuzzExpandLabelTriggerShorthand(f *testing.F) {
 						} else if len(namesArray) != len(labelNames) {
 							t.Errorf("names array length mismatch: got %d, want %d for entityType=%q", len(namesArray), len(labelNames), entityType)
 						}
-					} else if entityType == "discussion" {
+					case "discussion":
 						// Discussion should not have names field (GitHub Actions doesn't support it)
 						if _, hasNames := triggerMap["names"]; hasNames {
 							t.Errorf("discussion trigger should not have names field, but it does")

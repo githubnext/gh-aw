@@ -2,6 +2,7 @@
 
 # Variables
 BINARY_NAME=gh-aw
+AWMG_BINARY_NAME=awmg
 VERSION ?= $(shell git describe --tags --always --dirty)
 
 # Build flags
@@ -9,12 +10,17 @@ LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 # Default target
 .PHONY: all
-all: build
+all: build build-awmg
 
 # Build the binary, run make deps before this
 .PHONY: build
 build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
+
+# Build the awmg (MCP gateway) binary
+.PHONY: build-awmg
+build-awmg:
+	go build $(LDFLAGS) -o $(AWMG_BINARY_NAME) ./cmd/awmg
 
 # Build for all platforms
 .PHONY: build-all
@@ -24,15 +30,20 @@ build-all: build-linux build-darwin build-windows
 build-linux:
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-amd64 ./cmd/gh-aw
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-linux-arm64 ./cmd/gh-aw
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-linux-amd64 ./cmd/awmg
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-linux-arm64 ./cmd/awmg
 
 .PHONY: build-darwin
 build-darwin:
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-amd64 ./cmd/gh-aw
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-darwin-arm64 ./cmd/gh-aw
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-darwin-amd64 ./cmd/awmg
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-darwin-arm64 ./cmd/awmg
 
 .PHONY: build-windows
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(AWMG_BINARY_NAME)-windows-amd64.exe ./cmd/awmg
 
 # Test the code (runs both unit and integration tests)
 .PHONY: test
@@ -170,6 +181,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@# Remove main binary and platform-specific binaries
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-*
+	rm -f $(AWMG_BINARY_NAME) $(AWMG_BINARY_NAME)-*
 	@# Remove bundle-js binary
 	rm -f bundle-js
 	@# Remove coverage files
@@ -245,19 +257,38 @@ check-node-version:
 	fi; \
 	echo "✓ Node.js version check passed ($$NODE_VERSION)"
 
+.PHONY: tools
+tools: ## Install build-time tools from tools.go
+	@echo "Installing build tools..."
+	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	@echo "✓ Tools installed successfully"
+
+# License compliance checking
+.PHONY: license-check
+license-check: ## Check dependency licenses for compliance
+	@echo "Checking dependency licenses..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses check --disallowed_types=forbidden,reciprocal,restricted,unknown ./...
+	@echo "✓ License check passed"
+
+.PHONY: license-report
+license-report: ## Generate CSV license report
+	@echo "Generating license report..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses csv ./... > licenses.csv 2>&1 || true
+	@echo "✓ Report saved to licenses.csv"
+
 # Install dependencies
 .PHONY: deps
 deps: check-node-version
 	go mod download
 	go mod tidy
-	go install golang.org/x/tools/gopls@latest
-	go install github.com/rhysd/actionlint/cmd/actionlint@latest
 	cd pkg/workflow/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps download-github-actions-schema
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+deps-dev: check-node-version deps tools download-github-actions-schema
+	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
@@ -402,7 +433,7 @@ sync-action-pins:
 recompile: sync-templates build
 	./$(BINARY_NAME) init --codespaces
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
-#	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
+#	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
 
 # Apply automatic fixes to workflow files
 .PHONY: fix
@@ -476,7 +507,8 @@ agent-finish: deps-dev fmt lint build test-all fix recompile dependabot generate
 help:
 	@echo "Available targets:"
 	@echo "  build            - Build the binary for current platform"
-	@echo "  build-all        - Build binaries for all platforms"
+	@echo "  build-awmg       - Build the awmg (MCP gateway) binary for current platform"
+	@echo "  build-all        - Build binaries for all platforms (gh-aw and awmg)"
 	@echo "  test             - Run Go tests (unit + integration)"
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
@@ -492,7 +524,11 @@ help:
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
+	@echo "  tools            - Install build-time tools from tools.go"
+	@echo "  license-check    - Check dependency licenses for compliance"
+	@echo "  license-report   - Generate CSV license report"
 	@echo "  deps             - Install dependencies"
+	@echo "  deps-dev         - Install development dependencies (includes tools)"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"

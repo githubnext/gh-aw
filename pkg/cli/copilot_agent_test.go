@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestCopilotAgentDetector_IsGitHubCopilotAgent(t *testing.T) {
@@ -382,7 +381,7 @@ ERROR: Test error
 	metrics := ParseCopilotAgentLogMetrics(logContent, false)
 
 	// Verify the returned type is workflow.LogMetrics
-	var _ workflow.LogMetrics = metrics
+	var _ = metrics
 
 	// Verify fields are properly set
 	if metrics.Turns != 1 {

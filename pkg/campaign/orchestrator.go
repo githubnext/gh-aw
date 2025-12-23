@@ -45,13 +45,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Simple markdown body giving the agent context about the campaign.
 	markdownBuilder := &strings.Builder{}
 	markdownBuilder.WriteString("# Campaign Orchestrator\n\n")
-	markdownBuilder.WriteString(fmt.Sprintf("This workflow orchestrates the '%s' campaign.\n\n", name))
+	fmt.Fprintf(markdownBuilder, "This workflow orchestrates the '%s' campaign.\n\n", name)
 
 	// Track whether we have any meaningful campaign details
 	hasDetails := false
 
 	if spec.TrackerLabel != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Tracker label: `%s`\n", spec.TrackerLabel))
+		fmt.Fprintf(markdownBuilder, "- Tracker label: `%s`\n", spec.TrackerLabel)
 		hasDetails = true
 	}
 	if strings.TrimSpace(spec.Objective) != "" {
@@ -93,28 +93,28 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		hasDetails = true
 	}
 	if spec.MetricsGlob != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Metrics glob: `%s`\n", spec.MetricsGlob))
+		fmt.Fprintf(markdownBuilder, "- Metrics glob: `%s`\n", spec.MetricsGlob)
 		hasDetails = true
 	}
 	if spec.CursorGlob != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Cursor glob: `%s`\n", spec.CursorGlob))
+		fmt.Fprintf(markdownBuilder, "- Cursor glob: `%s`\n", spec.CursorGlob)
 		hasDetails = true
 	}
 	if strings.TrimSpace(spec.ProjectURL) != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Project URL: %s\n", strings.TrimSpace(spec.ProjectURL)))
+		fmt.Fprintf(markdownBuilder, "- Project URL: %s\n", strings.TrimSpace(spec.ProjectURL))
 		hasDetails = true
 	}
 	if spec.Governance != nil {
 		if spec.Governance.MaxNewItemsPerRun > 0 {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max new items per run: %d\n", spec.Governance.MaxNewItemsPerRun))
+			fmt.Fprintf(markdownBuilder, "- Governance: max new items per run: %d\n", spec.Governance.MaxNewItemsPerRun)
 			hasDetails = true
 		}
 		if spec.Governance.MaxDiscoveryItemsPerRun > 0 {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max discovery items per run: %d\n", spec.Governance.MaxDiscoveryItemsPerRun))
+			fmt.Fprintf(markdownBuilder, "- Governance: max discovery items per run: %d\n", spec.Governance.MaxDiscoveryItemsPerRun)
 			hasDetails = true
 		}
 		if spec.Governance.MaxDiscoveryPagesPerRun > 0 {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max discovery pages per run: %d\n", spec.Governance.MaxDiscoveryPagesPerRun))
+			fmt.Fprintf(markdownBuilder, "- Governance: max discovery pages per run: %d\n", spec.Governance.MaxDiscoveryPagesPerRun)
 			hasDetails = true
 		}
 		if len(spec.Governance.OptOutLabels) > 0 {
@@ -124,15 +124,15 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 			hasDetails = true
 		}
 		if spec.Governance.DoNotDowngradeDoneItems != nil {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: do not downgrade done items: %t\n", *spec.Governance.DoNotDowngradeDoneItems))
+			fmt.Fprintf(markdownBuilder, "- Governance: do not downgrade done items: %t\n", *spec.Governance.DoNotDowngradeDoneItems)
 			hasDetails = true
 		}
 		if spec.Governance.MaxProjectUpdatesPerRun > 0 {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max project updates per run: %d\n", spec.Governance.MaxProjectUpdatesPerRun))
+			fmt.Fprintf(markdownBuilder, "- Governance: max project updates per run: %d\n", spec.Governance.MaxProjectUpdatesPerRun)
 			hasDetails = true
 		}
 		if spec.Governance.MaxCommentsPerRun > 0 {
-			markdownBuilder.WriteString(fmt.Sprintf("- Governance: max comments per run: %d\n", spec.Governance.MaxCommentsPerRun))
+			fmt.Fprintf(markdownBuilder, "- Governance: max comments per run: %d\n", spec.Governance.MaxCommentsPerRun)
 			hasDetails = true
 		}
 	}

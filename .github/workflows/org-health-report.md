@@ -25,7 +25,7 @@ safe-outputs:
     category: "reports"
     max: 1
     close-older-discussions: true
-  upload-assets:
+  upload-asset:
 timeout-minutes: 60
 strict: true
 network:

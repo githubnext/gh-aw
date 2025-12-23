@@ -34,7 +34,7 @@ safe-outputs:
     labels: [documentation]
     reviewers: copilot
     draft: false
-  upload-assets:
+  upload-asset:
   messages:
     footer: "> 📝 *Documentation by [{workflow_name}]({run_url})*"
     run-started: "✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}..."

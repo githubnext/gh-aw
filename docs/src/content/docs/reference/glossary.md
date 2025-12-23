@@ -106,7 +106,7 @@ A safe output capability that allows workflows to upload generated files (screen
 
 ```yaml
 safe-outputs:
-  upload-assets:
+  upload-asset:
     branch: "assets/my-workflow"     # branch name (default: "assets/${{ github.workflow }}")
     max-size: 10240                  # max file size in KB (default: 10MB)
     allowed-exts: [.png, .jpg, .svg] # allowed extensions
