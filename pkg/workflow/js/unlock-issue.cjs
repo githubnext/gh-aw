@@ -62,6 +62,3 @@ async function main() {
 }
 
 module.exports = { main };
-
-// Execute when inlined (not when required)
-await main();

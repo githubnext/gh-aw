@@ -505,6 +505,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			if err != nil {
 				return nil, fmt.Errorf("failed to bundle lock-issue script: %w", err)
 			}
+			// Add await main() to execute the bundled script
+			bundled = bundled + "\nawait main();"
 			formattedScript := FormatJavaScriptForYAML(bundled)
 			steps = append(steps, formattedScript...)
 		}
