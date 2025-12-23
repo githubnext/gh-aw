@@ -6,9 +6,10 @@
  * This script handles both pull_request events and comment events on PRs
  */
 
+const formatError = (error) => error instanceof Error ? error.message : String(error);
+
 async function main() {
-  const eventName = context.eventName;
-  const pullRequest = context.payload.pull_request;
+  const { eventName, payload: { pull_request: pullRequest } } = context;
 
   if (!pullRequest) {
     core.info("No pull request context available, skipping checkout");
@@ -28,20 +29,21 @@ async function main() {
       await exec.exec("git", ["checkout", branchName]);
 
       core.info(`✅ Successfully checked out branch: ${branchName}`);
-    } else {
-      // For comment events on PRs, use gh pr checkout with PR number
-      const prNumber = pullRequest.number;
-      core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-
-      await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
-
-      core.info(`✅ Successfully checked out PR #${prNumber}`);
+      return;
     }
+
+    // For comment events on PRs, use gh pr checkout with PR number
+    const prNumber = pullRequest.number;
+    core.info(`Checking out PR #${prNumber} using gh pr checkout`);
+
+    await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
+
+    core.info(`✅ Successfully checked out PR #${prNumber}`);
   } catch (error) {
-    core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to checkout PR branch: ${formatError(error)}`);
   }
 }
 
 main().catch(error => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
+  core.setFailed(formatError(error));
 });
