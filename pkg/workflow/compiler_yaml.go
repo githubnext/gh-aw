@@ -339,9 +339,18 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 }
 
 // IsReleasedVersion checks if a version string represents a released build.
-// It validates that the version matches semantic versioning format (x.y.z or x.y.z-prerelease)
-// and excludes development builds (containing "dev", "dirty", or "test").
+// It now primarily relies on the isReleaseBuild flag set at build time,
+// but also validates that the version matches semantic versioning format (x.y.z or x.y.z-prerelease)
+// and excludes development builds (containing "dev", "dirty", or "test") as a fallback.
 func IsReleasedVersion(version string) bool {
+	// Primary check: use the build-time flag if available
+	// If the binary was built as a release, trust that flag
+	if isReleaseBuild {
+		return true
+	}
+
+	// Fallback to heuristic checks for backward compatibility
+	// and for cases where the flag wasn't set (e.g., custom builds)
 	if version == "" {
 		return false
 	}

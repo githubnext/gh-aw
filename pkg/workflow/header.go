@@ -15,6 +15,11 @@ var headerLog = logger.New("workflow:header")
 // This is used to include version information in generated workflow headers.
 var compilerVersion = "dev"
 
+// isReleaseBuild indicates whether this binary was built as a release.
+// This is set at build time via -X linker flag and used to determine
+// if version information should be included in generated workflows.
+var isReleaseBuild = false
+
 // SetVersion sets the compiler version for inclusion in generated workflow headers.
 // Only non-dev versions are included in the generated headers.
 func SetVersion(v string) {
@@ -24,6 +29,16 @@ func SetVersion(v string) {
 // GetVersion returns the current compiler version.
 func GetVersion() string {
 	return compilerVersion
+}
+
+// SetIsRelease sets whether this binary was built as a release.
+func SetIsRelease(release bool) {
+	isReleaseBuild = release
+}
+
+// IsRelease returns whether this binary was built as a release.
+func IsRelease() bool {
+	return isReleaseBuild
 }
 
 //go:embed assets/logo.txt

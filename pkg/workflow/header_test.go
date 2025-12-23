@@ -130,3 +130,163 @@ func TestGenerateWorkflowHeader_NoGeneratedBy(t *testing.T) {
 		t.Error("Expected header to NOT include version when generatedBy is empty")
 	}
 }
+
+func TestSetIsReleaseAndIsRelease(t *testing.T) {
+	// Save original isReleaseBuild
+	originalIsRelease := isReleaseBuild
+	defer func() { isReleaseBuild = originalIsRelease }()
+
+	tests := []struct {
+		name     string
+		value    bool
+		expected bool
+	}{
+		{"Set true", true, true},
+		{"Set false", false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetIsRelease(tt.value)
+			if got := IsRelease(); got != tt.expected {
+				t.Errorf("IsRelease() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsReleasedVersion_WithReleaseFlag(t *testing.T) {
+	// Save original state
+	originalIsRelease := isReleaseBuild
+	defer func() { isReleaseBuild = originalIsRelease }()
+
+	tests := []struct {
+		name          string
+		isRelease     bool
+		version       string
+		expectedValue bool
+		description   string
+	}{
+		{
+			name:          "Release flag true with valid version",
+			isRelease:     true,
+			version:       "1.0.0",
+			expectedValue: true,
+			description:   "When isRelease is true, should return true regardless of version format",
+		},
+		{
+			name:          "Release flag true with dev version",
+			isRelease:     true,
+			version:       "dev",
+			expectedValue: true,
+			description:   "When isRelease is true, should return true even with dev version",
+		},
+		{
+			name:          "Release flag true with dirty version",
+			isRelease:     true,
+			version:       "1.0.0-dirty",
+			expectedValue: true,
+			description:   "When isRelease is true, should return true even with dirty version",
+		},
+		{
+			name:          "Release flag false with valid semver",
+			isRelease:     false,
+			version:       "1.0.0",
+			expectedValue: true,
+			description:   "When isRelease is false, falls back to heuristic checks",
+		},
+		{
+			name:          "Release flag false with dev version",
+			isRelease:     false,
+			version:       "dev",
+			expectedValue: false,
+			description:   "When isRelease is false, dev version should return false",
+		},
+		{
+			name:          "Release flag false with dirty version",
+			isRelease:     false,
+			version:       "1.0.0-dirty",
+			expectedValue: false,
+			description:   "When isRelease is false, dirty version should return false",
+		},
+		{
+			name:          "Release flag false with git hash",
+			isRelease:     false,
+			version:       "abc123",
+			expectedValue: false,
+			description:   "When isRelease is false, git hash should return false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetIsRelease(tt.isRelease)
+			got := IsReleasedVersion(tt.version)
+			if got != tt.expectedValue {
+				t.Errorf("IsReleasedVersion(%q) with isRelease=%v = %v, want %v\n%s",
+					tt.version, tt.isRelease, got, tt.expectedValue, tt.description)
+			}
+		})
+	}
+}
+
+func TestGenerateWorkflowHeader_WithReleaseFlag(t *testing.T) {
+	// Save original state
+	originalVersion := compilerVersion
+	originalIsRelease := isReleaseBuild
+	defer func() {
+		compilerVersion = originalVersion
+		isReleaseBuild = originalIsRelease
+	}()
+
+	tests := []struct {
+		name             string
+		version          string
+		isRelease        bool
+		shouldHaveVersion bool
+		description      string
+	}{
+		{
+			name:             "Release build with valid version",
+			version:          "1.0.0",
+			isRelease:        true,
+			shouldHaveVersion: true,
+			description:      "Release build should include version in header",
+		},
+		{
+			name:             "Dev build with valid version",
+			version:          "1.0.0",
+			isRelease:        false,
+			shouldHaveVersion: true,
+			description:      "Non-release build with valid semver should include version",
+		},
+		{
+			name:             "Dev build with dev version",
+			version:          "dev",
+			isRelease:        false,
+			shouldHaveVersion: false,
+			description:      "Non-release build with 'dev' version should not include version",
+		},
+		{
+			name:             "Release build with dev version",
+			version:          "dev",
+			isRelease:        true,
+			shouldHaveVersion: true,
+			description:      "Release build should include version even if it says 'dev'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetVersion(tt.version)
+			SetIsRelease(tt.isRelease)
+			header := GenerateWorkflowHeader("test.md", "gh-aw", "")
+
+			hasVersion := strings.Contains(header, "("+tt.version+")")
+			if hasVersion != tt.shouldHaveVersion {
+				t.Errorf("Header version inclusion = %v, want %v\n%s\nHeader:\n%s",
+					hasVersion, tt.shouldHaveVersion, tt.description, header)
+			}
+		})
+	}
+}
