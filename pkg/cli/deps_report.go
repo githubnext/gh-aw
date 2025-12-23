@@ -195,7 +195,7 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 	if report.DirectDeps > 0 {
 		outdatedPercentage = float64(len(report.Outdated)) / float64(report.DirectDeps) * 100
 	}
-	
+
 	v0Percentage := 0.0
 	v1Percentage := 0.0
 	v2Percentage := 0.0
@@ -204,7 +204,7 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 		v1Percentage = float64(report.V1PlusCount) / float64(report.TotalDeps) * 100
 		v2Percentage = float64(report.V2PlusCount) / float64(report.TotalDeps) * 100
 	}
-	
+
 	// Build JSON-friendly output structure
 	output := map[string]any{
 		"summary": map[string]any{
@@ -238,7 +238,7 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 			},
 		},
 	}
-	
+
 	// Add recommendations
 	recommendations := []string{}
 	if len(report.Advisories) > 0 {
@@ -251,13 +251,13 @@ func DisplayDependencyReportJSON(report *DependencyReport) error {
 		recommendations = append(recommendations, fmt.Sprintf("Reduce v0.x exposure from %.0f%% to <30%%", v0Percentage))
 	}
 	output["recommendations"] = recommendations
-	
+
 	// Marshal and output to stdout
 	jsonData, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	
+
 	fmt.Println(string(jsonData))
 	return nil
 }
