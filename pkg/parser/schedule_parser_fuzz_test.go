@@ -67,6 +67,12 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("every 2 hours")
 	f.Add("every 6 hours")
 	f.Add("every 12 hours")
+	f.Add("every 1 day")
+	f.Add("every 2 days")
+	f.Add("every 3 days")
+	f.Add("every 7 days")
+	f.Add("every 10 days")
+	f.Add("every 14 days")
 
 	// Interval schedules (short duration format)
 	f.Add("every 5m")
@@ -141,7 +147,6 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("every 2h at noon")
 
 	// Invalid interval units
-	f.Add("every 10 days")
 	f.Add("every 2 weeks")
 	f.Add("every 1 month")
 

@@ -530,8 +530,8 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	}
 
 	// Validate unit before checking minimum duration
-	if unit != "minutes" && unit != "hours" {
-		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
+	if unit != "minutes" && unit != "hours" && unit != "days" {
+		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
 	}
 
 	// Validate minimum duration of 5 minutes
@@ -541,6 +541,8 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		totalMinutes = interval
 	case "hours":
 		totalMinutes = interval * 60
+	case "days":
+		totalMinutes = interval * 24 * 60
 	}
 
 	if totalMinutes < 5 {
@@ -554,8 +556,16 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	case "hours":
 		// every N hours -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
 		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
+	case "days":
+		// every N days -> daily at midnight, repeated N times
+		// For single day, use daily. For multiple days, use interval in days
+		if interval == 1 {
+			return "0 0 * * *", nil // daily
+		}
+		// Convert days to day-of-month interval for cron expression
+		return fmt.Sprintf("0 0 */%d * *", interval), nil
 	default:
-		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes' or 'hours'", unit)
+		return "", fmt.Errorf("unsupported interval unit '%s', use 'minutes', 'hours', or 'days'", unit)
 	}
 }
 
