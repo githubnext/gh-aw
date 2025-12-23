@@ -14,6 +14,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 		engineID      string
 		description   string
 		shouldInclude bool
+		isRelease     bool // Whether to mark as release build
 	}{
 		{
 			name:          "Released CLI version is stored in aw_info.json",
@@ -21,6 +22,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should include cli_version field with correct value for released builds",
 			shouldInclude: true,
+			isRelease:     true,
 		},
 		{
 			name:          "CLI version with semver prerelease",
@@ -28,6 +30,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "claude",
 			description:   "Should handle prerelease versions",
 			shouldInclude: true,
+			isRelease:     true,
 		},
 		{
 			name:          "Development CLI version is excluded",
@@ -35,6 +38,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for development builds",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Dirty CLI version is excluded",
@@ -42,6 +46,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for dirty builds",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Test CLI version is excluded",
@@ -49,6 +54,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "claude",
 			description:   "Should NOT include cli_version field for test builds",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Git hash with dirty suffix is excluded",
@@ -56,6 +62,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for git hash with dirty suffix",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Git commit hash is excluded",
@@ -63,6 +70,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for git commit hash",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Short git hash is excluded",
@@ -70,6 +78,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "claude",
 			description:   "Should NOT include cli_version field for short git hash",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Version starting with v is excluded",
@@ -77,6 +86,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for version with v prefix",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Version with only major number is excluded",
@@ -84,6 +94,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should NOT include cli_version field for version with only major number",
 			shouldInclude: false,
+			isRelease:     false,
 		},
 		{
 			name:          "Version with only major.minor is included",
@@ -91,6 +102,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "copilot",
 			description:   "Should include cli_version field for version with major.minor",
 			shouldInclude: true,
+			isRelease:     true,
 		},
 		{
 			name:          "Version with build metadata is included",
@@ -98,11 +110,19 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			engineID:      "claude",
 			description:   "Should include cli_version field for version with build metadata",
 			shouldInclude: true,
+			isRelease:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore original state
+			originalIsRelease := isReleaseBuild
+			defer func() { isReleaseBuild = originalIsRelease }()
+
+			// Set the release flag for this test
+			SetIsRelease(tt.isRelease)
+
 			compiler := NewCompiler(false, "", tt.cliVersion)
 			registry := GetGlobalEngineRegistry()
 			engine, err := registry.GetEngine(tt.engineID)
@@ -204,6 +224,13 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 }
 
 func TestBothVersionsInAwInfo(t *testing.T) {
+	// Save and restore original state
+	originalIsRelease := isReleaseBuild
+	defer func() { isReleaseBuild = originalIsRelease }()
+
+	// Set as release build to include CLI version
+	SetIsRelease(true)
+
 	// Test that both CLI version and AWF version are present simultaneously
 	compiler := NewCompiler(false, "", "2.0.0-beta.5")
 	registry := GetGlobalEngineRegistry()
