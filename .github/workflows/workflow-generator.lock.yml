@@ -81,7 +81,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/lock-issue.cjs');
+            const { main } = require('/tmp/gh-aw/actions/lock-issue.cjs');
+            await main();
 
   agent:
     needs: activation
