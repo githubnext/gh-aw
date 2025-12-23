@@ -303,6 +303,8 @@ func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, 
 	auditReportLog.Printf("Generating performance metrics: token_usage=%d, tool_count=%d, duration=%v", metrics.TokenUsage, len(toolUsage), run.Duration)
 	pm := &PerformanceMetrics{}
 
+	auditReportLog.Printf("Calculating cost efficiency: estimated_cost=$%.2f", metrics.EstimatedCost)
+
 	// Calculate tokens per minute
 	if run.Duration > 0 && metrics.TokenUsage > 0 {
 		minutes := run.Duration.Minutes()
@@ -334,6 +336,7 @@ func generatePerformanceMetrics(processedRun ProcessedRun, metrics MetricsData, 
 			}
 		}
 		pm.MostUsedTool = fmt.Sprintf("%s (%d calls)", mostUsed.Name, mostUsed.CallCount)
+		auditReportLog.Printf("Most used tool: %s with %d calls", mostUsed.Name, mostUsed.CallCount)
 	}
 
 	// Calculate average tool duration

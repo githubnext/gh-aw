@@ -134,6 +134,7 @@ func ExtractMarkdownSection(content, sectionName string) (string, error) {
 // ExtractFrontmatterString extracts only the YAML frontmatter as a string
 // This matches the bash extract_frontmatter function
 func ExtractFrontmatterString(content string) (string, error) {
+	log.Printf("Extracting frontmatter string from content: size=%d bytes", len(content))
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "", err
@@ -141,6 +142,7 @@ func ExtractFrontmatterString(content string) (string, error) {
 
 	// Convert frontmatter map back to YAML string
 	if len(result.Frontmatter) == 0 {
+		log.Print("No frontmatter fields found, returning empty string")
 		return "", nil
 	}
 
