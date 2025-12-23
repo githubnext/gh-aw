@@ -1,18 +1,18 @@
-# Setup Activation Action
+# Setup Action
 
-This action copies activation job files to the agent environment.
+This action copies workflow script files to the agent environment.
 
 ## Description
 
-The activation job runs JavaScript scripts and shell scripts to check permissions, timestamps, and reactions. This action copies all necessary files to the agent environment so they can be required or executed instead of being inlined in the workflow.
+This action runs in all workflow jobs to provide JavaScript scripts that can be required instead of being inlined in the workflow. This includes scripts for activation jobs, agent jobs, and safe-output jobs.
 
 ## Usage
 
 ```yaml
-- name: Setup Activation Files
-  uses: ./actions/setup-activation
+- name: Setup Scripts
+  uses: ./actions/setup
   with:
-    # Destination directory for activation files
+    # Destination directory for script files
     # Default: /tmp/gh-aw/actions/activation
     destination: /tmp/gh-aw/actions/activation
 ```
@@ -21,7 +21,7 @@ The activation job runs JavaScript scripts and shell scripts to check permission
 
 ### `destination`
 
-**Optional** Destination directory for activation files.
+**Optional** Destination directory for script files.
 
 Default: `/tmp/gh-aw/actions/activation`
 
@@ -37,15 +37,15 @@ The number of files copied to the destination directory.
 steps:
   - uses: actions/checkout@v4
   
-  - name: Setup Activation Files
-    uses: ./actions/setup-activation
+  - name: Setup Scripts
+    uses: ./actions/setup
     with:
       destination: /tmp/gh-aw/actions/activation
 ```
 
 ## Files Included
 
-This action copies the following files:
+This action copies all .cjs files from the script registry, including:
 
 - `check_stop_time.cjs` - Check stop-time limit script
 - `check_skip_if_match.cjs` - Check skip-if-match query script
@@ -54,3 +54,4 @@ This action copies the following files:
 - `lock-issue.cjs` - Lock issue for agent workflow script
 - `compute_text.cjs` - Compute current body text script (bundled with dependencies)
 - `add_reaction_and_edit_comment.cjs` - Add reaction and edit comment script (bundled with dependencies)
+- And all other registered .cjs files (82 total)

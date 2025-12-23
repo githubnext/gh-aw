@@ -105,8 +105,8 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		// Clean index.js for actions that use it (except setup-safe-outputs and setup-activation)
-		if actionName != "setup-safe-outputs" && actionName != "setup-activation" {
+		// Clean index.js for actions that use it (except setup-safe-outputs and setup)
+		if actionName != "setup-safe-outputs" && actionName != "setup" {
 			indexPath := filepath.Join(actionsDir, actionName, "index.js")
 			if _, err := os.Stat(indexPath); err == nil {
 				if err := os.Remove(indexPath); err != nil {
@@ -129,7 +129,7 @@ func ActionsCleanCommand() error {
 			}
 		}
 
-		// Note: setup-activation uses setup.sh as template, so we don't clean it
+		// Note: setup uses setup.sh as template, so we don't clean it
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
@@ -223,9 +223,9 @@ func buildAction(actionsDir, actionName string) error {
 		return buildSetupSafeOutputsAction(actionsDir, actionName)
 	}
 
-	// Special handling for setup-activation: build shell script with embedded files
-	if actionName == "setup-activation" {
-		return buildSetupActivationAction(actionsDir, actionName)
+	// Special handling for setup: build shell script with embedded files
+	if actionName == "setup" {
+		return buildSetupAction(actionsDir, actionName)
 	}
 
 	srcPath := filepath.Join(actionPath, "src", "index.js")
@@ -323,8 +323,8 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupActivationAction builds the setup-activation action by embedding files in shell script
-func buildSetupActivationAction(actionsDir, actionName string) error {
+// buildSetupAction builds the setup action by embedding files in shell script
+func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	templatePath := filepath.Join(actionPath, "setup.sh")
 	outputPath := templatePath
@@ -370,9 +370,9 @@ func buildSetupActivationAction(actionsDir, actionName string) error {
 // getActionDependencies returns the list of JavaScript dependencies for an action
 // This mapping defines which files from pkg/workflow/js/ are needed for each action
 func getActionDependencies(actionName string) []string {
-	// For setup-activation (or setup), use the dynamic script discovery
+	// For setup, use the dynamic script discovery
 	// This ensures all .cjs files are included automatically
-	if actionName == "setup-activation" || actionName == "setup" {
+	if actionName == "setup" {
 		return workflow.GetAllScriptFilenames()
 	}
 

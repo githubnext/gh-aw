@@ -17,11 +17,11 @@ actions/{action-name}/
 
 ## Available Actions
 
-### setup-activation
+### setup
 
-Copies activation job files to the agent environment. This action embeds all necessary JavaScript files used in activation and pre-activation jobs and copies them to a specified destination directory.
+Copies workflow script files to the agent environment. This action embeds all necessary JavaScript files used across all workflow jobs and copies them to a specified destination directory.
 
-[Documentation](./setup-activation/README.md)
+[Documentation](./setup/README.md)
 
 ### setup-safe-outputs
 

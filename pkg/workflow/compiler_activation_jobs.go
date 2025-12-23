@@ -23,9 +23,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		return nil, err
 	}
 
-	// Add setup-activation step to copy activation scripts
-	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
-	if setupActivationActionRef != "" {
+	// Add setup step to copy activation scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
 		if c.actionMode.IsDev() {
 			steps = append(steps, "      - name: Checkout actions folder\n")
@@ -36,13 +36,13 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		}
 
 		steps = append(steps, "      - name: Setup Activation Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
 	}
 
 	// Determine script loading method based on action mode
-	useRequire := setupActivationActionRef != ""
+	useRequire := setupActionRef != ""
 
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
@@ -336,9 +336,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
-	// Add setup-activation step to copy activation scripts
-	setupActivationActionRef := c.resolveActionReference("./actions/setup-activation", data)
-	if setupActivationActionRef != "" {
+	// Add setup step to copy activation scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
 		if c.actionMode.IsDev() {
 			steps = append(steps, "      - name: Checkout actions folder\n")
@@ -349,13 +349,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 
 		steps = append(steps, "      - name: Setup Activation Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActivationActionRef))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
 	}
 
 	// Determine script loading method based on action mode
-	useRequire := setupActivationActionRef != ""
+	useRequire := setupActionRef != ""
 
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
