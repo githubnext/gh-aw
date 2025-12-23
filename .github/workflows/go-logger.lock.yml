@@ -44,91 +44,27 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_WORKFLOW_FILE: "go-logger.lock.yml"
         with:
           script: |
-            async function main() {
-              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
-              if (!workflowFile) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
-                return;
-              }
-              const workflowBasename = workflowFile.replace(".lock.yml", "");
-              const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
-              const lockFilePath = `.github/workflows/${workflowFile}`;
-              core.info(`Checking workflow timestamps using GitHub API:`);
-              core.info(`  Source: ${workflowMdPath}`);
-              core.info(`  Lock file: ${lockFilePath}`);
-              const { owner, repo } = context.repo;
-              const ref = context.sha;
-              async function getLastCommitForFile(path) {
-                try {
-                  const response = await github.rest.repos.listCommits({
-                    owner,
-                    repo,
-                    path,
-                    per_page: 1,
-                    sha: ref,
-                  });
-                  if (response.data && response.data.length > 0) {
-                    const commit = response.data[0];
-                    return {
-                      sha: commit.sha,
-                      date: commit.commit.committer.date,
-                      message: commit.commit.message,
-                    };
-                  }
-                  return null;
-                } catch (error) {
-                  core.info(`Could not fetch commit for ${path}: ${error.message}`);
-                  return null;
-                }
-              }
-              const workflowCommit = await getLastCommitForFile(workflowMdPath);
-              const lockCommit = await getLastCommitForFile(lockFilePath);
-              if (!workflowCommit) {
-                core.info(`Source file does not exist: ${workflowMdPath}`);
-              }
-              if (!lockCommit) {
-                core.info(`Lock file does not exist: ${lockFilePath}`);
-              }
-              if (!workflowCommit || !lockCommit) {
-                core.info("Skipping timestamp check - one or both files not found");
-                return;
-              }
-              const workflowDate = new Date(workflowCommit.date);
-              const lockDate = new Date(lockCommit.date);
-              core.info(`  Source last commit: ${workflowDate.toISOString()} (${workflowCommit.sha.substring(0, 7)})`);
-              core.info(`  Lock last commit: ${lockDate.toISOString()} (${lockCommit.sha.substring(0, 7)})`);
-              if (workflowDate > lockDate) {
-                const warningMessage = `WARNING: Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
-                core.error(warningMessage);
-                const workflowTimestamp = workflowDate.toISOString();
-                const lockTimestamp = lockDate.toISOString();
-                let summary = core.summary
-                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
-                  .addRaw("**Files:**\n")
-                  .addRaw(`- Source: \`${workflowMdPath}\`\n`)
-                  .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
-                  .addRaw(`- Lock: \`${lockFilePath}\`\n`)
-                  .addRaw(`  - Last commit: ${lockTimestamp}\n`)
-                  .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
-                  .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
-                await summary.write();
-              } else if (workflowCommit.sha === lockCommit.sha) {
-                core.info("✅ Lock file is up to date (same commit)");
-              } else {
-                core.info("✅ Lock file is up to date");
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
 
   agent:
     needs: activation
@@ -150,6 +86,15 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -5563,6 +5508,15 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -5595,88 +5549,12 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
-              }
-              let summaryContent = "\n\n## No-Op Messages\n\n";
-              summaryContent += "The following messages were logged for transparency:\n\n";
-              for (let i = 0; i < noopItems.length; i++) {
-                const item = noopItems[i];
-                core.info(`No-op message ${i + 1}: ${item.message}`);
-                summaryContent += `- ${item.message}\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-              if (noopItems.length > 0) {
-                core.setOutput("noop_message", noopItems[0].message);
-                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
-              }
-              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
-            }
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
         id: missing_tool
@@ -5687,105 +5565,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              const fs = require("fs");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              const missingTools = [];
-              if (!agentOutputFile.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              let agentOutput;
-              try {
-                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.info(`Agent output file not found or unreadable: ${error instanceof Error ? error.message : String(error)}`);
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              if (agentOutput.trim() === "") {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Agent output length: ${agentOutput.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing_tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
+            await main();
       - name: Update reaction comment with completion status
         id: conclusion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -5800,254 +5586,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function getMessages() {
-              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-              if (!messagesEnv) {
-                return null;
-              }
-              try {
-                return JSON.parse(messagesEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-                return null;
-              }
-            }
-            function renderTemplate(template, context) {
-              return template.replace(/\{(\w+)\}/g, (match, key) => {
-                const value = context[key];
-                return value !== undefined && value !== null ? String(value) : match;
-              });
-            }
-            function toSnakeCase(obj) {
-              const result = {};
-              for (const [key, value] of Object.entries(obj)) {
-                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-                result[snakeKey] = value;
-                result[key] = value;
-              }
-              return result;
-            }
-            function getRunStartedMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
-              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunSuccessMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
-              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
-              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getDetectionFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function collectGeneratedAssets() {
-              const assets = [];
-              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
-              if (!safeOutputJobsEnv) {
-                return assets;
-              }
-              let jobOutputMapping;
-              try {
-                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
-                return assets;
-              }
-              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
-                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
-                const url = process.env[envVarName];
-                if (url && url.trim() !== "") {
-                  assets.push(url);
-                  core.info(`Collected asset URL: ${url}`);
-                }
-              }
-              return assets;
-            }
-            async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (detectionConclusion) {
-                core.info(`Detection Conclusion: ${detectionConclusion}`);
-              }
-              let noopMessages = [];
-              const agentOutputResult = loadAgentOutput();
-              if (agentOutputResult.success && agentOutputResult.data) {
-                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
-                if (noopItems.length > 0) {
-                  core.info(`Found ${noopItems.length} noop message(s)`);
-                  noopMessages = noopItems.map(item => item.message);
-                }
-              }
-              if (!commentId && noopMessages.length > 0) {
-                core.info("No comment ID found, writing noop messages to step summary");
-                let summaryContent = "## No-Op Messages\n\n";
-                summaryContent += "The following messages were logged for transparency:\n\n";
-                if (noopMessages.length === 1) {
-                  summaryContent += noopMessages[0];
-                } else {
-                  summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
-                return;
-              }
-              if (!commentId) {
-                core.info("No comment ID found and no noop messages to process, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let message;
-              if (detectionConclusion && detectionConclusion === "failure") {
-                message = getDetectionFailureMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else if (agentConclusion === "success") {
-                message = getRunSuccessMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else {
-                let statusText;
-                if (agentConclusion === "cancelled") {
-                  statusText = "was cancelled";
-                } else if (agentConclusion === "skipped") {
-                  statusText = "was skipped";
-                } else if (agentConclusion === "timed_out") {
-                  statusText = "timed out";
-                } else {
-                  statusText = "failed";
-                }
-                message = getRunFailureMessage({
-                  workflowName,
-                  runUrl,
-                  status: statusText,
-                });
-              }
-              if (noopMessages.length > 0) {
-                message += "\n\n";
-                if (noopMessages.length === 1) {
-                  message += noopMessages[0];
-                } else {
-                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-              }
-              const generatedAssets = collectGeneratedAssets();
-              if (generatedAssets.length > 0) {
-                message += "\n\n";
-                generatedAssets.forEach(url => {
-                  message += `${url}\n`;
-                });
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
+            await main();
 
   detection:
     needs: agent
@@ -6060,6 +5605,15 @@ jobs:
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download prompt artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -6335,6 +5889,15 @@ jobs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -6352,275 +5915,6 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/
-      - name: Setup JavaScript files
-        id: setup_scripts
-        shell: bash
-        run: |
-          mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/expiration_helpers.cjs << 'EOF_33eff070'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Add expiration XML comment to body lines if expires is set
-           * @param {string[]} bodyLines - Array of body lines to append to
-           * @param {string} envVarName - Name of the environment variable containing expires days (e.g., "GH_AW_DISCUSSION_EXPIRES")
-           * @param {string} entityType - Type of entity for logging (e.g., "Discussion", "Issue", "Pull Request")
-           * @returns {void}
-           */
-          function addExpirationComment(bodyLines, envVarName, entityType) {
-            const expiresEnv = process.env[envVarName];
-            if (expiresEnv) {
-              const expiresDays = parseInt(expiresEnv, 10);
-              if (!isNaN(expiresDays) && expiresDays > 0) {
-                const expirationDate = new Date();
-                expirationDate.setDate(expirationDate.getDate() + expiresDays);
-                const expirationISO = expirationDate.toISOString();
-                bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-                core.info(`${entityType} will expire on ${expirationISO} (${expiresDays} days)`);
-              }
-            }
-          }
-          
-          module.exports = {
-            addExpirationComment,
-          };
-          
-          EOF_33eff070
-          cat > /tmp/gh-aw/scripts/get_tracker_id.cjs << 'EOF_bfad4250'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Get tracker-id from environment variable, log it, and optionally format it
-           * @param {string} [format] - Output format: "markdown" for HTML comment, "text" for plain text, or undefined for raw value
-           * @returns {string} Tracker ID in requested format or empty string
-           */
-          function getTrackerID(format) {
-            const trackerID = process.env.GH_AW_TRACKER_ID || "";
-            if (trackerID) {
-              core.info(`Tracker ID: ${trackerID}`);
-              return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
-            }
-            return "";
-          }
-          
-          module.exports = {
-            getTrackerID,
-          };
-          
-          EOF_bfad4250
-          cat > /tmp/gh-aw/scripts/remove_duplicate_title.cjs << 'EOF_bb4a8126'
-          // @ts-check
-          /**
-           * Remove duplicate title from description
-           * @module remove_duplicate_title
-           */
-          
-          /**
-           * Removes duplicate title from the beginning of description content.
-           * If the description starts with a header (# or ## or ### etc.) that matches
-           * the title, it will be removed along with any trailing newlines.
-           *
-           * @param {string} title - The title text to match and remove
-           * @param {string} description - The description content that may contain duplicate title
-           * @returns {string} The description with duplicate title removed
-           */
-          function removeDuplicateTitleFromDescription(title, description) {
-            // Handle null/undefined/empty inputs
-            if (!title || typeof title !== "string") {
-              return description || "";
-            }
-            if (!description || typeof description !== "string") {
-              return "";
-            }
-          
-            const trimmedTitle = title.trim();
-            const trimmedDescription = description.trim();
-          
-            if (!trimmedTitle || !trimmedDescription) {
-              return trimmedDescription;
-            }
-          
-            // Match any header level (# to ######) followed by the title at the start
-            // This regex matches:
-            // - Start of string
-            // - One or more # characters
-            // - One or more spaces
-            // - The exact title (escaped for regex special chars)
-            // - Optional trailing spaces
-            // - Optional newlines after the header
-            const escapedTitle = trimmedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const headerRegex = new RegExp(`^#{1,6}\\s+${escapedTitle}\\s*(?:\\r?\\n)*`, "i");
-          
-            if (headerRegex.test(trimmedDescription)) {
-              return trimmedDescription.replace(headerRegex, "").trim();
-            }
-          
-            return trimmedDescription;
-          }
-          
-          module.exports = { removeDuplicateTitleFromDescription };
-          
-          EOF_bb4a8126
-          cat > /tmp/gh-aw/scripts/update_activation_comment.cjs << 'EOF_967a5011'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Update the activation comment with a link to the created pull request or issue
-           * @param {any} github - GitHub REST API instance
-           * @param {any} context - GitHub Actions context
-           * @param {any} core - GitHub Actions core
-           * @param {string} itemUrl - URL of the created item (pull request or issue)
-           * @param {number} itemNumber - Number of the item (pull request or issue)
-           * @param {string} itemType - Type of item: "pull_request" or "issue" (defaults to "pull_request")
-           */
-          async function updateActivationComment(github, context, core, itemUrl, itemNumber, itemType = "pull_request") {
-            const itemLabel = itemType === "issue" ? "issue" : "pull request";
-            const linkMessage = itemType === "issue" ? `\n\n✅ Issue created: [#${itemNumber}](${itemUrl})` : `\n\n✅ Pull request created: [#${itemNumber}](${itemUrl})`;
-            await updateActivationCommentWithMessage(github, context, core, linkMessage, itemLabel);
-          }
-          
-          /**
-           * Update the activation comment with a commit link
-           * @param {any} github - GitHub REST API instance
-           * @param {any} context - GitHub Actions context
-           * @param {any} core - GitHub Actions core
-           * @param {string} commitSha - SHA of the commit
-           * @param {string} commitUrl - URL of the commit
-           */
-          async function updateActivationCommentWithCommit(github, context, core, commitSha, commitUrl) {
-            const shortSha = commitSha.substring(0, 7);
-            const message = `\n\n✅ Commit pushed: [\`${shortSha}\`](${commitUrl})`;
-            await updateActivationCommentWithMessage(github, context, core, message, "commit");
-          }
-          
-          /**
-           * Update the activation comment with a custom message
-           * @param {any} github - GitHub REST API instance
-           * @param {any} context - GitHub Actions context
-           * @param {any} core - GitHub Actions core
-           * @param {string} message - Message to append to the comment
-           * @param {string} label - Optional label for log messages (e.g., "pull request", "issue", "commit")
-           */
-          async function updateActivationCommentWithMessage(github, context, core, message, label = "") {
-            const commentId = process.env.GH_AW_COMMENT_ID;
-            const commentRepo = process.env.GH_AW_COMMENT_REPO;
-          
-            // If no comment was created in activation, skip updating
-            if (!commentId) {
-              core.info("No activation comment to update (GH_AW_COMMENT_ID not set)");
-              return;
-            }
-          
-            core.info(`Updating activation comment ${commentId}`);
-          
-            // Parse comment repo (format: "owner/repo") with validation
-            let repoOwner = context.repo.owner;
-            let repoName = context.repo.repo;
-            if (commentRepo) {
-              const parts = commentRepo.split("/");
-              if (parts.length === 2) {
-                repoOwner = parts[0];
-                repoName = parts[1];
-              } else {
-                core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
-              }
-            }
-          
-            core.info(`Updating comment in ${repoOwner}/${repoName}`);
-          
-            // Check if this is a discussion comment (GraphQL node ID format)
-            const isDiscussionComment = commentId.startsWith("DC_");
-          
-            try {
-              if (isDiscussionComment) {
-                // Get current comment body using GraphQL
-                const currentComment = await github.graphql(
-                  `
-                  query($commentId: ID!) {
-                    node(id: $commentId) {
-                      ... on DiscussionComment {
-                        body
-                      }
-                    }
-                  }`,
-                  { commentId: commentId }
-                );
-          
-                if (!currentComment?.node?.body) {
-                  core.warning("Unable to fetch current comment body, comment may have been deleted or is inaccessible");
-                  return;
-                }
-                const currentBody = currentComment.node.body;
-                const updatedBody = currentBody + message;
-          
-                // Update discussion comment using GraphQL
-                const result = await github.graphql(
-                  `
-                  mutation($commentId: ID!, $body: String!) {
-                    updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                      comment {
-                        id
-                        url
-                      }
-                    }
-                  }`,
-                  { commentId: commentId, body: updatedBody }
-                );
-          
-                const comment = result.updateDiscussionComment.comment;
-                const successMessage = label ? `Successfully updated discussion comment with ${label} link` : "Successfully updated discussion comment";
-                core.info(successMessage);
-                core.info(`Comment ID: ${comment.id}`);
-                core.info(`Comment URL: ${comment.url}`);
-              } else {
-                // Get current comment body using REST API
-                const currentComment = await github.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                  owner: repoOwner,
-                  repo: repoName,
-                  comment_id: parseInt(commentId, 10),
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-          
-                if (!currentComment?.data?.body) {
-                  core.warning("Unable to fetch current comment body, comment may have been deleted");
-                  return;
-                }
-                const currentBody = currentComment.data.body;
-                const updatedBody = currentBody + message;
-          
-                // Update issue/PR comment using REST API
-                const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                  owner: repoOwner,
-                  repo: repoName,
-                  comment_id: parseInt(commentId, 10),
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-          
-                const successMessage = label ? `Successfully updated comment with ${label} link` : "Successfully updated comment";
-                core.info(successMessage);
-                core.info(`Comment ID: ${response.data.id}`);
-                core.info(`Comment URL: ${response.data.html_url}`);
-              }
-            } catch (error) {
-              // Don't fail the workflow if we can't update the comment - just log a warning
-              core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
-            }
-          }
-          
-          module.exports = {
-            updateActivationComment,
-            updateActivationCommentWithCommit,
-          };
-          
-          EOF_967a5011
       - name: Checkout repository
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -6656,496 +5950,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const fs = require("fs");
-            const crypto = require("crypto");
-            const { updateActivationComment } = require('/tmp/gh-aw/scripts/update_activation_comment.cjs');
-            const { getTrackerID } = require('/tmp/gh-aw/scripts/get_tracker_id.cjs');
-            const { addExpirationComment } = require('/tmp/gh-aw/scripts/expiration_helpers.cjs');
-            const { removeDuplicateTitleFromDescription } = require('/tmp/gh-aw/scripts/remove_duplicate_title.cjs');
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)` : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                if (allowEmpty) {
-                  core.info("No patch file found, but allow-empty is enabled - will create empty PR");
-                } else {
-                  const message = "No patch file found - cannot create pull request without changes";
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                    return;
-                  }
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error(message);
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              let patchContent = "";
-              let isEmpty = true;
-              if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                isEmpty = !patchContent || !patchContent.trim();
-              }
-              if (patchContent.includes("Failed to generate patch")) {
-                if (allowEmpty) {
-                  core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
-                  patchContent = "";
-                  isEmpty = true;
-                } else {
-                  const message = "Patch file contains error message - cannot create pull request without changes";
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch error)");
-                    return;
-                  }
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error(message);
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged && !allowEmpty) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else if (allowEmpty) {
-                core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let processedBody = pullRequestItem.body;
-              processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-              let bodyLines = processedBody.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              const trackerIDComment = getTrackerID("markdown");
-              if (trackerIDComment) {
-                bodyLines.push(trackerIDComment);
-              }
-              addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching base branch: ${baseBranch}`);
-              await exec.exec(`git fetch origin ${baseBranch}`);
-              try {
-                await exec.exec(`git checkout ${baseBranch}`);
-              } catch (checkoutError) {
-                core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
-                await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
-              }
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
-                }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(`Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`);
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                if (allowEmpty) {
-                  core.info("allow-empty is enabled - will create branch and push with empty commit");
-                  try {
-                    await exec.exec(`git commit --allow-empty -m "Initialize"`);
-                    core.info("Created empty commit");
-                    let remoteBranchExists = false;
-                    try {
-                      const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                      if (stdout.trim()) {
-                        remoteBranchExists = true;
-                      }
-                    } catch (checkError) {
-                      core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                    }
-                    if (remoteBranchExists) {
-                      core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                      const extraHex = crypto.randomBytes(4).toString("hex");
-                      const oldBranch = branchName;
-                      branchName = `${branchName}-${extraHex}`;
-                      await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                      core.info(`Renamed branch to ${branchName}`);
-                    }
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.info("Empty branch pushed successfully");
-                  } catch (pushError) {
-                    core.setFailed(`Failed to push empty branch: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                    return;
-                  }
-                } else {
-                  const message = "No changes to apply - noop operation completed successfully";
-                  switch (ifNoChanges) {
-                    case "error":
-                      throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                    case "ignore":
-                      return;
-                    case "warn":
-                    default:
-                      core.warning(message);
-                      return;
-                  }
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository ? `${context.payload.repository.html_url}/tree/${branchName}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  await updateActivationComment(github, context, core, issue.html_url, issue.number, "issue");
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(`Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`);
-                  return;
-                }
-              }
-            }
-            (async () => { await main(); })();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/create_pull_request.cjs');
+            await main();
 
   update_cache_memory:
     needs:
@@ -7155,6 +5966,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download cache-memory artifact (default)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true

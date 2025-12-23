@@ -60,7 +60,7 @@ const mockCore = {
       it("should create a single PR review comment with basic configuration", async () => {
         (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: { id: 456, html_url: "https://github.com/testowner/testrepo/pull/123#discussion_r456" } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "Consider using const instead of let here." }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith({
             owner: "testowner",
             repo: "testrepo",
@@ -77,7 +77,7 @@ const mockCore = {
       it("should create a multi-line PR review comment", async () => {
         (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: { id: 789, html_url: "https://github.com/testowner/testrepo/pull/123#discussion_r789" } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/utils.js", line: 25, start_line: 20, side: "LEFT", body: "This entire function could be simplified using modern JS features." }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith({
             owner: "testowner",
             repo: "testrepo",
@@ -101,7 +101,7 @@ const mockCore = {
               { type: "create_pull_request_review_comment", path: "src/utils.js", line: 25, body: "Second comment" },
             ],
           }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledTimes(2),
           expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_id", 222),
           expect(mockCore.setOutput).toHaveBeenCalledWith("review_comment_url", "https://github.com/testowner/testrepo/pull/123#discussion_r222"));
@@ -110,13 +110,13 @@ const mockCore = {
         (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: { id: 333, html_url: "https://github.com/testowner/testrepo/pull/123#discussion_r333" } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "Comment on left side" }] }),
           (process.env.GH_AW_PR_REVIEW_COMMENT_SIDE = "LEFT"),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith(expect.objectContaining({ side: "LEFT" })));
       }),
       it("should skip when not in pull request context", async () => {
         ((global.context = { ...mockContext, eventName: "issues", payload: { issue: { number: 123 }, repository: mockContext.payload.repository } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "This should not be created" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled(),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
@@ -129,24 +129,24 @@ const mockCore = {
             { type: "create_pull_request_review_comment", path: "src/main.js", line: "invalid", body: "Invalid line number" },
           ],
         }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled(),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
       it("should validate start_line is not greater than line", async () => {
         (setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, start_line: 15, body: "Invalid range" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled());
       }),
       it("should validate side values", async () => {
         (setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, side: "INVALID_SIDE", body: "Invalid side value" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled());
       }),
       it("should include AI disclaimer in comment body", async () => {
         (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/123#discussion_r999" } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "Original comment" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringMatching(/Original comment[\s\S]*AI generated by/) })));
       }),
       it("should respect target configuration for specific PR number", async () => {
@@ -154,7 +154,7 @@ const mockCore = {
           (mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({ data: { number: 456, head: { sha: "def456abc789" } } })),
           (mockGithub.rest.pulls.createReviewComment = vi.fn().mockResolvedValue({ data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/456#discussion_r999" } })),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "Review comment on specific PR" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", pull_number: 456 }),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 456, path: "src/main.js", line: 10, commit_id: "def456abc789" })));
       }),
@@ -163,21 +163,21 @@ const mockCore = {
           (mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({ data: { number: 789, head: { sha: "xyz789abc456" } } })),
           (mockGithub.rest.pulls.createReviewComment = vi.fn().mockResolvedValue({ data: { id: 888, html_url: "https://github.com/testowner/testrepo/pull/789#discussion_r888" } })),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", pull_request_number: 789, path: "src/utils.js", line: 20, body: "Review comment on any PR" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", pull_number: 789 }),
           expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 789, path: "src/utils.js", line: 20, commit_id: "xyz789abc456" })));
       }),
       it('should skip item when target is "*" but no pull_request_number specified', async () => {
         ((process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "*"),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "Review comment without PR number" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled());
       }),
       it("should skip comment creation when target is triggering but not in PR context", async () => {
         ((process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "triggering"),
           (global.context = { eventName: "issues", runId: 12345, repo: { owner: "testowner", repo: "testrepo" }, payload: { issue: { number: 10 }, repository: { html_url: "https://github.com/testowner/testrepo" } } }),
           setAgentOutput({ items: [{ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "This should not be created" }] }),
-          await eval(`(async () => { ${createPRReviewCommentScript} })()`),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
           expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled());
       }),
       it("should include workflow source in footer when GH_AW_WORKFLOW_SOURCE is provided", async () => {
@@ -192,7 +192,9 @@ const mockCore = {
             payload: { pull_request: { number: 10, head: { sha: "abc123" } }, repository: { html_url: "https://github.com/testowner/testrepo" } },
           }));
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/pull/10#discussion_r456" };
-        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createPRReviewCommentScript} })()`), expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalled());
+        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
+          expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.pulls.createReviewComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test review comment with source"),
           expect(callArgs.body).toContain("AI generated by [Test Workflow]"),
@@ -211,7 +213,9 @@ const mockCore = {
             payload: { pull_request: { number: 10, head: { sha: "abc123" } }, repository: { html_url: "https://github.com/testowner/testrepo" } },
           }));
         const mockComment = { id: 457, html_url: "https://github.com/testowner/testrepo/pull/10#discussion_r457" };
-        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createPRReviewCommentScript} })()`), expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalled());
+        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }),
+          await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`),
+          expect(mockGithub.rest.pulls.createReviewComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.pulls.createReviewComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test review comment without source"),
           expect(callArgs.body).toContain("AI generated by [Test Workflow]"),
@@ -224,7 +228,7 @@ const mockCore = {
           (global.context.eventName = "pull_request"),
           (global.context.payload.pull_request = { number: 123, head: { sha: "abc123" } }));
         const mockComment = { id: 999, html_url: "https://github.com/testowner/testrepo/pull/123#discussion_r999" };
-        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createPRReviewCommentScript} })()`));
+        (mockGithub.rest.pulls.createReviewComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createPRReviewCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.pulls.createReviewComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Review comment from PR context"), expect(callArgs.body).toContain("AI generated by [Test Workflow]"), expect(callArgs.body).toContain("for #123"));
       }));

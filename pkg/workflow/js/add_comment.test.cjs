@@ -50,17 +50,20 @@ const mockCore = {
       }),
       it("should skip when no agent output is provided", async () => {
         (delete process.env.GH_AW_AGENT_OUTPUT,
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"),
           expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
       }),
       it("should skip when agent output is empty", async () => {
-        (setAgentOutput(""), await eval(`(async () => { ${createCommentScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"), expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
+        (setAgentOutput(""),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
+          expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"),
+          expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
       }),
       it("should skip when not in issue or PR context", async () => {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test comment content" }] }),
           (global.context.eventName = "push"),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation'),
           expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
       }),
@@ -68,7 +71,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test comment content" }] }), (global.context.eventName = "issues"));
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, body: expect.stringContaining("Test comment content") }),
           expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", 456),
           expect(mockCore.setOutput).toHaveBeenCalledWith("comment_url", mockComment.html_url),
@@ -79,14 +82,14 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test PR comment content" }] }), (global.context.eventName = "pull_request"), (global.context.payload.pull_request = { number: 789 }), delete global.context.payload.issue);
         const mockComment = { id: 789, html_url: "https://github.com/testowner/testrepo/issues/789#issuecomment-789" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 789, body: expect.stringContaining("Test PR comment content") }));
       }),
       it("should include run information in comment body", async () => {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test content" }] }), (global.context.eventName = "issues"), (global.context.payload.issue = { number: 123 }));
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.createComment.mock.calls).toHaveLength(1));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
@@ -100,7 +103,7 @@ const mockCore = {
           (global.context.eventName = "issues"),
           (global.context.payload.issue = { number: 123 }));
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test content with source"),
           expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]"),
@@ -114,7 +117,7 @@ const mockCore = {
           (global.context.eventName = "issues"),
           (global.context.payload.issue = { number: 123 }));
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test content without source"), expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]"), expect(callArgs.body).not.toContain("gh aw add"));
       }),
@@ -125,7 +128,7 @@ const mockCore = {
           (global.context.payload.issue = { number: 123 }),
           delete global.context.payload.repository);
         const mockComment = { id: 456, html_url: "https://github.enterprise.com/testowner/testrepo/issues/123#issuecomment-456" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test content with custom server"),
           expect(callArgs.body).toContain("https://github.enterprise.com/testowner/testrepo/actions/runs/12345"),
@@ -139,14 +142,14 @@ const mockCore = {
           (global.context.payload.issue = { number: 123 }),
           delete global.context.payload.repository);
         const mockComment = { id: 456, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`), expect(mockGithub.rest.issues.createComment).toHaveBeenCalled());
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test content with fallback"), expect(callArgs.body).toContain("https://github.com/testowner/testrepo/actions/runs/12345"));
       }),
       it("should include triggering issue number in footer when in issue context", async () => {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Comment from issue context" }] }), (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"), (global.context.eventName = "issues"), (global.context.payload.issue = { number: 42 }));
         const mockComment = { id: 789, html_url: "https://github.com/testowner/testrepo/issues/42#issuecomment-789" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`));
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Comment from issue context"), expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]"), expect(callArgs.body).toContain("#42"));
       }),
@@ -157,7 +160,7 @@ const mockCore = {
           delete global.context.payload.issue,
           (global.context.payload.pull_request = { number: 123 }));
         const mockComment = { id: 890, html_url: "https://github.com/testowner/testrepo/pull/123#issuecomment-890" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`));
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Comment from PR context"), expect(callArgs.body).toContain("[🏴‍☠️ Test Workflow]"), expect(callArgs.body).toContain("#123"), delete global.context.payload.pull_request);
       }),
@@ -172,7 +175,7 @@ const mockCore = {
           (process.env.GH_AW_CREATED_PULL_REQUEST_URL = "https://github.com/testowner/testrepo/pull/101"),
           (process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER = "101"));
         const mockComment = { id: 890, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-890" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`));
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("#### Related Items"),
           expect(callArgs.body).toMatch(/####\s+Related Items/),
@@ -199,7 +202,7 @@ const mockCore = {
           (process.env.GH_AW_CREATED_DISCUSSION_NUMBER = "789"),
           (process.env.GH_AW_CREATED_PULL_REQUEST_URL = "https://github.com/testowner/testrepo/pull/101"),
           (process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER = "101"),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockCore.summary.addRaw).toHaveBeenCalled());
         const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
         (expect(summaryContent).toContain("#### Related Items"),
@@ -229,7 +232,7 @@ const mockCore = {
           addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRt", body: "Test discussion comment", createdAt: "2025-10-19T22:00:00Z", url: "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123" } },
         }),
           (global.github.graphql = mockGraphqlResponse),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGraphqlResponse).toHaveBeenCalledTimes(2),
           expect(mockGraphqlResponse.mock.calls[0][0]).toContain("query"),
           expect(mockGraphqlResponse.mock.calls[0][0]).toContain("discussion(number: $num)"),
@@ -259,7 +262,7 @@ const mockCore = {
           addDiscussionComment: { comment: { id: "DC_kwDOPc1QR84BpqRv", body: "Test explicit discussion comment", createdAt: "2025-10-22T12:00:00Z", url: "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456" } },
         }),
           (global.github.graphql = mockGraphqlResponse),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGraphqlResponse).toHaveBeenCalledTimes(2),
           expect(mockGraphqlResponse.mock.calls[0][0]).toContain("query"),
           expect(mockGraphqlResponse.mock.calls[0][0]).toContain("discussion(number: $num)"),
@@ -280,7 +283,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "add_comment", body: "This comment references issue #aw_aabbccdd1122 which was created earlier." }] }),
           (process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aw_aabbccdd1122: 456 })),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 99999, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999" } }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("#456") })),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ body: expect.not.stringContaining("#aw_aabbccdd1122") })),
           delete process.env.GH_AW_TEMPORARY_ID_MAP);
@@ -289,7 +292,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test comment" }] }),
           (process.env.GH_AW_TEMPORARY_ID_MAP = JSON.stringify({ aw_abc123: 100, aw_def456: 200 })),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 99999, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999" } }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Loaded temporary ID map with 2 entries"),
           delete process.env.GH_AW_TEMPORARY_ID_MAP);
       }),
@@ -297,7 +300,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Comment with #aw_000000000000 that won't be resolved" }] }),
           (process.env.GH_AW_TEMPORARY_ID_MAP = "{}"),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 99999, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-99999" } }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("#aw_000000000000") })),
           delete process.env.GH_AW_TEMPORARY_ID_MAP);
       }),
@@ -308,7 +311,7 @@ const mockCore = {
           (global.context.eventName = "issues"),
           (global.context.payload.issue = { number: 456 }));
         const mockComment = { id: 999, html_url: "https://github.com/testowner/testrepo/issues/456#issuecomment-999" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`));
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test comment with custom footer"),
           expect(callArgs.body).toContain("Custom AI footer by [Custom Workflow]"),
@@ -326,7 +329,7 @@ const mockCore = {
           (global.context.eventName = "issues"),
           (global.context.payload.issue = { number: 789 }));
         const mockComment = { id: 1001, html_url: "https://github.com/testowner/testrepo/issues/789#issuecomment-1001" };
-        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript} })()`));
+        (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment }), await eval(`(async () => { ${createCommentScript}; await main(); })()`));
         const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
         (expect(callArgs.body).toContain("Test comment with custom footer and install"),
           expect(callArgs.body).toContain("Generated by [Custom Workflow]"),
@@ -353,7 +356,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn().mockResolvedValue({ minimizeComment: { minimizedComment: { isMinimized: !0 } } })));
         const mockNewComment = { id: 4, html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-4" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.listComments).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 100, per_page: 100, page: 1 }),
           expect(mockGithub.graphql).toHaveBeenCalledTimes(2),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_oldcomment1", classifier: "OUTDATED" })),
@@ -371,7 +374,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn()));
         const mockNewComment = { id: 5, html_url: "https://github.com/testowner/testrepo/issues/200#issuecomment-5" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled(),
           expect(mockGithub.graphql).not.toHaveBeenCalled(),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalled(),
@@ -386,7 +389,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn()));
         const mockNewComment = { id: 6, html_url: "https://github.com/testowner/testrepo/issues/300#issuecomment-6" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled(),
           expect(mockGithub.graphql).not.toHaveBeenCalled(),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalled(),
@@ -403,7 +406,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn().mockResolvedValue({ minimizeComment: { minimizedComment: { isMinimized: !0 } } })));
         const mockNewComment = { id: 2, html_url: "https://github.com/testowner/testrepo/issues/400#issuecomment-2" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_oldcomment1", classifier: "OUTDATED" })),
           delete process.env.GITHUB_WORKFLOW,
           delete process.env.GH_AW_HIDE_OLDER_COMMENTS,
@@ -420,7 +423,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn()));
         const mockNewComment = { id: 3, html_url: "https://github.com/testowner/testrepo/issues/500#issuecomment-3" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.rest.issues.listComments).not.toHaveBeenCalled(),
           expect(mockGithub.graphql).not.toHaveBeenCalled(),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalled(),
@@ -439,7 +442,7 @@ const mockCore = {
           (mockGithub.graphql = vi.fn().mockResolvedValue({ minimizeComment: { minimizedComment: { isMinimized: !0 } } })));
         const mockNewComment = { id: 4, html_url: "https://github.com/testowner/testrepo/issues/600#issuecomment-4" };
         (mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockNewComment }),
-          await eval(`(async () => { ${createCommentScript} })()`),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_oldcomment1", classifier: "OUTDATED" })),
           delete process.env.GITHUB_WORKFLOW,
           delete process.env.GH_AW_HIDE_OLDER_COMMENTS,

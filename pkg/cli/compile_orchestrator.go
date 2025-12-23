@@ -277,10 +277,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		compiler.SetActionMode(mode)
 		compileOrchestratorLog.Printf("Action mode set to: %s", mode)
 	} else {
-		// Use auto-detection
-		mode := workflow.DetectActionMode()
+		// Use auto-detection with version from binary
+		mode := workflow.DetectActionMode(GetVersion())
 		compiler.SetActionMode(mode)
-		compileOrchestratorLog.Printf("Action mode auto-detected: %s", mode)
+		compileOrchestratorLog.Printf("Action mode auto-detected: %s (version: %s)", mode, GetVersion())
 	}
 
 	if watch {

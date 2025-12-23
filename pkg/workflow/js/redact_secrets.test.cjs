@@ -45,14 +45,14 @@ describe("redact_secrets.cjs", () => {
     }),
     describe("main function integration", () => {
       (it("should skip redaction when GH_AW_SECRET_NAMES is not set", async () => {
-        (await eval(`(async () => { ${redactScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SECRET_NAMES not set, no redaction performed"));
+        (await eval(`(async () => { ${redactScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SECRET_NAMES not set, no redaction performed"));
       }),
         it("should redact secrets from files in /tmp using exact matching", async () => {
           const testFile = path.join(tempDir, "test.txt"),
             secretValue = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";
           (fs.writeFileSync(testFile, `Secret: ${secretValue} and another ${secretValue}`), (process.env.GH_AW_SECRET_NAMES = "GITHUB_TOKEN"), (process.env.SECRET_GITHUB_TOKEN = secretValue));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          await eval(`(async () => { ${modifiedScript} })()`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redactedContent = fs.readFileSync(testFile, "utf8");
           (expect(redactedContent).toBe("Secret: ghp************************************* and another ghp*************************************"),
             expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw directory"),
@@ -67,7 +67,7 @@ describe("redact_secrets.cjs", () => {
             (process.env.SECRET_API_KEY2 = "api-key-456"),
             (process.env.SECRET_API_KEY3 = "api-key-789"));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript} })()`),
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
             expect(fs.readFileSync(path.join(tempDir, "test1.txt"), "utf8")).toBe("Secret: api********"),
             expect(fs.readFileSync(path.join(tempDir, "test2.json"), "utf8")).toBe('{"key": "api********"}'),
             expect(fs.readFileSync(path.join(tempDir, "test3.log"), "utf8")).toBe("Log: api********"));
@@ -77,7 +77,7 @@ describe("redact_secrets.cjs", () => {
             secretValue = "sk-1234567890";
           (fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`), (process.env.GH_AW_SECRET_NAMES = "API_KEY"), (process.env.SECRET_API_KEY = secretValue));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript} })()`),
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret")),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processed")));
         }),
@@ -86,7 +86,7 @@ describe("redact_secrets.cjs", () => {
             secretValue = "sk-very-secret-key-123";
           (fs.writeFileSync(testFile, `Secret: ${secretValue}`), (process.env.GH_AW_SECRET_NAMES = "SECRET_KEY"), (process.env.SECRET_SECRET_KEY = secretValue));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          await eval(`(async () => { ${modifiedScript} })()`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const allCalls = [...mockCore.debug.mock.calls, ...mockCore.info.mock.calls, ...mockCore.warning.mock.calls];
           for (const call of allCalls) {
             const callString = JSON.stringify(call);
@@ -97,7 +97,7 @@ describe("redact_secrets.cjs", () => {
           const testFile = path.join(tempDir, "test.txt");
           (fs.writeFileSync(testFile, "Short: abc123"), (process.env.GH_AW_SECRET_NAMES = "SHORT_SECRET"), (process.env.SECRET_SHORT_SECRET = "abc"));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript} })()`), expect(fs.readFileSync(testFile, "utf8")).toBe("Short: abc123"));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(fs.readFileSync(testFile, "utf8")).toBe("Short: abc123"));
         }),
         it("should handle multiple secrets in same file", async () => {
           const testFile = path.join(tempDir, "test.txt"),
@@ -105,7 +105,7 @@ describe("redact_secrets.cjs", () => {
             secret2 = "sk-proj-abcdef1234567890";
           (fs.writeFileSync(testFile, `Token1: ${secret1}\nToken2: ${secret2}\nToken1 again: ${secret1}`), (process.env.GH_AW_SECRET_NAMES = "TOKEN1,TOKEN2"), (process.env.SECRET_TOKEN1 = secret1), (process.env.SECRET_TOKEN2 = secret2));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          await eval(`(async () => { ${modifiedScript} })()`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Token1: ghp*************************************\nToken2: sk-*********************\nToken1 again: ghp*************************************");
         }),
@@ -113,7 +113,7 @@ describe("redact_secrets.cjs", () => {
           const testFile = path.join(tempDir, "test.txt");
           (fs.writeFileSync(testFile, "No secrets here"), (process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET"), (process.env.SECRET_EMPTY_SECRET = ""));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript} })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No secret values found to redact")));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No secret values found to redact")));
         }),
         it("should handle new file extensions (.md, .mdx, .yml, .jsonl)", async () => {
           (fs.writeFileSync(path.join(tempDir, "test.md"), "# Markdown\nSecret: api-key-md123"),
@@ -126,7 +126,7 @@ describe("redact_secrets.cjs", () => {
             (process.env.SECRET_API_YML = "api-key-yml123"),
             (process.env.SECRET_API_JSONL = "api-key-jsonl123"));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript} })()`),
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
             expect(fs.readFileSync(path.join(tempDir, "test.md"), "utf8")).toBe("# Markdown\nSecret: api**********"),
             expect(fs.readFileSync(path.join(tempDir, "test.mdx"), "utf8")).toBe("# MDX\nSecret: api***********"),
             expect(fs.readFileSync(path.join(tempDir, "test.yml"), "utf8")).toBe("# YAML\nkey: api***********"),

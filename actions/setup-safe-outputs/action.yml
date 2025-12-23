@@ -13,8 +13,13 @@ outputs:
     description: 'Number of files copied'
   
 runs:
-  using: 'node20'
-  main: 'index.js'
+  using: 'composite'
+  steps:
+    - name: Copy safe-outputs files
+      shell: bash
+      run: ${{ github.action_path }}/copy-files.sh
+      env:
+        INPUT_DESTINATION: ${{ inputs.destination }}
 
 branding:
   icon: 'copy'

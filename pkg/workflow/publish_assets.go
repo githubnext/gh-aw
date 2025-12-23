@@ -91,6 +91,24 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Permission checks are now handled by the separate check_membership job
 	// which is always created when needed (when activation job is created)
 
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			preSteps = append(preSteps, "      - name: Checkout actions folder\n")
+			preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			preSteps = append(preSteps, "        with:\n")
+			preSteps = append(preSteps, "          sparse-checkout: |\n")
+			preSteps = append(preSteps, "            actions\n")
+		}
+
+		preSteps = append(preSteps, "      - name: Setup Scripts\n")
+		preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		preSteps = append(preSteps, "        with:\n")
+		preSteps = append(preSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
 	// Step 1: Checkout repository
 	preSteps = buildCheckoutRepository(preSteps, c)
 

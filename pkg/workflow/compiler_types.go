@@ -46,8 +46,8 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		verbose:          verbose,
 		engineOverride:   engineOverride,
 		version:          version,
-		skipValidation:   true,             // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
+		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
@@ -63,8 +63,8 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		engineOverride:   engineOverride,
 		customOutput:     customOutput,
 		version:          version,
-		skipValidation:   true,             // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
+		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),

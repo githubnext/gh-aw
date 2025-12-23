@@ -61,140 +61,39 @@ jobs:
       comment_repo: ""
       issue_locked: ${{ steps.lock-issue.outputs.locked }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_WORKFLOW_FILE: "ai-moderator.lock.yml"
         with:
           script: |
-            async function main() {
-              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
-              if (!workflowFile) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
-                return;
-              }
-              const workflowBasename = workflowFile.replace(".lock.yml", "");
-              const workflowMdPath = `.github/workflows/${workflowBasename}.md`;
-              const lockFilePath = `.github/workflows/${workflowFile}`;
-              core.info(`Checking workflow timestamps using GitHub API:`);
-              core.info(`  Source: ${workflowMdPath}`);
-              core.info(`  Lock file: ${lockFilePath}`);
-              const { owner, repo } = context.repo;
-              const ref = context.sha;
-              async function getLastCommitForFile(path) {
-                try {
-                  const response = await github.rest.repos.listCommits({
-                    owner,
-                    repo,
-                    path,
-                    per_page: 1,
-                    sha: ref,
-                  });
-                  if (response.data && response.data.length > 0) {
-                    const commit = response.data[0];
-                    return {
-                      sha: commit.sha,
-                      date: commit.commit.committer.date,
-                      message: commit.commit.message,
-                    };
-                  }
-                  return null;
-                } catch (error) {
-                  core.info(`Could not fetch commit for ${path}: ${error.message}`);
-                  return null;
-                }
-              }
-              const workflowCommit = await getLastCommitForFile(workflowMdPath);
-              const lockCommit = await getLastCommitForFile(lockFilePath);
-              if (!workflowCommit) {
-                core.info(`Source file does not exist: ${workflowMdPath}`);
-              }
-              if (!lockCommit) {
-                core.info(`Lock file does not exist: ${lockFilePath}`);
-              }
-              if (!workflowCommit || !lockCommit) {
-                core.info("Skipping timestamp check - one or both files not found");
-                return;
-              }
-              const workflowDate = new Date(workflowCommit.date);
-              const lockDate = new Date(lockCommit.date);
-              core.info(`  Source last commit: ${workflowDate.toISOString()} (${workflowCommit.sha.substring(0, 7)})`);
-              core.info(`  Lock last commit: ${lockDate.toISOString()} (${lockCommit.sha.substring(0, 7)})`);
-              if (workflowDate > lockDate) {
-                const warningMessage = `WARNING: Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
-                core.error(warningMessage);
-                const workflowTimestamp = workflowDate.toISOString();
-                const lockTimestamp = lockDate.toISOString();
-                let summary = core.summary
-                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
-                  .addRaw("**Files:**\n")
-                  .addRaw(`- Source: \`${workflowMdPath}\`\n`)
-                  .addRaw(`  - Last commit: ${workflowTimestamp}\n`)
-                  .addRaw(`  - Commit SHA: [\`${workflowCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${workflowCommit.sha})\n`)
-                  .addRaw(`- Lock: \`${lockFilePath}\`\n`)
-                  .addRaw(`  - Last commit: ${lockTimestamp}\n`)
-                  .addRaw(`  - Commit SHA: [\`${lockCommit.sha.substring(0, 7)}\`](https://github.com/${owner}/${repo}/commit/${lockCommit.sha})\n\n`)
-                  .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
-                await summary.write();
-              } else if (workflowCommit.sha === lockCommit.sha) {
-                core.info("✅ Lock file is up to date (same commit)");
-              } else {
-                core.info("✅ Lock file is up to date");
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
       - name: Lock issue for agent workflow
         id: lock-issue
         if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            async function main() {
-              core.info(`Lock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
-              const issueNumber = context.issue.number;
-              if (!issueNumber) {
-                core.setFailed("Issue number not found in context");
-                return;
-              }
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              core.info(`Lock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
-              try {
-                core.info(`Checking if issue #${issueNumber} is already locked`);
-                const { data: issue } = await github.rest.issues.get({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                if (issue.pull_request) {
-                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping lock operation`);
-                  core.setOutput("locked", "false");
-                  return;
-                }
-                if (issue.locked) {
-                  core.info(`ℹ️ Issue #${issueNumber} is already locked, skipping lock operation`);
-                  core.setOutput("locked", "false");
-                  return;
-                }
-                core.info(`Locking issue #${issueNumber} for agent workflow execution`);
-                await github.rest.issues.lock({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                core.info(`✅ Successfully locked issue #${issueNumber}`);
-                core.setOutput("locked", "true");
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to lock issue: ${errorMessage}`);
-                core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
-                core.setOutput("locked", "false");
-              }
-            }
-            await main();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/lock-issue.cjs');
 
   agent:
     needs: activation
@@ -211,6 +110,15 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -5864,6 +5772,15 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Debug job inputs
         env:
           COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -5896,88 +5813,12 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
-              }
-              let summaryContent = "\n\n## No-Op Messages\n\n";
-              summaryContent += "The following messages were logged for transparency:\n\n";
-              for (let i = 0; i < noopItems.length; i++) {
-                const item = noopItems[i];
-                core.info(`No-op message ${i + 1}: ${item.message}`);
-                summaryContent += `- ${item.message}\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-              if (noopItems.length > 0) {
-                core.setOutput("noop_message", noopItems[0].message);
-                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
-              }
-              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
-            }
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
         id: missing_tool
@@ -5988,105 +5829,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              const fs = require("fs");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              const missingTools = [];
-              if (!agentOutputFile.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              let agentOutput;
-              try {
-                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.info(`Agent output file not found or unreadable: ${error instanceof Error ? error.message : String(error)}`);
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              if (agentOutput.trim() === "") {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Agent output length: ${agentOutput.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing_tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
+            await main();
       - name: Update reaction comment with completion status
         id: conclusion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6100,298 +5849,25 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function getMessages() {
-              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-              if (!messagesEnv) {
-                return null;
-              }
-              try {
-                return JSON.parse(messagesEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-                return null;
-              }
-            }
-            function renderTemplate(template, context) {
-              return template.replace(/\{(\w+)\}/g, (match, key) => {
-                const value = context[key];
-                return value !== undefined && value !== null ? String(value) : match;
-              });
-            }
-            function toSnakeCase(obj) {
-              const result = {};
-              for (const [key, value] of Object.entries(obj)) {
-                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-                result[snakeKey] = value;
-                result[key] = value;
-              }
-              return result;
-            }
-            function getRunStartedMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
-              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunSuccessMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
-              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
-              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getDetectionFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function collectGeneratedAssets() {
-              const assets = [];
-              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
-              if (!safeOutputJobsEnv) {
-                return assets;
-              }
-              let jobOutputMapping;
-              try {
-                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
-                return assets;
-              }
-              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
-                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
-                const url = process.env[envVarName];
-                if (url && url.trim() !== "") {
-                  assets.push(url);
-                  core.info(`Collected asset URL: ${url}`);
-                }
-              }
-              return assets;
-            }
-            async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (detectionConclusion) {
-                core.info(`Detection Conclusion: ${detectionConclusion}`);
-              }
-              let noopMessages = [];
-              const agentOutputResult = loadAgentOutput();
-              if (agentOutputResult.success && agentOutputResult.data) {
-                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
-                if (noopItems.length > 0) {
-                  core.info(`Found ${noopItems.length} noop message(s)`);
-                  noopMessages = noopItems.map(item => item.message);
-                }
-              }
-              if (!commentId && noopMessages.length > 0) {
-                core.info("No comment ID found, writing noop messages to step summary");
-                let summaryContent = "## No-Op Messages\n\n";
-                summaryContent += "The following messages were logged for transparency:\n\n";
-                if (noopMessages.length === 1) {
-                  summaryContent += noopMessages[0];
-                } else {
-                  summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
-                return;
-              }
-              if (!commentId) {
-                core.info("No comment ID found and no noop messages to process, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let message;
-              if (detectionConclusion && detectionConclusion === "failure") {
-                message = getDetectionFailureMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else if (agentConclusion === "success") {
-                message = getRunSuccessMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else {
-                let statusText;
-                if (agentConclusion === "cancelled") {
-                  statusText = "was cancelled";
-                } else if (agentConclusion === "skipped") {
-                  statusText = "was skipped";
-                } else if (agentConclusion === "timed_out") {
-                  statusText = "timed out";
-                } else {
-                  statusText = "failed";
-                }
-                message = getRunFailureMessage({
-                  workflowName,
-                  runUrl,
-                  status: statusText,
-                });
-              }
-              if (noopMessages.length > 0) {
-                message += "\n\n";
-                if (noopMessages.length === 1) {
-                  message += noopMessages[0];
-                } else {
-                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-              }
-              const generatedAssets = collectGeneratedAssets();
-              if (generatedAssets.length > 0) {
-                message += "\n\n";
-                generatedAssets.forEach(url => {
-                  message += `${url}\n`;
-                });
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
+            await main();
       - name: Unlock issue after agent workflow
         id: unlock-issue
         if: (always()) && (((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            async function main() {
-              core.info(`Unlock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
-              const issueNumber = context.issue.number;
-              if (!issueNumber) {
-                core.setFailed("Issue number not found in context");
-                return;
-              }
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              core.info(`Unlock-issue debug: owner=${owner}, repo=${repo}, issueNumber=${issueNumber}`);
-              try {
-                core.info(`Checking if issue #${issueNumber} is locked`);
-                const { data: issue } = await github.rest.issues.get({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                if (issue.pull_request) {
-                  core.info(`ℹ️ Issue #${issueNumber} is a pull request, skipping unlock operation`);
-                  return;
-                }
-                if (!issue.locked) {
-                  core.info(`ℹ️ Issue #${issueNumber} is not locked, skipping unlock operation`);
-                  return;
-                }
-                core.info(`Unlocking issue #${issueNumber} after agent workflow execution`);
-                await github.rest.issues.unlock({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                core.info(`✅ Successfully unlocked issue #${issueNumber}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to unlock issue: ${errorMessage}`);
-                core.setFailed(`Failed to unlock issue #${issueNumber}: ${errorMessage}`);
-              }
-            }
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/unlock-issue.cjs');
             await main();
 
   pre_activation:
@@ -6399,6 +5875,15 @@ jobs:
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6562,6 +6047,15 @@ jobs:
     outputs:
       add_labels_labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -6573,773 +6067,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Setup JavaScript files
-        id: setup_scripts
-        shell: bash
-        run: |
-          mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          
-          /**
-           * Maximum content length to log for debugging purposes
-           * @type {number}
-           */
-          const MAX_LOG_CONTENT_LENGTH = 10000;
-          
-          /**
-           * Truncate content for logging if it exceeds the maximum length
-           * @param {string} content - Content to potentially truncate
-           * @returns {string} Truncated content with indicator if truncated
-           */
-          function truncateForLogging(content) {
-            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-              return content;
-            }
-            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-          }
-          
-          /**
-           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
-           *
-           * This utility handles the common pattern of:
-           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
-           * 2. Loading the file content
-           * 3. Validating the JSON structure
-           * 4. Returning parsed items array
-           *
-           * @returns {{
-           *   success: true,
-           *   items: any[]
-           * } | {
-           *   success: false,
-           *   items?: undefined,
-           *   error?: string
-           * }} Result object with success flag and items array (if successful) or error message
-           */
-          function loadAgentOutput() {
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-          
-            // No agent output file specified
-            if (!agentOutputFile) {
-              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-              return { success: false };
-            }
-          
-            // Read agent output from file
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(agentOutputFile, "utf8");
-            } catch (error) {
-              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Check for empty content
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-              return { success: false };
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Validate items array exists
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.info("No valid items found in agent output");
-              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-              return { success: false };
-            }
-          
-            return { success: true, items: validatedOutput.items };
-          }
-          
-          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
-          
-          EOF_b93f537f
-          cat > /tmp/gh-aw/scripts/safe_output_helpers.cjs << 'EOF_80a143d8'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Shared helper functions for safe-output scripts
-           * Provides common validation and target resolution logic
-           */
-          
-          /**
-           * Parse a comma-separated list of allowed items from environment variable
-           * @param {string|undefined} envValue - Environment variable value
-           * @returns {string[]|undefined} Array of allowed items, or undefined if no restrictions
-           */
-          function parseAllowedItems(envValue) {
-            const trimmed = envValue?.trim();
-            if (!trimmed) {
-              return undefined;
-            }
-            return trimmed
-              .split(",")
-              .map(item => item.trim())
-              .filter(item => item);
-          }
-          
-          /**
-           * Parse and validate max count from environment variable
-           * @param {string|undefined} envValue - Environment variable value
-           * @param {number} defaultValue - Default value if not specified
-           * @returns {{valid: true, value: number} | {valid: false, error: string}} Validation result
-           */
-          function parseMaxCount(envValue, defaultValue = 3) {
-            if (!envValue) {
-              return { valid: true, value: defaultValue };
-            }
-          
-            const parsed = parseInt(envValue, 10);
-            if (isNaN(parsed) || parsed < 1) {
-              return {
-                valid: false,
-                error: `Invalid max value: ${envValue}. Must be a positive integer`,
-              };
-            }
-          
-            return { valid: true, value: parsed };
-          }
-          
-          /**
-           * Resolve the target number (issue/PR) based on configuration and context
-           * @param {Object} params - Resolution parameters
-           * @param {string} params.targetConfig - Target configuration ("triggering", "*", or explicit number)
-           * @param {any} params.item - Safe output item with optional item_number or pull_request_number
-           * @param {any} params.context - GitHub Actions context
-           * @param {string} params.itemType - Type of item being processed (for error messages)
-           * @param {boolean} params.supportsPR - Whether this safe output supports PR context
-           * @returns {{success: true, number: number, contextType: string} | {success: false, error: string, shouldFail: boolean}} Resolution result
-           */
-          function resolveTarget(params) {
-            const { targetConfig, item, context, itemType, supportsPR = false } = params;
-          
-            // Check context type
-            const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-            const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
-          
-            // Default target is "triggering"
-            const target = targetConfig || "triggering";
-          
-            // Validate context for triggering mode
-            if (target === "triggering") {
-              if (supportsPR) {
-                if (!isIssueContext && !isPRContext) {
-                  return {
-                    success: false,
-                    error: `Target is "triggering" but not running in issue or pull request context, skipping ${itemType}`,
-                    shouldFail: false, // Just skip, don't fail the workflow
-                  };
-                }
-              } else {
-                if (!isPRContext) {
-                  return {
-                    success: false,
-                    error: `Target is "triggering" but not running in pull request context, skipping ${itemType}`,
-                    shouldFail: false, // Just skip, don't fail the workflow
-                  };
-                }
-              }
-            }
-          
-            // Resolve target number
-            let itemNumber;
-            let contextType;
-          
-            if (target === "*") {
-              // Use item_number, issue_number, or pull_request_number from item
-              const numberField = supportsPR ? item.item_number || item.issue_number || item.pull_request_number : item.pull_request_number;
-          
-              if (numberField) {
-                itemNumber = typeof numberField === "number" ? numberField : parseInt(String(numberField), 10);
-                if (isNaN(itemNumber) || itemNumber <= 0) {
-                  return {
-                    success: false,
-                    error: `Invalid ${supportsPR ? "item_number/issue_number/pull_request_number" : "pull_request_number"} specified: ${numberField}`,
-                    shouldFail: true,
-                  };
-                }
-                contextType = supportsPR && (item.item_number || item.issue_number) ? "issue" : "pull request";
-              } else {
-                return {
-                  success: false,
-                  error: `Target is "*" but no ${supportsPR ? "item_number/issue_number" : "pull_request_number"} specified in ${itemType} item`,
-                  shouldFail: true,
-                };
-              }
-            } else if (target !== "triggering") {
-              // Explicit number
-              itemNumber = parseInt(target, 10);
-              if (isNaN(itemNumber) || itemNumber <= 0) {
-                return {
-                  success: false,
-                  error: `Invalid ${supportsPR ? "issue" : "pull request"} number in target configuration: ${target}`,
-                  shouldFail: true,
-                };
-              }
-              contextType = supportsPR ? "issue" : "pull request";
-            } else {
-              // Use triggering context
-              if (isIssueContext) {
-                if (context.payload.issue) {
-                  itemNumber = context.payload.issue.number;
-                  contextType = "issue";
-                } else {
-                  return {
-                    success: false,
-                    error: "Issue context detected but no issue found in payload",
-                    shouldFail: true,
-                  };
-                }
-              } else if (isPRContext) {
-                if (context.payload.pull_request) {
-                  itemNumber = context.payload.pull_request.number;
-                  contextType = "pull request";
-                } else {
-                  return {
-                    success: false,
-                    error: "Pull request context detected but no pull request found in payload",
-                    shouldFail: true,
-                  };
-                }
-              }
-            }
-          
-            if (!itemNumber) {
-              return {
-                success: false,
-                error: `Could not determine ${supportsPR ? "issue or pull request" : "pull request"} number`,
-                shouldFail: true,
-              };
-            }
-          
-            return {
-              success: true,
-              number: itemNumber,
-              contextType: contextType || (supportsPR ? "issue" : "pull request"),
-            };
-          }
-          
-          module.exports = {
-            parseAllowedItems,
-            parseMaxCount,
-            resolveTarget,
-          };
-          
-          EOF_80a143d8
-          cat > /tmp/gh-aw/scripts/safe_output_processor.cjs << 'EOF_8f3864e2'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Shared processor for safe-output scripts
-           * Provides common pipeline: load agent output, handle staged mode, parse config, resolve target
-           */
-          
-          const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-          const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-          const { parseAllowedItems, resolveTarget } = require('/tmp/gh-aw/scripts/safe_output_helpers.cjs');
-          const { getSafeOutputConfig, validateMaxCount } = require('/tmp/gh-aw/scripts/safe_output_validator.cjs');
-          
-          /**
-           * @typedef {Object} ProcessorConfig
-           * @property {string} itemType - The type field value to match in agent output (e.g., "add_labels")
-           * @property {string} configKey - The key to use when reading from config.json (e.g., "add_labels")
-           * @property {string} displayName - Human-readable name for logging (e.g., "Add Labels")
-           * @property {string} itemTypeName - Name used in error messages (e.g., "label addition")
-           * @property {boolean} [supportsPR] - When true, allows both issue AND PR contexts; when false, only PR context (default: false)
-           * @property {boolean} [supportsIssue] - When true, passes supportsPR=true to resolveTarget to enable both contexts (default: false)
-           * @property {boolean} [findMultiple] - Whether to find multiple items instead of just one (default: false)
-           * @property {Object} envVars - Environment variable names
-           * @property {string} [envVars.allowed] - Env var for allowed items list
-           * @property {string} [envVars.maxCount] - Env var for max count
-           * @property {string} [envVars.target] - Env var for target configuration
-           */
-          
-          /**
-           * @typedef {Object} ProcessorResult
-           * @property {boolean} success - Whether processing should continue
-           * @property {any} [item] - The found item (when findMultiple is false)
-           * @property {any[]} [items] - The found items (when findMultiple is true)
-           * @property {Object} [config] - Parsed configuration
-           * @property {string[]|undefined} [config.allowed] - Allowed items list
-           * @property {number} [config.maxCount] - Maximum count
-           * @property {string} [config.target] - Target configuration
-           * @property {Object} [targetResult] - Result from resolveTarget (when findMultiple is false)
-           * @property {number} [targetResult.number] - Target issue/PR number
-           * @property {string} [targetResult.contextType] - Type of context (issue or pull request)
-           * @property {string} [reason] - Reason why processing should not continue
-           */
-          
-          /**
-           * Process the initial steps common to safe-output scripts:
-           * 1. Load agent output
-           * 2. Find matching item(s)
-           * 3. Handle staged mode
-           * 4. Parse configuration
-           * 5. Resolve target (for single-item processors)
-           *
-           * @param {ProcessorConfig} config - Processor configuration
-           * @param {Object} stagedPreviewOptions - Options for staged preview
-           * @param {string} stagedPreviewOptions.title - Title for staged preview
-           * @param {string} stagedPreviewOptions.description - Description for staged preview
-           * @param {(item: any, index: number) => string} stagedPreviewOptions.renderItem - Function to render item in preview
-           * @returns {Promise<ProcessorResult>} Processing result
-           */
-          async function processSafeOutput(config, stagedPreviewOptions) {
-            const { itemType, configKey, displayName, itemTypeName, supportsPR = false, supportsIssue = false, findMultiple = false, envVars } = config;
-          
-            // Step 1: Load agent output
-            const result = loadAgentOutput();
-            if (!result.success) {
-              return { success: false, reason: "Agent output not available" };
-            }
-          
-            // Step 2: Find matching item(s)
-            let items;
-            if (findMultiple) {
-              items = result.items.filter(item => item.type === itemType);
-              if (items.length === 0) {
-                core.info(`No ${itemType} items found in agent output`);
-                return { success: false, reason: `No ${itemType} items found` };
-              }
-              core.info(`Found ${items.length} ${itemType} item(s)`);
-            } else {
-              const item = result.items.find(item => item.type === itemType);
-              if (!item) {
-                core.warning(`No ${itemType.replace(/_/g, "-")} item found in agent output`);
-                return { success: false, reason: `No ${itemType} item found` };
-              }
-              items = [item];
-              // Log item details based on common fields
-              const itemDetails = getItemDetails(item);
-              if (itemDetails) {
-                core.info(`Found ${itemType.replace(/_/g, "-")} item with ${itemDetails}`);
-              }
-            }
-          
-            // Step 3: Handle staged mode
-            if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-              await generateStagedPreview({
-                title: stagedPreviewOptions.title,
-                description: stagedPreviewOptions.description,
-                items: items,
-                renderItem: stagedPreviewOptions.renderItem,
-              });
-              return { success: false, reason: "Staged mode - preview generated" };
-            }
-          
-            // Step 4: Parse configuration
-            const safeOutputConfig = getSafeOutputConfig(configKey);
-          
-            // Parse allowed items (from env or config)
-            const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
-            const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
-            if (allowed) {
-              core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
-            } else {
-              core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
-            }
-          
-            // Parse max count (env takes priority, then config)
-            const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
-            const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
-            if (!maxCountResult.valid) {
-              core.setFailed(maxCountResult.error);
-              return { success: false, reason: "Invalid max count configuration" };
-            }
-            const maxCount = maxCountResult.value;
-            core.info(`Max count: ${maxCount}`);
-          
-            // Get target configuration
-            const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
-            core.info(`${displayName} target configuration: ${target}`);
-          
-            // For multiple items, return early without target resolution
-            if (findMultiple) {
-              return {
-                success: true,
-                items: items,
-                config: {
-                  allowed,
-                  maxCount,
-                  target,
-                },
-              };
-            }
-          
-            // Step 5: Resolve target (for single-item processors)
-            const item = items[0];
-            const targetResult = resolveTarget({
-              targetConfig: target,
-              item: item,
-              context,
-              itemType: itemTypeName,
-              // supportsPR in resolveTarget: true=both issue and PR contexts, false=PR-only
-              // If supportsIssue is true, we pass supportsPR=true to enable both contexts
-              supportsPR: supportsPR || supportsIssue,
-            });
-          
-            if (!targetResult.success) {
-              if (targetResult.shouldFail) {
-                core.setFailed(targetResult.error);
-              } else {
-                core.info(targetResult.error);
-              }
-              return { success: false, reason: targetResult.error };
-            }
-          
-            return {
-              success: true,
-              item: item,
-              config: {
-                allowed,
-                maxCount,
-                target,
-              },
-              targetResult: {
-                number: targetResult.number,
-                contextType: targetResult.contextType,
-              },
-            };
-          }
-          
-          /**
-           * Get a description of item details for logging
-           * @param {any} item - The safe output item
-           * @returns {string|null} Description string or null
-           */
-          function getItemDetails(item) {
-            if (item.labels && Array.isArray(item.labels)) {
-              return `${item.labels.length} labels`;
-            }
-            if (item.reviewers && Array.isArray(item.reviewers)) {
-              return `${item.reviewers.length} reviewers`;
-            }
-            return null;
-          }
-          
-          /**
-           * Sanitize and deduplicate an array of string items
-           * @param {any[]} items - Raw items array
-           * @returns {string[]} Sanitized and deduplicated array
-           */
-          function sanitizeItems(items) {
-            return items
-              .filter(item => item != null && item !== false && item !== 0)
-              .map(item => String(item).trim())
-              .filter(item => item)
-              .filter((item, index, arr) => arr.indexOf(item) === index);
-          }
-          
-          /**
-           * Filter items by allowed list
-           * @param {string[]} items - Items to filter
-           * @param {string[]|undefined} allowed - Allowed items list (undefined means all allowed)
-           * @returns {string[]} Filtered items
-           */
-          function filterByAllowed(items, allowed) {
-            if (!allowed || allowed.length === 0) {
-              return items;
-            }
-            return items.filter(item => allowed.includes(item));
-          }
-          
-          /**
-           * Limit items to max count
-           * @param {string[]} items - Items to limit
-           * @param {number} maxCount - Maximum number of items
-           * @returns {string[]} Limited items
-           */
-          function limitToMaxCount(items, maxCount) {
-            if (items.length > maxCount) {
-              core.info(`Too many items (${items.length}), limiting to ${maxCount}`);
-              return items.slice(0, maxCount);
-            }
-            return items;
-          }
-          
-          /**
-           * Process items through the standard pipeline: filter by allowed, sanitize, dedupe, limit
-           * @param {any[]} rawItems - Raw items array from agent output
-           * @param {string[]|undefined} allowed - Allowed items list
-           * @param {number} maxCount - Maximum number of items
-           * @returns {string[]} Processed items
-           */
-          function processItems(rawItems, allowed, maxCount) {
-            // Filter by allowed list first
-            const filtered = filterByAllowed(rawItems, allowed);
-          
-            // Sanitize and deduplicate
-            const sanitized = sanitizeItems(filtered);
-          
-            // Limit to max count
-            return limitToMaxCount(sanitized, maxCount);
-          }
-          
-          module.exports = {
-            processSafeOutput,
-            sanitizeItems,
-            filterByAllowed,
-            limitToMaxCount,
-            processItems,
-          };
-          
-          EOF_8f3864e2
-          cat > /tmp/gh-aw/scripts/safe_output_validator.cjs << 'EOF_437e6b4f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          const { sanitizeLabelContent } = require('/tmp/gh-aw/scripts/sanitize_label_content.cjs');
-          
-          /**
-           * Load and parse the safe outputs configuration from config.json
-           * @returns {object} The parsed configuration object
-           */
-          function loadSafeOutputsConfig() {
-            const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-            try {
-              if (!fs.existsSync(configPath)) {
-                core.warning(`Config file not found at ${configPath}, using defaults`);
-                return {};
-              }
-              const configContent = fs.readFileSync(configPath, "utf8");
-              return JSON.parse(configContent);
-            } catch (error) {
-              core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
-              return {};
-            }
-          }
-          
-          /**
-           * Get configuration for a specific safe output type
-           * @param {string} outputType - The type of safe output (e.g., "add_labels", "update_issue")
-           * @returns {{max?: number, target?: string, allowed?: string[]}} The configuration for this output type
-           */
-          function getSafeOutputConfig(outputType) {
-            const config = loadSafeOutputsConfig();
-            return config[outputType] || {};
-          }
-          
-          /**
-           * Validate and sanitize a title string
-           * @param {any} title - The title to validate
-           * @param {string} fieldName - The name of the field for error messages (default: "title")
-           * @returns {{valid: boolean, value?: string, error?: string}} Validation result
-           */
-          function validateTitle(title, fieldName = "title") {
-            if (title === undefined || title === null) {
-              return { valid: false, error: `${fieldName} is required` };
-            }
-          
-            if (typeof title !== "string") {
-              return { valid: false, error: `${fieldName} must be a string` };
-            }
-          
-            const trimmed = title.trim();
-            if (trimmed.length === 0) {
-              return { valid: false, error: `${fieldName} cannot be empty` };
-            }
-          
-            return { valid: true, value: trimmed };
-          }
-          
-          /**
-           * Validate and sanitize a body/content string
-           * @param {any} body - The body to validate
-           * @param {string} fieldName - The name of the field for error messages (default: "body")
-           * @param {boolean} required - Whether the body is required (default: false)
-           * @returns {{valid: boolean, value?: string, error?: string}} Validation result
-           */
-          function validateBody(body, fieldName = "body", required = false) {
-            if (body === undefined || body === null) {
-              if (required) {
-                return { valid: false, error: `${fieldName} is required` };
-              }
-              return { valid: true, value: "" };
-            }
-          
-            if (typeof body !== "string") {
-              return { valid: false, error: `${fieldName} must be a string` };
-            }
-          
-            return { valid: true, value: body };
-          }
-          
-          /**
-           * Validate and sanitize an array of labels
-           * @param {any} labels - The labels to validate
-           * @param {string[]|undefined} allowedLabels - Optional list of allowed labels
-           * @param {number} maxCount - Maximum number of labels allowed
-           * @returns {{valid: boolean, value?: string[], error?: string}} Validation result
-           */
-          function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
-            if (!labels || !Array.isArray(labels)) {
-              return { valid: false, error: "labels must be an array" };
-            }
-          
-            // Check for removal attempts (labels starting with '-')
-            for (const label of labels) {
-              if (label && typeof label === "string" && label.startsWith("-")) {
-                return { valid: false, error: `Label removal is not permitted. Found line starting with '-': ${label}` };
-              }
-            }
-          
-            // Filter labels based on allowed list if provided
-            let validLabels = labels;
-            if (allowedLabels && allowedLabels.length > 0) {
-              validLabels = labels.filter(label => allowedLabels.includes(label));
-            }
-          
-            // Sanitize and deduplicate labels
-            const uniqueLabels = validLabels
-              .filter(label => label != null && label !== false && label !== 0)
-              .map(label => String(label).trim())
-              .filter(label => label)
-              .map(label => sanitizeLabelContent(label))
-              .filter(label => label)
-              .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-              .filter((label, index, arr) => arr.indexOf(label) === index);
-          
-            // Apply max count limit
-            if (uniqueLabels.length > maxCount) {
-              core.info(`Too many labels (${uniqueLabels.length}), limiting to ${maxCount}`);
-              return { valid: true, value: uniqueLabels.slice(0, maxCount) };
-            }
-          
-            if (uniqueLabels.length === 0) {
-              return { valid: false, error: "No valid labels found after sanitization" };
-            }
-          
-            return { valid: true, value: uniqueLabels };
-          }
-          
-          /**
-           * Validate max count from environment variable with config fallback
-           * @param {string|undefined} envValue - Environment variable value
-           * @param {number|undefined} configDefault - Default from config.json
-           * @param {number} [fallbackDefault] - Fallback default for testing (optional, defaults to 1)
-           * @returns {{valid: true, value: number} | {valid: false, error: string}} Validation result
-           */
-          function validateMaxCount(envValue, configDefault, fallbackDefault = 1) {
-            // Priority: env var > config.json > fallback default
-            // In production, config.json should always have the default
-            // Fallback is provided for backward compatibility and testing
-            const defaultValue = configDefault !== undefined ? configDefault : fallbackDefault;
-          
-            if (!envValue) {
-              return { valid: true, value: defaultValue };
-            }
-          
-            const parsed = parseInt(envValue, 10);
-            if (isNaN(parsed) || parsed < 1) {
-              return {
-                valid: false,
-                error: `Invalid max value: ${envValue}. Must be a positive integer`,
-              };
-            }
-          
-            return { valid: true, value: parsed };
-          }
-          
-          module.exports = {
-            loadSafeOutputsConfig,
-            getSafeOutputConfig,
-            validateTitle,
-            validateBody,
-            validateLabels,
-            validateMaxCount,
-          };
-          
-          EOF_437e6b4f
-          cat > /tmp/gh-aw/scripts/sanitize_label_content.cjs << 'EOF_4b431e5e'
-          // @ts-check
-          /**
-           * Sanitize label content for GitHub API
-           * Removes control characters, ANSI codes, and neutralizes @mentions
-           * @module sanitize_label_content
-           */
-          
-          /**
-           * Sanitizes label content by removing control characters, ANSI escape codes,
-           * and neutralizing @mentions to prevent unintended notifications.
-           *
-           * @param {string} content - The label content to sanitize
-           * @returns {string} The sanitized label content
-           */
-          function sanitizeLabelContent(content) {
-            if (!content || typeof content !== "string") {
-              return "";
-            }
-            let sanitized = content.trim();
-            // Remove ANSI escape sequences FIRST (before removing control chars)
-            sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-            // Then remove control characters (except newlines and tabs)
-            sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-            sanitized = sanitized.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => `${p1}\`@${p2}\``);
-            sanitized = sanitized.replace(/[<>&'"]/g, "");
-            return sanitized.trim();
-          }
-          
-          module.exports = { sanitizeLabelContent };
-          
-          EOF_4b431e5e
-          cat > /tmp/gh-aw/scripts/staged_preview.cjs << 'EOF_8386ee20'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Generate a staged mode preview summary and write it to the step summary.
-           *
-           * @param {Object} options - Configuration options for the preview
-           * @param {string} options.title - The main title for the preview (e.g., "Create Issues")
-           * @param {string} options.description - Description of what would happen if staged mode was disabled
-           * @param {Array<any>} options.items - Array of items to preview
-           * @param {(item: any, index: number) => string} options.renderItem - Function to render each item as markdown
-           * @returns {Promise<void>}
-           */
-          async function generateStagedPreview(options) {
-            const { title, description, items, renderItem } = options;
-          
-            let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-            summaryContent += `${description}\n\n`;
-          
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              summaryContent += renderItem(item, i);
-              summaryContent += "---\n\n";
-            }
-          
-            try {
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
-            } catch (error) {
-              core.setFailed(error instanceof Error ? error : String(error));
-            }
-          }
-          
-          module.exports = { generateStagedPreview };
-          
-          EOF_8386ee20
       - name: Add Labels
         id: add_labels
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))
@@ -7351,117 +6078,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { processSafeOutput } = require('/tmp/gh-aw/scripts/safe_output_processor.cjs');
-            const { validateLabels } = require('/tmp/gh-aw/scripts/safe_output_validator.cjs');
-            async function main() {
-              const result = await processSafeOutput(
-                {
-                  itemType: "add_labels",
-                  configKey: "add_labels",
-                  displayName: "Labels",
-                  itemTypeName: "label addition",
-                  supportsPR: true,
-                  supportsIssue: true,
-                  envVars: {
-                    allowed: "GH_AW_LABELS_ALLOWED",
-                    maxCount: "GH_AW_LABELS_MAX_COUNT",
-                    target: "GH_AW_LABELS_TARGET",
-                  },
-                },
-                {
-                  title: "Add Labels",
-                  description: "The following labels would be added if staged mode was disabled:",
-                  renderItem: item => {
-                    let content = "";
-                    if (item.item_number) {
-                      content += `**Target Issue:** #${item.item_number}\n\n`;
-                    } else {
-                      content += `**Target:** Current issue/PR\n\n`;
-                    }
-                    if (item.labels && item.labels.length > 0) {
-                      content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
-                    }
-                    return content;
-                  },
-                }
-              );
-              if (!result.success) {
-                return;
-              }
-              const { item: labelsItem, config, targetResult } = result;
-              if (!config || !targetResult || targetResult.number === undefined) {
-                core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
-                return;
-              }
-              const { allowed: allowedLabels, maxCount } = config;
-              const itemNumber = targetResult.number;
-              const { contextType } = targetResult;
-              const requestedLabels = labelsItem.labels || [];
-              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-              const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
-              if (!labelsResult.valid) {
-                if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
-                  core.info("No labels to add");
-                  core.setOutput("labels_added", "");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
-            `
-                    )
-                    .write();
-                  return;
-                }
-                core.setFailed(labelsResult.error || "Invalid labels");
-                return;
-              }
-              const uniqueLabels = labelsResult.value || [];
-              if (uniqueLabels.length === 0) {
-                core.info("No labels to add");
-                core.setOutput("labels_added", "");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
-            `
-                  )
-                  .write();
-                return;
-              }
-              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: itemNumber,
-                  labels: uniqueLabels,
-                });
-                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-                core.setOutput("labels_added", uniqueLabels.join("\n"));
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
-            ${labelsListMarkdown}
-            `
-                  )
-                  .write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to add labels: ${errorMessage}`);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
-            }
-            (async () => { await main(); })();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/add_labels.cjs');
+            await main();
       - name: Hide Comment
         id: hide_comment
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'hide_comment'))
@@ -7471,94 +6094,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            async function hideComment(github, nodeId, reason = "spam") {
-              const query =  `
-                mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
-                  minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
-                    minimizedComment {
-                      isMinimized
-                    }
-                  }
-                }
-              `;
-              const result = await github.graphql(query, { nodeId, classifier: reason });
-              return {
-                id: nodeId,
-                isMinimized: result.minimizeComment.minimizedComment.isMinimized,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              let allowedReasons = null;
-              if (process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS) {
-                try {
-                  allowedReasons = JSON.parse(process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS);
-                  core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
-                } catch (error) {
-                  core.warning(`Failed to parse GH_AW_HIDE_COMMENT_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
-                }
-              }
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const hideCommentItems = result.items.filter( item => item.type === "hide_comment");
-              if (hideCommentItems.length === 0) {
-                core.info("No hide-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${hideCommentItems.length} hide-comment item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Hide Comments Preview\n\n";
-                summaryContent += "The following comments would be hidden if staged mode was disabled:\n\n";
-                for (let i = 0; i < hideCommentItems.length; i++) {
-                  const item = hideCommentItems[i];
-                  const reason = item.reason || "spam";
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  summaryContent += `**Node ID**: ${item.comment_id}\n`;
-                  summaryContent += `**Action**: Would be hidden as ${reason}\n`;
-                  summaryContent += "\n";
-                }
-                core.summary.addRaw(summaryContent).write();
-                return;
-              }
-              for (const item of hideCommentItems) {
-                try {
-                  const commentId = item.comment_id;
-                  if (!commentId || typeof commentId !== "string") {
-                    throw new Error("comment_id is required and must be a string (GraphQL node ID)");
-                  }
-                  const reason = item.reason || "spam";
-                  const normalizedReason = reason.toUpperCase();
-                  if (allowedReasons && allowedReasons.length > 0) {
-                    const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
-                    if (!normalizedAllowedReasons.includes(normalizedReason)) {
-                      core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping comment ${commentId}.`);
-                      continue;
-                    }
-                  }
-                  core.info(`Hiding comment: ${commentId} (reason: ${normalizedReason})`);
-                  const hideResult = await hideComment(github, commentId, normalizedReason);
-                  if (hideResult.isMinimized) {
-                    core.info(`Successfully hidden comment: ${commentId}`);
-                    core.setOutput("comment_id", commentId);
-                    core.setOutput("is_hidden", "true");
-                  } else {
-                    throw new Error(`Failed to hide comment: ${commentId}`);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.error(`Failed to hide comment: ${errorMessage}`);
-                  core.setFailed(`Failed to hide comment: ${errorMessage}`);
-                  return;
-                }
-              }
-            }
-            (async () => { await main(); })();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/hide_comment.cjs');
+            await main();
 

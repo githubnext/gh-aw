@@ -51,14 +51,14 @@ const mockCore = {
         (it("should fail if GH_AW_SKIP_QUERY is not set", async () => {
           (delete process.env.GH_AW_SKIP_QUERY,
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SKIP_QUERY not specified")),
             expect(mockCore.setOutput).not.toHaveBeenCalled());
         }),
           it("should fail if GH_AW_WORKFLOW_NAME is not set", async () => {
             ((process.env.GH_AW_SKIP_QUERY = "is:issue is:open"),
               delete process.env.GH_AW_WORKFLOW_NAME,
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_NAME not specified")),
               expect(mockCore.setOutput).not.toHaveBeenCalled());
           }));
@@ -68,7 +68,7 @@ const mockCore = {
           ((process.env.GH_AW_SKIP_QUERY = "is:issue is:open label:nonexistent"),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 0, items: [] } }),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({ q: "is:issue is:open label:nonexistent repo:testowner/testrepo", per_page: 1 }),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("below threshold")),
             expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true"),
@@ -80,7 +80,7 @@ const mockCore = {
           ((process.env.GH_AW_SKIP_QUERY = "is:issue is:open label:bug"),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 5, items: [{ id: 1, title: "Test Issue" }] } }),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({ q: "is:issue is:open label:bug repo:testowner/testrepo", per_page: 1 }),
             expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skip condition matched")),
             expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("5 items found")),
@@ -91,7 +91,7 @@ const mockCore = {
             ((process.env.GH_AW_SKIP_QUERY = "is:pr is:open"),
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 1, items: [{ id: 1, title: "Test PR" }] } }),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("1 items found")),
               expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false"));
           }));
@@ -101,7 +101,7 @@ const mockCore = {
           ((process.env.GH_AW_SKIP_QUERY = "is:issue"), (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"));
           const errorMessage = "API rate limit exceeded";
           (mockGithub.rest.search.issuesAndPullRequests.mockRejectedValue(new Error(errorMessage)),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to execute search query")),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(errorMessage)),
             expect(mockCore.setOutput).not.toHaveBeenCalled());
@@ -112,7 +112,7 @@ const mockCore = {
           ((process.env.GH_AW_SKIP_QUERY = "is:issue label:enhancement"),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 0, items: [] } }),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({ q: "is:issue label:enhancement repo:testowner/testrepo", per_page: 1 }));
         });
       }),
@@ -122,7 +122,7 @@ const mockCore = {
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
             delete process.env.GH_AW_SKIP_MAX_MATCHES,
             mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 1, items: [{ id: 1 }] } }),
-            await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+            await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 1")),
             expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false"));
         }),
@@ -131,7 +131,7 @@ const mockCore = {
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               (process.env.GH_AW_SKIP_MAX_MATCHES = "3"),
               mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 3, items: [{ id: 1 }] } }),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("3 items found")),
               expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 3")),
               expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false"));
@@ -141,7 +141,7 @@ const mockCore = {
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               (process.env.GH_AW_SKIP_MAX_MATCHES = "2"),
               mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 5, items: [{ id: 1 }] } }),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("5 items found")),
               expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("threshold: 2")),
               expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "false"));
@@ -151,7 +151,7 @@ const mockCore = {
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               (process.env.GH_AW_SKIP_MAX_MATCHES = "5"),
               mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({ data: { total_count: 2, items: [{ id: 1 }] } }),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("below threshold of 5")),
               expect(mockCore.setOutput).toHaveBeenCalledWith("skip_check_ok", "true"),
               expect(mockCore.warning).not.toHaveBeenCalled());
@@ -160,7 +160,7 @@ const mockCore = {
             ((process.env.GH_AW_SKIP_QUERY = "is:issue is:open"),
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               (process.env.GH_AW_SKIP_MAX_MATCHES = "invalid"),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be a positive integer")),
               expect(mockCore.setOutput).not.toHaveBeenCalled());
           }),
@@ -168,7 +168,7 @@ const mockCore = {
             ((process.env.GH_AW_SKIP_QUERY = "is:issue is:open"),
               (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
               (process.env.GH_AW_SKIP_MAX_MATCHES = "0"),
-              await eval(`(async () => { ${checkSkipIfMatchScript} })()`),
+              await eval(`(async () => { ${checkSkipIfMatchScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("must be a positive integer")),
               expect(mockCore.setOutput).not.toHaveBeenCalled());
           }));

@@ -23,6 +23,27 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		return nil, err
 	}
 
+	// Add setup step to copy activation scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			steps = append(steps, "      - name: Checkout actions folder\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          sparse-checkout: |\n")
+			steps = append(steps, "            actions\n")
+		}
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActionRef != ""
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -42,9 +63,20 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Add skip-if-match check if configured
@@ -62,9 +94,20 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Add command position check if this is a command workflow
@@ -77,9 +120,20 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_command_position.cjs');\n")
+		} else {
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
+			steps = append(steps, formattedScript...)
+		}
 	}
 
 	// Append custom steps from jobs.pre-activation if present
@@ -282,6 +336,27 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add setup step to copy activation scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			steps = append(steps, "      - name: Checkout actions folder\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          sparse-checkout: |\n")
+			steps = append(steps, "            actions\n")
+		}
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActionRef != ""
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -291,9 +366,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 
-	// Add the JavaScript script with proper indentation (using API-based version)
-	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
-	steps = append(steps, formattedScript...)
+	if useRequire {
+		// Use require() to load script from copied files
+		// Attach GitHub Actions builtin objects to global scope before requiring
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
+		steps = append(steps, "            require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
+	} else {
+		// Add the JavaScript script with proper indentation (using API-based version)
+		formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
+		steps = append(steps, formattedScript...)
+	}
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -303,8 +389,19 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/compute_text.cjs');\n")
+		} else {
+			// Inline the JavaScript directly instead of using shared action
+			steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+		}
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -351,9 +448,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add each line of the script with proper indentation (bundled version with messages.cjs)
-		formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
+		} else {
+			// Add each line of the script with proper indentation (bundled version with messages.cjs)
+			formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
+			steps = append(steps, formattedScript...)
+		}
 
 		// Add reaction outputs
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
@@ -379,9 +487,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the lock-issue script
-		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
-		steps = append(steps, formattedScript...)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/lock-issue.cjs');\n")
+		} else {
+			// Add the lock-issue script
+			formattedScript := FormatJavaScriptForYAML(lockIssueScript)
+			steps = append(steps, formattedScript...)
+		}
 
 		// Add output for tracking if issue was locked
 		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
@@ -510,6 +629,24 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	log.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
+
+	// Add setup action steps at the beginning of the job
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			steps = append(steps, "      - name: Checkout actions folder\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          sparse-checkout: |\n")
+			steps = append(steps, "            actions\n")
+		}
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)

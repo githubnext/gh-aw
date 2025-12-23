@@ -19,11 +19,11 @@ describe("noop", () => {
       tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
     }),
     it("should handle empty agent output", async () => {
-      (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${noopScript} })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No noop items found")));
+      (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${noopScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No noop items found")));
     }),
     it("should process single noop message", async () => {
       (setAgentOutput({ items: [{ type: "noop", message: "No issues found in this review" }], errors: [] }),
-        await eval(`(async () => { ${noopScript} })()`),
+        await eval(`(async () => { ${noopScript}; await main(); })()`),
         expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)"),
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: No issues found in this review"),
         expect(mockCore.setOutput).toHaveBeenCalledWith("noop_message", "No issues found in this review"),
@@ -40,7 +40,7 @@ describe("noop", () => {
         ],
         errors: [],
       }),
-        await eval(`(async () => { ${noopScript} })()`),
+        await eval(`(async () => { ${noopScript}; await main(); })()`),
         expect(mockCore.info).toHaveBeenCalledWith("Found 3 noop item(s)"),
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: First message"),
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 2: Second message"),
@@ -51,7 +51,7 @@ describe("noop", () => {
     it("should show preview in staged mode", async () => {
       ((process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
         setAgentOutput({ items: [{ type: "noop", message: "Test message in staged mode" }], errors: [] }),
-        await eval(`(async () => { ${noopScript} })()`),
+        await eval(`(async () => { ${noopScript}; await main(); })()`),
         expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)"),
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("📝 No-op message preview written to step summary")),
         expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode")),
@@ -67,12 +67,12 @@ describe("noop", () => {
         ],
         errors: [],
       }),
-        await eval(`(async () => { ${noopScript} })()`),
+        await eval(`(async () => { ${noopScript}; await main(); })()`),
         expect(mockCore.info).toHaveBeenCalledWith("Found 1 noop item(s)"),
         expect(mockCore.info).toHaveBeenCalledWith("No-op message 1: This is the only noop"));
     }),
     it("should handle missing agent output file", async () => {
-      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"), await eval(`(async () => { ${noopScript} })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
+      ((process.env.GH_AW_AGENT_OUTPUT = "/tmp/nonexistent.json"), await eval(`(async () => { ${noopScript}; await main(); })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file")));
     }),
     it("should generate proper step summary format", async () => {
       (setAgentOutput({
@@ -82,7 +82,7 @@ describe("noop", () => {
         ],
         errors: [],
       }),
-        await eval(`(async () => { ${noopScript} })()`));
+        await eval(`(async () => { ${noopScript}; await main(); })()`));
       const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
       (expect(summaryCall).toContain("## No-Op Messages"), expect(summaryCall).toContain("- Analysis complete"), expect(summaryCall).toContain("- No action required"));
     }));

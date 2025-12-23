@@ -618,6 +618,28 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		return nil, nil
 	}
 
+	// Add setup step to copy scripts at the beginning
+	var setupSteps []string
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			setupSteps = append(setupSteps, "      - name: Checkout actions folder\n")
+			setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			setupSteps = append(setupSteps, "        with:\n")
+			setupSteps = append(setupSteps, "          sparse-checkout: |\n")
+			setupSteps = append(setupSteps, "            actions\n")
+		}
+
+		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		setupSteps = append(setupSteps, "        with:\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Prepend setup steps to all cache steps
+	steps = append(setupSteps, steps...)
+
 	// Job condition: only run if detection passed
 	jobCondition := "always() && needs.detection.outputs.success == 'true'"
 

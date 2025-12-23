@@ -29,16 +29,16 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${hideCommentScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No hide-comment items found in agent output"));
+        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${hideCommentScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No hide-comment items found in agent output"));
       }),
       it("should handle missing agent output", async () => {
-        (await eval(`(async () => { ${hideCommentScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (await eval(`(async () => { ${hideCommentScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should hide a comment successfully", async () => {
         const commentNodeId = "IC_kwDOABCD123456";
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: commentNodeId }], errors: [] }),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)"),
           expect(mockCore.info).toHaveBeenCalledWith(`Hiding comment: ${commentNodeId} (reason: SPAM)`),
           expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId}`),
@@ -51,7 +51,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         setAgentOutput({ items: [{ type: "hide_comment", comment_id: commentNodeId }], errors: [] });
         const errorMessage = "Comment not found";
         (mockGithub.graphql.mockRejectedValueOnce(new Error(errorMessage)),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining(errorMessage)),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(errorMessage)));
       }),
@@ -59,7 +59,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
         const commentNodeId = "IC_kwDOABCD123456";
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: commentNodeId }], errors: [] }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Found 1 hide-comment item(s)"),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Staged Mode: Hide Comments Preview")),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining(commentNodeId)),
@@ -77,7 +77,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           errors: [],
         }),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }).mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Found 2 hide-comment item(s)"),
           expect(mockGithub.graphql).toHaveBeenCalledTimes(2),
           expect(mockCore.info).toHaveBeenCalledWith(`Successfully hidden comment: ${commentNodeId1}`),
@@ -85,7 +85,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       }),
       it("should fail when comment_id is missing", async () => {
         (setAgentOutput({ items: [{ type: "hide_comment" }], errors: [] }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("comment_id is required")),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("comment_id is required")));
       }),
@@ -93,7 +93,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const commentNodeId = "IC_kwDOABCD123456";
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: commentNodeId }], errors: [] }),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !1 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment")),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to hide comment")));
       }),
@@ -101,7 +101,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: "IC_kwDOABCD123456", reason: "SPAM" }] }),
           (process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["SPAM", "ABUSE"])),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_kwDOABCD123456", classifier: "SPAM" })),
           expect(mockCore.info).toHaveBeenCalledWith("Allowed reasons for hiding: [SPAM, ABUSE]"),
           expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456"));
@@ -109,14 +109,14 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should skip hiding when reason is not in allowed-reasons", async () => {
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: "IC_kwDOABCD123456", reason: "OUTDATED" }] }),
           (process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["SPAM"])),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).not.toHaveBeenCalled(),
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Reason "OUTDATED" is not in allowed-reasons list')));
       }),
       it("should allow all reasons when allowed-reasons is not specified", async () => {
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: "IC_kwDOABCD123456", reason: "RESOLVED" }] }),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_kwDOABCD123456", classifier: "RESOLVED" })),
           expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456"));
       }),
@@ -124,7 +124,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput({ items: [{ type: "hide_comment", comment_id: "IC_kwDOABCD123456", reason: "spam" }] }),
           (process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS = JSON.stringify(["spam", "abuse"])),
           mockGithub.graphql.mockResolvedValueOnce({ minimizeComment: { minimizedComment: { isMinimized: !0 } } }),
-          await eval(`(async () => { ${hideCommentScript} })()`),
+          await eval(`(async () => { ${hideCommentScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("minimizeComment"), expect.objectContaining({ nodeId: "IC_kwDOABCD123456", classifier: "SPAM" })),
           expect(mockCore.info).toHaveBeenCalledWith("Successfully hidden comment: IC_kwDOABCD123456"));
       }));

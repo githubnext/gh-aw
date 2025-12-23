@@ -60,7 +60,14 @@ const mockCore = {
           return agentOutputPath && filepath === agentOutputPath ? fs.readFileSync(filepath, encoding || "utf8") : patchContent;
         });
       },
-      executeScript = async () => ((global.core = mockCore), (global.context = mockContext), (global.github = mockGithub), (global.mockFs = mockFs), (global.exec = mockExec), await eval(`(async () => { ${pushToPrBranchScript} })()`));
+      executeScript = async () => (
+        (global.core = mockCore),
+        (global.context = mockContext),
+        (global.github = mockGithub),
+        (global.mockFs = mockFs),
+        (global.exec = mockExec),
+        await eval(`(async () => { ${pushToPrBranchScript}; await main(); })()`)
+      );
     (beforeEach(() => {
       (vi.clearAllMocks(),
         delete process.env.GH_AW_PUSH_TARGET,
@@ -204,7 +211,7 @@ const mockCore = {
         (it("should have valid JavaScript syntax", () => {
           const scriptPath = path.join(__dirname, "push_to_pull_request_branch.cjs"),
             scriptContent = fs.readFileSync(scriptPath, "utf8");
-          (expect(scriptContent).toContain("async function main()"), expect(scriptContent).toContain("core.setFailed"), expect(scriptContent).toContain("/tmp/gh-aw/aw.patch"), expect(scriptContent).toContain("await main()"));
+          (expect(scriptContent).toContain("async function main()"), expect(scriptContent).toContain("core.setFailed"), expect(scriptContent).toContain("/tmp/gh-aw/aw.patch"), expect(scriptContent).toContain("module.exports = { main }"));
         }),
           it("should export a main function", () => {
             const scriptPath = path.join(__dirname, "push_to_pull_request_branch.cjs"),

@@ -54,27 +54,27 @@ const mockCore = {
         tempFilePath && require("fs").existsSync(tempFilePath) && (require("fs").unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle missing GH_AW_AGENT_OUTPUT environment variable", async () => {
-        (await eval(`(async () => { ${createDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (await eval(`(async () => { ${createDiscussionScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput(""), await eval(`(async () => { ${createDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
+        (setAgentOutput(""), await eval(`(async () => { ${createDiscussionScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
       }),
       it("should handle invalid JSON in agent output", async () => {
         (setAgentOutput("invalid json"),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 12"),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:.*Unexpected token/)));
       }),
       it("should handle missing create-discussion items", async () => {
         const validOutput = { items: [{ type: "create_issue", title: "Test Issue", body: "Test body" }] };
-        (setAgentOutput(validOutput), await eval(`(async () => { ${createDiscussionScript} })()`), expect(mockCore.warning).toHaveBeenCalledWith("No create-discussion items found in agent output"));
+        (setAgentOutput(validOutput), await eval(`(async () => { ${createDiscussionScript}; await main(); })()`), expect(mockCore.warning).toHaveBeenCalledWith("No create-discussion items found in agent output"));
       }),
       it("should create discussions successfully with basic configuration", async () => {
         (mockGithub.graphql.mockResolvedValueOnce({ repository: { id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=", discussionCategories: { nodes: [{ id: "DIC_test456", name: "General", slug: "general" }] } } }),
           mockGithub.graphql.mockResolvedValueOnce({ createDiscussion: { discussion: { id: "D_test789", number: 1, title: "Test Discussion", url: "https://github.com/testowner/testrepo/discussions/1" } } }));
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledTimes(2),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("query($owner: String!, $repo: String!)"), { owner: "testowner", repo: "testrepo" }),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), {
@@ -94,7 +94,7 @@ const mockCore = {
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
           (process.env.GH_AW_DISCUSSION_TITLE_PREFIX = "[ai] "),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), expect.objectContaining({ title: "[ai] Test Discussion" })));
       }),
       it("should use specified category ID when configured", async () => {
@@ -113,7 +113,7 @@ const mockCore = {
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
           (process.env.GH_AW_DISCUSSION_CATEGORY = "DIC_custom789"),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), expect.objectContaining({ categoryId: "DIC_custom789" })));
       }),
       it("should handle repositories without discussions enabled gracefully", async () => {
@@ -121,7 +121,7 @@ const mockCore = {
         mockGithub.graphql.mockRejectedValue(discussionError);
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith("Skipping discussion: Discussions are not enabled for repository 'testowner/testrepo'"),
           expect(mockGithub.graphql).toHaveBeenCalledTimes(1));
       }),
@@ -141,7 +141,7 @@ const mockCore = {
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
           (process.env.GH_AW_DISCUSSION_CATEGORY = "Custom"),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Using category by name: Custom (DIC_custom789)"),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), expect.objectContaining({ categoryId: "DIC_custom789" })));
       }),
@@ -161,7 +161,7 @@ const mockCore = {
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
           (process.env.GH_AW_DISCUSSION_CATEGORY = "custom-category"),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Using category by slug: Custom Category (DIC_custom789)"),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), expect.objectContaining({ categoryId: "DIC_custom789" })));
       }),
@@ -171,7 +171,7 @@ const mockCore = {
         const validOutput = { items: [{ type: "create_discussion", title: "Test Discussion", body: "Test discussion body" }] };
         (setAgentOutput(validOutput),
           (process.env.GH_AW_DISCUSSION_CATEGORY = "NonExistent"),
-          await eval(`(async () => { ${createDiscussionScript} })()`),
+          await eval(`(async () => { ${createDiscussionScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith('Category "NonExistent" not found by ID, name, or slug. Available categories: General'),
           expect(mockCore.info).toHaveBeenCalledWith("Falling back to default category: General (DIC_test456)"),
           expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"), expect.objectContaining({ categoryId: "DIC_test456" })));

@@ -55,100 +55,31 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	var createDiscussionEnabled bool
 	var createPullRequestEnabled bool
 
-	// Collect all script names that will be used in this job
-	var scriptNames []string
-	if data.SafeOutputs.CreateIssues != nil {
-		scriptNames = append(scriptNames, "create_issue")
-	}
-	if data.SafeOutputs.CreateDiscussions != nil {
-		scriptNames = append(scriptNames, "create_discussion")
-	}
-	if data.SafeOutputs.UpdateDiscussions != nil {
-		scriptNames = append(scriptNames, "update_discussion")
-	}
-	if data.SafeOutputs.CreatePullRequests != nil {
-		scriptNames = append(scriptNames, "create_pull_request")
-	}
-	if data.SafeOutputs.AddComments != nil {
-		scriptNames = append(scriptNames, "add_comment")
-	}
-	if data.SafeOutputs.CloseDiscussions != nil {
-		scriptNames = append(scriptNames, "close_discussion")
-	}
-	if data.SafeOutputs.CloseIssues != nil {
-		scriptNames = append(scriptNames, "close_issue")
-	}
-	if data.SafeOutputs.ClosePullRequests != nil {
-		scriptNames = append(scriptNames, "close_pull_request")
-	}
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		scriptNames = append(scriptNames, "create_pr_review_comment")
-	}
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		scriptNames = append(scriptNames, "create_code_scanning_alert")
-	}
-	if data.SafeOutputs.AddLabels != nil {
-		scriptNames = append(scriptNames, "add_labels")
-	}
-	if data.SafeOutputs.AddReviewer != nil {
-		scriptNames = append(scriptNames, "add_reviewer")
-	}
-	if data.SafeOutputs.AssignMilestone != nil {
-		scriptNames = append(scriptNames, "assign_milestone")
-	}
-	if data.SafeOutputs.AssignToAgent != nil {
-		scriptNames = append(scriptNames, "assign_to_agent")
-	}
-	if data.SafeOutputs.AssignToUser != nil {
-		scriptNames = append(scriptNames, "assign_to_user")
-	}
-	if data.SafeOutputs.UpdateIssues != nil {
-		scriptNames = append(scriptNames, "update_issue")
-	}
-	if data.SafeOutputs.UpdatePullRequests != nil {
-		scriptNames = append(scriptNames, "update_pull_request")
-	}
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		scriptNames = append(scriptNames, "push_to_pull_request_branch")
-	}
-	// Upload Assets is handled as a separate job (not in consolidated job)
-	// See buildUploadAssetsJob for the separate job implementation
-	if data.SafeOutputs.UpdateRelease != nil {
-		scriptNames = append(scriptNames, "update_release")
-	}
-	if data.SafeOutputs.LinkSubIssue != nil {
-		scriptNames = append(scriptNames, "link_sub_issue")
-	}
-	if data.SafeOutputs.HideComment != nil {
-		scriptNames = append(scriptNames, "hide_comment")
-	}
-	// create_agent_task is handled separately through its direct source
-	if data.SafeOutputs.UpdateProjects != nil {
-		scriptNames = append(scriptNames, "update_project")
-	}
-
-	// Collect all JavaScript files for file mode
-	var scriptFilesResult *ScriptFilesResult
-	if len(scriptNames) > 0 {
-		sources := GetJavaScriptSources()
-		var err error
-		scriptFilesResult, err = CollectAllJobScriptFiles(scriptNames, sources)
-		if err != nil {
-			consolidatedSafeOutputsLog.Printf("Failed to collect script files: %v, falling back to inline mode", err)
-			scriptFilesResult = nil
-		} else {
-			consolidatedSafeOutputsLog.Printf("File mode: collected %d files, %d bytes total",
-				len(scriptFilesResult.Files), scriptFilesResult.TotalSize)
-		}
-	}
-
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		consolidatedSafeOutputsLog.Print("Adding GitHub App token minting step")
 		// We'll compute permissions after collecting all step requirements
 	}
 
-	// Add artifact download steps once at the beginning
+	// Add setup action to copy JavaScript files
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			steps = append(steps, "      - name: Checkout actions folder\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          sparse-checkout: |\n")
+			steps = append(steps, "            actions\n")
+		}
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Add artifact download steps after setup
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
 
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
@@ -162,15 +93,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			StepName:     "Download patch artifact",
 		})
 		steps = append(steps, patchDownloadSteps...)
-	}
-
-	// Add JavaScript files setup step if using file mode
-	if scriptFilesResult != nil && len(scriptFilesResult.Files) > 0 {
-		// Prepare files with rewritten require paths
-		preparedFiles := PrepareFilesForFileMode(scriptFilesResult.Files)
-		setupSteps := GenerateWriteScriptsStep(preparedFiles)
-		steps = append(steps, setupSteps...)
-		consolidatedSafeOutputsLog.Printf("Added setup_scripts step with %d files", len(preparedFiles))
 	}
 
 	// === Build individual safe output steps ===
@@ -463,8 +385,33 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.App != nil {
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
-		// Prepend app token steps (after artifact download but before safe output steps)
-		insertIndex := len(buildAgentOutputDownloadSteps())
+		// Calculate insertion index: after setup action (if present) and artifact downloads, but before safe output steps
+		insertIndex := 0
+
+		// Count setup action steps (checkout + setup if in dev mode, or just setup)
+		setupActionRef := c.resolveActionReference("./actions/setup", data)
+		if setupActionRef != "" {
+			if c.actionMode.IsDev() {
+				insertIndex += 5 // Checkout step (5 lines: name, uses, with, sparse-checkout header, path)
+			}
+			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
+		}
+
+		// Add artifact download steps count
+		insertIndex += len(buildAgentOutputDownloadSteps())
+
+		// Add patch download steps if present
+		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+				ArtifactName: "aw.patch",
+				DownloadPath: "/tmp/gh-aw/",
+				SetupEnvStep: false,
+				StepName:     "Download patch artifact",
+			})
+			insertIndex += len(patchDownloadSteps)
+		}
+
+		// Insert app token steps
 		newSteps := make([]string, 0)
 		newSteps = append(newSteps, steps[:insertIndex]...)
 		newSteps = append(newSteps, appTokenSteps...)
@@ -564,22 +511,16 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	steps = append(steps, "          script: |\n")
 
 	// Add the formatted JavaScript script
-	// Use file mode if ScriptName is set, otherwise inline the bundled script
+	// Use require mode if ScriptName is set, otherwise inline the bundled script
 	if config.ScriptName != "" {
-		// File mode: inline the main script with requires transformed to absolute paths
-		// The script is inlined (not required) so it runs in the GitHub Script context
-		// with access to github, context, core, exec, io globals
-		inlinedScript, err := GetInlinedScriptForFileMode(config.ScriptName)
-		if err != nil {
-			// Fall back to require() mode if script not found in registry
-			consolidatedSafeOutputsLog.Printf("Script %s not in registry, using require: %v", config.ScriptName, err)
-			requireScript := GenerateRequireScript(config.ScriptName + ".cjs")
-			formattedScript := FormatJavaScriptForYAML(requireScript)
-			steps = append(steps, formattedScript...)
-		} else {
-			formattedScript := FormatJavaScriptForYAML(inlinedScript)
-			steps = append(steps, formattedScript...)
-		}
+		// Require mode: Attach GitHub Actions builtin objects to global scope before requiring
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
+		steps = append(steps, "            await main();\n")
 	} else {
 		// Inline mode: embed the bundled script directly
 		formattedScript := FormatJavaScriptForYAML(config.Script)

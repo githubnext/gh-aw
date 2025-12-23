@@ -52,6 +52,10 @@ beforeAll(async () => {
   updateProject = exports.updateProject;
   parseProjectInput = exports.parseProjectInput;
   generateCampaignId = exports.generateCampaignId;
+  // Call main to execute the module
+  if (exports.main) {
+    await exports.main();
+  }
 });
 
 function clearMock(fn) {

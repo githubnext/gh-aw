@@ -23,15 +23,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         tempFilePath && fs.existsSync(tempFilePath) && fs.unlinkSync(tempFilePath);
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${assignMilestoneScript} })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No assign_milestone items found")));
+        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No assign_milestone items found")));
       }),
       it("should handle missing agent output", async () => {
-        (delete process.env.GH_AW_AGENT_OUTPUT, await eval(`(async () => { ${assignMilestoneScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (delete process.env.GH_AW_AGENT_OUTPUT, await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should assign milestone successfully", async () => {
         (setAgentOutput({ items: [{ type: "assign_milestone", issue_number: 42, milestone_number: 5 }], errors: [] }),
           mockGithub.rest.issues.update.mockResolvedValue({}),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", issue_number: 42, milestone: 5 }),
           expect(mockCore.info).toHaveBeenCalledWith("Successfully assigned milestone #5 to issue #42"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_milestones", "42:5"),
@@ -40,7 +40,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should handle staged mode correctly", async () => {
         ((process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
           setAgentOutput({ items: [{ type: "assign_milestone", issue_number: 42, milestone_number: 5 }], errors: [] }),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.summary.addRaw).toHaveBeenCalled());
         const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
@@ -57,7 +57,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             errors: [],
           }),
           mockGithub.rest.issues.update.mockResolvedValue({}),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(2),
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Found 3 milestone assignments, but max is 2")));
       }),
@@ -71,7 +71,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             ],
           }),
           mockGithub.rest.issues.update.mockResolvedValue({}),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.listMilestones).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", state: "all", per_page: 100 }),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", issue_number: 42, milestone: 5 }));
       }),
@@ -84,7 +84,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
               { number: 6, title: "v3.0" },
             ],
           }),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Milestone "v3.0" (#6) is not in the allowed list')));
       }),
@@ -92,19 +92,19 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         setAgentOutput({ items: [{ type: "assign_milestone", issue_number: 42, milestone_number: 5 }], errors: [] });
         const apiError = new Error("API rate limit exceeded");
         (mockGithub.rest.issues.update.mockRejectedValue(apiError),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign milestone #5 to issue #42")),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 milestone(s)")));
       }),
       it("should handle invalid issue numbers", async () => {
         (setAgentOutput({ items: [{ type: "assign_milestone", issue_number: -1, milestone_number: 5 }], errors: [] }),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid issue_number")));
       }),
       it("should handle invalid milestone numbers", async () => {
         (setAgentOutput({ items: [{ type: "assign_milestone", issue_number: 42, milestone_number: 0 }], errors: [] }),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid milestone_number")));
       }),
@@ -118,7 +118,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             errors: [],
           }),
           mockGithub.rest.issues.update.mockResolvedValue({}),
-          await eval(`(async () => { ${assignMilestoneScript} })()`),
+          await eval(`(async () => { ${assignMilestoneScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(2),
           expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_milestones", "1:5\n2:6"));
       }));

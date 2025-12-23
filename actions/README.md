@@ -17,6 +17,12 @@ actions/{action-name}/
 
 ## Available Actions
 
+### setup
+
+Copies workflow script files to the agent environment. This action embeds all necessary JavaScript files used across all workflow jobs and copies them to a specified destination directory.
+
+[Documentation](./setup/README.md)
+
 ### setup-safe-outputs
 
 Copies safe-outputs MCP server files to the agent environment. This action embeds all necessary JavaScript files for the safe-outputs MCP server and copies them to a specified destination directory.

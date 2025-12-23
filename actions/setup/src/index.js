@@ -1,20 +1,20 @@
-// Safe Outputs Copy Action
-// Copies safe-outputs MCP server files to the agent environment
+// Setup Activation Action
+// Copies activation job files to the agent environment
 
 const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 
-// Embedded safe-outputs files will be inserted here during build
+// Embedded activation files will be inserted here during build
 const FILES = {
   // This will be populated by the build script
 };
 
 async function run() {
   try {
-    const destination = core.getInput('destination') || '/tmp/gh-aw/safeoutputs';
+    const destination = core.getInput('destination') || '/tmp/gh-aw/actions/activation';
     
-    core.info(`Copying safe-outputs files to ${destination}`);
+    core.info(`Copying activation files to ${destination}`);
     
     // Create destination directory if it doesn't exist
     if (!fs.existsSync(destination)) {

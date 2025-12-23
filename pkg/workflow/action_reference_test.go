@@ -1,77 +1,60 @@
 package workflow
 
 import (
-	"os"
 	"testing"
 )
 
 func TestConvertToRemoteActionRef(t *testing.T) {
-	// Save original environment
-	origRef := os.Getenv("GITHUB_REF")
-	defer func() {
-		if origRef != "" {
-			os.Setenv("GITHUB_REF", origRef)
-		} else {
-			os.Unsetenv("GITHUB_REF")
-		}
-	}()
-
-	t.Run("local path with ./ prefix and tag", func(t *testing.T) {
-		os.Setenv("GITHUB_REF", "refs/tags/v1.2.3")
-
-		ref := convertToRemoteActionRef("./actions/create-issue")
+	t.Run("local path with ./ prefix and version tag", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.2.3")
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
 		expected := "githubnext/gh-aw/actions/create-issue@v1.2.3"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
 		}
 	})
 
-	t.Run("local path without ./ prefix and tag", func(t *testing.T) {
-		os.Setenv("GITHUB_REF", "refs/tags/v1.0.0")
-
-		ref := convertToRemoteActionRef("actions/create-issue")
+	t.Run("local path without ./ prefix and version tag", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		ref := compiler.convertToRemoteActionRef("actions/create-issue")
 		expected := "githubnext/gh-aw/actions/create-issue@v1.0.0"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
 		}
 	})
 
-	t.Run("nested action path with tag", func(t *testing.T) {
-		os.Setenv("GITHUB_REF", "refs/tags/v2.0.0")
-
-		ref := convertToRemoteActionRef("./actions/nested/action")
+	t.Run("nested action path with version tag", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v2.0.0")
+		ref := compiler.convertToRemoteActionRef("./actions/nested/action")
 		expected := "githubnext/gh-aw/actions/nested/action@v2.0.0"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
 		}
 	})
 
-	t.Run("no tag returns empty", func(t *testing.T) {
-		os.Setenv("GITHUB_REF", "refs/heads/main")
-
-		ref := convertToRemoteActionRef("./actions/create-issue")
+	t.Run("dev version returns empty", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "dev")
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
 		if ref != "" {
-			t.Errorf("Expected empty string without tag, got %q", ref)
+			t.Errorf("Expected empty string with 'dev' version, got %q", ref)
+		}
+	})
+
+	t.Run("empty version returns empty", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "")
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
+		if ref != "" {
+			t.Errorf("Expected empty string with empty version, got %q", ref)
 		}
 	})
 }
 
 func TestResolveActionReference(t *testing.T) {
-	// Save original environment
-	origRef := os.Getenv("GITHUB_REF")
-	defer func() {
-		if origRef != "" {
-			os.Setenv("GITHUB_REF", origRef)
-		} else {
-			os.Unsetenv("GITHUB_REF")
-		}
-	}()
-
 	tests := []struct {
 		name          string
 		actionMode    ActionMode
 		localPath     string
-		githubRef     string
+		version       string
 		expectedRef   string
 		shouldBeEmpty bool
 		description   string
@@ -80,44 +63,32 @@ func TestResolveActionReference(t *testing.T) {
 			name:        "dev mode",
 			actionMode:  ActionModeDev,
 			localPath:   "./actions/create-issue",
+			version:     "v1.0.0",
 			expectedRef: "./actions/create-issue",
 			description: "Dev mode should return local path",
 		},
 		{
-			name:        "release mode with tag",
+			name:        "release mode with version tag",
 			actionMode:  ActionModeRelease,
 			localPath:   "./actions/create-issue",
-			githubRef:   "refs/tags/v1.0.0",
+			version:     "v1.0.0",
 			expectedRef: "githubnext/gh-aw/actions/create-issue@v1.0.0",
-			description: "Release mode should return tag-based reference",
+			description: "Release mode should return version-based reference",
 		},
 		{
-			name:          "release mode without tag",
+			name:          "release mode with dev version",
 			actionMode:    ActionModeRelease,
 			localPath:     "./actions/create-issue",
-			githubRef:     "refs/heads/main",
+			version:       "dev",
 			shouldBeEmpty: true,
-			description:   "Release mode without tag should return empty",
+			description:   "Release mode with 'dev' version should return empty",
 		},
-		{
-			name:          "inline mode",
-			actionMode:    ActionModeInline,
-			localPath:     "./actions/create-issue",
-			shouldBeEmpty: true,
-			description:   "Inline mode should return empty string",
-		},
+		// Removed inline mode test case as inline mode no longer exists
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set up environment
-			if tt.githubRef != "" {
-				os.Setenv("GITHUB_REF", tt.githubRef)
-			} else {
-				os.Unsetenv("GITHUB_REF")
-			}
-
-			compiler := NewCompiler(false, "", "1.0.0")
+			compiler := NewCompiler(false, "", tt.version)
 			compiler.SetActionMode(tt.actionMode)
 
 			data := &WorkflowData{}

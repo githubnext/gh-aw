@@ -106,8 +106,12 @@ type GitHubScriptStepConfig struct {
 	// These are added after GH_AW_AGENT_OUTPUT
 	CustomEnvVars []string
 
-	// JavaScript script constant to format and include
+	// JavaScript script constant to format and include (for inline mode)
 	Script string
+
+	// ScriptFile is the .cjs filename to require (e.g., "noop.cjs")
+	// If empty, Script will be inlined instead
+	ScriptFile string
 
 	// Token configuration (passed to addSafeOutputGitHubTokenForConfig or addSafeOutputCopilotGitHubTokenForConfig)
 	Token string
@@ -209,9 +213,21 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	steps = append(steps, "          script: |\n")
 
-	// Add the formatted JavaScript script
-	formattedScript := FormatJavaScriptForYAML(config.Script)
-	steps = append(steps, formattedScript...)
+	// Use require() if ScriptFile is specified, otherwise inline the script
+	if config.ScriptFile != "" {
+		// Attach GitHub Actions builtin objects to global scope before requiring
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, "            await main();\n")
+	} else {
+		// Add the formatted JavaScript script (inline)
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
 
 	return steps
 }
