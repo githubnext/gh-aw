@@ -84,7 +84,7 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 		toolToStateMap[tool] = stateId
 		// Escape special characters in tool names for display
 		displayName := strings.ReplaceAll(tool, "\"", "\\\"")
-		sb.WriteString(fmt.Sprintf("    %s : %s\n", stateId, displayName))
+		fmt.Fprintf(&sb, "    %s : %s\n", stateId, displayName)
 	}
 
 	// Add start state
@@ -113,7 +113,7 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 
 		for _, tool := range startTools {
 			if stateId, exists := toolToStateMap[tool]; exists {
-				sb.WriteString(fmt.Sprintf("    start_tool --> %s\n", stateId))
+				fmt.Fprintf(&sb, "    start_tool --> %s\n", stateId)
 			}
 		}
 	}
@@ -151,7 +151,7 @@ func (g *ToolGraph) GenerateMermaidGraph() string {
 			if transition.Count > 1 {
 				label = fmt.Sprintf(" : %dx", transition.Count)
 			}
-			sb.WriteString(fmt.Sprintf("    %s --> %s%s\n", fromState, toState, label))
+			fmt.Fprintf(&sb, "    %s --> %s%s\n", fromState, toState, label)
 		}
 	}
 
@@ -167,9 +167,9 @@ func (g *ToolGraph) GetSummary() string {
 
 	var sb strings.Builder
 	sb.WriteString("🔄 Tool Sequence Graph Summary\n")
-	sb.WriteString(fmt.Sprintf("   • %d unique tools\n", len(g.Tools)))
-	sb.WriteString(fmt.Sprintf("   • %d tool transitions\n", len(g.Transitions)))
-	sb.WriteString(fmt.Sprintf("   • %d sequences analyzed\n", len(g.sequences)))
+	fmt.Fprintf(&sb, "   • %d unique tools\n", len(g.Tools))
+	fmt.Fprintf(&sb, "   • %d tool transitions\n", len(g.Transitions))
+	fmt.Fprintf(&sb, "   • %d sequences analyzed\n", len(g.sequences))
 
 	// Find most common transitions
 	if len(g.Transitions) > 0 {
@@ -194,8 +194,8 @@ func (g *ToolGraph) GetSummary() string {
 			if i >= 5 { // Show top 5
 				break
 			}
-			sb.WriteString(fmt.Sprintf("   %d. %s → %s (%dx)\n",
-				i+1, transition.From, transition.To, transition.Count))
+			fmt.Fprintf(&sb, "   %d. %s → %s (%dx)\n",
+				i+1, transition.From, transition.To, transition.Count)
 		}
 	}
 

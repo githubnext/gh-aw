@@ -492,8 +492,8 @@ func (c *Compiler) extractTrackerID(frontmatter map[string]any) (string, error) 
 
 	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
 	for i, char := range trackerID {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') || char == '-' || char == '_') {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') && char != '-' && char != '_' {
 			return "", fmt.Errorf("tracker-id contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
 		}
 	}

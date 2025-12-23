@@ -254,7 +254,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	var mkdirCommands strings.Builder
 	for _, dir := range addDirPaths {
-		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
+		fmt.Fprintf(&mkdirCommands, "mkdir -p %s\n", dir)
 	}
 
 	// Build the copilot command
@@ -1025,7 +1025,7 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 	// Group flag-value pairs for better readability
 	for i := 0; i < len(toolArgs); i += 2 {
 		if i+1 < len(toolArgs) {
-			comment.WriteString(fmt.Sprintf("%s# %s %s\n", indent, toolArgs[i], toolArgs[i+1]))
+			fmt.Fprintf(&comment, "%s# %s %s\n", indent, toolArgs[i], toolArgs[i+1])
 		}
 	}
 

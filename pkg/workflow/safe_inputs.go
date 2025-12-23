@@ -428,7 +428,7 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 	sort.Strings(inputNamesForDoc)
 	for _, paramName := range inputNamesForDoc {
 		param := toolConfig.Inputs[paramName]
-		sb.WriteString(fmt.Sprintf(" * @param {%s} inputs.%s - %s\n", param.Type, paramName, param.Description))
+		fmt.Fprintf(&sb, " * @param {%s} inputs.%s - %s\n", param.Type, paramName, param.Description)
 	}
 	sb.WriteString(" * @returns {Promise<any>} Tool result\n")
 	sb.WriteString(" */\n")
@@ -447,7 +447,7 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 			}
 		}
 		sort.Strings(paramNames)
-		sb.WriteString(fmt.Sprintf("  const { %s } = inputs || {};\n\n", strings.Join(paramNames, ", ")))
+		fmt.Fprintf(&sb, "  const { %s } = inputs || {};\n\n", strings.Join(paramNames, ", "))
 	}
 
 	// Indent the user's script code
@@ -509,8 +509,8 @@ func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
 			if param.Default != nil {
 				defaultValue = fmt.Sprintf(", default=%v", param.Default)
 			}
-			sb.WriteString(fmt.Sprintf("# %s = inputs.get('%s'%s)  # %s\n",
-				sanitizePythonVariableName(paramName), paramName, defaultValue, param.Description))
+			fmt.Fprintf(&sb, "# %s = inputs.get('%s'%s)  # %s\n",
+				sanitizePythonVariableName(paramName), paramName, defaultValue, param.Description)
 		}
 		sb.WriteString("\n")
 	}

@@ -243,9 +243,10 @@ Test workflow
 	// Find valid and invalid results
 	var validResult, invalidResult *ValidationResult
 	for i := range results {
-		if results[i].Workflow == "valid.md" {
+		switch results[i].Workflow {
+		case "valid.md":
 			validResult = &results[i]
-		} else if results[i].Workflow == "invalid.md" {
+		case "invalid.md":
 			invalidResult = &results[i]
 		}
 	}

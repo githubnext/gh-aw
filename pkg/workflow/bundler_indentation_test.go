@@ -35,10 +35,11 @@ function someFunction() {
 		if strings.Contains(line, "require(") {
 			// Count leading spaces
 			spaces := len(line) - len(strings.TrimLeft(line, " "))
-			if spaces == 0 {
+			switch spaces {
+			case 0:
 				indent0Requires++
 				t.Logf("Indent 0: %s", line)
-			} else if spaces == 2 {
+			case 2:
 				indent2Requires++
 				t.Logf("Indent 2: %s", line)
 			}

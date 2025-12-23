@@ -127,4 +127,4 @@ govulncheck-results.sarif
 trivy-results.sarif
 
 # License compliance reports
-licenses.csv
+licenses.csv*.bck.yml

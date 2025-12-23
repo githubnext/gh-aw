@@ -103,7 +103,7 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 		len(expressionMappings), hasTemplatePattern, hasGitHubContext)
 
 	yaml.WriteString("      - name: Interpolate variables and render templates\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

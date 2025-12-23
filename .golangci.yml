@@ -1,59 +1,62 @@
+version: "2"
 run:
-  timeout: 5m
   tests: true
-
 linters:
   enable:
-    - errcheck
+    - misspell
+    - revive
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*os.File).Close
+        - (*os.File).Sync
+        - os.Chdir
+        - os.Chmod
+        - os.Chtimes
+        - os.MkdirAll
+        - os.Remove
+        - os.RemoveAll
+        - os.WriteFile
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+        path: _test\.go
+      - linters:
+          - revive
+        text: unused-parameter
+      - linters:
+          - revive
+        text: var-naming
+      - linters:
+          - revive
+        text: redefines-builtin-id
+      - linters:
+          - revive
+        text: indent-error-flow
+      - linters:
+          - revive
+        text: superfluous-else
+      - linters:
+          - revive
+        text: exported
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
     - gofmt
     - goimports
-    - revive
-    - govet
-    - ineffassign
-    - misspell
-    - staticcheck
-    - typecheck
-    - unused
-
-linters-settings:
-  errcheck:
-    # Disable errcheck for test files - system calls in tests don't need error handling
-    exclude-functions:
-      - (*os.File).Close
-      - (*os.File).Sync
-      - os.Chdir
-      - os.Chmod
-      - os.Chtimes
-      - os.MkdirAll
-      - os.Remove
-      - os.RemoveAll
-      - os.WriteFile
-
-issues:
-  exclude-rules:
-    # Disable errcheck for all test files
-    - path: "_test\\.go"
-      linters:
-        - errcheck
-
-    # Disable noisy revive rules repository-wide
-    - linters:
-        - revive
-      text: "unused-parameter"
-    - linters:
-        - revive
-      text: "var-naming"
-    - linters:
-        - revive
-      text: "redefines-builtin-id"
-    - linters:
-        - revive
-      text: "indent-error-flow"
-    - linters:
-        - revive
-      text: "superfluous-else"
-    - linters:
-        - revive
-      text: "exported"
-
-      
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
