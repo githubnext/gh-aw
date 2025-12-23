@@ -19,24 +19,16 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/python-dataviz.md
-#     - shared/jqschema.md
-#     - shared/trending-charts-simple.md
+# Interactive playground workflow for experimenting with GitHub Agentic Workflows.
+# This workflow allows you to test different AI agent tasks in a safe environment.
+# Use the workflow_dispatch trigger to manually run the workflow with custom instructions.
 
-name: "Stale Repository Identifier"
+name: "Playground Task Executor"
 "on":
-  schedule:
-  - cron: "3 2 1 * *"
-    # Friendly format: monthly on 1 at 02:03
   workflow_dispatch:
     inputs:
-      organization:
-        default: github
-        description: GitHub organization to scan for stale repositories
+      task:
+        description: Task for the AI agent to perform
         required: true
         type: string
 
@@ -45,10 +37,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Stale Repository Identifier"
-
-env:
-  ORGANIZATION: ${{ github.event.inputs.organization || 'github' }}
+run-name: "Playground Task Executor"
 
 jobs:
   activation:
@@ -62,7 +51,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "stale-repo-identifier.lock.yml"
+          GH_AW_WORKFLOW_FILE: "playground-executor.lock.yml"
         with:
           script: |
             async function main() {
@@ -149,16 +138,12 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      issues: read
+      issues: write
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /tmp/gh-aw/safeoutputs/config.json
@@ -178,81 +163,6 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           mkdir -p /tmp/gh-aw/sandbox/agent/logs
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      - name: Setup Python environment
-        run: "# Create working directory for Python scripts\nmkdir -p /tmp/gh-aw/python\nmkdir -p /tmp/gh-aw/python/data\nmkdir -p /tmp/gh-aw/python/charts\nmkdir -p /tmp/gh-aw/python/artifacts\n\necho \"Python environment setup complete\"\necho \"Working directory: /tmp/gh-aw/python\"\necho \"Data directory: /tmp/gh-aw/python/data\"\necho \"Charts directory: /tmp/gh-aw/python/charts\"\necho \"Artifacts directory: /tmp/gh-aw/python/artifacts\"\n"
-      - name: Install Python scientific libraries
-        run: "pip install --user --quiet numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
-      - if: always()
-        name: Upload generated charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          if-no-files-found: warn
-          name: data-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source files and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          if-no-files-found: warn
-          name: python-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-      - name: Set up jq utilities directory
-        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
-      - name: Setup Python environment
-        run: |
-          mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-          pip install --user --quiet numpy pandas matplotlib seaborn scipy
-      - if: always()
-        name: Upload charts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-charts
-          path: /tmp/gh-aw/python/charts/*.png
-          retention-days: 30
-      - if: always()
-        name: Upload source and data
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          if-no-files-found: warn
-          name: trending-source-and-data
-          path: |
-            /tmp/gh-aw/python/*.py
-            /tmp/gh-aw/python/data/*
-          retention-days: 30
-      - env:
-          ADDITIONAL_METRICS: release,pr
-          EXEMPT_TOPICS: keep,template
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ORGANIZATION: ${{ env.ORGANIZATION }}
-        id: stale-repos
-        name: Run stale_repos tool
-        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3
-      - env:
-          INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
-        name: Save stale repos output
-        run: "mkdir -p /tmp/stale-repos-data\necho \"$INACTIVE_REPOS\" > /tmp/stale-repos-data/inactive-repos.json\necho \"Stale repositories data saved\"\necho \"Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)\""
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            trending-data-${{ github.workflow }}-
-            trending-data-
-            trending-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -382,12 +292,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"upload_asset":{"max":0}}
+          {"create_issue":{"max":1},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[Stale Repository] \". Labels [stale-repository automated-analysis] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Title will be prefixed with \"[playground] \". Labels [playground ai-generated] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -425,23 +335,6 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
-            },
-            {
-              "description": "Upload a file as a URL-addressable asset that can be referenced in issues, PRs, or comments. The file is stored on an orphaned git branch and returns a permanent URL. Use this for images, diagrams, or other files that need to be embedded in GitHub content. CONSTRAINTS: Maximum file size: 10240KB. Allowed file extensions: [.png .jpg .jpeg].",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "path": {
-                    "description": "Absolute file path to upload (e.g., '/tmp/chart.png'). Must be under the workspace or /tmp directory. By default, only image files (.png, .jpg, .jpeg) are allowed; other file types require workflow configuration.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "path"
-                ],
-                "type": "object"
-              },
-              "name": "upload_asset"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -553,15 +446,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
-                }
-              }
-            },
-            "upload_asset": {
-              "defaultMax": 10,
-              "fields": {
-                "path": {
-                  "required": true,
-                  "type": "string"
                 }
               }
             }
@@ -1908,9 +1792,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1929,9 +1810,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_LOCKDOWN_MODE=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=repos,issues,pull_requests",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
@@ -1982,7 +1861,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.372",
-              workflow_name: "Stale Repository Identifier",
+              workflow_name: "Playground Task Executor",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1996,7 +1875,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github","python"],
+              allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.7.0",
               steps: {
@@ -2056,753 +1935,39 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Python Data Visualization Guide
+          # Playground Task Executor
           
-          Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+          You are a helpful AI assistant running in the GitHub Agentic Workflows playground.
           
-          ## Installed Libraries
+          ## Your Task
           
-          - **NumPy**: Array processing and numerical operations
-          - **Pandas**: Data manipulation and analysis
-          - **Matplotlib**: Chart generation and plotting
-          - **Seaborn**: Statistical data visualization
-          - **SciPy**: Scientific computing utilities
+          {{inputs.task}}
           
-          ## Directory Structure
+          ## Guidelines
           
-          ```
-          /tmp/gh-aw/python/
-          ├── data/          # Store all data files here (CSV, JSON, etc.)
-          ├── charts/        # Generated chart images (PNG)
-          ├── artifacts/     # Additional output files
-          └── *.py           # Python scripts
-          ```
+          - Be clear and concise in your responses
+          - If creating an issue, include detailed explanations
+          - Use markdown formatting for better readability
+          - Add relevant labels and metadata
           
-          ## Data Separation Requirement
+          ## Example Tasks
           
-          **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+          Try these example tasks:
           
-          ### ❌ PROHIBITED - Inline Data
-          ```python
-          # DO NOT do this
-          data = [10, 20, 30, 40, 50]
-          labels = ['A', 'B', 'C', 'D', 'E']
-          ```
+          - "Analyze the most recent pull request and summarize the changes"
+          - "Create an issue summarizing the repository structure"
+          - "List the top 5 most active contributors this month"
+          - "Generate a report of open issues organized by labels"
           
-          ### ✅ REQUIRED - External Data Files
-          ```python
-          # Always load data from external files
-          import pandas as pd
+          ## Safety
           
-          # Load data from CSV
-          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-          
-          # Or from JSON
-          data = pd.read_json('/tmp/gh-aw/python/data/data.json')
-          ```
-          
-          ## Chart Generation Best Practices
-          
-          ### High-Quality Chart Settings
-          
-          ```python
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set style for better aesthetics
-          sns.set_style("whitegrid")
-          sns.set_palette("husl")
-          
-          # Create figure with high DPI
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          
-          # Your plotting code here
-          # ...
-          
-          # Save with high quality
-          plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
-                      dpi=300, 
-                      bbox_inches='tight',
-                      facecolor='white',
-                      edgecolor='none')
-          ```
-          
-          ### Chart Quality Guidelines
-          
-          - **DPI**: Use 300 or higher for publication quality
-          - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
-          - **Labels**: Always include clear axis labels and titles
-          - **Legend**: Add legends when plotting multiple series
-          - **Grid**: Enable grid lines for easier reading
-          - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
-          
-          ## Including Images in Reports
-          
-          When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
-          
-          ### Step 1: Generate and Upload Chart
-          ```python
-          # Generate your chart
-          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
-          ```
-          
-          ### Step 2: Upload as Asset
-          Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
-          
-          ### Step 3: Include in Markdown Report
-          When creating your discussion or issue, include the image using markdown:
-          
-          ```markdown
-          ## Visualization Results
-          
-          ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
-          
-          The chart above shows...
-          ```
-          
-          **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
-          
-          ## Cache Memory Integration
-          
-          The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
-          
-          **Helper Functions to Cache:**
-          - Data loading utilities: `data_loader.py`
-          - Chart styling functions: `chart_utils.py`
-          - Common data transformations: `transforms.py`
-          
-          **Check Cache Before Creating:**
-          ```bash
-          # Check if helper exists in cache
-          if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
-            cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
-            echo "Using cached data_loader.py"
-          fi
-          ```
-          
-          **Save to Cache for Future Runs:**
-          ```bash
-          # Save useful helpers to cache
-          cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
-          echo "Saved data_loader.py to cache for future runs"
-          ```
-          
-          ## Complete Example Workflow
-          
-          ```python
-          #!/usr/bin/env python3
-          """
-          Example data visualization script
-          Generates a bar chart from external data
-          """
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          # Set style
-          sns.set_style("whitegrid")
-          sns.set_palette("husl")
-          
-          # Load data from external file (NEVER inline)
-          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-          
-          # Process data
-          summary = data.groupby('category')['value'].sum()
-          
-          # Create chart
-          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
-          summary.plot(kind='bar', ax=ax)
-          
-          # Customize
-          ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
-          ax.set_xlabel('Category', fontsize=12)
-          ax.set_ylabel('Value', fontsize=12)
-          ax.grid(True, alpha=0.3)
-          
-          # Save chart
-          plt.savefig('/tmp/gh-aw/python/charts/chart.png',
-                      dpi=300,
-                      bbox_inches='tight',
-                      facecolor='white')
-          
-          print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
-          ```
-          
-          ## Error Handling
-          
-          **Check File Existence:**
-          ```python
-          import os
-          
-          data_file = '/tmp/gh-aw/python/data/data.csv'
-          if not os.path.exists(data_file):
-              raise FileNotFoundError(f"Data file not found: {data_file}")
-          ```
-          
-          **Validate Data:**
-          ```python
-          # Check for required columns
-          required_cols = ['category', 'value']
-          missing = set(required_cols) - set(data.columns)
-          if missing:
-              raise ValueError(f"Missing columns: {missing}")
-          ```
-          
-          ## Artifact Upload
-          
-          Charts and source files are automatically uploaded as artifacts:
-          
-          **Charts Artifact:**
-          - Name: `data-charts`
-          - Contents: PNG files from `/tmp/gh-aw/python/charts/`
-          - Retention: 30 days
-          
-          **Source and Data Artifact:**
-          - Name: `python-source-and-data`
-          - Contents: Python scripts and data files
-          - Retention: 30 days
-          
-          Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
-          
-          ## Tips for Success
-          
-          1. **Always Separate Data**: Store data in files, never inline in code
-          2. **Use Cache Memory**: Store reusable helpers for faster execution
-          3. **High Quality Charts**: Use DPI 300+ and proper sizing
-          4. **Clear Documentation**: Add docstrings and comments
-          5. **Error Handling**: Validate data and check file existence
-          6. **Type Hints**: Use type annotations for better code quality
-          7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
-          8. **Reproducibility**: Set random seeds when needed
-          
-          ## Common Data Sources
-          
-          Based on common use cases:
-          
-          **Repository Statistics:**
-          ```python
-          # Collect via GitHub API, save to data.csv
-          # Then load and visualize
-          data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
-          ```
-          
-          **Workflow Metrics:**
-          ```python
-          # Collect via GitHub Actions API, save to data.json
-          data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
-          ```
-          
-          **Sample Data Generation:**
-          ```python
-          # Generate with NumPy, save to file first
-          import numpy as np
-          data = np.random.randn(100, 2)
-          df = pd.DataFrame(data, columns=['x', 'y'])
-          df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
-          
-          # Then load it back (demonstrating the pattern)
-          data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
-          ```
-          
-          ## jqschema - JSON Schema Discovery
-          
-          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
-          
-          ### Purpose
-          
-          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
-          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
-          - Exploring API responses with large payloads
-          - Understanding the structure of unfamiliar data without verbose output
-          - Planning queries before fetching full data
-          
-          ### Usage
-          
-          ```bash
-          # Analyze a file
-          cat data.json | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze command output
-          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
-          
-          # Analyze GitHub search results
-          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
-          ```
-          
-          ### How It Works
-          
-          The script transforms JSON data by:
-          1. Replacing object values with their type names ("string", "number", "boolean", "null")
-          2. Reducing arrays to their first element's structure (or empty array if empty)
-          3. Recursively processing nested structures
-          4. Outputting compact (minified) JSON
-          
-          ### Example
-          
-          **Input:**
-          ```json
-          {
-            "total_count": 1000,
-            "items": [
-              {"login": "user1", "id": 123, "verified": true},
-              {"login": "user2", "id": 456, "verified": false}
-            ]
-          }
-          ```
-          
-          **Output:**
-          ```json
-          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
-          ```
-          
-          ### Best Practices
-          
-          **Use this script when:**
-          - You need to understand the structure of tool outputs before requesting full data
-          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
-          - Exploring unfamiliar APIs or data structures
-          - Planning data extraction strategies
-          
-          **Example workflow for GitHub search tools:**
-          ```bash
-          # Step 1: Get schema with minimal data (fetch just 1 result)
-          # This helps understand the structure before requesting large datasets
-          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
-          
-          # Output shows the schema:
-          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
-          
-          # Step 2: Review schema to understand available fields
-          
-          # Step 3: Request full data with confidence about structure
-          # Now you know what fields are available and can query efficiently
-          ```
-          
-          **Using with GitHub MCP tools:**
-          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
-          ```bash
-          # Save a minimal search result to a file
-          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
-          
-          # Generate schema to understand structure
-          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
-          
-          # Now you know which fields exist and can use them in your analysis
-          ```
-          
-          # Python Environment Ready
-          
-          Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
-          Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
-          
-          ## Store Historical Data (JSON Lines)
-          
-          ```python
-          import json
-          from datetime import datetime
-          
-          # Append data point
-          with open('/tmp/gh-aw/cache-memory/trending/<metric>/history.jsonl', 'a') as f:
-              f.write(json.dumps({"timestamp": datetime.now().isoformat(), "value": 42}) + '\n')
-          ```
-          
-          ## Generate Charts
-          
-          ```python
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
-          
-          df = pd.read_json('history.jsonl', lines=True)
-          df['date'] = pd.to_datetime(df['timestamp']).dt.date
-          
-          sns.set_style("whitegrid")
-          fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-          df.groupby('date')['value'].mean().plot(ax=ax, marker='o')
-          ax.set_title('Trend', fontsize=16, fontweight='bold')
-          plt.xticks(rotation=45)
-          plt.tight_layout()
-          plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
-          ```
-          
-          ## Best Practices
-          
-          - Use JSON Lines (`.jsonl`) for append-only storage
-          - Include ISO 8601 timestamps in all data points
-          - Implement 90-day retention: `df[df['timestamp'] >= cutoff_date]`
-          - Charts: 300 DPI, 12x7 inches, clear labels, seaborn style
-          
-          # Stale Repository Identifier 🔍
-          
-          You are an expert repository analyst that deeply investigates potentially stale repositories to determine if they are truly inactive and produces comprehensive activity reports.
-          
-          ## Mission
-          
-          Analyze repositories identified as potentially stale by the stale-repos tool and conduct deep research to:
-          1. Verify that repositories are actually inactive
-          2. Understand the repository's purpose and state
-          3. Analyze recent activity patterns across commits, issues, and pull requests
-          4. Assess whether the repository should remain active or be archived
-          5. Create detailed reports as GitHub issues with findings
-          
-          ## Context
-          
-          - **Organization**: __GH_AW_ENV_ORGANIZATION__
-          - **Inactive Threshold**: 365 days
-          - **Exempt Topics**: keep, template
-          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
-          
-          ## Data Available
-          
-          The stale-repos tool has identified potentially inactive repositories. The output is saved at:
-          - **File**: `/tmp/stale-repos-data/inactive-repos.json`
-          
-          This file contains an array of repository objects with information about each stale repository.
-          
-          ## Investigation Process
-          
-          ### Step 1: Load Stale Repositories Data
-          
-          Read the stale repositories data:
-          ```bash
-          cat /tmp/stale-repos-data/inactive-repos.json | jq .
-          ```
-          
-          Analyze the structure and count:
-          ```bash
-          echo "Total stale repositories: $(jq 'length' /tmp/stale-repos-data/inactive-repos.json)"
-          ```
-          
-          ### Step 2: Deep Research Each Repository
-          
-          For EACH **PUBLIC** repository in the list, conduct a thorough investigation:
-          
-          **CRITICAL**: Before analyzing any repository, verify it is public. Skip all private repositories.
-          
-          #### 2.1 Repository Overview
-          Use the GitHub MCP tools to gather:
-          - Repository name, description, and topics
-          - Primary language and size
-          - Creation date and last update date
-          - Default branch
-          - Visibility (public/private) - **ONLY ANALYZE PUBLIC REPOSITORIES**
-          - Archive status
-          
-          **IMPORTANT**: Skip any private repositories. This workflow only reviews public repositories.
-          
-          #### 2.2 Commit Activity Analysis
-          Analyze commit history:
-          - Last commit date and author
-          - Commit frequency over the last 2 years
-          - Number of unique contributors in the last year
-          - Trend analysis: Is activity declining or has it stopped abruptly?
-          
-          Use the GitHub MCP `list_commits` tool to get commit history:
-          ```
-          List commits for the repository to analyze recent activity
-          ```
-          
-          #### 2.3 Issue Activity Analysis
-          Examine issue activity:
-          - Total open and closed issues
-          - Recent issue activity (last 6 months)
-          - Average time to close issues
-          - Any open issues that need attention
-          
-          Use the GitHub MCP `search_issues` or `list_issues` tool:
-          ```
-          Search for recent issues in the repository
-          ```
-          
-          #### 2.4 Pull Request Activity
-          Review pull request patterns:
-          - Recent PRs (last 6 months)
-          - Merged vs. closed without merging
-          - Outstanding open PRs
-          - Review activity
-          
-          Use the GitHub MCP `list_pull_requests` or `search_pull_requests` tool:
-          ```
-          List pull requests to understand merge activity
-          ```
-          
-          #### 2.5 Release Activity
-          If the repository has releases:
-          - Last release date
-          - Release frequency
-          - Version progression
-          
-          Use the GitHub MCP `list_releases` tool:
-          ```
-          List releases to check deployment activity
-          ```
-          
-          #### 2.6 Repository Health Indicators
-          Assess repository health:
-          - **Active Development**: Recent commits, PRs, and issues
-          - **Community Engagement**: External contributions, issue discussions
-          - **Maintenance Status**: Response to issues/PRs, dependency updates
-          - **Documentation**: README quality, up-to-date docs
-          - **Dependencies**: Outdated dependencies, security alerts
-          
-          ### Step 3: Determine True Status
-          
-          Based on your research, classify each repository:
-          
-          1. **Truly Stale**: No meaningful activity, should be archived
-             - No commits in 365+ days
-             - No open issues or PRs requiring attention
-             - No ongoing projects or roadmap items
-             - No active community engagement
-          
-          2. **Low Activity but Active**: Slow-moving but not abandoned
-             - Occasional commits or maintenance
-             - Responsive to critical issues
-             - Stable mature project with low change rate
-          
-          3. **False Positive**: Appears stale but actually active
-             - Activity in other branches
-             - External development (forks, dependent projects)
-             - Strategic repository (documentation, templates)
-             - Recently migrated or reorganized
-          
-          4. **Requires Attention**: Active but needs maintenance
-             - Outstanding security issues
-             - Outdated dependencies
-             - Unanswered issues or PRs
-          
-          ### Edge Cases to Consider
-          
-          When analyzing repositories, be aware of these special cases:
-          
-          - **Private Repositories**: ALWAYS skip private repositories. This workflow only analyzes public repositories.
-          - **Already Archived**: If a repository is already archived, skip it (no issue needed)
-          PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - **Seasonal Projects**: Some repositories have cyclical activity patterns (e.g., annual conference sites, seasonal tools). Look for historical patterns.
-          - **Dependency Repositories**: Check if other projects depend on this repository. Use GitHub's "Used by" information if available.
-          - **Template/Example Repositories**: Repositories marked with "template" topic or containing example/demo code may intentionally have low activity.
-          - **Documentation Repositories**: Documentation-only repos often have legitimate periods of low activity between major updates.
-          - **Mono-repo Subprojects**: Activity might be happening in a parent repository or related repos.
-          - **Bot-Maintained Repositories**: Some repos are primarily maintained by automated systems and may appear to have "stale" human activity.
-          
-          ### Step 4: Create Detailed Issue Reports
-          
-          For each repository classified as **Truly Stale** or **Requires Attention**, create an issue with:
-          
-          **Issue Title Format**: `[Stale Repository] <repository-name> - <status>`
-          
-          **Issue Body Template**:
-          ```markdown
-          ## Repository Analysis: [Repository Name]
-          
-          **Repository URL**: [repository URL]
-          **Last Activity**: [date]
-          **Classification**: [Truly Stale / Requires Attention]
-          **Workflow Run ID**: __GH_AW_GITHUB_RUN_ID__
-          
-          ### 📊 Activity Summary
-          
-          #### Commits
-          - **Last Commit**: [date] by [author]
-          - **Commits (Last Year)**: [count]
-          - **Contributors (Last Year)**: [count]
-          - **Activity Trend**: [Declining / Stopped / Sporadic]
-          
-          #### Issues
-          - **Open Issues**: [count]
-          - **Closed Issues (Last 6mo)**: [count]
-          - **Recent Issue Activity**: [Yes/No - describe]
-          - **Issues Needing Attention**: [list or "None"]
-          
-          #### Pull Requests
-          - **Open PRs**: [count]
-          - **Merged PRs (Last 6mo)**: [count]
-          - **Outstanding PRs**: [list or "None"]
-          
-          #### Releases
-          - **Last Release**: [date and version] or [No releases]
-          - **Release Frequency**: [describe pattern]
-          
-          ### 🔍 Deep Analysis
-          
-          [Provide 2-3 paragraphs analyzing:
-          - What the repository was used for
-          - Why activity stopped or declined
-          - Current state and relevance
-          - Any dependencies or downstream impacts
-          - Community engagement patterns]
-          
-          ### 💡 Recommendation
-          
-          **Action**: [Archive / Maintain / Investigate Further / Transfer Ownership]
-          
-          **Reasoning**: [Explain why this recommendation makes sense based on the analysis]
-          
-          **Impact**: [Describe what happens if this recommendation is followed]
-          
-          ### ⚠️ Important Considerations
-          
-          [List any concerns, blockers, or things to consider before taking action:
-          - Outstanding issues or PRs
-          - Active forks or dependencies
-          - Documentation or historical value
-          - Team ownership or handoff needs]
-          
-          ### 📋 Next Steps
-          
-          - [ ] Review this analysis
-          - [ ] Contact repository owner/team
-          - [ ] [Specific action based on recommendation]
-          - [ ] Update repository topics/status
-          - [ ] [Additional steps as needed]
-          
-          ---
-          *This analysis was generated by the Stale Repository Identifier workflow. Please verify findings before taking any archival actions.*
-          ```
-          
-          ### Step 5: Summary Report
-          
-          After analyzing all repositories, provide a summary to stdout (not as an issue):
-          
-          ```
-          ## Stale Repository Analysis Summary
-          
-          **Total Repositories Analyzed**: [count]
-          
-          **Classification Breakdown**:
-          - Truly Stale: [count]
-          - Low Activity but Active: [count]
-          - False Positives: [count]
-          - Requires Attention: [count]
-          
-          **Issues Created**: [count]
-          
-          **Key Findings**:
-          [Brief summary of overall patterns and insights]
-          ```
-          
-          ## Important Guidelines
-          
-          1. **Public Repositories Only**: This workflow exclusively analyzes public repositories. Always verify repository visibility and skip private repositories.
-          2. **Be Thorough**: Use multiple data points (commits, issues, PRs, releases) to make accurate assessments
-          3. **Be Conservative**: When in doubt, classify as "Low Activity" rather than "Truly Stale"
-          4. **Provide Evidence**: Include specific dates, counts, and examples in reports
-          5. **Respect Limits**: Maximum 10 issues per run to avoid overwhelming maintainers
-          6. **Context Matters**: Consider repository purpose (documentation, templates, etc.)
-          7. **Focus on Value**: Prioritize repositories that are truly abandoned vs. intentionally stable
-          
-          ## Rate Limiting
-          
-          To avoid GitHub API rate limits:
-          - Batch API calls when possible
-          - Add small delays between repositories if needed
-          - If you hit rate limits, note which repositories couldn't be analyzed
-          
-          ## Output
-          
-          - Create GitHub issues for repositories needing attention (max 10)
-          - Print summary statistics to stdout
-          - Be clear and actionable in recommendations
+          This is a playground environment. All outputs are prefixed with "[playground]" to clearly identify them as experimental. Issues created by this workflow expire after 7 days.
           
           PROMPT_EOF
-      - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
-        with:
-          script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_ENV_ORGANIZATION: process.env.GH_AW_ENV_ORGANIZATION,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID
-              }
-            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2836,46 +2001,6 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
-          
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2889,7 +2014,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_issue, missing_tool, noop, upload_asset
+          **Available tools**: create_issue, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -2992,9 +2117,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ENV_ORGANIZATION: ${{ env.ORGANIZATION }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -3178,18 +2300,17 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 45
+        # --allow-tool github
+        # --allow-tool safeoutputs
+        timeout-minutes: 15
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains '*.githubusercontent.com,*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3328,7 +2449,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.pythonhosted.org,anaconda.org,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -6060,7 +5181,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-stale-repository-identifier
+          name: firewall-logs-playground-task-executor
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -6221,19 +5342,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Upload safe outputs assets
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6477,8 +5585,6 @@ jobs:
       - agent
       - detection
       - safe_outputs
-      - update_cache_memory
-      - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -6519,7 +5625,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Playground Task Executor"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6611,7 +5717,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Playground Task Executor"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6722,10 +5828,9 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+          GH_AW_WORKFLOW_NAME: "Playground Task Executor"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -7016,8 +6121,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Stale Repository Identifier"
-          WORKFLOW_DESCRIPTION: "Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports"
+          WORKFLOW_NAME: "Playground Task Executor"
+          WORKFLOW_DESCRIPTION: "Interactive playground workflow for experimenting with GitHub Agentic Workflows.\nThis workflow allows you to test different AI agent tasks in a safe environment.\nUse the workflow_dispatch trigger to manually run the workflow with custom instructions."
         with:
           script: |
             const fs = require('fs');
@@ -7250,9 +6355,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
-      GH_AW_WORKFLOW_ID: "stale-repo-identifier"
-      GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
+      GH_AW_WORKFLOW_ID: "playground-executor"
+      GH_AW_WORKFLOW_NAME: "Playground Task Executor"
     outputs:
       create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
       create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
@@ -7913,8 +7017,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "[Stale Repository] "
-          GH_AW_ISSUE_LABELS: "stale-repository,automated-analysis"
+          GH_AW_ISSUE_TITLE_PREFIX: "[playground] "
+          GH_AW_ISSUE_LABELS: "playground,ai-generated"
+          GH_AW_ISSUE_EXPIRES: "7"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -8207,251 +7312,4 @@ jobs:
             (async () => {
               await main();
             })();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: trending-data-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          ls -la /tmp/gh-aw/safeoutputs/assets/
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_WORKFLOW_NAME: "Stale Repository Identifier"
-          GH_AW_ENGINE_ID: "copilot"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Analysis by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Stale Repository Identifier starting! [{workflow_name}]({run_url}) is analyzing repository activity...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has finished analyzing stale repositories.\",\"runFailure\":\"⚠️ Analysis interrupted! [{workflow_name}]({run_url}) {status}.\"}"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const path = require("path");
-            const crypto = require("crypto");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function normalizeBranchName(branchName) {
-              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-                return branchName;
-              }
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              return normalized;
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GH_AW_ASSETS_BRANCH;
-              if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
-                return;
-              }
-              const normalizedBranchName = normalizeBranchName(branchName);
-              core.info(`Using assets branch: ${normalizedBranchName}`);
-              const result = loadAgentOutput();
-              if (!result.success) {
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              const uploadItems = result.items.filter( item => item.type === "upload_asset");
-              if (uploadItems.length === 0) {
-                core.info("No upload-asset items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              core.info(`Found ${uploadItems.length} upload-asset item(s)`);
-              let uploadCount = 0;
-              let hasChanges = false;
-              try {
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
-                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
-                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
-                } catch (originError) {
-                  if (!normalizedBranchName.startsWith("assets/")) {
-                    core.setFailed(
-                      `Branch '${normalizedBranchName}' does not start with the required 'assets/' prefix. ` +
-                        `Orphaned branches can only be automatically created under the 'assets/' prefix. ` +
-                        `Please create the branch manually first, or use a branch name starting with 'assets/'.`
-                    );
-                    return;
-                  }
-                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
-                  await exec.exec(`git rm -rf .`);
-                  await exec.exec(`git clean -fdx`);
-                }
-                for (const asset of uploadItems) {
-                  try {
-                    const { fileName, sha, size, targetFileName } = asset;
-                    if (!fileName || !sha || !targetFileName) {
-                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-                      continue;
-                    }
-                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
-                    if (!fs.existsSync(assetSourcePath)) {
-                      core.warning(`Asset file not found: ${assetSourcePath}`);
-                      continue;
-                    }
-                    const fileContent = fs.readFileSync(assetSourcePath);
-                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                    if (computedSha !== sha) {
-                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-                      continue;
-                    }
-                    if (fs.existsSync(targetFileName)) {
-                      core.info(`Asset ${targetFileName} already exists, skipping`);
-                      continue;
-                    }
-                    fs.copyFileSync(assetSourcePath, targetFileName);
-                    await exec.exec(`git add "${targetFileName}"`);
-                    uploadCount++;
-                    hasChanges = true;
-                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
-                  } catch (error) {
-                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
-                  }
-                }
-                if (hasChanges) {
-                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
-                  if (isStaged) {
-                    core.summary.addRaw("## Staged Asset Publication");
-                  } else {
-                    await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
-                  }
-                  for (const asset of uploadItems) {
-                    if (asset.fileName && asset.sha && asset.size && asset.url) {
-                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-                    }
-                  }
-                  core.summary.write();
-                } else {
-                  core.info("No new assets to upload");
-                }
-              } catch (error) {
-                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", normalizedBranchName);
-            }
-            await main();
 
