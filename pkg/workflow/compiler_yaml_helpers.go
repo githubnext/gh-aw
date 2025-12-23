@@ -75,28 +75,12 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
-	// Emit the substitute_placeholders script inline and call it
-	script := getSubstitutePlaceholdersScript()
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		yaml.WriteString(indent + "      " + line + "\n")
-	}
-
-	// Call the function with parameters
-	yaml.WriteString(indent + "      \n")
-	yaml.WriteString(indent + "      // Call the substitution function\n")
-	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
-	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
-	yaml.WriteString(indent + "        substitutions: {\n")
-
-	for i, mapping := range expressionMappings {
-		comma := ","
-		if i == len(expressionMappings)-1 {
-			comma = ""
-		}
-		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
-	}
-
-	yaml.WriteString(indent + "        }\n")
-	yaml.WriteString(indent + "      });\n")
+	// Use require() to import and call the substitute_placeholders script
+	yaml.WriteString(indent + "      global.core = core;\n")
+	yaml.WriteString(indent + "      global.github = github;\n")
+	yaml.WriteString(indent + "      global.context = context;\n")
+	yaml.WriteString(indent + "      global.exec = exec;\n")
+	yaml.WriteString(indent + "      global.io = io;\n")
+	yaml.WriteString(indent + "      const { main } = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
+	yaml.WriteString(indent + "      await main();\n")
 }

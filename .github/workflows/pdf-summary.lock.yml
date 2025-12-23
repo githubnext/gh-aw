@@ -761,41 +761,13 @@ jobs:
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
-                GH_AW_GITHUB_EVENT_INPUTS_QUERY: process.env.GH_AW_GITHUB_EVENT_INPUTS_QUERY,
-                GH_AW_GITHUB_EVENT_INPUTS_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_URL,
-                GH_AW_EXPR_799BE623: process.env.GH_AW_EXPR_799BE623,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT
-              }
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            await main();
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -929,43 +901,13 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
-            const fs = require("fs"),
-              substitutePlaceholders = async ({ file, substitutions }) => {
-                if (!file) throw new Error("file parameter is required");
-                if (!substitutions || "object" != typeof substitutions) throw new Error("substitutions parameter must be an object");
-                let content;
-                try {
-                  content = fs.readFileSync(file, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to read file ${file}: ${error.message}`);
-                }
-                for (const [key, value] of Object.entries(substitutions)) {
-                  const placeholder = `__${key}__`;
-                  content = content.split(placeholder).join(value);
-                }
-                try {
-                  fs.writeFileSync(file, content, "utf8");
-                } catch (error) {
-                  throw new Error(`Failed to write file ${file}: ${error.message}`);
-                }
-                return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
-              };
-            
-            
-            // Call the substitution function
-            return await substitutePlaceholders({
-              file: process.env.GH_AW_PROMPT,
-              substitutions: {
-                GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
-                GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
-                GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
-                GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
-                GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
-                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
-                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
-                GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
-              }
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            await main();
       - name: Append PR context instructions to prompt
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
