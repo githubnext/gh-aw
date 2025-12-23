@@ -31,7 +31,9 @@ var commonWorkflowNames = []string{
 
 // isAccessibleMode detects if accessibility mode should be enabled based on environment variables
 func isAccessibleMode() bool {
-	return os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != ""
+	return os.Getenv("ACCESSIBLE") != "" ||
+		os.Getenv("TERM") == "dumb" ||
+		os.Getenv("NO_COLOR") != ""
 }
 
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
