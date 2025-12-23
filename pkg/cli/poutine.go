@@ -241,9 +241,10 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 
 		// Map severity to error type
 		errorType := "warning"
-		if severity == "error" {
+		switch severity {
+		case "error":
 			errorType = "error"
-		} else if severity == "note" {
+		case "note":
 			errorType = "info"
 		}
 

@@ -374,7 +374,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		if bashTool == nil {
 			// bash is nil - only add defaults if this wasn't processed by git commands
 			// If git commands were needed, bash would have been set to git commands or left as nil intentionally
-			if !(safeOutputs != nil && needsGitCommands(safeOutputs)) {
+			if safeOutputs == nil || !needsGitCommands(safeOutputs) {
 				defaultCommands := make([]any, len(constants.DefaultBashTools))
 				for i, cmd := range constants.DefaultBashTools {
 					defaultCommands[i] = cmd

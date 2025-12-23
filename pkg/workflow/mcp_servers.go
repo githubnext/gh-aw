@@ -245,7 +245,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 		yaml.WriteString("      - name: Install gh-aw extension\n")
 		yaml.WriteString("        env:\n")
-		yaml.WriteString(fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+		fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Check if gh-aw extension is already installed\n")
 		yaml.WriteString("          if gh extension list | grep -q \"githubnext/gh-aw\"; then\n")
@@ -339,11 +339,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			markerName = strings.ReplaceAll(markerName, ".", "_")
 			markerName = strings.ReplaceAll(markerName, "-", "_")
 
-			yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName))
+			fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName)
 			for _, line := range FormatJavaScriptForYAML(content) {
 				yaml.WriteString(line)
 			}
-			yaml.WriteString(fmt.Sprintf("          EOF_%s\n", markerName))
+			fmt.Fprintf(yaml, "          EOF_%s\n", markerName)
 		}
 
 		// Write the main MCP server entry point (simple script that requires modules)
@@ -476,29 +476,29 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			if toolConfig.Script != "" {
 				// JavaScript tool
 				toolScript := generateSafeInputJavaScriptToolScript(toolConfig)
-				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.cjs << 'EOFJS_%s'\n", toolName, toolName))
+				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.cjs << 'EOFJS_%s'\n", toolName, toolName)
 				for _, line := range FormatJavaScriptForYAML(toolScript) {
 					yaml.WriteString(line)
 				}
-				yaml.WriteString(fmt.Sprintf("          EOFJS_%s\n", toolName))
+				fmt.Fprintf(yaml, "          EOFJS_%s\n", toolName)
 			} else if toolConfig.Run != "" {
 				// Shell script tool
 				toolScript := generateSafeInputShellToolScript(toolConfig)
-				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.sh << 'EOFSH_%s'\n", toolName, toolName))
+				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.sh << 'EOFSH_%s'\n", toolName, toolName)
 				for _, line := range strings.Split(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
-				yaml.WriteString(fmt.Sprintf("          EOFSH_%s\n", toolName))
-				yaml.WriteString(fmt.Sprintf("          chmod +x /tmp/gh-aw/safe-inputs/%s.sh\n", toolName))
+				fmt.Fprintf(yaml, "          EOFSH_%s\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /tmp/gh-aw/safe-inputs/%s.sh\n", toolName)
 			} else if toolConfig.Py != "" {
 				// Python script tool
 				toolScript := generateSafeInputPythonToolScript(toolConfig)
-				yaml.WriteString(fmt.Sprintf("          cat > /tmp/gh-aw/safe-inputs/%s.py << 'EOFPY_%s'\n", toolName, toolName))
+				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safe-inputs/%s.py << 'EOFPY_%s'\n", toolName, toolName)
 				for _, line := range strings.Split(toolScript, "\n") {
 					yaml.WriteString("          " + line + "\n")
 				}
-				yaml.WriteString(fmt.Sprintf("          EOFPY_%s\n", toolName))
-				yaml.WriteString(fmt.Sprintf("          chmod +x /tmp/gh-aw/safe-inputs/%s.py\n", toolName))
+				fmt.Fprintf(yaml, "          EOFPY_%s\n", toolName)
+				fmt.Fprintf(yaml, "          chmod +x /tmp/gh-aw/safe-inputs/%s.py\n", toolName)
 			}
 		}
 		yaml.WriteString("          \n")
@@ -506,7 +506,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 3: Generate API key and choose port for HTTP server using JavaScript
 		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
 		yaml.WriteString("        id: safe-inputs-config\n")
-		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 
@@ -533,7 +533,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Pass through environment variables from safe-inputs config
 		envVars := getSafeInputsEnvVars(workflowData.SafeInputs)
 		for _, envVar := range envVars {
-			yaml.WriteString(fmt.Sprintf("          export %s=\"${%s}\"\n", envVar, envVar))
+			fmt.Fprintf(yaml, "          export %s=\"${%s}\"\n", envVar, envVar)
 		}
 		yaml.WriteString("          \n")
 
@@ -625,7 +625,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 				for _, envVarName := range envVarNames {
 					secretExpr := safeInputsSecrets[envVarName]
-					yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, secretExpr))
+					fmt.Fprintf(yaml, "          %s: %s\n", envVarName, secretExpr)
 				}
 			}
 		}
@@ -646,7 +646,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 			for _, envVarName := range envVarNames {
 				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
-				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
+				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, originalExpr)
 			}
 		}
 	}

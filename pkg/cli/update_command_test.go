@@ -813,7 +813,7 @@ func TestGetActionSHAForTag(t *testing.T) {
 
 	// Check that it's hexadecimal
 	for _, c := range sha {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			t.Errorf("Expected hexadecimal SHA, got character: %c", c)
 		}
 	}

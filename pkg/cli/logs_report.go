@@ -634,9 +634,10 @@ func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []
 			} else {
 				// Capitalize the type for display
 				displayType := logErr.Type
-				if displayType == "error" {
+				switch displayType {
+				case "error":
 					displayType = "Error"
-				} else if displayType == "warning" {
+				case "warning":
 					displayType = "Warning"
 				}
 
