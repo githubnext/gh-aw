@@ -30,60 +30,64 @@ sandbox:
       - "/usr/local/bin/npm:/usr/local/bin/npm:ro"
       - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
       - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
+jobs:
+  check_ci_status:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      ci_needs_fix: ${{ steps.ci_check.outputs.ci_needs_fix }}
+      ci_status: ${{ steps.ci_check.outputs.ci_status }}
+      ci_run_id: ${{ steps.ci_check.outputs.ci_run_id }}
+    steps:
+      - name: Check last CI workflow run status on main branch
+        id: ci_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the last CI workflow run on main branch, excluding pending and cancelled runs
+          LAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \
+            | jq -r '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | .[0]')
+          
+          CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
+          RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
+          
+          echo "Last CI run conclusion: ${CONCLUSION}"
+          echo "Run ID: ${RUN_ID}"
+          
+          # Set outputs for use in other jobs
+          echo "ci_status=${CONCLUSION}" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "ci_needs_fix=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
+            echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
+            echo "ci_needs_fix=true" >> "$GITHUB_OUTPUT"
+          fi
 steps:
-  # Early exit guard: Check if there's work to do before consuming tokens
-  # If CI is passing, the workflow exits early without running the agent
-  - name: Check last CI workflow run status on main branch
-    id: ci_check
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      # Get the last CI workflow run on main branch, excluding pending and cancelled runs
-      LAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \
-        | jq -r '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | .[0]')
-      
-      CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
-      RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
-      
-      echo "Last CI run conclusion: ${CONCLUSION}"
-      echo "Run ID: ${RUN_ID}"
-      
-      # Write to environment and step summary
-      echo "CI_STATUS=${CONCLUSION}" >> "$GITHUB_ENV"
-      echo "CI_RUN_ID=${RUN_ID}" >> "$GITHUB_ENV"
-      
-      if [ "$CONCLUSION" = "success" ]; then
-        echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
-        echo "CI_NEEDS_FIX=false" >> "$GITHUB_ENV"
-      else
-        echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
-        echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
-        echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
-      fi
   - name: Install Make
-    if: env.CI_NEEDS_FIX == 'true'
     run: |
       sudo apt-get update
       sudo apt-get install -y make
   - name: Setup Go
-    if: env.CI_NEEDS_FIX == 'true'
     uses: actions/setup-go@v6
     with:
       go-version-file: go.mod
       cache: true
   - name: Set up Node.js
-    if: env.CI_NEEDS_FIX == 'true'
     uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm
       cache-dependency-path: pkg/workflow/js/package-lock.json
   - name: Install npm dependencies
-    if: env.CI_NEEDS_FIX == 'true'
     run: npm ci
     working-directory: ./pkg/workflow/js
   - name: Install dev dependencies
-    if: env.CI_NEEDS_FIX == 'true'
     run: make deps-dev
 safe-outputs:
   create-pull-request:
@@ -109,17 +113,12 @@ When CI fails on the main branch, automatically diagnose and fix the issues by:
 
 - **Repository**: ${{ github.repository }}
 - **Run Number**: #${{ github.run_number }}
-- **CI Status**: ${{ env.CI_STATUS }}
+- **CI Status**: ${{ needs.check_ci_status.outputs.ci_status }}
+- **CI Run ID**: ${{ needs.check_ci_status.outputs.ci_run_id }}
 
 ## Your Task
 
-**IMPORTANT**: Check the CI status first:
-- **CI Status**: ${{ env.CI_STATUS }}
-- **CI Needs Fix**: ${{ env.CI_NEEDS_FIX }}
-
-If `CI_NEEDS_FIX` is `false` or `CI_STATUS` is `success`, then **CI is passing and no action is needed**. Simply report that CI is healthy and exit successfully without making any changes.
-
-If CI has failed on the main branch, follow the instructions from the ci-cleaner agent to:
+The CI workflow has failed on the main branch. Follow the instructions from the ci-cleaner agent to:
 
 1. **Format sources** - Run `make fmt` to format all code
 2. **Run linters** - Run `make lint` and fix any issues
