@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -22,6 +23,7 @@ type ImportsResult struct {
 	MergedSecretMasking string   // Merged secret-masking steps from all imports
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
+	SkillDirs           []string // List of skill directories discovered in imports (relative paths from workspace root)
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
 	// This is parsed from YAML frontmatter where the structure is dynamic and not known at compile time.
 	// This is an appropriate use of 'any' for dynamic YAML/JSON data.
@@ -162,6 +164,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var safeOutputs []string
 	var safeInputs []string
 	var agentFile string                 // Track custom agent file
+	var skillDirs []string               // Track skill directories
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
@@ -263,6 +266,48 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 
 			// Agent files don't have nested imports, skip to next item
+			continue
+		}
+
+		// Check if this is a skill import (SKILL.md file or directory containing SKILL.md)
+		if IsSkillImport(item.fullPath, baseDir) {
+			// Determine the skill directory path
+			var skillDir string
+			if strings.HasSuffix(strings.ToLower(item.fullPath), "skill.md") {
+				// Import references SKILL.md directly - use parent directory
+				skillDir = filepath.Dir(item.fullPath)
+			} else {
+				// Import references a directory - use that directory
+				skillDir = item.fullPath
+			}
+
+			// Extract relative path from repository root (from skills/ onwards)
+			// This ensures the path works at runtime with $GITHUB_WORKSPACE
+			var relativeSkillDir string
+			if idx := strings.Index(skillDir, "/skills/"); idx >= 0 {
+				relativeSkillDir = skillDir[idx+1:] // +1 to skip the leading slash
+			} else if strings.HasSuffix(skillDir, "/skills") {
+				relativeSkillDir = "skills"
+			} else {
+				relativeSkillDir = skillDir
+			}
+
+			// Add to skill directories list if not already present
+			skillAlreadyAdded := false
+			for _, existingSkillDir := range skillDirs {
+				if existingSkillDir == relativeSkillDir {
+					skillAlreadyAdded = true
+					break
+				}
+			}
+
+			if !skillAlreadyAdded {
+				skillDirs = append(skillDirs, relativeSkillDir)
+				log.Printf("Found skill directory: %s (resolved to: %s)", skillDir, relativeSkillDir)
+			}
+
+			// Skills don't contribute to merged frontmatter or markdown content
+			// They are discovered and used directly by engines (e.g., Claude, Copilot)
 			continue
 		}
 
@@ -446,6 +491,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedSecretMasking: secretMaskingBuilder.String(),
 		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
+		SkillDirs:           skillDirs,
 		ImportInputs:        importInputs,
 	}, nil
 }
