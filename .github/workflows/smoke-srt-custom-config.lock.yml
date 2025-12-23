@@ -34,7 +34,7 @@ run-name: "Smoke SRT Custom Config"
 
 jobs:
   activation:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:

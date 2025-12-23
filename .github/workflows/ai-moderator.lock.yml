@@ -52,7 +52,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') &&
       (needs.check_external_user.outputs.should_run)))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -5761,7 +5761,7 @@ jobs:
       - agent
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -5871,7 +5871,7 @@ jobs:
             await main();
 
   pre_activation:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
@@ -6032,7 +6032,7 @@ jobs:
   safe_outputs:
     needs: agent
     if: (!cancelled()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write

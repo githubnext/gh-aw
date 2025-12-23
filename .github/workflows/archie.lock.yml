@@ -53,7 +53,7 @@ jobs:
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/archie')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/archie')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/archie')))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -5813,7 +5813,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -6187,7 +6187,7 @@ jobs:
       ((contains(github.event.comment.body, '/archie')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request') &&
       (contains(github.event.pull_request.body, '/archie'))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -6362,7 +6362,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write

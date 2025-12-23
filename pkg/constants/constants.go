@@ -161,8 +161,7 @@ const DefaultToolTimeoutSeconds = int(DefaultToolTimeout / time.Second)
 const DefaultMCPStartupTimeoutSeconds = int(DefaultMCPStartupTimeout / time.Second)
 
 // DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
-// See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
-const DefaultActivationJobRunnerImage = "ubuntu-slim"
+const DefaultActivationJobRunnerImage = "ubuntu-latest"
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
