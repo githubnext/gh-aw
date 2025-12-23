@@ -1,8 +1,7 @@
 ---
-title: Interactive Playground
-description: Learn GitHub Agentic Workflows through interactive examples and step-by-step guides
-sidebar:
-  order: 100
+title: Playground
+description: A full-width playground view with workflow, graph, and run side-by-side.
+template: splash
 ---
 
 import WorkflowHeroPlayground from '../../../components/WorkflowHeroPlayground.astro';
@@ -18,45 +17,8 @@ export const workflows = [
   },
 ];
 
-This is not a live playground anymore. These examples are compiled GitHub Actions workflows with a “Hero-like” view: workflow Markdown on the left, job graph and last-run status on the right.
-
-Prefer a full-width, 3-column view? Open [/gh-aw/playground-3up/](/gh-aw/playground-3up/).
-
 <WorkflowHeroPlayground
   workflows={workflows}
   initialWorkflowId="project-board-draft-updater"
+  layout="three"
 />
-
-> The “Last run” panel is powered by JSON snapshots in this repo at `docs/src/assets/playground-snapshots/*.json`.
-
-## Try It Yourself
-
-Ready to experiment with GitHub Agentic Workflows? Here are some ways to get started:
-
-1. **Create a test repository**: Set up a new repository or use an existing one to experiment safely
-2. **Install gh-aw**: Follow the [Quick Start guide](/gh-aw/setup/quick-start/) to install the extension
-3. **Create your first workflow**: Copy the example above, save it as `.github/workflows/my-workflow.md`, and compile it with `gh aw compile`
-
-## More Examples
-
-Explore different workflow patterns and use cases:
-
-- [ChatOps](/gh-aw/examples/comment-triggered/chatops/) - Trigger workflows from issue comments
-- [IssueOps](/gh-aw/examples/issue-pr-events/issueops/) - Automate issue management
-- [Research & Planning](/gh-aw/examples/scheduled/research-planning/) - Scheduled analysis workflows
-
-## GitHub Actions Resources
-
-New to GitHub Actions? These resources will help you understand the underlying platform:
-
-- [GitHub Actions Hero](https://github-actions-hero.vercel.app) - Interactive tutorial for learning GitHub Actions
-- [GitHub Actions Documentation](https://docs.github.com/en/actions) - Official documentation
-- [Astro GitHub Actions Guide](https://docs.astro.build/en/guides/deploy/github/) - Deploy Astro sites with GitHub Actions
-
-## Deployment
-
-This documentation site is deployed using GitHub Actions. Check out the deployment workflow to see how we use GitHub Actions to build and publish these docs to GitHub Pages.
-
-:::tip[Deploy Your Own Docs]
-Want to create your own Astro Starlight documentation site? Use the [Astro + Starlight GH Pages template](https://github.com/30DaysOf/astro-starlight-ghpages) to get started quickly.
-:::

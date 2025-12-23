@@ -182,10 +182,6 @@ export default defineConfig({
 					label: 'Labs',
 					link: '/labs/',
 				},
-				{
-					label: 'Playground',
-					link: '/playground/',
-				},
 			],
 		}),
 	],
