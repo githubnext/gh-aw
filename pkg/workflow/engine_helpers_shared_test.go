@@ -212,7 +212,7 @@ func TestHandleCustomMCPToolInSwitch(t *testing.T) {
 					return fmt.Errorf("simulated render error")
 				}
 				// Write some output to verify it was called
-				yaml.WriteString(fmt.Sprintf("rendered: %s, isLast: %v\n", toolName, isLast))
+				fmt.Fprintf(yaml, "rendered: %s, isLast: %v\n", toolName, isLast)
 				return nil
 			}
 

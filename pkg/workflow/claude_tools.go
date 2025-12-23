@@ -382,7 +382,7 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 	var comment strings.Builder
 	comment.WriteString(indent + "# Allowed tools (sorted):\n")
 	for _, tool := range tools {
-		comment.WriteString(fmt.Sprintf("%s# - %s\n", indent, tool))
+		fmt.Fprintf(&comment, "%s# - %s\n", indent, tool)
 	}
 
 	return comment.String()

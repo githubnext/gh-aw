@@ -173,7 +173,7 @@ func TestCopilotEngine_MultipleHTTPMCPTools_Integration(t *testing.T) {
 	customApiIdx := strings.Index(executionStepContent, "CUSTOM_API_KEY:")
 	customTokenIdx := strings.Index(executionStepContent, "CUSTOM_TOKEN:")
 
-	if !(customApiIdx < customTokenIdx && customTokenIdx < ddIdx) {
+	if customApiIdx >= customTokenIdx || customTokenIdx >= ddIdx {
 		t.Errorf("Env variables are not sorted alphabetically in execution step")
 	}
 }

@@ -88,11 +88,11 @@ func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config Artifact
 	}
 
 	// Generate upload step YAML
-	yaml.WriteString(fmt.Sprintf("      - name: %s\n", config.StepName))
+	fmt.Fprintf(yaml, "      - name: %s\n", config.StepName)
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 	yaml.WriteString("        with:\n")
-	yaml.WriteString(fmt.Sprintf("          name: %s\n", config.ArtifactName))
+	fmt.Fprintf(yaml, "          name: %s\n", config.ArtifactName)
 
 	// Write path (only single-path is supported)
 	if len(config.UploadPaths) == 0 {
@@ -101,9 +101,9 @@ func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config Artifact
 	if len(config.UploadPaths) > 1 {
 		panic(fmt.Sprintf("generateArtifactUpload: multiple paths not supported (got %d paths for artifact %s)", len(config.UploadPaths), config.ArtifactName))
 	}
-	yaml.WriteString(fmt.Sprintf("          path: %s\n", config.UploadPaths[0]))
+	fmt.Fprintf(yaml, "          path: %s\n", config.UploadPaths[0])
 
-	yaml.WriteString(fmt.Sprintf("          if-no-files-found: %s\n", ifNoFilesFound))
+	fmt.Fprintf(yaml, "          if-no-files-found: %s\n", ifNoFilesFound)
 
 	artifactsLog.Printf("Generated artifact upload step for %s", config.ArtifactName)
 }

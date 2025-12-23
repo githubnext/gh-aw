@@ -253,7 +253,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 			SortPermissionScopes(scopes)
 			for _, scope := range scopes {
 				level := missingPermissions[scope]
-				errorMsg.WriteString(fmt.Sprintf("  - %s: %s\n", scope, level))
+				fmt.Fprintf(&errorMsg, "  - %s: %s\n", scope, level)
 			}
 			errorMsg.WriteString("\n")
 		}
@@ -268,7 +268,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 			SortPermissionScopes(scopes)
 			for _, scope := range scopes {
 				info := insufficientPermissions[scope]
-				errorMsg.WriteString(fmt.Sprintf("  - %s: has %s, requires %s\n", scope, info.current, info.required))
+				fmt.Fprintf(&errorMsg, "  - %s: has %s, requires %s\n", scope, info.current, info.required)
 			}
 			errorMsg.WriteString("\n")
 		}
@@ -292,7 +292,7 @@ func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, import
 		SortPermissionScopes(scopes)
 		for _, scope := range scopes {
 			level := allRequired[scope]
-			errorMsg.WriteString(fmt.Sprintf("  %s: %s\n", scope, level))
+			fmt.Fprintf(&errorMsg, "  %s: %s\n", scope, level)
 		}
 
 		return fmt.Errorf("%s", errorMsg.String())

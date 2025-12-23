@@ -169,17 +169,17 @@ func (jm *JobManager) RenderToYAML() string {
 func (jm *JobManager) renderJob(job *Job) string {
 	var yaml strings.Builder
 
-	yaml.WriteString(fmt.Sprintf("  %s:\n", job.Name))
+	fmt.Fprintf(&yaml, "  %s:\n", job.Name)
 
 	// Add display name if present
 	if job.DisplayName != "" {
-		yaml.WriteString(fmt.Sprintf("    name: %s\n", job.DisplayName))
+		fmt.Fprintf(&yaml, "    name: %s\n", job.DisplayName)
 	}
 
 	// Add needs clause if there are dependencies
 	if len(job.Needs) > 0 {
 		if len(job.Needs) == 1 {
-			yaml.WriteString(fmt.Sprintf("    needs: %s\n", job.Needs[0]))
+			fmt.Fprintf(&yaml, "    needs: %s\n", job.Needs[0])
 		} else {
 			yaml.WriteString("    needs:\n")
 			// Sort needs for consistent output
@@ -187,7 +187,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 			copy(sortedNeeds, job.Needs)
 			sort.Strings(sortedNeeds)
 			for _, dep := range sortedNeeds {
-				yaml.WriteString(fmt.Sprintf("      - %s\n", dep))
+				fmt.Fprintf(&yaml, "      - %s\n", dep)
 			}
 		}
 	}
@@ -209,55 +209,55 @@ func (jm *JobManager) renderJob(job *Job) string {
 				lines := strings.Split(job.If, "\n")
 				for _, line := range lines {
 					if strings.TrimSpace(line) != "" {
-						yaml.WriteString(fmt.Sprintf("      %s\n", strings.TrimSpace(line)))
+						fmt.Fprintf(&yaml, "      %s\n", strings.TrimSpace(line))
 					}
 				}
 			} else {
 				// Long single-line expression, break it into logical lines
 				lines := BreakLongExpression(job.If)
 				for _, line := range lines {
-					yaml.WriteString(fmt.Sprintf("      %s\n", strings.TrimSpace(line)))
+					fmt.Fprintf(&yaml, "      %s\n", strings.TrimSpace(line))
 				}
 			}
 		} else {
 			// Single line expression that's not too long
-			yaml.WriteString(fmt.Sprintf("    if: %s\n", job.If))
+			fmt.Fprintf(&yaml, "    if: %s\n", job.If)
 		}
 	}
 
 	// Add runs-on
 	if job.RunsOn != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.RunsOn))
+		fmt.Fprintf(&yaml, "    %s\n", job.RunsOn)
 	}
 
 	// Add environment section
 	if job.Environment != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.Environment))
+		fmt.Fprintf(&yaml, "    %s\n", job.Environment)
 	}
 
 	// Add container section
 	if job.Container != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.Container))
+		fmt.Fprintf(&yaml, "    %s\n", job.Container)
 	}
 
 	// Add services section
 	if job.Services != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.Services))
+		fmt.Fprintf(&yaml, "    %s\n", job.Services)
 	}
 
 	// Add permissions section
 	if job.Permissions != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.Permissions))
+		fmt.Fprintf(&yaml, "    %s\n", job.Permissions)
 	}
 
 	// Add concurrency section
 	if job.Concurrency != "" {
-		yaml.WriteString(fmt.Sprintf("    %s\n", job.Concurrency))
+		fmt.Fprintf(&yaml, "    %s\n", job.Concurrency)
 	}
 
 	// Add timeout_minutes if specified
 	if job.TimeoutMinutes > 0 {
-		yaml.WriteString(fmt.Sprintf("    timeout-minutes: %d\n", job.TimeoutMinutes))
+		fmt.Fprintf(&yaml, "    timeout-minutes: %d\n", job.TimeoutMinutes)
 	}
 
 	// Add environment variables section
@@ -271,7 +271,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 		sort.Strings(envKeys)
 
 		for _, key := range envKeys {
-			yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Env[key]))
+			fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Env[key])
 		}
 	}
 
@@ -286,14 +286,14 @@ func (jm *JobManager) renderJob(job *Job) string {
 		sort.Strings(outputKeys)
 
 		for _, key := range outputKeys {
-			yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Outputs[key]))
+			fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Outputs[key])
 		}
 	}
 
 	// Check if this is a reusable workflow call
 	if job.Uses != "" {
 		// Add uses directive for reusable workflow
-		yaml.WriteString(fmt.Sprintf("    uses: %s\n", job.Uses))
+		fmt.Fprintf(&yaml, "    uses: %s\n", job.Uses)
 
 		// Add with parameters if present
 		if len(job.With) > 0 {
@@ -310,13 +310,13 @@ func (jm *JobManager) renderJob(job *Job) string {
 				// Format the value based on its type
 				switch v := value.(type) {
 				case string:
-					yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, v))
+					fmt.Fprintf(&yaml, "      %s: %s\n", key, v)
 				case int, int64, float64:
-					yaml.WriteString(fmt.Sprintf("      %s: %v\n", key, v))
+					fmt.Fprintf(&yaml, "      %s: %v\n", key, v)
 				case bool:
-					yaml.WriteString(fmt.Sprintf("      %s: %t\n", key, v))
+					fmt.Fprintf(&yaml, "      %s: %t\n", key, v)
 				default:
-					yaml.WriteString(fmt.Sprintf("      %s: %v\n", key, v))
+					fmt.Fprintf(&yaml, "      %s: %v\n", key, v)
 				}
 			}
 		}
@@ -332,7 +332,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 			sort.Strings(secretKeys)
 
 			for _, key := range secretKeys {
-				yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Secrets[key]))
+				fmt.Fprintf(&yaml, "      %s: %s\n", key, job.Secrets[key])
 			}
 		}
 	} else {

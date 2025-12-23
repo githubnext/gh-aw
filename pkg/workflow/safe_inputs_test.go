@@ -928,7 +928,7 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 		t.Error("Tools config should contain all tools")
 	}
 
-	if !(alphaPos < middlePos && middlePos < zebraPos) {
+	if alphaPos >= middlePos || middlePos >= zebraPos {
 		t.Errorf("Tools should be sorted alphabetically: alpha(%d) < middle(%d) < zebra(%d)", alphaPos, middlePos, zebraPos)
 	}
 
@@ -952,7 +952,7 @@ func TestSafeInputsStableCodeGeneration(t *testing.T) {
 		t.Error("JavaScript script should contain all input parameters in JSDoc")
 	}
 
-	if !(alphaParamPos < charlieParamPos) {
+	if alphaParamPos >= charlieParamPos {
 		t.Errorf("Input parameters should be sorted alphabetically in JSDoc: alpha(%d) < charlie(%d)", alphaParamPos, charlieParamPos)
 	}
 

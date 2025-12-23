@@ -278,7 +278,8 @@ func expandToolsetsForTesting(toolsets []string) []string {
 	seenToolsets := make(map[string]bool)
 
 	for _, toolset := range toolsets {
-		if toolset == "default" {
+		switch toolset {
+		case "default":
 			// Add default toolsets
 			for _, dt := range DefaultGitHubToolsets {
 				if !seenToolsets[dt] {
@@ -286,7 +287,7 @@ func expandToolsetsForTesting(toolsets []string) []string {
 					seenToolsets[dt] = true
 				}
 			}
-		} else if toolset == "all" {
+		case "all":
 			// Add all toolsets from the permissions map
 			for t := range toolsetPermissionsMap {
 				if !seenToolsets[t] {
@@ -294,7 +295,7 @@ func expandToolsetsForTesting(toolsets []string) []string {
 					seenToolsets[t] = true
 				}
 			}
-		} else {
+		default:
 			// Add individual toolset
 			if !seenToolsets[toolset] {
 				expanded = append(expanded, toolset)
