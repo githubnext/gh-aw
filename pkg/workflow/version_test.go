@@ -69,7 +69,7 @@ func TestIsReleasedVersion_WithReleaseFlag(t *testing.T) {
 			isRelease:     true,
 			version:       "1.0.0",
 			expectedValue: true,
-			description:   "When isRelease is true, should return true regardless of version format",
+			description:   "When isRelease is true, should return true",
 		},
 		{
 			name:          "Release flag true with dev version",
@@ -89,29 +89,29 @@ func TestIsReleasedVersion_WithReleaseFlag(t *testing.T) {
 			name:          "Release flag false with valid semver",
 			isRelease:     false,
 			version:       "1.0.0",
-			expectedValue: true,
-			description:   "When isRelease is false, falls back to heuristic checks",
+			expectedValue: false,
+			description:   "When isRelease is false, should return false regardless of version format",
 		},
 		{
 			name:          "Release flag false with dev version",
 			isRelease:     false,
 			version:       "dev",
 			expectedValue: false,
-			description:   "When isRelease is false, dev version should return false",
+			description:   "When isRelease is false, should return false",
 		},
 		{
 			name:          "Release flag false with dirty version",
 			isRelease:     false,
 			version:       "1.0.0-dirty",
 			expectedValue: false,
-			description:   "When isRelease is false, dirty version should return false",
+			description:   "When isRelease is false, should return false",
 		},
 		{
 			name:          "Release flag false with git hash",
 			isRelease:     false,
 			version:       "abc123",
 			expectedValue: false,
-			description:   "When isRelease is false, git hash should return false",
+			description:   "When isRelease is false, should return false",
 		},
 	}
 
