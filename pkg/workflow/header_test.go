@@ -240,39 +240,39 @@ func TestGenerateWorkflowHeader_WithReleaseFlag(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name             string
-		version          string
-		isRelease        bool
+		name              string
+		version           string
+		isRelease         bool
 		shouldHaveVersion bool
-		description      string
+		description       string
 	}{
 		{
-			name:             "Release build with valid version",
-			version:          "1.0.0",
-			isRelease:        true,
+			name:              "Release build with valid version",
+			version:           "1.0.0",
+			isRelease:         true,
 			shouldHaveVersion: true,
-			description:      "Release build should include version in header",
+			description:       "Release build should include version in header",
 		},
 		{
-			name:             "Dev build with valid version",
-			version:          "1.0.0",
-			isRelease:        false,
+			name:              "Dev build with valid version",
+			version:           "1.0.0",
+			isRelease:         false,
 			shouldHaveVersion: true,
-			description:      "Non-release build with valid semver should include version",
+			description:       "Non-release build with valid semver should include version",
 		},
 		{
-			name:             "Dev build with dev version",
-			version:          "dev",
-			isRelease:        false,
+			name:              "Dev build with dev version",
+			version:           "dev",
+			isRelease:         false,
 			shouldHaveVersion: false,
-			description:      "Non-release build with 'dev' version should not include version",
+			description:       "Non-release build with 'dev' version should not include version",
 		},
 		{
-			name:             "Release build with dev version",
-			version:          "dev",
-			isRelease:        true,
+			name:              "Release build with dev version",
+			version:           "dev",
+			isRelease:         true,
 			shouldHaveVersion: true,
-			description:      "Release build should include version even if it says 'dev'",
+			description:       "Release build should include version even if it says 'dev'",
 		},
 	}
 
