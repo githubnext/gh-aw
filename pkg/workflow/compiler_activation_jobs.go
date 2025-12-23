@@ -397,7 +397,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/compute_text.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/compute_text.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Inline the JavaScript directly instead of using shared action
 			steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)

@@ -39,7 +39,7 @@ const mockCore = {
       (vi.clearAllMocks(), (mockContext.eventName = "issues"), (mockContext.payload = {}), delete process.env.GH_AW_ALLOWED_DOMAINS);
       const scriptPath = path.join(process.cwd(), "compute_text.cjs");
       computeTextScript = fs.readFileSync(scriptPath, "utf8");
-      const scriptWithExport = computeTextScript.replace("await main();", "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;");
+      const scriptWithExport = computeTextScript.replace("module.exports = { main };", "global.testSanitizeIncomingText = sanitizeIncomingText; global.testMain = main;");
       (eval(scriptWithExport), (sanitizeIncomingTextFunction = global.testSanitizeIncomingText));
     }),
       describe("sanitizeIncomingText function", () => {
