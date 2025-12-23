@@ -680,4 +680,5 @@ You can manually create a pull request from the branch if needed.${patchPreview}
     }
   }
 }
-await main();
+
+module.exports = { main };

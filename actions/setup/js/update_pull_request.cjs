@@ -80,4 +80,4 @@ const main = createUpdateHandler({
   executeUpdate: executePRUpdate,
 });
 
-await main();
+module.exports = { main };

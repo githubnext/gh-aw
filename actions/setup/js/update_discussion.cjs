@@ -281,4 +281,4 @@ const main = createUpdateHandler({
   executeUpdate: executeDiscussionUpdate,
 });
 
-await main();
+module.exports = { main };

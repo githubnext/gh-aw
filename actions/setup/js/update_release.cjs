@@ -167,5 +167,4 @@ async function main() {
   await core.summary.addRaw(summaryContent).write();
 }
 
-// Call the main function
-await main();
+module.exports = { main };

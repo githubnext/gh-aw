@@ -241,4 +241,5 @@ async function main() {
     findings: validFindings,
   };
 }
-await main();
+
+module.exports = { main };
