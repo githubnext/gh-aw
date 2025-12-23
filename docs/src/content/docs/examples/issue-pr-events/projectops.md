@@ -15,28 +15,17 @@ Then the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates
 
 1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
 
-2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned** 
-For user-owned projects, use a **classic PAT** with `read:project` scope (for queries) or `project` scope (for queries and mutations).
+2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned**.
 
-Required scopes:
+#### User-owned Projects (v2)
 
+Use a **classic PAT** with scopes:
 - `project` (required for user Projects)
 - `repo` (required if accessing private repositories)
 
-Create at: [https://github.com/settings/tokens/new](https://github.com/settings/tokens/new)
-
 #### Organization-owned Projects (v2)
 
-You can use either a classic or fine-grained PAT.
-
-**Classic PAT** scopes:
-
-- `project` (required)
-- `read:org` (required for org Projects)
-- `repo` (required if accessing private repositories)
-
-**Fine-grained PAT** settings (recommended):
-
+Use a **fine-grained** PAT with scopes:
 - Repository access: Select specific repos that will use the workflow
 - Repository permissions:
   - Contents: Read
@@ -46,8 +35,6 @@ You can use either a classic or fine-grained PAT.
   - Projects: Read & Write (required for updating projects)
 
 Important: Fine-grained PATs require explicit organization access. You must grant organization access and Projects permissions during token creation.
-
-Create at: [https://github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
 
 ### 3) Store the token as a secret
 
