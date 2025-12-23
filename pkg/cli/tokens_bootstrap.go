@@ -125,7 +125,7 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
-		Short: "Check and suggest setup for gh-aw GitHub token secrets",
+		Short: "Check and suggest setup for gh aw GitHub token secrets",
 		Long: `Check which recommended GitHub token secrets (like GH_AW_GITHUB_TOKEN)
 are configured for the current repository, and print least-privilege setup
 instructions for any that are missing.

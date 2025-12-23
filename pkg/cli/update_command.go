@@ -16,11 +16,11 @@ var updateLog = logger.New("cli:update_command")
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow]...",
-		Short: "Update agentic workflows from their source repositories and check for gh-aw updates",
-		Long: `Update one or more workflows from their source repositories and check for gh-aw updates.
+		Short: "Update agentic workflows from their source repositories and check for gh aw updates",
+		Long: `Update one or more workflows from their source repositories and check for gh aw updates.
 
 The command:
-1. Checks if a newer version of gh-aw is available
+1. Checks if a newer version of gh aw is available
 2. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
 3. Updates workflows using the 'source' field in the workflow frontmatter
 4. Compiles each workflow immediately after update
@@ -50,10 +50,10 @@ The --audit flag implies --dry-run (no updates performed).
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` update                    # Check gh-aw updates, update actions, and update all workflows
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates, update actions, and update specific workflow
+  ` + constants.CLIExtensionPrefix + ` update                    # Check gh aw updates, update actions, and update all workflows
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh aw updates, update actions, and update specific workflow
   ` + constants.CLIExtensionPrefix + ` update --no-actions      # Skip action updates, only update workflows
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh-aw updates, update actions, and update specific workflow (alternative format)
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh aw updates, update actions, and update specific workflow (alternative format)
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
   ` + constants.CLIExtensionPrefix + ` update --merge           # Update with 3-way merge to preserve local changes
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
