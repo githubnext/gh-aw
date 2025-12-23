@@ -19,16 +19,17 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Hourly CI cleaner that fixes format, lint, and test issues when CI fails on main branch
+# CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend.
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - ../agents/ci-cleaner.agent.md
 
-name: "Hourly CI Cleaner"
+name: "CI Cleaner"
 "on":
   schedule:
-  - cron: "0 * * * *"
+  - cron: "0 9-17/2 * * *"
+  - cron: "0 0,3,6,18,21 * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -36,7 +37,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Hourly CI Cleaner"
+run-name: "CI Cleaner"
 
 jobs:
   activation:
@@ -1822,7 +1823,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.372",
-              workflow_name: "Hourly CI Cleaner",
+              workflow_name: "CI Cleaner",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2178,9 +2179,9 @@ jobs:
           
           Let's tidy up the CI! 🧹✨
           
-          # Hourly CI Cleaner
+          # CI Cleaner
           
-          You are an automated CI cleaner that runs hourly to fix CI failures on the main branch.
+          You are an automated CI cleaner that runs periodically to fix CI failures on the main branch. The workflow runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend while maintaining CI health.
           
           ## Mission
           
@@ -5509,7 +5510,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-hourly-ci-cleaner
+          name: firewall-logs-ci-cleaner
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -5969,7 +5970,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Hourly CI Cleaner"
+          GH_AW_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_TRACKER_ID: "hourly-ci-cleaner"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -5986,7 +5987,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Hourly CI Cleaner"
+          GH_AW_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_TRACKER_ID: "hourly-ci-cleaner"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -6006,7 +6007,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Hourly CI Cleaner"
+          GH_AW_WORKFLOW_NAME: "CI Cleaner"
           GH_AW_TRACKER_ID: "hourly-ci-cleaner"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
@@ -6068,8 +6069,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Hourly CI Cleaner"
-          WORKFLOW_DESCRIPTION: "Hourly CI cleaner that fixes format, lint, and test issues when CI fails on main branch"
+          WORKFLOW_NAME: "CI Cleaner"
+          WORKFLOW_DESCRIPTION: "CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend."
         with:
           script: |
             const fs = require('fs');
@@ -6306,7 +6307,7 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_TRACKER_ID: "hourly-ci-cleaner"
       GH_AW_WORKFLOW_ID: "hourly-ci-cleaner"
-      GH_AW_WORKFLOW_NAME: "Hourly CI Cleaner"
+      GH_AW_WORKFLOW_NAME: "CI Cleaner"
     outputs:
       create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
       create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
