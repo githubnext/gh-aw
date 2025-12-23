@@ -20,6 +20,64 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 
 Each skill provides focused guidance on specific topics. Reference them only as needed rather than loading everything upfront.
 
+## Agent Skills Support
+
+GitHub Agentic Workflows supports the [Agent Skills](https://agentskills.io) format for packaging reusable instructions, scripts, and resources. Skills use a simple format: a folder with a `SKILL.md` file containing YAML frontmatter and markdown instructions.
+
+### Using Skills in Workflows
+
+Skills can be imported directly in workflow frontmatter:
+
+```markdown
+---
+on: issues
+engine: copilot
+imports:
+  - skills/my-skill
+---
+
+Use the my-skill to help with this task.
+```
+
+### Skill Format
+
+Each skill must have a `SKILL.md` file with YAML frontmatter:
+
+```markdown
+---
+name: my-skill
+description: Brief description of what this skill does
+---
+
+# My Skill
+
+Instructions for the agent go here.
+```
+
+**Required Fields:**
+- `name`: Unique identifier for the skill (lowercase with hyphens)
+- `description`: Clear description of the skill's purpose
+
+### Engine Support
+
+**Copilot**: Skills are automatically made accessible via `--add-dir` flags pointing to skill directories
+
+**Claude & Codex**: Skills are auto-discovered from the workspace (native support)
+
+### Skill Discovery
+
+Skills are identified by:
+- Files named `SKILL.md`
+- Directories under `skills/` containing `SKILL.md`
+- Any import path containing `/skills/`
+
+### Best Practices
+
+- Keep skills focused on a single topic or capability
+- Use clear, descriptive names and descriptions
+- Place skills in the `skills/` directory at the repository root
+- Reference the [agentskills.io specification](https://agentskills.io) for detailed format guidelines
+
 ## Critical Requirements
 
 **ALWAYS RUN AGENT-FINISH BEFORE COMMITTING:**
