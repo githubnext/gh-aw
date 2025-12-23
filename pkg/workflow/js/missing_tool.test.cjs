@@ -36,7 +36,7 @@ describe("missing_tool.cjs", () => {
         toPlatformPath: vi.fn(),
         toPosixPath: vi.fn(),
         toWin32Path: vi.fn(),
-        summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
+        summary: { addRaw: vi.fn().mockReturnThis(), addHeading: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
       }),
       (global.core = mockCore),
       (global.module = { exports: {} }), // Add module for exports

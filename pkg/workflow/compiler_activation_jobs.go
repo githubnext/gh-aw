@@ -495,7 +495,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/lock-issue.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/lock-issue.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Add the lock-issue script
 			formattedScript := FormatJavaScriptForYAML(lockIssueScript)

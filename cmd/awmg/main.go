@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/githubnext/gh-aw/pkg/cli"
+	"github.com/githubnext/gh-aw/pkg/awmg"
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
@@ -15,10 +15,10 @@ var (
 
 func main() {
 	// Set version info
-	cli.SetVersionInfo(version)
+	awmg.SetVersionInfo(version)
 
 	// Create the mcp-gateway command
-	cmd := cli.NewMCPGatewayCommand()
+	cmd := awmg.NewMCPGatewayCommand()
 
 	// Update command usage to reflect standalone binary
 	cmd.Use = "awmg"

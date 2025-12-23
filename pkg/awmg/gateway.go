@@ -1,4 +1,4 @@
-package cli
+package awmg
 
 import (
 	"context"
@@ -18,7 +18,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gatewayLog = logger.New("cli:mcp_gateway")
+var gatewayLog = logger.New("awmg:gateway")
+
+// version is set by the main package
+var version = "dev"
+
+// SetVersionInfo sets the version information for the awmg package
+func SetVersionInfo(v string) {
+	version = v
+}
+
+// GetVersion returns the current version
+func GetVersion() string {
+	return version
+}
 
 // MCPGatewayConfig represents the configuration for the MCP gateway
 type MCPGatewayConfig struct {
@@ -504,10 +517,37 @@ func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerC
 
 	// Handle different server types
 	if config.URL != "" {
-		// HTTP transport (not yet fully supported in go-sdk for SSE)
-		gatewayLog.Printf("Attempting HTTP client for %s at %s", serverName, config.URL)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("HTTP transport not yet supported for %s", serverName)))
-		return nil, fmt.Errorf("HTTP transport not yet fully implemented in MCP gateway")
+		// Streamable HTTP transport using the go-sdk StreamableClientTransport
+		gatewayLog.Printf("Creating streamable HTTP client for %s at %s", serverName, config.URL)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using streamable HTTP transport: %s", config.URL)))
+
+		// Create streamable client transport
+		transport := &mcp.StreamableClientTransport{
+			Endpoint: config.URL,
+		}
+
+		gatewayLog.Printf("Creating MCP client for %s", serverName)
+		client := mcp.NewClient(&mcp.Implementation{
+			Name:    fmt.Sprintf("gateway-client-%s", serverName),
+			Version: GetVersion(),
+		}, nil)
+
+		gatewayLog.Printf("Connecting to MCP server %s with 30s timeout", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Connecting to %s...", serverName)))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		session, err := client.Connect(ctx, transport, nil)
+		if err != nil {
+			gatewayLog.Printf("Failed to connect to HTTP server %s: %v", serverName, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Connection failed for %s: %v", serverName, err)))
+			return nil, fmt.Errorf("failed to connect to HTTP server: %w", err)
+		}
+
+		gatewayLog.Printf("Successfully connected to MCP server %s via streamable HTTP", serverName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Connected to %s successfully via streamable HTTP", serverName)))
+		return session, nil
 	} else if config.Command != "" {
 		// Command transport (subprocess with stdio)
 		gatewayLog.Printf("Creating command client for %s with command: %s %v", serverName, config.Command, config.Args)
