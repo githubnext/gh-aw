@@ -2,8 +2,11 @@
 name: Go Logger Enhancement
 description: Analyzes and enhances Go logging practices across the codebase for improved debugging and observability
 on:
-  schedule: daily
+  # TEMPORARILY DISABLED - High error rate (45.6 errors/run)
+  # Re-enable after investigation of root cause
+  # schedule: daily
   workflow_dispatch:
+  skip-if-match: 'is:pr is:open in:title "[log]"'
 
 permissions:
   contents: read

@@ -2,7 +2,9 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating pull requests with remediation
 on:
-  schedule: every 4h
+  # TEMPORARILY DISABLED - High error rate (44.3 errors/run)
+  # Re-enable after investigation of root cause
+  # schedule: every 4h
   workflow_dispatch:
     inputs:
       security_url:
