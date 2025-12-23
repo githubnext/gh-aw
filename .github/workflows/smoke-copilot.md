@@ -21,8 +21,6 @@ network:
     - github
 sandbox:
   agent: awf  # Firewall enabled
-  mcp:
-    port: 8080
 tools:
   cache-memory: true
   edit:

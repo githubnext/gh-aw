@@ -11,10 +11,6 @@ permissions:
   contents: read
   issues: read
 
-sandbox:
-  mcp:
-    port: 8080
-
 tools:
   github:
     toolsets: [issues]
