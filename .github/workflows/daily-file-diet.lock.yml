@@ -53,8 +53,13 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@83c54f6
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -6518,6 +6523,15 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions/activation
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
@@ -6563,89 +6577,12 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const noopItems = result.items.filter( item => item.type === "noop");
-              if (noopItems.length === 0) {
-                core.info("No noop items found in agent output");
-                return;
-              }
-              core.info(`Found ${noopItems.length} noop item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
-                summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
-                for (let i = 0; i < noopItems.length; i++) {
-                  const item = noopItems[i];
-                  summaryContent += `### Message ${i + 1}\n`;
-                  summaryContent += `${item.message}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 No-op message preview written to step summary");
-                return;
-              }
-              let summaryContent = "\n\n## No-Op Messages\n\n";
-              summaryContent += "The following messages were logged for transparency:\n\n";
-              for (let i = 0; i < noopItems.length; i++) {
-                const item = noopItems[i];
-                core.info(`No-op message ${i + 1}: ${item.message}`);
-                summaryContent += `- ${item.message}\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-              if (noopItems.length > 0) {
-                core.setOutput("noop_message", noopItems[0].message);
-                core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
-              }
-              core.info(`Successfully processed ${noopItems.length} noop message(s)`);
-            }
-            await main();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/activation/noop.cjs');
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6656,105 +6593,12 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            async function main() {
-              const fs = require("fs");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
-              }
-              const missingTools = [];
-              if (!agentOutputFile.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              let agentOutput;
-              try {
-                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.info(`Agent output file not found or unreadable: ${error instanceof Error ? error.message : String(error)}`);
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              if (agentOutput.trim() === "") {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Agent output length: ${agentOutput.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(agentOutput);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing_tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
-                  }
-                }
-              }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`#### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
-              } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
-              }
-            }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/activation/missing_tool.cjs');
       - name: Update reaction comment with completion status
         id: conclusion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6770,254 +6614,12 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const fs = require("fs");
-            const MAX_LOG_CONTENT_LENGTH = 10000;
-            function truncateForLogging(content) {
-              if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-                return content;
-              }
-              return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-            }
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.error(errorMessage);
-                core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function getMessages() {
-              const messagesEnv = process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
-              if (!messagesEnv) {
-                return null;
-              }
-              try {
-                return JSON.parse(messagesEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
-                return null;
-              }
-            }
-            function renderTemplate(template, context) {
-              return template.replace(/\{(\w+)\}/g, (match, key) => {
-                const value = context[key];
-                return value !== undefined && value !== null ? String(value) : match;
-              });
-            }
-            function toSnakeCase(obj) {
-              const result = {};
-              for (const [key, value] of Object.entries(obj)) {
-                const snakeKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
-                result[snakeKey] = value;
-                result[key] = value;
-              }
-              return result;
-            }
-            function getRunStartedMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚓ Avast! [{workflow_name}]({run_url}) be settin' sail on this {event_type}! 🏴‍☠️";
-              return messages?.runStarted ? renderTemplate(messages.runStarted, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunSuccessMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "🎉 Yo ho ho! [{workflow_name}]({run_url}) found the treasure and completed successfully! ⚓💰";
-              return messages?.runSuccess ? renderTemplate(messages.runSuccess, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getRunFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "💀 Blimey! [{workflow_name}]({run_url}) {status} and walked the plank! No treasure today, matey! ☠️";
-              return messages?.runFailure ? renderTemplate(messages.runFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function getDetectionFailureMessage(ctx) {
-              const messages = getMessages();
-              const templateContext = toSnakeCase(ctx);
-              const defaultMessage = "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.";
-              return messages?.detectionFailure ? renderTemplate(messages.detectionFailure, templateContext) : renderTemplate(defaultMessage, templateContext);
-            }
-            function collectGeneratedAssets() {
-              const assets = [];
-              const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
-              if (!safeOutputJobsEnv) {
-                return assets;
-              }
-              let jobOutputMapping;
-              try {
-                jobOutputMapping = JSON.parse(safeOutputJobsEnv);
-              } catch (error) {
-                core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
-                return assets;
-              }
-              for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
-                const envVarName = `GH_AW_OUTPUT_${jobName.toUpperCase()}_${urlKey.toUpperCase()}`;
-                const url = process.env[envVarName];
-                if (url && url.trim() !== "") {
-                  assets.push(url);
-                  core.info(`Collected asset URL: ${url}`);
-                }
-              }
-              return assets;
-            }
-            async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (detectionConclusion) {
-                core.info(`Detection Conclusion: ${detectionConclusion}`);
-              }
-              let noopMessages = [];
-              const agentOutputResult = loadAgentOutput();
-              if (agentOutputResult.success && agentOutputResult.data) {
-                const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
-                if (noopItems.length > 0) {
-                  core.info(`Found ${noopItems.length} noop message(s)`);
-                  noopMessages = noopItems.map(item => item.message);
-                }
-              }
-              if (!commentId && noopMessages.length > 0) {
-                core.info("No comment ID found, writing noop messages to step summary");
-                let summaryContent = "## No-Op Messages\n\n";
-                summaryContent += "The following messages were logged for transparency:\n\n";
-                if (noopMessages.length === 1) {
-                  summaryContent += noopMessages[0];
-                } else {
-                  summaryContent += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(`Successfully wrote ${noopMessages.length} noop message(s) to step summary`);
-                return;
-              }
-              if (!commentId) {
-                core.info("No comment ID found and no noop messages to process, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let message;
-              if (detectionConclusion && detectionConclusion === "failure") {
-                message = getDetectionFailureMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else if (agentConclusion === "success") {
-                message = getRunSuccessMessage({
-                  workflowName,
-                  runUrl,
-                });
-              } else {
-                let statusText;
-                if (agentConclusion === "cancelled") {
-                  statusText = "was cancelled";
-                } else if (agentConclusion === "skipped") {
-                  statusText = "was skipped";
-                } else if (agentConclusion === "timed_out") {
-                  statusText = "timed out";
-                } else {
-                  statusText = "failed";
-                }
-                message = getRunFailureMessage({
-                  workflowName,
-                  runUrl,
-                  status: statusText,
-                });
-              }
-              if (noopMessages.length > 0) {
-                message += "\n\n";
-                if (noopMessages.length === 1) {
-                  message += noopMessages[0];
-                } else {
-                  message += noopMessages.map((msg, idx) => `${idx + 1}. ${msg}`).join("\n");
-                }
-              }
-              const generatedAssets = collectGeneratedAssets();
-              if (generatedAssets.length > 0) {
-                message += "\n\n";
-                generatedAssets.forEach(url => {
-                  message += `${url}\n`;
-                });
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            require('/tmp/gh-aw/actions/activation/notify_comment_error.cjs');
       - name: Invalidate GitHub App token
         if: always() && steps.app-token.outputs.token != ''
         env:
@@ -7297,8 +6899,13 @@ jobs:
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@83c54f6
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow

@@ -45,6 +45,24 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build the job steps
 	var steps []string
 
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			steps = append(steps, "      - name: Checkout actions folder\n")
+			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			steps = append(steps, "        with:\n")
+			steps = append(steps, "          sparse-checkout: |\n")
+			steps = append(steps, "            actions\n")
+		}
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+	}
+
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		// Use permissions for the conclusion job
@@ -86,6 +104,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			MainJobName:   mainJobName,
 			CustomEnvVars: noopEnvVars,
 			Script:        getNoOpScript(),
+			ScriptFile:    "noop.cjs",
 			Token:         data.SafeOutputs.NoOp.GitHubToken,
 		})
 		steps = append(steps, noopSteps...)
@@ -109,6 +128,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			MainJobName:   mainJobName,
 			CustomEnvVars: missingToolEnvVars,
 			Script:        missingToolScript,
+			ScriptFile:    "missing_tool.cjs",
 			Token:         data.SafeOutputs.MissingTool.GitHubToken,
 		})
 		steps = append(steps, missingToolSteps...)
@@ -165,6 +185,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getNotifyCommentErrorScript(),
+		ScriptFile:    "notify_comment_error.cjs",
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
@@ -195,9 +216,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
-		// Add the unlock-issue script
-		formattedScript := FormatJavaScriptForYAML(unlockIssueScript)
-		steps = append(steps, formattedScript...)
+		// Use require() to load unlock-issue script
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
+		steps = append(steps, "            require('/tmp/gh-aw/actions/activation/unlock-issue.cjs');\n")
 
 		notifyCommentLog.Print("Added unlock issue step to conclusion job")
 	}

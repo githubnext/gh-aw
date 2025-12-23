@@ -64,9 +64,10 @@ func DetectActionMode(version string) ActionMode {
 		actionModeLog.Printf("Invalid action mode in environment: %s, falling back to auto-detection", envMode)
 	}
 
-	// Check if version indicates a release build (not "dev" and not empty)
-	if version != "" && version != "dev" {
-		// Version is a release tag, use release mode
+	// Check if version indicates a release build
+	// Release tags are clean version strings (not "dev", not empty, no "-dirty" suffix)
+	if version != "" && version != "dev" && !strings.Contains(version, "-dirty") {
+		// Version is a clean release tag, use release mode
 		actionModeLog.Printf("Detected release mode from binary version: %s", version)
 		return ActionModeRelease
 	}
