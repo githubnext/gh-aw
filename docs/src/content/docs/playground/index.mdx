@@ -5,78 +5,29 @@ sidebar:
   order: 100
 ---
 
-import WorkflowPlayground from '../../../components/WorkflowPlayground.astro';
+import WorkflowHeroPlayground from '../../../components/WorkflowHeroPlayground.astro';
 
-Explore GitHub Agentic Workflows through interactive examples. Each playground demonstrates a complete workflow with step-by-step explanations to help you understand how workflows are structured and what each section does.
+export const workflows = [
+  {
+    id: 'project-board-draft-updater',
+    label: 'Update project board (draft)',
+  },
+  {
+    id: 'project-board-issue-updater',
+    label: 'Update project board (issue)',
+  },
+];
 
-## Getting Started Example
+This is not a live playground anymore. These examples are compiled GitHub Actions workflows with a “Hero-like” view: workflow Markdown on the left, job graph and last-run status on the right.
 
-This is a simple workflow that creates a daily team status report. Follow along with the step-by-step guide to understand each component.
+Prefer a full-width, 3-column view? Open [/gh-aw/playground-3up/](/gh-aw/playground-3up/).
 
-<WorkflowPlayground
-  title="Daily Team Status Workflow"
-  workflowContent={`---
-timeout-minutes: 10
-strict: true
-on:
-  schedule:
-  - cron: 0 9 * * 1-5
-  workflow_dispatch: null
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-safe-outputs:
-  create-discussion:
-    expires: 3d
-    category: announcements
-    title-prefix: "[team-status] "
-tools:
-  github: null
----
-
-# Daily Team Status
-
-Create an upbeat daily status report for the team.
-
-## What to include
-
-- Recent repository activity (issues, PRs, discussions)
-- Team productivity suggestions
-- Community engagement highlights
-
-## Style
-
-- Be positive and encouraging 🌟
-- Use emojis moderately for engagement
-- Keep it concise but informative`}
-  steps={[
-    {
-      id: "frontmatter",
-      title: "Frontmatter Configuration",
-      description: "The YAML frontmatter defines workflow triggers, permissions, and settings. This workflow runs on a schedule (weekdays at 9 AM) and can be manually triggered.",
-      codeLines: [1, 18]
-    },
-    {
-      id: "safe-outputs",
-      title: "Safe Outputs",
-      description: "Configure how the AI agent can interact with your repository. This workflow creates discussions in the 'announcements' category with a '[team-status]' prefix.",
-      codeLines: [11, 14]
-    },
-    {
-      id: "tools",
-      title: "Tools Configuration",
-      description: "Enable tools for the AI agent. The 'github' tool allows the agent to read repository information like issues, PRs, and discussions.",
-      codeLines: [15, 16]
-    },
-    {
-      id: "instructions",
-      title: "Natural Language Instructions",
-      description: "Write your instructions in plain markdown. The AI agent will follow these instructions to complete the task. Be clear and specific about what you want.",
-      codeLines: [20, 36]
-    }
-  ]}
+<WorkflowHeroPlayground
+  workflows={workflows}
+  initialWorkflowId="project-board-draft-updater"
 />
+
+> The “Last run” panel is powered by JSON snapshots in this repo at `docs/src/assets/playground-snapshots/*.json`.
 
 ## Try It Yourself
 

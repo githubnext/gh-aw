@@ -1,6 +1,7 @@
 ---
 import octicons from '@primer/octicons';
 import { Steps } from '@astrojs/starlight/components';
+import { Code } from 'astro-expressive-code/components';
 
 interface Step {
   id: string;
@@ -14,9 +15,10 @@ interface Props {
   workflowContent: string;
   steps: Step[];
   playgroundUrl?: string;
+  language?: string;
 }
 
-const { title, workflowContent, steps, playgroundUrl } = Astro.props;
+const { title, workflowContent, steps, playgroundUrl, language = 'yaml' } = Astro.props;
 
 const playIcon = octicons['play'].toSVG({ width: 16, height: 16 });
 const copyIcon = octicons['copy'].toSVG({ width: 16, height: 16 });
@@ -44,7 +46,7 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
       </button>
     </div>
     <div class="code-container">
-      <pre class="workflow-code" data-workflow-content={workflowContent}><code>{workflowContent}</code></pre>
+      <Code code={workflowContent} lang={language} />
     </div>
   </div>
 
@@ -212,22 +214,9 @@ const checkIcon = octicons['check'].toSVG({ width: 16, height: 16 });
     max-height: 500px;
   }
 
-  .workflow-code {
-    margin: 0 !important;
-    padding: 1.5rem !important;
-    background: transparent !important;
-    font-family: var(--sl-font-mono) !important;
-    font-size: 0.875rem !important;
-    line-height: 1.6 !important;
-    color: var(--sl-color-text) !important;
-    white-space: pre !important;
-    overflow-x: auto !important;
-  }
-
-  .workflow-code code {
-    display: block;
-    background: transparent !important;
-    padding: 0 !important;
+  /* Let Expressive Code render the highlighted markup, but keep our padding consistent */
+  .code-container :global(pre) {
+    margin: 0;
   }
 
   .steps-section {

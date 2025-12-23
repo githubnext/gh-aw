@@ -16,7 +16,12 @@ pnpm-debug.log*
 
 # environment variables
 .env
+.env.local
 .env.production
+
+# Playground assets are fetched/copied at build time
+src/assets/playground-workflows/org-owned/
+src/assets/playground-workflows/user-owned/
 
 # macOS-specific files
 .DS_Store

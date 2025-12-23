@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = dirname(fileURLToPath(import.meta.url));
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -38,7 +42,12 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run build && npm run preview',
+    // Ensure the command always runs relative to the docs folder, regardless
+    // of the caller's current working directory.
+    cwd: configDir,
+    // Use the dev server for tests to avoid running `prebuild` steps (like
+    // slide generation) as part of webServer startup.
+    command: 'npm run dev --silent -- --host 127.0.0.1 --port 4321',
     url: 'http://localhost:4321/gh-aw/',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

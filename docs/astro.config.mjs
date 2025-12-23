@@ -5,6 +5,7 @@ import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import mermaid from 'astro-mermaid';
+import { fileURLToPath } from 'node:url';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
@@ -17,6 +18,15 @@ import mermaid from 'astro-mermaid';
 export default defineConfig({
 	site: 'https://githubnext.github.io/gh-aw/',
 	base: '/gh-aw/',
+	vite: {
+		server: {
+			fs: {
+				allow: [
+					fileURLToPath(new URL('../', import.meta.url)),
+				],
+			},
+		},
+	},
 	devToolbar: {
 		enabled: false
 	},
