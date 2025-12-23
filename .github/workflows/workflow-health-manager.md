@@ -5,11 +5,12 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  actions: read
 engine: copilot
 tools:
   github:
     mode: remote
-    toolsets: [default]
+    toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**/*"
