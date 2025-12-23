@@ -103,7 +103,7 @@ jobs:
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@90deb49-dirty
+        uses: githubnext/gh-aw/actions/setup@83c54f6
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -6425,7 +6425,7 @@ jobs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@90deb49-dirty
+        uses: githubnext/gh-aw/actions/setup@83c54f6
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for command workflow
