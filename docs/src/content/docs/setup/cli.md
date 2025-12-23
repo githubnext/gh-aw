@@ -572,6 +572,56 @@ The server spawns subprocess calls for each tool invocation to ensure GitHub tok
 
 See **[MCP Server Guide](/gh-aw/setup/mcp-server/)** for integration details.
 
+#### `mcp-gateway`
+
+Run an MCP gateway that aggregates multiple MCP servers into a single HTTP gateway proxy. The gateway is available as a standalone `awmg` binary and is automatically used when configuring `sandbox.mcp` in workflows.
+
+```bash wrap
+# From configuration file
+awmg --config config.json
+
+# From multiple config files (merged in order)
+awmg --config base.json --config override.json
+
+# From stdin
+echo '{"mcpServers":{...}}' | awmg
+
+# Custom port and log directory
+awmg --config config.json --port 8088 --log-dir /tmp/logs
+```
+
+**Options:** `--config` or `-c` (path to JSON config file, can be specified multiple times), `--port` or `-p` (HTTP gateway port, default: 8080), `--log-dir` (directory for MCP gateway logs, default: `/tmp/gh-aw/mcp-logs`)
+
+**Configuration Format:**
+```json
+{
+  "mcpServers": {
+    "server-name": {
+      "command": "command",
+      "args": ["arg1", "arg2"],
+      "env": {"KEY": "value"}
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "apiKey": "optional-key"
+  }
+}
+```
+
+**Features:**
+- Aggregates multiple MCP servers into a single HTTP endpoint
+- Supports MCP protocol gestures: initialize, list_tools, call_tool, list_resources, list_prompts
+- Comprehensive per-server logging
+- Optional API key authentication
+- Automatic integration with `sandbox.mcp` in workflows
+
+**When to use:**
+- **Use `gh aw mcp-server`** when you need a single MCP server exposing gh-aw commands
+- **Use `awmg` (mcp-gateway)** when you need to aggregate multiple MCP servers behind a single gateway, especially in workflow sandbox environments
+
+The `awmg` binary is automatically invoked when using `sandbox.mcp` configuration in workflows. For manual testing or development, it can be run standalone. Multiple config files are merged in order with later files overriding earlier ones.
+
 ### Utility Commands
 
 #### `version`
