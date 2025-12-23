@@ -45,14 +45,13 @@ func (m ActionMode) UsesExternalActions() bool {
 	return true
 }
 
-// DetectActionMode determines the appropriate action mode based on environment and version.
-// Returns ActionModeRelease if the binary version is a release tag,
-// otherwise returns ActionModeDev as the default.
-// Can be overridden with GH_AW_ACTION_MODE environment variable.
-// If version parameter is provided, it will be used to determine release mode.
-// Never uses dirty SHA - only clean version tags or dev mode with local paths.
+// DetectActionMode determines the appropriate action mode based on the release flag.
+// Returns ActionModeRelease if this binary was built as a release (controlled by the
+// isReleaseBuild flag set via -X linker flag at build time), otherwise returns ActionModeDev.
+// Can be overridden with GH_AW_ACTION_MODE environment variable or GitHub Actions context.
+// The version parameter is kept for backward compatibility but is no longer used for detection.
 func DetectActionMode(version string) ActionMode {
-	actionModeLog.Printf("Detecting action mode: version=%s", version)
+	actionModeLog.Printf("Detecting action mode: version=%s, isRelease=%v", version, IsRelease())
 
 	// Check for explicit override via environment variable
 	if envMode := os.Getenv("GH_AW_ACTION_MODE"); envMode != "" {
@@ -64,11 +63,10 @@ func DetectActionMode(version string) ActionMode {
 		actionModeLog.Printf("Invalid action mode in environment: %s, falling back to auto-detection", envMode)
 	}
 
-	// Check if version indicates a release build
-	// Release tags are clean version strings (not "dev", not empty, no "-dirty" suffix, and start with "v")
-	if version != "" && version != "dev" && !strings.Contains(version, "-dirty") && strings.HasPrefix(version, "v") {
-		// Version is a clean release tag, use release mode
-		actionModeLog.Printf("Detected release mode from binary version: %s", version)
+	// Check if this binary was built as a release using the release flag
+	// This flag is set at build time via -X linker flag and does not rely on version string heuristics
+	if IsRelease() {
+		actionModeLog.Printf("Detected release mode from build flag (isReleaseBuild=true)")
 		return ActionModeRelease
 	}
 
@@ -92,7 +90,7 @@ func DetectActionMode(version string) ActionMode {
 	// 1. Running on a PR (refs/pull/*)
 	// 2. Running locally (no GITHUB_REF)
 	// 3. Running on any other branch (including main)
-	// 4. Version is "dev" or empty
-	actionModeLog.Printf("Detected dev mode (default): version=%s, ref=%s", version, githubRef)
+	// 4. Non-release builds (isReleaseBuild=false)
+	actionModeLog.Printf("Detected dev mode (default): isRelease=%v, ref=%s", IsRelease(), githubRef)
 	return ActionModeDev
 }
