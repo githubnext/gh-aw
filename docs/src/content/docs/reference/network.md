@@ -11,6 +11,10 @@ Control network access for AI engines using the top-level `network` field to spe
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
+:::tip[New to Network Configuration?]
+See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for practical examples, common patterns, and troubleshooting tips for package registries and CDNs.
+:::
+
 ## Configuration
 
 ```yaml wrap
@@ -74,6 +78,15 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `dotnet`, `dart`, `go`, `haskell`, `java`, `node`, `perl`, `php`, `python`, `ruby`, `rust`, `swift` | Language-specific package managers and registries |
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains |
+
+:::tip[Common Use Cases]
+- **Python projects**: Add `python` for PyPI, pip, and files.pythonhosted.org
+- **Node.js projects**: Add `node` for registry.npmjs.org, yarn, and pnpm
+- **Container builds**: Add `containers` for Docker Hub and other registries
+- **Go projects**: Add `go` for proxy.golang.org and sum.golang.org
+
+See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples and domain lists.
+:::
 
 
 ## Implementation
@@ -177,8 +190,11 @@ Follow the principle of least privilege by only allowing access to domains and e
 
 If you encounter network access denied errors, verify that required domains or ecosystems are included in the `allowed` list. Start with `network: defaults` and add specific requirements incrementally. Network access violations are logged in workflow execution logs.
 
+Use `gh aw logs --run-id <run-id>` to view firewall activity and identify denied domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-denials) for detailed troubleshooting steps and common solutions.
+
 ## Related Documentation
 
+- [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical examples and common patterns
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Tools](/gh-aw/reference/tools/) - Tool-specific network access configuration
 - [Security Notes](/gh-aw/guides/security/) - Comprehensive security guidance
