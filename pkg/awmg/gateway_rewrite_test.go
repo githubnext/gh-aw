@@ -1,4 +1,4 @@
-package cli
+package awmg
 
 import (
 	"encoding/json"

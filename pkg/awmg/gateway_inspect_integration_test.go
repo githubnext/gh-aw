@@ -1,6 +1,6 @@
 //go:build integration
 
-package cli
+package awmg
 
 import (
 	"context"

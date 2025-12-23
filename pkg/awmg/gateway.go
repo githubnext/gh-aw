@@ -1,4 +1,4 @@
-package cli
+package awmg
 
 import (
 	"context"
@@ -18,7 +18,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var gatewayLog = logger.New("cli:mcp_gateway")
+var gatewayLog = logger.New("awmg:gateway")
+
+// version is set by the main package
+var version = "dev"
+
+// SetVersionInfo sets the version information for the awmg package
+func SetVersionInfo(v string) {
+	version = v
+}
+
+// GetVersion returns the current version
+func GetVersion() string {
+	return version
+}
 
 // MCPGatewayConfig represents the configuration for the MCP gateway
 type MCPGatewayConfig struct {
