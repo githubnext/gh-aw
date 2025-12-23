@@ -1,11 +1,8 @@
 ---
-description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
+description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs twice daily (6am, 6pm UTC) to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
 on:
   schedule:
-    # Peak hours (9 AM - 5 PM UTC): Every 2 hours
-    - cron: "0 9-17/2 * * *"  # Runs at 9 AM, 11 AM, 1 PM, 3 PM, 5 PM UTC
-    # Off-peak hours: Every 3 hours
-    - cron: "0 0,3,6,18,21 * * *"  # Runs at 12 AM, 3 AM, 6 AM, 6 PM, 9 PM UTC
+    - cron: '0 6,18 * * *'  # Twice daily (6am, 6pm UTC)
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +16,8 @@ network:
     - defaults
     - go
 tools:
+  github:
+    toolsets: [default]
   bash: ["*"]
   edit:
 sandbox:
@@ -92,6 +91,7 @@ steps:
 safe-outputs:
   create-pull-request:
     title-prefix: "[ca] "
+  missing-tool:
 timeout-minutes: 45
 imports:
   - ../agents/ci-cleaner.agent.md
@@ -99,7 +99,7 @@ imports:
 
 # CI Cleaner
 
-You are an automated CI cleaner that runs periodically to fix CI failures on the main branch. The workflow runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend while maintaining CI health.
+You are an automated CI cleaner that runs periodically to fix CI failures on the main branch. The workflow runs twice daily (6am and 6pm UTC) to optimize token spend while maintaining CI health.
 
 ## Mission
 

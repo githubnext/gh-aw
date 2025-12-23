@@ -35,6 +35,8 @@ name: "Tidy"
     - "**/*.js"
     - "**/*.cjs"
     - "**/*.ts"
+  schedule:
+  - cron: "0 7 * * *"
   workflow_dispatch: null
 
 permissions: {}
