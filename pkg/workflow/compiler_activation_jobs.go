@@ -35,7 +35,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            actions\n")
 		}
 
-		steps = append(steps, "      - name: Setup Activation Scripts\n")
+		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
@@ -348,7 +348,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            actions\n")
 		}
 
-		steps = append(steps, "      - name: Setup Activation Scripts\n")
+		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
