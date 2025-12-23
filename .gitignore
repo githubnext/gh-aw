@@ -96,6 +96,7 @@ pkg/cli/workflows/*.yml
 .github/workflows/test-update.lock.yml
 .github/workflows/test-timestamp-js.md
 .github/workflows/test-timestamp-js.lock.yml
+examples/*.lock.yml
 
 # Large test data files
 pkg/workflow/js/test-data/*.log
