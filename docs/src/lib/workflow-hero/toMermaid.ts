@@ -44,7 +44,7 @@ export function workflowGraphToMermaid(
   for (const jobId of Object.keys(graph.jobs)) {
     const nodeId = getNodeId(jobId);
     const statusPrefix = getStatusPrefix(jobConclusions?.[jobId]);
-    const label = `${statusPrefix}${jobId}`.replace(/"/g, '\\"');
+    const label = `${statusPrefix}${jobId}`.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     lines.push(`  ${nodeId}["${label}"]`);
   }
 
