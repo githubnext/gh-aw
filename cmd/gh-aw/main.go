@@ -15,7 +15,8 @@ import (
 
 // Build-time variables set by GoReleaser
 var (
-	version = "dev"
+	version   = "dev"
+	isRelease = "false" // Set to "true" during release builds
 )
 
 // Global flags
@@ -582,6 +583,9 @@ func main() {
 
 	// Set version information in the workflow package for generated file headers
 	workflow.SetVersion(version)
+
+	// Set release flag in the workflow package
+	workflow.SetIsRelease(isRelease == "true")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
