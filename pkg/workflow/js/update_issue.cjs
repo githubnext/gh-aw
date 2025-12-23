@@ -45,4 +45,4 @@ const main = createUpdateHandler({
   executeUpdate: executeIssueUpdate,
 });
 
-await main();
+module.exports = { main };

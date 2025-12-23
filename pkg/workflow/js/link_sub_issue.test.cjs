@@ -56,7 +56,7 @@ const mockCore = {
       (fs.writeFileSync(outputFile, JSON.stringify(output)), (process.env.GH_AW_AGENT_OUTPUT = outputFile));
     };
     async function runScript() {
-      await eval(`(async () => { ${linkSubIssueScript} })()`);
+      await eval(`(async () => { ${linkSubIssueScript}; await main(); })()`);
     }
     (afterEach(() => {
       tempDir && fs.existsSync(tempDir) && fs.rmSync(tempDir, { recursive: !0 });

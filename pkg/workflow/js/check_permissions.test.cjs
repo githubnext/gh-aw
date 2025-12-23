@@ -47,20 +47,20 @@ const mockCore = {
       }),
       it("should fail job when no permissions specified", async () => {
         (delete process.env.GH_AW_REQUIRED_ROLES,
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith("❌ Configuration error: Required permissions not specified. Contact repository administrator."),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled());
       }),
       it("should fail job when permissions are empty", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = ""),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.error).toHaveBeenCalledWith("❌ Configuration error: Required permissions not specified. Contact repository administrator."),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled());
       }),
       it("should skip validation for safe events", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
           (global.context.eventName = "workflow_dispatch"),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_dispatch does not require validation"),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled(),
           expect(mockCore.error).not.toHaveBeenCalled(),
@@ -69,7 +69,7 @@ const mockCore = {
       it("should pass validation for admin permission", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' has required permissions for testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Required permissions: admin, maintainer, write"),
@@ -81,7 +81,7 @@ const mockCore = {
       it("should pass validation for maintain permission when maintainer is required", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
           expect(mockCore.warning).not.toHaveBeenCalled());
@@ -89,7 +89,7 @@ const mockCore = {
       it("should pass validation for write permission when write is required", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,write,triage"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
           expect(mockCore.warning).not.toHaveBeenCalled());
@@ -97,7 +97,7 @@ const mockCore = {
       it("should fail the job for insufficient permission", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: write"),
           expect(mockCore.warning).toHaveBeenCalledWith("User permission 'write' does not meet requirements: admin, maintainer"),
           expect(mockCore.warning).toHaveBeenCalledWith("Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintainer"));
@@ -105,7 +105,7 @@ const mockCore = {
       it("should fail the job for read permission", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,write"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "read" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: read"),
           expect(mockCore.warning).toHaveBeenCalledWith("User permission 'read' does not meet requirements: admin, write"),
           expect(mockCore.warning).toHaveBeenCalledWith("Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, write"));
@@ -114,14 +114,14 @@ const mockCore = {
         process.env.GH_AW_REQUIRED_ROLES = "admin";
         const apiError = new Error("API Error: Not Found");
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found"));
       }),
       it("should handle different actor names correctly", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
           (global.context.actor = "different-user"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "different-user" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'different-user' has required permissions for testowner/testrepo"),
           expect(mockCore.error).not.toHaveBeenCalled(),
@@ -130,7 +130,7 @@ const mockCore = {
       it("should handle triage permission correctly", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin,write,triage"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "triage" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has triage access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
           expect(mockCore.warning).not.toHaveBeenCalled());
@@ -138,7 +138,7 @@ const mockCore = {
       it("should handle single permission requirement", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "write"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Required permissions: write"),
           expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository"),
           expect(mockCore.error).not.toHaveBeenCalled(),
@@ -147,7 +147,7 @@ const mockCore = {
       it("should skip validation for schedule events", async () => {
         ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
           (global.context.eventName = "schedule"),
-          await eval(`(async () => { ${checkPermissionsScript} })()`),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ Event schedule does not require validation"),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled());
       }));

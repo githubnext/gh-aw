@@ -56,20 +56,20 @@ describe("create_code_scanning_alert.cjs", () => {
     }),
     describe("main function", () => {
       (it("should handle missing environment variable", async () => {
-        (delete process.env.GH_AW_AGENT_OUTPUT, await eval(`(async () => { ${securityReportScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (delete process.env.GH_AW_AGENT_OUTPUT, await eval(`(async () => { ${securityReportScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
         it("should handle empty agent output", async () => {
-          (setAgentOutput(""), await eval(`(async () => { ${securityReportScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
+          (setAgentOutput(""), await eval(`(async () => { ${securityReportScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"));
         }),
         it("should handle invalid JSON", async () => {
-          (setAgentOutput("invalid json"), await eval(`(async () => { ${securityReportScript} })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/)));
+          (setAgentOutput("invalid json"), await eval(`(async () => { ${securityReportScript}; await main(); })()`), expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/)));
         }),
         it("should handle missing items array", async () => {
-          (setAgentOutput({ status: "success" }), await eval(`(async () => { ${securityReportScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
+          (setAgentOutput({ status: "success" }), await eval(`(async () => { ${securityReportScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
         }),
         it("should handle no code scanning alert items", async () => {
           (setAgentOutput({ items: [{ type: "create_issue", title: "Test Issue" }] }),
-            await eval(`(async () => { ${securityReportScript} })()`),
+            await eval(`(async () => { ${securityReportScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith("No create-code-scanning-alert items found in agent output"));
         }),
         it("should create SARIF file for valid security findings", async () => {
@@ -79,7 +79,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/utils.js", line: 15, severity: "warning", message: "Potential XSS vulnerability" },
             ],
           };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
           expect(fs.existsSync(sarifFile)).toBe(!0);
           const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -107,7 +107,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/utils.js", line: 15, severity: "warning", message: "Second finding" },
             ],
           };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
           expect(fs.existsSync(sarifFile)).toBe(!0);
           const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -123,7 +123,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/invalid3.js", line: 30, severity: "invalid-severity", message: "Invalid - bad severity" },
             ],
           };
-          (setAgentOutput(mixedFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(mixedFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
           expect(fs.existsSync(sarifFile)).toBe(!0);
           const sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
@@ -132,14 +132,14 @@ describe("create_code_scanning_alert.cjs", () => {
         it("should use custom driver name when configured", async () => {
           ((process.env.GH_AW_SECURITY_REPORT_DRIVER = "Custom Security Scanner"), (process.env.GH_AW_WORKFLOW_FILENAME = "security-scan"));
           const securityFindings = { items: [{ type: "create_code_scanning_alert", file: "src/app.js", line: 42, severity: "error", message: "Security issue found" }] };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].tool.driver.name).toBe("Custom Security Scanner"), expect(sarifContent.runs[0].results[0].ruleId).toBe("security-scan-security-finding-1"));
         }),
         it("should use default driver name when not configured", async () => {
           const securityFindings = { items: [{ type: "create_code_scanning_alert", file: "src/app.js", line: 42, severity: "error", message: "Security issue found" }] };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].tool.driver.name).toBe("GitHub Agentic Workflows Security Scanner"), expect(sarifContent.runs[0].results[0].ruleId).toBe("workflow-security-finding-1"));
@@ -151,7 +151,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/utils.js", line: 25, severity: "warning", message: "Security issue without column" },
             ],
           };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].results[0].locations[0].physicalLocation.region.startColumn).toBe(15), expect(sarifContent.runs[0].results[1].locations[0].physicalLocation.region.startColumn).toBe(1));
@@ -165,7 +165,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/invalid3.js", line: 40, column: -1, severity: "error", message: "Invalid column - negative" },
             ],
           };
-          (setAgentOutput(invalidFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(invalidFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].results).toHaveLength(1),
@@ -181,7 +181,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/config.js", line: 10, severity: "info", message: "Standard numbered finding" },
             ],
           };
-          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(securityFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].results[0].ruleId).toBe("security-scan-sql-injection"),
@@ -198,7 +198,7 @@ describe("create_code_scanning_alert.cjs", () => {
               { type: "create_code_scanning_alert", file: "src/invalid4.js", line: 50, severity: "error", message: "Invalid ruleIdSuffix - not a string", ruleIdSuffix: 123 },
             ],
           };
-          (setAgentOutput(invalidFindings), await eval(`(async () => { ${securityReportScript} })()`));
+          (setAgentOutput(invalidFindings), await eval(`(async () => { ${securityReportScript}; await main(); })()`));
           const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif"),
             sarifContent = JSON.parse(fs.readFileSync(sarifFile, "utf8"));
           (expect(sarifContent.runs[0].results).toHaveLength(1), expect(sarifContent.runs[0].results[0].message.text).toBe("Valid with valid ruleIdSuffix"), expect(sarifContent.runs[0].results[0].ruleId).toBe("workflow-valid-rule-id_123"));

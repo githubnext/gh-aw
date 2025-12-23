@@ -42,7 +42,7 @@ const mockCore = {
     }),
       it("should set is_team_member to true for admin permission", async () => {
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: admin"),
@@ -51,7 +51,7 @@ const mockCore = {
       }),
       it("should set is_team_member to true for maintain permission", async () => {
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: maintain"),
@@ -60,7 +60,7 @@ const mockCore = {
       }),
       it("should set is_team_member to false for write permission", async () => {
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: write"),
@@ -68,7 +68,7 @@ const mockCore = {
       }),
       it("should set is_team_member to false for read permission", async () => {
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "read" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: read"),
@@ -76,7 +76,7 @@ const mockCore = {
       }),
       it("should set is_team_member to false for none permission", async () => {
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "none" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.info).toHaveBeenCalledWith("Repository permission level: none"),
@@ -85,7 +85,7 @@ const mockCore = {
       it("should handle API errors and set is_team_member to false", async () => {
         const apiError = new Error("API Error: Not Found");
         (mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API Error: Not Found"),
@@ -94,7 +94,7 @@ const mockCore = {
       it("should handle different actor names correctly", async () => {
         ((global.context.actor = "different-user"),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", username: "different-user" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'different-user' is admin or maintainer of testowner/testrepo"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true"));
@@ -102,7 +102,7 @@ const mockCore = {
       it("should handle different repository contexts correctly", async () => {
         ((global.context.repo = { owner: "different-owner", repo: "different-repo" }),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "different-owner", repo: "different-repo", username: "testuser" }),
           expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' is admin or maintainer of different-owner/different-repo"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "true"));
@@ -111,7 +111,7 @@ const mockCore = {
         const authError = new Error("Bad credentials");
         ((authError.status = 401),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(authError),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: Bad credentials"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false"));
       }),
@@ -119,7 +119,7 @@ const mockCore = {
         const rateLimitError = new Error("API rate limit exceeded");
         ((rateLimitError.status = 403),
           mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(rateLimitError),
-          await eval(`(async () => { ${checkTeamMemberScript} })()`),
+          await eval(`(async () => { ${checkTeamMemberScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith("Repository permission check failed: API rate limit exceeded"),
           expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false"));
       }));

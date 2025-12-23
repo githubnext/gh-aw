@@ -129,4 +129,4 @@ ${reviewersListMarkdown}
   }
 }
 
-await main();
+module.exports = { main };

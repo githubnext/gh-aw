@@ -462,4 +462,4 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   }
 }
 
-await main();
+module.exports = { main };

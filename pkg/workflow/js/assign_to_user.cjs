@@ -128,4 +128,4 @@ ${assigneesListMarkdown}
   }
 }
 
-await main();
+module.exports = { main };

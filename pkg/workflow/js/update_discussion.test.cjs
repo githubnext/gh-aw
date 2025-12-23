@@ -81,14 +81,14 @@ describe("update_discussion.cjs", () => {
   });
 
   it("should skip when no agent output is provided", async () => {
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
 
   it("should skip when agent output is empty", async () => {
     setAgentOutput("");
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
     expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
@@ -99,7 +99,7 @@ describe("update_discussion.cjs", () => {
     });
     process.env.GH_AW_UPDATE_TITLE = "true";
     global.context.eventName = "push";
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
     expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in discussion context, skipping discussion update');
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
@@ -146,7 +146,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -197,7 +197,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -254,7 +254,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
   });
@@ -308,7 +308,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Should use the explicit discussion number 456
@@ -329,7 +329,7 @@ describe("update_discussion.cjs", () => {
     process.env.GH_AW_UPDATE_BODY = "false";
     global.context.eventName = "discussion";
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("No valid updates to apply for this item");
     expect(mockGithub.graphql).not.toHaveBeenCalled();
@@ -388,7 +388,7 @@ describe("update_discussion.cjs", () => {
       });
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Verify the custom footer was used
@@ -462,7 +462,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -543,7 +543,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript} })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
   });

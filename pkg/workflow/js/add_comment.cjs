@@ -565,4 +565,5 @@ async function main() {
   core.info(`Successfully created ${createdComments.length} comment(s)`);
   return createdComments;
 }
-await main();
+
+module.exports = { main };

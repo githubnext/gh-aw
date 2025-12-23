@@ -387,7 +387,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before safe output steps
 		insertIndex := 0
-		
+
 		// Count setup action steps (checkout + setup if in dev mode, or just setup)
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
@@ -396,10 +396,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			}
 			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
 		}
-		
+
 		// Add artifact download steps count
 		insertIndex += len(buildAgentOutputDownloadSteps())
-		
+
 		// Add patch download steps if present
 		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
@@ -410,7 +410,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			})
 			insertIndex += len(patchDownloadSteps)
 		}
-		
+
 		// Insert app token steps
 		newSteps := make([]string, 0)
 		newSteps = append(newSteps, steps[:insertIndex]...)

@@ -53,13 +53,13 @@ const mockCore = {
         (it("should fail if GITHUB_WORKSPACE is not set", async () => {
           (delete process.env.GITHUB_WORKSPACE,
             (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"),
-            await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+            await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKSPACE not available")));
         }),
           it("should fail if GH_AW_WORKFLOW_FILE is not set", async () => {
             ((process.env.GITHUB_WORKSPACE = tmpDir),
               delete process.env.GH_AW_WORKFLOW_FILE,
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_FILE not available")));
           }));
       }),
@@ -68,7 +68,7 @@ const mockCore = {
           ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
           const lockFile = path.join(workflowsDir, "test.lock.yml");
           (fs.writeFileSync(lockFile, "# Lock file content"),
-            await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+            await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Source file does not exist")),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping timestamp check")),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
@@ -78,7 +78,7 @@ const mockCore = {
             ((process.env.GITHUB_WORKSPACE = tmpDir), (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"));
             const workflowFile = path.join(workflowsDir, "test.md");
             (fs.writeFileSync(workflowFile, "# Workflow content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file does not exist")),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping timestamp check")),
               expect(mockCore.setFailed).not.toHaveBeenCalled(),
@@ -87,7 +87,7 @@ const mockCore = {
           it("should skip check when both files do not exist", async () => {
             ((process.env.GITHUB_WORKSPACE = tmpDir),
               (process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping timestamp check")),
               expect(mockCore.setFailed).not.toHaveBeenCalled(),
               expect(mockCore.error).not.toHaveBeenCalled());
@@ -101,7 +101,7 @@ const mockCore = {
           (fs.writeFileSync(workflowFile, "# Workflow content"),
             await new Promise(resolve => setTimeout(resolve, 10)),
             fs.writeFileSync(lockFile, "# Lock file content"),
-            await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+            await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file is up to date")),
             expect(mockCore.error).not.toHaveBeenCalled(),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
@@ -116,7 +116,7 @@ const mockCore = {
               fs.writeFileSync(lockFile, "# Lock file content"),
               fs.utimesSync(workflowFile, now, now),
               fs.utimesSync(lockFile, now, now),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file is up to date")),
               expect(mockCore.error).not.toHaveBeenCalled(),
               expect(mockCore.setFailed).not.toHaveBeenCalled(),
@@ -131,7 +131,7 @@ const mockCore = {
           (fs.writeFileSync(lockFile, "# Lock file content"),
             await new Promise(resolve => setTimeout(resolve, 10)),
             fs.writeFileSync(workflowFile, "# Workflow content"),
-            await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+            await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
             expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("WARNING: Lock file")),
             expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("is outdated")),
             expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("gh aw compile")),
@@ -146,7 +146,7 @@ const mockCore = {
             (fs.writeFileSync(lockFile, "# Lock file content"),
               await new Promise(resolve => setTimeout(resolve, 10)),
               fs.writeFileSync(workflowFile, "# Workflow content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/WARNING.*my-workflow\.lock\.yml.*outdated/)),
               expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/my-workflow\.md/)));
           }),
@@ -157,7 +157,7 @@ const mockCore = {
             (fs.writeFileSync(lockFile, "# Lock file content"),
               await new Promise(resolve => setTimeout(resolve, 10)),
               fs.writeFileSync(workflowFile, "# Workflow content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Workflow Lock File Warning")),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("WARNING")),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("gh aw compile")),
@@ -170,7 +170,7 @@ const mockCore = {
             (fs.writeFileSync(lockFile, "# Lock file content"),
               await new Promise(resolve => setTimeout(resolve, 10)),
               fs.writeFileSync(workflowFile, "# Workflow content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Git Commit")),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("abc123def456")),
               expect(mockCore.summary.write).toHaveBeenCalled());
@@ -182,7 +182,7 @@ const mockCore = {
             (fs.writeFileSync(lockFile, "# Lock file content"),
               await new Promise(resolve => setTimeout(resolve, 10)),
               fs.writeFileSync(workflowFile, "# Workflow content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("modified:")),
               expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)),
               expect(mockCore.summary.write).toHaveBeenCalled());
@@ -195,7 +195,7 @@ const mockCore = {
             lockFile = path.join(workflowsDir, "my-test-workflow.lock.yml");
           (fs.writeFileSync(workflowFile, "# Workflow content"),
             fs.writeFileSync(lockFile, "# Lock file content"),
-            await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+            await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("my-test-workflow.md")),
             expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
@@ -205,7 +205,7 @@ const mockCore = {
               lockFile = path.join(workflowsDir, "my_test_workflow.lock.yml");
             (fs.writeFileSync(workflowFile, "# Workflow content"),
               fs.writeFileSync(lockFile, "# Lock file content"),
-              await eval(`(async () => { ${checkWorkflowTimestampScript} })()`),
+              await eval(`(async () => { ${checkWorkflowTimestampScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("my_test_workflow.md")),
               expect(mockCore.setFailed).not.toHaveBeenCalled());
           }));

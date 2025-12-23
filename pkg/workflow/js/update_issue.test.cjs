@@ -57,16 +57,16 @@ const mockCore = {
         tempFilePath && require("fs").existsSync(tempFilePath) && (require("fs").unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should skip when no agent output is provided", async () => {
-        (await eval(`(async () => { ${updateIssueScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"), expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
+        (await eval(`(async () => { ${updateIssueScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"), expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }),
       it("should skip when agent output is empty", async () => {
-        (setAgentOutput(""), await eval(`(async () => { ${updateIssueScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"), expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
+        (setAgentOutput(""), await eval(`(async () => { ${updateIssueScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"), expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }),
       it("should skip when not in issue context for triggering target", async () => {
         (setAgentOutput({ items: [{ type: "update_issue", title: "Updated title" }] }),
           (process.env.GH_AW_UPDATE_TITLE = "true"),
           (global.context.eventName = "push"),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue context, skipping issue update'),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }),
@@ -74,7 +74,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "update_issue", title: "Updated issue title" }] }), (process.env.GH_AW_UPDATE_TITLE = "true"), (global.context.eventName = "issues"));
         const mockIssue = { number: 123, title: "Updated issue title", html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, title: "Updated issue title" }),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 123),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url),
@@ -85,7 +85,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "update_issue", status: "closed" }] }), (process.env.GH_AW_UPDATE_STATUS = "true"), (global.context.eventName = "issues"));
         const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, state: "closed" }));
       }),
       it("should update multiple fields successfully", async () => {
@@ -96,14 +96,14 @@ const mockCore = {
           (global.context.eventName = "issues"));
         const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, title: "New title", body: "New body content", state: "open" }));
       }),
       it('should handle explicit issue number with target "*"', async () => {
         (setAgentOutput({ items: [{ type: "update_issue", issue_number: 456, title: "Updated title" }] }), (process.env.GH_AW_UPDATE_TITLE = "true"), (process.env.GH_AW_UPDATE_TARGET = "*"), (global.context.eventName = "push"));
         const mockIssue = { number: 456, html_url: "https://github.com/testowner/testrepo/issues/456" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 456, title: "Updated title" }));
       }),
       it("should skip when no valid updates are provided", async () => {
@@ -112,7 +112,7 @@ const mockCore = {
           (process.env.GH_AW_UPDATE_TITLE = "false"),
           (process.env.GH_AW_UPDATE_BODY = "false"),
           (global.context.eventName = "issues"),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("No valid updates to apply for this item"),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }),
@@ -120,7 +120,7 @@ const mockCore = {
         (setAgentOutput({ items: [{ type: "update_issue", status: "invalid" }] }),
           (process.env.GH_AW_UPDATE_STATUS = "true"),
           (global.context.eventName = "issues"),
-          await eval(`(async () => { ${updateIssueScript} })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Invalid status value: invalid. Must be 'open' or 'closed'"),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }));

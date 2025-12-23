@@ -39,6 +39,7 @@ describe("missing_tool.cjs", () => {
         summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
       }),
       (global.core = mockCore),
+      (global.module = { exports: {} }), // Add module for exports
       (global.require = vi.fn().mockImplementation(module => {
         if ("fs" === module) return fs;
         if ("@actions/core" === module) return mockCore;
@@ -53,9 +54,15 @@ describe("missing_tool.cjs", () => {
         delete process.env.GH_AW_MISSING_TOOL_MAX,
         (global.console = originalConsole),
         delete global.core,
+        delete global.module,
         delete global.require);
     }));
-  const runScript = async () => new Function(missingToolScript)();
+  const runScript = async () => {
+    new Function(missingToolScript)();
+    if (global.module.exports.main) {
+      await global.module.exports.main();
+    }
+  };
   (describe("JSON Array Input Format", () => {
     (it("should parse JSON array with missing-tool entries", async () => {
       (setAgentOutput({
