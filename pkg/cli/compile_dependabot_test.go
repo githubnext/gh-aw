@@ -14,9 +14,15 @@ import (
 )
 
 func TestCompileDependabotIntegration(t *testing.T) {
-	// Check if npm is available
-	if _, err := exec.LookPath("npm"); err != nil {
+	// Check if npm is available and functional
+	npmPath, err := exec.LookPath("npm")
+	if err != nil {
 		t.Skip("Skipping test - npm not available")
+	}
+	// Test if npm actually works
+	cmd := exec.Command(npmPath, "--version")
+	if err := cmd.Run(); err != nil {
+		t.Skipf("Skipping test - npm is not functional: %v", err)
 	}
 
 	// Create temp directory for test
