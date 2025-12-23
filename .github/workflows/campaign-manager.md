@@ -1,6 +1,8 @@
 ---
 description: Meta-orchestrator workflow that manages multiple campaigns, analyzes their performance, and makes strategic decisions
-on: daily
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9am UTC
 permissions:
   contents: read
   issues: read

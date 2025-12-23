@@ -1,6 +1,8 @@
 ---
 description: Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
-on: daily
+on:
+  schedule:
+    - cron: '0 6,12,18,0 * * *'  # 4 times daily (6am, noon, 6pm, midnight UTC)
 permissions:
   contents: read
   issues: read

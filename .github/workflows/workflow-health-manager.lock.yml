@@ -24,9 +24,7 @@
 name: "Workflow Health Manager - Meta-Orchestrator"
 "on":
   schedule:
-  - cron: "13 2 * * *"
-    # Friendly format: daily (scattered)
-  workflow_dispatch:
+  - cron: "0 8,20 * * *"
 
 permissions: {}
 
@@ -37,8 +35,6 @@ run-name: "Workflow Health Manager - Meta-Orchestrator"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -6838,155 +6834,6 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            function parseRequiredPermissions() {
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-            }
-            function parseAllowedBots() {
-              const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
-              return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
-            }
-            async function checkBotStatus(actor, owner, repo) {
-              try {
-                const isBot = actor.endsWith("[bot]");
-                if (!isBot) {
-                  return { isBot: false, isActive: false };
-                }
-                core.info(`Checking if bot '${actor}' is active on ${owner}/${repo}`);
-                try {
-                  const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner: owner,
-                    repo: repo,
-                    username: actor,
-                  });
-                  core.info(`Bot '${actor}' is active with permission level: ${botPermission.data.permission}`);
-                  return { isBot: true, isActive: true };
-                } catch (botError) {
-                  if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
-                    core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
-                    return { isBot: true, isActive: false };
-                  }
-                  const errorMessage = botError instanceof Error ? botError.message : String(botError);
-                  core.warning(`Failed to check bot status: ${errorMessage}`);
-                  return { isBot: true, isActive: false, error: errorMessage };
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(`Error checking bot status: ${errorMessage}`);
-                return { isBot: false, isActive: false, error: errorMessage };
-              }
-            }
-            async function checkRepositoryPermission(actor, owner, repo, requiredPermissions) {
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    return { authorized: true, permission: permission };
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                return { authorized: false, permission: permission };
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                return { authorized: false, error: errorMessage };
-              }
-            }
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissions = parseRequiredPermissions();
-              const allowedBots = parseAllowedBots();
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              const safeEvents = ["schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
-              if (result.error) {
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${result.error}`);
-                return;
-              }
-              if (result.authorized) {
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "authorized");
-                core.setOutput("user_permission", result.permission);
-              } else {
-                if (allowedBots && allowedBots.length > 0) {
-                  core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
-                  if (allowedBots.includes(actor)) {
-                    core.info(`Actor '${actor}' is in the allowed bots list`);
-                    const botStatus = await checkBotStatus(actor, owner, repo);
-                    if (botStatus.isBot && botStatus.isActive) {
-                      core.info(`✅ Bot '${actor}' is active on the repository and authorized`);
-                      core.setOutput("is_team_member", "true");
-                      core.setOutput("result", "authorized_bot");
-                      core.setOutput("user_permission", "bot");
-                      return;
-                    } else if (botStatus.isBot && !botStatus.isActive) {
-                      core.warning(`Bot '${actor}' is in the allowed list but not active/installed on ${owner}/${repo}`);
-                      core.setOutput("is_team_member", "false");
-                      core.setOutput("result", "bot_not_active");
-                      core.setOutput("user_permission", result.permission);
-                      core.setOutput("error_message", `Access denied: Bot '${actor}' is not active/installed on this repository`);
-                      return;
-                    } else {
-                      core.info(`Actor '${actor}' is in allowed bots list but bot status check failed`);
-                    }
-                  }
-                }
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", result.permission);
-                core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
-              }
-            }
-            await main();
 
   push_repo_memory:
     needs:

@@ -1,6 +1,8 @@
 ---
 description: Meta-orchestrator for monitoring and managing health of all agentic workflows in the repository
-on: daily
+on:
+  schedule:
+    - cron: '0 8,20 * * *'  # Twice daily (8am, 8pm UTC)
 permissions:
   contents: read
   issues: read
