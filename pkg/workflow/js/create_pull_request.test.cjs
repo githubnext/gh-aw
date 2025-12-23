@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
 const createTestableFunction = scriptContent => {
-  const beforeMainCall = scriptContent.match(/^([\s\S]*?)\s*await main\(\);?\s*$/);
-  if (!beforeMainCall) throw new Error("Could not extract script content before await main()");
+  // Match either the old pattern (await main()) or the new pattern (module.exports = { main })
+  const beforeMainCall = scriptContent.match(/^([\s\S]*?)\s*(?:await main\(\);?|module\.exports = \{ main \};?)\s*$/);
+  if (!beforeMainCall) throw new Error("Could not extract script content before await main() or module.exports");
   let scriptBody = beforeMainCall[1];
   return (
     (scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("fs"\)\} \*\/\s*const fs = require\("fs"\);?\s*/g, "")),

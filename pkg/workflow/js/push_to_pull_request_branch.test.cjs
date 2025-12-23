@@ -204,7 +204,7 @@ const mockCore = {
         (it("should have valid JavaScript syntax", () => {
           const scriptPath = path.join(__dirname, "push_to_pull_request_branch.cjs"),
             scriptContent = fs.readFileSync(scriptPath, "utf8");
-          (expect(scriptContent).toContain("async function main()"), expect(scriptContent).toContain("core.setFailed"), expect(scriptContent).toContain("/tmp/gh-aw/aw.patch"), expect(scriptContent).toContain("await main()"));
+          (expect(scriptContent).toContain("async function main()"), expect(scriptContent).toContain("core.setFailed"), expect(scriptContent).toContain("/tmp/gh-aw/aw.patch"), expect(scriptContent).toContain("module.exports = { main }"));
         }),
           it("should export a main function", () => {
             const scriptPath = path.join(__dirname, "push_to_pull_request_branch.cjs"),
