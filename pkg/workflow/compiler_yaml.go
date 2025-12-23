@@ -208,7 +208,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
 
-	yaml.WriteString("        run: bash /tmp/gh-aw/actions/create_prompt_first.sh\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          bash /tmp/gh-aw/actions/create_prompt_first.sh\n")
 
 	if len(chunks) > 0 {
 		// Write template with placeholders directly to target file
