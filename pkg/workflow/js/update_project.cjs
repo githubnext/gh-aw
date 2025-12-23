@@ -125,7 +125,7 @@ async function updateProject(output) {
   const { owner, repo } = context.repo,
     projectInfo = parseProjectUrl(output.project),
     projectNumberFromUrl = projectInfo.projectNumber,
-    campaignId = output.campaign_id || generateCampaignId(output.project, projectNumberFromUrl);
+    campaignId = output.campaign_id;
   try {
     let repoResult;
     (core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`), core.info("[1/5] Fetching repository information..."));
@@ -312,10 +312,12 @@ async function updateProject(output) {
             { projectId, contentId }
           )
         ).addProjectV2ItemById.item.id;
-        try {
-          await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [`campaign:${campaignId}`] });
-        } catch (labelError) {
-          core.warning(`Failed to add campaign label: ${labelError.message}`);
+        if (campaignId) {
+          try {
+            await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [`campaign:${campaignId}`] });
+          } catch (labelError) {
+            core.warning(`Failed to add campaign label: ${labelError.message}`);
+          }
         }
       }
       const fieldsToUpdate = output.fields ? { ...output.fields } : {};

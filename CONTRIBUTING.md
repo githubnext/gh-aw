@@ -275,10 +275,10 @@ GitHub Copilot Agent automatically checks licenses when adding dependencies. How
 The project includes automated license compliance checking:
 
 - **CI Workflow**: `.github/workflows/license-check.yml` runs on every PR that changes `go.mod`
-- **Local Check**: Run `make license-check` to verify all dependencies
+- **Local Check**: Run `make license-check` to verify all dependencies (installs `go-licenses` on-demand)
 - **License Report**: Run `make license-report` to see detailed license information
 
-All dependencies are automatically scanned using Google's `go-licenses` tool, which classifies licenses by type and identifies potential compliance issues.
+All dependencies are automatically scanned using Google's `go-licenses` tool in CI, which classifies licenses by type and identifies potential compliance issues. Note that `go-licenses` is not actively maintained, so we install it on-demand rather than as a regular build dependency.
 
 ## 🤝 Community
 

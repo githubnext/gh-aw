@@ -5722,7 +5722,7 @@ jobs:
             const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
             if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
               core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
-              core.setOutput('should_run', 'false');
+              core.setOutput('should_run', '');
               return;
             }
 
@@ -5743,7 +5743,7 @@ jobs:
               const teamPermissions = ['admin', 'maintain', 'write'];
               if (teamPermissions.includes(userPermission)) {
                 core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
-                core.setOutput('should_run', 'false');
+                core.setOutput('should_run', '');
               } else {
                 core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
                 core.setOutput('should_run', 'true');

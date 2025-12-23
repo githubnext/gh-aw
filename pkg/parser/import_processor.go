@@ -57,6 +57,7 @@ type ImportSpec struct {
 // dynamic structure that varies by workflow. This is the appropriate pattern for parsing
 // user-provided configuration files. See specs/go-type-patterns.md for guidance.
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
+	log.Printf("Processing imports from frontmatter: baseDir=%s", baseDir)
 	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir, nil)
 	if err != nil {
 		return "", nil, err
@@ -206,6 +207,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				inputs:      importSpec.Inputs,
 			})
 			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
+		} else {
+			log.Printf("Skipping duplicate import: %s (already visited)", importPath)
 		}
 	}
 
@@ -230,6 +233,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if isAgentFile {
 			if agentFile != "" {
 				// Multiple agent files found - error
+				log.Printf("Multiple agent files found: %s and %s", agentFile, item.importPath)
 				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, item.importPath)
 			}
 			// Extract relative path from repository root (from .github/ onwards)
