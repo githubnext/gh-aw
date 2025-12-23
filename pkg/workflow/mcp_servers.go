@@ -312,41 +312,61 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
-		// Step 2: Write JavaScript files
-		yaml.WriteString("      - name: Write Safe Outputs JavaScript Files\n")
-		yaml.WriteString("        run: |\n")
+		// Step 2: Copy JavaScript files using the setup-safe-outputs action
+		setupSafeOutputsActionRef := c.resolveActionReference("./actions/setup-safe-outputs", workflowData)
+		if setupSafeOutputsActionRef != "" {
+			// For dev mode (local action path), checkout the actions folder first
+			if c.actionMode.IsDev() {
+				yaml.WriteString("      - name: Checkout actions folder for safe-outputs\n")
+				fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/checkout"))
+				yaml.WriteString("        with:\n")
+				yaml.WriteString("          sparse-checkout: |\n")
+				yaml.WriteString("            actions\n")
+			}
 
-		// Get the list of required JavaScript dependencies dynamically
-		dependencies, err := getSafeOutputsDependencies()
-		if err != nil {
-			mcpServersLog.Printf("CRITICAL: Error getting safe-outputs dependencies: %v", err)
-			// Fallback to empty list if there's an error
-			dependencies = []string{}
-		}
+			yaml.WriteString("      - name: Setup Safe Outputs JavaScript Files\n")
+			fmt.Fprintf(yaml, "        uses: %s\n", setupSafeOutputsActionRef)
+			yaml.WriteString("        with:\n")
+			yaml.WriteString("          destination: /tmp/gh-aw/safeoutputs\n")
+		} else {
+			// Fallback: Write JavaScript files directly if action reference cannot be resolved
+			yaml.WriteString("      - name: Write Safe Outputs JavaScript Files\n")
+			yaml.WriteString("        run: |\n")
 
-		// Write each required JavaScript file
-		for _, filename := range dependencies {
-			// Get the content for this file
-			content, err := getJavaScriptFileContent(filename)
+			// Get the list of required JavaScript dependencies dynamically
+			dependencies, err := getSafeOutputsDependencies()
 			if err != nil {
-				mcpServersLog.Printf("Error getting content for %s: %v", filename, err)
-				continue
+				mcpServersLog.Printf("CRITICAL: Error getting safe-outputs dependencies: %v", err)
+				// Fallback to empty list if there's an error
+				dependencies = []string{}
 			}
 
-			// Generate a unique EOF marker based on filename
-			// Remove extension and convert to uppercase for marker
-			markerName := strings.ToUpper(strings.TrimSuffix(filename, filepath.Ext(filename)))
-			markerName = strings.ReplaceAll(markerName, ".", "_")
-			markerName = strings.ReplaceAll(markerName, "-", "_")
+			// Write each required JavaScript file
+			for _, filename := range dependencies {
+				// Get the content for this file
+				content, err := getJavaScriptFileContent(filename)
+				if err != nil {
+					mcpServersLog.Printf("Error getting content for %s: %v", filename, err)
+					continue
+				}
 
-			fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName)
-			for _, line := range FormatJavaScriptForYAML(content) {
-				yaml.WriteString(line)
+				// Generate a unique EOF marker based on filename
+				// Remove extension and convert to uppercase for marker
+				markerName := strings.ToUpper(strings.TrimSuffix(filename, filepath.Ext(filename)))
+				markerName = strings.ReplaceAll(markerName, ".", "_")
+				markerName = strings.ReplaceAll(markerName, "-", "_")
+
+				fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName)
+				for _, line := range FormatJavaScriptForYAML(content) {
+					yaml.WriteString(line)
+				}
+				fmt.Fprintf(yaml, "          EOF_%s\n", markerName)
 			}
-			fmt.Fprintf(yaml, "          EOF_%s\n", markerName)
 		}
 
-		// Write the main MCP server entry point (simple script that requires modules)
+		// Step 3: Write the main MCP server entry point (simple script that requires modules)
+		yaml.WriteString("      - name: Write Safe Outputs MCP Server Entry Point\n")
+		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Use the simple entry point script instead of bundled version
 		for _, line := range FormatJavaScriptForYAML(generateSafeOutputsMCPServerEntryScript()) {
