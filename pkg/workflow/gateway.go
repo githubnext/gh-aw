@@ -315,6 +315,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 		port = DefaultMCPGatewayPort
 	}
 
+	// Health check runs on the host, so use localhost
 	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
 
 	// MCP config file path (created by RenderMCPConfig)
@@ -398,24 +399,34 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 }
 
 // getMCPGatewayURL returns the HTTP URL for the MCP gateway
-func getMCPGatewayURL(config *MCPGatewayConfig) string {
+// If forContainer is true, returns a URL accessible from inside a Docker container
+func getMCPGatewayURL(config *MCPGatewayConfig, forContainer bool) string {
 	port := config.Port
 	if port == 0 {
 		port = DefaultMCPGatewayPort
 	}
-	return fmt.Sprintf("http://localhost:%d", port)
+	
+	// When accessing from inside a container (AWF), use host.docker.internal
+	// When accessing from the host (health checks), use localhost
+	host := "localhost"
+	if forContainer {
+		host = "host.docker.internal"
+	}
+	
+	return fmt.Sprintf("http://%s:%d", host, port)
 }
 
 // transformMCPConfigForGateway transforms the MCP server configuration to use the gateway URL
-// instead of individual server configurations
-func transformMCPConfigForGateway(mcpServers map[string]any, gatewayConfig *MCPGatewayConfig) map[string]any {
+// instead of individual server configurations.
+// If useContainerURL is true, the URLs will use host.docker.internal for container access.
+func transformMCPConfigForGateway(mcpServers map[string]any, gatewayConfig *MCPGatewayConfig, useContainerURL bool) map[string]any {
 	if gatewayConfig == nil {
 		return mcpServers
 	}
 
 	gatewayLog.Print("Transforming MCP config for gateway")
 
-	gatewayURL := getMCPGatewayURL(gatewayConfig)
+	gatewayURL := getMCPGatewayURL(gatewayConfig, useContainerURL)
 
 	// Create a new config that points all servers to the gateway
 	transformed := make(map[string]any)

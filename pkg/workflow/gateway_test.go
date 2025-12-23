@@ -282,27 +282,44 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 
 func TestGetMCPGatewayURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   *MCPGatewayConfig
-		expected string
+		name         string
+		config       *MCPGatewayConfig
+		forContainer bool
+		expected     string
 	}{
 		{
-			name:     "default port",
-			config:   &MCPGatewayConfig{},
-			expected: "http://localhost:8080",
+			name:         "default port for host",
+			config:       &MCPGatewayConfig{},
+			forContainer: false,
+			expected:     "http://localhost:8080",
 		},
 		{
-			name: "custom port",
+			name: "custom port for host",
 			config: &MCPGatewayConfig{
 				Port: 9090,
 			},
-			expected: "http://localhost:9090",
+			forContainer: false,
+			expected:     "http://localhost:9090",
+		},
+		{
+			name:         "default port for container",
+			config:       &MCPGatewayConfig{},
+			forContainer: true,
+			expected:     "http://host.docker.internal:8080",
+		},
+		{
+			name: "custom port for container",
+			config: &MCPGatewayConfig{
+				Port: 9090,
+			},
+			forContainer: true,
+			expected:     "http://host.docker.internal:9090",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getMCPGatewayURL(tt.config)
+			result := getMCPGatewayURL(tt.config, tt.forContainer)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -310,23 +327,25 @@ func TestGetMCPGatewayURL(t *testing.T) {
 
 func TestTransformMCPConfigForGateway(t *testing.T) {
 	tests := []struct {
-		name       string
-		mcpServers map[string]any
-		config     *MCPGatewayConfig
-		expected   map[string]any
+		name            string
+		mcpServers      map[string]any
+		config          *MCPGatewayConfig
+		useContainerURL bool
+		expected        map[string]any
 	}{
 		{
 			name: "nil config returns original",
 			mcpServers: map[string]any{
 				"github": map[string]any{"type": "local"},
 			},
-			config: nil,
+			config:          nil,
+			useContainerURL: false,
 			expected: map[string]any{
 				"github": map[string]any{"type": "local"},
 			},
 		},
 		{
-			name: "transforms servers to gateway URLs",
+			name: "transforms servers to gateway URLs with localhost",
 			mcpServers: map[string]any{
 				"github":     map[string]any{},
 				"playwright": map[string]any{},
@@ -334,6 +353,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 			config: &MCPGatewayConfig{
 				Port: 8080,
 			},
+			useContainerURL: false,
 			expected: map[string]any{
 				"github": map[string]any{
 					"type": "http",
@@ -346,6 +366,27 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 			},
 		},
 		{
+			name: "transforms servers to gateway URLs with host.docker.internal",
+			mcpServers: map[string]any{
+				"github":     map[string]any{},
+				"playwright": map[string]any{},
+			},
+			config: &MCPGatewayConfig{
+				Port: 8080,
+			},
+			useContainerURL: true,
+			expected: map[string]any{
+				"github": map[string]any{
+					"type": "http",
+					"url":  "http://host.docker.internal:8080/mcp/github",
+				},
+				"playwright": map[string]any{
+					"type": "http",
+					"url":  "http://host.docker.internal:8080/mcp/playwright",
+				},
+			},
+		},
+		{
 			name: "adds auth header when api-key present",
 			mcpServers: map[string]any{
 				"github": map[string]any{},
@@ -354,6 +395,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 				Port:   8080,
 				APIKey: "secret",
 			},
+			useContainerURL: false,
 			expected: map[string]any{
 				"github": map[string]any{
 					"type": "http",
@@ -368,7 +410,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := transformMCPConfigForGateway(tt.mcpServers, tt.config)
+			result := transformMCPConfigForGateway(tt.mcpServers, tt.config, tt.useContainerURL)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
