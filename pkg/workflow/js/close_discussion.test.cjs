@@ -33,10 +33,10 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${closeDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No close-discussion items found in agent output"));
+        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No close-discussion items found in agent output"));
       }),
       it("should handle missing agent output", async () => {
-        (await eval(`(async () => { ${closeDiscussionScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should close discussion with comment in non-staged mode", async () => {
         const validatedOutput = { items: [{ type: "close_discussion", body: "This discussion is resolved.", reason: "RESOLVED" }], errors: [] };
@@ -47,7 +47,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } } })
             .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABCDEF02", url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-123" } } })
             .mockResolvedValueOnce({ closeDiscussion: { discussion: { id: "D_kwDOABCDEF01", url: "https://github.com/testowner/testrepo/discussions/42" } } }),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Found 1 close-discussion item(s)"),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processing close-discussion item 1/1")),
           expect(mockCore.info).toHaveBeenCalledWith("Adding comment to discussion #42"),
@@ -60,7 +60,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const validatedOutput = { items: [{ type: "close_discussion", body: "This discussion is resolved.", reason: "RESOLVED" }], errors: [] };
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Close Discussions Preview")),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("**Target:** Current discussion")),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("**Reason:** RESOLVED")),
@@ -74,7 +74,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [{ name: "question" }] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 does not have required labels: resolved, completed"),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
@@ -85,7 +85,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 does not have required title prefix: [task]"),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
@@ -96,7 +96,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.graphql.mockResolvedValueOnce({
             repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/42" } },
           }),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 is not in required category: Announcements"),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
@@ -109,7 +109,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [] }, url: "https://github.com/testowner/testrepo/discussions/99" } } })
             .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABCDEF02", url: "https://github.com/testowner/testrepo/discussions/99#discussioncomment-123" } } })
             .mockResolvedValueOnce({ closeDiscussion: { discussion: { id: "D_kwDOABCDEF01", url: "https://github.com/testowner/testrepo/discussions/99" } } }),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Closing discussion #99")),
           expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 99));
       }),
@@ -117,7 +117,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const validatedOutput = { items: [{ type: "close_discussion", body: "Closing this discussion." }], errors: [] };
         (setAgentOutput(validatedOutput),
           (mockContext.eventName = "issues"),
-          await eval(`(async () => { ${closeDiscussionScript} })()`),
+          await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in discussion context, skipping discussion close'),
           expect(mockCore.setOutput).not.toHaveBeenCalled());
       }),
@@ -126,7 +126,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput(validatedOutput),
           mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: Discussion not found")),
           await expect(async () => {
-            await eval(`(async () => { ${closeDiscussionScript} })()`);
+            await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`);
           }).rejects.toThrow(),
           expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to close discussion #42")));
       }));

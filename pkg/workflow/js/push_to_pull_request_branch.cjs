@@ -422,4 +422,4 @@ async function main() {
   await core.summary.addRaw(summaryContent).write();
 }
 
-await main();
+module.exports = { main };

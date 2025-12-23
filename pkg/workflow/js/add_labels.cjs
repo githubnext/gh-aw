@@ -122,4 +122,5 @@ ${labelsListMarkdown}
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
 }
-await main();
+
+module.exports = { main };

@@ -342,4 +342,5 @@ async function main() {
   }
   core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
 }
-await main();
+
+module.exports = { main };

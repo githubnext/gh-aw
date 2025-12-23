@@ -50,14 +50,14 @@ const mockCore = {
         (it("should fail if GH_AW_STOP_TIME is not set", async () => {
           (delete process.env.GH_AW_STOP_TIME,
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
-            await eval(`(async () => { ${checkStopTimeScript} })()`),
+            await eval(`(async () => { ${checkStopTimeScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_STOP_TIME not specified")),
             expect(mockCore.setOutput).not.toHaveBeenCalled());
         }),
           it("should fail if GH_AW_WORKFLOW_NAME is not set", async () => {
             ((process.env.GH_AW_STOP_TIME = "2025-12-31 23:59:59"),
               delete process.env.GH_AW_WORKFLOW_NAME,
-              await eval(`(async () => { ${checkStopTimeScript} })()`),
+              await eval(`(async () => { ${checkStopTimeScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_NAME not specified")),
               expect(mockCore.setOutput).not.toHaveBeenCalled());
           }));
@@ -66,7 +66,7 @@ const mockCore = {
         it("should fail with error for invalid format", async () => {
           ((process.env.GH_AW_STOP_TIME = "invalid-date"),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
-            await eval(`(async () => { ${checkStopTimeScript} })()`),
+            await eval(`(async () => { ${checkStopTimeScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid stop-time format")),
             expect(mockCore.setOutput).not.toHaveBeenCalled());
         });
@@ -78,7 +78,7 @@ const mockCore = {
           const stopTime = futureDate.toISOString().replace("T", " ").substring(0, 19);
           ((process.env.GH_AW_STOP_TIME = stopTime),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
-            await eval(`(async () => { ${checkStopTimeScript} })()`),
+            await eval(`(async () => { ${checkStopTimeScript}; await main(); })()`),
             expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "true"),
             expect(mockCore.setFailed).not.toHaveBeenCalled());
         });
@@ -90,7 +90,7 @@ const mockCore = {
           const stopTime = pastDate.toISOString().replace("T", " ").substring(0, 19);
           ((process.env.GH_AW_STOP_TIME = stopTime),
             (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
-            await eval(`(async () => { ${checkStopTimeScript} })()`),
+            await eval(`(async () => { ${checkStopTimeScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Stop time reached")),
             expect(mockGithub.rest.actions.listRepoWorkflows).not.toHaveBeenCalled(),
             expect(mockGithub.rest.actions.disableWorkflow).not.toHaveBeenCalled(),

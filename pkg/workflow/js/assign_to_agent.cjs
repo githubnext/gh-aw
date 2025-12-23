@@ -213,6 +213,4 @@ async function main() {
   }
 }
 
-(async () => {
-  await main();
-})();
+module.exports = { main };

@@ -32,17 +32,17 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty agent output", async () => {
-        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${closeIssueScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No close-issue items found in agent output"));
+        (setAgentOutput({ items: [], errors: [] }), await eval(`(async () => { ${closeIssueScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No close-issue items found in agent output"));
       }),
       it("should handle missing agent output", async () => {
-        (await eval(`(async () => { ${closeIssueScript} })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
+        (await eval(`(async () => { ${closeIssueScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found"));
       }),
       it("should close issue with comment in triggering context", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", body: "Closing this issue due to completion." }] }),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 42, title: "[test] Test Issue", labels: [{ name: "bug" }], state: "open", html_url: "https://github.com/testowner/testrepo/issues/42" } }),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 123, html_url: "https://github.com/testowner/testrepo/issues/42#issuecomment-123" } }),
           mockGithub.rest.issues.update.mockResolvedValue({ data: { number: 42, html_url: "https://github.com/testowner/testrepo/issues/42", title: "[test] Test Issue" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 42 }),
           expect(mockGithub.rest.issues.createComment).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 42, state: "closed" }),
@@ -55,7 +55,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 100, title: "[refactor] Refactor Test", labels: [{ name: "refactoring" }], state: "open", html_url: "https://github.com/testowner/testrepo/issues/100" } }),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 456, html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-456" } }),
           mockGithub.rest.issues.update.mockResolvedValue({ data: { number: 100, html_url: "https://github.com/testowner/testrepo/issues/100", title: "[refactor] Refactor Test" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 100 }),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 100));
       }),
@@ -64,7 +64,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
           (process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX = "[refactor] "),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 50, title: "[bug] Bug Fix", labels: [], state: "open", html_url: "https://github.com/testowner/testrepo/issues/50" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not have required title prefix")));
@@ -74,7 +74,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
           (process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS = "automated,stale"),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 60, title: "Test Issue", labels: [{ name: "bug" }], state: "open", html_url: "https://github.com/testowner/testrepo/issues/60" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not have required labels")));
@@ -83,7 +83,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 70, body: "Closing this issue." }] }),
           (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 70, title: "Already Closed", labels: [], state: "closed", html_url: "https://github.com/testowner/testrepo/issues/70" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith("Issue #70 is already closed, skipping"));
@@ -91,7 +91,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should work in staged mode", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 80, body: "This is a test close." }] }),
           (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).not.toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Close Issues Preview")),
@@ -110,7 +110,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             .mockResolvedValueOnce({ data: { number: 92, title: "Issue 92", labels: [], state: "open", html_url: "https://github.com/testowner/testrepo/issues/92" } }),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 999, html_url: "https://github.com/testowner/testrepo/issues/91#issuecomment-999" } }),
           mockGithub.rest.issues.update.mockResolvedValue({ data: { number: 91, html_url: "https://github.com/testowner/testrepo/issues/91", title: "Issue 91" } }),
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalledTimes(2),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledTimes(2),
           expect(mockCore.info).toHaveBeenCalledWith("Successfully closed 2 issue(s)"));
@@ -119,7 +119,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput({ items: [{ type: "close_issue", body: "Closing issue." }] }),
           (global.context.eventName = "push"),
           delete global.context.payload.issue,
-          await eval(`(async () => { ${closeIssueScript} })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue context, skipping issue close'));
       }));

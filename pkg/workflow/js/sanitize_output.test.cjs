@@ -325,13 +325,13 @@ const mockCore = {
           }),
           it("should handle missing GH_AW_SAFE_OUTPUTS environment variable", async () => {
             (delete process.env.GH_AW_SAFE_OUTPUTS,
-              await eval(`(async () => { ${sanitizeScript} })()`),
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUTS not set, no output to collect"),
               expect(mockCore.setOutput).toHaveBeenCalledWith("output", ""));
           }),
           it("should handle non-existent output file", async () => {
             ((process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/non-existent-file.txt"),
-              await eval(`(async () => { ${sanitizeScript} })()`),
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/gh-aw/non-existent-file.txt"),
               expect(mockCore.setOutput).toHaveBeenCalledWith("output", ""));
           }),
@@ -339,7 +339,7 @@ const mockCore = {
             const testFile = "/tmp/gh-aw/test-empty-output.txt";
             (fs.writeFileSync(testFile, "   \n  \t  \n  "),
               (process.env.GH_AW_SAFE_OUTPUTS = testFile),
-              await eval(`(async () => { ${sanitizeScript} })()`),
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith("Output file is empty"),
               expect(mockCore.setOutput).toHaveBeenCalledWith("output", ""),
               fs.unlinkSync(testFile));
@@ -349,7 +349,7 @@ const mockCore = {
               testFile = "/tmp/gh-aw/test-output.txt";
             (fs.writeFileSync(testFile, testContent),
               (process.env.GH_AW_SAFE_OUTPUTS = testFile),
-              await eval(`(async () => { ${sanitizeScript} })()`),
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Collected agentic output \(sanitized\):.*@user/)));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
@@ -363,7 +363,7 @@ const mockCore = {
           it("should truncate log output for very long content", async () => {
             const longContent = "x".repeat(250),
               testFile = "/tmp/gh-aw/test-long-output.txt";
-            (fs.writeFileSync(testFile, longContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, longContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const logCalls = mockCore.info.mock.calls,
               outputLogCall = logCalls.find(call => call[0] && call[0].includes("Collected agentic output (sanitized):"));
             (expect(outputLogCall).toBeDefined(), expect(outputLogCall[0]).toContain("..."), expect(outputLogCall[0].length).toBeLessThan(longContent.length), fs.unlinkSync(testFile));
@@ -378,7 +378,7 @@ const mockCore = {
             process.env.GH_AW_SAFE_OUTPUTS = testFile;
             let thrownError = null;
             try {
-              await eval(`(async () => { ${sanitizeScript} })()`);
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`);
             } catch (error) {
               thrownError = error;
             }
@@ -387,7 +387,7 @@ const mockCore = {
           it("should handle binary file content", async () => {
             const binaryData = Buffer.from([0, 1, 2, 255, 254, 253]),
               testFile = "/tmp/gh-aw/test-binary.txt";
-            (fs.writeFileSync(testFile, binaryData), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, binaryData), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             (expect(outputCall).toBeDefined(), fs.unlinkSync(testFile));
           }),
@@ -396,7 +396,7 @@ const mockCore = {
               testFile = "/tmp/gh-aw/test-whitespace.txt";
             (fs.writeFileSync(testFile, whitespaceContent),
               (process.env.GH_AW_SAFE_OUTPUTS = testFile),
-              await eval(`(async () => { ${sanitizeScript} })()`),
+              await eval(`(async () => { ${sanitizeScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith("Output file is empty"),
               expect(mockCore.setOutput).toHaveBeenCalledWith("output", ""),
               fs.unlinkSync(testFile));
@@ -405,7 +405,7 @@ const mockCore = {
             const lineContent = 'This is a line with @user and https://evil.com plus <script>alert("xss")<\/script>\n',
               repeatedContent = lineContent.repeat(7e4),
               testFile = "/tmp/gh-aw/test-large-mixed.txt";
-            (fs.writeFileSync(testFile, repeatedContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, repeatedContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -414,7 +414,7 @@ const mockCore = {
           it("should preserve log message format for short content", async () => {
             const shortContent = "Short message with @user",
               testFile = "/tmp/gh-aw/test-short.txt";
-            (fs.writeFileSync(testFile, shortContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, shortContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const logCalls = mockCore.info.mock.calls,
               outputLogCall = logCalls.find(call => call[0] && call[0].includes("Collected agentic output (sanitized):"));
             (expect(outputLogCall).toBeDefined(), expect(outputLogCall[0]).not.toContain("..."), expect(outputLogCall[0]).toContain("`@user`"), fs.unlinkSync(testFile));
@@ -428,7 +428,7 @@ const mockCore = {
             process.env.GH_AW_COMMAND = "test-bot";
             const content = "/test-bot please analyze this code",
               testFile = "/tmp/gh-aw/test-command-start.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -438,7 +438,7 @@ const mockCore = {
             process.env.GH_AW_COMMAND = "helper";
             const content = "I need help from /helper please",
               testFile = "/tmp/gh-aw/test-command-middle.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -448,7 +448,7 @@ const mockCore = {
             process.env.GH_AW_COMMAND = "review-bot";
             const content = "  \n/review-bot analyze this PR",
               testFile = "/tmp/gh-aw/test-command-whitespace.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -457,7 +457,7 @@ const mockCore = {
           it("should not modify text when no command is configured", async () => {
             const content = "/some-bot do something",
               testFile = "/tmp/gh-aw/test-no-command.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -467,7 +467,7 @@ const mockCore = {
             process.env.GH_AW_COMMAND = "test-bot_v2";
             const content = "/test-bot_v2 execute task",
               testFile = "/tmp/gh-aw/test-special-chars.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -477,7 +477,7 @@ const mockCore = {
             process.env.GH_AW_COMMAND = "analyze-bot";
             const content = "/analyze-bot check @user for https://evil.com issues",
               testFile = "/tmp/gh-aw/test-combined.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
             expect(outputCall).toBeDefined();
             const result = outputCall[1];
@@ -491,7 +491,7 @@ const mockCore = {
           it("should log when HTTPS URLs with disallowed domains are redacted", async () => {
             const content = "Check out https://evil.com/malware for details",
               testFile = "/tmp/gh-aw/test-url-logging-https.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: evil.com"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: evil.com"));
@@ -502,7 +502,7 @@ const mockCore = {
           it("should log when HTTP URLs are redacted", async () => {
             const content = "Visit http://example.com for more info",
               testFile = "/tmp/gh-aw/test-url-logging-http.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: example.com"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: example.com"));
@@ -513,7 +513,7 @@ const mockCore = {
           it("should log when javascript: URLs are redacted", async () => {
             const content = "Click here: javascript:alert('xss')",
               testFile = "/tmp/gh-aw/test-url-logging-js.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:a"));
             (expect(redactionLog).toBeDefined(), expect(redactionLog[0]).toBe("Redacted URL: javascript:a..."));
@@ -524,7 +524,7 @@ const mockCore = {
           it("should log multiple URL redactions", async () => {
             const content = "Links: http://bad1.com, https://bad2.com, ftp://bad3.com",
               testFile = "/tmp/gh-aw/test-url-logging-multiple.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
             (expect(redactionLogs.length).toBeGreaterThanOrEqual(3),
@@ -536,7 +536,7 @@ const mockCore = {
           it("should not log when HTTPS URLs with allowed domains are preserved", async () => {
             const content = "Visit https://github.com for more info",
               testFile = "/tmp/gh-aw/test-url-logging-allowed.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLogs = infoCalls.filter(call => call[0] && call[0].includes("Redacted URL: github.com"));
             (expect(redactionLogs.length).toBe(0), fs.unlinkSync(testFile));
@@ -544,7 +544,7 @@ const mockCore = {
           it("should log when data: URLs are redacted", async () => {
             const content = "Image: data:text/html,<script>alert(1)<\/script>",
               testFile = "/tmp/gh-aw/test-url-logging-data.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: data:text/ht"));
             (expect(redactionLog).toBeDefined(), fs.unlinkSync(testFile));
@@ -552,7 +552,7 @@ const mockCore = {
           it("should handle mixed content with both redacted and allowed URLs", async () => {
             const content = "Good: https://github.com/repo Bad: https://evil.com/bad More: http://another.bad",
               testFile = "/tmp/gh-aw/test-url-logging-mixed.txt";
-            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript} })()`));
+            (fs.writeFileSync(testFile, content), (process.env.GH_AW_SAFE_OUTPUTS = testFile), await eval(`(async () => { ${sanitizeScript}; await main(); })()`));
             const infoCalls = mockCore.info.mock.calls,
               redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
             (expect(redactionLogs.length).toBeGreaterThanOrEqual(2),

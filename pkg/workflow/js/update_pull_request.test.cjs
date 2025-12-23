@@ -58,6 +58,10 @@ describe("update_pull_request.cjs - executePRUpdate function", () => {
 
     // Import the module fresh for each test
     updatePRModule = await import("./update_pull_request.cjs");
+    // Call main if it exists
+    if (updatePRModule.main) {
+      await updatePRModule.main();
+    }
 
     // Reset mock implementations
     mockGithub.rest.pulls.get.mockResolvedValue({

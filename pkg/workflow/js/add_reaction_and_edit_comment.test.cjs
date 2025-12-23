@@ -51,7 +51,7 @@ const mockCore = {
             (global.context.eventName = "issues"),
             (global.context.payload.issue = { number: 123 }),
             mockGithub.request.mockResolvedValue({ data: { id: 456 } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/reactions", expect.objectContaining({ content: "eyes" })),
             expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "456"));
         }),
@@ -59,7 +59,7 @@ const mockCore = {
             ((process.env.GH_AW_REACTION = "invalid"),
               (global.context.eventName = "issues"),
               (global.context.payload.issue = { number: 123 }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid reaction type: invalid")),
               expect(mockGithub.request).not.toHaveBeenCalled());
           }));
@@ -71,7 +71,7 @@ const mockCore = {
             (global.context.eventName = "pull_request"),
             (global.context.payload = { pull_request: { number: 456 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
             mockGithub.request.mockResolvedValueOnce({ data: { id: 789 } }).mockResolvedValueOnce({ data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/456#issuecomment-999" } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/456/reactions", expect.objectContaining({ content: "heart" })),
             expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/456/comments", expect.objectContaining({ body: expect.stringContaining("be settin' sail on this pull request") })),
             expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "789"),
@@ -87,7 +87,7 @@ const mockCore = {
             mockGithub.graphql
               .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC", url: "https://github.com/testowner/testrepo/discussions/10" } } })
               .mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "ROCKET" } } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("query"), expect.objectContaining({ owner: "testowner", repo: "testrepo", num: 10 })),
             expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation"), expect.objectContaining({ subjectId: "D_kwDOABcD1M4AaBbC", content: "ROCKET" })),
             expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "MDg6UmVhY3Rpb24xMjM0NTY3ODk="));
@@ -111,7 +111,7 @@ const mockCore = {
                 mockGithub.graphql
                   .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC", url: "https://github.com/testowner/testrepo/discussions/10" } } })
                   .mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: test.expected } } }),
-                await eval(`(async () => { ${reactionScript} })()`),
+                await eval(`(async () => { ${reactionScript}; await main(); })()`),
                 expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation"), expect.objectContaining({ content: test.expected })));
           }));
       }),
@@ -125,7 +125,7 @@ const mockCore = {
               repository: { html_url: "https://github.com/testowner/testrepo" },
             }),
             mockGithub.graphql.mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "HEART" } } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("mutation"), expect.objectContaining({ subjectId: "DC_kwDOABcD1M4AaBbC", content: "HEART" })),
             expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "MDg6UmVhY3Rpb24xMjM0NTY3ODk="));
         }),
@@ -133,7 +133,7 @@ const mockCore = {
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "discussion_comment"),
               (global.context.payload = { discussion: { number: 10 }, comment: { id: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion comment node ID not found in event payload"),
               expect(mockGithub.graphql).not.toHaveBeenCalled());
           }));
@@ -145,7 +145,7 @@ const mockCore = {
             (global.context.eventName = "issues"),
             (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
             mockGithub.request.mockResolvedValueOnce({ data: { id: 456 } }).mockResolvedValueOnce({ data: { id: 789, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-789" } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/reactions", expect.objectContaining({ content: "eyes" })),
             expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/comments", expect.objectContaining({ body: expect.stringContaining("be settin' sail on this issue") })),
             expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "456"),
@@ -158,7 +158,7 @@ const mockCore = {
               (global.context.eventName = "issue_comment"),
               (global.context.payload = { issue: { number: 123 }, comment: { id: 456 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
               mockGithub.request.mockResolvedValueOnce({ data: { id: 111 } }).mockResolvedValueOnce({ data: { id: 789, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-789" } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/123/comments", expect.objectContaining({ body: expect.stringContaining("be settin' sail on this issue comment") })),
               expect(mockGithub.request).not.toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/comments/456", expect.anything()),
               expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "789"),
@@ -171,7 +171,7 @@ const mockCore = {
               (global.context.eventName = "pull_request_review_comment"),
               (global.context.payload = { pull_request: { number: 456 }, comment: { id: 789 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
               mockGithub.request.mockResolvedValueOnce({ data: { id: 222 } }).mockResolvedValueOnce({ data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/456#discussion_r999" } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/456/comments", expect.objectContaining({ body: expect.stringContaining("be settin' sail on this pull request review comment") })),
               expect(mockGithub.request).not.toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/comments/789", expect.anything()),
               expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "999"),
@@ -188,7 +188,7 @@ const mockCore = {
                 .mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "EYES" } } })
                 .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC" } } })
                 .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABcD1M4AaBbE", url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999" } } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockGithub.graphql).toHaveBeenCalledTimes(4),
               expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), expect.objectContaining({ dId: "D_kwDOABcD1M4AaBbC", body: expect.stringContaining("be settin' sail on this discussion") })),
               expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "MDg6UmVhY3Rpb24xMjM0NTY3ODk="),
@@ -204,7 +204,7 @@ const mockCore = {
                 .mockResolvedValueOnce({ addReaction: { reaction: { id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=", content: "EYES" } } })
                 .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABcD1M4AaBbC" } } })
                 .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABcD1M4AaBbE", url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789" } } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockGithub.graphql).toHaveBeenCalledWith(
                 expect.stringContaining("addDiscussionComment"),
                 expect.objectContaining({ dId: "D_kwDOABcD1M4AaBbC", body: expect.stringContaining("be settin' sail on this discussion comment"), replyToId: "DC_kwDOABcD1M4AaBbC" })
@@ -219,21 +219,21 @@ const mockCore = {
           ((process.env.GH_AW_REACTION = "eyes"),
             (global.context.eventName = "discussion"),
             (global.context.payload = { repository: { html_url: "https://github.com/testowner/testrepo" } }),
-            await eval(`(async () => { ${reactionScript} })()`),
+            await eval(`(async () => { ${reactionScript}; await main(); })()`),
             expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion number not found in event payload"));
         }),
           it("should handle missing discussion or comment info for discussion_comment", async () => {
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "discussion_comment"),
               (global.context.payload = { discussion: { number: 10 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion or comment information not found in event payload"));
           }),
           it("should handle unsupported event types", async () => {
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "push"),
               (global.context.payload = { repository: { html_url: "https://github.com/testowner/testrepo" } }),
-              await eval(`(async () => { ${reactionScript} })()`),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: push"));
           }));
       }));

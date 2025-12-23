@@ -422,4 +422,5 @@ async function main() {
       }
     }
 }
-("undefined" != typeof module && module.exports && (module.exports = { updateProject, parseProjectInput, generateCampaignId, main }), ("undefined" != typeof module && require.main !== module) || main());
+
+module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
