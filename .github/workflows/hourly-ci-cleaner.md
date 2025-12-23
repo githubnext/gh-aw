@@ -1,5 +1,5 @@
 ---
-description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend.
+description: CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Runs every 2 hours during peak hours (9 AM - 5 PM UTC) and every 3 hours during off-peak hours to optimize token spend. Includes early exit when CI is passing to prevent unnecessary token consumption.
 on:
   schedule:
     # Peak hours (9 AM - 5 PM UTC): Every 2 hours
@@ -30,35 +30,45 @@ sandbox:
       - "/usr/local/bin/npm:/usr/local/bin/npm:ro"
       - "/usr/local/lib/node_modules:/usr/local/lib/node_modules:ro"
       - "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro"
+if: needs.check_ci_status.outputs.ci_needs_fix == 'true'
+jobs:
+  check_ci_status:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      ci_needs_fix: ${{ steps.ci_check.outputs.ci_needs_fix }}
+      ci_status: ${{ steps.ci_check.outputs.ci_status }}
+      ci_run_id: ${{ steps.ci_check.outputs.ci_run_id }}
+    steps:
+      - name: Check last CI workflow run status on main branch
+        id: ci_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the last CI workflow run on main branch, excluding pending and cancelled runs
+          LAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \
+            | jq -r '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | .[0]')
+          
+          CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
+          RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
+          
+          echo "Last CI run conclusion: ${CONCLUSION}"
+          echo "Run ID: ${RUN_ID}"
+          
+          # Set outputs for use in other jobs
+          echo "ci_status=${CONCLUSION}" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
+            echo "ci_needs_fix=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
+            echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
+            echo "ci_needs_fix=true" >> "$GITHUB_OUTPUT"
+          fi
 steps:
-  - name: Check last CI workflow run status on main branch
-    id: ci_check
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      # Get the last CI workflow run on main branch, excluding pending and cancelled runs
-      LAST_RUN=$(gh run list --workflow=ci.yml --branch=main --limit 50 --json conclusion,status,databaseId \
-        | jq -r '[.[] | select(.status == "completed" and (.conclusion == "success" or .conclusion == "failure"))] | .[0]')
-      
-      CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
-      RUN_ID=$(echo "$LAST_RUN" | jq -r '.databaseId')
-      
-      echo "Last CI run conclusion: ${CONCLUSION}"
-      echo "Run ID: ${RUN_ID}"
-      
-      # Write to environment and step summary
-      echo "CI_STATUS=${CONCLUSION}" >> "$GITHUB_ENV"
-      echo "CI_RUN_ID=${RUN_ID}" >> "$GITHUB_ENV"
-      
-      if [ "$CONCLUSION" = "success" ]; then
-        echo "✅ CI is passing on main branch - no action needed" >> "$GITHUB_STEP_SUMMARY"
-        echo "CI_NEEDS_FIX=false" >> "$GITHUB_ENV"
-        exit 1
-      else
-        echo "❌ CI is failing on main branch - agent will attempt to fix" >> "$GITHUB_STEP_SUMMARY"
-        echo "Run ID: ${RUN_ID}" >> "$GITHUB_STEP_SUMMARY"
-        echo "CI_NEEDS_FIX=true" >> "$GITHUB_ENV"
-      fi
   - name: Install Make
     run: |
       sudo apt-get update
@@ -103,7 +113,8 @@ When CI fails on the main branch, automatically diagnose and fix the issues by:
 
 - **Repository**: ${{ github.repository }}
 - **Run Number**: #${{ github.run_number }}
-- **CI Status**: ${{ env.CI_STATUS }}
+- **CI Status**: ${{ needs.check_ci_status.outputs.ci_status }}
+- **CI Run ID**: ${{ needs.check_ci_status.outputs.ci_run_id }}
 
 ## Your Task
 
