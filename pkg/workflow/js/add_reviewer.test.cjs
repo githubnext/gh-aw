@@ -88,7 +88,8 @@ describe("add_reviewer", () => {
   it("should handle missing GH_AW_AGENT_OUTPUT", async () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
@@ -100,7 +101,8 @@ describe("add_reviewer", () => {
     fs.writeFileSync(outputFile, JSON.stringify(agentOutput));
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockCore.warning).toHaveBeenCalledWith("No add-reviewer item found in agent output");
   });
@@ -119,7 +121,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
     process.env.GH_AW_REVIEWERS_TARGET = "triggering";
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
@@ -144,7 +147,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
@@ -165,7 +169,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_REVIEWERS_ALLOWED = "octocat,github";
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "3";
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
@@ -188,7 +193,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "2";
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
@@ -219,7 +225,8 @@ describe("add_reviewer", () => {
       },
     };
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('Target is "triggering" but not running in pull request context'));
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -239,7 +246,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_TARGET = "*";
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
@@ -262,7 +270,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(new Error("API Error"));
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reviewers"));
@@ -281,7 +290,8 @@ describe("add_reviewer", () => {
     process.env.GH_AW_AGENT_OUTPUT = outputFile;
     process.env.GH_AW_REVIEWERS_MAX_COUNT = "10"; // Set high max to test deduplication
 
-    const { main } = await import("./add_reviewer.cjs"); await main();
+    const { main } = await import("./add_reviewer.cjs");
+    await main();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",

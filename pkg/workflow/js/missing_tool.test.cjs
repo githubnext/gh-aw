@@ -39,7 +39,7 @@ describe("missing_tool.cjs", () => {
         summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
       }),
       (global.core = mockCore),
-      (global.module = { exports: {} }),  // Add module for exports
+      (global.module = { exports: {} }), // Add module for exports
       (global.require = vi.fn().mockImplementation(module => {
         if ("fs" === module) return fs;
         if ("@actions/core" === module) return mockCore;

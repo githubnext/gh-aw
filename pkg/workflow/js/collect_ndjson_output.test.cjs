@@ -1143,7 +1143,10 @@ describe("collect_ndjson_output.cjs", () => {
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const __config = '{"create_issue": true}',
           configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`), expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String)));
+        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+          fs.writeFileSync(configPath, __config),
+          await eval(`(async () => { ${collectScript}; await main(); })()`),
+          expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String)));
         const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
           parsedOutput = JSON.parse(outputCall[1]);
         (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].body).toBe("Use z3 -v:10 and z3 -memory:high for performance monitoring"), expect(parsedOutput.errors).toHaveLength(0));

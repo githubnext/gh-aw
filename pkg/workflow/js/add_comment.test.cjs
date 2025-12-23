@@ -55,7 +55,10 @@ const mockCore = {
           expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
       }),
       it("should skip when agent output is empty", async () => {
-        (setAgentOutput(""), await eval(`(async () => { ${createCommentScript}; await main(); })()`), expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"), expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
+        (setAgentOutput(""),
+          await eval(`(async () => { ${createCommentScript}; await main(); })()`),
+          expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty"),
+          expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled());
       }),
       it("should skip when not in issue or PR context", async () => {
         (setAgentOutput({ items: [{ type: "add_comment", body: "Test comment content" }] }),

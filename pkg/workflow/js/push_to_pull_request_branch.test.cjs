@@ -60,7 +60,14 @@ const mockCore = {
           return agentOutputPath && filepath === agentOutputPath ? fs.readFileSync(filepath, encoding || "utf8") : patchContent;
         });
       },
-      executeScript = async () => ((global.core = mockCore), (global.context = mockContext), (global.github = mockGithub), (global.mockFs = mockFs), (global.exec = mockExec), await eval(`(async () => { ${pushToPrBranchScript}; await main(); })()`));
+      executeScript = async () => (
+        (global.core = mockCore),
+        (global.context = mockContext),
+        (global.github = mockGithub),
+        (global.mockFs = mockFs),
+        (global.exec = mockExec),
+        await eval(`(async () => { ${pushToPrBranchScript}; await main(); })()`)
+      );
     (beforeEach(() => {
       (vi.clearAllMocks(),
         delete process.env.GH_AW_PUSH_TARGET,
