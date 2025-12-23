@@ -402,13 +402,6 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
 		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
 
-		// Add --add-host flag to allow container to access host via host.docker.internal
-		// This is needed when MCP gateway runs on the host and agent runs in the container
-		if isMCPGatewayEnabled(workflowData) {
-			awfArgs = append(awfArgs, "--add-host", "host.docker.internal:host-gateway")
-			copilotLog.Print("Added host.docker.internal mapping for MCP gateway access")
-		}
-
 		// Pin AWF Docker image version to match the installed binary version
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
