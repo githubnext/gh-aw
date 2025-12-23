@@ -15,15 +15,13 @@ network: defaults
 imports:
 - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
-  create-discussion:
+  create-issue:
     expires: 3d
-    category: announcements
     title-prefix: "[team-status] "
-    close-older-discussions: true
 description: |
   This workflow created daily team status reporter creating upbeat activity summaries.
-  Gathers recent repository activity (issues, PRs, discussions, releases, code changes)
-  and generates engaging GitHub discussions with productivity insights, community
+  Gathers recent repository activity (issues, PRs, releases, code changes)
+  and generates engaging GitHub issues with productivity insights, community
   highlights, and project recommendations. Uses a positive, encouraging tone with
   moderate emoji usage to boost team morale.
 source: githubnext/agentics/workflows/daily-team-status.md@d3422bf940923ef1d43db5559652b8e1e71869f3
@@ -35,11 +33,11 @@ tools:
 
 # Daily Team Status
 
-Create an upbeat daily status report for the team as a GitHub discussion.
+Create an upbeat daily status report for the team as a GitHub issue.
 
 ## What to include
 
-- Recent repository activity (issues, PRs, discussions, releases, code changes)
+- Recent repository activity (issues, PRs, releases, code changes)
 - Team productivity suggestions and improvement ideas
 - Community engagement highlights
 - Project investment and feature recommendations
@@ -53,4 +51,4 @@ Create an upbeat daily status report for the team as a GitHub discussion.
 ## Process
 
 1. Gather recent activity from the repository
-2. Create a new GitHub discussion with your findings and insights
+2. Create a new GitHub issue with your findings and insights
