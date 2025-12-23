@@ -132,8 +132,6 @@ const userProjectV2Response = (url, number = 60, id = "project123", userLogin = 
 const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
 const userProjectNullResponse = () => ({ user: { projectV2: null } });
 
-const linkResponse = { linkProjectV2ToRepository: { repository: { id: "repo123" } } };
-
 const issueResponse = id => ({ repository: { issue: { id } } });
 
 const pullRequestResponse = id => ({ repository: { pullRequest: { id } } });
@@ -232,7 +230,7 @@ describe("updateProject", () => {
       content_number: 42,
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project456"), linkResponse, issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-custom" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project456"), issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-custom" } } }]);
 
     await updateProject(output);
 
@@ -245,7 +243,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42 };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse, issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item123" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item123" } } }]);
 
     await updateProject(output);
 
@@ -258,7 +256,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42, campaign_id: "my-campaign" };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse, issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item123" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item123" } } }]);
 
     await updateProject(output);
 
@@ -284,7 +282,7 @@ describe("updateProject", () => {
       draft_body: "Draft body",
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft"), linkResponse, addDraftIssueResponse("draft-item-1")]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft"), addDraftIssueResponse("draft-item-1")]);
 
     await updateProject(output);
 
@@ -302,7 +300,7 @@ describe("updateProject", () => {
       draft_title: "   ",
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft"), linkResponse]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-draft")]);
 
     await expect(updateProject(output)).rejects.toThrow(/draft_title/);
   });
@@ -311,7 +309,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 99 };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse, issueResponse("issue-id-99"), existingItemResponse("issue-id-99", "item-existing")]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), issueResponse("issue-id-99"), existingItemResponse("issue-id-99", "item-existing")]);
 
     await updateProject(output);
 
@@ -324,7 +322,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "pull_request", content_number: 17 };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-pr"), linkResponse, pullRequestResponse("pr-id-17"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "pr-item" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-pr"), pullRequestResponse("pr-id-17"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "pr-item" } } }]);
 
     await updateProject(output);
 
@@ -336,7 +334,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, issue: "101" };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "legacy-project"), linkResponse, issueResponse("issue-id-101"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "legacy-item" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "legacy-project"), issueResponse("issue-id-101"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "legacy-item" } } }]);
 
     await updateProject(output);
 
@@ -351,7 +349,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_number: "ABC" };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "invalid-project"), linkResponse]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "invalid-project")]);
 
     await expect(updateProject(output)).rejects.toThrow(/Invalid content number/);
   });
@@ -370,7 +368,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-field"),
-      linkResponse,
       issueResponse("issue-id-10"),
       existingItemResponse("issue-id-10", "item-field"),
       fieldsResponse([{ id: "field-status", name: "Status" }]),
@@ -398,7 +395,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-draft-fields"),
-      linkResponse,
       addDraftIssueResponse("draft-item-fields"),
       fieldsResponse([{ id: "field-status", name: "Status" }]),
       updateFieldValueResponse(),
@@ -426,7 +422,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-priority"),
-      linkResponse,
       issueResponse("issue-id-15"),
       existingItemResponse("issue-id-15", "item-priority"),
       fieldsResponse([
@@ -462,7 +457,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-status"),
-      linkResponse,
       issueResponse("issue-id-16"),
       existingItemResponse("issue-id-16", "item-status"),
       fieldsResponse([
@@ -525,7 +519,7 @@ describe("updateProject", () => {
       fields: { NonExistentField: "Some Value" },
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), linkResponse, issueResponse("issue-id-20"), existingItemResponse("issue-id-20", "item-test"), fieldsResponse([])]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-test"), issueResponse("issue-id-20"), existingItemResponse("issue-id-20", "item-test"), fieldsResponse([])]);
 
     mockGithub.graphql.mockRejectedValueOnce(new Error("Failed to create field"));
 
@@ -538,7 +532,7 @@ describe("updateProject", () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-label"), linkResponse, issueResponse("issue-id-50"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-label" } } }]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-label"), issueResponse("issue-id-50"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-label" } } }]);
 
     mockGithub.rest.issues.addLabels.mockRejectedValueOnce(new Error("Labels disabled"));
 
@@ -560,7 +554,7 @@ describe("updateProject", () => {
       campaign_id: "my-campaign-123",
     };
 
-    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse]);
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123")]);
 
     await updateProject(output);
 
@@ -594,7 +588,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-override"),
-      linkResponse,
       issueWithTimestamps,
       emptyItemsResponse(),
       { addProjectV2ItemById: { item: { id: "item-override" } } },
@@ -634,7 +627,6 @@ describe("updateProject", () => {
       repoResponse(),
       viewerResponse(),
       orgProjectV2Response(projectUrl, 60, "project-date-field"),
-      linkResponse,
       issueResponse("issue-id-75"),
       existingItemResponse("issue-id-75", "item-date-field"),
       // DATE field with dataType explicitly set to "DATE"
