@@ -136,6 +136,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
 		huh.NewOption("web-search - Web search tools", "web-search"),
 		huh.NewOption("playwright - Browser automation tools", "playwright"),
+		huh.NewOption("serena - Serena code analysis tool", "serena"),
 	}
 
 	// Prepare safe output options
