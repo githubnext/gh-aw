@@ -128,7 +128,7 @@ async function updateProject(output) {
     campaignId = output.campaign_id;
   try {
     let repoResult;
-    (core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`), core.info("[1/5] Fetching repository information..."));
+    (core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`), core.info("[1/4] Fetching repository information..."));
     try {
       repoResult = await github.graphql(
         "query($owner: String!, $repo: String!) {\n          repository(owner: $owner, name: $repo) {\n            id\n            owner {\n              id\n              __typename\n            }\n          }\n        }",
@@ -147,7 +147,7 @@ async function updateProject(output) {
       core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
     }
     let projectId;
-    core.info(`[2/5] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
+    core.info(`[2/4] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
     let resolvedProjectNumber = projectNumberFromUrl;
     try {
       const projectNumberInt = parseInt(projectNumberFromUrl, 10);
@@ -157,16 +157,7 @@ async function updateProject(output) {
     } catch (error) {
       throw (logGraphQLError(error, "Resolving project from URL"), error);
     }
-    core.info("[3/5] Linking project to repository...");
-    try {
-      await github.graphql(
-        "mutation($projectId: ID!, $repositoryId: ID!) {\n          linkProjectV2ToRepository(input: {\n            projectId: $projectId,\n            repositoryId: $repositoryId\n          }) {\n            repository {\n              id\n            }\n          }\n        }",
-        { projectId, repositoryId }
-      );
-    } catch (linkError) {
-      (linkError.message && linkError.message.includes("already linked")) || (logGraphQLError(linkError, "Linking project to repository"), core.warning(`Could not link project: ${linkError.message}`));
-    }
-    (core.info("✓ Project linked to repository"), core.info("[4/5] Processing content (issue/PR/draft) if specified..."));
+    core.info("[3/4] Processing content (issue/PR/draft) if specified...");
     const hasContentNumber = void 0 !== output.content_number && null !== output.content_number,
       hasIssue = void 0 !== output.issue && null !== output.issue,
       hasPullRequest = void 0 !== output.pull_request && null !== output.pull_request,

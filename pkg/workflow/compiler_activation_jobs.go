@@ -498,8 +498,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/lock-issue.cjs');\n")
 			steps = append(steps, "            await main();\n")
 		} else {
-			// Add the lock-issue script
-			formattedScript := FormatJavaScriptForYAML(lockIssueScript)
+			// Inline the lock-issue script
+			// Bundle it to remove module.exports and inline dependencies
+			sources := GetJavaScriptSources()
+			bundled, err := BundleJavaScriptWithMode(lockIssueScript, sources, "", RuntimeModeGitHubScript)
+			if err != nil {
+				return nil, fmt.Errorf("failed to bundle lock-issue script: %w", err)
+			}
+			// Add await main() to execute the bundled script
+			bundled = bundled + "\nawait main();"
+			formattedScript := FormatJavaScriptForYAML(bundled)
 			steps = append(steps, formattedScript...)
 		}
 
