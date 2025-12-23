@@ -548,7 +548,7 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 	}
 
 	// Stop spinner with success message
-	spinner.StopWithMessage(console.FormatSuccessMessage("✓ Workflow compiled successfully!"))
+	spinner.StopWithMessage("✓ Workflow compiled successfully!")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("You can now find your compiled workflow at .github/workflows/%s.lock.yml", b.WorkflowName)))
 
 	return nil
