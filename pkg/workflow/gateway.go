@@ -405,14 +405,14 @@ func getMCPGatewayURL(config *MCPGatewayConfig, forContainer bool) string {
 	if port == 0 {
 		port = DefaultMCPGatewayPort
 	}
-	
+
 	// When accessing from inside a container (AWF), use host.docker.internal
 	// When accessing from the host (health checks), use localhost
 	host := "localhost"
 	if forContainer {
 		host = "host.docker.internal"
 	}
-	
+
 	return fmt.Sprintf("http://%s:%d", host, port)
 }
 
