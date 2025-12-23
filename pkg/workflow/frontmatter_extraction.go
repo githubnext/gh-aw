@@ -819,19 +819,13 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 	config := &SandboxConfig{}
 
-	// Check for new format: { agent: ..., mcp: ... }
+	// Check for new format: { agent: ... }
 	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
-	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
-		if mcpObj, ok := mcpVal.(map[string]any); ok {
-			config.MCP = parseMCPGatewayTool(mcpObj)
-		}
-	}
-
-	// If we found agent or mcp fields, return the new format config
-	if config.Agent != nil || config.MCP != nil {
+	// If we found agent field, return the new format config
+	if config.Agent != nil {
 		return config
 	}
 

@@ -416,68 +416,6 @@ func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
 	return &RepoMemoryToolConfig{Raw: val}
 }
 
-// parseMCPGatewayTool converts raw mcp-gateway tool configuration
-func parseMCPGatewayTool(val any) *MCPGatewayConfig {
-	if val == nil {
-		return nil
-	}
-
-	configMap, ok := val.(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	config := &MCPGatewayConfig{
-		Port: DefaultMCPGatewayPort,
-	}
-
-	if command, ok := configMap["command"].(string); ok {
-		config.Command = command
-	}
-	if container, ok := configMap["container"].(string); ok {
-		config.Container = container
-	}
-	if version, ok := configMap["version"].(string); ok {
-		config.Version = version
-	} else if versionNum, ok := configMap["version"].(float64); ok {
-		config.Version = fmt.Sprintf("%.0f", versionNum)
-	}
-	if args, ok := configMap["args"].([]any); ok {
-		config.Args = make([]string, 0, len(args))
-		for _, arg := range args {
-			if str, ok := arg.(string); ok {
-				config.Args = append(config.Args, str)
-			}
-		}
-	}
-	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
-		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
-		for _, arg := range entrypointArgs {
-			if str, ok := arg.(string); ok {
-				config.EntrypointArgs = append(config.EntrypointArgs, str)
-			}
-		}
-	}
-	if env, ok := configMap["env"].(map[string]any); ok {
-		config.Env = make(map[string]string)
-		for k, v := range env {
-			if str, ok := v.(string); ok {
-				config.Env[k] = str
-			}
-		}
-	}
-	if port, ok := configMap["port"].(int); ok {
-		config.Port = port
-	} else if portFloat, ok := configMap["port"].(float64); ok {
-		config.Port = int(portFloat)
-	}
-	if apiKey, ok := configMap["api-key"].(string); ok {
-		config.APIKey = apiKey
-	}
-
-	return config
-}
-
 // parseSafetyPromptTool converts raw safety-prompt tool configuration
 func parseSafetyPromptTool(val any) *bool {
 	if boolVal, ok := val.(bool); ok {

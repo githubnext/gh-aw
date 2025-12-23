@@ -355,7 +355,6 @@ func TestFeatureFlagConstants(t *testing.T) {
 		expected string
 	}{
 		{"SafeInputsFeatureFlag", SafeInputsFeatureFlag, "safe-inputs"},
-		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
 		{"SandboxRuntimeFeatureFlag", SandboxRuntimeFeatureFlag, "sandbox-runtime"},
 	}
 

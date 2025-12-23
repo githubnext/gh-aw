@@ -39,12 +39,11 @@ const (
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
-// New format: { agent: "awf"|"srt"|{type, config}, mcp: {...} }
+// New format: { agent: "awf"|"srt"|{type, config} }
 // Legacy format: "default"|"sandbox-runtime" or { type, config }
 type SandboxConfig struct {
 	// New fields
 	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
-	MCP   *MCPGatewayConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"
@@ -323,21 +322,6 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 	if sandboxConfig.Config != nil {
 		if sandboxConfig.Type != SandboxTypeRuntime {
 			return fmt.Errorf("custom sandbox config can only be provided when type is 'sandbox-runtime'")
-		}
-	}
-
-	// Validate MCP gateway configuration
-	if sandboxConfig.MCP != nil {
-		mcpConfig := sandboxConfig.MCP
-
-		// Validate mutual exclusivity of command and container
-		if mcpConfig.Command != "" && mcpConfig.Container != "" {
-			return fmt.Errorf("sandbox.mcp: cannot specify both 'command' and 'container', use one or the other")
-		}
-
-		// Validate entrypointArgs is only used with container
-		if len(mcpConfig.EntrypointArgs) > 0 && mcpConfig.Container == "" {
-			return fmt.Errorf("sandbox.mcp: 'entrypointArgs' can only be used with 'container'")
 		}
 	}
 

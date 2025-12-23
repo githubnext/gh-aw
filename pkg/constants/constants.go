@@ -259,8 +259,6 @@ const SafeInputsMCPVersion = "1.0.0"
 const (
 	// SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
 	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
-	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
-	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 	// SandboxRuntimeFeatureFlag is the feature flag name for sandbox runtime
 	SandboxRuntimeFeatureFlag FeatureFlag = "sandbox-runtime"
 )
