@@ -12,7 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
-// Logger represents a debug logger for a specific namespace
+// Logger represents a debug logger for a specific namespace.
 type Logger struct {
 	namespace string
 	enabled   bool
@@ -22,17 +22,17 @@ type Logger struct {
 }
 
 var (
-	// DEBUG environment variable value, read once at initialization
+	// DEBUG environment variable value, read once at initialization.
 	debugEnv = os.Getenv("DEBUG")
 
-	// DEBUG_COLORS environment variable to control color output
+	// DEBUG_COLORS environment variable to control color output.
 	debugColors = os.Getenv("DEBUG_COLORS") != "0"
 
-	// Check if stderr is a terminal (for color support)
+	// Check if stderr is a terminal (for color support).
 	isTTY = tty.IsStderrTerminal()
 
-	// Color palette - chosen to be readable on both light and dark backgrounds
-	// Using ANSI 256-color codes for better compatibility
+	// Color palette - chosen to be readable on both light and dark backgrounds.
+	// Using ANSI 256-color codes for better compatibility.
 	colorPalette = []string{
 		"\033[38;5;33m",  // Blue
 		"\033[38;5;35m",  // Green
@@ -72,7 +72,7 @@ func New(namespace string) *Logger {
 	}
 }
 
-// selectColor selects a color for the namespace based on its hash
+// selectColor selects a color for the namespace based on its hash.
 func selectColor(namespace string) string {
 	if !debugColors || !isTTY {
 		return ""

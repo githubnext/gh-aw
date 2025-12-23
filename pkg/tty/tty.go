@@ -9,12 +9,12 @@ import (
 	"golang.org/x/term"
 )
 
-// IsStdoutTerminal returns true if stdout is connected to a terminal
+// IsStdoutTerminal returns true if stdout is connected to a terminal.
 func IsStdoutTerminal() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-// IsStderrTerminal returns true if stderr is connected to a terminal
+// IsStderrTerminal returns true if stderr is connected to a terminal.
 func IsStderrTerminal() bool {
 	return term.IsTerminal(int(os.Stderr.Fd()))
 }

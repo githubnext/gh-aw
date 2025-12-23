@@ -9,19 +9,19 @@ import "github.com/charmbracelet/lipgloss"
 // Light variants use darker, more saturated colors for visibility on light backgrounds.
 // Dark variants use brighter colors (Dracula theme inspired) for dark backgrounds.
 var (
-	// ColorError is used for error messages and critical issues
+	// ColorError is used for error messages and critical issues.
 	ColorError = lipgloss.AdaptiveColor{
 		Light: "#D73737", // Darker red for light backgrounds
 		Dark:  "#FF5555", // Bright red for dark backgrounds (Dracula)
 	}
 
-	// ColorWarning is used for warning messages and cautionary information
+	// ColorWarning is used for warning messages and cautionary information.
 	ColorWarning = lipgloss.AdaptiveColor{
 		Light: "#E67E22", // Darker orange for light backgrounds
 		Dark:  "#FFB86C", // Bright orange for dark backgrounds (Dracula)
 	}
 
-	// ColorSuccess is used for success messages and confirmations
+	// ColorSuccess is used for success messages and confirmations.
 	ColorSuccess = lipgloss.AdaptiveColor{
 		Light: "#27AE60", // Darker green for light backgrounds
 		Dark:  "#50FA7B", // Bright green for dark backgrounds (Dracula)
