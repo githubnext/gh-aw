@@ -6304,6 +6304,15 @@ jobs:
       GH_AW_WORKFLOW_ID: "release"
       GH_AW_WORKFLOW_NAME: "Release"
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -6315,142 +6324,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Setup JavaScript files
-        id: setup_scripts
-        shell: bash
-        run: |
-          mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          
-          /**
-           * Maximum content length to log for debugging purposes
-           * @type {number}
-           */
-          const MAX_LOG_CONTENT_LENGTH = 10000;
-          
-          /**
-           * Truncate content for logging if it exceeds the maximum length
-           * @param {string} content - Content to potentially truncate
-           * @returns {string} Truncated content with indicator if truncated
-           */
-          function truncateForLogging(content) {
-            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-              return content;
-            }
-            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-          }
-          
-          /**
-           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
-           *
-           * This utility handles the common pattern of:
-           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
-           * 2. Loading the file content
-           * 3. Validating the JSON structure
-           * 4. Returning parsed items array
-           *
-           * @returns {{
-           *   success: true,
-           *   items: any[]
-           * } | {
-           *   success: false,
-           *   items?: undefined,
-           *   error?: string
-           * }} Result object with success flag and items array (if successful) or error message
-           */
-          function loadAgentOutput() {
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-          
-            // No agent output file specified
-            if (!agentOutputFile) {
-              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-              return { success: false };
-            }
-          
-            // Read agent output from file
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(agentOutputFile, "utf8");
-            } catch (error) {
-              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Check for empty content
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-              return { success: false };
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Validate items array exists
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.info("No valid items found in agent output");
-              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-              return { success: false };
-            }
-          
-            return { success: true, items: validatedOutput.items };
-          }
-          
-          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
-          
-          EOF_b93f537f
-          cat > /tmp/gh-aw/scripts/staged_preview.cjs << 'EOF_8386ee20'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          /**
-           * Generate a staged mode preview summary and write it to the step summary.
-           *
-           * @param {Object} options - Configuration options for the preview
-           * @param {string} options.title - The main title for the preview (e.g., "Create Issues")
-           * @param {string} options.description - Description of what would happen if staged mode was disabled
-           * @param {Array<any>} options.items - Array of items to preview
-           * @param {(item: any, index: number) => string} options.renderItem - Function to render each item as markdown
-           * @returns {Promise<void>}
-           */
-          async function generateStagedPreview(options) {
-            const { title, description, items, renderItem } = options;
-          
-            let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
-            summaryContent += `${description}\n\n`;
-          
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              summaryContent += renderItem(item, i);
-              summaryContent += "---\n\n";
-            }
-          
-            try {
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
-            } catch (error) {
-              core.setFailed(error instanceof Error ? error : String(error));
-            }
-          }
-          
-          module.exports = { generateStagedPreview };
-          
-          EOF_8386ee20
       - name: Update Release
         id: update_release
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_release'))
@@ -6460,135 +6333,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            const { generateStagedPreview } = require('/tmp/gh-aw/scripts/staged_preview.cjs');
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const updateItems = result.items.filter( item => item.type === "update_release");
-              if (updateItems.length === 0) {
-                core.info("No update-release items found in agent output");
-                return;
-              }
-              core.info(`Found ${updateItems.length} update-release item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
-                  title: "Update Releases",
-                  description: "The following release updates would be applied if staged mode was disabled:",
-                  items: updateItems,
-                  renderItem: (item, index) => {
-                    let content = `#### Release Update ${index + 1}\n`;
-                    content += `**Tag:** ${item.tag || "(inferred from event context)"}\n`;
-                    content += `**Operation:** ${item.operation}\n\n`;
-                    content += `**Body Content:**\n${item.body}\n\n`;
-                    return content;
-                  },
-                });
-                return;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
-              const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-              const updatedReleases = [];
-              for (let i = 0; i < updateItems.length; i++) {
-                const updateItem = updateItems[i];
-                core.info(`Processing update-release item ${i + 1}/${updateItems.length}`);
-                try {
-                  let releaseTag = updateItem.tag;
-                  if (!releaseTag) {
-                    if (context.eventName === "release" && context.payload.release && context.payload.release.tag_name) {
-                      releaseTag = context.payload.release.tag_name;
-                      core.info(`Inferred release tag from event context: ${releaseTag}`);
-                    } else if (context.eventName === "workflow_dispatch" && context.payload.inputs) {
-                      const releaseUrl = context.payload.inputs.release_url;
-                      if (releaseUrl) {
-                        const urlMatch = releaseUrl.match(/github\.com\/[^\/]+\/[^\/]+\/releases\/tag\/([^\/\?#]+)/);
-                        if (urlMatch && urlMatch[1]) {
-                          releaseTag = decodeURIComponent(urlMatch[1]);
-                          core.info(`Inferred release tag from release_url input: ${releaseTag}`);
-                        }
-                      }
-                      if (!releaseTag && context.payload.inputs.release_id) {
-                        const releaseId = context.payload.inputs.release_id;
-                        core.info(`Fetching release with ID: ${releaseId}`);
-                        const { data: release } = await github.rest.repos.getRelease({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          release_id: parseInt(releaseId, 10),
-                        });
-                        releaseTag = release.tag_name;
-                        core.info(`Inferred release tag from release_id input: ${releaseTag}`);
-                      }
-                    }
-                    if (!releaseTag) {
-                      core.error("No tag provided and unable to infer from event context");
-                      core.setFailed("Release tag is required but not provided and cannot be inferred from event context");
-                      return;
-                    }
-                  }
-                  core.info(`Fetching release with tag: ${releaseTag}`);
-                  const { data: release } = await github.rest.repos.getReleaseByTag({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    tag: releaseTag,
-                  });
-                  core.info(`Found release: ${release.name || release.tag_name} (ID: ${release.id})`);
-                  let newBody;
-                  if (updateItem.operation === "replace") {
-                    newBody = updateItem.body;
-                    core.info("Operation: replace (full body replacement)");
-                  } else if (updateItem.operation === "prepend") {
-                    const aiFooter = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-                    const prependSection = `${updateItem.body}${aiFooter}\n\n---\n\n`;
-                    newBody = prependSection + (release.body || "");
-                    core.info("Operation: prepend (add to start with separator)");
-                  } else {
-                    const aiFooter = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-                    const appendSection = `\n\n---\n\n${updateItem.body}${aiFooter}`;
-                    newBody = (release.body || "") + appendSection;
-                    core.info("Operation: append (add to end with separator)");
-                  }
-                  const { data: updatedRelease } = await github.rest.repos.updateRelease({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    release_id: release.id,
-                    body: newBody,
-                  });
-                  core.info(`Successfully updated release: ${updatedRelease.html_url}`);
-                  updatedReleases.push({
-                    tag: releaseTag,
-                    url: updatedRelease.html_url,
-                    id: updatedRelease.id,
-                  });
-                  if (i === 0) {
-                    core.setOutput("release_id", updatedRelease.id);
-                    core.setOutput("release_url", updatedRelease.html_url);
-                    core.setOutput("release_tag", updatedRelease.tag_name);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  const tagInfo = updateItem.tag || "inferred from context";
-                  core.error(`Failed to update release with tag ${tagInfo}: ${errorMessage}`);
-                  if (errorMessage.includes("Not Found")) {
-                    core.error(`Release with tag '${tagInfo}' not found. Please ensure the tag exists.`);
-                  }
-                  core.setFailed(`Failed to update release: ${errorMessage}`);
-                  return;
-                }
-              }
-              let summaryContent = `## ✅ Release Updates Complete\n\n`;
-              summaryContent += `Updated ${updatedReleases.length} release(s):\n\n`;
-              for (const rel of updatedReleases) {
-                summaryContent += `- **${rel.tag}**: [View Release](${rel.url})\n`;
-              }
-              await core.summary.addRaw(summaryContent).write();
-            }
-            (async () => { await main(); })();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/update_release.cjs');
+            await main();
 
