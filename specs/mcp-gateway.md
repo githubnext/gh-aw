@@ -55,7 +55,7 @@ Implemented MCP methods:
 | Transport | Status | Description |
 |-----------|--------|-------------|
 | Command/Stdio | ✅ Implemented | Subprocess with stdin/stdout communication |
-| HTTP/SSE | ⏳ Planned | Server-Sent Events transport (not yet in go-mcp SDK) |
+| Streamable HTTP | ✅ Implemented | HTTP transport with SSE using go-sdk StreamableClientTransport |
 | Docker | ⏳ Planned | Container-based MCP servers |
 
 ### 5. Integration Points
@@ -181,7 +181,7 @@ steps:
 ## Future Enhancements
 
 Potential improvements for future versions:
-- [ ] HTTP/SSE transport support (when available in go-mcp SDK)
+- [x] Streamable HTTP transport support (implemented using go-sdk StreamableClientTransport)
 - [ ] Docker container transport
 - [ ] WebSocket transport
 - [ ] Gateway metrics and monitoring endpoints
