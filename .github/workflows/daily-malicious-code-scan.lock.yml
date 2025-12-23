@@ -5972,6 +5972,15 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-malicious-code-scan"
       GH_AW_WORKFLOW_NAME: "Daily Malicious Code Scan Agent"
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+      - name: Setup Scripts
+        uses: actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -5983,104 +5992,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Setup JavaScript files
-        id: setup_scripts
-        shell: bash
-        run: |
-          mkdir -p /tmp/gh-aw/scripts
-          cat > /tmp/gh-aw/scripts/load_agent_output.cjs << 'EOF_b93f537f'
-          // @ts-check
-          /// <reference types="@actions/github-script" />
-          
-          const fs = require("fs");
-          
-          /**
-           * Maximum content length to log for debugging purposes
-           * @type {number}
-           */
-          const MAX_LOG_CONTENT_LENGTH = 10000;
-          
-          /**
-           * Truncate content for logging if it exceeds the maximum length
-           * @param {string} content - Content to potentially truncate
-           * @returns {string} Truncated content with indicator if truncated
-           */
-          function truncateForLogging(content) {
-            if (content.length <= MAX_LOG_CONTENT_LENGTH) {
-              return content;
-            }
-            return content.substring(0, MAX_LOG_CONTENT_LENGTH) + `\n... (truncated, total length: ${content.length})`;
-          }
-          
-          /**
-           * Load and parse agent output from the GH_AW_AGENT_OUTPUT file
-           *
-           * This utility handles the common pattern of:
-           * 1. Reading the GH_AW_AGENT_OUTPUT environment variable
-           * 2. Loading the file content
-           * 3. Validating the JSON structure
-           * 4. Returning parsed items array
-           *
-           * @returns {{
-           *   success: true,
-           *   items: any[]
-           * } | {
-           *   success: false,
-           *   items?: undefined,
-           *   error?: string
-           * }} Result object with success flag and items array (if successful) or error message
-           */
-          function loadAgentOutput() {
-            const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-          
-            // No agent output file specified
-            if (!agentOutputFile) {
-              core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-              return { success: false };
-            }
-          
-            // Read agent output from file
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(agentOutputFile, "utf8");
-            } catch (error) {
-              const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Check for empty content
-            if (outputContent.trim() === "") {
-              core.info("Agent output content is empty");
-              return { success: false };
-            }
-          
-            core.info(`Agent output content length: ${outputContent.length}`);
-          
-            // Parse the validated output JSON
-            let validatedOutput;
-            try {
-              validatedOutput = JSON.parse(outputContent);
-            } catch (error) {
-              const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-              core.error(errorMessage);
-              core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
-              return { success: false, error: errorMessage };
-            }
-          
-            // Validate items array exists
-            if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-              core.info("No valid items found in agent output");
-              core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
-              return { success: false };
-            }
-          
-            return { success: true, items: validatedOutput.items };
-          }
-          
-          module.exports = { loadAgentOutput, truncateForLogging, MAX_LOG_CONTENT_LENGTH };
-          
-          EOF_b93f537f
       - name: Create Code Scanning Alert
         id: create_code_scanning_alert
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_code_scanning_alert'))
@@ -6091,195 +6002,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            globalThis.github = github;
-            globalThis.context = context;
-            globalThis.core = core;
-            globalThis.exec = exec;
-            globalThis.io = io;
-            const { loadAgentOutput } = require('/tmp/gh-aw/scripts/load_agent_output.cjs');
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const securityItems = result.items.filter( item => item.type === "create_code_scanning_alert");
-              if (securityItems.length === 0) {
-                core.info("No create-code-scanning-alert items found in agent output");
-                return;
-              }
-              core.info(`Found ${securityItems.length} create-code-scanning-alert item(s)`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Create Code Scanning Alerts Preview\n\n";
-                summaryContent += "The following code scanning alerts would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < securityItems.length; i++) {
-                  const item = securityItems[i];
-                  summaryContent += `### Security Finding ${i + 1}\n`;
-                  summaryContent += `**File:** ${item.file || "No file provided"}\n\n`;
-                  summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
-                  summaryContent += `**Severity:** ${item.severity || "No severity provided"}\n\n`;
-                  summaryContent += `**Message:**\n${item.message || "No message provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Code scanning alert creation preview written to step summary");
-                return;
-              }
-              const maxFindings = process.env.GH_AW_SECURITY_REPORT_MAX ? parseInt(process.env.GH_AW_SECURITY_REPORT_MAX) : 0; 
-              core.info(`Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`);
-              const driverName = process.env.GH_AW_SECURITY_REPORT_DRIVER || "GitHub Agentic Workflows Security Scanner";
-              core.info(`Driver name: ${driverName}`);
-              const workflowFilename = process.env.GH_AW_WORKFLOW_FILENAME || "workflow";
-              core.info(`Workflow filename for rule ID prefix: ${workflowFilename}`);
-              const validFindings = [];
-              for (let i = 0; i < securityItems.length; i++) {
-                const securityItem = securityItems[i];
-                core.info(
-                  `Processing create-code-scanning-alert item ${i + 1}/${securityItems.length}: file=${securityItem.file}, line=${securityItem.line}, severity=${securityItem.severity}, messageLength=${securityItem.message ? securityItem.message.length : "undefined"}, ruleIdSuffix=${securityItem.ruleIdSuffix || "not specified"}`
-                );
-                if (!securityItem.file) {
-                  core.info('Missing required field "file" in code scanning alert item');
-                  continue;
-                }
-                if (!securityItem.line || (typeof securityItem.line !== "number" && typeof securityItem.line !== "string")) {
-                  core.info('Missing or invalid required field "line" in code scanning alert item');
-                  continue;
-                }
-                if (!securityItem.severity || typeof securityItem.severity !== "string") {
-                  core.info('Missing or invalid required field "severity" in code scanning alert item');
-                  continue;
-                }
-                if (!securityItem.message || typeof securityItem.message !== "string") {
-                  core.info('Missing or invalid required field "message" in code scanning alert item');
-                  continue;
-                }
-                const line = parseInt(securityItem.line, 10);
-                if (isNaN(line) || line <= 0) {
-                  core.info(`Invalid line number: ${securityItem.line}`);
-                  continue;
-                }
-                let column = 1; 
-                if (securityItem.column !== undefined) {
-                  if (typeof securityItem.column !== "number" && typeof securityItem.column !== "string") {
-                    core.info('Invalid field "column" in code scanning alert item (must be number or string)');
-                    continue;
-                  }
-                  const parsedColumn = parseInt(securityItem.column, 10);
-                  if (isNaN(parsedColumn) || parsedColumn <= 0) {
-                    core.info(`Invalid column number: ${securityItem.column}`);
-                    continue;
-                  }
-                  column = parsedColumn;
-                }
-                let ruleIdSuffix = null;
-                if (securityItem.ruleIdSuffix !== undefined) {
-                  if (typeof securityItem.ruleIdSuffix !== "string") {
-                    core.info('Invalid field "ruleIdSuffix" in code scanning alert item (must be string)');
-                    continue;
-                  }
-                  const trimmedSuffix = securityItem.ruleIdSuffix.trim();
-                  if (trimmedSuffix.length === 0) {
-                    core.info('Invalid field "ruleIdSuffix" in code scanning alert item (cannot be empty)');
-                    continue;
-                  }
-                  if (!/^[a-zA-Z0-9_-]+$/.test(trimmedSuffix)) {
-                    core.info(`Invalid ruleIdSuffix "${trimmedSuffix}" (must contain only alphanumeric characters, hyphens, and underscores)`);
-                    continue;
-                  }
-                  ruleIdSuffix = trimmedSuffix;
-                }
-                const severityMap = {
-                  error: "error",
-                  warning: "warning",
-                  info: "note",
-                  note: "note",
-                };
-                const normalizedSeverity = securityItem.severity.toLowerCase();
-                if (!severityMap[normalizedSeverity]) {
-                  core.info(`Invalid severity level: ${securityItem.severity} (must be error, warning, info, or note)`);
-                  continue;
-                }
-                const sarifLevel = severityMap[normalizedSeverity];
-                validFindings.push({
-                  file: securityItem.file.trim(),
-                  line: line,
-                  column: column,
-                  severity: normalizedSeverity,
-                  sarifLevel: sarifLevel,
-                  message: securityItem.message.trim(),
-                  ruleIdSuffix: ruleIdSuffix,
-                });
-                if (maxFindings > 0 && validFindings.length >= maxFindings) {
-                  core.info(`Reached maximum findings limit: ${maxFindings}`);
-                  break;
-                }
-              }
-              if (validFindings.length === 0) {
-                core.info("No valid security findings to report");
-                return;
-              }
-              core.info(`Processing ${validFindings.length} valid security finding(s)`);
-              const sarifContent = {
-                $schema: "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
-                version: "2.1.0",
-                runs: [
-                  {
-                    tool: {
-                      driver: {
-                        name: driverName,
-                        version: "1.0.0",
-                        informationUri: "https://github.com/githubnext/gh-aw",
-                      },
-                    },
-                    results: validFindings.map((finding, index) => ({
-                      ruleId: finding.ruleIdSuffix ? `${workflowFilename}-${finding.ruleIdSuffix}` : `${workflowFilename}-security-finding-${index + 1}`,
-                      message: { text: finding.message },
-                      level: finding.sarifLevel,
-                      locations: [
-                        {
-                          physicalLocation: {
-                            artifactLocation: { uri: finding.file },
-                            region: {
-                              startLine: finding.line,
-                              startColumn: finding.column,
-                            },
-                          },
-                        },
-                      ],
-                    })),
-                  },
-                ],
-              };
-              const fs = require("fs");
-              const path = require("path");
-              const sarifFileName = "code-scanning-alert.sarif";
-              const sarifFilePath = path.join(process.cwd(), sarifFileName);
-              try {
-                fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
-                core.info(`✓ Created SARIF file: ${sarifFilePath}`);
-                core.info(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
-                core.setOutput("sarif_file", sarifFilePath);
-                core.setOutput("findings_count", validFindings.length);
-                core.setOutput("artifact_uploaded", "pending");
-                core.setOutput("codeql_uploaded", "pending");
-                let summaryContent = "\n\n## Code Scanning Alert\n";
-                summaryContent += `Found **${validFindings.length}** security finding(s):\n\n`;
-                for (const finding of validFindings) {
-                  const emoji = finding.severity === "error" ? "🔴" : finding.severity === "warning" ? "🟡" : "🔵";
-                  summaryContent += `${emoji} **${finding.severity.toUpperCase()}** in \`${finding.file}:${finding.line}\`: ${finding.message}\n`;
-                }
-                summaryContent += `\n📄 SARIF file created: \`${sarifFileName}\`\n`;
-                summaryContent += `🔍 Findings will be uploaded to GitHub Code Scanning\n`;
-                await core.summary.addRaw(summaryContent).write();
-              } catch (error) {
-                core.error(`✗ Failed to create SARIF file: ${error instanceof Error ? error.message : String(error)}`);
-                throw error;
-              }
-              core.info(`Successfully created code scanning alert with ${validFindings.length} finding(s)`);
-              return {
-                sarifFile: sarifFilePath,
-                findingsCount: validFindings.length,
-                findings: validFindings,
-              };
-            }
-            (async () => { await main(); })();
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/create_code_scanning_alert.cjs');
+            await main();
 
