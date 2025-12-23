@@ -9,12 +9,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
 // Build-time variables set by GoReleaser
 var (
-	version = "dev"
+	version   = "dev"
+	isRelease = "false" // Set to "true" during release builds
 )
 
 // Global flags
@@ -578,6 +580,12 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 func main() {
 	// Set version information in the CLI package
 	cli.SetVersionInfo(version)
+
+	// Set version information in the workflow package for generated file headers
+	workflow.SetVersion(version)
+
+	// Set release flag in the workflow package
+	workflow.SetIsRelease(isRelease == "true")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))

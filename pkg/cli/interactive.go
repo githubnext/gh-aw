@@ -31,7 +31,9 @@ var commonWorkflowNames = []string{
 
 // isAccessibleMode detects if accessibility mode should be enabled based on environment variables
 func isAccessibleMode() bool {
-	return os.Getenv("TERM") == "dumb" || os.Getenv("NO_COLOR") != ""
+	return os.Getenv("ACCESSIBLE") != "" ||
+		os.Getenv("TERM") == "dumb" ||
+		os.Getenv("NO_COLOR") != ""
 }
 
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
@@ -70,29 +72,9 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 		}
 	}
 
-	// Run through the interactive prompts
-	if err := builder.promptForTrigger(); err != nil {
-		return fmt.Errorf("failed to get trigger selection: %w", err)
-	}
-
-	if err := builder.promptForEngine(); err != nil {
-		return fmt.Errorf("failed to get engine selection: %w", err)
-	}
-
-	if err := builder.promptForTools(); err != nil {
-		return fmt.Errorf("failed to get tools selection: %w", err)
-	}
-
-	if err := builder.promptForSafeOutputs(); err != nil {
-		return fmt.Errorf("failed to get safe outputs selection: %w", err)
-	}
-
-	if err := builder.promptForNetworkAccess(); err != nil {
-		return fmt.Errorf("failed to get network access selection: %w", err)
-	}
-
-	if err := builder.promptForIntent(); err != nil {
-		return fmt.Errorf("failed to get workflow intent: %w", err)
+	// Run through the interactive prompts organized by groups
+	if err := builder.promptForConfiguration(); err != nil {
+		return fmt.Errorf("failed to get workflow configuration: %w", err)
 	}
 
 	// Generate the workflow
@@ -124,8 +106,9 @@ func (b *InteractiveWorkflowBuilder) promptForWorkflowName() error {
 	return form.Run()
 }
 
-// promptForTrigger asks the user to select when the workflow should run
-func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
+// promptForConfiguration organizes all prompts into logical groups with titles and descriptions
+func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
+	// Prepare trigger options
 	triggerOptions := []huh.Option[string]{
 		huh.NewOption("Manual trigger (workflow_dispatch)", "workflow_dispatch"),
 		huh.NewOption("Issue opened or reopened", "issues"),
@@ -137,22 +120,7 @@ func (b *InteractiveWorkflowBuilder) promptForTrigger() error {
 		huh.NewOption("Command trigger (/bot-name)", "command"),
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("When should this workflow run?").
-				Description("Select the event that should trigger your agentic workflow").
-				Options(triggerOptions...).
-				Height(8).
-				Value(&b.Trigger),
-		),
-	).WithAccessible(isAccessibleMode())
-
-	return form.Run()
-}
-
-// promptForEngine asks the user to select the AI engine
-func (b *InteractiveWorkflowBuilder) promptForEngine() error {
+	// Prepare engine options
 	engineOptions := []huh.Option[string]{
 		huh.NewOption("copilot - GitHub Copilot CLI", "copilot"),
 		huh.NewOption("claude - Anthropic Claude Code coding agent", "claude"),
@@ -160,21 +128,7 @@ func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 		huh.NewOption("custom - Custom engine configuration", "custom"),
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Which AI engine should process this workflow?").
-				Description("Copilot is recommended for most use cases").
-				Options(engineOptions...).
-				Value(&b.Engine),
-		),
-	).WithAccessible(isAccessibleMode())
-
-	return form.Run()
-}
-
-// promptForTools asks the user to select which tools the AI can use
-func (b *InteractiveWorkflowBuilder) promptForTools() error {
+	// Prepare tool options
 	toolOptions := []huh.Option[string]{
 		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
 		huh.NewOption("edit - File editing tools", "edit"),
@@ -182,30 +136,10 @@ func (b *InteractiveWorkflowBuilder) promptForTools() error {
 		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
 		huh.NewOption("web-search - Web search tools", "web-search"),
 		huh.NewOption("playwright - Browser automation tools", "playwright"),
+		huh.NewOption("serena - Serena code analysis tool", "serena"),
 	}
 
-	var selected []string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Which tools should the AI have access to?").
-				Description("Select all tools that your workflow might need. You can always modify these later.").
-				Options(toolOptions...).
-				Height(8).
-				Value(&selected),
-		),
-	).WithAccessible(isAccessibleMode())
-
-	if err := form.Run(); err != nil {
-		return err
-	}
-
-	b.Tools = selected
-	return nil
-}
-
-// promptForSafeOutputs asks the user to select safe output options
-func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
+	// Prepare safe output options
 	outputOptions := []huh.Option[string]{
 		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
 		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
@@ -219,59 +153,81 @@ func (b *InteractiveWorkflowBuilder) promptForSafeOutputs() error {
 		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
 	}
 
-	var selected []string
+	// Prepare network options
+	networkOptions := []huh.Option[string]{
+		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
+		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
+	}
+
+	// Set default network access
+	b.NetworkAccess = "defaults"
+
+	// Variables to hold multi-select results
+	var selectedTools []string
+	var selectedOutputs []string
+
+	// Create form with organized groups
 	form := huh.NewForm(
+		// Group 1: Basic Configuration
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("When should this workflow run?").
+				Options(triggerOptions...).
+				Height(8).
+				Value(&b.Trigger),
+			huh.NewSelect[string]().
+				Title("Which AI engine should process this workflow?").
+				Options(engineOptions...).
+				Value(&b.Engine),
+		).
+			Title("Basic Configuration").
+			Description("Let's start with the fundamentals of your workflow"),
+
+		// Group 2: Capabilities
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
+				Title("Which tools should the AI have access to?").
+				Options(toolOptions...).
+				Height(8).
+				Value(&selectedTools),
+			huh.NewMultiSelect[string]().
 				Title("What outputs should the AI be able to create?").
-				Description("Safe outputs provide secure ways for AI to interact with GitHub. Select what your workflow needs to do.").
 				Options(outputOptions...).
 				Height(8).
-				Value(&selected),
-		),
+				Value(&selectedOutputs),
+		).
+			Title("Capabilities").
+			Description("Select the tools and outputs your workflow needs"),
+
+		// Group 3: Network & Security
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("What network access does the workflow need?").
+				Options(networkOptions...).
+				Value(&b.NetworkAccess),
+		).
+			Title("Network & Security").
+			Description("Configure network access and security settings"),
+
+		// Group 4: Instructions
+		huh.NewGroup(
+			huh.NewText().
+				Title("Describe what this workflow should do:").
+				Value(&b.Intent),
+		).
+			Title("Instructions").
+			Description("Describe what you want this workflow to accomplish"),
 	).WithAccessible(isAccessibleMode())
 
 	if err := form.Run(); err != nil {
 		return err
 	}
 
-	b.SafeOutputs = selected
+	// Store the multi-select results
+	b.Tools = selectedTools
+	b.SafeOutputs = selectedOutputs
+
 	return nil
-}
-
-// promptForNetworkAccess asks about network access requirements
-func (b *InteractiveWorkflowBuilder) promptForNetworkAccess() error {
-	networkOptions := []huh.Option[string]{
-		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
-		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
-	}
-
-	b.NetworkAccess = "defaults" // Set default value
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("What network access does the workflow need?").
-				Description("Network permissions control what external sites the AI can access").
-				Options(networkOptions...).
-				Value(&b.NetworkAccess),
-		),
-	).WithAccessible(isAccessibleMode())
-
-	return form.Run()
-}
-
-// promptForIntent asks the user to describe what the workflow should do
-func (b *InteractiveWorkflowBuilder) promptForIntent() error {
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewText().
-				Title("Describe what this workflow should do:").
-				Description("Provide a clear description of the workflow's purpose and what the AI should accomplish. This will be the main prompt for the AI.").
-				Value(&b.Intent),
-		),
-	).WithAccessible(isAccessibleMode())
-
-	return form.Run()
 }
 
 // generateWorkflow creates the markdown workflow file based on user selections
@@ -516,7 +472,11 @@ func (b *InteractiveWorkflowBuilder) describeTrigger() string {
 
 // compileWorkflow automatically compiles the generated workflow
 func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling the generated workflow..."))
+	interactiveLog.Printf("Starting workflow compilation: name=%s, verbose=%v", b.WorkflowName, verbose)
+
+	// Create spinner for compilation progress
+	spinner := console.NewSpinner("Compiling your workflow...")
+	spinner.Start()
 
 	// Use the existing compile functionality
 	config := CompileConfig{
@@ -532,6 +492,18 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
+
 	_, err := CompileWorkflows(config)
-	return err
+
+	if err != nil {
+		spinner.Stop()
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Compilation failed: %v", err)))
+		return err
+	}
+
+	// Stop spinner with success message
+	spinner.StopWithMessage("✓ Workflow compiled successfully!")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("You can now find your compiled workflow at .github/workflows/%s.lock.yml", b.WorkflowName)))
+
+	return nil
 }

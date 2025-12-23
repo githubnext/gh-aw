@@ -125,3 +125,6 @@ gosec-report.json
 gosec-results.sarif
 govulncheck-results.sarif
 trivy-results.sarif
+
+# License compliance reports
+licenses.csv
