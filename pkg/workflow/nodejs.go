@@ -3,20 +3,21 @@ package workflow
 import (
 	"fmt"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var nodejsLog = logger.New("workflow:nodejs")
 
 // GenerateNodeJsSetupStep creates a GitHub Actions step for setting up Node.js
-// Returns a step that installs Node.js v24
+// Returns a step that installs Node.js using the default version from constants.DefaultNodeVersion
 // Caching is disabled by default to prevent cache poisoning vulnerabilities in release workflows
 func GenerateNodeJsSetupStep() GitHubActionStep {
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
 		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-node")),
 		"        with:",
-		"          node-version: '24'",
+		fmt.Sprintf("          node-version: '%s'", constants.DefaultNodeVersion),
 		"          package-manager-cache: false",
 	}
 }
