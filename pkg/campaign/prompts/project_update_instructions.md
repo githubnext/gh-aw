@@ -4,6 +4,9 @@
 Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
 
 **Project URL**: {{.ProjectURL}}
+{{if .TrackerLabel}}
+**Campaign ID**: Extract from tracker label `{{.TrackerLabel}}` (format: `campaign:CAMPAIGN_ID`)
+{{end}}
 
 #### Adding New Issues
 
@@ -13,7 +16,8 @@ update-project:
   project: "{{.ProjectURL}}"
   item_url: "ISSUE_URL"
   status: "Todo"  # or "Done" if issue is already closed
-```
+{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
+{{end}}```
 
 **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
 - `Start Date` is set from the issue's `createdAt` timestamp
@@ -29,7 +33,8 @@ update-project:
   project: "{{.ProjectURL}}"
   item_url: "ISSUE_URL"
   status: "Done"  # or "In Progress", "Todo"
-```
+{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
+{{end}}```
 
 #### Idempotency
 

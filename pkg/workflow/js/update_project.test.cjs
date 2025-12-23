@@ -245,6 +245,19 @@ describe("updateProject", () => {
 
     await updateProject(output);
 
+    // No campaign label should be added when campaign_id is not provided
+    expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+    expect(getOutput("item-id")).toBe("item123");
+  });
+
+  it("adds an issue to a project board with campaign label when campaign_id provided", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 42, campaign_id: "my-campaign" };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project123"), linkResponse, issueResponse("issue-id-42"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item123" } } }]);
+
+    await updateProject(output);
+
     const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
     expect(labelCall).toEqual(
       expect.objectContaining({
@@ -253,7 +266,7 @@ describe("updateProject", () => {
         issue_number: 42,
       })
     );
-    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:testowner-project-60-[a-z0-9]{8}$/)]);
+    expect(labelCall.labels).toEqual(["campaign:my-campaign"]);
     expect(getOutput("item-id")).toBe("item123");
   });
 
@@ -311,15 +324,8 @@ describe("updateProject", () => {
 
     await updateProject(output);
 
-    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
-    expect(labelCall).toEqual(
-      expect.objectContaining({
-        owner: "testowner",
-        repo: "testrepo",
-        issue_number: 17,
-      })
-    );
-    expect(labelCall.labels).toEqual([expect.stringMatching(/^campaign:testowner-project-60-[a-z0-9]{8}$/)]);
+    // No campaign label should be added when campaign_id is not provided
+    expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 
   it("falls back to legacy issue field when content_number missing", async () => {
@@ -332,8 +338,8 @@ describe("updateProject", () => {
 
     expect(mockCore.warning).toHaveBeenCalledWith('Field "issue" deprecated; use "content_number" instead.');
 
-    const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
-    expect(labelCall.issue_number).toBe(101);
+    // No campaign label should be added when campaign_id is not provided
+    expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     expect(getOutput("item-id")).toBe("legacy-item");
   });
 
@@ -526,7 +532,7 @@ describe("updateProject", () => {
 
   it("warns when adding the campaign label fails", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50 };
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
 
     queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-label"), linkResponse, issueResponse("issue-id-50"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-label" } } }]);
 
