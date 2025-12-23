@@ -358,7 +358,9 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }} # required: PAT with Projects access
 ```
 
-Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, `fields`, and `campaign_id`. When `campaign_id` is provided, `update-project` treats it as the campaign tracker identifier and applies the `campaign:<id>` label (for example, `campaign_id: security-sprint` results in `campaign:security-sprint`). See [Agentic Campaign Workflows](/gh-aw/guides/campaigns/) for the end-to-end campaign model.
+Agent output **must include a full GitHub project URL** in the `project` field (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are not accepted. Can also supply `content_number`, `content_type`, and `fields` to add items and update their fields.
+
+**Campaign tracking (optional)**: When `campaign_id` is provided, `update-project` applies a `campaign:<id>` label to newly added issues/PRs for tracking purposes (for example, `campaign_id: security-sprint` results in `campaign:security-sprint`). This is used for [Agentic Campaign Workflows](/gh-aw/guides/campaigns/) but is not required for general project board management. ProjectOps workflows typically do not need `campaign_id`.
 
 The job adds the issue or PR to the board, updates custom fields, and exposes `project-id`, `project-number`, `project-url`, `campaign-id`, and `item-id` outputs. Cross-repository targeting not supported.
 

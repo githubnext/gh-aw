@@ -11,6 +11,10 @@ permissions:
   pull-requests: read
 tracker-id: hourly-ci-cleaner
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - go
 tools:
   bash: ["*"]
   edit:

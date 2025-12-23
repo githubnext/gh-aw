@@ -94,6 +94,23 @@ func TestRenderProjectUpdateInstructions(t *testing.T) {
 			shouldBeEmpty: false,
 		},
 		{
+			name: "with project URL and tracker label",
+			data: CampaignPromptData{
+				ProjectURL:   "https://github.com/orgs/test/projects/1",
+				TrackerLabel: "campaign:my-campaign",
+			},
+			shouldContain: []string{
+				"Project Board Integration",
+				"update-project",
+				"https://github.com/orgs/test/projects/1",
+				"Campaign ID",
+				"campaign:my-campaign",
+				"campaign_id:",
+				"CAMPAIGN_ID",
+			},
+			shouldBeEmpty: false,
+		},
+		{
 			name: "without project URL",
 			data: CampaignPromptData{
 				ProjectURL: "",
