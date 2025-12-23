@@ -108,7 +108,7 @@ Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-toke
    - **Repository access**: "Public repositories" (required for Copilot Requests permission to appear)
 3. Add permissions:
    - In **"Account permissions"** (not Repository permissions), find **"Copilot Requests"**
-   - Set to **"Access: Read and write"**
+   - Set to **"Access: Read"**
 4. Click **"Generate token"** and copy it immediately (you won't see it again)
 
 :::tip[Can't find Copilot Requests permission?]
