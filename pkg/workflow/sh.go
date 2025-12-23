@@ -51,12 +51,12 @@ var editToolPromptText string
 // Scripts with templating must remain embedded inline in the workflow YAML.
 func GetBundledShellScripts() map[string]string {
 	return map[string]string{
-		"create_gh_aw_tmp_dir.sh":        createGhAwTmpDirScript,
-		"start_safe_inputs_server.sh":    startSafeInputsServerScript,
-		"print_prompt_summary.sh":        printPromptSummaryScript,
-		"generate_git_patch.sh":          generateGitPatchScript,
-		"create_cache_memory_dir.sh":     createCacheMemoryDirScript,
-		"create_prompt_first.sh":         createPromptFirstScript,
+		"create_gh_aw_tmp_dir.sh":     createGhAwTmpDirScript,
+		"start_safe_inputs_server.sh": startSafeInputsServerScript,
+		"print_prompt_summary.sh":     printPromptSummaryScript,
+		"generate_git_patch.sh":       generateGitPatchScript,
+		"create_cache_memory_dir.sh":  createCacheMemoryDirScript,
+		"create_prompt_first.sh":      createPromptFirstScript,
 	}
 }
 

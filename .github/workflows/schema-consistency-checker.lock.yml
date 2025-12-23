@@ -105,17 +105,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
-        run: |
-          mkdir -p /tmp/gh-aw/agent
-          mkdir -p /tmp/gh-aw/sandbox/agent/logs
-          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
+        run: bash /tmp/gh-aw/actions/create_cache_memory_dir.sh
       - name: Restore cache memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -1824,8 +1817,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
-          mkdir -p "$PROMPT_DIR"
+          bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
           ## Report Structure
           
@@ -2516,21 +2508,7 @@ jobs:
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          # Print prompt to workflow logs (equivalent to core.info)
-          echo "Generated Prompt:"
-          cat "$GH_AW_PROMPT"
-          # Print prompt to step summary
-          {
-            echo "<details>"
-            echo "<summary>Generated Prompt</summary>"
-            echo ""
-            echo '``````markdown'
-            cat "$GH_AW_PROMPT"
-            echo '``````'
-            echo ""
-            echo "</details>"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
