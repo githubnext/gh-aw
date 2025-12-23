@@ -86,14 +86,14 @@ gh extension install githubnext/gh-aw
 
 ### Pinning to a Specific Version
 
-For production environments or to ensure reproducible builds, you can pin the installation to a specific version using the `--pin` flag:
+For production environments or to ensure reproducible builds, you can pin the installation to a specific version using the `@REF` syntax:
 
 ```bash wrap
 # Pin to a specific release tag
-gh extension install githubnext/gh-aw --pin v0.1.0
+gh extension install githubnext/gh-aw@v0.1.0
 
 # Pin to a specific commit SHA
-gh extension install githubnext/gh-aw --pin abc123def456
+gh extension install githubnext/gh-aw@abc123def456
 ```
 
 :::tip[When to pin versions]
@@ -117,7 +117,7 @@ gh aw version
 gh extension remove gh-aw
 
 # Install the new pinned version
-gh extension install githubnext/gh-aw --pin v0.2.0
+gh extension install githubnext/gh-aw@v0.2.0
 ```
 
 ### Alternative: Standalone Installer
