@@ -12,6 +12,22 @@ This orchestrator follows system-agnostic rules that enforce clean separation be
 
 {{ if .CursorGlob }}
 **Cursor file (repo-memory)**: `{{ .CursorGlob }}`
+
+You must treat this file as the source of truth for incremental discovery:
+- If it exists, read it first and continue from that boundary.
+- If it does not exist yet, create it by the end of the run.
+- Always write the updated cursor back to the same path.
+{{ end }}
+
+{{ if .MetricsGlob }}
+**Metrics/KPI snapshots (repo-memory)**: `{{ .MetricsGlob }}`
+
+You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
+
+Guidance:
+- Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
+- Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
+- If a KPI is present, record its computed value and trend (Improving/Flat/Regressing).
 {{ end }}
 {{ if gt .MaxDiscoveryItemsPerRun 0 }}
 **Read budget**: max discovery items per run: {{ .MaxDiscoveryItemsPerRun }}
@@ -35,6 +51,33 @@ This orchestrator follows system-agnostic rules that enforce clean separation be
 11. **Explicit outcomes** - Record actual outcomes, never infer status
 12. **Idempotent operations** - Re-execution produces the same result without corruption
 13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
+
+### Objective and KPIs (first-class)
+
+{{ if .Objective }}
+**Objective**: {{ .Objective }}
+{{ end }}
+
+{{ if .KPIs }}
+**KPIs** (max 3):
+{{ range .KPIs }}
+- {{ .Name }}{{ if .Priority }} ({{ .Priority }}){{ end }}: baseline {{ .Baseline }} → target {{ .Target }} over {{ .TimeWindowDays }} days{{ if .Unit }} (unit: {{ .Unit }}){{ end }}{{ if .Direction }} (direction: {{ .Direction }}){{ end }}{{ if .Source }} (source: {{ .Source }}){{ end }}
+{{ end }}
+{{ end }}
+
+If objective/KPIs are present, you must:
+- Compute a per-run KPI snapshot (as-of now) using GitHub signals.
+- Determine trend status for each KPI: Improving / Flat / Regressing (use the KPI direction when present).
+- Tie all decisions to the primary KPI first.
+
+### Default signals (built-in)
+
+Collect these signals every run (bounded by the read budgets above):
+- **CI health**: recent check/workflow outcomes relevant to the repo(s) in scope.
+- **PR cycle time**: recent PR open→merge latency and backlog size.
+- **Security alerts**: open code scanning / Dependabot / secret scanning items (as available).
+
+If a signal cannot be retrieved (permissions/tooling), explicitly report it as unavailable and proceed with the remaining signals.
 
 ### Orchestration Workflow
 
@@ -64,6 +107,25 @@ Execute these steps in sequence each time this orchestrator runs:
    - Items on board but no longer found = **check if archived/deleted**
 
 #### Phase 2: Make Decisions (Planning)
+
+4.5 **Deterministic planner step (required when objective/KPIs are present)**
+
+Before choosing additions/updates, produce a small, bounded plan that is rule-based and reproducible from the discovered state:
+- Output at most **3** planned actions.
+- Prefer actions that are directly connected to improving the **primary** KPI.
+- If signals indicate risk or uncertainty, prefer smaller, reversible actions.
+
+Plan format (keep under 2KB):
+```json
+{
+   "objective": "...",
+   "primary_kpi": "...",
+   "kpi_trends": [{"name": "...", "trend": "Improving|Flat|Regressing"}],
+   "actions": [
+      {"type": "add_to_project|update_status|comment", "why": "...", "target_url": "..."}
+   ]
+}
+```
 
 5. **Decide additions (with pacing)** - For each new item discovered:
    - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)

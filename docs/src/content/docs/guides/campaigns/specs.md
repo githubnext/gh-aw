@@ -3,9 +3,59 @@ title: "Campaign Specs"
 description: "Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring"
 ---
 
-Agentic campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. Each file has a YAML frontmatter block describing the agentic campaign.
+Campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. The YAML frontmatter is the campaign “contract”; the body can contain optional narrative context.
 
-## Agentic campaign spec files
+## What a campaign is (in gh-aw)
+
+In GitHub Agentic Workflows, a campaign is not “a special kind of workflow.” The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative (a tracker label, a GitHub Project dashboard, and optional durable state).
+
+In a typical setup:
+
+- Worker workflows do the work. They run an agent and use safe-outputs (for example `create_pull_request`, `add_comment`, or `update_issues`) for write operations.
+- A generated orchestrator workflow keeps the campaign coherent over time. It discovers items tagged with your tracker label, updates the Project board, and produces ongoing progress reporting.
+- Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
+
+### Mental model (ASCII)
+
+```
+  .github/workflows/<id>.campaign.md
+  (specification / contract)
+      |
+      |  gh aw compile
+      v
+  .github/workflows/<id>.campaign.g.md  ->  <id>.campaign.lock.yml
+  (generated orchestrator source)           (compiled workflow)
+      |
+      |  discovers items via tracker-label (e.g. campaign:<id>)
+      |  updates Project dashboard
+      |  reads/writes repo-memory (cursor + metrics)
+      v
+  +---------------------------+
+  | Orchestrator workflow     |
+  +---------------------------+
+    |                  |
+    | triggers/coordinates |
+    v                  v
+  +----------------+   +----------------+
+  | Worker workflow |   | Worker workflow |
+  | (agent +        |   | (agent +        |
+  | safe-outputs)   |   | safe-outputs)   |
+  +----------------+   +----------------+
+    |
+    | creates/updates Issues/PRs with tracker-label
+    v
+  GitHub Project board  <---  "campaign dashboard"
+
+  repo-memory branch:
+  memory/campaigns/<id>/cursor.json
+  memory/campaigns/<id>/metrics/<date>.json
+```
+
+Editable diagram (draw.io): `docs/src/content/docs/guides/campaigns/agentic-campaign.drawio`
+
+This is why campaigns feel like “delegation over time”: you are defining success, scope, and reporting, not just describing a single run.
+
+## Minimal spec
 
 ```yaml
 # .github/workflows/framework-upgrade.campaign.md
@@ -15,71 +65,81 @@ name: "Framework Upgrade"
 description: "Move services to Framework vNext"
 
 project-url: "https://github.com/orgs/ORG/projects/1"
+tracker-label: "campaign:framework-upgrade"
+
+objective: "Upgrade all services to Framework vNext with zero downtime."
+kpis:
+  - id: services_upgraded
+    name: "Services upgraded"
+    primary: true
+    direction: "increase"
+    target: 50
+  - id: incidents
+    name: "Incidents caused"
+    direction: "decrease"
+    target: 0
 
 workflows:
   - framework-upgrade
 
-tracker-label: "campaign:framework-upgrade"
 state: "active"
 owners:
   - "platform-team"
 ```
 
-Common fields you'll reach for as the initiative grows:
+## Core fields (what they do)
 
-- `project-url`: the GitHub Project URL used as the primary campaign dashboard
-- `tracker-label`: the label that ties issues/PRs back to the agentic campaign
-- `memory-paths` / `metrics-glob`: where baselines and metrics snapshots live on your repo-memory branch
-- `approval-policy`: the expectations for human approval (required approvals/roles)
-- `governance`: pacing and opt-out policies for orchestrator operations (see below)
+- `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
+- `project-url`: the GitHub Project that acts as the campaign dashboard.
+- `tracker-label`: the label applied to issues and pull requests that belong to the campaign (commonly `campaign:<id>`). This is the key that lets the orchestrator discover work across runs.
+- `objective`: a single sentence describing what “done” means.
+- `kpis`: the measures you use to report progress (exactly one should be marked `primary`).
+- `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`), and they can be scheduled, event-driven, or long-running.
 
-Once you have a spec, the remaining question is consistency: what should every agentic campaign produce so people can follow along?
+## KPIs (recommended shape)
 
-## Governance policies
+Keep KPIs small and crisp:
 
-The `governance` section provides lightweight controls for how the orchestrator manages campaign tracking:
+- Use 1 primary KPI + a few supporting KPIs.
+- Use `direction: increase|decrease|maintain` to describe the desired trend.
+- Use `target` when there is a clear threshold.
+
+If you define `kpis`, also define `objective` (and vice versa). It keeps the spec reviewable and makes reports consistent.
+
+## Durable state (repo-memory)
+
+If you use repo-memory for campaigns, standardize on one layout so runs are comparable:
+
+- `memory/campaigns/<campaign-id>/cursor.json`
+- `memory/campaigns/<campaign-id>/metrics/<date>.json`
+
+Typical wiring in the spec:
+
+```yaml
+memory-paths:
+  - "memory/campaigns/framework-upgrade/cursor.json"
+metrics-glob: "memory/campaigns/framework-upgrade/metrics/*.json"
+```
+
+Campaign tooling enforces the durability contract at push time: a campaign repo-memory write must include a cursor and at least one metrics snapshot.
+
+## Governance (pacing & safety)
+
+Use `governance` to keep orchestration predictable and reviewable:
 
 ```yaml
 governance:
-  max-new-items-per-run: 10              # Limit new items added to Project per run
-  max-discovery-items-per-run: 100       # Limit items scanned during discovery
-  max-discovery-pages-per-run: 5         # Limit API result pages fetched
-  opt-out-labels: ["campaign:skip"]      # Labels that exclude items from tracking
-  do-not-downgrade-done-items: true      # Prevent Done → In Progress transitions
-  max-project-updates-per-run: 50        # Limit Project update operations
-  max-comments-per-run: 10               # Limit comment operations
+  max-new-items-per-run: 10
+  max-discovery-items-per-run: 100
+  max-discovery-pages-per-run: 5
+  opt-out-labels: ["campaign:skip"]
+  do-not-downgrade-done-items: true
+  max-project-updates-per-run: 50
+  max-comments-per-run: 10
 ```
 
-**Common use cases**:
-- **Pacing**: Use `max-new-items-per-run` to gradually roll out tracking (e.g., 10 items per day)
-- **Rate limiting**: Use `max-project-updates-per-run` to avoid GitHub API throttling
-- **Opt-out**: Use `opt-out-labels` to let teams mark items as out-of-scope
-- **Stability**: Use `do-not-downgrade-done-items` to prevent reopened items from disrupting reports
+## Compilation and orchestrators
 
-## Recommended default wiring
+`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator `.github/workflows/<id>.campaign.g.md` and compiles it to `.lock.yml`.
 
-To keep agentic campaigns consistent and easy to read, most teams use a predictable set of primitives:
-
-- **Tracker label** (for example, `campaign:<id>`) applied to every issue/PR in the agentic campaign.
-- **Epic issue** (often also labeled `campaign-tracker`) as the human-readable command center.
-- **GitHub Project** as the dashboard (primary campaign dashboard).
-- **Repo-memory metrics** (daily JSON snapshots) to compute velocity/ETAs and enable trend reporting.
-- **Tracker IDs in worker workflows** (e.g., `tracker-id: "worker-name"`) to enable orchestrator discovery of worker-created assets.
-- **Generated orchestrator** to keep the Project in sync and post periodic updates.
-- **Custom date fields** (optional, for roadmap views) like `Start Date` and `End Date` to visualize campaign timeline.
-
-If you want to try this end-to-end quickly, start with the [Getting Started guide](/gh-aw/guides/campaigns/getting-started/).
-
-## Spec validation and compilation
-
-When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `gh aw compile` will also generate an orchestrator workflow named `.github/workflows/<id>.campaign.g.md` and compile it to a corresponding `.lock.yml`.
-
-The generated orchestrator:
-- Discovers tracker-labeled issues and PRs matching the campaign
-- Discovers worker-created assets (if workers are configured with tracker-ids)
-- Adds new items to the GitHub Project board
-- Updates status fields as work progresses
-- Enforces governance rules (e.g., max items per run, no downgrade of completed items)
-- Posts periodic status reports
-
-See [Agentic campaign specs and orchestrators](/gh-aw/setup/cli/#compile) for details.
+See [Agentic campaign specs and orchestrators](/gh-aw/setup/cli/#compile).

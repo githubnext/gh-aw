@@ -116,10 +116,74 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
+	// Goals/KPIs: optional, but when provided they must be consistent and well-formed.
+	problems = append(problems, validateObjectiveAndKPIs(spec)...)
+
 	if len(problems) == 0 {
 		validationLog.Printf("Campaign spec '%s' validation passed with no problems", spec.ID)
 	} else {
 		validationLog.Printf("Campaign spec '%s' validation completed with %d problems", spec.ID, len(problems))
+	}
+
+	return problems
+}
+
+func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
+	var problems []string
+
+	objective := strings.TrimSpace(spec.Objective)
+	if objective == "" && len(spec.KPIs) > 0 {
+		problems = append(problems, "objective should be set when kpis are provided")
+	}
+	if objective != "" && len(spec.KPIs) == 0 {
+		problems = append(problems, "kpis should include at least one KPI when objective is provided")
+	}
+	if len(spec.KPIs) == 0 {
+		return problems
+	}
+
+	primaryCount := 0
+	for _, kpi := range spec.KPIs {
+		name := strings.TrimSpace(kpi.Name)
+		if name == "" {
+			name = "(unnamed)"
+		}
+		if strings.TrimSpace(kpi.Priority) == "primary" {
+			primaryCount++
+		}
+		if kpi.TimeWindowDays < 1 {
+			problems = append(problems, fmt.Sprintf("kpi '%s': time-window-days must be >= 1", name))
+		}
+		if dir := strings.TrimSpace(kpi.Direction); dir != "" {
+			switch dir {
+			case "increase", "decrease":
+				// ok
+			default:
+				problems = append(problems, fmt.Sprintf("kpi '%s': direction must be one of: increase, decrease", name))
+			}
+		}
+		if src := strings.TrimSpace(kpi.Source); src != "" {
+			switch src {
+			case "ci", "pull_requests", "code_security", "custom":
+				// ok
+			default:
+				problems = append(problems, fmt.Sprintf("kpi '%s': source must be one of: ci, pull_requests, code_security, custom", name))
+			}
+		}
+	}
+
+	// Semantic rule: exactly one primary KPI when there are multiple KPIs.
+	// If there is only one KPI and priority is omitted, treat it as implicitly primary.
+	if len(spec.KPIs) == 1 {
+		if strings.TrimSpace(spec.KPIs[0].Priority) == "" {
+			return problems
+		}
+	}
+	if primaryCount == 0 {
+		problems = append(problems, "kpis must include exactly one primary KPI (priority: primary)")
+	}
+	if primaryCount > 1 {
+		problems = append(problems, "kpis must include exactly one primary KPI (multiple primary KPIs found)")
 	}
 
 	return problems
@@ -187,10 +251,24 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		MaxCommentsPerRun       int      `json:"max-comments-per-run,omitempty"`
 	}
 
+	type CampaignKPIForValidation struct {
+		ID             string  `json:"id,omitempty"`
+		Name           string  `json:"name"`
+		Priority       string  `json:"priority,omitempty"`
+		Unit           string  `json:"unit,omitempty"`
+		Baseline       float64 `json:"baseline"`
+		Target         float64 `json:"target"`
+		TimeWindowDays int     `json:"time-window-days"`
+		Direction      string  `json:"direction,omitempty"`
+		Source         string  `json:"source,omitempty"`
+	}
+
 	type CampaignSpecForValidation struct {
 		ID                 string                                 `json:"id"`
 		Name               string                                 `json:"name"`
 		Description        string                                 `json:"description,omitempty"`
+		Objective          string                                 `json:"objective,omitempty"`
+		KPIs               []CampaignKPIForValidation             `json:"kpis,omitempty"`
 		ProjectURL         string                                 `json:"project-url,omitempty"`
 		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
@@ -210,9 +288,30 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 	}
 
 	validationSpec := CampaignSpecForValidation{
-		ID:                 spec.ID,
-		Name:               spec.Name,
-		Description:        spec.Description,
+		ID:          spec.ID,
+		Name:        spec.Name,
+		Description: spec.Description,
+		Objective:   strings.TrimSpace(spec.Objective),
+		KPIs: func() []CampaignKPIForValidation {
+			if len(spec.KPIs) == 0 {
+				return nil
+			}
+			out := make([]CampaignKPIForValidation, 0, len(spec.KPIs))
+			for _, kpi := range spec.KPIs {
+				out = append(out, CampaignKPIForValidation{
+					ID:             strings.TrimSpace(kpi.ID),
+					Name:           strings.TrimSpace(kpi.Name),
+					Priority:       strings.TrimSpace(kpi.Priority),
+					Unit:           strings.TrimSpace(kpi.Unit),
+					Baseline:       kpi.Baseline,
+					Target:         kpi.Target,
+					TimeWindowDays: kpi.TimeWindowDays,
+					Direction:      strings.TrimSpace(kpi.Direction),
+					Source:         strings.TrimSpace(kpi.Source),
+				})
+			}
+			return out
+		}(),
 		ProjectURL:         spec.ProjectURL,
 		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,

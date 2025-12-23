@@ -12,8 +12,8 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		Description:  "Reduce oversized non-test Go files under pkg/ to ≤800 LOC via tracked refactors.",
 		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
 		Workflows:    []string{"daily-file-diet"},
-		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
-		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64/metrics/*.json",
 		TrackerLabel: "campaign:go-file-size-reduction-project64",
 	}
 
@@ -96,6 +96,49 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	// Verify explicit completion criteria
 	if !strings.Contains(data.MarkdownContent, "all discovered issues are closed") {
 		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
+	}
+}
+
+func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		Description:  "A test campaign",
+		ProjectURL:   "https://github.com/orgs/test/projects/1",
+		Workflows:    []string{"daily-file-diet"},
+		TrackerLabel: "campaign:test",
+		Objective:    "Improve CI stability",
+		KPIs: []CampaignKPI{
+			{
+				Name:           "Build success rate",
+				Priority:       "primary",
+				Unit:           "ratio",
+				Baseline:       0.8,
+				Target:         0.95,
+				TimeWindowDays: 7,
+				Direction:      "increase",
+				Source:         "ci",
+			},
+		},
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	// Golden assertions: these should only change if we intentionally change the orchestrator contract.
+	expectedPhrases := []string{
+		"### Objective and KPIs (first-class)",
+		"Objective: Improve CI stability",
+		"Build success rate",
+		"Deterministic planner step",
+	}
+	for _, expected := range expectedPhrases {
+		if !strings.Contains(data.MarkdownContent, expected) {
+			t.Errorf("expected markdown to contain %q, got: %q", expected, data.MarkdownContent)
+		}
 	}
 }
 
