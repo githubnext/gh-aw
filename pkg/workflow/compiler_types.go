@@ -238,6 +238,7 @@ type WorkflowData struct {
 	AI                  string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
+	SkillDirs           []string      // List of skill directories discovered in imports (relative paths from workspace root)
 	StopTime            string
 	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
 	ManualApproval      string               // environment name for manual approval from on: section

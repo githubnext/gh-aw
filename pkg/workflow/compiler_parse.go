@@ -437,6 +437,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		AI:                  engineSetting,
 		EngineConfig:        engineConfig,
 		AgentFile:           importsResult.AgentFile,
+		SkillDirs:           importsResult.SkillDirs,
 		NetworkPermissions:  networkPermissions,
 		SandboxConfig:       sandboxConfig,
 		NeedsTextOutput:     needsTextOutput,

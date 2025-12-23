@@ -228,6 +228,19 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 	}
 
+	// Add skill directories from imports to --add-dir
+	// This allows Copilot CLI to discover and load skills from imported skill directories
+	if len(workflowData.SkillDirs) > 0 {
+		copilotLog.Printf("Adding %d skill directories to --add-dir", len(workflowData.SkillDirs))
+		for _, skillDir := range workflowData.SkillDirs {
+			// Skill directories are stored as relative paths from workspace root
+			// Expand to absolute path using $GITHUB_WORKSPACE
+			skillPath := fmt.Sprintf("\"${GITHUB_WORKSPACE}/%s\"", skillDir)
+			copilotArgs = append(copilotArgs, "--add-dir", skillPath)
+			copilotLog.Printf("Added skill directory: %s", skillDir)
+		}
+	}
+
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
 	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Edit != nil {
