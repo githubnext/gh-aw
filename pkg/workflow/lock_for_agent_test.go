@@ -59,8 +59,8 @@ Test workflow with lock-for-agent enabled.
 		"Lock issue for agent workflow",
 		"Unlock issue after agent workflow",
 		"GH_AW_LOCK_FOR_AGENT: \"true\"",
-		"lockForAgent && (eventName === \"issues\" || eventName === \"issue_comment\")",
-		"This issue has been locked while the workflow is running",
+		"lock-issue.cjs",   // Check for require() call to lock-issue script
+		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
 
 	for _, expected := range expectedStrings {
@@ -378,8 +378,8 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		"Lock issue for agent workflow",
 		"Unlock issue after agent workflow",
 		"GH_AW_LOCK_FOR_AGENT: \"true\"",
-		"lockForAgent && (eventName === \"issues\" || eventName === \"issue_comment\")",
-		"This issue has been locked while the workflow is running",
+		"lock-issue.cjs",   // Check for require() call to lock-issue script
+		"unlock-issue.cjs", // Check for require() call to unlock-issue script
 	}
 
 	for _, expected := range expectedStrings {
