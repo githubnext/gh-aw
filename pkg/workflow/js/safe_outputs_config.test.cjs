@@ -33,7 +33,7 @@ describe("safe_outputs_config", () => {
       }
       const testDir = path.dirname(testConfigPath);
       if (fs.existsSync(testDir)) {
-        fs.rmdirSync(testDir, { recursive: true });
+        fs.rmSync(testDir, { recursive: true, force: true });
       }
     } catch (error) {
       // Ignore cleanup errors
@@ -135,7 +135,7 @@ describe("safe_outputs_config", () => {
       expect(fs.existsSync(outputDir)).toBe(true);
 
       // Clean up
-      fs.rmdirSync(outputDir, { recursive: true });
+      fs.rmSync(outputDir, { recursive: true, force: true });
     });
 
     it("should handle empty config file", () => {

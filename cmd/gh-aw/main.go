@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -578,6 +579,9 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 func main() {
 	// Set version information in the CLI package
 	cli.SetVersionInfo(version)
+
+	// Set version information in the workflow package for generated file headers
+	workflow.SetVersion(version)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))

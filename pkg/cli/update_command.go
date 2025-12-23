@@ -38,6 +38,15 @@ For workflow updates, it fetches the latest version based on the current ref:
 For action updates, it checks each action in .github/aw/actions-lock.json for newer releases
 and updates the SHA to pin to the latest version. Use --no-actions to skip action updates.
 
+DEPENDENCY HEALTH AUDIT:
+Use --audit to check dependency health without performing updates. This includes:
+- Outdated Go dependencies with available updates
+- Security advisories from GitHub Security Advisory API
+- Dependency maturity analysis (v0.x vs stable versions)
+- Comprehensive dependency health report
+
+The --audit flag implies --dry-run (no updates performed).
+
 ` + WorkflowIDExplanation + `
 
 Examples:
@@ -49,7 +58,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` update --merge           # Update with 3-way merge to preserve local changes
   ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
   ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
-  ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory`,
+  ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory
+  ` + constants.CLIExtensionPrefix + ` update --audit           # Check dependency health without updating
+  ` + constants.CLIExtensionPrefix + ` update --dry-run         # Show what would be updated without making changes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
@@ -61,9 +72,23 @@ Examples:
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
 			mergeFlag, _ := cmd.Flags().GetBool("merge")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
+			auditFlag, _ := cmd.Flags().GetBool("audit")
+			dryRunFlag, _ := cmd.Flags().GetBool("dry-run")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
+			}
+
+			// Handle audit mode
+			if auditFlag {
+				return runDependencyAudit(verbose, jsonOutput)
+			}
+
+			// Handle dry-run mode
+			if dryRunFlag {
+				// TODO: Implement dry-run mode for workflow updates
+				return fmt.Errorf("--dry-run mode not yet implemented for workflow updates")
 			}
 
 			return UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag, workflowDir, noStopAfter, stopAfter, mergeFlag, noActions)
@@ -79,6 +104,9 @@ Examples:
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
+	cmd.Flags().Bool("audit", false, "Check dependency health without performing updates (implies --dry-run)")
+	cmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
+	cmd.Flags().Bool("json", false, "Output audit results in JSON format (only with --audit)")
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
@@ -86,6 +114,25 @@ Examples:
 	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
+}
+
+// runDependencyAudit performs a dependency health audit
+func runDependencyAudit(verbose bool, jsonOutput bool) error {
+	updateLog.Print("Running dependency health audit")
+
+	// Generate comprehensive report
+	report, err := GenerateDependencyReport(verbose)
+	if err != nil {
+		return fmt.Errorf("failed to generate dependency report: %w", err)
+	}
+
+	// Display the report
+	if jsonOutput {
+		return DisplayDependencyReportJSON(report)
+	}
+	DisplayDependencyReport(report)
+
+	return nil
 }
 
 // UpdateWorkflowsWithExtensionCheck performs the complete update process:

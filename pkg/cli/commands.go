@@ -21,7 +21,7 @@ var (
 	version = "dev"
 )
 
-//go:embed templates/github-agentic-workflows.instructions.md
+//go:embed templates/github-agentic-workflows.md
 var copilotInstructionsTemplate string
 
 //go:embed templates/create-agentic-workflow.agent.md

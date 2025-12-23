@@ -257,19 +257,38 @@ check-node-version:
 	fi; \
 	echo "✓ Node.js version check passed ($$NODE_VERSION)"
 
+.PHONY: tools
+tools: ## Install build-time tools from tools.go
+	@echo "Installing build tools..."
+	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	@echo "✓ Tools installed successfully"
+
+# License compliance checking
+.PHONY: license-check
+license-check: ## Check dependency licenses for compliance
+	@echo "Checking dependency licenses..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses check --disallowed_types=forbidden,reciprocal,restricted,unknown ./...
+	@echo "✓ License check passed"
+
+.PHONY: license-report
+license-report: ## Generate CSV license report
+	@echo "Generating license report..."
+	@command -v go-licenses >/dev/null || go install github.com/google/go-licenses@latest
+	@go-licenses csv ./... > licenses.csv 2>&1 || true
+	@echo "✓ Report saved to licenses.csv"
+
 # Install dependencies
 .PHONY: deps
 deps: check-node-version
 	go mod download
 	go mod tidy
-	go install golang.org/x/tools/gopls@latest
-	go install github.com/rhysd/actionlint/cmd/actionlint@latest
 	cd pkg/workflow/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps download-github-actions-schema
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+deps-dev: check-node-version deps tools download-github-actions-schema
+	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
 .PHONY: download-github-actions-schema
@@ -505,7 +524,11 @@ help:
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
+	@echo "  tools            - Install build-time tools from tools.go"
+	@echo "  license-check    - Check dependency licenses for compliance"
+	@echo "  license-report   - Generate CSV license report"
 	@echo "  deps             - Install dependencies"
+	@echo "  deps-dev         - Install development dependencies (includes tools)"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"

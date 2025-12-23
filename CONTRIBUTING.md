@@ -241,6 +241,45 @@ The agent understands this structure:
 └── Makefile             # Build automation (agent uses this)
 ```
 
+## 📋 Dependency License Policy
+
+This project uses an MIT license and only accepts dependencies with compatible licenses.
+
+### Allowed Licenses
+
+The following open-source licenses are compatible with our MIT license:
+
+- **MIT** - Most permissive, allows reuse with minimal restrictions
+- **Apache-2.0** - Permissive license with patent grant
+- **BSD-2-Clause, BSD-3-Clause** - Simple permissive licenses
+- **ISC** - Simplified permissive license similar to MIT
+
+### Disallowed Licenses
+
+The following licenses are **not allowed** as they conflict with our MIT license or impose unacceptable restrictions:
+
+- **GPL, LGPL, AGPL** - Copyleft licenses that would force us to release under GPL
+- **SSPL** - Server Side Public License with restrictive requirements
+- **Proprietary/Commercial** - Closed-source licenses requiring payment or special terms
+
+### Before Adding a Dependency
+
+GitHub Copilot Agent automatically checks licenses when adding dependencies. However, if you're evaluating a dependency:
+
+1. **Check its license**: Run `make license-check` after adding the dependency
+2. **Review the report**: Run `make license-report` to generate a CSV of all licenses
+3. **If unsure**: Ask in your PR - maintainers will help evaluate edge cases
+
+### License Checking
+
+The project includes automated license compliance checking:
+
+- **CI Workflow**: `.github/workflows/license-check.yml` runs on every PR that changes `go.mod`
+- **Local Check**: Run `make license-check` to verify all dependencies
+- **License Report**: Run `make license-report` to see detailed license information
+
+All dependencies are automatically scanned using Google's `go-licenses` tool, which classifies licenses by type and identifies potential compliance issues.
+
 ## 🤝 Community
 
 - Join the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)

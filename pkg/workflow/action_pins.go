@@ -41,6 +41,23 @@ func getActionPins() []ActionPin {
 		panic(fmt.Sprintf("failed to load action pins: %v", err))
 	}
 
+	// Detect and log key/version mismatches
+	mismatchCount := 0
+	for key, pin := range data.Entries {
+		// Extract version from key (format: "repo@version")
+		if idx := strings.LastIndex(key, "@"); idx != -1 {
+			keyVersion := key[idx+1:]
+			if keyVersion != pin.Version {
+				mismatchCount++
+				actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
+					key, keyVersion, pin.Version, pin.SHA[:8])
+			}
+		}
+	}
+	if mismatchCount > 0 {
+		actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", mismatchCount)
+	}
+
 	// Convert map to sorted slice
 	pins := make([]ActionPin, 0, len(data.Entries))
 	for _, pin := range data.Entries {
@@ -113,29 +130,40 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	actionPinsLog.Printf("Resolving action pin: repo=%s, version=%s, strict_mode=%t", actionRepo, version, data.StrictMode)
 	// First try dynamic resolution if resolver is available
 	if data.ActionResolver != nil {
+		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
+			actionPinsLog.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
 			// Successfully resolved, save cache
 			if data.ActionCache != nil {
 				_ = data.ActionCache.Save()
 			}
 			return actionRepo + "@" + sha + " # " + version, nil
 		}
+		actionPinsLog.Printf("Dynamic resolution failed for %s@%s: %v", actionRepo, version, err)
+	} else {
+		actionPinsLog.Printf("No action resolver available, skipping dynamic resolution")
 	}
 
 	// Dynamic resolution failed, try hardcoded pins
+	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
 	actionPins := getActionPins()
 	for _, pin := range actionPins {
 		if pin.Repo == actionRepo {
+			actionPinsLog.Printf("Found hardcoded pin for %s: version=%s, sha=%s", actionRepo, pin.Version, pin.SHA[:8])
 			// Check if the version matches the hardcoded version
 			if pin.Version == version {
+				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
 				return actionRepo + "@" + pin.SHA + " # " + version, nil
 			}
 			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
+			actionPinsLog.Printf("Version mismatch: requested=%s, found=%s, strict_mode=%t", version, pin.Version, data.StrictMode)
 			if !data.StrictMode {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 					actionRepo, version, actionRepo, pin.Version)
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+				actionPinsLog.Printf("Using mismatched version in non-strict mode: %s@%s (requested) → %s@%s (used)",
+					actionRepo, version, actionRepo, pin.Version)
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 			break

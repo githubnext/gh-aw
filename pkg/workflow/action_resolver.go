@@ -44,6 +44,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	resolverLog.Printf("Successfully resolved %s@%s to SHA: %s", repo, version, sha)
 
 	// Cache the result
+	resolverLog.Printf("Caching result: %s@%s → %s", repo, version, sha)
 	r.cache.Set(repo, version, sha)
 
 	return sha, nil
