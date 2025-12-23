@@ -159,13 +159,13 @@ func TestActionModeReleaseValidation(t *testing.T) {
 // TestActionModeDetectionWithReleaseFlag tests that DetectActionMode uses the release flag
 func TestActionModeDetectionWithReleaseFlag(t *testing.T) {
 	tests := []struct {
-		name            string
-		isRelease       bool
-		githubRef       string
-		githubEvent     string
-		envOverride     string
-		expectedMode    ActionMode
-		description     string
+		name         string
+		isRelease    bool
+		githubRef    string
+		githubEvent  string
+		envOverride  string
+		expectedMode ActionMode
+		description  string
 	}{
 		{
 			name:         "release flag true",
@@ -217,7 +217,7 @@ func TestActionModeDetectionWithReleaseFlag(t *testing.T) {
 			origEvent := os.Getenv("GITHUB_EVENT_NAME")
 			origMode := os.Getenv("GH_AW_ACTION_MODE")
 			origRelease := IsRelease()
-			
+
 			defer func() {
 				// Restore environment variables
 				if origRef != "" {
