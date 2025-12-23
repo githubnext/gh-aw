@@ -49,14 +49,19 @@ Test safe outputs workflow with MCP server integration.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that setup-safe-outputs action is used (files are no longer written inline)
-	if !strings.Contains(yamlStr, "uses: ./actions/setup-safe-outputs") {
-		t.Error("Expected safe-outputs to use the setup-safe-outputs action")
+	// Check that setup action is used (files are no longer written inline)
+	if !strings.Contains(yamlStr, "uses: ./actions/setup") {
+		t.Error("Expected safe-outputs to use the setup action")
+	}
+
+	// Verify the setup action has correct destination for safe outputs
+	if !strings.Contains(yamlStr, "destination: /tmp/gh-aw/safeoutputs") {
+		t.Error("Expected setup action to have destination: /tmp/gh-aw/safeoutputs")
 	}
 
 	// Check that JavaScript files are NOT written inline
 	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected mcp-server.cjs to be copied by setup-safe-outputs action, not written inline")
+		t.Error("Expected mcp-server.cjs to be copied by setup action, not written inline")
 	}
 
 	// Check that safe-outputs configuration file is written
@@ -122,9 +127,9 @@ Test workflow without safe outputs.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that setup-safe-outputs action is NOT used when safe-outputs are disabled
-	if strings.Contains(yamlStr, "uses: ./actions/setup-safe-outputs") {
-		t.Error("Expected setup-safe-outputs action to NOT be used when safe-outputs are disabled")
+	// Check that setup action is NOT used when safe-outputs are disabled
+	if strings.Contains(yamlStr, "destination: /tmp/gh-aw/safeoutputs") {
+		t.Error("Expected setup action with safeoutputs destination to NOT be used when safe-outputs are disabled")
 	}
 
 	// Check that safe-outputs configuration file is NOT written
@@ -177,14 +182,19 @@ Test safe outputs workflow with Codex engine.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that setup-safe-outputs action is used (files are no longer written inline)
-	if !strings.Contains(yamlStr, "uses: ./actions/setup-safe-outputs") {
-		t.Error("Expected safe-outputs to use the setup-safe-outputs action")
+	// Check that setup action is used (files are no longer written inline)
+	if !strings.Contains(yamlStr, "uses: ./actions/setup") {
+		t.Error("Expected safe-outputs to use the setup action")
+	}
+
+	// Verify the setup action has correct destination for safe outputs
+	if !strings.Contains(yamlStr, "destination: /tmp/gh-aw/safeoutputs") {
+		t.Error("Expected setup action to have destination: /tmp/gh-aw/safeoutputs")
 	}
 
 	// Check that JavaScript files are NOT written inline
 	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected mcp-server.cjs to be copied by setup-safe-outputs action, not written inline")
+		t.Error("Expected mcp-server.cjs to be copied by setup action, not written inline")
 	}
 
 	// Check that safe-outputs configuration file is written

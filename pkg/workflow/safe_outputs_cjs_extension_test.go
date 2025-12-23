@@ -44,14 +44,19 @@ Test workflow for .cjs extension verification`
 	}
 	yaml := string(yamlContent)
 
-	// Verify that the setup-safe-outputs action is used (files are no longer written inline)
-	if !strings.Contains(yaml, "uses: ./actions/setup-safe-outputs") {
-		t.Error("Expected safe-outputs to use the setup-safe-outputs action")
+	// Verify that the setup action is used (files are no longer written inline)
+	if !strings.Contains(yaml, "uses: ./actions/setup") {
+		t.Error("Expected safe-outputs to use the setup action")
+	}
+
+	// Verify the setup action has correct destination
+	if !strings.Contains(yaml, "destination: /tmp/gh-aw/safeoutputs") {
+		t.Error("Expected setup action to have destination: /tmp/gh-aw/safeoutputs")
 	}
 
 	// Verify that JavaScript files are NOT written inline
 	if strings.Contains(yaml, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected mcp-server.cjs to be copied by setup-safe-outputs action, not written inline")
+		t.Error("Expected mcp-server.cjs to be copied by setup action, not written inline")
 	}
 
 	// Verify that no .js files are written inline (should all come from action)

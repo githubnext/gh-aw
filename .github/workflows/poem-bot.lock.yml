@@ -946,7 +946,7 @@ jobs:
           }
           EOF
       - name: Setup Safe Outputs Files
-        uses: ./actions/setup-safe-outputs
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/safeoutputs
       - name: Setup MCPs

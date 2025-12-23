@@ -208,9 +208,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
-		// Step 2: Setup Safe Outputs JavaScript Files using the setup-safe-outputs action
+		// Step 2: Setup Safe Outputs JavaScript Files using the setup action
 		yaml.WriteString("      - name: Setup Safe Outputs Files\n")
-		yaml.WriteString("        uses: ./actions/setup-safe-outputs\n")
+		yaml.WriteString("        uses: ./actions/setup\n")
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          destination: /tmp/gh-aw/safeoutputs\n")
 	}
