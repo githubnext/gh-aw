@@ -35,12 +35,17 @@ You can use either a classic or fine-grained PAT.
 - `read:org` (required for org Projects)
 - `repo` (required if accessing private repositories)
 
-**Fine-grained PAT** settings:
+**Fine-grained PAT** settings (recommended):
 
-- Repository access: Select specific repos or "All repositories"
-- Organization access: Must be granted to the target organization
-- Organization permissions: Projects = Read+Write
-- Important: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
+- Repository access: Select specific repos that will use the workflow
+- Repository permissions:
+  - Contents: Read
+  - Issues: Read (if workflow is triggered by issues)
+  - Pull requests: Read (if workflow is triggered by pull requests)
+- Organization permissions:
+  - Projects: Read & Write (required for updating projects)
+
+Important: Fine-grained PATs require explicit organization access. You must grant organization access and Projects permissions during token creation.
 
 Create at: [https://github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
 
@@ -114,6 +119,47 @@ The `update-project` tool provides intelligent project management:
 - **Updates fields**: Sets status, priority, and other custom fields
 - **Applies a tracking label**: When adding a new item, it can apply a consistent tracking label to the underlying issue/PR
 - **Returns outputs**: Exposes the Project item ID (`item-id`) for downstream steps
+
+## Organization-Owned Project Configuration
+
+For workflows that interact with organization-owned projects and need to query GitHub information, use the following configuration:
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+tools:
+  github:
+    toolsets: [default, projects]
+    github-token: ${{ secrets.ORG_PROJECT_WRITE }}
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.ORG_PROJECT_WRITE }}
+---
+
+# Smart Issue Triage for Organization Project
+
+Analyze the issue and add it to the organization project board...
+```
+
+**Key requirements for the `ORG_PROJECT_WRITE` token (fine-grained PAT)**:
+
+- **Repository access**: Select specific repositories with the workflow
+- **Repository permissions**:
+  - Contents: Read
+  - Issues: Read (as needed)
+  - Pull requests: Read (as needed)
+- **Organization permissions**:
+  - Projects: Read & Write
+
+This configuration ensures:
+1. The GitHub MCP toolset can query repository and project information
+2. The `update-project` safe output can modify the organization project
+3. Both operations use the same token with appropriate permissions
 
 ## Accessing Issue Context
 
