@@ -291,7 +291,7 @@ jobs:
 		t.Fatalf("Could not find expected steps in file")
 	}
 
-	if !(extensionIndex < someStepIndex && someStepIndex < buildIndex) {
+	if extensionIndex >= someStepIndex || someStepIndex >= buildIndex {
 		t.Errorf("Extension install step not in correct position (should be at beginning, before other steps)")
 	}
 }

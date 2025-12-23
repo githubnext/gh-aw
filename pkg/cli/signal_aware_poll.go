@@ -65,12 +65,13 @@ func PollWithSignalHandling(options PollOptions) error {
 
 	// Perform initial check immediately
 	result, err := options.PollFunc()
-	if result == PollSuccess {
+	switch result {
+	case PollSuccess:
 		if options.Verbose && options.SuccessMessage != "" {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(options.SuccessMessage))
 		}
 		return nil
-	} else if result == PollFailure {
+	case PollFailure:
 		return err
 	}
 
@@ -92,12 +93,13 @@ func PollWithSignalHandling(options PollOptions) error {
 			// Poll for status
 			result, err := options.PollFunc()
 
-			if result == PollSuccess {
+			switch result {
+			case PollSuccess:
 				if options.Verbose && options.SuccessMessage != "" {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(options.SuccessMessage))
 				}
 				return nil
-			} else if result == PollFailure {
+			case PollFailure:
 				return err
 			}
 

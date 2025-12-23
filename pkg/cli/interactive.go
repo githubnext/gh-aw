@@ -298,7 +298,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString(b.generatePermissionsConfig())
 
 	// Add engine configuration
-	content.WriteString(fmt.Sprintf("engine: %s\n", b.Engine))
+	fmt.Fprintf(&content, "engine: %s\n", b.Engine)
 
 	// Add network configuration
 	content.WriteString(b.generateNetworkConfig())
@@ -316,10 +316,10 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString("---\n\n")
 
 	// Add workflow title and content
-	content.WriteString(fmt.Sprintf("# %s\n\n", b.WorkflowName))
+	fmt.Fprintf(&content, "# %s\n\n", b.WorkflowName)
 
 	if b.Intent != "" {
-		content.WriteString(fmt.Sprintf("%s\n\n", b.Intent))
+		fmt.Fprintf(&content, "%s\n\n", b.Intent)
 	}
 
 	// Add TODO sections for customization
@@ -333,23 +333,23 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString("- [ ] Testing and validation steps\n\n")
 
 	content.WriteString("## Configuration Summary\n\n")
-	content.WriteString(fmt.Sprintf("- **Trigger**: %s\n", b.describeTrigger()))
-	content.WriteString(fmt.Sprintf("- **AI Engine**: %s\n", b.Engine))
+	fmt.Fprintf(&content, "- **Trigger**: %s\n", b.describeTrigger())
+	fmt.Fprintf(&content, "- **AI Engine**: %s\n", b.Engine)
 
 	if len(b.Tools) > 0 {
-		content.WriteString(fmt.Sprintf("- **Tools**: %s\n", strings.Join(b.Tools, ", ")))
+		fmt.Fprintf(&content, "- **Tools**: %s\n", strings.Join(b.Tools, ", "))
 	}
 
 	if len(b.SafeOutputs) > 0 {
-		content.WriteString(fmt.Sprintf("- **Safe Outputs**: %s\n", strings.Join(b.SafeOutputs, ", ")))
+		fmt.Fprintf(&content, "- **Safe Outputs**: %s\n", strings.Join(b.SafeOutputs, ", "))
 	}
 
-	content.WriteString(fmt.Sprintf("- **Network Access**: %s\n", b.NetworkAccess))
+	fmt.Fprintf(&content, "- **Network Access**: %s\n", b.NetworkAccess)
 
 	content.WriteString("\n## Next Steps\n\n")
 	content.WriteString("1. Review and customize the workflow content above\n")
 	content.WriteString("2. Remove TODO sections when ready\n")
-	content.WriteString(fmt.Sprintf("3. Run `%s compile` to generate the GitHub Actions workflow\n", constants.CLIExtensionPrefix))
+	fmt.Fprintf(&content, "3. Run `%s compile` to generate the GitHub Actions workflow\n", constants.CLIExtensionPrefix)
 	content.WriteString("4. Test the workflow with a manual trigger or appropriate event\n")
 	content.WriteString("-->\n")
 
@@ -392,7 +392,7 @@ func (b *InteractiveWorkflowBuilder) generatePermissionsConfig() string {
 	var config strings.Builder
 	config.WriteString("permissions:\n")
 	for _, perm := range permissions {
-		config.WriteString(fmt.Sprintf("  %s\n", perm))
+		fmt.Fprintf(&config, "  %s\n", perm)
 	}
 
 	return config.String()
@@ -423,7 +423,7 @@ func (b *InteractiveWorkflowBuilder) generateToolsConfig() string {
 		case "bash":
 			config.WriteString("  bash:\n")
 		default:
-			config.WriteString(fmt.Sprintf("  %s:\n", tool))
+			fmt.Fprintf(&config, "  %s:\n", tool)
 		}
 	}
 
@@ -439,7 +439,7 @@ func (b *InteractiveWorkflowBuilder) generateSafeOutputsConfig() string {
 	config.WriteString("safe-outputs:\n")
 
 	for _, output := range b.SafeOutputs {
-		config.WriteString(fmt.Sprintf("  %s:\n", output))
+		fmt.Fprintf(&config, "  %s:\n", output)
 	}
 
 	return config.String()

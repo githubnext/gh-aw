@@ -91,7 +91,7 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 
 	// If the line isn't a clean JSON object, try to extract a JSON object substring
 	jsonStr := trimmed
-	if !(strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) {
+	if !strings.HasPrefix(trimmed, "{") || !strings.HasSuffix(trimmed, "}") {
 		// Find first '{' and last '}' and attempt to parse that slice
 		open := strings.Index(trimmed, "{")
 		close := strings.LastIndex(trimmed, "}")

@@ -266,7 +266,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -340,9 +340,9 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 			builder.WriteString("        run: |\n")
 			WriteShellScriptToYAML(builder, createCacheMemoryDirScript, "          ")
 		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Create cache-memory directory (%s)\n", cache.ID))
+			fmt.Fprintf(builder, "      - name: Create cache-memory directory (%s)\n", cache.ID)
 			builder.WriteString("        run: |\n")
-			builder.WriteString(fmt.Sprintf("          mkdir -p %s\n", cacheDir))
+			fmt.Fprintf(builder, "          mkdir -p %s\n", cacheDir)
 		}
 
 		cacheKey := cache.Key
@@ -383,17 +383,17 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		if useBackwardCompatiblePaths {
-			builder.WriteString(fmt.Sprintf("      - name: %s\n", actionName))
+			fmt.Fprintf(builder, "      - name: %s\n", actionName)
 		} else {
-			builder.WriteString(fmt.Sprintf("      - name: %s (%s)\n", actionName, cache.ID))
+			fmt.Fprintf(builder, "      - name: %s (%s)\n", actionName, cache.ID)
 		}
 
 		// Use actions/cache/restore@v4 when restore-only or threat detection enabled
 		// Use actions/cache@v4 for normal caches
 		if useRestoreOnly {
-			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/restore")))
+			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache/restore"))
 		} else {
-			builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
+			fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/cache"))
 		}
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
@@ -447,9 +447,9 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 		if useBackwardCompatiblePaths {
 			builder.WriteString("      - name: Upload cache-memory data as artifact\n")
 		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
+			fmt.Fprintf(builder, "      - name: Upload cache-memory data as artifact (%s)\n", cache.ID)
 		}
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format
@@ -484,9 +484,9 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 		cache := config.Caches[0]
 		cacheDir := "/tmp/gh-aw/cache-memory/"
 		if cache.Description != "" {
-			yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information. %s\n", cacheDir, cache.Description))
+			fmt.Fprintf(yaml, "          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information. %s\n", cacheDir, cache.Description)
 		} else {
-			yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information.\n", cacheDir))
+			fmt.Fprintf(yaml, "          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information.\n", cacheDir)
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
@@ -495,10 +495,10 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 		yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
-		yaml.WriteString(fmt.Sprintf("          - `%snotes.txt` - general notes and observations\n", cacheDir))
-		yaml.WriteString(fmt.Sprintf("          - `%spreferences.json` - user preferences and settings\n", cacheDir))
-		yaml.WriteString(fmt.Sprintf("          - `%shistory.log` - activity history and logs\n", cacheDir))
-		yaml.WriteString(fmt.Sprintf("          - `%sstate/` - organized state files in subdirectories\n", cacheDir))
+		fmt.Fprintf(yaml, "          - `%snotes.txt` - general notes and observations\n", cacheDir)
+		fmt.Fprintf(yaml, "          - `%spreferences.json` - user preferences and settings\n", cacheDir)
+		fmt.Fprintf(yaml, "          - `%shistory.log` - activity history and logs\n", cacheDir)
+		fmt.Fprintf(yaml, "          - `%sstate/` - organized state files in subdirectories\n", cacheDir)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 	} else {
@@ -515,9 +515,9 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 				cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/", cache.ID)
 			}
 			if cache.Description != "" {
-				yaml.WriteString(fmt.Sprintf("          - **%s**: `%s` - %s\n", cache.ID, cacheDir, cache.Description))
+				fmt.Fprintf(yaml, "          - **%s**: `%s` - %s\n", cache.ID, cacheDir, cache.Description)
 			} else {
-				yaml.WriteString(fmt.Sprintf("          - **%s**: `%s`\n", cache.ID, cacheDir))
+				fmt.Fprintf(yaml, "          - **%s**: `%s`\n", cache.ID, cacheDir)
 			}
 		}
 		yaml.WriteString("          \n")
@@ -534,9 +534,9 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 			} else {
 				cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
 			}
-			yaml.WriteString(fmt.Sprintf("          - `%s/notes.txt` - general notes and observations\n", cacheDir))
-			yaml.WriteString(fmt.Sprintf("          - `%s/preferences.json` - user preferences and settings\n", cacheDir))
-			yaml.WriteString(fmt.Sprintf("          - `%s/state/` - organized state files in subdirectories\n", cacheDir))
+			fmt.Fprintf(yaml, "          - `%s/notes.txt` - general notes and observations\n", cacheDir)
+			fmt.Fprintf(yaml, "          - `%s/preferences.json` - user preferences and settings\n", cacheDir)
+			fmt.Fprintf(yaml, "          - `%s/state/` - organized state files in subdirectories\n", cacheDir)
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
@@ -579,12 +579,12 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Download artifact step
 		var downloadStep strings.Builder
-		downloadStep.WriteString(fmt.Sprintf("      - name: Download cache-memory artifact (%s)\n", cache.ID))
-		downloadStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+		fmt.Fprintf(&downloadStep, "      - name: Download cache-memory artifact (%s)\n", cache.ID)
+		fmt.Fprintf(&downloadStep, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		downloadStep.WriteString("        continue-on-error: true\n")
 		downloadStep.WriteString("        with:\n")
-		downloadStep.WriteString(fmt.Sprintf("          name: %s\n", artifactName))
-		downloadStep.WriteString(fmt.Sprintf("          path: %s\n", cacheDir))
+		fmt.Fprintf(&downloadStep, "          name: %s\n", artifactName)
+		fmt.Fprintf(&downloadStep, "          path: %s\n", cacheDir)
 		steps = append(steps, downloadStep.String())
 
 		// Generate cache key (same logic as in generateCacheMemorySteps)
@@ -605,11 +605,11 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 		// Save to cache step
 		var saveStep strings.Builder
-		saveStep.WriteString(fmt.Sprintf("      - name: Save cache-memory to cache (%s)\n", cache.ID))
-		saveStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache/save")))
+		fmt.Fprintf(&saveStep, "      - name: Save cache-memory to cache (%s)\n", cache.ID)
+		fmt.Fprintf(&saveStep, "        uses: %s\n", GetActionPin("actions/cache/save"))
 		saveStep.WriteString("        with:\n")
-		saveStep.WriteString(fmt.Sprintf("          key: %s\n", cacheKey))
-		saveStep.WriteString(fmt.Sprintf("          path: %s\n", cacheDir))
+		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
+		fmt.Fprintf(&saveStep, "          path: %s\n", cacheDir)
 		steps = append(steps, saveStep.String())
 	}
 

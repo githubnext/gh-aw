@@ -44,15 +44,15 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s/memory/%s/", memory.ID, memory.ID)
 
 		if memory.Description != "" {
-			yaml.WriteString(fmt.Sprintf("          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch. %s\n", memoryDir, memory.Description))
+			fmt.Fprintf(yaml, "          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch. %s\n", memoryDir, memory.Description)
 		} else {
-			yaml.WriteString(fmt.Sprintf("          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch.\n", memoryDir))
+			fmt.Fprintf(yaml, "          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch.\n", memoryDir)
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
-		yaml.WriteString(fmt.Sprintf("          - **Git Branch Storage**: Files are stored in the `%s` branch", memory.BranchName))
+		fmt.Fprintf(yaml, "          - **Git Branch Storage**: Files are stored in the `%s` branch", memory.BranchName)
 		if memory.TargetRepo != "" {
-			yaml.WriteString(fmt.Sprintf(" of repository `%s`\n", memory.TargetRepo))
+			fmt.Fprintf(yaml, " of repository `%s`\n", memory.TargetRepo)
 		} else {
 			yaml.WriteString(" of the current repository\n")
 		}
@@ -65,21 +65,21 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 			yaml.WriteString("          \n")
 			yaml.WriteString("          **Constraints:**\n")
 			if len(memory.FileGlob) > 0 {
-				yaml.WriteString(fmt.Sprintf("          - **Allowed Files**: Only files matching patterns: %s\n", strings.Join(memory.FileGlob, ", ")))
+				fmt.Fprintf(yaml, "          - **Allowed Files**: Only files matching patterns: %s\n", strings.Join(memory.FileGlob, ", "))
 			}
 			if memory.MaxFileSize > 0 {
-				yaml.WriteString(fmt.Sprintf("          - **Max File Size**: %d bytes (%.2f MB) per file\n", memory.MaxFileSize, float64(memory.MaxFileSize)/1048576.0))
+				fmt.Fprintf(yaml, "          - **Max File Size**: %d bytes (%.2f MB) per file\n", memory.MaxFileSize, float64(memory.MaxFileSize)/1048576.0)
 			}
 			if memory.MaxFileCount > 0 {
-				yaml.WriteString(fmt.Sprintf("          - **Max File Count**: %d files per commit\n", memory.MaxFileCount))
+				fmt.Fprintf(yaml, "          - **Max File Count**: %d files per commit\n", memory.MaxFileCount)
 			}
 		}
 
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
-		yaml.WriteString(fmt.Sprintf("          - `%snotes.md` - general notes and observations\n", memoryDir))
-		yaml.WriteString(fmt.Sprintf("          - `%sstate.json` - structured state data\n", memoryDir))
-		yaml.WriteString(fmt.Sprintf("          - `%shistory/` - organized history files in subdirectories\n", memoryDir))
+		fmt.Fprintf(yaml, "          - `%snotes.md` - general notes and observations\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%sstate.json` - structured state data\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%shistory/` - organized history files in subdirectories\n", memoryDir)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 	} else {
@@ -91,13 +91,13 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          \n")
 		for _, memory := range config.Memories {
 			memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s/memory/%s/", memory.ID, memory.ID)
-			yaml.WriteString(fmt.Sprintf("          - **%s**: `%s`", memory.ID, memoryDir))
+			fmt.Fprintf(yaml, "          - **%s**: `%s`", memory.ID, memoryDir)
 			if memory.Description != "" {
-				yaml.WriteString(fmt.Sprintf(" - %s", memory.Description))
+				fmt.Fprintf(yaml, " - %s", memory.Description)
 			}
-			yaml.WriteString(fmt.Sprintf(" (branch: `%s`", memory.BranchName))
+			fmt.Fprintf(yaml, " (branch: `%s`", memory.BranchName)
 			if memory.TargetRepo != "" {
-				yaml.WriteString(fmt.Sprintf(" in `%s`", memory.TargetRepo))
+				fmt.Fprintf(yaml, " in `%s`", memory.TargetRepo)
 			}
 			yaml.WriteString(")\n")
 		}
@@ -111,9 +111,9 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          Examples of what you can store:\n")
 		for _, memory := range config.Memories {
 			memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s/memory/%s", memory.ID, memory.ID)
-			yaml.WriteString(fmt.Sprintf("          - `%s/notes.md` - general notes and observations\n", memoryDir))
-			yaml.WriteString(fmt.Sprintf("          - `%s/state.json` - structured state data\n", memoryDir))
-			yaml.WriteString(fmt.Sprintf("          - `%s/history/` - organized history files\n", memoryDir))
+			fmt.Fprintf(yaml, "          - `%s/notes.md` - general notes and observations\n", memoryDir)
+			fmt.Fprintf(yaml, "          - `%s/state.json` - structured state data\n", memoryDir)
+			fmt.Fprintf(yaml, "          - `%s/history/` - organized history files\n", memoryDir)
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
