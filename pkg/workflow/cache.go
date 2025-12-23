@@ -560,24 +560,6 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 
 	var steps []string
 
-	// Add setup step to copy scripts
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
-		// For dev mode (local action path), checkout the actions folder first
-		if c.actionMode.IsDev() {
-			steps = append(steps, "      - name: Checkout actions folder\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-			steps = append(steps, "        with:\n")
-			steps = append(steps, "          sparse-checkout: |\n")
-			steps = append(steps, "            actions\n")
-		}
-
-		steps = append(steps, "      - name: Setup Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
-	}
-
 	// Build steps for each cache
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		// Skip restore-only caches
@@ -635,6 +617,28 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	if len(steps) == 0 {
 		return nil, nil
 	}
+
+	// Add setup step to copy scripts at the beginning
+	var setupSteps []string
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		if c.actionMode.IsDev() {
+			setupSteps = append(setupSteps, "      - name: Checkout actions folder\n")
+			setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+			setupSteps = append(setupSteps, "        with:\n")
+			setupSteps = append(setupSteps, "          sparse-checkout: |\n")
+			setupSteps = append(setupSteps, "            actions\n")
+		}
+
+		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		setupSteps = append(setupSteps, "        with:\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Prepend setup steps to all cache steps
+	steps = append(setupSteps, steps...)
 
 	// Job condition: only run if detection passed
 	jobCondition := "always() && needs.detection.outputs.success == 'true'"
