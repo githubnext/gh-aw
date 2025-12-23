@@ -128,6 +128,7 @@ trivy-results.sarif
 
 # Generated action files
 actions/setup-safe-outputs/js/
+actions/setup/js/
 
 # License compliance reports
 licenses.csv

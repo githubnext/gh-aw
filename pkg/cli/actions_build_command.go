@@ -323,17 +323,10 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupAction builds the setup action by embedding files in shell script
+// buildSetupAction builds the setup action by copying JavaScript files to js/ directory
 func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
-	templatePath := filepath.Join(actionPath, "setup.sh")
-	outputPath := templatePath
-
-	// Read template file
-	templateContent, err := os.ReadFile(templatePath)
-	if err != nil {
-		return fmt.Errorf("failed to read template file: %w", err)
-	}
+	jsDir := filepath.Join(actionPath, "js")
 
 	// Get dependencies for this action
 	dependencies := getActionDependencies(actionName)
@@ -342,27 +335,27 @@ func buildSetupAction(actionsDir, actionName string) error {
 	// Get all JavaScript sources
 	sources := workflow.GetJavaScriptSources()
 
-	// Replace each placeholder with file content
-	outputContent := string(templateContent)
-	embeddedCount := 0
+	// Create js directory if it doesn't exist
+	if err := os.MkdirAll(jsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create js directory: %w", err)
+	}
+
+	// Copy each dependency file to the js directory
+	copiedCount := 0
 	for _, dep := range dependencies {
 		if content, ok := sources[dep]; ok {
-			placeholder := fmt.Sprintf("__CONTENT_%s__", dep)
-			outputContent = strings.ReplaceAll(outputContent, placeholder, content)
+			destPath := filepath.Join(jsDir, dep)
+			if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", dep, err)
+			}
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
-			embeddedCount++
+			copiedCount++
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
 		}
 	}
 
-	// Write output file
-	if err := os.WriteFile(outputPath, []byte(outputContent), 0755); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Built %s", outputPath)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", embeddedCount)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
 
 	return nil
 }
