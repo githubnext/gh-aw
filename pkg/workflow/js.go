@@ -293,6 +293,7 @@ var sanitizeContentCoreScript string
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
+// NOTE: This includes scripts from both js.go and scripts.go
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
 		"sanitize_content.cjs":              sanitizeContentScript,
@@ -378,6 +379,42 @@ func GetJavaScriptSources() map[string]string {
 		"redact_secrets.cjs":                redactSecretsScript,
 		"update_project.cjs":                updateProjectScriptSource,
 		"validate_errors.cjs":               validateErrorsScript,
+		// Scripts from scripts.go
+		"noop.cjs":                             noopScriptSource,
+		"notify_comment_error.cjs":             notifyCommentErrorScriptSource,
+		"collect_ndjson_output.cjs":            collectJSONLOutputScriptSource,
+		"sanitize_output.cjs":                  sanitizeOutputScriptSource,
+		"create_issue.cjs":                     createIssueScriptSource,
+		"add_labels.cjs":                       addLabelsScriptSource,
+		"add_reviewer.cjs":                     addReviewerScriptSource,
+		"assign_milestone.cjs":                 assignMilestoneScriptSource,
+		"assign_to_agent.cjs":                  assignToAgentScriptSource,
+		"assign_to_user.cjs":                   assignToUserScriptSource,
+		"assign_copilot_to_created_issues.cjs": assignCopilotToCreatedIssuesScriptSource,
+		"link_sub_issue.cjs":                   linkSubIssueScriptSource,
+		"hide_comment.cjs":                     hideCommentScriptSource,
+		"create_discussion.cjs":                createDiscussionScriptSource,
+		"close_discussion.cjs":                 closeDiscussionScriptSource,
+		"close_expired_discussions.cjs":        closeExpiredDiscussionsScriptSource,
+		"close_expired_issues.cjs":             closeExpiredIssuesScriptSource,
+		"close_issue.cjs":                      closeIssueScriptSource,
+		"close_pull_request.cjs":               closePullRequestScriptSource,
+		"update_issue.cjs":                     updateIssueScriptSource,
+		"update_pull_request.cjs":              updatePullRequestScriptSource,
+		"update_discussion.cjs":                updateDiscussionScriptSource,
+		"update_release.cjs":                   updateReleaseScriptSource,
+		"create_code_scanning_alert.cjs":       createCodeScanningAlertScriptSource,
+		"create_pr_review_comment.cjs":         createPRReviewCommentScriptSource,
+		"add_comment.cjs":                      addCommentScriptSource,
+		"upload_assets.cjs":                    uploadAssetsScriptSource,
+		"parse_firewall_logs.cjs":              parseFirewallLogsScriptSource,
+		"push_to_pull_request_branch.cjs":      pushToPullRequestBranchScriptSource,
+		"create_pull_request.cjs":              createPullRequestScriptSource,
+		"generate_safe_inputs_config.cjs":      generateSafeInputsConfigScriptSource,
+		"parse_claude_log.cjs":                 parseClaudeLogScriptSource,
+		"parse_codex_log.cjs":                  parseCodexLogScriptSource,
+		"parse_copilot_log.cjs":                parseCopilotLogScriptSource,
+		"substitute_placeholders.cjs":          substitutePlaceholdersScriptSource,
 	}
 }
 

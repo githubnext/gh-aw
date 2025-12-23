@@ -399,6 +399,517 @@ EOF_LOCK_ISSUE
 echo "::notice::Copied: lock-issue.cjs"
 FILE_COUNT=$((FILE_COUNT + 1))
 
+# === FILE: noop.cjs ===
+cat > "${DESTINATION}/noop.cjs" << 'EOF_NOOP'
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+
+/**
+ * Main function to handle noop safe output
+ * No-op is a fallback output type that logs messages for transparency
+ * without taking any GitHub API actions
+ */
+async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return;
+  }
+
+  // Find all noop items
+  const noopItems = result.items.filter(/** @param {any} item */ item => item.type === "noop");
+  if (noopItems.length === 0) {
+    core.info("No noop items found in agent output");
+    return;
+  }
+
+  core.info(`Found ${noopItems.length} noop item(s)`);
+
+  // If in staged mode, emit step summary instead of logging
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: No-Op Messages Preview\n\n";
+    summaryContent += "The following messages would be logged if staged mode was disabled:\n\n";
+
+    for (let i = 0; i < noopItems.length; i++) {
+      const item = noopItems[i];
+      summaryContent += `### Message ${i + 1}\n`;
+      summaryContent += `${item.message}\n\n`;
+      summaryContent += "---\n\n";
+    }
+
+    await core.summary.addRaw(summaryContent).write();
+    core.info("📝 No-op message preview written to step summary");
+    return;
+  }
+
+  // Process each noop item - just log the messages for transparency
+  let summaryContent = "\n\n## No-Op Messages\n\n";
+  summaryContent += "The following messages were logged for transparency:\n\n";
+
+  for (let i = 0; i < noopItems.length; i++) {
+    const item = noopItems[i];
+    core.info(`No-op message ${i + 1}: ${item.message}`);
+    summaryContent += `- ${item.message}\n`;
+  }
+
+  // Write summary for all noop messages
+  await core.summary.addRaw(summaryContent).write();
+
+  // Export the first noop message for use in add-comment default reporting
+  if (noopItems.length > 0) {
+    core.setOutput("noop_message", noopItems[0].message);
+    core.exportVariable("GH_AW_NOOP_MESSAGE", noopItems[0].message);
+  }
+
+  core.info(`Successfully processed ${noopItems.length} noop message(s)`);
+}
+
+await main();
+
+EOF_NOOP
+echo "::notice::Copied: noop.cjs"
+FILE_COUNT=$((FILE_COUNT + 1))
+
+# === FILE: unlock-issue.cjs ===
+cat > "${DESTINATION}/unlock-issue.cjs" << 'EOF_UNLOCK_ISSUE'
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * Unlock a GitHub issue
+ * This script is used in the conclusion job to ensure the issue is unlocked
+ * after agent workflow execution completes or fails
+ */
+
+async function main() {
+  // Log actor and event information for debugging
+  core.info(\`Unlock-issue debug: actor=\${context.actor}, eventName=\${context.eventName}\`);
+
+  // Get issue number from context
+  const issueNumber = context.issue.number;
+
+  if (!issueNumber) {
+    core.setFailed("Issue number not found in context");
+    return;
+  }
+
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+
+  core.info(\`Unlock-issue debug: owner=\${owner}, repo=\${repo}, issueNumber=\${issueNumber}\`);
+
+  try {
+    // Check if issue is locked
+    core.info(\`Checking if issue #\${issueNumber} is locked\`);
+    const { data: issue } = await github.rest.issues.get({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    // Skip unlocking if this is a pull request (PRs cannot be unlocked via issues API)
+    if (issue.pull_request) {
+      core.info(\`ℹ️ Issue #\${issueNumber} is a pull request, skipping unlock operation\`);
+      return;
+    }
+
+    if (!issue.locked) {
+      core.info(\`ℹ️ Issue #\${issueNumber} is not locked, skipping unlock operation\`);
+      return;
+    }
+
+    core.info(\`Unlocking issue #\${issueNumber} after agent workflow execution\`);
+
+    // Unlock the issue
+    await github.rest.issues.unlock({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    core.info(\`✅ Successfully unlocked issue #\${issueNumber}\`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(\`Failed to unlock issue: \${errorMessage}\`);
+    core.setFailed(\`Failed to unlock issue #\${issueNumber}: \${errorMessage}\`);
+  }
+}
+
+await main();
+
+EOF_UNLOCK_ISSUE
+echo "::notice::Copied: unlock-issue.cjs"
+FILE_COUNT=$((FILE_COUNT + 1))
+
+# === FILE: missing_tool.cjs ===
+cat > "${DESTINATION}/missing_tool.cjs" << 'EOF_MISSING_TOOL'
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+async function main() {
+  const fs = require("fs");
+
+  // Get environment variables
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+  const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
+
+  core.info("Processing missing-tool reports...");
+  if (maxReports) {
+    core.info(\`Maximum reports allowed: \${maxReports}\`);
+  }
+
+  /** @type {any[]} */
+  const missingTools = [];
+
+  // Return early if no agent output
+  if (!agentOutputFile.trim()) {
+    core.info("No agent output to process");
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
+
+  // Read agent output from file
+  let agentOutput;
+  try {
+    agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.info(\`Agent output file not found or unreadable: \${error instanceof Error ? error.message : String(error)}\`);
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
+
+  if (agentOutput.trim() === "") {
+    core.info("No agent output to process");
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
+
+  core.info(\`Agent output length: \${agentOutput.length}\`);
+
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(agentOutput);
+  } catch (error) {
+    core.setFailed(\`Error parsing agent output JSON: \${error instanceof Error ? error.message : String(error)}\`);
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.info("No valid items found in agent output");
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
+
+  core.info(\`Parsed agent output with \${validatedOutput.items.length} entries\`);
+
+  // Process all parsed entries
+  for (const entry of validatedOutput.items) {
+    if (entry.type === "missing_tool") {
+      // Validate required fields
+      if (!entry.tool) {
+        core.warning(\`missing-tool entry missing 'tool' field: \${JSON.stringify(entry)}\`);
+        continue;
+      }
+      if (!entry.reason) {
+        core.warning(\`missing-tool entry missing 'reason' field: \${JSON.stringify(entry)}\`);
+        continue;
+      }
+
+      const missingTool = {
+        tool: entry.tool,
+        reason: entry.reason,
+        alternatives: entry.alternatives || null,
+        timestamp: new Date().toISOString(),
+      };
+
+      missingTools.push(missingTool);
+      core.info(\`Recorded missing tool: \${missingTool.tool}\`);
+
+      // Check max limit
+      if (maxReports && missingTools.length >= maxReports) {
+        core.info(\`Reached maximum number of missing tool reports (\${maxReports})\`);
+        break;
+      }
+    }
+  }
+
+  core.info(\`Total missing tools reported: \${missingTools.length}\`);
+
+  // Output results
+  core.setOutput("tools_reported", JSON.stringify(missingTools));
+  core.setOutput("total_count", missingTools.length.toString());
+
+  // Log details for debugging and create step summary
+  if (missingTools.length > 0) {
+    core.info("Missing tools summary:");
+
+    // Create structured summary for GitHub Actions step summary
+    core.summary.addHeading("Missing Tools Report", 3).addRaw(\`Found **\${missingTools.length}** missing tool\${missingTools.length > 1 ? "s" : ""} in this workflow execution.\\n\\n\`);
+
+    missingTools.forEach((tool, index) => {
+      core.info(\`\${index + 1}. Tool: \${tool.tool}\`);
+      core.info(\`   Reason: \${tool.reason}\`);
+      if (tool.alternatives) {
+        core.info(\`   Alternatives: \${tool.alternatives}\`);
+      }
+      core.info(\`   Reported at: \${tool.timestamp}\`);
+      core.info("");
+
+      // Add to summary with structured formatting
+      core.summary.addRaw(\`#### \${index + 1}. \\\`\${tool.tool}\\\`\\n\\n\`).addRaw(\`**Reason:** \${tool.reason}\\n\\n\`);
+
+      if (tool.alternatives) {
+        core.summary.addRaw(\`**Alternatives:** \${tool.alternatives}\\n\\n\`);
+      }
+
+      core.summary.addRaw(\`**Reported at:** \${tool.timestamp}\\n\\n---\\n\\n\`);
+    });
+
+    core.summary.write();
+  } else {
+    core.info("No missing tools reported in this workflow execution.");
+    core.summary.addHeading("Missing Tools Report", 3).addRaw("✅ No missing tools reported in this workflow execution.").write();
+  }
+}
+
+main().catch(error => {
+  core.error(\`Error processing missing-tool reports: \${error}\`);
+  core.setFailed(\`Error processing missing-tool reports: \${error}\`);
+});
+
+EOF_MISSING_TOOL
+
+# === FILE: notify_comment_error.cjs ===
+cat > "${DESTINATION}/notify_comment_error.cjs" << 'EOF_NOTIFY_COMMENT_ERROR'
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+// This script updates an existing comment created by the activation job
+// to notify about the workflow completion status (success or failure).
+// It also processes noop messages and adds them to the activation comment.
+
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
+
+/**
+ * Collect generated asset URLs from safe output jobs
+ * @returns {Array<string>} Array of generated asset URLs
+ */
+function collectGeneratedAssets() {
+  const assets = [];
+
+  // Get the safe output jobs mapping from environment
+  const safeOutputJobsEnv = process.env.GH_AW_SAFE_OUTPUT_JOBS;
+  if (!safeOutputJobsEnv) {
+    return assets;
+  }
+
+  let jobOutputMapping;
+  try {
+    jobOutputMapping = JSON.parse(safeOutputJobsEnv);
+  } catch (error) {
+    core.warning(\`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: \${error instanceof Error ? error.message : String(error)}\`);
+    return assets;
+  }
+
+  // Iterate through each job and collect its URL output
+  for (const [jobName, urlKey] of Object.entries(jobOutputMapping)) {
+    // Access the job output using the GitHub Actions context
+    // The value will be set as an environment variable in the format GH_AW_OUTPUT_<JOB>_<KEY>
+    const envVarName = \`GH_AW_OUTPUT_\${jobName.toUpperCase()}_\${urlKey.toUpperCase()}\`;
+    const url = process.env[envVarName];
+
+    if (url && url.trim() !== "") {
+      assets.push(url);
+      core.info(\`Collected asset URL: \${url}\`);
+    }
+  }
+
+  return assets;
+}
+
+async function main() {
+  const commentId = process.env.GH_AW_COMMENT_ID;
+  const commentRepo = process.env.GH_AW_COMMENT_REPO;
+  const runUrl = process.env.GH_AW_RUN_URL;
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
+
+  core.info(\`Comment ID: \${commentId}\`);
+  core.info(\`Comment Repo: \${commentRepo}\`);
+  core.info(\`Run URL: \${runUrl}\`);
+  core.info(\`Workflow Name: \${workflowName}\`);
+  core.info(\`Agent Conclusion: \${agentConclusion}\`);
+  if (detectionConclusion) {
+    core.info(\`Detection Conclusion: \${detectionConclusion}\`);
+  }
+
+  // Load agent output to check for noop messages
+  let noopMessages = [];
+  const agentOutputResult = loadAgentOutput();
+  if (agentOutputResult.success && agentOutputResult.data) {
+    const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+    if (noopItems.length > 0) {
+      core.info(\`Found \${noopItems.length} noop message(s)\`);
+      noopMessages = noopItems.map(item => item.message);
+    }
+  }
+
+  // If there's no comment to update but we have noop messages, write to step summary
+  if (!commentId && noopMessages.length > 0) {
+    core.info("No comment ID found, writing noop messages to step summary");
+
+    let summaryContent = "## No-Op Messages\\n\\n";
+    summaryContent += "The following messages were logged for transparency:\\n\\n";
+
+    if (noopMessages.length === 1) {
+      summaryContent += noopMessages[0];
+    } else {
+      summaryContent += noopMessages.map((msg, idx) => \`\${idx + 1}. \${msg}\`).join("\\n");
+    }
+
+    await core.summary.addRaw(summaryContent).write();
+    core.info(\`Successfully wrote \${noopMessages.length} noop message(s) to step summary\`);
+    return;
+  }
+
+  if (!commentId) {
+    core.info("No comment ID found and no noop messages to process, skipping comment update");
+    return;
+  }
+
+  // At this point, we have a comment to update
+  if (!runUrl) {
+    core.setFailed("Run URL is required");
+    return;
+  }
+
+  // Parse comment repo (format: "owner/repo")
+  const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+  const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+
+  core.info(\`Updating comment in \${repoOwner}/\${repoName}\`);
+
+  // Determine the message based on agent conclusion using custom messages if configured
+  let message;
+
+  // Check if detection job failed (if detection job exists)
+  if (detectionConclusion && detectionConclusion === "failure") {
+    // Detection job failed - report this prominently
+    message = getDetectionFailureMessage({
+      workflowName,
+      runUrl,
+    });
+  } else if (agentConclusion === "success") {
+    message = getRunSuccessMessage({
+      workflowName,
+      runUrl,
+    });
+  } else {
+    // Determine status text based on conclusion type
+    let statusText;
+    if (agentConclusion === "cancelled") {
+      statusText = "was cancelled";
+    } else if (agentConclusion === "skipped") {
+      statusText = "was skipped";
+    } else if (agentConclusion === "timed_out") {
+      statusText = "timed out";
+    } else {
+      statusText = "failed";
+    }
+
+    message = getRunFailureMessage({
+      workflowName,
+      runUrl,
+      status: statusText,
+    });
+  }
+
+  // Add noop messages to the comment if any
+  if (noopMessages.length > 0) {
+    message += "\\n\\n";
+    if (noopMessages.length === 1) {
+      message += noopMessages[0];
+    } else {
+      message += noopMessages.map((msg, idx) => \`\${idx + 1}. \${msg}\`).join("\\n");
+    }
+  }
+
+  // Collect generated asset URLs from safe output jobs
+  const generatedAssets = collectGeneratedAssets();
+  if (generatedAssets.length > 0) {
+    message += "\\n\\n";
+    generatedAssets.forEach(url => {
+      message += \`\${url}\\n\`;
+    });
+  }
+
+  // Check if this is a discussion comment (GraphQL node ID format)
+  const isDiscussionComment = commentId.startsWith("DC_");
+
+  try {
+    if (isDiscussionComment) {
+      // Update discussion comment using GraphQL
+      const result = await github.graphql(
+        \`
+        mutation($commentId: ID!, $body: String!) {
+          updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+            comment {
+              id
+              url
+            }
+          }
+        }\`,
+        { commentId: commentId, body: message }
+      );
+
+      const comment = result.updateDiscussionComment.comment;
+      core.info(\`Successfully updated discussion comment\`);
+      core.info(\`Comment ID: \${comment.id}\`);
+      core.info(\`Comment URL: \${comment.url}\`);
+    } else {
+      // Update issue/PR comment using REST API
+      const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner: repoOwner,
+        repo: repoName,
+        comment_id: parseInt(commentId, 10),
+        body: message,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      core.info(\`Successfully updated comment\`);
+      core.info(\`Comment ID: \${response.data.id}\`);
+      core.info(\`Comment URL: \${response.data.html_url}\`);
+    }
+  } catch (error) {
+    // Don't fail the workflow if we can't update the comment
+    core.warning(\`Failed to update comment: \${error instanceof Error ? error.message : String(error)}\`);
+  }
+}
+
+main().catch(error => {
+  core.setFailed(error instanceof Error ? error.message : String(error));
+});
+
+EOF_NOTIFY_COMMENT_ERROR
+echo "::notice::Copied: notify_comment_error.cjs"
+FILE_COUNT=$((FILE_COUNT + 1))
+
+echo "::notice::Copied: missing_tool.cjs"
+FILE_COUNT=$((FILE_COUNT + 1))
+
 # === FILE: compute_text.cjs ===
 cat > "${DESTINATION}/compute_text.cjs" << 'EOF_COMPUTE_TEXT'
 // @ts-check
