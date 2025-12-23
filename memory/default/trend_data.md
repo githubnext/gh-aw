@@ -1,3 +1,12 @@
+## Trend Data (as of 2025-12-23T15:11:04Z)
+
+- Workflow snapshot (last 50 runs, ~7d): 56.1m total duration, 7,780,920 tokens, ~$3.59 estimated cost, 482 errors, 238 warnings, 1 missing-tool. Outcomes: success 10 / failure 36 / cancelled 1 / pending 3; failures dominated by push to `copilot/create-custom-action-setup-activation` (Plan Command, Release, Q, Nitpick Reviewer, DeepReport, Scout, etc.).
+- Missing tools: Daily Copilot PR Merged (run §20464285031) still reports 1 missing tool even on success.
+- Issue stats (weekly slice): 235 total; 34 open / 201 closed. Created last 3 days: 105; closed last 3 days: 98. Unlabeled issues: 20 total (2 open). Label leaders: ai-generated 115, plan 114, enhancement 53, automation 30.
+- Discussion cadence (Dec 23): lock file stats (#7404), issue-linking arborist (#7400), static analysis (#7399), firewall (#7390), prompt analysis (#7388), copilot token report (#7383), Go module review (#7356), type consistency (#7368), doc consolidation (#7365), MCP structural analysis (#7367), daily status (#7363), doc noob test (#7357), copilot agent analysis (#7350), agent performance report (#7348), portfolio dashboard (#7231 updated).
+- Firewall trend: denial rate rising to ~29.7% this week; top blocks remain GitHub API domains and LinkedIn.
+- Token trend: Copilot workflows consumed 159.6M tokens over Dec 20-23 (~$4.79) with Hourly CI Cleaner alone at 29% of cost; average cost/run $0.0119, weekday spike on Dec 22.
+
 ## Trend Data (as of 2025-12-22T15:11:25Z)
 
 - Workflow snapshot (last ~20 runs): 10 runs, 33.6m total duration, 2,123,217 tokens, ~$2.42 estimated cost, 199 errors, 109 warnings, 2 missing-tool incidents. Outcomes: 1 failure (Weekly Issue Summary), 1 cancelled (Tidy), remainder success with multiple green AI Moderator runs.

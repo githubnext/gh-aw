@@ -1,3 +1,11 @@
+## Known Patterns (2025-12-23)
+
+- Firewall denials trending upward (≈30% current week) with GitHub API and LinkedIn still top blocks, pointing to missing GitHub MCP config plus questionable external scraping attempts.
+- Copilot token usage remains concentrated in scheduled maintenance (Hourly CI Cleaner, Issue Monster, Tidy); average cost per run stays low but high-frequency schedules drive spend.
+- Workflow failures spiked from a push to `copilot/create-custom-action-setup-activation` that triggered many workflows at once (Plan Command, Release, Q, Nitpick Reviewer, DeepReport, Scout, etc.).
+- Issue backlog improved (open down to 34 from 45) while creation remains high (≈105 created vs 98 closed in 3 days); unlabeled set grew slightly to 20 total but only 2 are open.
+- Missing-tool surfaced again in Daily Copilot PR Merged (one run with missing tool despite success), signaling incomplete wiring.
+
 ## Known Patterns (2025-12-22)
 
 - Issue intake spike: 85 issues created in last 3 days with 66 closures; open count rose to 45 (was 21 on 12/20), signaling backlog growth despite healthy throughput.

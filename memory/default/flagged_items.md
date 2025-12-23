@@ -1,3 +1,11 @@
+## Flagged Items for Monitoring (2025-12-23)
+
+- Burst of failures from branch `copilot/create-custom-action-setup-activation` (multiple workflows failed in one push: Plan Command, Release, Q, Nitpick Reviewer, DeepReport, Scout, Spec-Kit dispatcher, etc.); needs root-cause to stop failure noise.
+- Daily Copilot PR Merged still reports a missing tool (run §20464285031) despite success; confirm tool wiring/safeinputs.
+- Firewall denial rate now ~30% with GitHub API and LinkedIn top blocks; Copilot workflows still lack GitHub MCP config and LinkedIn access intent is unclear.
+- High-cost hourly CI Cleaner continues to dominate Copilot token spend (~29% of cost over 4 days); consider frequency reduction or no-op exit.
+- Unlabeled issues grew to 20 total (2 open); maintain triage to prevent drift.
+
 ## Flagged Items for Monitoring (2025-12-22)
 
 - Weekly Issue Summary workflow failing (last 7d logs show single failure among 10 runs); needs triage to restore weekly reporting.
