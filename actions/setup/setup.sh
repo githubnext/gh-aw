@@ -404,7 +404,7 @@ cat > "${DESTINATION}/noop.cjs" << 'EOF_NOOP'
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { loadAgentOutput } = require("/tmp/gh-aw/actions/load_agent_output.cjs");
 
 /**
  * Main function to handle noop safe output
