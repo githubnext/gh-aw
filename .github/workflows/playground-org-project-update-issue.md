@@ -12,13 +12,11 @@ permissions:
 tools:
   github:
     toolsets: [default, projects]
-
-imports:
-  - shared/safe-output-app.md
+    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }} # fine-grained PAT with scopes Organizational: `Projects: Read & Write` and `Metadata: Read` and `Issues: Read & Write`
 
 safe-outputs:
-  update-project: {}
-
+  update-project:
+    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }}
 ---
 
 # Issue Updater
