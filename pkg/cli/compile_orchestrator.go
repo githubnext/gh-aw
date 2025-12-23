@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
@@ -16,6 +17,93 @@ import (
 )
 
 var compileOrchestratorLog = logger.New("cli:compile_orchestrator")
+
+// sanitizeErrorMessage redacts potential secret key names from error messages
+// to prevent sensitive information disclosure via logs or JSON output.
+// It targets uppercase snake_case patterns (MY_SECRET_KEY) and PascalCase patterns
+// commonly used for secret key names, while excluding common non-sensitive words.
+func sanitizeErrorMessage(message string) string {
+	// Common non-sensitive words to exclude from redaction
+	commonWords := []string{
+		"GITHUB", "ACTION", "ACTIONS", "WORKFLOW", "JOB", "STEP", "RUN",
+		"IF", "THEN", "ELSE", "WITH", "USES", "NAME", "ON", "ENV",
+		"SECRETS", "VARS", "INPUTS", "OUTPUTS", "NEEDS", "RUNS",
+		"SHELL", "WORKING", "DIRECTORY", "TIMEOUT", "CONTINUE",
+		"STRATEGY", "MATRIX", "INCLUDE", "EXCLUDE", "FAIL", "FAST",
+		"MAX", "PARALLEL", "CANCEL", "PROGRESS", "PERMISSIONS",
+		"CONTENTS", "ISSUES", "PULL", "REQUESTS", "STATUSES", "DEPLOYMENTS",
+	}
+
+	// Build exclusion pattern
+	exclusionPattern := strings.Join(commonWords, "|")
+
+	// Pattern 1: Uppercase snake_case (e.g., MY_SECRET_KEY, API_TOKEN)
+	// Match 2+ uppercase letters/digits with underscores, at least one underscore
+	snakeCasePattern := regexp.MustCompile(`\b([A-Z][A-Z0-9]*_[A-Z0-9_]+)\b`)
+
+	// Pattern 2: PascalCase identifiers that might be secret keys (e.g., GitHubToken, ApiKey)
+	// Match identifiers with multiple capital letters
+	pascalCasePattern := regexp.MustCompile(`\b([A-Z][a-z]+[A-Z][a-zA-Z]*(?:Key|Token|Secret|Password|Credential|Auth)?)\b`)
+
+	result := message
+
+	// Sanitize snake_case patterns
+	result = snakeCasePattern.ReplaceAllStringFunc(result, func(match string) string {
+		// Check if it's a common non-sensitive word
+		for _, word := range commonWords {
+			if match == word {
+				return match
+			}
+		}
+		// Check if the entire match is in the exclusion pattern
+		if matched, _ := regexp.MatchString(`^(`+exclusionPattern+`)$`, match); matched {
+			return match
+		}
+		return "[REDACTED]"
+	})
+
+	// Sanitize PascalCase patterns (but be more conservative)
+	result = pascalCasePattern.ReplaceAllStringFunc(result, func(match string) string {
+		// Only redact if it ends with security-related suffixes
+		securitySuffixes := []string{"Key", "Token", "Secret", "Password", "Credential", "Auth"}
+		for _, suffix := range securitySuffixes {
+			if strings.HasSuffix(match, suffix) {
+				return "[REDACTED]"
+			}
+		}
+		return match
+	})
+
+	return result
+}
+
+// sanitizeValidationResults applies sanitization to all error and warning messages
+// in the validation results to prevent sensitive information disclosure.
+func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
+	sanitized := make([]ValidationResult, len(results))
+	for i, result := range results {
+		sanitized[i] = result
+
+		// Sanitize error messages
+		if len(result.Errors) > 0 {
+			sanitized[i].Errors = make([]ValidationError, len(result.Errors))
+			for j, err := range result.Errors {
+				sanitized[i].Errors[j] = err
+				sanitized[i].Errors[j].Message = sanitizeErrorMessage(err.Message)
+			}
+		}
+
+		// Sanitize warning messages
+		if len(result.Warnings) > 0 {
+			sanitized[i].Warnings = make([]ValidationError, len(result.Warnings))
+			for j, warn := range result.Warnings {
+				sanitized[i].Warnings[j] = warn
+				sanitized[i].Warnings[j].Message = sanitizeErrorMessage(warn.Message)
+			}
+		}
+	}
+	return sanitized
+}
 
 // getRepositoryRelativePath converts an absolute file path to a repository-relative path
 // This ensures stable workflow identifiers regardless of where the repository is cloned
@@ -585,7 +673,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Output JSON if requested
 		if jsonOutput {
-			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+			// Sanitize validation results before JSON marshaling to prevent
+			// sensitive information (like secret key names) from being exposed
+			sanitized := sanitizeValidationResults(validationResults)
+			jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
 			if err != nil {
 				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 			}
@@ -980,7 +1071,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Output JSON if requested
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+		// Sanitize validation results before JSON marshaling to prevent
+		// sensitive information (like secret key names) from being exposed
+		sanitized := sanitizeValidationResults(validationResults)
+		jsonBytes, err := json.MarshalIndent(sanitized, "", "  ")
 		if err != nil {
 			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
