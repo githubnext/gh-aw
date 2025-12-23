@@ -12,7 +12,7 @@ permissions:
 tools:
   github:
     toolsets: [default, projects]
-    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }} # fine-grained PAT with scopes Organizational: `Projects: Read & Write` and `Metadata: Read` and `Issues: Read & Write`
+    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }}
 
 safe-outputs:
   update-project:
