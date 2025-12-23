@@ -55,7 +55,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -83,7 +83,7 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository
@@ -2940,7 +2940,7 @@ jobs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow

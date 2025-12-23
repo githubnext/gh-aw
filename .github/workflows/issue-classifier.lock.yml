@@ -56,7 +56,7 @@ jobs:
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -117,7 +117,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository
@@ -3641,7 +3641,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Debug job inputs
@@ -3728,7 +3728,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Download prompt artifact
@@ -3932,7 +3932,7 @@ jobs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@93a9d87
+        uses: githubnext/gh-aw/actions/setup@8c03a56
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow
