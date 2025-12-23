@@ -499,7 +499,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Add checkout step to configure git (without checking out files)

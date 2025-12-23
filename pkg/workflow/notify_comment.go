@@ -60,7 +60,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Add GitHub App token minting step if app is configured
@@ -222,7 +222,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            require('/tmp/gh-aw/actions/activation/unlock-issue.cjs');\n")
+		steps = append(steps, "            require('"+SetupActionDestination+"/unlock-issue.cjs');\n")
 
 		notifyCommentLog.Print("Added unlock issue step to conclusion job")
 	}

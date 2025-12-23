@@ -4,9 +4,9 @@ author: 'GitHub Next'
 
 inputs:
   destination:
-    description: 'Destination directory for activation files (default: /tmp/gh-aw/actions/activation)'
+    description: 'Destination directory for activation files (default: /tmp/gh-aw/actions)'
     required: false
-    default: '/tmp/gh-aw/actions/activation'
+    default: '/tmp/gh-aw/actions'
 
 outputs:
   files-copied:

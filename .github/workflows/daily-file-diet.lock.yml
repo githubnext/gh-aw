@@ -61,7 +61,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
@@ -73,7 +73,7 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');
+            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
 
   agent:
     needs: activation
@@ -106,7 +106,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -6540,7 +6540,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
@@ -6591,7 +6591,7 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/activation/noop.cjs');
+            require('/tmp/gh-aw/actions/noop.cjs');
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6607,7 +6607,7 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/activation/missing_tool.cjs');
+            require('/tmp/gh-aw/actions/missing_tool.cjs');
       - name: Update reaction comment with completion status
         id: conclusion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6628,7 +6628,7 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/activation/notify_comment_error.cjs');
+            require('/tmp/gh-aw/actions/notify_comment_error.cjs');
       - name: Invalidate GitHub App token
         if: always() && steps.app-token.outputs.token != ''
         env:
@@ -6662,7 +6662,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Download prompt artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
@@ -6925,7 +6925,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -7083,7 +7083,7 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/activation/check_skip_if_match.cjs');
+            require('/tmp/gh-aw/actions/check_skip_if_match.cjs');
 
   push_repo_memory:
     needs:
@@ -7102,7 +7102,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
@@ -8298,7 +8298,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Download cache-memory artifact (default)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true
@@ -8342,7 +8342,7 @@ jobs:
       - name: Setup Scripts
         uses: ./actions/setup
         with:
-          destination: /tmp/gh-aw/actions/activation
+          destination: /tmp/gh-aw/actions
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:

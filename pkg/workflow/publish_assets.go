@@ -106,7 +106,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		preSteps = append(preSteps, "      - name: Setup Scripts\n")
 		preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		preSteps = append(preSteps, "        with:\n")
-		preSteps = append(preSteps, "          destination: /tmp/gh-aw/actions/activation\n")
+		preSteps = append(preSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Step 1: Checkout repository

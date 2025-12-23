@@ -37,6 +37,9 @@ var fileModeLog = logger.New("workflow:bundler_file_mode")
 // ScriptsBasePath is the directory where JavaScript files are written at runtime
 const ScriptsBasePath = "/tmp/gh-aw/scripts"
 
+// SetupActionDestination is the directory where the setup action writes activation scripts
+const SetupActionDestination = "/tmp/gh-aw/actions"
+
 // ScriptFile represents a JavaScript file to be written to disk
 type ScriptFile struct {
 	// Path is the relative path within ScriptsBasePath (e.g., "create_issue.cjs")

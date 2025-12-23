@@ -38,7 +38,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Determine script loading method based on action mode
@@ -71,7 +71,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_stop_time.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
@@ -102,7 +102,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_skip_if_match.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
@@ -128,7 +128,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_command_position.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/check_command_position.cjs');\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
@@ -351,7 +351,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Determine script loading method based on action mode
@@ -374,7 +374,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            require('/tmp/gh-aw/actions/activation/check_workflow_timestamp_api.cjs');\n")
+		steps = append(steps, "            require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
 	} else {
 		// Add the JavaScript script with proper indentation (using API-based version)
 		formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
@@ -397,7 +397,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/compute_text.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/compute_text.cjs');\n")
 		} else {
 			// Inline the JavaScript directly instead of using shared action
 			steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
@@ -456,7 +456,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/add_reaction_and_edit_comment.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
 		} else {
 			// Add each line of the script with proper indentation (bundled version with messages.cjs)
 			formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
@@ -495,7 +495,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('/tmp/gh-aw/actions/activation/lock-issue.cjs');\n")
+			steps = append(steps, "            require('"+SetupActionDestination+"/lock-issue.cjs');\n")
 		} else {
 			// Add the lock-issue script
 			formattedScript := FormatJavaScriptForYAML(lockIssueScript)
@@ -645,7 +645,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job

@@ -164,7 +164,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
-		steps = append(steps, "          destination: /tmp/gh-aw/actions/activation\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
 	}
 
 	// Step 1: Download agent artifacts
