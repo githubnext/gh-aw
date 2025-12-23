@@ -95,7 +95,7 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	}
 
 	// Verify alphabetical sorting: alpha < beta < middle < zebra
-	if !(alphaPos < betaPos && betaPos < middlePos && middlePos < zebraPos) {
+	if alphaPos >= betaPos || betaPos >= middlePos || middlePos >= zebraPos {
 		t.Errorf("Tools should be sorted alphabetically in step code: alpha(%d) < beta(%d) < middle(%d) < zebra(%d)",
 			alphaPos, betaPos, middlePos, zebraPos)
 	}

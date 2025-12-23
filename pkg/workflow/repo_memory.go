@@ -315,12 +315,12 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
 
 		// Step: Upload repo-memory directory as artifact
-		builder.WriteString(fmt.Sprintf("      - name: Upload repo-memory artifact (%s)\n", memory.ID))
+		fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
 		builder.WriteString("        if: always()\n")
-		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
-		builder.WriteString(fmt.Sprintf("          name: repo-memory-%s\n", memory.ID))
-		builder.WriteString(fmt.Sprintf("          path: %s\n", memoryDir))
+		fmt.Fprintf(builder, "          name: repo-memory-%s\n", memory.ID)
+		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
 		builder.WriteString("          retention-days: 1\n")
 		builder.WriteString("          if-no-files-found: ignore\n")
 	}
@@ -348,13 +348,13 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
 
 		// Step: Push changes to repo-memory branch
-		builder.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
+		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		builder.WriteString("        run: |\n")
 		builder.WriteString("          set -e\n")
-		builder.WriteString(fmt.Sprintf("          cd \"%s\" || exit 0\n", memoryDir))
+		fmt.Fprintf(builder, "          cd \"%s\" || exit 0\n", memoryDir)
 		builder.WriteString("          \n")
 		builder.WriteString("          # Check if we have any changes to commit\n")
 		builder.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
@@ -366,20 +366,20 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 			builder.WriteString("            # Validate files before committing\n")
 
 			if memory.MaxFileSize > 0 {
-				builder.WriteString(fmt.Sprintf("            # Check file sizes (max: %d bytes)\n", memory.MaxFileSize))
-				builder.WriteString(fmt.Sprintf("            if find . -type f -size +%dc | grep -q .; then\n", memory.MaxFileSize))
+				fmt.Fprintf(builder, "            # Check file sizes (max: %d bytes)\n", memory.MaxFileSize)
+				fmt.Fprintf(builder, "            if find . -type f -size +%dc | grep -q .; then\n", memory.MaxFileSize)
 				builder.WriteString("              echo \"Error: Files exceed maximum size limit\"\n")
-				builder.WriteString(fmt.Sprintf("              find . -type f -size +%dc -exec ls -lh {} \\;\n", memory.MaxFileSize))
+				fmt.Fprintf(builder, "              find . -type f -size +%dc -exec ls -lh {} \\;\n", memory.MaxFileSize)
 				builder.WriteString("              exit 1\n")
 				builder.WriteString("            fi\n")
 				builder.WriteString("            \n")
 			}
 
 			if memory.MaxFileCount > 0 {
-				builder.WriteString(fmt.Sprintf("            # Check file count (max: %d files)\n", memory.MaxFileCount))
+				fmt.Fprintf(builder, "            # Check file count (max: %d files)\n", memory.MaxFileCount)
 				builder.WriteString("            FILE_COUNT=$(git status --porcelain | wc -l)\n")
-				builder.WriteString(fmt.Sprintf("            if [ \"$FILE_COUNT\" -gt %d ]; then\n", memory.MaxFileCount))
-				builder.WriteString(fmt.Sprintf("              echo \"Error: Too many files to commit ($FILE_COUNT > %d)\"\n", memory.MaxFileCount))
+				fmt.Fprintf(builder, "            if [ \"$FILE_COUNT\" -gt %d ]; then\n", memory.MaxFileCount)
+				fmt.Fprintf(builder, "              echo \"Error: Too many files to commit ($FILE_COUNT > %d)\"\n", memory.MaxFileCount)
 				builder.WriteString("              exit 1\n")
 				builder.WriteString("            fi\n")
 				builder.WriteString("            \n")
@@ -394,14 +394,14 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("            \n")
 		builder.WriteString("            # Pull with ours merge strategy (our changes win in conflicts)\n")
 		builder.WriteString("            set +e\n")
-		builder.WriteString(fmt.Sprintf("            git pull --no-rebase -s recursive -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>&1\n",
-			targetRepo, memory.BranchName))
+		fmt.Fprintf(builder, "            git pull --no-rebase -s recursive -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>&1\n",
+			targetRepo, memory.BranchName)
 		builder.WriteString("            PULL_EXIT_CODE=$?\n")
 		builder.WriteString("            set -e\n")
 		builder.WriteString("            \n")
 		builder.WriteString("            # Push changes (force push if needed due to conflict resolution)\n")
-		builder.WriteString(fmt.Sprintf("            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"HEAD:%s\"\n",
-			targetRepo, memory.BranchName))
+		fmt.Fprintf(builder, "            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"HEAD:%s\"\n",
+			targetRepo, memory.BranchName)
 		builder.WriteString("            \n")
 		builder.WriteString("            echo \"Successfully pushed changes to repo memory\"\n")
 		builder.WriteString("          else\n")
@@ -431,44 +431,44 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
 
 		// Step 1: Clone the repo-memory branch
-		builder.WriteString(fmt.Sprintf("      - name: Clone repo-memory branch (%s)\n", memory.ID))
+		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
-		builder.WriteString(fmt.Sprintf("          BRANCH_NAME: %s\n", memory.BranchName))
+		fmt.Fprintf(builder, "          BRANCH_NAME: %s\n", memory.BranchName)
 		builder.WriteString("        run: |\n")
 		builder.WriteString("          set +e  # Don't fail if branch doesn't exist\n")
-		builder.WriteString(fmt.Sprintf("          git clone --depth 1 --single-branch --branch \"%s\" \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>/dev/null\n",
-			memory.BranchName, targetRepo, memoryDir))
+		fmt.Fprintf(builder, "          git clone --depth 1 --single-branch --branch \"%s\" \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>/dev/null\n",
+			memory.BranchName, targetRepo, memoryDir)
 		builder.WriteString("          CLONE_EXIT_CODE=$?\n")
 		builder.WriteString("          set -e\n")
 		builder.WriteString("          \n")
 		builder.WriteString("          if [ $CLONE_EXIT_CODE -ne 0 ]; then\n")
 
 		if memory.CreateOrphan {
-			builder.WriteString(fmt.Sprintf("            echo \"Branch %s does not exist, creating orphan branch\"\n", memory.BranchName))
-			builder.WriteString(fmt.Sprintf("            mkdir -p \"%s\"\n", memoryDir))
-			builder.WriteString(fmt.Sprintf("            cd \"%s\"\n", memoryDir))
+			fmt.Fprintf(builder, "            echo \"Branch %s does not exist, creating orphan branch\"\n", memory.BranchName)
+			fmt.Fprintf(builder, "            mkdir -p \"%s\"\n", memoryDir)
+			fmt.Fprintf(builder, "            cd \"%s\"\n", memoryDir)
 			builder.WriteString("            git init\n")
 			builder.WriteString("            git checkout --orphan \"$BRANCH_NAME\"\n")
 			builder.WriteString("            git config user.name \"github-actions[bot]\"\n")
 			builder.WriteString("            git config user.email \"github-actions[bot]@users.noreply.github.com\"\n")
-			builder.WriteString(fmt.Sprintf("            git remote add origin \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\"\n", targetRepo))
+			fmt.Fprintf(builder, "            git remote add origin \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\"\n", targetRepo)
 		} else {
-			builder.WriteString(fmt.Sprintf("            echo \"Branch %s does not exist and create-orphan is false, skipping\"\n", memory.BranchName))
-			builder.WriteString(fmt.Sprintf("            mkdir -p \"%s\"\n", memoryDir))
+			fmt.Fprintf(builder, "            echo \"Branch %s does not exist and create-orphan is false, skipping\"\n", memory.BranchName)
+			fmt.Fprintf(builder, "            mkdir -p \"%s\"\n", memoryDir)
 		}
 
 		builder.WriteString("          else\n")
-		builder.WriteString(fmt.Sprintf("            echo \"Successfully cloned %s branch\"\n", memory.BranchName))
-		builder.WriteString(fmt.Sprintf("            cd \"%s\"\n", memoryDir))
+		fmt.Fprintf(builder, "            echo \"Successfully cloned %s branch\"\n", memory.BranchName)
+		fmt.Fprintf(builder, "            cd \"%s\"\n", memoryDir)
 		builder.WriteString("            git config user.name \"github-actions[bot]\"\n")
 		builder.WriteString("            git config user.email \"github-actions[bot]@users.noreply.github.com\"\n")
 		builder.WriteString("          fi\n")
 		builder.WriteString("          \n")
 
 		// Create the memory subdirectory
-		builder.WriteString(fmt.Sprintf("          mkdir -p \"%s/memory/%s\"\n", memoryDir, memory.ID))
-		builder.WriteString(fmt.Sprintf("          echo \"Repo memory directory ready at %s/memory/%s\"\n", memoryDir, memory.ID))
+		fmt.Fprintf(builder, "          mkdir -p \"%s/memory/%s\"\n", memoryDir, memory.ID)
+		fmt.Fprintf(builder, "          echo \"Repo memory directory ready at %s/memory/%s\"\n", memoryDir, memory.ID)
 	}
 }
 
@@ -506,7 +506,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
-	checkoutStep.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	fmt.Fprintf(&checkoutStep, "        uses: %s\n", GetActionPin("actions/checkout"))
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	checkoutStep.WriteString("          sparse-checkout: .\n")
@@ -520,12 +520,12 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Download artifact step
 		var step strings.Builder
-		step.WriteString(fmt.Sprintf("      - name: Download repo-memory artifact (%s)\n", memory.ID))
-		step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+		fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
+		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
-		step.WriteString(fmt.Sprintf("          name: repo-memory-%s\n", memory.ID))
-		step.WriteString(fmt.Sprintf("          path: /tmp/gh-aw/repo-memory-%s\n", memory.ID))
+		fmt.Fprintf(&step, "          name: repo-memory-%s\n", memory.ID)
+		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory-%s\n", memory.ID)
 		steps = append(steps, step.String())
 	}
 
@@ -546,21 +546,21 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 		// Build step with github-script action
 		var step strings.Builder
-		step.WriteString(fmt.Sprintf("      - name: Push repo-memory changes (%s)\n", memory.ID))
+		fmt.Fprintf(&step, "      - name: Push repo-memory changes (%s)\n", memory.ID)
 		step.WriteString("        if: always()\n")
-		step.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/github-script"))
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
-		step.WriteString(fmt.Sprintf("          ARTIFACT_DIR: %s\n", artifactDir))
-		step.WriteString(fmt.Sprintf("          MEMORY_ID: %s\n", memory.ID))
-		step.WriteString(fmt.Sprintf("          TARGET_REPO: %s\n", targetRepo))
-		step.WriteString(fmt.Sprintf("          BRANCH_NAME: %s\n", memory.BranchName))
-		step.WriteString(fmt.Sprintf("          MAX_FILE_SIZE: %d\n", memory.MaxFileSize))
-		step.WriteString(fmt.Sprintf("          MAX_FILE_COUNT: %d\n", memory.MaxFileCount))
+		fmt.Fprintf(&step, "          ARTIFACT_DIR: %s\n", artifactDir)
+		fmt.Fprintf(&step, "          MEMORY_ID: %s\n", memory.ID)
+		fmt.Fprintf(&step, "          TARGET_REPO: %s\n", targetRepo)
+		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
+		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
+		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
 		if fileGlobFilter != "" {
 			// Quote the value to prevent YAML alias interpretation of patterns like *.md
-			step.WriteString(fmt.Sprintf("          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter))
+			fmt.Fprintf(&step, "          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter)
 		}
 		step.WriteString("        with:\n")
 		step.WriteString("          script: |\n")

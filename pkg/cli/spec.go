@@ -366,7 +366,7 @@ func isCommitSHA(version string) bool {
 	}
 	// Check if all characters are hexadecimal
 	for _, char := range version {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') && (char < 'A' || char > 'F') {
 			return false
 		}
 	}

@@ -268,9 +268,9 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 			}
 
 			// Add a comment indicating the inlined file
-			result.WriteString(fmt.Sprintf("// === Inlined from %s ===\n", requirePath))
+			fmt.Fprintf(&result, "// === Inlined from %s ===\n", requirePath)
 			result.WriteString(cleanedRequired)
-			result.WriteString(fmt.Sprintf("// === End of %s ===\n", requirePath))
+			fmt.Fprintf(&result, "// === End of %s ===\n", requirePath)
 		}
 
 		lastEnd = matchEnd
@@ -408,6 +408,7 @@ func deduplicateRequires(content string) string {
 	getIndentation := func(line string) int {
 		count := 0
 		for _, ch := range line {
+			//nolint:staticcheck // switch would require label for break; if-else is clearer here
 			if ch == ' ' {
 				count++
 			} else if ch == '\t' {
@@ -540,7 +541,7 @@ func deduplicateRequires(content string) string {
 						// Write simple require(s) - use the first unique variable name
 						if len(uniqueVarNames) > 0 {
 							varName := uniqueVarNames[0]
-							result.WriteString(fmt.Sprintf("%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName))
+							fmt.Fprintf(&result, "%sconst %s = require(\"%s\");\n", indentStr, varName, moduleName)
 							bundlerLog.Printf("Keeping simple require: %s at indent %d", moduleName, indent)
 						}
 					}
@@ -557,8 +558,8 @@ func deduplicateRequires(content string) string {
 							}
 						}
 
-						result.WriteString(fmt.Sprintf("%sconst { %s } = require(\"%s\");\n",
-							indentStr, strings.Join(uniqueImports, ", "), moduleName))
+						fmt.Fprintf(&result, "%sconst { %s } = require(\"%s\");\n",
+							indentStr, strings.Join(uniqueImports, ", "), moduleName)
 						bundlerLog.Printf("Merged destructured require for %s at indent %d: %v", moduleName, indent, uniqueImports)
 					}
 				}

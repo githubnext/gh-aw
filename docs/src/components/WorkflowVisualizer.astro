@@ -1,0 +1,240 @@
+---
+import { workflowGraphToMermaid } from '../lib/workflow-visualizer/toMermaid.js';
+import { parseWorkflowGraph } from '../lib/workflow-visualizer/parseWorkflow.js';
+
+interface Props {
+  title?: string;
+  initialContent: string;
+}
+
+const { title = 'Workflow Visualizer', initialContent } = Astro.props;
+const initial = parseWorkflowGraph(initialContent);
+const initialMermaid = initial.ok ? workflowGraphToMermaid(initial.graph) : '';
+---
+
+<section class="visualizer" data-workflow-visualizer>
+  <header class="header">
+    <h3 class="title">{title}</h3>
+    <p class="subtitle">Paste a workflow (gh-aw markdown frontmatter or GitHub Actions YAML) to visualize job dependencies.</p>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <label class="label" for="workflow-input">Workflow</label>
+      <textarea
+        id="workflow-input"
+        class="textarea"
+        spellcheck="false"
+        rows={16}
+      >{initialContent}</textarea>
+      <p class="hint">Tip: the graph is based on <code>jobs</code> + <code>needs</code>.</p>
+
+      <div class="error" data-error hidden></div>
+    </div>
+
+    <div class="panel">
+      <label class="label">Graph</label>
+      <div class="diagram" data-diagram></div>
+      <details class="details">
+        <summary>Show Mermaid source</summary>
+        <pre class="mermaid-source" data-mermaid-source></pre>
+      </details>
+    </div>
+  </div>
+
+  <script type="module" define:vars={{ initialMermaid }}>
+    import mermaid from 'mermaid';
+    import { parseWorkflowGraph } from '../lib/workflow-visualizer/parseWorkflow.js';
+    import { workflowGraphToMermaid } from '../lib/workflow-visualizer/toMermaid.js';
+
+    const root = document.querySelector('[data-workflow-visualizer]');
+    if (!root) throw new Error('Workflow visualizer root not found');
+
+    const textarea = root.querySelector('#workflow-input');
+    const diagram = root.querySelector('[data-diagram]');
+    const errorBox = root.querySelector('[data-error]');
+    const mermaidSource = root.querySelector('[data-mermaid-source]');
+
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error('Workflow textarea not found');
+    if (!(diagram instanceof HTMLElement)) throw new Error('Diagram container not found');
+    if (!(errorBox instanceof HTMLElement)) throw new Error('Error container not found');
+    if (!(mermaidSource instanceof HTMLElement)) throw new Error('Mermaid source container not found');
+
+    mermaid.initialize({ startOnLoad: false });
+
+    async function renderMermaid(mermaidText) {
+      mermaidSource.textContent = mermaidText;
+
+      // Use a stable unique ID per render to avoid collisions.
+      const id = `mermaid-dynamic-${Date.now()}`;
+      const { svg } = await mermaid.render(id, mermaidText);
+      diagram.innerHTML = svg;
+    }
+
+    function showError(message) {
+      errorBox.hidden = false;
+      errorBox.textContent = message;
+    }
+
+    function clearError() {
+      errorBox.hidden = true;
+      errorBox.textContent = '';
+    }
+
+    async function update() {
+      const result = parseWorkflowGraph(textarea.value);
+      if (!result.ok) {
+        diagram.innerHTML = '';
+        mermaidSource.textContent = '';
+        showError(result.error);
+        return;
+      }
+
+      clearError();
+      const mermaidText = workflowGraphToMermaid(result.graph);
+      await renderMermaid(mermaidText);
+    }
+
+    // Initial render (if initial content parsed)
+    if (initialMermaid) {
+      update();
+    }
+
+    let debounce;
+    textarea.addEventListener('input', () => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => void update(), 200);
+    });
+  </script>
+</section>
+
+<style>
+  .visualizer {
+    margin: 2rem 0;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(13, 17, 23, 0.4);
+  }
+
+  .header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+    background: rgba(13, 17, 23, 0.6);
+  }
+
+  .title {
+    margin: 0 !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: var(--sl-color-text);
+  }
+
+  .subtitle {
+    margin: 0.5rem 0 0 0;
+    color: var(--sl-color-gray-3);
+    font-size: 0.95rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .panel {
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+
+  @media (min-width: 900px) {
+    .panel {
+      border-top: none;
+    }
+    .panel + .panel {
+      border-left: 1px solid var(--sl-color-hairline);
+    }
+  }
+
+  .label {
+    display: block;
+    font-weight: 600;
+    color: var(--sl-color-text);
+    margin-bottom: 0.5rem;
+  }
+
+  .textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline);
+    background: rgba(13, 17, 23, 0.35);
+    color: var(--sl-color-text);
+    resize: vertical;
+  }
+
+  .hint {
+    margin: 0.5rem 0 0 0;
+    color: var(--sl-color-gray-3);
+    font-size: 0.85rem;
+  }
+
+  .error {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid rgba(248, 81, 73, 0.35);
+    background: rgba(248, 81, 73, 0.12);
+    color: var(--sl-color-text);
+    font-size: 0.875rem;
+  }
+
+  .diagram {
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 6px;
+    background: rgba(13, 17, 23, 0.25);
+    padding: 0.75rem;
+    overflow: auto;
+    min-height: 240px;
+  }
+
+  .details {
+    margin-top: 0.75rem;
+  }
+
+  .mermaid-source {
+    margin: 0.5rem 0 0 0;
+    padding: 0.75rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 6px;
+    background: rgba(13, 17, 23, 0.25);
+    overflow: auto;
+    font-family: var(--sl-font-mono);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  :global([data-theme='light']) .visualizer {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: #d0d7de;
+  }
+
+  :global([data-theme='light']) .header {
+    background: rgba(246, 248, 250, 0.8);
+  }
+
+  :global([data-theme='light']) .textarea,
+  :global([data-theme='light']) .diagram,
+  :global([data-theme='light']) .mermaid-source {
+    background: rgba(246, 248, 250, 0.7);
+  }
+</style>

@@ -391,13 +391,14 @@ func RewriteScriptForFileMode(content string, currentPath string) string {
 		// Resolve the full path
 		var fullPath string
 		currentDir := filepath.Dir(currentPath)
-		if relativePrefix == "./" {
+		switch relativePrefix {
+		case "./":
 			if currentDir == "." || currentDir == "" {
 				fullPath = requirePath
 			} else {
 				fullPath = filepath.Join(currentDir, requirePath)
 			}
-		} else if relativePrefix == "../" {
+		case "../":
 			parentDir := filepath.Dir(currentDir)
 			fullPath = filepath.Join(parentDir, requirePath)
 		}

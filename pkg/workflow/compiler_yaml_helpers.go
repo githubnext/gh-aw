@@ -63,7 +63,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	// Use actions/github-script to perform the substitutions
 	yaml.WriteString(indent + "- name: Substitute placeholders\n")
-	yaml.WriteString(fmt.Sprintf(indent+"  uses: %s\n", GetActionPin("actions/github-script")))
+	fmt.Fprintf(yaml, indent+"  uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString(indent + "  env:\n")
 	yaml.WriteString(indent + "    GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 

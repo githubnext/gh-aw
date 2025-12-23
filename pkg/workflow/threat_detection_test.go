@@ -292,7 +292,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	// Build safe output jobs (this will automatically build the detection job too)
 	frontmatter := map[string]any{}
 	if err := func() error {
-		var _ map[string]any = frontmatter
+		var _ = frontmatter
 		return compiler.buildSafeOutputsJobs(data, "agent", "test.md")
 	}(); err != nil {
 		t.Fatalf("Failed to build safe output jobs: %v", err)
@@ -501,7 +501,7 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 	}
 
 	// Verify the expected order: custom -> parse -> upload
-	if !(customStepPos < parseStepPos && parseStepPos < uploadStepPos) {
+	if customStepPos >= parseStepPos || parseStepPos >= uploadStepPos {
 		t.Errorf("Expected step order: custom steps < parse results < upload log. Got positions: custom=%d, parse=%d, upload=%d", customStepPos, parseStepPos, uploadStepPos)
 	}
 }

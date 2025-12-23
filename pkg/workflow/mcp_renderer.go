@@ -299,14 +299,14 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	if workflowData != nil && workflowData.ToolsStartupTimeout > 0 {
 		startupTimeout = workflowData.ToolsStartupTimeout
 	}
-	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", startupTimeout))
+	fmt.Fprintf(yaml, "          startup_timeout_sec = %d\n", startupTimeout)
 
 	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
 	toolTimeout := constants.DefaultToolTimeoutSeconds
 	if workflowData != nil && workflowData.ToolsTimeout > 0 {
 		toolTimeout = workflowData.ToolsTimeout
 	}
-	yaml.WriteString(fmt.Sprintf("          tool_timeout_sec = %d\n", toolTimeout))
+	fmt.Fprintf(yaml, "          tool_timeout_sec = %d\n", toolTimeout)
 
 	// Check if remote mode is enabled
 	if githubType == "remote" {
@@ -472,7 +472,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
 	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", options.Toolsets))
+	fmt.Fprintf(yaml, "                  \"GITHUB_TOOLSETS=%s\",\n", options.Toolsets)
 
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\"")
 
@@ -619,7 +619,7 @@ func RenderJSONMCPConfig(
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
 
 	// Write config file header
-	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
+	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 

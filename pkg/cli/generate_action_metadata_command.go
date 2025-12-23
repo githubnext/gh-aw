@@ -283,19 +283,19 @@ func extractDependencies(content string) []string {
 func generateActionYml(actionDir string, metadata *ActionMetadata) error {
 	var content strings.Builder
 
-	content.WriteString(fmt.Sprintf("name: '%s'\n", metadata.Name))
-	content.WriteString(fmt.Sprintf("description: '%s'\n", metadata.Description))
+	fmt.Fprintf(&content, "name: '%s'\n", metadata.Name)
+	fmt.Fprintf(&content, "description: '%s'\n", metadata.Description)
 	content.WriteString("author: 'GitHub Next'\n\n")
 
 	// Add inputs
 	if len(metadata.Inputs) > 0 {
 		content.WriteString("inputs:\n")
 		for _, input := range metadata.Inputs {
-			content.WriteString(fmt.Sprintf("  %s:\n", input.Name))
-			content.WriteString(fmt.Sprintf("    description: '%s'\n", input.Description))
-			content.WriteString(fmt.Sprintf("    required: %t\n", input.Required))
+			fmt.Fprintf(&content, "  %s:\n", input.Name)
+			fmt.Fprintf(&content, "    description: '%s'\n", input.Description)
+			fmt.Fprintf(&content, "    required: %t\n", input.Required)
 			if input.Default != "" {
-				content.WriteString(fmt.Sprintf("    default: '%s'\n", input.Default))
+				fmt.Fprintf(&content, "    default: '%s'\n", input.Default)
 			}
 		}
 		content.WriteString("\n")
@@ -305,8 +305,8 @@ func generateActionYml(actionDir string, metadata *ActionMetadata) error {
 	if len(metadata.Outputs) > 0 {
 		content.WriteString("outputs:\n")
 		for _, output := range metadata.Outputs {
-			content.WriteString(fmt.Sprintf("  %s:\n", output.Name))
-			content.WriteString(fmt.Sprintf("    description: '%s'\n", output.Description))
+			fmt.Fprintf(&content, "  %s:\n", output.Name)
+			fmt.Fprintf(&content, "    description: '%s'\n", output.Description)
 		}
 		content.WriteString("\n")
 	}
@@ -334,21 +334,21 @@ func generateActionYml(actionDir string, metadata *ActionMetadata) error {
 func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	var content strings.Builder
 
-	content.WriteString(fmt.Sprintf("# %s\n\n", metadata.Name))
-	content.WriteString(fmt.Sprintf("%s\n\n", metadata.Description))
+	fmt.Fprintf(&content, "# %s\n\n", metadata.Name)
+	fmt.Fprintf(&content, "%s\n\n", metadata.Description)
 
 	content.WriteString("## Overview\n\n")
-	content.WriteString(fmt.Sprintf("This action is generated from `pkg/workflow/js/%s` and provides functionality ", metadata.Filename))
+	fmt.Fprintf(&content, "This action is generated from `pkg/workflow/js/%s` and provides functionality ", metadata.Filename)
 	content.WriteString("for GitHub Agentic Workflows.\n\n")
 
 	// Usage section
 	content.WriteString("## Usage\n\n")
 	content.WriteString("```yaml\n")
-	content.WriteString(fmt.Sprintf("- uses: ./actions/%s\n", metadata.ActionName))
+	fmt.Fprintf(&content, "- uses: ./actions/%s\n", metadata.ActionName)
 	if len(metadata.Inputs) > 0 {
 		content.WriteString("  with:\n")
 		for _, input := range metadata.Inputs {
-			content.WriteString(fmt.Sprintf("    %s: 'value'  # %s\n", input.Name, input.Description))
+			fmt.Fprintf(&content, "    %s: 'value'  # %s\n", input.Name, input.Description)
 		}
 	}
 	content.WriteString("```\n\n")
@@ -357,11 +357,11 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	if len(metadata.Inputs) > 0 {
 		content.WriteString("## Inputs\n\n")
 		for _, input := range metadata.Inputs {
-			content.WriteString(fmt.Sprintf("### `%s`\n\n", input.Name))
-			content.WriteString(fmt.Sprintf("**Description**: %s\n\n", input.Description))
-			content.WriteString(fmt.Sprintf("**Required**: %t\n\n", input.Required))
+			fmt.Fprintf(&content, "### `%s`\n\n", input.Name)
+			fmt.Fprintf(&content, "**Description**: %s\n\n", input.Description)
+			fmt.Fprintf(&content, "**Required**: %t\n\n", input.Required)
 			if input.Default != "" {
-				content.WriteString(fmt.Sprintf("**Default**: `%s`\n\n", input.Default))
+				fmt.Fprintf(&content, "**Default**: `%s`\n\n", input.Default)
 			}
 		}
 	}
@@ -370,8 +370,8 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	if len(metadata.Outputs) > 0 {
 		content.WriteString("## Outputs\n\n")
 		for _, output := range metadata.Outputs {
-			content.WriteString(fmt.Sprintf("### `%s`\n\n", output.Name))
-			content.WriteString(fmt.Sprintf("**Description**: %s\n\n", output.Description))
+			fmt.Fprintf(&content, "### `%s`\n\n", output.Name)
+			fmt.Fprintf(&content, "**Description**: %s\n\n", output.Description)
 		}
 	}
 
@@ -380,7 +380,7 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 		content.WriteString("## Dependencies\n\n")
 		content.WriteString("This action depends on the following JavaScript modules:\n\n")
 		for _, dep := range metadata.Dependencies {
-			content.WriteString(fmt.Sprintf("- `%s`\n", dep))
+			fmt.Fprintf(&content, "- `%s`\n", dep)
 		}
 		content.WriteString("\n")
 	}
@@ -389,7 +389,7 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	content.WriteString("## Development\n\n")
 	content.WriteString("### Building\n\n")
 	content.WriteString("To build this action, you need to:\n\n")
-	content.WriteString(fmt.Sprintf("1. Update the dependency mapping in `pkg/cli/actions_build_command.go` for `%s`\n", metadata.ActionName))
+	fmt.Fprintf(&content, "1. Update the dependency mapping in `pkg/cli/actions_build_command.go` for `%s`\n", metadata.ActionName)
 	content.WriteString("2. Run `make actions-build` to bundle the JavaScript dependencies\n")
 	content.WriteString("3. The bundled `index.js` will be generated and committed\n\n")
 
@@ -400,7 +400,7 @@ func generateReadme(actionDir string, metadata *ActionMetadata) error {
 	content.WriteString("  test:\n")
 	content.WriteString("    runs-on: ubuntu-latest\n")
 	content.WriteString("    steps:\n")
-	content.WriteString(fmt.Sprintf("      - uses: ./actions/%s\n", metadata.ActionName))
+	fmt.Fprintf(&content, "      - uses: ./actions/%s\n", metadata.ActionName)
 	content.WriteString("```\n\n")
 
 	// License

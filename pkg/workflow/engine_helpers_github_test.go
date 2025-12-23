@@ -185,7 +185,7 @@ func TestRenderGitHubMCPDockerConfig_OutputStructure(t *testing.T) {
 	}
 
 	// Verify order: type -> command -> args -> tools -> env
-	if !(typeIndex < commandIndex && commandIndex < argsIndex && argsIndex < toolsIndex && toolsIndex < envIndex) {
+	if typeIndex >= commandIndex || commandIndex >= argsIndex || argsIndex >= toolsIndex || toolsIndex >= envIndex {
 		t.Errorf("JSON elements are not in expected order. Indices: type=%d, command=%d, args=%d, tools=%d, env=%d\nOutput:\n%s",
 			typeIndex, commandIndex, argsIndex, toolsIndex, envIndex, output)
 	}
