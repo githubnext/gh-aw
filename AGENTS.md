@@ -260,7 +260,7 @@ type FeatureFlag string
 
 const MaxExpressionLineLength LineLength = 120
 const DefaultCopilotVersion Version = "0.0.369"
-const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+const SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
 ```
 
 **Dynamic Types** - Use `map[string]any` for truly dynamic data:

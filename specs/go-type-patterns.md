@@ -95,11 +95,11 @@ const DefaultClaudeCodeVersion Version = "2.0.71"
 **Purpose**: Named constants for feature flag identifiers
 
 ```go
-// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
-const MCPGatewayFeatureFlag = "mcp-gateway"
-
 // SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
 const SafeInputsFeatureFlag = "safe-inputs"
+
+// SandboxRuntimeFeatureFlag is the feature flag name for sandbox runtime
+const SandboxRuntimeFeatureFlag = "sandbox-runtime"
 ```
 
 **Benefits**:

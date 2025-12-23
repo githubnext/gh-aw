@@ -1,14 +1,11 @@
 ---
 title: Sandbox Configuration
-description: Configure sandbox environments for AI engines including MCP Gateway and Sandbox Runtime (SRT)
+description: Configure sandbox environments for AI engines including Sandbox Runtime (SRT)
 sidebar:
   order: 1350
 ---
 
-The `sandbox` field configures sandbox environments for AI engines, providing two main capabilities:
-
-1. **Agent Sandbox** - Controls the agent runtime security (AWF or Sandbox Runtime)
-2. **MCP Gateway** - Routes MCP server calls through a unified HTTP gateway
+The `sandbox` field configures sandbox environments for AI engines, controlling the agent runtime security (AWF or Sandbox Runtime).
 
 ## Configuration
 
@@ -53,34 +50,6 @@ When `sandbox.agent: false`:
 :::note
 Setting `sandbox.agent: false` replaces the deprecated `network.firewall: false` configuration.
 :::
-
-### MCP Gateway (Experimental)
-
-Route MCP server calls through a unified HTTP gateway:
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  mcp:
-    port: 8080
-    api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
-```
-
-### Combined Configuration
-
-Use both agent sandbox and MCP gateway together:
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  agent: awf
-  mcp:
-    port: 8080
-```
 
 ## Agent Sandbox Types
 
@@ -217,83 +186,6 @@ sandbox:
 
 When `command` is specified, the standard SRT installation is skipped. The `config` field can still be used for filesystem configuration.
 
-## MCP Gateway
-
-The MCP Gateway routes all MCP server calls through a unified HTTP gateway, enabling centralized management, logging, and authentication for MCP tools.
-
-### Configuration Options
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `command` | `string` | No | Custom command to execute (mutually exclusive with `container`) |
-| `container` | `string` | No | Container image for the MCP gateway (mutually exclusive with `command`) |
-| `version` | `string` | No | Version tag for the container image |
-| `port` | `integer` | No | HTTP server port (default: 8080) |
-| `api-key` | `string` | No | API key for gateway authentication |
-| `args` | `string[]` | No | Command/container execution arguments |
-| `entrypointArgs` | `string[]` | No | Container entrypoint arguments (only valid with `container`) |
-| `env` | `object` | No | Environment variables for the gateway |
-
-:::note[Execution Modes]
-The MCP gateway supports three execution modes:
-1. **Custom command** - Use `command` field to specify a custom binary or script
-2. **Container** - Use `container` field for Docker-based execution
-3. **Default** - If neither `command` nor `container` is specified, uses the standalone `awmg` binary
-
-The `command` and `container` fields are mutually exclusive - only one can be specified.
-:::
-
-### How It Works
-
-When MCP gateway is enabled:
-
-1. The gateway starts using one of three execution modes (command, container, or default awmg binary)
-2. A health check verifies the gateway is ready
-3. All MCP server configurations are transformed to route through the gateway
-4. The gateway receives server configs via a configuration file
-
-### Example: Default Mode (awmg binary)
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  mcp:
-    port: 8080
-    api-key: "${{ secrets.MCP_GATEWAY_API_KEY }}"
-```
-
-### Example: Custom Command Mode
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  mcp:
-    command: "/usr/local/bin/mcp-gateway"
-    args: ["--port", "9000", "--verbose"]
-    env:
-      LOG_LEVEL: "debug"
-```
-
-### Example: Container Mode
-
-```yaml wrap
-features:
-  mcp-gateway: true
-
-sandbox:
-  mcp:
-    container: "ghcr.io/githubnext/gh-aw-mcpg:latest"
-    args: ["--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
-    entrypointArgs: ["--routed", "--listen", "0.0.0.0:8000", "--config-stdin"]
-    port: 8000
-    env:
-      DOCKER_API_VERSION: "1.44"
-```
-
 ## Legacy Format
 
 For backward compatibility, legacy formats are still supported:
@@ -322,14 +214,12 @@ Some sandbox features require feature flags:
 | Feature | Flag | Description |
 |---------|------|-------------|
 | Sandbox Runtime | `sandbox-runtime` | Enable SRT agent sandbox |
-| MCP Gateway | `mcp-gateway` | Enable MCP gateway routing |
 
 Enable feature flags in your workflow:
 
 ```yaml wrap
 features:
   sandbox-runtime: true
-  mcp-gateway: true
 ```
 
 ## Related Documentation

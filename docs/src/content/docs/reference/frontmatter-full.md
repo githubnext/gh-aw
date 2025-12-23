@@ -1058,48 +1058,6 @@ sandbox:
     # (optional)
     enableWeakerNestedSandbox: true
 
-  # MCP Gateway configuration for routing MCP server calls through a unified HTTP
-  # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
-  # (optional)
-  mcp:
-    # Custom command to execute the MCP gateway (mutually exclusive with 'container')
-    # (optional)
-    command: "example-value"
-
-    # Container image for the MCP gateway executable (mutually exclusive with
-    # 'command')
-    # (optional)
-    container: "example-value"
-
-    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
-    # (optional)
-    version: null
-
-    # Arguments for command or docker run
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Arguments to add after the container image (container entrypoint arguments, only
-    # valid with 'container')
-    # (optional)
-    entrypointArgs: []
-      # Array of strings
-
-    # Environment variables for MCP gateway
-    # (optional)
-    env:
-      {}
-
-    # Port number for the MCP gateway HTTP server (default: 8080)
-    # (optional)
-    port: 1
-
-    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
-    # syntax)
-    # (optional)
-    api-key: "example-value"
-
 # Conditional execution expression
 # (optional)
 if: "example-value"
