@@ -53,8 +53,13 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -93,8 +98,13 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository
@@ -6522,8 +6532,13 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Generate GitHub App token
@@ -6639,8 +6654,13 @@ jobs:
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Download prompt artifact
@@ -6897,8 +6917,13 @@ jobs:
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for workflow
@@ -7069,8 +7094,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository
@@ -8260,8 +8290,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Download cache-memory artifact (default)
@@ -8299,8 +8334,13 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: write
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository

@@ -65,8 +65,8 @@ func DetectActionMode(version string) ActionMode {
 	}
 
 	// Check if version indicates a release build
-	// Release tags are clean version strings (not "dev", not empty, no "-dirty" suffix)
-	if version != "" && version != "dev" && !strings.Contains(version, "-dirty") {
+	// Release tags are clean version strings (not "dev", not empty, no "-dirty" suffix, and start with "v")
+	if version != "" && version != "dev" && !strings.Contains(version, "-dirty") && strings.HasPrefix(version, "v") {
 		// Version is a clean release tag, use release mode
 		actionModeLog.Printf("Detected release mode from binary version: %s", version)
 		return ActionModeRelease

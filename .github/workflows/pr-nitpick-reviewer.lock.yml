@@ -85,8 +85,13 @@ jobs:
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check workflow file timestamps
@@ -137,8 +142,13 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Checkout repository
@@ -6128,8 +6138,13 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Debug job inputs
@@ -6216,8 +6231,13 @@ jobs:
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Download prompt artifact
@@ -6485,8 +6505,13 @@ jobs:
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Check team membership for command workflow
@@ -8814,8 +8839,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@8c03a56
+        uses: ./actions/setup
         with:
           destination: /tmp/gh-aw/actions/activation
       - name: Download cache-memory artifact (default)
