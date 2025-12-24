@@ -165,14 +165,14 @@ gh auth login --hostname github.enterprise.com
 
 # Use gh aw commands normally
 gh aw status
-gh aw logs workflow-name
+gh aw logs workflow
 ```
 
 When using the `--repo` flag, you can specify the enterprise host:
 
 ```bash wrap
-gh aw logs workflow-name --repo github.enterprise.com/owner/repo
-gh aw run workflow-name --repo github.enterprise.com/owner/repo
+gh aw logs workflow --repo github.enterprise.com/owner/repo
+gh aw run workflow --repo github.enterprise.com/owner/repo
 ```
 
 ## Global Options
@@ -354,7 +354,7 @@ gh aw trial ./workflow.md --repo owner/repo        # Run directly in repository
 Execute workflows immediately in GitHub Actions. After triggering, displays workflow URL and suggests using `gh aw audit` to analyze the run.
 
 ```bash wrap
-gh aw run workflow-name                     # Run workflow
+gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
@@ -418,12 +418,12 @@ Download and analyze workflow execution logs. Downloads logs, analyzes tool usag
 
 ```bash wrap
 gh aw logs                                 # Download logs for all workflows
-gh aw logs workflow-name                   # Download logs for specific workflow
+gh aw logs workflow                        # Download logs for specific workflow
 gh aw logs -c 10 --start-date -1w         # Filter by count and date
 gh aw logs --ref main                      # Filter logs by branch or tag
 gh aw logs --ref v1.0.0 --parse --json    # Generate markdown + JSON output for specific tag
 gh aw logs --campaign                      # Filter to only campaign orchestrator workflows
-gh aw logs workflow-name --repo owner/repo # Download logs from specific repository
+gh aw logs workflow --repo owner/repo      # Download logs from specific repository
 ```
 
 **Options:** `-c, --count N` (limit number of runs), `-e, --engine` (filter by AI engine like `-e copilot`), `--campaign` (filter to only campaign orchestrator workflows), `--start-date` (filter runs from date like `--start-date -1w`), `--end-date` (filter runs until date like `--end-date -1d`), `--ref` (filter by branch or tag like `--ref main` or `--ref v1.0.0`), `--parse` (generate `log.md` and `firewall.md`), `--json` (output structured metrics), `--repo owner/repo` (download logs from specific repository)
@@ -478,7 +478,7 @@ Enable workflows for execution with pattern matching support for bulk operations
 gh aw enable                                # Enable all workflows
 gh aw enable prefix                         # Enable workflows matching prefix
 gh aw enable ci-*                          # Enable workflows with pattern
-gh aw enable workflow-name --repo owner/repo # Enable in specific repository
+gh aw enable workflow --repo owner/repo     # Enable in specific repository
 ```
 
 **Options:** `--repo owner/repo` (enable workflows in specific repository, defaults to current)
@@ -491,7 +491,7 @@ Disable workflows to prevent execution and cancel any currently running workflow
 gh aw disable                               # Disable all workflows
 gh aw disable prefix                        # Disable workflows matching prefix
 gh aw disable ci-*                         # Disable workflows with pattern
-gh aw disable workflow-name --repo owner/repo # Disable in specific repository
+gh aw disable workflow --repo owner/repo    # Disable in specific repository
 ```
 
 **Options:** `--repo owner/repo` (disable workflows in specific repository, defaults to current)
@@ -530,10 +530,10 @@ Manage MCP (Model Context Protocol) servers. Lists MCP servers configured in wor
 
 ```bash wrap
 gh aw mcp list                             # List all MCP servers
-gh aw mcp list workflow-name               # List servers for specific workflow
+gh aw mcp list workflow                    # List servers for specific workflow
 gh aw mcp list-tools <mcp-server>          # List tools for specific MCP server
 gh aw mcp list-tools <mcp-server> workflow # List tools in specific workflow
-gh aw mcp inspect workflow-name            # Inspect and test servers (auto-detects safe-inputs)
+gh aw mcp inspect workflow                 # Inspect and test servers (auto-detects safe-inputs)
 gh aw mcp add                              # Add servers from registry
 ```
 

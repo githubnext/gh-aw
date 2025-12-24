@@ -79,7 +79,7 @@ Provide findings based on the requested depth level.
 
 Via CLI:
 ```bash
-gh aw run workflow-name
+gh aw run workflow
 ```
 
 Via GitHub Actions UI:

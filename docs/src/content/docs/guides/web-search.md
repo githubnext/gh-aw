@@ -52,7 +52,7 @@ mcp-servers:
     allowed: ["search", "search_news"]
 ```
 
-Test your configuration with `gh aw mcp inspect <workflow-name>`.
+Test your configuration with `gh aw mcp inspect <workflow>`.
 
 ## Tool Discovery
 
