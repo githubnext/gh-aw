@@ -75,12 +75,12 @@ func validateAndNormalizePort(port int) (int, error) {
 	if port == 0 {
 		return DefaultMCPGatewayPort, nil
 	}
-	
+
 	// Validate port is in valid range (1-65535)
 	if port < 1 || port > 65535 {
 		return 0, fmt.Errorf("port must be between 1 and 65535, got %d", port)
 	}
-	
+
 	return port, nil
 }
 
