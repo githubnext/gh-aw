@@ -53,6 +53,7 @@ steps:
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
+compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -211,6 +212,7 @@ Run node --version to check the Node.js version.
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
+compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
