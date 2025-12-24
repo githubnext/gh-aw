@@ -66,14 +66,15 @@ As a meta-orchestrator for agent performance, you assess how well AI agents are 
 ### 2. Agent Effectiveness Measurement
 
 **Task completion rates:**
-- Track how often agents complete their intended tasks
+- Track how often agents complete their intended tasks using historical metrics
 - Measure:
-  - Issues resolved vs. created
-  - PRs merged vs. created
+  - Issues resolved vs. created (from metrics data)
+  - PRs merged vs. created (use pr_merge_rate from quality_indicators)
   - Campaign goals achieved
-  - User satisfaction indicators (reactions, comments)
+  - User satisfaction indicators (reactions, comments from engagement metrics)
 - Calculate effectiveness scores (0-100)
 - Identify agents consistently failing to complete tasks
+- Compare current rates to historical averages (7-day and 30-day trends)
 
 **Decision quality:**
 - Review strategic decisions made by orchestrator agents
@@ -167,8 +168,31 @@ Execute these phases each run:
 
 This workflow shares memory with other meta-orchestrators (Campaign Manager and Workflow Health Manager) to coordinate insights and avoid duplicate work.
 
+**Shared Metrics Infrastructure:**
+
+The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
+
+1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+   - Most recent daily metrics snapshot
+   - Quick access without date calculations
+   - Contains all workflow metrics, engagement data, and quality indicators
+
+2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
+   - Daily metrics for the last 30 days
+   - Enables trend analysis and historical comparisons
+   - Calculate week-over-week and month-over-month changes
+
+**Use metrics data to:**
+- Avoid redundant API queries (metrics already collected)
+- Compare current performance to historical baselines
+- Identify trends (improving, declining, stable)
+- Calculate moving averages and detect anomalies
+- Benchmark individual workflows against ecosystem averages
+
 **Read from shared memory:**
 1. Check for existing files in the memory directory:
+   - `metrics/latest.json` - Latest performance metrics (NEW - use this first!)
+   - `metrics/daily/*.json` - Historical daily metrics for trend analysis (NEW)
    - `agent-performance-latest.md` - Your last run's summary
    - `campaign-manager-latest.md` - Latest campaign health insights
    - `workflow-health-latest.md` - Latest workflow health insights
@@ -201,7 +225,16 @@ This workflow shares memory with other meta-orchestrators (Campaign Manager and 
 
 ### Phase 1: Data Collection (10 minutes)
 
-1. **Gather agent outputs:**
+1. **Load historical metrics from shared storage:**
+   - Read latest metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+   - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
+   - Extract per-workflow metrics:
+     - Safe output counts (issues, PRs, comments, discussions)
+     - Workflow run statistics (total, successful, failed, success_rate)
+     - Engagement metrics (reactions, comments, replies)
+     - Quality indicators (merge rates, close times)
+
+2. **Gather agent outputs:**
    - Query recent issues/PRs/comments with agent attribution
    - For each workflow, collect:
      - Safe output operations from recent runs
@@ -210,17 +243,17 @@ This workflow shares memory with other meta-orchestrators (Campaign Manager and 
      - Project board updates
    - Collect metadata: creation date, author workflow, status
 
-2. **Analyze workflow runs:**
+3. **Analyze workflow runs:**
    - Get recent workflow run logs
    - Extract agent decisions and actions
    - Capture error messages and warnings
    - Record resource usage metrics
 
-3. **Build agent profiles:**
+4. **Build agent profiles:**
    - For each agent, compile:
-     - Total outputs created
+     - Total outputs created (use metrics data for efficiency)
      - Output types (issues, PRs, comments, etc.)
-     - Success/failure patterns
+     - Success/failure patterns (from metrics)
      - Resource consumption
      - Active time periods
 
