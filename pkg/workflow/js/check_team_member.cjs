@@ -33,4 +33,5 @@ async function main() {
   core.setFailed(`Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
 }
-await main();
+
+module.exports = { main };

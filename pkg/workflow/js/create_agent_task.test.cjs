@@ -28,7 +28,8 @@ describe("create_agent_task.cjs", () => {
       const scriptPath = require("path").join(process.cwd(), "create_agent_task.cjs");
       delete require.cache[require.resolve(scriptPath)];
       try {
-        (require(scriptPath), await new Promise(resolve => setTimeout(resolve, 50)));
+        const { main } = require(scriptPath);
+        await main();
       } catch (error) {}
     };
   (describe("basic functionality", () => {

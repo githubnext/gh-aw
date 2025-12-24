@@ -395,3 +395,8 @@ func getGenerateSafeInputsConfigScript() string {
 func getSubstitutePlaceholdersScript() string {
 	return DefaultScriptRegistry.GetWithMode("substitute_placeholders", RuntimeModeGitHubScript)
 }
+
+// getRedactSecretsScript returns the bundled redact_secrets script
+func getRedactSecretsScript() string {
+	return DefaultScriptRegistry.GetWithMode("redact_secrets", RuntimeModeGitHubScript)
+}

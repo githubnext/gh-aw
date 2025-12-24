@@ -192,4 +192,4 @@ async function main() {
   core.setOutput("branch_name", normalizedBranchName);
 }
 
-await main();
+module.exports = { main };

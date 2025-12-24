@@ -73,7 +73,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
 
   agent:
     needs: activation
@@ -208,35 +209,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
         run: |
           if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
@@ -3165,7 +3144,7 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -6916,6 +6895,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
@@ -7065,7 +7049,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_skip_if_match.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_skip_if_match.cjs');
+            await main();
 
   push_repo_memory:
     needs:
@@ -7266,9 +7251,7 @@ jobs:
                 return;
               }
             }
-            main().catch(error => {
-              core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
-            });
+            module.exports = { main };
 
   safe_outputs:
     needs:

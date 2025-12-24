@@ -78,7 +78,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
       - name: Add rocket reaction to the triggering item
         id: react
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
@@ -94,7 +95,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/add_reaction_and_edit_comment.cjs');
+            const { main } = require('/tmp/gh-aw/actions/add_reaction_and_edit_comment.cjs');
+            await main();
 
   agent:
     needs: activation
@@ -149,35 +151,13 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         run: |
           if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
@@ -2348,7 +2328,7 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -5992,6 +5972,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];

@@ -35,7 +35,7 @@ const mockCore = {
       (vi.clearAllMocks(), delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_ALLOWED_DOMAINS);
       const scriptPath = path.join(process.cwd(), "sanitize_output.cjs");
       sanitizeScript = fs.readFileSync(scriptPath, "utf8");
-      const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
+      const scriptWithExport = sanitizeScript.replace("module.exports = { main };", "global.testSanitizeContent = sanitizeContent;");
       (eval(scriptWithExport), (sanitizeContentFunction = global.testSanitizeContent));
     }),
       describe("sanitizeContent function", () => {

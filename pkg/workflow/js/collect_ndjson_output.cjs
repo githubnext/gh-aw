@@ -355,4 +355,5 @@ async function main() {
     core.setOutput("has_patch", hasPatch ? "true" : "false");
   }
 }
-await main();
+
+module.exports = { main };
