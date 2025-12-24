@@ -180,6 +180,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					} else if countUint64, ok := maxFileCount.(uint64); ok {
 						entry.MaxFileCount = int(countUint64)
 					}
+					// Validate max-file-count bounds
+					if entry.MaxFileCount < 1 || entry.MaxFileCount > 1000 {
+						return nil, fmt.Errorf("max-file-count must be between 1 and 1000, got %d", entry.MaxFileCount)
+					}
 				}
 
 				// Parse description
@@ -271,6 +275,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				entry.MaxFileCount = int(countFloat)
 			} else if countUint64, ok := maxFileCount.(uint64); ok {
 				entry.MaxFileCount = int(countUint64)
+			}
+			// Validate max-file-count bounds
+			if entry.MaxFileCount < 1 || entry.MaxFileCount > 1000 {
+				return nil, fmt.Errorf("max-file-count must be between 1 and 1000, got %d", entry.MaxFileCount)
 			}
 		}
 

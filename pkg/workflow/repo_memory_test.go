@@ -497,3 +497,162 @@ func TestRepoMemoryMaxFileSizeValidationArray(t *testing.T) {
 		})
 	}
 }
+
+// TestRepoMemoryMaxFileCountValidation tests max-file-count boundary validation
+func TestRepoMemoryMaxFileCountValidation(t *testing.T) {
+tests := []struct {
+name         string
+maxFileCount int
+wantError    bool
+errorText    string
+}{
+{
+name:         "valid minimum count (1 file)",
+maxFileCount: 1,
+wantError:    false,
+},
+{
+name:         "valid maximum count (1000 files)",
+maxFileCount: 1000,
+wantError:    false,
+},
+{
+name:         "valid mid-range count (100 files)",
+maxFileCount: 100,
+wantError:    false,
+},
+{
+name:         "invalid zero count",
+maxFileCount: 0,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got 0",
+},
+{
+name:         "invalid negative count",
+maxFileCount: -1,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got -1",
+},
+{
+name:         "invalid count exceeds maximum",
+maxFileCount: 1001,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got 1001",
+},
+{
+name:         "invalid large count",
+maxFileCount: 5000,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got 5000",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+toolsMap := map[string]any{
+"repo-memory": map[string]any{
+"max-file-count": tt.maxFileCount,
+},
+}
+
+toolsConfig, err := ParseToolsConfig(toolsMap)
+if err != nil {
+t.Fatalf("Failed to parse tools config: %v", err)
+}
+
+compiler := NewCompiler(false, "", "test")
+config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+
+if tt.wantError {
+if err == nil {
+t.Errorf("Expected error, got nil")
+} else if !strings.Contains(err.Error(), tt.errorText) {
+t.Errorf("Expected error containing '%s', got '%s'", tt.errorText, err.Error())
+}
+} else {
+if err != nil {
+t.Errorf("Expected no error, got: %v", err)
+}
+if config == nil {
+t.Fatal("Expected non-nil config")
+}
+if len(config.Memories) != 1 {
+t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
+}
+if config.Memories[0].MaxFileCount != tt.maxFileCount {
+t.Errorf("Expected max file count %d, got %d", tt.maxFileCount, config.Memories[0].MaxFileCount)
+}
+}
+})
+}
+}
+
+// TestRepoMemoryMaxFileCountValidationArray tests max-file-count validation in array notation
+func TestRepoMemoryMaxFileCountValidationArray(t *testing.T) {
+tests := []struct {
+name         string
+maxFileCount int
+wantError    bool
+errorText    string
+}{
+{
+name:         "valid count in array",
+maxFileCount: 50,
+wantError:    false,
+},
+{
+name:         "invalid count in array (zero)",
+maxFileCount: 0,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got 0",
+},
+{
+name:         "invalid count in array (exceeds max)",
+maxFileCount: 1001,
+wantError:    true,
+errorText:    "max-file-count must be between 1 and 1000, got 1001",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+toolsMap := map[string]any{
+"repo-memory": []any{
+map[string]any{
+"id":             "test",
+"max-file-count": tt.maxFileCount,
+},
+},
+}
+
+toolsConfig, err := ParseToolsConfig(toolsMap)
+if err != nil {
+t.Fatalf("Failed to parse tools config: %v", err)
+}
+
+compiler := NewCompiler(false, "", "test")
+config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+
+if tt.wantError {
+if err == nil {
+t.Errorf("Expected error, got nil")
+} else if !strings.Contains(err.Error(), tt.errorText) {
+t.Errorf("Expected error containing '%s', got '%s'", tt.errorText, err.Error())
+}
+} else {
+if err != nil {
+t.Errorf("Expected no error, got: %v", err)
+}
+if config == nil {
+t.Fatal("Expected non-nil config")
+}
+if len(config.Memories) != 1 {
+t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
+}
+if config.Memories[0].MaxFileCount != tt.maxFileCount {
+t.Errorf("Expected max file count %d, got %d", tt.maxFileCount, config.Memories[0].MaxFileCount)
+}
+}
+})
+}
+}
