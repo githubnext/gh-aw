@@ -75,8 +75,8 @@ describe("check_membership.cjs", () => {
       throw new Error(`Module not found: ${modulePath}`);
     };
 
-    // Remove the main() call at the end and execute
-    const scriptWithoutMain = scriptContent.replace("await main();", "");
+    // Remove the main() call/export at the end and execute
+    const scriptWithoutMain = scriptContent.replace("module.exports = { main };", "");
     const scriptFunction = new Function("core", "github", "context", "process", "require", scriptWithoutMain + "\nreturn main();");
     await scriptFunction(mockCore, mockGithub, mockContext, process, mockRequire);
   };

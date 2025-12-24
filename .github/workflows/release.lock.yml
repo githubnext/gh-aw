@@ -2352,7 +2352,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
             await main();
       - name: Print prompt
         env:
@@ -2503,7 +2502,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            module.exports = { main };
         env:
           GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -3749,7 +3748,6 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -6041,13 +6039,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
+        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.10
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
+        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.10
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -6226,7 +6224,6 @@ jobs:
               }
             }
             await main();
-            await main();
 
   release:
     needs: activation
@@ -6247,7 +6244,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
+        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2
         with:
           build_script_override: scripts/build-release.sh
           go_version_file: go.mod

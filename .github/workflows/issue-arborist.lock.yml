@@ -2518,7 +2518,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
             await main();
       - name: Print prompt
         env:
@@ -2667,7 +2666,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            module.exports = { main };
         env:
           GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
@@ -3914,7 +3913,6 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT

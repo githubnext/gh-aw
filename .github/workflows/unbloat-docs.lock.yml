@@ -2642,7 +2642,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
             await main();
       - name: Print prompt
         env:
@@ -2925,7 +2924,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            module.exports = { main };
         env:
           GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -4173,7 +4172,6 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -6218,7 +6216,6 @@ jobs:
               }
             }
             await main();
-            await main();
       - name: Check command position
         id: check_command_position
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6610,6 +6607,5 @@ jobs:
               core.setOutput("upload_count", uploadCount.toString());
               core.setOutput("branch_name", normalizedBranchName);
             }
-            await main();
             await main();
 

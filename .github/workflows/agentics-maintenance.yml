@@ -223,7 +223,6 @@ jobs:
               core.info(`Successfully closed ${closedCount} expired discussion(s)`);
             }
             await main();
-            await main();
 
   close-expired-issues:
     runs-on: ubuntu-latest
@@ -398,7 +397,6 @@ jobs:
               }
               core.info(`Successfully closed ${closedCount} expired issue(s)`);
             }
-            await main();
             await main();
 
   compile-workflows:

@@ -2415,7 +2415,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
             await main();
       - name: Print prompt
         env:
@@ -2566,7 +2565,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            module.exports = { main };
         env:
           GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -3812,7 +3811,6 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
-            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -6170,7 +6168,7 @@ jobs:
           persist-credentials: false
       - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter@47984f49b4e87383eed97890fe2dca6063bbd9c3 # v8.3.1
+        uses: super-linter/super-linter@47984f49b4e87383eed97890fe2dca6063bbd9c3 # v8.2.1
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main

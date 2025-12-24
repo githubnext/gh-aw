@@ -2206,7 +2206,6 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
             await main();
       - name: Print prompt
         env:
@@ -2227,7 +2226,7 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2.0.4
+        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v1
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2350,7 +2349,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            await main();
+            module.exports = { main };
         env:
           GH_AW_SECRET_NAMES: 'GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
@@ -3596,7 +3595,6 @@ jobs:
               }
             }
             await main();
-            await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -4092,7 +4090,6 @@ jobs:
                 core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
               }
             }
-            await main();
             await main();
 
   safe_outputs:
