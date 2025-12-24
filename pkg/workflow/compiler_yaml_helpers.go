@@ -102,12 +102,25 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 }
 
 // generateCheckoutActionsFolder generates the checkout step for the actions folder
-// when running in dev mode. This is used to checkout the local actions before
-// running the setup action.
+// when running in dev mode and not using the action-tag feature. This is used to
+// checkout the local actions before running the setup action.
 //
 // Returns a slice of strings that can be appended to a steps array, where each
-// string represents a line of YAML for the checkout step.
-func (c *Compiler) generateCheckoutActionsFolder() []string {
+// string represents a line of YAML for the checkout step. Returns nil if:
+// - Not in dev mode
+// - action-tag feature is specified (uses remote actions instead)
+func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
+	// Check if action-tag is specified - if so, we're using remote actions
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				// action-tag is set, use remote actions - no checkout needed
+				return nil
+			}
+		}
+	}
+
+	// Only generate checkout in dev mode (local actions)
 	if !c.actionMode.IsDev() {
 		return nil
 	}
