@@ -267,6 +267,7 @@ type WorkflowData struct {
 	ActionResolver      *ActionResolver      // resolver for action pins
 	StrictMode          bool                 // strict mode for action pinning
 	SecretMasking       *SecretMaskingConfig // secret masking configuration
+	ActionTag           string               // optional tag/SHA to use for actions/setup references (for testing)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

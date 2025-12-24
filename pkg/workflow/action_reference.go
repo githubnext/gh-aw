@@ -27,7 +27,7 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 
 	case ActionModeRelease:
 		// Convert to SHA-pinned remote reference for release
-		remoteRef := c.convertToRemoteActionRef(localActionPath)
+		remoteRef := c.convertToRemoteActionRef(localActionPath, data)
 		if remoteRef == "" {
 			actionRefLog.Printf("WARNING: Could not resolve remote reference for %s", localActionPath)
 			return ""
@@ -44,23 +44,29 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 
 // convertToRemoteActionRef converts a local action path to a tag-based remote reference
 // that will be resolved to a SHA later in the release pipeline using action pins.
-// Uses the version stored in the compiler binary instead of querying git.
+// Uses the action-tag from WorkflowData if specified (for testing), otherwise uses the version stored in the compiler binary.
 // Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@v1.0.0"
-func (c *Compiler) convertToRemoteActionRef(localPath string) string {
+func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData) string {
 	// Strip the leading "./" if present
 	actionPath := strings.TrimPrefix(localPath, "./")
 
-	// Use the version from the compiler binary
-	tag := c.version
-	if tag == "" || tag == "dev" {
-		actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty)")
-		return ""
+	// Use action-tag from WorkflowData if specified, otherwise fall back to compiler version
+	var tag string
+	if data != nil && data.ActionTag != "" {
+		tag = data.ActionTag
+		actionRefLog.Printf("Using action-tag from frontmatter: %s", tag)
+	} else {
+		tag = c.version
+		if tag == "" || tag == "dev" {
+			actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty)")
+			return ""
+		}
+		actionRefLog.Printf("Using tag from binary version: %s", tag)
 	}
 
 	// Construct the remote reference with tag: githubnext/gh-aw/actions/name@tag
 	// The SHA will be resolved later by action pinning infrastructure
 	remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, tag)
-	actionRefLog.Printf("Using tag from binary version: %s", tag)
 	actionRefLog.Printf("Remote reference: %s (SHA will be resolved via action pins)", remoteRef)
 
 	return remoteRef

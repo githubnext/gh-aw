@@ -16,6 +16,7 @@ engine:
   model: gpt-5-mini
 strict: true
 timeout-minutes: 15
+action-tag: "latest"
 
 network:
   allowed:
