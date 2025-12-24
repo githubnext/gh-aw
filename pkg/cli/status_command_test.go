@@ -28,7 +28,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
-		err := StatusWorkflows("", false, true, "", "")
+		err := StatusWorkflows("", false, true, "", "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag failed: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
-		err := StatusWorkflows("smoke", false, true, "", "")
+		err := StatusWorkflows("smoke", false, true, "", "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag and pattern failed: %v", err)
 		}

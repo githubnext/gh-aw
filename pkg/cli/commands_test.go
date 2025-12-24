@@ -219,7 +219,7 @@ func TestRemoveWorkflows(t *testing.T) {
 }
 
 func TestStatusWorkflows(t *testing.T) {
-	err := StatusWorkflows("test-pattern", false, false, "", "")
+	err := StatusWorkflows("test-pattern", false, false, "", "", "")
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -421,8 +421,8 @@ Test workflow for command existence.`
 			_, err := CompileWorkflows(config)
 			return err
 		}, false, "CompileWorkflows"},
-		{func() error { return RemoveWorkflows("nonexistent", false) }, false, "RemoveWorkflows"},                // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("nonexistent", false, false, "", "") }, false, "StatusWorkflows"}, // Should handle missing directory gracefully
+		{func() error { return RemoveWorkflows("nonexistent", false) }, false, "RemoveWorkflows"},                     // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows("nonexistent", false, false, "", "", "") }, false, "StatusWorkflows"}, // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("nonexistent") }, true, "EnableWorkflows"},                        // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("nonexistent") }, true, "DisableWorkflows"},                      // Should now also error when no workflows found to disable
 		{func() error {
