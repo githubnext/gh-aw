@@ -57,7 +57,7 @@ const ExpressionBreakThreshold LineLength = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.0.75"
+const DefaultClaudeCodeVersion Version = "2.0.76"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
