@@ -28,7 +28,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
-		err := StatusWorkflows("", false, true, "", "")
+		err := StatusWorkflows("", false, true, "", "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag failed: %v", err)
 		}
@@ -38,7 +38,7 @@ func TestStatusWorkflows_JSONOutput(t *testing.T) {
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
-		err := StatusWorkflows("smoke", false, true, "", "")
+		err := StatusWorkflows("smoke", false, true, "", "", "")
 		if err != nil {
 			t.Errorf("StatusWorkflows with JSON flag and pattern failed: %v", err)
 		}
@@ -512,4 +512,20 @@ func TestWorkflowStatus_ConsoleRenderingWithRunStatus(t *testing.T) {
 			t.Errorf("Expected output to contain value '%s', got:\n%s", value, output)
 		}
 	}
+}
+
+// TestStatusWorkflows_WithRepoOverride tests that the repoOverride parameter is accepted
+func TestStatusWorkflows_WithRepoOverride(t *testing.T) {
+	// This test verifies that the function accepts the repoOverride parameter
+	// and doesn't error out. It should work in the current repository context.
+	err := StatusWorkflows("", false, true, "", "", "")
+	if err != nil {
+		t.Errorf("StatusWorkflows with empty repoOverride should not error: %v", err)
+	}
+
+	// Test with a non-empty repo override (will fail gracefully if repo doesn't exist)
+	// We expect this to either succeed or fail gracefully without panicking
+	_ = StatusWorkflows("", false, true, "", "", "nonexistent/repo")
+	// Note: We don't check error here because it's expected to fail for a nonexistent repo
+	// The important part is that the parameter is accepted and used
 }
