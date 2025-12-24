@@ -78,10 +78,10 @@ Advanced examples:
   ` + constants.CLIExtensionPrefix + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
 
 Repository modes:
-- Default: Simulate execution against current repository (using --logical-repo semantics)
-- --repo: Run directly in the specified repository (no simulation, workflows installed and run in that repo)
-- --logical-repo: Simulate execution against specified repository (github.repository points to that repo)
-- --clone-repo: Clone specified repository contents into host repository (no simulation)
+- Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
+- --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
+- --repo REPO: Runs directly in the specified repository (no simulation, workflows installed and executed in REPO)
+- --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.
 The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
