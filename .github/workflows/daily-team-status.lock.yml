@@ -5953,6 +5953,8 @@ jobs:
 
   pre_activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
     steps:
