@@ -34,6 +34,7 @@ func init() {
 	DefaultScriptRegistry.Register("assign_issue", assignIssueScriptSource)
 	DefaultScriptRegistry.Register("add_copilot_reviewer", addCopilotReviewerScriptSource)
 	DefaultScriptRegistry.Register("add_reaction_and_edit_comment", addReactionAndEditCommentScriptSource)
+	DefaultScriptRegistry.Register("redact_secrets", redactSecretsScript)
 }
 
 // getAddReactionAndEditCommentScript returns the bundled add_reaction_and_edit_comment script

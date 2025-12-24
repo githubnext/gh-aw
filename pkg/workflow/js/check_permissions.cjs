@@ -41,4 +41,5 @@ async function main() {
     core.setFailed(`Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
   }
 }
-await main();
+
+module.exports = { main };

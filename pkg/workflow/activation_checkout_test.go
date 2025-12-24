@@ -70,7 +70,10 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler(false, "", "dev")
+			// Use release mode to test production behavior (no checkout in activation job)
+			// Version "dev" forces inline scripts instead of using setup action
+			compiler.SetActionMode(ActionModeRelease)
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {

@@ -55,7 +55,7 @@ describe("checkout_pr_branch.cjs", () => {
 
     // Execute the script in a new context with our mocks
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-    const wrappedScript = new AsyncFunction("core", "exec", "context", scriptContent.replace(/main\(\)\.catch.*$/s, "await main();"));
+    const wrappedScript = new AsyncFunction("core", "exec", "context", scriptContent.replace(/module\.exports = \{ main \};?\s*$/s, "await main();"));
 
     try {
       await wrappedScript(mockCore, mockExec, mockContext);

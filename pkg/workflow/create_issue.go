@@ -104,6 +104,11 @@ func buildCopilotAssignmentStep(configToken string) []string {
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 	steps = append(steps, "          script: |\n")
+	steps = append(steps, "            global.core = core;\n")
+	steps = append(steps, "            global.github = github;\n")
+	steps = append(steps, "            global.context = context;\n")
+	steps = append(steps, "            global.exec = exec;\n")
+	steps = append(steps, "            global.io = io;\n")
 	steps = append(steps, FormatJavaScriptForYAML(getAssignCopilotToCreatedIssuesScript())...)
 
 	return steps

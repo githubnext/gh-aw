@@ -109,6 +109,4 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
-});
+module.exports = { main };

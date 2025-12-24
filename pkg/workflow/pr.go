@@ -19,6 +19,10 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 		return // No contents read access, cannot checkout
 	}
 
+	// Determine script loading method based on action mode
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	useRequire := setupActionRef != ""
+
 	// Always add the step with a condition that checks if PR context is available
 	yaml.WriteString("      - name: Checkout PR branch\n")
 
@@ -48,6 +52,25 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 
 	yaml.WriteString("          script: |\n")
 
-	// Add the JavaScript for checking out the PR branch
-	WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
+	if useRequire {
+		// Use require() to load script from copied files
+		// Attach GitHub Actions builtin objects to global scope before requiring
+		yaml.WriteString("            global.core = core;\n")
+		yaml.WriteString("            global.github = github;\n")
+		yaml.WriteString("            global.context = context;\n")
+		yaml.WriteString("            global.exec = exec;\n")
+		yaml.WriteString("            global.io = io;\n")
+		yaml.WriteString("            const { main } = require('" + SetupActionDestination + "/checkout_pr_branch.cjs');\n")
+		yaml.WriteString("            await main();\n")
+	} else {
+		// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+		yaml.WriteString("            global.core = core;\n")
+		yaml.WriteString("            global.github = github;\n")
+		yaml.WriteString("            global.context = context;\n")
+		yaml.WriteString("            global.exec = exec;\n")
+		yaml.WriteString("            global.io = io;\n")
+
+		// Add the JavaScript for checking out the PR branch
+		WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
+	}
 }
