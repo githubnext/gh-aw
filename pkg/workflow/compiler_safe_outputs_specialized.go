@@ -50,6 +50,11 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
+	// Add max count environment variable for JavaScript to validate against
+	if cfg.Max > 0 {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", cfg.Max))
+	}
+
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
