@@ -368,9 +368,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Write Safe Outputs MCP Server Entry Point\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
-		// Use the simple entry point script instead of bundled version
-		for _, line := range FormatJavaScriptForYAML(generateSafeOutputsMCPServerEntryScript()) {
-			yaml.WriteString(line)
+		// Write entry point script with base indentation only (heredoc doesn't need extra indentation)
+		// Remove comments to keep the heredoc content clean
+		entryScript := removeJavaScriptComments(generateSafeOutputsMCPServerEntryScript())
+		for _, line := range strings.Split(entryScript, "\n") {
+			// Skip empty lines for cleaner output
+			if strings.TrimSpace(line) != "" {
+				yaml.WriteString("          " + line + "\n")
+			}
 		}
 		yaml.WriteString("          EOF\n")
 		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
