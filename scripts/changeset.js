@@ -732,4 +732,12 @@ async function main() {
   }
 }
 
-main();
+// Export main for use as a module
+module.exports = { main };
+
+// If run directly, execute main
+if (require.main === module) {
+  (async () => {
+    await main();
+  })();
+}
