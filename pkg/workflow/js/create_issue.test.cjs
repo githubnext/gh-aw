@@ -49,9 +49,7 @@ const mockCore = {
         delete process.env.GH_AW_ALLOWED_REPOS,
         delete global.context.payload.issue);
       const scriptPath = path.join(process.cwd(), "create_issue.cjs");
-      ((createIssueScript = fs.readFileSync(scriptPath, "utf8")),
-        (createIssueScript = createIssueScript.replace("export {};", "")),
-        (createIssueScript = createIssueScript.replace(/module\.exports = \{ main \};?\s*$/, "")));
+      ((createIssueScript = fs.readFileSync(scriptPath, "utf8")), (createIssueScript = createIssueScript.replace("export {};", "")), (createIssueScript = createIssueScript.replace(/module\.exports = \{ main \};?\s*$/, "")));
     }),
       afterEach(() => {
         tempFilePath && require("fs").existsSync(tempFilePath) && (require("fs").unlinkSync(tempFilePath), (tempFilePath = void 0));
