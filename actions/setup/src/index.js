@@ -5,11 +5,6 @@ const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 
-// Embedded activation files will be inserted here during build
-const FILES = {
-  // This will be populated by the build script
-};
-
 async function run() {
   try {
     const destination = core.getInput('destination') || '/tmp/gh-aw/actions/activation';
@@ -22,14 +17,37 @@ async function run() {
       core.info(`Created directory: ${destination}`);
     }
     
+    // The source directory for scripts - relative to this action's directory
+    // When running in GitHub Actions, __dirname is the action's root directory
+    const jsSourceDir = path.join(__dirname, 'js');
+    const shSourceDir = path.join(__dirname, 'sh');
+    
     let fileCount = 0;
     
-    // Copy each embedded file
-    for (const [filename, content] of Object.entries(FILES)) {
-      const filePath = path.join(destination, filename);
-      fs.writeFileSync(filePath, content, 'utf8');
-      core.info(`Copied: ${filename}`);
-      fileCount++;
+    // Copy JavaScript files
+    if (fs.existsSync(jsSourceDir)) {
+      const jsFiles = fs.readdirSync(jsSourceDir).filter(f => f.endsWith('.cjs') || f.endsWith('.json'));
+      for (const filename of jsFiles) {
+        const sourcePath = path.join(jsSourceDir, filename);
+        const destPath = path.join(destination, filename);
+        const content = fs.readFileSync(sourcePath, 'utf8');
+        fs.writeFileSync(destPath, content, 'utf8');
+        core.info(`Copied: ${filename}`);
+        fileCount++;
+      }
+    }
+    
+    // Copy shell scripts
+    if (fs.existsSync(shSourceDir)) {
+      const shFiles = fs.readdirSync(shSourceDir).filter(f => f.endsWith('.sh'));
+      for (const filename of shFiles) {
+        const sourcePath = path.join(shSourceDir, filename);
+        const destPath = path.join(destination, filename);
+        const content = fs.readFileSync(sourcePath, 'utf8');
+        fs.writeFileSync(destPath, content, 'utf8');
+        core.info(`Copied: ${filename}`);
+        fileCount++;
+      }
     }
     
     core.setOutput('files-copied', fileCount.toString());

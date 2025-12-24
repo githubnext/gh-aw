@@ -14,7 +14,7 @@ all: build build-awmg
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates sync-action-pins sync-scripts
+build: sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build the awmg (MCP gateway) binary
@@ -428,16 +428,7 @@ sync-action-pins:
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \
 	fi
 
-# Sync scripts from actions/setup to pkg/workflow (for go:embed)
-.PHONY: sync-scripts
-sync-scripts:
-	@echo "Syncing scripts from actions/setup to pkg/workflow..."
-	@mkdir -p pkg/workflow/js pkg/workflow/sh
-	@# Sync JS files from actions/setup, excluding test files, config, and templated files
-	@rsync -a --exclude='*.test.cjs' --exclude='node_modules' --exclude='package*.json' --exclude='.prettierrc.json' --exclude='vitest.config.mjs' --exclude='tsconfig.json' --exclude='test-data' --exclude='types' --exclude='src' actions/setup/js/ pkg/workflow/js/
-	@# Sync shell scripts from actions/setup, excluding templated files
-	@rsync -a actions/setup/sh/ pkg/workflow/sh/
-	@echo "✓ Scripts synced successfully"
+
 
 # Recompile all workflow files
 .PHONY: recompile
