@@ -66,7 +66,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
 
   agent:
     needs: activation
@@ -2397,6 +2398,7 @@ jobs:
               }
             }
             main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3812,6 +3814,7 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
+            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -6249,6 +6252,7 @@ jobs:
               }
             }
             await main();
+            await main();
       - name: Check skip-if-match query
         id: check_skip_if_match
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -6263,7 +6267,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_skip_if_match.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_skip_if_match.cjs');
+            await main();
 
   safe_outputs:
     needs:

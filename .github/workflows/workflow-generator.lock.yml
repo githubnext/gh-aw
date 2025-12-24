@@ -69,7 +69,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
       - name: Lock issue for agent workflow
         id: lock-issue
         if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
@@ -2330,6 +2331,7 @@ jobs:
               }
             }
             main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3727,6 +3729,7 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
+            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
@@ -6171,6 +6174,7 @@ jobs:
                 core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
               }
             }
+            await main();
             await main();
 
   safe_outputs:

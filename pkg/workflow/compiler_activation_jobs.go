@@ -71,7 +71,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
@@ -102,7 +103,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
@@ -128,7 +130,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_command_position.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_command_position.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
@@ -374,7 +377,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
+		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
+		steps = append(steps, "            await main();\n")
 	} else {
 		// Add the JavaScript script with proper indentation (using API-based version)
 		formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
@@ -457,7 +461,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Add each line of the script with proper indentation (bundled version with messages.cjs)
 			formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())

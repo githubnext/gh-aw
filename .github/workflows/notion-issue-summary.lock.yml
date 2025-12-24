@@ -70,7 +70,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
 
   agent:
     needs: activation
@@ -2180,6 +2181,7 @@ jobs:
               }
             }
             main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3583,6 +3585,7 @@ jobs:
                 core.setOutput("has_patch", hasPatch ? "true" : "false");
               }
             }
+            await main();
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
