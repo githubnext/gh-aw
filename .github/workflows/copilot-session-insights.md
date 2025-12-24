@@ -44,7 +44,6 @@ tools:
 
 imports:
   - shared/copilot-session-data-fetch.md
-  - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md
 
