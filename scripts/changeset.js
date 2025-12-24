@@ -732,10 +732,4 @@ async function main() {
   }
 }
 
-// Export main for use as a module
-module.exports = { main };
-
-// Execute main
-(async () => {
-  await main();
-})();
+main();
