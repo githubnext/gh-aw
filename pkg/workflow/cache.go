@@ -626,6 +626,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 			setupSteps = append(setupSteps, "      - name: Checkout actions folder\n")
 			setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			setupSteps = append(setupSteps, "        with:\n")
+			setupSteps = append(setupSteps, "          persist-credentials: false\n")
 			setupSteps = append(setupSteps, "          sparse-checkout: |\n")
 			setupSteps = append(setupSteps, "            actions\n")
 		}

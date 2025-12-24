@@ -69,6 +69,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
+			steps = append(steps, "          persist-credentials: false\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
@@ -392,7 +393,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
 			if c.actionMode.IsDev() {
-				insertIndex += 5 // Checkout step (5 lines: name, uses, with, sparse-checkout header, path)
+				insertIndex += 6 // Checkout step (6 lines: name, uses, with, persist-credentials, sparse-checkout header, path)
 			}
 			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
 		}

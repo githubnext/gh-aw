@@ -99,6 +99,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 			preSteps = append(preSteps, "      - name: Checkout actions folder\n")
 			preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			preSteps = append(preSteps, "        with:\n")
+			preSteps = append(preSteps, "          persist-credentials: false\n")
 			preSteps = append(preSteps, "          sparse-checkout: |\n")
 			preSteps = append(preSteps, "            actions\n")
 		}

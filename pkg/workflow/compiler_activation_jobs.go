@@ -31,6 +31,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
+			steps = append(steps, "          persist-credentials: false\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
@@ -365,6 +366,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
+			steps = append(steps, "          persist-credentials: false\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
@@ -689,6 +691,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
+			steps = append(steps, "          persist-credentials: false\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}

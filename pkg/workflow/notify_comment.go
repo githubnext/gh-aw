@@ -53,6 +53,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			steps = append(steps, "      - name: Checkout actions folder\n")
 			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 			steps = append(steps, "        with:\n")
+			steps = append(steps, "          persist-credentials: false\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
 		}
