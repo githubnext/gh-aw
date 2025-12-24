@@ -58,6 +58,4 @@ Successfully added Copilot as a reviewer to PR #${prNumber}.
   }
 }
 
-main().catch(error => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
-});
+module.exports = { main };
