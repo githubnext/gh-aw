@@ -65,10 +65,16 @@ describe("add_copilot_reviewer", () => {
     };
   });
 
+  // Helper function to run the script with main() call
+  async function runScript() {
+    const { main } = await import("./add_copilot_reviewer.cjs?" + Date.now());
+    await main();
+  }
+
   it("should fail when PR_NUMBER is not set", async () => {
     delete process.env.PR_NUMBER;
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -77,7 +83,7 @@ describe("add_copilot_reviewer", () => {
   it("should fail when PR_NUMBER is empty", async () => {
     process.env.PR_NUMBER = "   ";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith("PR_NUMBER environment variable is required but not set");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -86,7 +92,7 @@ describe("add_copilot_reviewer", () => {
   it("should fail when PR_NUMBER is not a valid number", async () => {
     process.env.PR_NUMBER = "not-a-number";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid PR_NUMBER"));
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -95,7 +101,7 @@ describe("add_copilot_reviewer", () => {
   it("should fail when PR_NUMBER is zero", async () => {
     process.env.PR_NUMBER = "0";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid PR_NUMBER"));
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -104,7 +110,7 @@ describe("add_copilot_reviewer", () => {
   it("should fail when PR_NUMBER is negative", async () => {
     process.env.PR_NUMBER = "-1";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid PR_NUMBER"));
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
@@ -113,7 +119,7 @@ describe("add_copilot_reviewer", () => {
   it("should add copilot as reviewer when PR_NUMBER is valid", async () => {
     process.env.PR_NUMBER = "456";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
@@ -130,7 +136,7 @@ describe("add_copilot_reviewer", () => {
     process.env.PR_NUMBER = "123";
     mockGithub.rest.pulls.requestReviewers.mockRejectedValueOnce(new Error("API Error"));
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add Copilot as reviewer"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add Copilot as reviewer"));
@@ -139,7 +145,7 @@ describe("add_copilot_reviewer", () => {
   it("should trim whitespace from PR_NUMBER", async () => {
     process.env.PR_NUMBER = "  789  ";
 
-    await import("./add_copilot_reviewer.cjs");
+    await runScript();
 
     expect(mockGithub.rest.pulls.requestReviewers).toHaveBeenCalledWith({
       owner: "testowner",
