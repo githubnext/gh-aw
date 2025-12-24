@@ -1,4 +1,10 @@
 ---
+# This shared component automatically imports jqschema.md as a dependency.
+# The compiler handles the transitive closure of imports, ensuring correct ordering.
+#
+imports:
+  - shared/jqschema.md
+
 tools:
   cache-memory:
     key: copilot-session-data
@@ -160,8 +166,9 @@ Import this component in your workflow:
 ```yaml
 imports:
   - shared/copilot-session-data-fetch.md
-  - shared/jqschema.md  # Required for schema generation
 ```
+
+**Note**: This component automatically imports `jqschema.md` as a dependency. The compiler handles the transitive closure of imports, ensuring all required utilities are set up in the correct order.
 
 Then access the pre-fetched data in your workflow prompt:
 
@@ -182,7 +189,7 @@ find /tmp/gh-aw/session-data/logs -type d -mindepth 1
 
 ### Requirements
 
-- Requires `jqschema.md` to be imported for schema generation
+- Automatically imports `jqschema.md` for schema generation (via transitive import closure)
 - Uses GitHub Actions API to fetch workflow runs from `copilot/*` branches
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence

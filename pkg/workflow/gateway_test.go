@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -544,4 +545,187 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	assert.Contains(t, stepStr, "awmg")
 	assert.NotContains(t, stepStr, "docker run")                    // Should not use docker
 	assert.NotContains(t, stepStr, "/usr/local/bin/custom-gateway") // Should not use custom command
+}
+
+func TestValidateAndNormalizePort(t *testing.T) {
+	tests := []struct {
+		name        string
+		port        int
+		expected    int
+		expectError bool
+	}{
+		{
+			name:        "port 0 uses default",
+			port:        0,
+			expected:    DefaultMCPGatewayPort,
+			expectError: false,
+		},
+		{
+			name:        "valid port 1",
+			port:        1,
+			expected:    1,
+			expectError: false,
+		},
+		{
+			name:        "valid port 8080",
+			port:        8080,
+			expected:    8080,
+			expectError: false,
+		},
+		{
+			name:        "valid port 65535",
+			port:        65535,
+			expected:    65535,
+			expectError: false,
+		},
+		{
+			name:        "negative port returns error",
+			port:        -1,
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "port above 65535 returns error",
+			port:        65536,
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "large negative port returns error",
+			port:        -9999,
+			expected:    0,
+			expectError: true,
+		},
+		{
+			name:        "port well above max returns error",
+			port:        100000,
+			expected:    0,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := validateAndNormalizePort(tt.port)
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "port must be between 1 and 65535")
+				assert.Contains(t, err.Error(), fmt.Sprintf("%d", tt.port))
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
+	tests := []struct {
+		name         string
+		port         int
+		expectsInLog bool
+	}{
+		{
+			name:         "negative port falls back to default",
+			port:         -1,
+			expectsInLog: true,
+		},
+		{
+			name:         "port above 65535 falls back to default",
+			port:         70000,
+			expectsInLog: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &MCPGatewayConfig{
+				Port: tt.port,
+			}
+			mcpServers := map[string]any{
+				"github": map[string]any{},
+			}
+
+			step := generateMCPGatewayStartStep(config, mcpServers)
+			stepStr := strings.Join(step, "\n")
+
+			// Should still generate valid step with default port
+			assert.Contains(t, stepStr, "Start MCP Gateway")
+			assert.Contains(t, stepStr, fmt.Sprintf("--port %d", DefaultMCPGatewayPort))
+		})
+	}
+}
+
+func TestGenerateMCPGatewayHealthCheckStepWithInvalidPort(t *testing.T) {
+	tests := []struct {
+		name         string
+		port         int
+		expectsInLog bool
+	}{
+		{
+			name:         "negative port falls back to default",
+			port:         -1,
+			expectsInLog: true,
+		},
+		{
+			name:         "port above 65535 falls back to default",
+			port:         70000,
+			expectsInLog: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &MCPGatewayConfig{
+				Port: tt.port,
+			}
+
+			step := generateMCPGatewayHealthCheckStep(config)
+			stepStr := strings.Join(step, "\n")
+
+			// Should still generate valid step with default port
+			assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+			assert.Contains(t, stepStr, fmt.Sprintf("http://localhost:%d", DefaultMCPGatewayPort))
+		})
+	}
+}
+
+func TestGetMCPGatewayURLWithInvalidPort(t *testing.T) {
+	tests := []struct {
+		name     string
+		port     int
+		expected string
+	}{
+		{
+			name:     "negative port falls back to default",
+			port:     -1,
+			expected: fmt.Sprintf("http://localhost:%d", DefaultMCPGatewayPort),
+		},
+		{
+			name:     "port above 65535 falls back to default",
+			port:     70000,
+			expected: fmt.Sprintf("http://localhost:%d", DefaultMCPGatewayPort),
+		},
+		{
+			name:     "port 0 uses default",
+			port:     0,
+			expected: fmt.Sprintf("http://localhost:%d", DefaultMCPGatewayPort),
+		},
+		{
+			name:     "valid port 9090",
+			port:     9090,
+			expected: "http://localhost:9090",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &MCPGatewayConfig{
+				Port: tt.port,
+			}
+
+			result := getMCPGatewayURL(config)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

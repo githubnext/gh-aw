@@ -69,12 +69,30 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	return steps
 }
 
+// validateAndNormalizePort validates the port value and returns the normalized port or an error
+func validateAndNormalizePort(port int) (int, error) {
+	// If port is 0, use the default
+	if port == 0 {
+		return DefaultMCPGatewayPort, nil
+	}
+
+	// Validate port is in valid range (1-65535)
+	if port < 1 || port > 65535 {
+		return 0, fmt.Errorf("port must be between 1 and 65535, got %d", port)
+	}
+
+	return port, nil
+}
+
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
 func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[string]any) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway start step")
 
-	port := config.Port
-	if port == 0 {
+	port, err := validateAndNormalizePort(config.Port)
+	if err != nil {
+		// In case of validation error, log and use default port
+		// This shouldn't happen in practice as validation should catch it earlier
+		gatewayLog.Printf("Warning: %v, using default port %d", err, DefaultMCPGatewayPort)
 		port = DefaultMCPGatewayPort
 	}
 
@@ -311,8 +329,11 @@ func generateDefaultAWMGCommands(config *MCPGatewayConfig, mcpConfigPath string,
 func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway health check step")
 
-	port := config.Port
-	if port == 0 {
+	port, err := validateAndNormalizePort(config.Port)
+	if err != nil {
+		// In case of validation error, log and use default port
+		// This shouldn't happen in practice as validation should catch it earlier
+		gatewayLog.Printf("Warning: %v, using default port %d", err, DefaultMCPGatewayPort)
 		port = DefaultMCPGatewayPort
 	}
 
@@ -400,8 +421,11 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 
 // getMCPGatewayURL returns the HTTP URL for the MCP gateway
 func getMCPGatewayURL(config *MCPGatewayConfig) string {
-	port := config.Port
-	if port == 0 {
+	port, err := validateAndNormalizePort(config.Port)
+	if err != nil {
+		// In case of validation error, log and use default port
+		// This shouldn't happen in practice as validation should catch it earlier
+		gatewayLog.Printf("Warning: %v, using default port %d", err, DefaultMCPGatewayPort)
 		port = DefaultMCPGatewayPort
 	}
 	return fmt.Sprintf("http://localhost:%d", port)

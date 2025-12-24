@@ -622,13 +622,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		if c.actionMode.IsDev() {
-			setupSteps = append(setupSteps, "      - name: Checkout actions folder\n")
-			setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-			setupSteps = append(setupSteps, "        with:\n")
-			setupSteps = append(setupSteps, "          sparse-checkout: |\n")
-			setupSteps = append(setupSteps, "            actions\n")
-		}
+		setupSteps = append(setupSteps, c.generateCheckoutActionsFolder()...)
 
 		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
 		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
