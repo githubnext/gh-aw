@@ -165,6 +165,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					} else if sizeUint64, ok := maxFileSize.(uint64); ok {
 						entry.MaxFileSize = int(sizeUint64)
 					}
+					// Validate max-file-size bounds
+					if entry.MaxFileSize < 1 || entry.MaxFileSize > 104857600 {
+						return nil, fmt.Errorf("max-file-size must be between 1 and 104857600 bytes, got %d", entry.MaxFileSize)
+					}
 				}
 
 				// Parse max-file-count
@@ -252,6 +256,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				entry.MaxFileSize = int(sizeFloat)
 			} else if sizeUint64, ok := maxFileSize.(uint64); ok {
 				entry.MaxFileSize = int(sizeUint64)
+			}
+			// Validate max-file-size bounds
+			if entry.MaxFileSize < 1 || entry.MaxFileSize > 104857600 {
+				return nil, fmt.Errorf("max-file-size must be between 1 and 104857600 bytes, got %d", entry.MaxFileSize)
 			}
 		}
 
