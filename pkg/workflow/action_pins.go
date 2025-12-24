@@ -175,7 +175,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		for _, pin := range matchingPins {
 			if pin.Version == version {
 				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
-				return actionRepo + "@" + pin.SHA + " # " + version, nil
+				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
 		}
 
