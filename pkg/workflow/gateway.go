@@ -77,8 +77,8 @@ func validateAndNormalizePort(port int) (int, error) {
 	}
 
 	// Validate port is in valid range (1-65535)
-	if port < 1 || port > 65535 {
-		return 0, fmt.Errorf("port must be between 1 and 65535, got %d", port)
+	if err := validateIntRange(port, 1, 65535, "port"); err != nil {
+		return 0, err
 	}
 
 	return port, nil
