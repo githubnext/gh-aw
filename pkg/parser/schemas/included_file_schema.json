@@ -651,6 +651,10 @@
             "action-version": {
               "type": "string",
               "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
+            },
+            "action-tag": {
+              "type": "string",
+              "description": "Custom tag for the setup action (e.g., 'latest', 'main'). When specified, overrides SHA-pinned action reference and uses this tag directly. Use with caution as non-SHA references reduce security."
             }
           },
           "additionalProperties": false

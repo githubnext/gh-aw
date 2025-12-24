@@ -709,3 +709,162 @@ func TestDeduplicateErrorMessageFormat(t *testing.T) {
 			len(errMsg), errMsg)
 	}
 }
+
+func TestActionTagOverride(t *testing.T) {
+	tests := []struct {
+		name         string
+		requirements []RuntimeRequirement
+		checkContent []string
+		shouldNotContain []string
+	}{
+		{
+			name: "uses custom action-tag when specified",
+			requirements: []RuntimeRequirement{
+				{
+					Runtime: &Runtime{
+						ID:         "node",
+						Name:       "Node.js",
+						ActionRepo: "actions/setup-node",
+						ActionTag:  "latest",
+						VersionField: "node-version",
+						DefaultVersion: "22",
+					},
+					Version: "22",
+				},
+			},
+			checkContent: []string{
+				"Setup Node.js",
+				"actions/setup-node@latest",
+				"node-version: '22'",
+			},
+			shouldNotContain: []string{
+				"@395ad3262231945c25e8478fd5baf05154b1d79f", // Should not use SHA when action-tag is set
+			},
+		},
+		{
+			name: "uses SHA pinning when action-tag not specified",
+			requirements: []RuntimeRequirement{
+				{
+					Runtime: findRuntimeByID("node"),
+					Version: "22",
+				},
+			},
+			checkContent: []string{
+				"Setup Node.js",
+				"actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f", // Should use SHA
+				"node-version: '22'",
+			},
+			shouldNotContain: []string{
+				"@latest",
+			},
+		},
+		{
+			name: "uses main branch with action-tag",
+			requirements: []RuntimeRequirement{
+				{
+					Runtime: &Runtime{
+						ID:         "python",
+						Name:       "Python",
+						ActionRepo: "actions/setup-python",
+						ActionTag:  "main",
+						VersionField: "python-version",
+						DefaultVersion: "3.12",
+					},
+					Version: "3.12",
+				},
+			},
+			checkContent: []string{
+				"Setup Python",
+				"actions/setup-python@main",
+				"python-version: '3.12'",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := GenerateRuntimeSetupSteps(tt.requirements)
+			
+			if len(steps) != len(tt.requirements) {
+				t.Fatalf("Expected %d steps, got %d", len(tt.requirements), len(steps))
+			}
+
+			// Convert steps to single string for easier checking
+			stepStr := strings.Join(steps[0], "\n")
+
+			// Check for expected content
+			for _, content := range tt.checkContent {
+				if !strings.Contains(stepStr, content) {
+					t.Errorf("Step should contain '%s'\nActual step:\n%s", content, stepStr)
+				}
+			}
+
+			// Check for content that should not be present
+			for _, content := range tt.shouldNotContain {
+				if strings.Contains(stepStr, content) {
+					t.Errorf("Step should not contain '%s'\nActual step:\n%s", content, stepStr)
+				}
+			}
+		})
+	}
+}
+
+func TestApplyRuntimeOverridesWithActionTag(t *testing.T) {
+	tests := []struct {
+		name         string
+		runtimes     map[string]any
+		requirements map[string]*RuntimeRequirement
+		expectedTag  string
+		runtimeID    string
+	}{
+		{
+			name: "applies action-tag from frontmatter",
+			runtimes: map[string]any{
+				"node": map[string]any{
+					"version":    "22",
+					"action-tag": "latest",
+				},
+			},
+			requirements: map[string]*RuntimeRequirement{
+				"node": {
+					Runtime: findRuntimeByID("node"),
+					Version: "20", // Will be overridden
+				},
+			},
+			expectedTag: "latest",
+			runtimeID:   "node",
+		},
+		{
+			name: "applies action-tag with action-repo override",
+			runtimes: map[string]any{
+				"python": map[string]any{
+					"version":      "3.12",
+					"action-repo":  "actions/setup-python",
+					"action-tag":   "main",
+				},
+			},
+			requirements: map[string]*RuntimeRequirement{
+				"python": {
+					Runtime: findRuntimeByID("python"),
+				},
+			},
+			expectedTag: "main",
+			runtimeID:   "python",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applyRuntimeOverrides(tt.runtimes, tt.requirements)
+			
+			req := tt.requirements[tt.runtimeID]
+			if req == nil {
+				t.Fatalf("Runtime %s not found in requirements", tt.runtimeID)
+			}
+
+			if req.Runtime.ActionTag != tt.expectedTag {
+				t.Errorf("Expected action-tag '%s', got '%s'", tt.expectedTag, req.Runtime.ActionTag)
+			}
+		})
+	}
+}

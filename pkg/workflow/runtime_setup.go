@@ -18,6 +18,7 @@ type Runtime struct {
 	Name            string            // Display name (e.g., "Node.js", "Python")
 	ActionRepo      string            // GitHub Actions repository (e.g., "actions/setup-node")
 	ActionVersion   string            // Action version (e.g., "v4", without @ prefix)
+	ActionTag       string            // Custom action tag (e.g., "latest", "main") - overrides SHA pinning
 	VersionField    string            // Field name for version in action (e.g., "node-version")
 	DefaultVersion  string            // Default version to use
 	Commands        []string          // Commands that indicate this runtime is needed
@@ -533,22 +534,29 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtime := req.Runtime
 	version := req.Version
-	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
+	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, action-tag=%s", runtime.ID, version, runtime.ActionTag)
 	// Use default version if none specified
 	if version == "" {
 		version = runtime.DefaultVersion
 	}
 
-	// Use SHA-pinned action reference for security if available
-	actionRef := GetActionPin(runtime.ActionRepo)
+	// If ActionTag is specified, use it directly instead of SHA pinning
+	var actionRef string
+	if runtime.ActionTag != "" {
+		actionRef = fmt.Sprintf("%s@%s", runtime.ActionRepo, runtime.ActionTag)
+		runtimeSetupLog.Printf("Using custom action-tag: %s", actionRef)
+	} else {
+		// Use SHA-pinned action reference for security if available
+		actionRef = GetActionPin(runtime.ActionRepo)
 
-	// If no pin exists (custom action repo), use the action repo with its version
-	if actionRef == "" {
-		if runtime.ActionVersion != "" {
-			actionRef = fmt.Sprintf("%s@%s", runtime.ActionRepo, runtime.ActionVersion)
-		} else {
-			// Fallback to just the repo name (shouldn't happen in practice)
-			actionRef = runtime.ActionRepo
+		// If no pin exists (custom action repo), use the action repo with its version
+		if actionRef == "" {
+			if runtime.ActionVersion != "" {
+				actionRef = fmt.Sprintf("%s@%s", runtime.ActionRepo, runtime.ActionVersion)
+			} else {
+				// Fallback to just the repo name (shouldn't happen in practice)
+				actionRef = runtime.ActionRepo
+			}
 		}
 	}
 
@@ -704,9 +712,10 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			}
 		}
 
-		// Extract action-repo and action-version from config
+		// Extract action-repo, action-version, and action-tag from config
 		actionRepo, _ := configMap["action-repo"].(string)
 		actionVersion, _ := configMap["action-version"].(string)
+		actionTag, _ := configMap["action-tag"].(string)
 
 		// Find or create runtime requirement
 		if existing, exists := requirements[runtimeID]; exists {
@@ -716,15 +725,16 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 				existing.Version = version
 			}
 
-			// If action-repo or action-version is specified, create a custom Runtime
-			if actionRepo != "" || actionVersion != "" {
-				runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s", runtimeID, actionRepo, actionVersion)
+			// If action-repo, action-version, or action-tag is specified, create a custom Runtime
+			if actionRepo != "" || actionVersion != "" || actionTag != "" {
+				runtimeSetupLog.Printf("Applying custom action config for runtime %s: repo=%s, version=%s, tag=%s", runtimeID, actionRepo, actionVersion, actionTag)
 				// Clone the existing runtime to avoid modifying the global knownRuntimes
 				customRuntime := &Runtime{
 					ID:              existing.Runtime.ID,
 					Name:            existing.Runtime.Name,
 					ActionRepo:      existing.Runtime.ActionRepo,
 					ActionVersion:   existing.Runtime.ActionVersion,
+					ActionTag:       existing.Runtime.ActionTag,
 					VersionField:    existing.Runtime.VersionField,
 					DefaultVersion:  existing.Runtime.DefaultVersion,
 					Commands:        existing.Runtime.Commands,
@@ -738,6 +748,9 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 				if actionVersion != "" {
 					customRuntime.ActionVersion = actionVersion
 				}
+				if actionTag != "" {
+					customRuntime.ActionTag = actionTag
+				}
 
 				existing.Runtime = customRuntime
 			}
@@ -747,12 +760,13 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			for _, knownRuntime := range knownRuntimes {
 				if knownRuntime.ID == runtimeID {
 					// Clone the known runtime if we need to customize it
-					if actionRepo != "" || actionVersion != "" {
+					if actionRepo != "" || actionVersion != "" || actionTag != "" {
 						runtime = &Runtime{
 							ID:              knownRuntime.ID,
 							Name:            knownRuntime.Name,
 							ActionRepo:      knownRuntime.ActionRepo,
 							ActionVersion:   knownRuntime.ActionVersion,
+							ActionTag:       knownRuntime.ActionTag,
 							VersionField:    knownRuntime.VersionField,
 							DefaultVersion:  knownRuntime.DefaultVersion,
 							Commands:        knownRuntime.Commands,
@@ -765,6 +779,9 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 						}
 						if actionVersion != "" {
 							runtime.ActionVersion = actionVersion
+						}
+						if actionTag != "" {
+							runtime.ActionTag = actionTag
 						}
 					} else {
 						runtime = knownRuntime
