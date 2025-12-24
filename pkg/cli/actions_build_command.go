@@ -392,6 +392,7 @@ func buildSetupAction(actionsDir, actionName string) error {
 	for filename, content := range shellScripts {
 		destPath := filepath.Join(shDir, filename)
 		// Shell scripts should be executable (0755)
+		//nolint:gosec // G306: Shell scripts require executable permissions
 		if err := os.WriteFile(destPath, []byte(content), 0755); err != nil {
 			return fmt.Errorf("failed to write %s: %w", filename, err)
 		}
