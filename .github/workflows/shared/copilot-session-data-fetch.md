@@ -1,7 +1,10 @@
 ---
-# This shared component automatically sets up the jqschema.sh utility.
-# No additional imports are required.
+# This shared component automatically imports jqschema.md as a dependency.
+# The compiler handles the transitive closure of imports, ensuring correct ordering.
 #
+imports:
+  - shared/jqschema.md
+
 tools:
   cache-memory:
     key: copilot-session-data
@@ -17,26 +20,6 @@ tools:
     - "rm *"
 
 steps:
-  - name: Set up jq utilities directory
-    run: |
-      mkdir -p /tmp/gh-aw
-      cat > /tmp/gh-aw/jqschema.sh << 'EOF'
-      #!/usr/bin/env bash
-      # jqschema.sh
-      jq -c '
-      def walk(f):
-        . as $in |
-        if type == "object" then
-          reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})
-        elif type == "array" then
-          if length == 0 then [] else [.[0] | walk(f)] end
-        else
-          type
-        end;
-      walk(.)
-      '
-      EOF
-      chmod +x /tmp/gh-aw/jqschema.sh
   - name: Fetch Copilot session data
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -185,7 +168,7 @@ imports:
   - shared/copilot-session-data-fetch.md
 ```
 
-**Note**: This component is self-contained and automatically sets up all required utilities (including jqschema.sh for schema generation).
+**Note**: This component automatically imports `jqschema.md` as a dependency. The compiler handles the transitive closure of imports, ensuring all required utilities are set up in the correct order.
 
 Then access the pre-fetched data in your workflow prompt:
 
@@ -206,7 +189,7 @@ find /tmp/gh-aw/session-data/logs -type d -mindepth 1
 
 ### Requirements
 
-- Self-contained with built-in jqschema.sh utility for schema generation
+- Automatically imports `jqschema.md` for schema generation (via transitive import closure)
 - Uses GitHub Actions API to fetch workflow runs from `copilot/*` branches
 - Cross-platform date calculation (works on both GNU and BSD date commands)
 - Cache-memory tool is automatically configured for data persistence
