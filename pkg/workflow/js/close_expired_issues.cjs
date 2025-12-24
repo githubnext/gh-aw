@@ -272,4 +272,4 @@ async function main() {
   core.info(`Successfully closed ${closedCount} expired issue(s)`);
 }
 
-await main();
+module.exports = { main };

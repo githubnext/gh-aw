@@ -69,7 +69,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
       - name: Lock issue for agent workflow
         id: lock-issue
         if: (github.event_name == 'issues') || (github.event_name == 'issue_comment')
@@ -2289,7 +2290,7 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
+            await main();
       - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

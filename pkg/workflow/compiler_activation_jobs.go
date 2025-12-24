@@ -71,7 +71,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 			steps = append(steps, "            global.core = core;\n")
@@ -108,7 +109,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 			steps = append(steps, "            global.core = core;\n")
@@ -140,7 +142,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/check_command_position.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_command_position.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 			steps = append(steps, "            global.core = core;\n")
@@ -392,7 +395,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
+		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
+		steps = append(steps, "            await main();\n")
 	} else {
 		// Add the JavaScript script with proper indentation (using API-based version)
 		formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
@@ -481,7 +485,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, "            require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
+			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
+			steps = append(steps, "            await main();\n")
 		} else {
 			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
 			steps = append(steps, "            global.core = core;\n")

@@ -51,7 +51,7 @@ const mockCore = {
       const scriptPath = path.join(process.cwd(), "create_issue.cjs");
       ((createIssueScript = fs.readFileSync(scriptPath, "utf8")),
         (createIssueScript = createIssueScript.replace("export {};", "")),
-        (createIssueScript = createIssueScript.replace(/\(async \(\) => \{\s*await main\(\);\s*\}\)\(\);?\s*$/, "await main();")));
+        (createIssueScript = createIssueScript.replace(/module\.exports = \{ main \};?\s*$/, "")));
     }),
       afterEach(() => {
         tempFilePath && require("fs").existsSync(tempFilePath) && (require("fs").unlinkSync(tempFilePath), (tempFilePath = void 0));

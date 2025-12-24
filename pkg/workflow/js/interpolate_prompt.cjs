@@ -122,5 +122,4 @@ async function main() {
   }
 }
 
-// Execute main function
-main();
+module.exports = { main };
