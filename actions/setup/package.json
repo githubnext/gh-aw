@@ -1,0 +1,35 @@
+{
+  "name": "gh-aw-setup-action",
+  "version": "1.0.0",
+  "description": "Setup action scripts for GitHub Agentic Workflows",
+  "private": true,
+  "devDependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^6.0.1",
+    "@actions/github-script": "github:actions/github-script",
+    "@actions/glob": "^0.5.0",
+    "@actions/io": "^2.0.0",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^4.0.10",
+    "@vitest/ui": "^4.0.10",
+    "prettier": "^3.6.2",
+    "terser": "^5.44.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.10"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && vitest run --no-file-parallelism",
+    "test:js": "vitest run",
+    "test:js-watch": "vitest",
+    "test:js-coverage": "vitest run --coverage",
+    "format:terser": "find . -name '*.cjs' -type f -not -path './node_modules/*' | while read file; do if ! grep -qE '^(await |/// <reference|// @ts-check)|await import' \"$file\"; then npx terser \"$file\" -b -c dead_code=true,unused=true,collapse_vars=true --ecma 2022 -o \"$file.tmp\" && mv \"$file.tmp\" \"$file\"; fi; done",
+    "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json'",
+    "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
+    "format:schema": "npx prettier --write ../../pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null",
+    "format:pkg-json": "npx prettier --write '../../**/*.json' '!../../pkg/workflow/js/**/*.json' '!../../actions/setup/**/*.json' --ignore-path /dev/null",
+    "check:pkg-json": "npx prettier --check '../../**/*.json' '!../../pkg/workflow/js/**/*.json' '!../../actions/setup/**/*.json' --ignore-path /dev/null"
+  }
+}

@@ -17,14 +17,14 @@ const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
 
 async function main() {
   // Validate required environment variables
-  const prNumberStr = process.env.PR_NUMBER?.trim();
+  const prNumberStr = process.env.PR_NUMBER;
 
-  if (!prNumberStr) {
+  if (!prNumberStr || prNumberStr.trim() === "") {
     core.setFailed("PR_NUMBER environment variable is required but not set");
     return;
   }
 
-  const prNumber = parseInt(prNumberStr, 10);
+  const prNumber = parseInt(prNumberStr.trim(), 10);
   if (isNaN(prNumber) || prNumber <= 0) {
     core.setFailed(`Invalid PR_NUMBER: ${prNumberStr}. Must be a positive integer.`);
     return;
@@ -52,7 +52,7 @@ Successfully added Copilot as a reviewer to PR #${prNumber}.
       )
       .write();
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
     core.setFailed(`Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
   }
