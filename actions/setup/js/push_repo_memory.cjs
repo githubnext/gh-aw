@@ -209,6 +209,4 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  core.setFailed(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
-});
+module.exports = { main };
