@@ -25,14 +25,23 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add setup step to copy activation scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	needsContentsRead := false
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
+		// This requires contents: read permission
 		steps = append(steps, c.generateCheckoutActionsFolder()...)
+		needsContentsRead = c.actionMode.IsDev()
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Set permissions if checkout is needed (for local actions in dev mode)
+	if needsContentsRead {
+		perms := NewPermissionsContentsRead()
+		permissions = perms.RenderToYAML()
 	}
 
 	// Determine script loading method based on action mode
@@ -807,6 +816,28 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
+	// Set up permissions for the agent job
+	// If using local actions (dev mode), we need to add contents: read to access the actions folder
+	permissions := data.Permissions
+	if setupActionRef != "" && c.actionMode.IsDev() {
+		// Need to merge contents: read with existing permissions
+		if permissions == "" {
+			// No permissions specified, just add contents: read
+			perms := NewPermissionsContentsRead()
+			permissions = perms.RenderToYAML()
+		} else {
+			// Parse existing permissions and add contents: read
+			parser := NewPermissionsParser(permissions)
+			perms := parser.ToPermissions()
+			
+			// Only add contents: read if not already present
+			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
+				perms.Set(PermissionContents, PermissionRead)
+				permissions = perms.RenderToYAML()
+			}
+		}
+	}
+
 	job := &Job{
 		Name:        constants.AgentJobName,
 		If:          jobCondition,
@@ -814,7 +845,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Environment: c.indentYAMLLines(data.Environment, "    "),
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: c.indentYAMLLines(permissions, "    "),
 		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,

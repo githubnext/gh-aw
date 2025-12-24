@@ -636,12 +636,21 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	// Job condition: only run if detection passed
 	jobCondition := "always() && needs.detection.outputs.success == 'true'"
 
+	// Set up permissions for the cache update job
+	// If using local actions (dev mode), we need contents: read to checkout the actions folder
+	permissions := NewPermissionsEmpty().RenderToYAML() // Default: no special permissions needed
+	if setupActionRef != "" && c.actionMode.IsDev() {
+		// Need contents: read to checkout the actions folder
+		perms := NewPermissionsContentsRead()
+		permissions = perms.RenderToYAML()
+	}
+
 	job := &Job{
 		Name:        "update_cache_memory",
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
-		Permissions: NewPermissionsEmpty().RenderToYAML(), // No special permissions needed
+		Permissions: permissions,
 		Needs:       []string{"agent", "detection"},
 		Steps:       steps,
 	}
