@@ -712,9 +712,9 @@ func TestDeduplicateErrorMessageFormat(t *testing.T) {
 
 func TestActionTagOverride(t *testing.T) {
 	tests := []struct {
-		name         string
-		requirements []RuntimeRequirement
-		checkContent []string
+		name             string
+		requirements     []RuntimeRequirement
+		checkContent     []string
 		shouldNotContain []string
 	}{
 		{
@@ -722,11 +722,11 @@ func TestActionTagOverride(t *testing.T) {
 			requirements: []RuntimeRequirement{
 				{
 					Runtime: &Runtime{
-						ID:         "node",
-						Name:       "Node.js",
-						ActionRepo: "actions/setup-node",
-						ActionTag:  "latest",
-						VersionField: "node-version",
+						ID:             "node",
+						Name:           "Node.js",
+						ActionRepo:     "actions/setup-node",
+						ActionTag:      "latest",
+						VersionField:   "node-version",
 						DefaultVersion: "22",
 					},
 					Version: "22",
@@ -763,11 +763,11 @@ func TestActionTagOverride(t *testing.T) {
 			requirements: []RuntimeRequirement{
 				{
 					Runtime: &Runtime{
-						ID:         "python",
-						Name:       "Python",
-						ActionRepo: "actions/setup-python",
-						ActionTag:  "main",
-						VersionField: "python-version",
+						ID:             "python",
+						Name:           "Python",
+						ActionRepo:     "actions/setup-python",
+						ActionTag:      "main",
+						VersionField:   "python-version",
 						DefaultVersion: "3.12",
 					},
 					Version: "3.12",
@@ -784,7 +784,7 @@ func TestActionTagOverride(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			steps := GenerateRuntimeSetupSteps(tt.requirements)
-			
+
 			if len(steps) != len(tt.requirements) {
 				t.Fatalf("Expected %d steps, got %d", len(tt.requirements), len(steps))
 			}
@@ -838,9 +838,9 @@ func TestApplyRuntimeOverridesWithActionTag(t *testing.T) {
 			name: "applies action-tag with action-repo override",
 			runtimes: map[string]any{
 				"python": map[string]any{
-					"version":      "3.12",
-					"action-repo":  "actions/setup-python",
-					"action-tag":   "main",
+					"version":     "3.12",
+					"action-repo": "actions/setup-python",
+					"action-tag":  "main",
 				},
 			},
 			requirements: map[string]*RuntimeRequirement{
@@ -856,7 +856,7 @@ func TestApplyRuntimeOverridesWithActionTag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			applyRuntimeOverrides(tt.runtimes, tt.requirements)
-			
+
 			req := tt.requirements[tt.runtimeID]
 			if req == nil {
 				t.Fatalf("Runtime %s not found in requirements", tt.runtimeID)
