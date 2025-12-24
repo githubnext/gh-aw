@@ -39,7 +39,7 @@ run-name: "Dev"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -5436,7 +5436,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5807,7 +5807,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write

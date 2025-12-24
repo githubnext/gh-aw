@@ -52,7 +52,7 @@ env:
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -174,7 +174,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
+        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
@@ -6382,7 +6382,7 @@ jobs:
       - update_cache_memory
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6754,7 +6754,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
@@ -6842,7 +6842,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     timeout-minutes: 10

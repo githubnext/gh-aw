@@ -37,7 +37,7 @@ run-name: "Go Logger Enhancement"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -5454,7 +5454,7 @@ jobs:
       - safe_outputs
       - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5832,7 +5832,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write

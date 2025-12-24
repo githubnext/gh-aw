@@ -46,7 +46,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5795,7 +5795,7 @@ jobs:
       - safe_outputs
       - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6164,7 +6164,7 @@ jobs:
     if: >
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
@@ -6331,7 +6331,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write

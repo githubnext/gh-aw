@@ -46,7 +46,7 @@ jobs:
   activation:
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -6478,7 +6478,7 @@ jobs:
       - update_cache_memory
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -6873,7 +6873,7 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_skip_if_match.outputs.skip_check_ok == 'true') }}
     steps:
@@ -7257,7 +7257,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
@@ -7369,7 +7369,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     timeout-minutes: 10

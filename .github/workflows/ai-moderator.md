@@ -34,7 +34,7 @@ safe-outputs:
 jobs:
   check_external_user:
     needs: [pre_activation]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
     steps:
