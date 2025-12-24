@@ -585,7 +585,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Output JSON if requested
 		if jsonOutput {
-			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+			// Sanitize validation results before JSON marshaling to prevent logging of sensitive information
+			// This removes potential secret key names from error messages at the output boundary
+			sanitizedResults := sanitizeValidationResults(validationResults)
+			jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
 			if err != nil {
 				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 			}
@@ -980,7 +983,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Output JSON if requested
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+		// Sanitize validation results before JSON marshaling to prevent logging of sensitive information
+		// This removes potential secret key names from error messages at the output boundary
+		sanitizedResults := sanitizeValidationResults(validationResults)
+		jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
 		if err != nil {
 			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
