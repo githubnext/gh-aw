@@ -2327,6 +2327,7 @@ jobs:
                   res.writeHead(200, headers);
                   res.end(JSON.stringify(response));
                 } catch (error) {
+                  this.logger.debugError("Error in handleRequest: ", error);
                   if (!res.headersSent) {
                     res.writeHead(500, { "Content-Type": "application/json" });
                     res.end(
@@ -2334,7 +2335,7 @@ jobs:
                         jsonrpc: "2.0",
                         error: {
                           code: -32603,
-                          message: error instanceof Error ? error.message : String(error),
+                          message: "Internal server error",
                         },
                         id: null,
                       })
@@ -2797,7 +2798,7 @@ jobs:
                           jsonrpc: "2.0",
                           error: {
                             code: -32603,
-                            message: error instanceof Error ? error.message : String(error),
+                            message: "Internal server error",
                           },
                           id: null,
                         })

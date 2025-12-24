@@ -27,29 +27,29 @@
       "title": "Safe Output Item",
       "description": "Union type of all supported safe output entries",
       "oneOf": [
-        {"$ref": "#/$defs/CreateIssueOutput"},
-        {"$ref": "#/$defs/AddCommentOutput"},
-        {"$ref": "#/$defs/CreatePullRequestOutput"},
-        {"$ref": "#/$defs/AddLabelsOutput"},
-        {"$ref": "#/$defs/AddReviewerOutput"},
-        {"$ref": "#/$defs/UpdateIssueOutput"},
-        {"$ref": "#/$defs/UpdatePullRequestOutput"},
-        {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
-        {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
-        {"$ref": "#/$defs/CreateDiscussionOutput"},
-        {"$ref": "#/$defs/UpdateDiscussionOutput"},
-        {"$ref": "#/$defs/CloseDiscussionOutput"},
-        {"$ref": "#/$defs/CloseIssueOutput"},
-        {"$ref": "#/$defs/ClosePullRequestOutput"},
-        {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
-        {"$ref": "#/$defs/UpdateProjectOutput"},
-        {"$ref": "#/$defs/UpdateReleaseOutput"},
-        {"$ref": "#/$defs/AssignMilestoneOutput"},
-        {"$ref": "#/$defs/AssignToAgentOutput"},
-        {"$ref": "#/$defs/NoOpOutput"},
-        {"$ref": "#/$defs/LinkSubIssueOutput"},
-        {"$ref": "#/$defs/HideCommentOutput"}
+        { "$ref": "#/$defs/CreateIssueOutput" },
+        { "$ref": "#/$defs/AddCommentOutput" },
+        { "$ref": "#/$defs/CreatePullRequestOutput" },
+        { "$ref": "#/$defs/AddLabelsOutput" },
+        { "$ref": "#/$defs/AddReviewerOutput" },
+        { "$ref": "#/$defs/UpdateIssueOutput" },
+        { "$ref": "#/$defs/UpdatePullRequestOutput" },
+        { "$ref": "#/$defs/PushToPullRequestBranchOutput" },
+        { "$ref": "#/$defs/CreatePullRequestReviewCommentOutput" },
+        { "$ref": "#/$defs/CreateDiscussionOutput" },
+        { "$ref": "#/$defs/UpdateDiscussionOutput" },
+        { "$ref": "#/$defs/CloseDiscussionOutput" },
+        { "$ref": "#/$defs/CloseIssueOutput" },
+        { "$ref": "#/$defs/ClosePullRequestOutput" },
+        { "$ref": "#/$defs/MissingToolOutput" },
+        { "$ref": "#/$defs/CreateCodeScanningAlertOutput" },
+        { "$ref": "#/$defs/UpdateProjectOutput" },
+        { "$ref": "#/$defs/UpdateReleaseOutput" },
+        { "$ref": "#/$defs/AssignMilestoneOutput" },
+        { "$ref": "#/$defs/AssignToAgentOutput" },
+        { "$ref": "#/$defs/NoOpOutput" },
+        { "$ref": "#/$defs/LinkSubIssueOutput" },
+        { "$ref": "#/$defs/HideCommentOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -168,10 +168,7 @@
           "minItems": 1
         },
         "pull_request_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Pull request number (optional - uses triggering PR if not provided)"
         }
       },
@@ -179,7 +176,7 @@
       "additionalProperties": false
     },
     "UpdateIssueOutput": {
-      "title": "Update Issue Output", 
+      "title": "Update Issue Output",
       "description": "Output for updating an existing issue. Note: The JavaScript validation ensures at least one of status, title, or body is provided.",
       "type": "object",
       "properties": {
@@ -200,10 +197,7 @@
           "description": "New body content for the issue"
         },
         "issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number to update (for target '*')"
         }
       },
@@ -232,10 +226,7 @@
           "enum": ["replace", "append", "prepend"]
         },
         "pull_request_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Pull request number to update (for target '*')"
         }
       },
@@ -255,10 +246,7 @@
           "description": "Optional commit message"
         },
         "pull_request_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Pull request number (for target '*')"
         }
       },
@@ -280,8 +268,8 @@
         },
         "line": {
           "oneOf": [
-            {"type": "number", "minimum": 1},
-            {"type": "string", "pattern": "^[1-9][0-9]*$"}
+            { "type": "number", "minimum": 1 },
+            { "type": "string", "pattern": "^[1-9][0-9]*$" }
           ],
           "description": "Line number for the comment"
         },
@@ -292,8 +280,8 @@
         },
         "start_line": {
           "oneOf": [
-            {"type": "number", "minimum": 1},
-            {"type": "string", "pattern": "^[1-9][0-9]*$"}
+            { "type": "number", "minimum": 1 },
+            { "type": "string", "pattern": "^[1-9][0-9]*$" }
           ],
           "description": "Optional start line for multi-line comments"
         },
@@ -320,7 +308,7 @@
           "minLength": 1
         },
         "body": {
-          "type": "string", 
+          "type": "string",
           "description": "Body content of the discussion",
           "minLength": 1
         }
@@ -352,10 +340,7 @@
           "description": "Array of label names to set on the discussion (replaces existing labels)"
         },
         "discussion_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Discussion number to update (for target '*')"
         }
       },
@@ -381,10 +366,7 @@
           "enum": ["RESOLVED", "DUPLICATE", "OUTDATED", "ANSWERED"]
         },
         "discussion_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Discussion number to close (optional - uses triggering discussion if not provided)"
         }
       },
@@ -405,10 +387,7 @@
           "minLength": 1
         },
         "issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number to close (optional - uses triggering issue if not provided)"
         }
       },
@@ -429,10 +408,7 @@
           "minLength": 1
         },
         "pull_request_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Pull request number to close (optional - uses triggering PR if not provided)"
         }
       },
@@ -474,10 +450,7 @@
           "const": "create_code_scanning_alert"
         },
         "sarif": {
-          "oneOf": [
-            {"type": "object"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "object" }, { "type": "string" }],
           "description": "SARIF content as object or string"
         },
         "category": {
@@ -511,24 +484,15 @@
           "description": "Type of content to add to the project board"
         },
         "content_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue or PR number (preferred field)"
         },
         "issue": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number (legacy field, use content_number instead)"
         },
         "pull_request": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "PR number (legacy field, use content_number instead)"
         },
         "fields": {
@@ -580,17 +544,11 @@
           "const": "assign_milestone"
         },
         "issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number to assign milestone to"
         },
         "milestone_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Milestone number to assign (required)"
         }
       },
@@ -606,10 +564,7 @@
           "const": "assign_to_agent"
         },
         "issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number to assign agent to"
         },
         "agent": {
@@ -646,17 +601,11 @@
           "const": "link_sub_issue"
         },
         "parent_issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Parent issue number to link the sub-issue to"
         },
         "sub_issue_number": {
-          "oneOf": [
-            {"type": "number"},
-            {"type": "string"}
-          ],
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
           "description": "Issue number to link as a sub-issue"
         }
       },
