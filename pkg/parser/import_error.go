@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var importErrorLog = logger.New("parser:import_error")
 
 // ImportError represents an error that occurred during import resolution
 type ImportError struct {
@@ -28,6 +31,8 @@ func (e *ImportError) Unwrap() error {
 
 // FormatImportError formats an import error as a compilation error with source location
 func FormatImportError(err *ImportError, yamlContent string) error {
+	importErrorLog.Printf("Formatting import error: path=%s, file=%s, line=%d", err.ImportPath, err.FilePath, err.Line)
+
 	lines := strings.Split(yamlContent, "\n")
 
 	// Create context lines around the error
