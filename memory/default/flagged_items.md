@@ -1,3 +1,10 @@
+## Flagged Items for Monitoring (2025-12-24)
+
+- Daily Copilot PR Merged missing safeinputs-gh/invalid URL with GITHUB_TOKEN unavailable (run §20488854921); requires MCP wiring and token availability fix.
+- Artifact Summary on `copilot/fix-discussion-permissions-issue` logged permission-denied warnings while generating analysis scripts; check permissions and safe output setup before rerun.
+- Issue backlog ticking up: 47 open (was 34), with 113 created vs 100 closed in 3 days; monitor if creation rate stays above closures despite unlabeled set shrinking to 18 (2 open).
+- Firewall denials temporarily at zero in last 5 runs, but recent history had ~30% denial rate—verify sustained improvement across more runs.
+
 ## Flagged Items for Monitoring (2025-12-23)
 
 - Burst of failures from branch `copilot/create-custom-action-setup-activation` (multiple workflows failed in one push: Plan Command, Release, Q, Nitpick Reviewer, DeepReport, Scout, Spec-Kit dispatcher, etc.); needs root-cause to stop failure noise.

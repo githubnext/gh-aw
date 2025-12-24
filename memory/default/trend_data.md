@@ -1,3 +1,11 @@
+## Trend Data (as of 2025-12-24T15:14:44Z)
+
+- Workflow snapshot (last 5 runs, ~24h): 11.1m total duration, 982,526 tokens, ~$0.00 reported cost, 8 errors, 21 warnings, 1 missing-tool. Outcomes: Tidy (success + one cancel + one in_progress), DeepReport (in_progress), Daily Copilot PR Merged (in_progress, missing safeinputs-gh), Artifacts Summary (in_progress, permission denied warnings), Smoke Codex Firewall (success).
+- Missing tools: safeinputs-gh missing/invalid URL in Daily Copilot PR Merged (run §20488854921) alongside GITHUB_TOKEN not available errors.
+- Issue stats (weekly slice): 236 total; 47 open / 189 closed. Created last 3 days: 113; closed last 3 days: 100. Unlabeled issues: 18 total (2 open). Label leaders: ai-generated 104, plan 103, enhancement 58, automation 37, documentation 34, automated-analysis 29.
+- Firewall snapshot (last 5 runs): 14/14 requests allowed, 0 denied; domains allowed include api.github.com and copilot endpoints—needs a larger window to confirm reversal of prior ~30% denial rate.
+- Discussion cadence (Dec 24): lock file stats (#7514), static analysis (#7512), repo quality/governance (#7510), firewall (#7496), audit report (#7490), agent performance (#7494), type consistency (#7483), copilot prompt analysis (#7485), token report (#7484), MCP structural analysis (#7482), documentation consolidation (#7481), campaign portfolio (#7480), daily status (#7479), doc noob test (#7478), actionlint module review (#7472), GitHub MCP remote tools (#7473), daily issues (#7471), prompt clustering (#7468), artifacts usage (#7458), daily status (#7457).
+
 ## Trend Data (as of 2025-12-23T15:11:04Z)
 
 - Workflow snapshot (last 50 runs, ~7d): 56.1m total duration, 7,780,920 tokens, ~$3.59 estimated cost, 482 errors, 238 warnings, 1 missing-tool. Outcomes: success 10 / failure 36 / cancelled 1 / pending 3; failures dominated by push to `copilot/create-custom-action-setup-activation` (Plan Command, Release, Q, Nitpick Reviewer, DeepReport, Scout, etc.).

@@ -1,3 +1,10 @@
+## Known Patterns (2025-12-24)
+
+- Daily Copilot PR Merged continues to misconfigure safeinputs (missing safeinputs-gh tool, invalid URL, GITHUB_TOKEN unavailable) and surfaces the week’s only missing-tool hit.
+- Firewall denials dropped to zero in the latest sample after sustained ~30% rates; likely temporary relief that needs confirmation over more runs.
+- Issue creation is outpacing closure again (113 created vs 100 closed in 3 days), pushing open count to 47, though unlabeled issues dipped to 18 total (2 open).
+- Artifacts Summary run on `copilot/fix-discussion-permissions-issue` logged permission-denied warnings while trying to create analysis scripts, hinting at repo/write gaps for that branch-driven workflow.
+
 ## Known Patterns (2025-12-23)
 
 - Firewall denials trending upward (≈30% current week) with GitHub API and LinkedIn still top blocks, pointing to missing GitHub MCP config plus questionable external scraping attempts.
