@@ -47,10 +47,10 @@ steps:
 
 ## Development
 
-This action is built from source files in `src/` using the build tooling:
+This action copies JavaScript files from the `js/` directory. To populate the `js/` directory with the latest files from `pkg/workflow/js/`:
 
 ```bash
 make actions-build
 ```
 
-The build process embeds all required JavaScript files into the bundled `index.js`.
+The build process copies all required safe-inputs files to the `js/` directory. These files are committed to the repository for use in CI workflows.
