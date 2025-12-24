@@ -48,7 +48,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
       (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -6214,7 +6214,7 @@ jobs:
       - update_cache_memory
       - upload_assets
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -6582,7 +6582,7 @@ jobs:
     if: >
       ((github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot')))) ||
       (!(github.event_name == 'issues'))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -6764,7 +6764,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       discussions: write
@@ -7231,7 +7231,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     timeout-minutes: 10

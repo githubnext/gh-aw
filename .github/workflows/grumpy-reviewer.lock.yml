@@ -46,7 +46,7 @@ jobs:
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/grumpy')) &&
       (github.event.issue.pull_request != null)) || (github.event_name == 'pull_request_review_comment') &&
       (contains(github.event.comment.body, '/grumpy')))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -5775,7 +5775,7 @@ jobs:
       - safe_outputs
       - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -6144,7 +6144,7 @@ jobs:
     if: >
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/grumpy')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/grumpy'))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -6325,7 +6325,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write

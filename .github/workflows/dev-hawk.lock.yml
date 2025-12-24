@@ -51,7 +51,7 @@ jobs:
       ((needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.event == 'workflow_dispatch')) &&
       ((github.event_name != 'workflow_run') || ((github.event.workflow_run.repository.id == github.repository_id) &&
       (!(github.event.workflow_run.repository.fork))))
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
@@ -5751,7 +5751,7 @@ jobs:
       - detection
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
@@ -6120,7 +6120,7 @@ jobs:
 
   pre_activation:
     if: ${{ github.event.workflow_run.event == 'workflow_dispatch' }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
@@ -6287,7 +6287,7 @@ jobs:
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       discussions: write
