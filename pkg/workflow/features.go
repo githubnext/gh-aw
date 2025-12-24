@@ -21,15 +21,33 @@ func isFeatureEnabled(flag constants.FeatureFlag, workflowData *WorkflowData) bo
 
 	// First, check if the feature is explicitly set in frontmatter
 	if workflowData != nil && workflowData.Features != nil {
-		if enabled, exists := workflowData.Features[flagLower]; exists {
-			featuresLog.Printf("Feature found in frontmatter: %s=%v", flagLower, enabled)
-			return enabled
+		if value, exists := workflowData.Features[flagLower]; exists {
+			// Convert value to boolean if it is one
+			if enabled, ok := value.(bool); ok {
+				featuresLog.Printf("Feature found in frontmatter: %s=%v", flagLower, enabled)
+				return enabled
+			}
+			// If the value is not a boolean, treat non-empty strings as true
+			if strVal, ok := value.(string); ok {
+				enabled := strVal != ""
+				featuresLog.Printf("Feature found in frontmatter (string): %s=%v", flagLower, enabled)
+				return enabled
+			}
 		}
 		// Also check case-insensitive match
-		for key, enabled := range workflowData.Features {
+		for key, value := range workflowData.Features {
 			if strings.ToLower(key) == flagLower {
-				featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
-				return enabled
+				// Convert value to boolean if it is one
+				if enabled, ok := value.(bool); ok {
+					featuresLog.Printf("Feature found in frontmatter (case-insensitive): %s=%v", flagLower, enabled)
+					return enabled
+				}
+				// If the value is not a boolean, treat non-empty strings as true
+				if strVal, ok := value.(string); ok {
+					enabled := strVal != ""
+					featuresLog.Printf("Feature found in frontmatter (case-insensitive, string): %s=%v", flagLower, enabled)
+					return enabled
+				}
 			}
 		}
 	}

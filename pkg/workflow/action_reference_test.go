@@ -7,7 +7,8 @@ import (
 func TestConvertToRemoteActionRef(t *testing.T) {
 	t.Run("local path with ./ prefix and version tag", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.2.3")
-		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.2.3"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
@@ -16,7 +17,8 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("local path without ./ prefix and version tag", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.0.0")
-		ref := compiler.convertToRemoteActionRef("actions/create-issue")
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.0.0"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
@@ -25,7 +27,8 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("nested action path with version tag", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v2.0.0")
-		ref := compiler.convertToRemoteActionRef("./actions/nested/action")
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/nested/action", data)
 		expected := "githubnext/gh-aw/actions/nested/action@v2.0.0"
 		if ref != expected {
 			t.Errorf("Expected %q, got %q", expected, ref)
@@ -34,7 +37,8 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("dev version returns empty", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "dev")
-		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		if ref != "" {
 			t.Errorf("Expected empty string with 'dev' version, got %q", ref)
 		}
@@ -42,9 +46,59 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("empty version returns empty", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
-		ref := compiler.convertToRemoteActionRef("./actions/create-issue")
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		if ref != "" {
 			t.Errorf("Expected empty string with empty version, got %q", ref)
+		}
+	})
+
+	t.Run("action-tag overrides version", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		data := &WorkflowData{Features: map[string]any{"action-tag": "latest"}}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
+		expected := "githubnext/gh-aw/actions/create-issue@latest"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
+		}
+	})
+
+	t.Run("action-tag with specific SHA", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		data := &WorkflowData{Features: map[string]any{"action-tag": "abc123def456"}}
+		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@abc123def456"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
+		}
+	})
+
+	t.Run("action-tag with version tag format", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		data := &WorkflowData{Features: map[string]any{"action-tag": "v2.5.0"}}
+		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@v2.5.0"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
+		}
+	})
+
+	t.Run("empty action-tag falls back to version", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.5.0")
+		data := &WorkflowData{Features: map[string]any{"action-tag": ""}}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
+		expected := "githubnext/gh-aw/actions/create-issue@v1.5.0"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
+		}
+	})
+
+	t.Run("nil data falls back to version", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.5.0")
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", nil)
+		expected := "githubnext/gh-aw/actions/create-issue@v1.5.0"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
 		}
 	})
 }
@@ -55,6 +109,7 @@ func TestResolveActionReference(t *testing.T) {
 		actionMode    ActionMode
 		localPath     string
 		version       string
+		actionTag     string
 		expectedRef   string
 		shouldBeEmpty bool
 		description   string
@@ -83,7 +138,33 @@ func TestResolveActionReference(t *testing.T) {
 			shouldBeEmpty: true,
 			description:   "Release mode with 'dev' version should return empty",
 		},
-		// Removed inline mode test case as inline mode no longer exists
+		{
+			name:        "release mode with action-tag overrides version",
+			actionMode:  ActionModeRelease,
+			localPath:   "./actions/setup",
+			version:     "v1.0.0",
+			actionTag:   "latest",
+			expectedRef: "githubnext/gh-aw/actions/setup@latest",
+			description: "Release mode with action-tag should use action-tag instead of version",
+		},
+		{
+			name:        "release mode with action-tag using SHA",
+			actionMode:  ActionModeRelease,
+			localPath:   "./actions/setup",
+			version:     "v1.0.0",
+			actionTag:   "abc123def456789",
+			expectedRef: "githubnext/gh-aw/actions/setup@abc123def456789",
+			description: "Release mode with action-tag SHA should use the SHA",
+		},
+		{
+			name:        "dev mode with action-tag uses remote reference",
+			actionMode:  ActionModeDev,
+			localPath:   "./actions/setup",
+			version:     "v1.0.0",
+			actionTag:   "latest",
+			expectedRef: "githubnext/gh-aw/actions/setup@latest",
+			description: "Dev mode with action-tag should override and use remote reference",
+		},
 	}
 
 	for _, tt := range tests {
@@ -92,6 +173,9 @@ func TestResolveActionReference(t *testing.T) {
 			compiler.SetActionMode(tt.actionMode)
 
 			data := &WorkflowData{}
+			if tt.actionTag != "" {
+				data.Features = map[string]any{"action-tag": tt.actionTag}
+			}
 			ref := compiler.resolveActionReference(tt.localPath, data)
 
 			if tt.shouldBeEmpty {

@@ -214,7 +214,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 						Port: 8080,
 					},
 				},
-				Features: map[string]bool{
+				Features: map[string]any{
 					"mcp-gateway": true,
 				},
 			},

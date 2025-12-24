@@ -262,7 +262,7 @@ type WorkflowData struct {
 	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
 	GitHubToken         string               // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                  // timeout in seconds for MCP server startup (0 = use engine default)
-	Features            map[string]bool      // feature flags from frontmatter
+	Features            map[string]any       // feature flags and configuration options from frontmatter (supports bool and string values)
 	ActionCache         *ActionCache         // cache for action pin resolutions
 	ActionResolver      *ActionResolver      // resolver for action pins
 	StrictMode          bool                 // strict mode for action pinning

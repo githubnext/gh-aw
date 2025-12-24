@@ -1554,11 +1554,18 @@
       ]
     },
     "features": {
-      "description": "Feature flags to enable experimental or optional features in the workflow. Each feature is specified as a key with a boolean value.",
+      "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
       "type": "object",
-      "additionalProperties": {
-        "type": "boolean"
-      }
+      "additionalProperties": true,
+      "examples": [
+        {
+          "action-tag": "v1.0.0"
+        },
+        {
+          "action-tag": "abc123def456",
+          "experimental-feature": true
+        }
+      ]
     },
     "environment": {
       "description": "Environment that the job references (for protected environments and deployments)",
