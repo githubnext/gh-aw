@@ -6,7 +6,7 @@
       "description": "GitHub Actions context and environment",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_copilot_space", "get_me", "get_team_members", "get_teams", "github_support_docs_search", "list_copilot_spaces"]
+      "tools": ["get_copilot_space", "github_support_docs_search", "list_copilot_spaces"]
     },
     "repos": {
       "description": "Repository operations",
@@ -18,19 +18,19 @@
       "description": "Issue management",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["issue_read", "list_issue_types", "list_issues"]
+      "tools": ["issue_read", "list_issue_types", "list_issues", "search_issues"]
     },
     "pull_requests": {
       "description": "Pull request operations",
       "read_permissions": ["pull-requests"],
       "write_permissions": ["pull-requests"],
-      "tools": ["list_pull_requests", "pull_request_read"]
+      "tools": ["list_pull_requests", "pull_request_read", "search_pull_requests"]
     },
     "actions": {
       "description": "GitHub Actions workflows",
       "read_permissions": ["actions"],
       "write_permissions": [],
-      "tools": ["download_workflow_run_artifact", "get_job_logs", "get_workflow_run", "get_workflow_run_logs", "get_workflow_run_usage", "list_workflow_jobs", "list_workflow_run_artifacts", "list_workflow_runs", "list_workflows"]
+      "tools": ["actions_get", "actions_list", "get_job_logs"]
     },
     "code_security": {
       "description": "Code scanning alerts",
