@@ -43,7 +43,6 @@ tools:
     - "date *"
 
 imports:
-  - shared/jqschema.md
   - shared/copilot-session-data-fetch.md
   - shared/reporting.md
   - shared/trends.md
