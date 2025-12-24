@@ -6312,6 +6312,7 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: aw.patch
+          path: /tmp/gh-aw/
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
@@ -6324,7 +6325,6 @@ jobs:
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
-          path: /tmp/gh-aw/
       - name: Update Pull Request
         id: update_pull_request
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_pull_request'))
