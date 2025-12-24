@@ -1,4 +1,12 @@
 ---
+# IMPORTANT: This shared component requires jqschema.md to be imported BEFORE this file.
+# The /tmp/gh-aw/jqschema.sh script must exist before the "Fetch Copilot session data" step runs.
+#
+# Correct import order:
+#   imports:
+#     - shared/jqschema.md
+#     - shared/copilot-session-data-fetch.md
+#
 tools:
   cache-memory:
     key: copilot-session-data
@@ -159,8 +167,8 @@ Import this component in your workflow:
 
 ```yaml
 imports:
+  - shared/jqschema.md  # Required for schema generation - MUST be imported first
   - shared/copilot-session-data-fetch.md
-  - shared/jqschema.md  # Required for schema generation
 ```
 
 Then access the pre-fetched data in your workflow prompt:
