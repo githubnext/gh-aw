@@ -57,6 +57,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts
@@ -128,6 +129,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts
@@ -5863,6 +5865,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts
@@ -5959,6 +5962,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts
@@ -6223,6 +6227,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts
@@ -6418,6 +6423,7 @@ jobs:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             actions
       - name: Setup Scripts

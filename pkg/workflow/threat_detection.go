@@ -153,13 +153,17 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
+		// Only add checkout if we have contents read permission
 		if c.actionMode.IsDev() {
-			steps = append(steps, "      - name: Checkout actions folder\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-			steps = append(steps, "        with:\n")
-			steps = append(steps, "          persist-credentials: false\n")
-			steps = append(steps, "          sparse-checkout: |\n")
-			steps = append(steps, "            actions\n")
+			permParser := NewPermissionsParser(data.Permissions)
+			if permParser.HasContentsReadAccess() {
+				steps = append(steps, "      - name: Checkout actions folder\n")
+				steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+				steps = append(steps, "        with:\n")
+				steps = append(steps, "          persist-credentials: false\n")
+				steps = append(steps, "          sparse-checkout: |\n")
+				steps = append(steps, "            actions\n")
+			}
 		}
 
 		steps = append(steps, "      - name: Setup Scripts\n")
