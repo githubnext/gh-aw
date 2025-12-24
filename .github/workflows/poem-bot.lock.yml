@@ -7195,9 +7195,7 @@ jobs:
               core.summary.addRaw(summaryContent);
               await core.summary.write();
             }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            module.exports = { main };
 
   update_cache_memory:
     needs:
