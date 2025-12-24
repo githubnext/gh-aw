@@ -83,6 +83,22 @@ func getActionPins() []ActionPin {
 	return pins
 }
 
+// sortPinsByVersion sorts action pins by version in descending order (highest first)
+// Uses bubble sort for simplicity since we typically have few matches
+func sortPinsByVersion(pins []ActionPin) {
+	for i := 0; i < len(pins); i++ {
+		for j := i + 1; j < len(pins); j++ {
+			// Strip 'v' prefix for comparison
+			v1 := strings.TrimPrefix(pins[i].Version, "v")
+			v2 := strings.TrimPrefix(pins[j].Version, "v")
+			if compareVersions(v1, v2) < 0 {
+				// v1 < v2, swap to get descending order
+				pins[i], pins[j] = pins[j], pins[i]
+			}
+		}
+	}
+}
+
 // GetActionPin returns the pinned action reference for a given action repository
 // When multiple versions exist for the same repo, it returns the latest version by semver
 // If no pin is found, it returns an empty string
@@ -104,18 +120,7 @@ func GetActionPin(actionRepo string) string {
 	}
 
 	// Sort matching pins by version (descending - latest first)
-	// Use bubble sort for simplicity since we typically have few matches
-	for i := 0; i < len(matchingPins); i++ {
-		for j := i + 1; j < len(matchingPins); j++ {
-			// Strip 'v' prefix for comparison
-			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
-			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
-			if compareVersions(v1, v2) < 0 {
-				// v1 < v2, swap to get descending order
-				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
-			}
-		}
-	}
+	sortPinsByVersion(matchingPins)
 
 	// Return the latest version (first after sorting)
 	latestPin := matchingPins[0]
@@ -164,18 +169,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
 
 		// Sort matching pins by version (descending - highest first)
-		// Use bubble sort for simplicity since we typically have few matches
-		for i := 0; i < len(matchingPins); i++ {
-			for j := i + 1; j < len(matchingPins); j++ {
-				// Strip 'v' prefix for comparison
-				v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
-				v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
-				if compareVersions(v1, v2) < 0 {
-					// v1 < v2, swap to get descending order
-					matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
-				}
-			}
-		}
+		sortPinsByVersion(matchingPins)
 
 		// First, try to find an exact version match
 		for _, pin := range matchingPins {
@@ -353,18 +347,7 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	}
 
 	// Sort matching pins by version (descending - latest first)
-	// Use bubble sort for simplicity since we typically have few matches
-	for i := 0; i < len(matchingPins); i++ {
-		for j := i + 1; j < len(matchingPins); j++ {
-			// Strip 'v' prefix for comparison
-			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
-			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
-			if compareVersions(v1, v2) < 0 {
-				// v1 < v2, swap to get descending order
-				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
-			}
-		}
-	}
+	sortPinsByVersion(matchingPins)
 
 	// Return the latest version (first after sorting)
 	return matchingPins[0], true
