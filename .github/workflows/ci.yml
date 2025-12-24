@@ -442,7 +442,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
+          cache-dependency-path: actions/setup/package-lock.json
 
       - name: Report Node cache status
         run: |
@@ -453,7 +453,7 @@ jobs:
           fi
 
       - name: Install npm dependencies
-        run: cd pkg/workflow/js && npm ci
+        run: cd actions/setup && npm ci
 
       # JavaScript and JSON formatting checks
       - name: Lint JavaScript files
@@ -461,6 +461,66 @@ jobs:
 
       - name: Check JSON formatting
         run: make fmt-check-json
+
+  actions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-actions
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Set up Node.js
+        id: setup-node
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: actions/setup/package-lock.json
+
+      - name: Report Node cache status
+        run: |
+          if [ "${{ steps.setup-node.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Node cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Node cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Install npm dependencies
+        run: cd actions/setup && npm ci
+
+      - name: Typecheck JavaScript
+        run: cd actions/setup && npm run typecheck
+
+      - name: Run JavaScript tests
+        run: cd actions/setup && npm run test:js -- --no-file-parallelism
+
+      - name: Build gh-aw binary
+        run: make build
+
+      - name: Validate actions
+        run: make actions-validate
+
+      - name: Build actions
+        run: make actions-build
 
   audit:
     needs: [lint-go, lint-js]
