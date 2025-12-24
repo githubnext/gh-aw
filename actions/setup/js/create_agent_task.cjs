@@ -174,6 +174,4 @@ async function main() {
   await core.summary.write();
 }
 
-main().catch(error => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
-});
+module.exports = { main };
