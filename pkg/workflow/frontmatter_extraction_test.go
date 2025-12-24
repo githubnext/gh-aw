@@ -91,10 +91,10 @@ func TestExtractFeatures(t *testing.T) {
 	tests := []struct {
 		name        string
 		frontmatter map[string]any
-		expected    map[string]bool
+		expected    map[string]any
 	}{
 		{
-			name: "valid features map",
+			name: "valid features map with boolean values",
 			frontmatter: map[string]any{
 				"features": map[string]any{
 					"feature1": true,
@@ -102,7 +102,7 @@ func TestExtractFeatures(t *testing.T) {
 					"feature3": true,
 				},
 			},
-			expected: map[string]bool{
+			expected: map[string]any{
 				"feature1": true,
 				"feature2": false,
 				"feature3": true,
@@ -126,16 +126,18 @@ func TestExtractFeatures(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "features map with non-boolean values",
+			name: "features map with mixed value types",
 			frontmatter: map[string]any{
 				"features": map[string]any{
-					"feature1": true,
-					"feature2": "string value",
-					"feature3": 123,
+					"feature1":   true,
+					"feature2":   "string value",
+					"action-tag": "5c3428a",
 				},
 			},
-			expected: map[string]bool{
-				"feature1": true,
+			expected: map[string]any{
+				"feature1":   true,
+				"feature2":   "string value",
+				"action-tag": "5c3428a",
 			},
 		},
 		{
@@ -143,7 +145,7 @@ func TestExtractFeatures(t *testing.T) {
 			frontmatter: map[string]any{
 				"features": map[string]any{},
 			},
-			expected: map[string]bool{},
+			expected: map[string]any{},
 		},
 	}
 

@@ -55,7 +55,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("action-tag overrides version", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.0.0")
-		data := &WorkflowData{ActionTag: "latest"}
+		data := &WorkflowData{Features: map[string]any{"action-tag": "latest"}}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@latest"
 		if ref != expected {
@@ -65,7 +65,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("action-tag with specific SHA", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.0.0")
-		data := &WorkflowData{ActionTag: "abc123def456"}
+		data := &WorkflowData{Features: map[string]any{"action-tag": "abc123def456"}}
 		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
 		expected := "githubnext/gh-aw/actions/setup@abc123def456"
 		if ref != expected {
@@ -75,7 +75,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("action-tag with version tag format", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.0.0")
-		data := &WorkflowData{ActionTag: "v2.5.0"}
+		data := &WorkflowData{Features: map[string]any{"action-tag": "v2.5.0"}}
 		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
 		expected := "githubnext/gh-aw/actions/setup@v2.5.0"
 		if ref != expected {
@@ -85,7 +85,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 
 	t.Run("empty action-tag falls back to version", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "v1.5.0")
-		data := &WorkflowData{ActionTag: ""}
+		data := &WorkflowData{Features: map[string]any{"action-tag": ""}}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.5.0"
 		if ref != expected {
@@ -172,7 +172,10 @@ func TestResolveActionReference(t *testing.T) {
 			compiler := NewCompiler(false, "", tt.version)
 			compiler.SetActionMode(tt.actionMode)
 
-			data := &WorkflowData{ActionTag: tt.actionTag}
+			data := &WorkflowData{}
+			if tt.actionTag != "" {
+				data.Features = map[string]any{"action-tag": tt.actionTag}
+			}
 			ref := compiler.resolveActionReference(tt.localPath, data)
 
 			if tt.shouldBeEmpty {

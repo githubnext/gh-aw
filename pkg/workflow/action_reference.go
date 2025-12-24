@@ -44,18 +44,24 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 
 // convertToRemoteActionRef converts a local action path to a tag-based remote reference
 // that will be resolved to a SHA later in the release pipeline using action pins.
-// Uses the action-tag from WorkflowData if specified (for testing), otherwise uses the version stored in the compiler binary.
+// Uses the action-tag from WorkflowData.Features if specified (for testing), otherwise uses the version stored in the compiler binary.
 // Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@v1.0.0"
 func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData) string {
 	// Strip the leading "./" if present
 	actionPath := strings.TrimPrefix(localPath, "./")
 
-	// Use action-tag from WorkflowData if specified, otherwise fall back to compiler version
+	// Use action-tag from WorkflowData.Features if specified, otherwise fall back to compiler version
 	var tag string
-	if data != nil && data.ActionTag != "" {
-		tag = data.ActionTag
-		actionRefLog.Printf("Using action-tag from frontmatter: %s", tag)
-	} else {
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				tag = actionTagStr
+				actionRefLog.Printf("Using action-tag from features: %s", tag)
+			}
+		}
+	}
+	
+	if tag == "" {
 		tag = c.version
 		if tag == "" || tag == "dev" {
 			actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty)")

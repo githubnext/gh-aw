@@ -411,28 +411,22 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 }
 
 // extractFeatures extracts the features field from frontmatter
-// Returns a map of feature flags (feature name -> enabled)
-func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]bool {
+// Returns a map of feature flags and configuration options (supports boolean flags and string values)
+func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]any {
 	value, exists := frontmatter["features"]
 	if !exists {
 		return nil
 	}
 
-	// Features should be an object with boolean values
+	// Features should be an object with any values (boolean or string)
 	if featuresMap, ok := value.(map[string]any); ok {
-		result := make(map[string]bool)
-		enabledCount := 0
+		result := make(map[string]any)
 		for key, val := range featuresMap {
-			// Convert value to boolean
-			if boolVal, ok := val.(bool); ok {
-				result[key] = boolVal
-				if boolVal {
-					enabledCount++
-				}
-			}
+			// Accept any value type (boolean, string, etc.)
+			result[key] = val
 		}
 		if log.Enabled() {
-			frontmatterLog.Printf("Extracted %d features (%d enabled)", len(result), enabledCount)
+			frontmatterLog.Printf("Extracted %d features", len(result))
 		}
 		return result
 	}

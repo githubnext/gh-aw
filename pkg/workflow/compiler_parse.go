@@ -448,7 +448,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
-		ActionTag:           extractStringFromMap(result.Frontmatter, "action-tag", nil),
 	}
 
 	// Use shared action cache and resolver from the compiler

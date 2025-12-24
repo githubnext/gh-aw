@@ -58,12 +58,6 @@
         }
       ]
     },
-    "action-tag": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Internal field for testing purposes. Specifies the tag or SHA to use when referencing actions/setup in compiled workflows. Not intended for production use.",
-      "examples": ["latest", "v1.0.0", "abc123def456"]
-    },
     "imports": {
       "type": "array",
       "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
@@ -1560,11 +1554,18 @@
       ]
     },
     "features": {
-      "description": "Feature flags to enable experimental or optional features in the workflow. Each feature is specified as a key with a boolean value.",
+      "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
       "type": "object",
-      "additionalProperties": {
-        "type": "boolean"
-      }
+      "additionalProperties": true,
+      "examples": [
+        {
+          "action-tag": "v1.0.0"
+        },
+        {
+          "action-tag": "abc123def456",
+          "experimental-feature": true
+        }
+      ]
     },
     "environment": {
       "description": "Environment that the job references (for protected environments and deployments)",

@@ -208,7 +208,7 @@ func TestIsSafeInputsEnabled(t *testing.T) {
 			name:   "with tools and feature flag enabled - enabled (backward compat)",
 			config: configWithTools,
 			workflowData: &WorkflowData{
-				Features: map[string]bool{"safe-inputs": true},
+				Features: map[string]any{"safe-inputs": true},
 			},
 			expected: true,
 		},
@@ -216,7 +216,7 @@ func TestIsSafeInputsEnabled(t *testing.T) {
 			name:   "with tools and feature flag disabled - still enabled (feature flag ignored)",
 			config: configWithTools,
 			workflowData: &WorkflowData{
-				Features: map[string]bool{"safe-inputs": false},
+				Features: map[string]any{"safe-inputs": false},
 			},
 			expected: true,
 		},
@@ -224,7 +224,7 @@ func TestIsSafeInputsEnabled(t *testing.T) {
 			name:   "with tools and other features - enabled",
 			config: configWithTools,
 			workflowData: &WorkflowData{
-				Features: map[string]bool{"other-feature": true},
+				Features: map[string]any{"other-feature": true},
 			},
 			expected: true,
 		},
