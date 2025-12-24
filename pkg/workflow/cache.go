@@ -126,8 +126,10 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 						entry.RetentionDays = &retentionDaysIntValue
 					}
 					// Validate retention-days bounds
-					if entry.RetentionDays != nil && (*entry.RetentionDays < 1 || *entry.RetentionDays > 90) {
-						return nil, fmt.Errorf("retention-days must be between 1 and 90, got %d", *entry.RetentionDays)
+					if entry.RetentionDays != nil {
+						if err := validateIntRange(*entry.RetentionDays, 1, 90, "retention-days"); err != nil {
+							return nil, err
+						}
 					}
 				}
 
@@ -189,8 +191,10 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 				entry.RetentionDays = &retentionDaysIntValue
 			}
 			// Validate retention-days bounds
-			if entry.RetentionDays != nil && (*entry.RetentionDays < 1 || *entry.RetentionDays > 90) {
-				return nil, fmt.Errorf("retention-days must be between 1 and 90, got %d", *entry.RetentionDays)
+			if entry.RetentionDays != nil {
+				if err := validateIntRange(*entry.RetentionDays, 1, 90, "retention-days"); err != nil {
+					return nil, err
+				}
 			}
 		}
 

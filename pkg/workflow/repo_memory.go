@@ -166,8 +166,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 						entry.MaxFileSize = int(sizeUint64)
 					}
 					// Validate max-file-size bounds
-					if entry.MaxFileSize < 1 || entry.MaxFileSize > 104857600 {
-						return nil, fmt.Errorf("max-file-size must be between 1 and 104857600 bytes, got %d", entry.MaxFileSize)
+					if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+						return nil, err
 					}
 				}
 
@@ -181,8 +181,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 						entry.MaxFileCount = int(countUint64)
 					}
 					// Validate max-file-count bounds
-					if entry.MaxFileCount < 1 || entry.MaxFileCount > 1000 {
-						return nil, fmt.Errorf("max-file-count must be between 1 and 1000, got %d", entry.MaxFileCount)
+					if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+						return nil, err
 					}
 				}
 
@@ -262,8 +262,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				entry.MaxFileSize = int(sizeUint64)
 			}
 			// Validate max-file-size bounds
-			if entry.MaxFileSize < 1 || entry.MaxFileSize > 104857600 {
-				return nil, fmt.Errorf("max-file-size must be between 1 and 104857600 bytes, got %d", entry.MaxFileSize)
+			if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+				return nil, err
 			}
 		}
 
@@ -277,8 +277,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				entry.MaxFileCount = int(countUint64)
 			}
 			// Validate max-file-count bounds
-			if entry.MaxFileCount < 1 || entry.MaxFileCount > 1000 {
-				return nil, fmt.Errorf("max-file-count must be between 1 and 1000, got %d", entry.MaxFileCount)
+			if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+				return nil, err
 			}
 		}
 

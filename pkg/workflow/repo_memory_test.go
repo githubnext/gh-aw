@@ -366,25 +366,25 @@ func TestRepoMemoryMaxFileSizeValidation(t *testing.T) {
 			name:        "invalid zero size",
 			maxFileSize: 0,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got 0",
+			errorText:   "max-file-size must be between 1 and 104857600, got 0",
 		},
 		{
 			name:        "invalid negative size",
 			maxFileSize: -1,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got -1",
+			errorText:   "max-file-size must be between 1 and 104857600, got -1",
 		},
 		{
 			name:        "invalid size exceeds maximum",
 			maxFileSize: 104857601,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got 104857601",
+			errorText:   "max-file-size must be between 1 and 104857600, got 104857601",
 		},
 		{
 			name:        "invalid large size",
 			maxFileSize: 200000000,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got 200000000",
+			errorText:   "max-file-size must be between 1 and 104857600, got 200000000",
 		},
 	}
 
@@ -445,13 +445,13 @@ func TestRepoMemoryMaxFileSizeValidationArray(t *testing.T) {
 			name:        "invalid size in array (zero)",
 			maxFileSize: 0,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got 0",
+			errorText:   "max-file-size must be between 1 and 104857600, got 0",
 		},
 		{
 			name:        "invalid size in array (exceeds max)",
 			maxFileSize: 104857601,
 			wantError:   true,
-			errorText:   "max-file-size must be between 1 and 104857600 bytes, got 104857601",
+			errorText:   "max-file-size must be between 1 and 104857600, got 104857601",
 		},
 	}
 
