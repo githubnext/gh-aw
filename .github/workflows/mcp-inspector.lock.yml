@@ -2917,7 +2917,7 @@ jobs:
                 core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            module.exports = { main };
+            await main();
         env:
           GH_AW_SECRET_NAMES: 'AZURE_CLIENT_ID,AZURE_CLIENT_SECRET,AZURE_TENANT_ID,BRAVE_API_KEY,CONTEXT7_API_KEY,COPILOT_GITHUB_TOKEN,DD_API_KEY,DD_APPLICATION_KEY,DD_SITE,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,NOTION_API_TOKEN,SENTRY_ACCESS_TOKEN,SENTRY_OPENAI_API_KEY,TAVILY_API_KEY'
           SECRET_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
