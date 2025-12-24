@@ -173,7 +173,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3
+        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
@@ -211,6 +211,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             async function main() {
               const eventName = context.eventName;
               const pullRequest = context.payload.pull_request;

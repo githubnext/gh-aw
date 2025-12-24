@@ -48,6 +48,13 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 
 	yaml.WriteString("          script: |\n")
 
+	// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+	yaml.WriteString("            global.core = core;\n")
+	yaml.WriteString("            global.github = github;\n")
+	yaml.WriteString("            global.context = context;\n")
+	yaml.WriteString("            global.exec = exec;\n")
+	yaml.WriteString("            global.io = io;\n")
+
 	// Add the JavaScript for checking out the PR branch
 	WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
 }

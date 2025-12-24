@@ -172,6 +172,11 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             async function main() {
               const eventName = context.eventName;
               const pullRequest = context.payload.pull_request;
@@ -6103,6 +6108,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             function parseRequiredPermissions() {
               const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
