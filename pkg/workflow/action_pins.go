@@ -185,11 +185,15 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			}
 		}
 
-		// No exact match found - use the highest version if not in strict mode
-		highestPin := matchingPins[0]
-		actionPinsLog.Printf("No exact match for version %s, highest available is %s", version, highestPin.Version)
-
-		if !data.StrictMode {
+		// No exact match found
+		// In non-strict mode, use the first pin we found (which is the highest due to sorting above)
+		// This matches the behavior of GetActionPin and GetActionPinByRepo, which return
+		// "the latest version by semver" without regard to major version boundaries.
+		// This ensures consistency across all action pin lookup functions and satisfies
+		// the requirement to "always pick the highest release according to semver".
+		if !data.StrictMode && len(matchingPins) > 0 {
+			highestPin := matchingPins[0]
+			actionPinsLog.Printf("No exact match for version %s, using highest available: %s", version, highestPin.Version)
 			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 				actionRepo, version, actionRepo, highestPin.Version)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))

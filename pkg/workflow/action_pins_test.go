@@ -667,9 +667,13 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "fallback to highest version for upload-artifact when requesting v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4",
-			expectedVer:    "v5.0.0", // Should use highest available (v5.0.0), not v4.6.2
+			expectedVer:    "v5.0.0", // Should use highest available across all versions
 			strictMode:     false,
 			shouldFallback: true,
+			// Note: This behavior matches GetActionPin and GetActionPinByRepo which return
+			// "the latest version by semver" without regard to major version boundaries.
+			// This ensures consistency across all action pin lookup functions and matches
+			// the requirement to "always pick the highest release according to semver".
 		},
 		{
 			name:           "exact match for upload-artifact v4",
