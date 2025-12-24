@@ -50,7 +50,7 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@5c3428a
+        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
         with:
           destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
@@ -96,7 +96,7 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@5c3428a
+        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
         with:
           destination: /tmp/gh-aw/actions
       - name: Checkout repository
@@ -5482,7 +5482,7 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@5c3428a
+        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
         with:
           destination: /tmp/gh-aw/actions
       - name: Debug job inputs
@@ -5584,7 +5584,7 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@5c3428a
+        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
         with:
           destination: /tmp/gh-aw/actions
       - name: Download prompt artifact
@@ -5850,7 +5850,7 @@ jobs:
             actions
           persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@5c3428a
+        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
