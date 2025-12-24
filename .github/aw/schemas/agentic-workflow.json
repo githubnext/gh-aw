@@ -58,6 +58,12 @@
         }
       ]
     },
+    "action-tag": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Internal field for testing purposes. Specifies the tag or SHA to use when referencing actions/setup in compiled workflows. Not intended for production use.",
+      "examples": ["latest", "v1.0.0", "abc123def456"]
+    },
     "imports": {
       "type": "array",
       "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Can be strings or objects with path and inputs. Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",
