@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	_ "embed"
 	"fmt"
 	"strings"
 
@@ -10,20 +9,15 @@ import (
 
 var jsLog = logger.New("workflow:js")
 
-//go:embed js/create_agent_task.cjs
-var createAgentTaskScript string
+var createAgentTaskScript = ""
 
-//go:embed js/assign_issue.cjs
-var assignIssueScriptSource string
+var assignIssueScriptSource = ""
 
-//go:embed js/add_copilot_reviewer.cjs
-var addCopilotReviewerScriptSource string
+var addCopilotReviewerScriptSource = ""
 
-//go:embed js/add_reaction_and_edit_comment.cjs
-var addReactionAndEditCommentScriptSource string
+var addReactionAndEditCommentScriptSource = ""
 
-//go:embed js/check_membership.cjs
-var checkMembershipScriptSource string
+var checkMembershipScriptSource = ""
 
 // init registers scripts from js.go with the DefaultScriptRegistry
 func init() {
@@ -57,240 +51,165 @@ func getCheckMembershipScript() string {
 	return DefaultScriptRegistry.GetWithMode("check_membership", RuntimeModeGitHubScript)
 }
 
-//go:embed js/check_stop_time.cjs
-var checkStopTimeScript string
+var checkStopTimeScript = ""
 
-//go:embed js/check_skip_if_match.cjs
-var checkSkipIfMatchScript string
+var checkSkipIfMatchScript = ""
 
-//go:embed js/check_command_position.cjs
-var checkCommandPositionScript string
+var checkCommandPositionScript = ""
 
-//go:embed js/check_workflow_timestamp_api.cjs
-var checkWorkflowTimestampAPIScript string
+var checkWorkflowTimestampAPIScript = ""
 
-//go:embed js/compute_text.cjs
-var computeTextScript string
+var computeTextScript = ""
 
-//go:embed js/log_parser_bootstrap.cjs
-var logParserBootstrapScript string
+var logParserBootstrapScript = ""
 
-//go:embed js/validate_errors.cjs
-var validateErrorsScript string
+var validateErrorsScript = ""
 
-//go:embed js/missing_tool.cjs
-var missingToolScript string
+var missingToolScript = ""
 
-//go:embed js/safe_outputs_mcp_server.cjs
-var safeOutputsMCPServerScriptSource string
+var safeOutputsMCPServerScriptSource = ""
 
 // getSafeOutputsMCPServerScript returns the bundled safe_outputs_mcp_server script
 func getSafeOutputsMCPServerScript() string {
 	return DefaultScriptRegistry.GetWithMode("safe_outputs_mcp_server", RuntimeModeGitHubScript)
 }
 
-//go:embed js/safe_outputs_tools.json
-var safeOutputsToolsJSON string
+var safeOutputsToolsJSON = ""
 
-//go:embed js/interpolate_prompt.cjs
-var interpolatePromptScript string
+var interpolatePromptScript = ""
 
-//go:embed js/runtime_import.cjs
-var runtimeImportScript string
+var runtimeImportScript = ""
 
-//go:embed js/checkout_pr_branch.cjs
-var checkoutPRBranchScript string
+var checkoutPRBranchScript = ""
 
-//go:embed js/redact_secrets.cjs
-var redactSecretsScript string
+var redactSecretsScript = ""
 
-//go:embed js/sanitize_content.cjs
-var sanitizeContentScript string
+var sanitizeContentScript = ""
 
-//go:embed js/resolve_mentions.cjs
-var resolveMentionsScript string
+var resolveMentionsScript = ""
 
-//go:embed js/sanitize_label_content.cjs
-var sanitizeLabelContentScript string
+var sanitizeLabelContentScript = ""
 
-//go:embed js/sanitize_workflow_name.cjs
-var sanitizeWorkflowNameScript string
+var sanitizeWorkflowNameScript = ""
 
-//go:embed js/load_agent_output.cjs
-var loadAgentOutputScript string
+var loadAgentOutputScript = ""
 
-//go:embed js/lock-issue.cjs
-var lockIssueScript string
+var lockIssueScript = ""
 
-//go:embed js/unlock-issue.cjs
-var unlockIssueScript string
+var unlockIssueScript = ""
 
-//go:embed js/staged_preview.cjs
-var stagedPreviewScript string
+var stagedPreviewScript = ""
 
-//go:embed js/assign_agent_helpers.cjs
-var assignAgentHelpersScript string
+var assignAgentHelpersScript = ""
 
-//go:embed js/safe_output_helpers.cjs
-var safeOutputHelpersScript string
+var safeOutputHelpersScript = ""
 
-//go:embed js/safe_output_validator.cjs
-var safeOutputValidatorScript string
+var safeOutputValidatorScript = ""
 
-//go:embed js/safe_output_processor.cjs
-var safeOutputProcessorScript string
+var safeOutputProcessorScript = ""
 
-//go:embed js/is_truthy.cjs
-var isTruthyScript string
+var isTruthyScript = ""
 
-//go:embed js/log_parser_shared.cjs
-var logParserSharedScript string
+var logParserSharedScript = ""
 
-//go:embed js/update_activation_comment.cjs
-var updateActivationCommentScript string
+var updateActivationCommentScript = ""
 
-//go:embed js/update_project.cjs
-var updateProjectScriptSource string
+var updateProjectScriptSource = ""
 
 // getUpdateProjectScript returns the bundled update_project script
 func getUpdateProjectScript() string {
 	return DefaultScriptRegistry.GetWithMode("update_project", RuntimeModeGitHubScript)
 }
 
-//go:embed js/generate_footer.cjs
-var generateFooterScript string
+var generateFooterScript = ""
 
-//go:embed js/get_tracker_id.cjs
-var getTrackerIDScript string
+var getTrackerIDScript = ""
 
-//go:embed js/push_repo_memory.cjs
-var pushRepoMemoryScript string
+var pushRepoMemoryScript = ""
 
-//go:embed js/messages.cjs
-var messagesScript string
+var messagesScript = ""
 
-//go:embed js/messages_core.cjs
-var messagesCoreScript string
+var messagesCoreScript = ""
 
-//go:embed js/messages_footer.cjs
-var messagesFooterScript string
+var messagesFooterScript = ""
 
-//go:embed js/messages_staged.cjs
-var messagesStagedScript string
+var messagesStagedScript = ""
 
-//go:embed js/messages_run_status.cjs
-var messagesRunStatusScript string
+var messagesRunStatusScript = ""
 
-//go:embed js/messages_close_discussion.cjs
-var messagesCloseDiscussionScript string
+var messagesCloseDiscussionScript = ""
 
-//go:embed js/close_older_discussions.cjs
-var closeOlderDiscussionsScript string
+var closeOlderDiscussionsScript = ""
 
-//go:embed js/close_entity_helpers.cjs
-var closeEntityHelpersScript string
+var closeEntityHelpersScript = ""
 
-//go:embed js/expiration_helpers.cjs
-var expirationHelpersScript string
+var expirationHelpersScript = ""
 
-//go:embed js/get_repository_url.cjs
-var getRepositoryUrlScript string
+var getRepositoryUrlScript = ""
 
-//go:embed js/check_permissions_utils.cjs
-var checkPermissionsUtilsScript string
+var checkPermissionsUtilsScript = ""
 
-//go:embed js/normalize_branch_name.cjs
-var normalizeBranchNameScript string
+var normalizeBranchNameScript = ""
 
-//go:embed js/estimate_tokens.cjs
-var estimateTokensScript string
+var estimateTokensScript = ""
 
-//go:embed js/generate_compact_schema.cjs
-var generateCompactSchemaScript string
+var generateCompactSchemaScript = ""
 
-//go:embed js/write_large_content_to_file.cjs
-var writeLargeContentToFileScript string
+var writeLargeContentToFileScript = ""
 
-//go:embed js/get_current_branch.cjs
-var getCurrentBranchScript string
+var getCurrentBranchScript = ""
 
-//go:embed js/get_base_branch.cjs
-var getBaseBranchScript string
+var getBaseBranchScript = ""
 
-//go:embed js/generate_git_patch.cjs
-var generateGitPatchJSScript string
+var generateGitPatchJSScript = ""
 
-//go:embed js/temporary_id.cjs
-var temporaryIdScript string
+var temporaryIdScript = ""
 
-//go:embed js/update_runner.cjs
-var updateRunnerScript string
+var updateRunnerScript = ""
 
-//go:embed js/update_pr_description_helpers.cjs
-var updatePRDescriptionHelpersScript string
+var updatePRDescriptionHelpersScript = ""
 
-//go:embed js/read_buffer.cjs
-var readBufferScript string
+var readBufferScript = ""
 
-//go:embed js/mcp_server_core.cjs
-var mcpServerCoreScript string
+var mcpServerCoreScript = ""
 
-//go:embed js/safe_inputs_mcp_server.cjs
-var safeInputsMCPServerScript string
+var safeInputsMCPServerScript = ""
 
-//go:embed js/safe_inputs_mcp_server_http.cjs
-var safeInputsMCPServerHTTPScript string
+var safeInputsMCPServerHTTPScript = ""
 
-//go:embed js/safe_inputs_config_loader.cjs
-var safeInputsConfigLoaderScript string
+var safeInputsConfigLoaderScript = ""
 
-//go:embed js/safe_inputs_bootstrap.cjs
-var safeInputsBootstrapScript string
+var safeInputsBootstrapScript = ""
 
-//go:embed js/safe_inputs_tool_factory.cjs
-var safeInputsToolFactoryScript string
+var safeInputsToolFactoryScript = ""
 
-//go:embed js/safe_inputs_validation.cjs
-var safeInputsValidationScript string
+var safeInputsValidationScript = ""
 
-//go:embed js/mcp_handler_shell.cjs
-var mcpHandlerShellScript string
+var mcpHandlerShellScript = ""
 
-//go:embed js/mcp_handler_python.cjs
-var mcpHandlerPythonScript string
+var mcpHandlerPythonScript = ""
 
-//go:embed js/safe_output_type_validator.cjs
-var safeOutputTypeValidatorScript string
+var safeOutputTypeValidatorScript = ""
 
-//go:embed js/repo_helpers.cjs
-var repoHelpersScript string
+var repoHelpersScript = ""
 
-//go:embed js/remove_duplicate_title.cjs
-var removeDuplicateTitleScript string
+var removeDuplicateTitleScript = ""
 
-//go:embed js/safe_outputs_config.cjs
-var safeOutputsConfigScript string
+var safeOutputsConfigScript = ""
 
-//go:embed js/safe_outputs_append.cjs
-var safeOutputsAppendScript string
+var safeOutputsAppendScript = ""
 
-//go:embed js/safe_outputs_handlers.cjs
-var safeOutputsHandlersScript string
+var safeOutputsHandlersScript = ""
 
-//go:embed js/safe_outputs_tools_loader.cjs
-var safeOutputsToolsLoaderScript string
+var safeOutputsToolsLoaderScript = ""
 
-//go:embed js/safe_outputs_bootstrap.cjs
-var safeOutputsBootstrapScript string
+var safeOutputsBootstrapScript = ""
 
-//go:embed js/resolve_mentions_from_payload.cjs
-var resolveMentionsFromPayloadScript string
+var resolveMentionsFromPayloadScript = ""
 
-//go:embed js/sanitize_incoming_text.cjs
-var sanitizeIncomingTextScript string
+var sanitizeIncomingTextScript = ""
 
-//go:embed js/sanitize_content_core.cjs
-var sanitizeContentCoreScript string
+var sanitizeContentCoreScript = ""
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory

@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	_ "embed"
 	"fmt"
 	"strings"
 
@@ -10,41 +9,29 @@ import (
 
 var shLog = logger.New("workflow:sh")
 
-//go:embed prompts/pr_context_prompt.md
-var prContextPromptText string
+var prContextPromptText = ""
 
-//go:embed sh/print_prompt_summary.sh
-var printPromptSummaryScript string
+var printPromptSummaryScript = ""
 
-//go:embed sh/create_prompt_first.sh
-var createPromptFirstScript string
+var createPromptFirstScript = ""
 
-//go:embed sh/generate_git_patch.sh
-var generateGitPatchScript string
+var generateGitPatchScript = ""
 
-//go:embed sh/create_cache_memory_dir.sh
-var createCacheMemoryDirScript string
+var createCacheMemoryDirScript = ""
 
-//go:embed sh/create_gh_aw_tmp_dir.sh
-var createGhAwTmpDirScript string
+var createGhAwTmpDirScript = ""
 
-//go:embed sh/start_safe_inputs_server.sh
-var startSafeInputsServerScript string
+var startSafeInputsServerScript = ""
 
-//go:embed prompts/xpia_prompt.md
-var xpiaPromptText string
+var xpiaPromptText = ""
 
-//go:embed prompts/temp_folder_prompt.md
-var tempFolderPromptText string
+var tempFolderPromptText = ""
 
-//go:embed prompts/github_context_prompt.md
-var githubContextPromptText string
+var githubContextPromptText = ""
 
-//go:embed prompts/playwright_prompt.md
-var playwrightPromptText string
+var playwrightPromptText = ""
 
-//go:embed prompts/edit_tool_prompt.md
-var editToolPromptText string
+var editToolPromptText = ""
 
 // GetBundledShellScripts returns a map of shell scripts that should be bundled with the setup action.
 // These are scripts that do NOT use GitHub Actions templating (like ${{ }} expressions).

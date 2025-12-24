@@ -10,6 +10,7 @@
 package workflow
 
 import (
+	_ "embed"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -18,97 +19,140 @@ var scriptsLog = logger.New("workflow:scripts")
 
 // Source scripts that may contain local requires
 //
-var collectJSONLOutputScriptSource = ""
+//go:embed js/collect_ndjson_output.cjs
+var collectJSONLOutputScriptSource string
 
-var computeTextScriptSource = ""
+//go:embed js/compute_text.cjs
+var computeTextScriptSource string
 
-var sanitizeOutputScriptSource = ""
+//go:embed js/sanitize_output.cjs
+var sanitizeOutputScriptSource string
 
-var createIssueScriptSource = ""
+//go:embed js/create_issue.cjs
+var createIssueScriptSource string
 
-var addLabelsScriptSource = ""
+//go:embed js/add_labels.cjs
+var addLabelsScriptSource string
 
-var addReviewerScriptSource = ""
+//go:embed js/add_reviewer.cjs
+var addReviewerScriptSource string
 
-var assignMilestoneScriptSource = ""
+//go:embed js/assign_milestone.cjs
+var assignMilestoneScriptSource string
 
-var assignToAgentScriptSource = ""
+//go:embed js/assign_to_agent.cjs
+var assignToAgentScriptSource string
 
-var assignToUserScriptSource = ""
+//go:embed js/assign_to_user.cjs
+var assignToUserScriptSource string
 
-var assignCopilotToCreatedIssuesScriptSource = ""
+//go:embed js/assign_copilot_to_created_issues.cjs
+var assignCopilotToCreatedIssuesScriptSource string
 
-var linkSubIssueScriptSource = ""
+//go:embed js/link_sub_issue.cjs
+var linkSubIssueScriptSource string
 
-var hideCommentScriptSource = ""
+//go:embed js/hide_comment.cjs
+var hideCommentScriptSource string
 
-var createDiscussionScriptSource = ""
+//go:embed js/create_discussion.cjs
+var createDiscussionScriptSource string
 
-var closeDiscussionScriptSource = ""
+//go:embed js/close_discussion.cjs
+var closeDiscussionScriptSource string
 
-var closeExpiredDiscussionsScriptSource = ""
+//go:embed js/close_expired_discussions.cjs
+var closeExpiredDiscussionsScriptSource string
 
-var closeExpiredIssuesScriptSource = ""
+//go:embed js/close_expired_issues.cjs
+var closeExpiredIssuesScriptSource string
 
-var closeIssueScriptSource = ""
+//go:embed js/close_issue.cjs
+var closeIssueScriptSource string
 
-var closePullRequestScriptSource = ""
+//go:embed js/close_pull_request.cjs
+var closePullRequestScriptSource string
 
-var updateIssueScriptSource = ""
+//go:embed js/update_issue.cjs
+var updateIssueScriptSource string
 
-var updatePullRequestScriptSource = ""
+//go:embed js/update_pull_request.cjs
+var updatePullRequestScriptSource string
 
-var updateDiscussionScriptSource = ""
+//go:embed js/update_discussion.cjs
+var updateDiscussionScriptSource string
 
-var updatePRDescriptionHelpersScriptSource = ""
+//go:embed js/update_pr_description_helpers.cjs
+var updatePRDescriptionHelpersScriptSource string
 
-var updateContextHelpersScriptSource = ""
+//go:embed js/update_context_helpers.cjs
+var updateContextHelpersScriptSource string
 
-var updateReleaseScriptSource = ""
+//go:embed js/update_release.cjs
+var updateReleaseScriptSource string
 
-var createCodeScanningAlertScriptSource = ""
+//go:embed js/create_code_scanning_alert.cjs
+var createCodeScanningAlertScriptSource string
 
-var createPRReviewCommentScriptSource = ""
+//go:embed js/create_pr_review_comment.cjs
+var createPRReviewCommentScriptSource string
 
-var addCommentScriptSource = ""
+//go:embed js/add_comment.cjs
+var addCommentScriptSource string
 
-var uploadAssetsScriptSource = ""
+//go:embed js/upload_assets.cjs
+var uploadAssetsScriptSource string
 
-var parseFirewallLogsScriptSource = ""
+//go:embed js/parse_firewall_logs.cjs
+var parseFirewallLogsScriptSource string
 
-var pushToPullRequestBranchScriptSource = ""
+//go:embed js/push_to_pull_request_branch.cjs
+var pushToPullRequestBranchScriptSource string
 
-var createPullRequestScriptSource = ""
+//go:embed js/create_pull_request.cjs
+var createPullRequestScriptSource string
 
-var notifyCommentErrorScriptSource = ""
+//go:embed js/notify_comment_error.cjs
+var notifyCommentErrorScriptSource string
 
-var noopScriptSource = ""
+//go:embed js/noop.cjs
+var noopScriptSource string
 
-var generateSafeInputsConfigScriptSource = ""
+//go:embed js/generate_safe_inputs_config.cjs
+var generateSafeInputsConfigScriptSource string
 
 // Log parser source scripts
 //
-var parseClaudeLogScriptSource = ""
+//go:embed js/parse_claude_log.cjs
+var parseClaudeLogScriptSource string
 
-var parseCodexLogScriptSource = ""
+//go:embed js/parse_codex_log.cjs
+var parseCodexLogScriptSource string
 
-var parseCopilotLogScriptSource = ""
+//go:embed js/parse_copilot_log.cjs
+var parseCopilotLogScriptSource string
 
 // MCP server and transport scripts
 //
-var mcpLoggerScriptSource = ""
+//go:embed js/mcp_logger.cjs
+var mcpLoggerScriptSource string
 
-var mcpHTTPTransportScriptSource = ""
+//go:embed js/mcp_http_transport.cjs
+var mcpHTTPTransportScriptSource string
 
-var substitutePlaceholdersScriptSource = ""
+//go:embed js/substitute_placeholders.cjs
+var substitutePlaceholdersScriptSource string
 
 // Helper modules for bundling
 //
-var resolveMentionsFromPayloadScriptSource = ""
+//go:embed js/resolve_mentions_from_payload.cjs
+var resolveMentionsFromPayloadScriptSource string
 
-var sanitizeIncomingTextScriptSource = ""
+//go:embed js/sanitize_incoming_text.cjs
+var sanitizeIncomingTextScriptSource string
 
-var sanitizeContentCoreScriptSource = ""
+//go:embed js/sanitize_content_core.cjs
+var sanitizeContentCoreScriptSource string
 
 // init registers all scripts with the DefaultScriptRegistry.
 // Scripts are bundled lazily on first access via the getter functions.
