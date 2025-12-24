@@ -29,7 +29,6 @@ name: "CI Cleaner"
 "on":
   schedule:
   - cron: "0 6,18 * * *"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
