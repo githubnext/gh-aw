@@ -17,7 +17,7 @@ engine:
 strict: true
 timeout-minutes: 15
 features:
-  action-tag: "5c3428a"
+  action-tag: "523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1"
 
 network:
   allowed:
