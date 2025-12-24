@@ -5631,7 +5631,6 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: read
-          permission-discussions: write
           permission-issues: write
           permission-pull-requests: write
       - name: Debug job inputs
@@ -6041,7 +6040,6 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: read
-          permission-discussions: write
       - name: Create Discussion
         id: create_discussion
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
