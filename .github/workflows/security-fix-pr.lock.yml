@@ -145,35 +145,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()]);
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
+            await main();
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
