@@ -200,11 +200,14 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize your repository for agentic workflows.
 
 ```bash wrap
-gh aw init         # Configure .gitattributes, Copilot instructions (MCP enabled by default)
-gh aw init --no-mcp # Skip MCP server integration
+gh aw init                  # Full setup with MCP and Copilot instructions
+gh aw init --no-mcp         # Skip MCP server integration
+gh aw init --campaign       # Include Agentic Campaign Designer agent
+gh aw init --codespaces     # Configure Codespaces permissions
+gh aw init --tokens --engine copilot  # Check token configuration
 ```
 
-Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, sets up prompt files for workflow creation, and creates `.github/aw/logs/.gitignore` to prevent workflow logs from being committed. MCP server integration is enabled by default, creating GitHub Actions workflow for MCP server setup, configuring `.vscode/mcp.json` for VS Code integration, and enabling gh-aw MCP tools in Copilot Agent. Use `--no-mcp` to skip MCP server integration.
+Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot instructions for better AI assistance, sets up prompt files for workflow creation, and creates `.github/aw/logs/.gitignore` to prevent workflow logs from being committed. MCP server integration is enabled by default, creating GitHub Actions workflow for MCP server setup, configuring `.vscode/mcp.json` for VS Code integration, and enabling gh-aw MCP tools in Copilot Agent. Use `--no-mcp` to skip MCP server integration. Use `--campaign` to install the Agentic Campaign Designer agent for managing gh-aw campaigns (see [campaigns guide](/gh-aw/guides/campaigns/)). Use `--codespaces` to configure GitHub Codespaces with appropriate permissions. Use `--tokens` with `--engine` to validate required secrets for the specified AI engine.
 
 #### `add`
 
