@@ -630,7 +630,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		setupSteps = append(setupSteps, c.generateCheckoutActionsFolder()...)
+		setupSteps = append(setupSteps, c.generateCheckoutActionsFolder(data)...)
 
 		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
 		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
@@ -645,9 +645,9 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	jobCondition := "always() && needs.detection.outputs.success == 'true'"
 
 	// Set up permissions for the cache update job
-	// If using local actions (dev mode), we need contents: read to checkout the actions folder
+	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder
 	permissions := NewPermissionsEmpty().RenderToYAML() // Default: no special permissions needed
-	if setupActionRef != "" && c.actionMode.IsDev() {
+	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
 		// Need contents: read to checkout the actions folder
 		perms := NewPermissionsContentsRead()
 		permissions = perms.RenderToYAML()

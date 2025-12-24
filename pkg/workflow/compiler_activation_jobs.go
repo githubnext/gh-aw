@@ -29,8 +29,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
 		// This requires contents: read permission
-		steps = append(steps, c.generateCheckoutActionsFolder()...)
-		needsContentsRead = c.actionMode.IsDev()
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		needsContentsRead = c.actionMode.IsDev() && len(c.generateCheckoutActionsFolder(data)) > 0
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
@@ -364,7 +364,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder()...)
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
@@ -682,7 +682,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder()...)
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
@@ -817,9 +817,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
 	// Set up permissions for the agent job
-	// If using local actions (dev mode), we need to add contents: read to access the actions folder
+	// If using local actions (dev mode without action-tag), we need to add contents: read to access the actions folder
 	permissions := data.Permissions
-	if setupActionRef != "" && c.actionMode.IsDev() {
+	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
 		// Need to merge contents: read with existing permissions
 		if permissions == "" {
 			// No permissions specified, just add contents: read

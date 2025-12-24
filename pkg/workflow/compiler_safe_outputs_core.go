@@ -65,7 +65,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder()...)
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
@@ -382,10 +382,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		// Calculate insertion index: after setup action (if present) and artifact downloads, but before safe output steps
 		insertIndex := 0
 
-		// Count setup action steps (checkout + setup if in dev mode, or just setup)
+		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
-			if c.actionMode.IsDev() {
+			if len(c.generateCheckoutActionsFolder(data)) > 0 {
 				insertIndex += 6 // Checkout step (6 lines: name, uses, with, sparse-checkout header, actions, persist-credentials)
 			}
 			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)

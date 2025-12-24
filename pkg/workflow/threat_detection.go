@@ -153,7 +153,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder()...)
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
 
 		steps = append(steps, "      - name: Setup Scripts\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
