@@ -159,6 +159,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 			steps = append(steps, "        with:\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
+			steps = append(steps, "          persist-credentials: false\n")
 		}
 
 		steps = append(steps, "      - name: Setup Scripts\n")

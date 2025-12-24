@@ -101,6 +101,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 			preSteps = append(preSteps, "        with:\n")
 			preSteps = append(preSteps, "          sparse-checkout: |\n")
 			preSteps = append(preSteps, "            actions\n")
+			preSteps = append(preSteps, "          persist-credentials: false\n")
 		}
 
 		preSteps = append(preSteps, "      - name: Setup Scripts\n")

@@ -33,6 +33,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "        with:\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
+			steps = append(steps, "          persist-credentials: false\n")
 		}
 
 		steps = append(steps, "      - name: Setup Scripts\n")
@@ -367,6 +368,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "        with:\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
+			steps = append(steps, "          persist-credentials: false\n")
 		}
 
 		steps = append(steps, "      - name: Setup Scripts\n")
@@ -691,6 +693,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			steps = append(steps, "        with:\n")
 			steps = append(steps, "          sparse-checkout: |\n")
 			steps = append(steps, "            actions\n")
+			steps = append(steps, "          persist-credentials: false\n")
 		}
 
 		steps = append(steps, "      - name: Setup Scripts\n")
