@@ -227,12 +227,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"assign_to_agent":{},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
+          {"assign_to_agent":{"max":3},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue. The agent will analyze the issue and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {

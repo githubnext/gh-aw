@@ -198,4 +198,46 @@ func TestSafeOutputsMaxConfiguration(t *testing.T) {
 			t.Error("Expected UpdateIssues.Body to be non-nil (updatable)")
 		}
 	})
+
+	t.Run("Assign to agent should use max: 3 by default", func(t *testing.T) {
+		testAssignToAgent := map[string]any{
+			"safe-outputs": map[string]any{
+				"assign-to-agent": nil,
+			},
+		}
+
+		config := compiler.extractSafeOutputsConfig(testAssignToAgent)
+		if config == nil {
+			t.Fatal("Expected config to be parsed")
+		}
+
+		if config.AssignToAgent == nil {
+			t.Fatal("Expected AssignToAgent to be parsed")
+		}
+		if config.AssignToAgent.Max != 3 {
+			t.Errorf("Expected AssignToAgent.Max to be 3 by default, got %d", config.AssignToAgent.Max)
+		}
+	})
+
+	t.Run("Assign to agent should respect explicit max value", func(t *testing.T) {
+		testAssignToAgentWithMax := map[string]any{
+			"safe-outputs": map[string]any{
+				"assign-to-agent": map[string]any{
+					"max": 5,
+				},
+			},
+		}
+
+		config := compiler.extractSafeOutputsConfig(testAssignToAgentWithMax)
+		if config == nil {
+			t.Fatal("Expected config to be parsed")
+		}
+
+		if config.AssignToAgent == nil {
+			t.Fatal("Expected AssignToAgent to be parsed")
+		}
+		if config.AssignToAgent.Max != 5 {
+			t.Errorf("Expected AssignToAgent.Max to be 5, got %d", config.AssignToAgent.Max)
+		}
+	})
 }

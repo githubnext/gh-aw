@@ -31,14 +31,16 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 			targetConfig, _ := ParseTargetConfig(agentMap)
 			agentConfig.SafeOutputTargetConfig = targetConfig
 
-			// Parse common base fields (github-token, max)
-			c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 0)
+			// Parse common base fields (github-token, max) with default max of 3
+			c.parseBaseSafeOutputConfig(agentMap, &agentConfig.BaseSafeOutputConfig, 3)
 			assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, target=%s", agentConfig.DefaultAgent, agentConfig.Target)
 
 			return agentConfig
 		} else if assignToAgent == nil {
-			// Handle null case: create empty config
-			return &AssignToAgentConfig{}
+			// Handle null case: create empty config with default max of 3
+			config := &AssignToAgentConfig{}
+			config.Max = 3
+			return config
 		}
 	}
 
