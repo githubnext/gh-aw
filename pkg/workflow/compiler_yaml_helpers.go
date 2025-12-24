@@ -100,3 +100,24 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "        }\n")
 	yaml.WriteString(indent + "      });\n")
 }
+
+// generateCheckoutActionsFolder generates the checkout step for the actions folder
+// when running in dev mode. This is used to checkout the local actions before
+// running the setup action.
+//
+// Returns a slice of strings that can be appended to a steps array, where each
+// string represents a line of YAML for the checkout step.
+func (c *Compiler) generateCheckoutActionsFolder() []string {
+	if !c.actionMode.IsDev() {
+		return nil
+	}
+
+	return []string{
+		"      - name: Checkout actions folder\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+		"        with:\n",
+		"          sparse-checkout: |\n",
+		"            actions\n",
+		"          persist-credentials: false\n",
+	}
+}

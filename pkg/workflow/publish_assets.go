@@ -95,14 +95,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" {
 		// For dev mode (local action path), checkout the actions folder first
-		if c.actionMode.IsDev() {
-			preSteps = append(preSteps, "      - name: Checkout actions folder\n")
-			preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-			preSteps = append(preSteps, "        with:\n")
-			preSteps = append(preSteps, "          sparse-checkout: |\n")
-			preSteps = append(preSteps, "            actions\n")
-			preSteps = append(preSteps, "          persist-credentials: false\n")
-		}
+		preSteps = append(preSteps, c.generateCheckoutActionsFolder()...)
 
 		preSteps = append(preSteps, "      - name: Setup Scripts\n")
 		preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
