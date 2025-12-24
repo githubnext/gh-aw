@@ -9,9 +9,10 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  agentic-workflows:
   github:
     mode: remote
-    toolsets: [default, actions]
+    toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**/*"
@@ -41,28 +42,38 @@ As an infrastructure agent, you collect and persist performance data that enable
 
 ## Metrics Collection Process
 
-### 1. Query GitHub API for Last 24 Hours
+### 1. Use Agentic Workflows Tool to Collect Workflow Metrics
 
-**Workflow Runs**:
-- Use GitHub MCP server to list workflow runs from the last 24 hours
-- For each workflow, collect:
-  - Total runs
-  - Successful runs
-  - Failed runs
+**Workflow Status and Runs**:
+- Use the `status` tool to get a list of all workflows in the repository
+- Use the `logs` tool to download workflow run data from the last 24 hours:
+  ```
+  Parameters:
+  - start_date: "-1d" (last 24 hours)
+  - Include all workflows (no workflow_name filter)
+  ```
+- From the logs data, extract for each workflow:
+  - Total runs in last 24 hours
+  - Successful runs (conclusion: "success")
+  - Failed runs (conclusion: "failure", "cancelled", "timed_out")
   - Calculate success rate: `successful / total`
+  - Token usage and costs (if available in logs)
+  - Execution duration statistics
+
+**Safe Outputs from Logs**:
+- The agentic-workflows logs tool provides information about:
+  - Issues created by workflows (from safe-output operations)
+  - PRs created by workflows
+  - Comments added by workflows
+  - Discussions created by workflows
+- Extract and count these for each workflow
+
+**Additional Metrics via GitHub API**:
+- Use GitHub MCP server (default toolset) to supplement with:
+  - Engagement metrics: reactions on issues created by workflows
+  - Comment counts on PRs created by workflows
+  - Discussion reply counts
   
-**Safe Outputs**:
-- Query issues created in the last 24 hours by workflows
-- Query pull requests created in the last 24 hours by workflows
-- Query comments added in the last 24 hours by workflows
-- Query discussions created in the last 24 hours by workflows
-- Group by workflow name (extracted from issue/PR/comment/discussion footer)
-
-**Engagement Metrics**:
-- Count reactions on issues created by workflows
-- Count comments on pull requests created by workflows
-- Count replies on discussions created by workflows
-
 **Quality Indicators**:
 - For merged PRs: Calculate merge time (created_at to merged_at)
 - For closed issues: Calculate close time (created_at to closed_at)
@@ -89,7 +100,10 @@ Create a JSON object following this schema:
         "total": 7,
         "successful": 6,
         "failed": 1,
-        "success_rate": 0.857
+        "success_rate": 0.857,
+        "avg_duration_seconds": 180,
+        "total_tokens": 45000,
+        "total_cost_usd": 0.45
       },
       "engagement": {
         "issue_reactions": 12,
@@ -107,7 +121,9 @@ Create a JSON object following this schema:
     "total_workflows": 120,
     "active_workflows": 85,
     "total_safe_outputs": 45,
-    "overall_success_rate": 0.892
+    "overall_success_rate": 0.892,
+    "total_tokens": 1250000,
+    "total_cost_usd": 12.50
   }
 }
 ```
@@ -140,10 +156,10 @@ find /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/ -na
 ### 5. Calculate Ecosystem Aggregates
 
 **Total Workflows**:
-- Count all workflow `.md` files in `.github/workflows/` (excluding shared includes)
+- Use the agentic-workflows `status` tool to get count of all workflows
 
 **Active Workflows**:
-- Count workflows that had at least one run in the last 24 hours
+- Count workflows that had at least one run in the last 24 hours (from logs data)
 
 **Total Safe Outputs**:
 - Sum of all safe outputs (issues + PRs + comments + discussions) across all workflows
@@ -151,34 +167,45 @@ find /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/ -na
 **Overall Success Rate**:
 - Calculate: `(sum of successful runs across all workflows) / (sum of total runs across all workflows)`
 
+**Total Resource Usage**:
+- Sum total tokens used across all workflows
+- Sum total cost across all workflows
+
 ## Implementation Guidelines
+
+### Using Agentic Workflows Tool
+
+**Primary data source**: Use the agentic-workflows tool for all workflow run metrics:
+1. Start with `status` tool to get workflow inventory
+2. Use `logs` tool with `start_date: "-1d"` to collect last 24 hours of runs
+3. Extract metrics from the log data (success/failure, tokens, costs, safe outputs)
+
+**Secondary data source**: Use GitHub MCP server for engagement metrics only:
+- Reactions on issues/PRs created by workflows
+- Comment counts
+- Discussion replies
 
 ### Handling Missing Data
 
 - If a workflow has no runs in the last 24 hours, set all run metrics to 0
 - If a workflow has no safe outputs, set all safe output counts to 0
+- If token/cost data is unavailable, omit or set to null
 - Always include workflows in the metrics even if they have no activity (helps detect stalled workflows)
 
 ### Workflow Name Extraction
 
-Safe outputs created by workflows include a footer like:
-```
-> AI generated by [WorkflowName](run_url)
-```
-
-Extract the workflow name from this footer pattern. Common patterns:
-- Issue/PR/Comment bodies
-- Discussion posts
+The agentic-workflows logs tool provides structured data with workflow names already extracted. Use this instead of parsing footers manually.
 
 ### Performance Considerations
 
-- Use pagination when querying large result sets
-- Limit API calls by using date filters (last 24 hours only)
-- Cache workflow list to avoid repeated filesystem scans
+- The agentic-workflows tool is optimized for log retrieval and analysis
+- Use date filters (start_date: "-1d") to limit data collection scope
+- Process logs in memory rather than making multiple API calls
+- Cache workflow list from status tool
 
 ### Error Handling
 
-- If GitHub API is unavailable, log error but don't fail the entire collection
+- If agentic-workflows tool is unavailable, log error but don't fail the entire collection
 - If a specific workflow's data can't be collected, log and continue with others
 - Always write partial metrics even if some data is missing
 
@@ -212,12 +239,15 @@ At the end of collection:
 
 ## Important Notes
 
+- **PRIMARY TOOL**: Use the agentic-workflows tool (`status`, `logs`) for all workflow run metrics
+- **SECONDARY TOOL**: Use GitHub MCP server only for engagement metrics (reactions, comments)
 - **DO NOT** create issues, PRs, or comments - this is a data collection agent only
 - **DO NOT** analyze or interpret the metrics - that's the job of meta-orchestrators
 - **ALWAYS** write valid JSON (test with `jq` before storing)
 - **ALWAYS** include a timestamp in ISO 8601 format
 - **ENSURE** directory structure exists before writing files
 - **USE** repo-memory tool to persist data (it handles git operations automatically)
+- **INCLUDE** token usage and cost metrics when available from logs
 
 ## Success Criteria
 

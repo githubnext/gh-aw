@@ -11,30 +11,33 @@ The Metrics Collector is an infrastructure workflow that collects daily performa
 
 ## What It Collects
 
-The Metrics Collector gathers comprehensive performance data across all workflows:
+The Metrics Collector gathers comprehensive performance data across all workflows using the **agentic-workflows** tool for workflow introspection and the GitHub API for engagement metrics.
 
 ### Per-Workflow Metrics
 
 For each workflow in the repository, the collector tracks:
 
-1. **Safe Outputs**
+1. **Safe Outputs** (from agentic-workflows logs)
    - Issues created
    - Pull requests created
    - Comments added
    - Discussions created
 
-2. **Workflow Run Statistics**
+2. **Workflow Run Statistics** (from agentic-workflows logs)
    - Total runs in last 24 hours
    - Successful runs
    - Failed runs
    - Success rate (calculated)
+   - Average duration
+   - Token usage (when available)
+   - Costs in USD (when available)
 
-3. **Engagement Metrics**
+3. **Engagement Metrics** (from GitHub API)
    - Reactions on issues
    - Comments on pull requests
    - Replies on discussions
 
-4. **Quality Indicators**
+4. **Quality Indicators** (from GitHub API)
    - PR merge rate (merged PRs / total PRs)
    - Average issue close time (in hours)
    - Average PR merge time (in hours)
@@ -43,10 +46,12 @@ For each workflow in the repository, the collector tracks:
 
 Aggregated data across the entire workflow ecosystem:
 
-- Total number of workflows
+- Total number of workflows (from agentic-workflows status)
 - Number of active workflows (ran in last 24 hours)
 - Total safe outputs created
 - Overall success rate
+- Total token usage
+- Total cost in USD
 
 ## Storage Location
 
@@ -82,7 +87,10 @@ Metrics are stored in JSON format following this schema:
         "total": 7,
         "successful": 6,
         "failed": 1,
-        "success_rate": 0.857
+        "success_rate": 0.857,
+        "avg_duration_seconds": 180,
+        "total_tokens": 45000,
+        "total_cost_usd": 0.45
       },
       "engagement": {
         "issue_reactions": 12,
@@ -100,7 +108,9 @@ Metrics are stored in JSON format following this schema:
     "total_workflows": 120,
     "active_workflows": 85,
     "total_safe_outputs": 45,
-    "overall_success_rate": 0.892
+    "overall_success_rate": 0.892,
+    "total_tokens": 1250000,
+    "total_cost_usd": 12.50
   }
 }
 ```
@@ -216,8 +226,49 @@ The shared metrics infrastructure enables:
 
 The workflow requires:
 
-- `actions: read` permission for GitHub Actions API access
-- GitHub MCP server with `actions` toolset enabled
+- `actions: read` permission for agentic-workflows tool access
+- Agentic-workflows tool configured (provides workflow introspection and logs)
+- GitHub MCP server with default toolset (for engagement metrics)
+- Repo-memory tool configured for meta-orchestrators branch
+
+## How It Works
+
+The metrics collector uses two complementary tools:
+
+### Primary: Agentic-Workflows Tool
+
+The agentic-workflows tool is the **primary data source** for all workflow metrics:
+
+1. **Status Tool**: Lists all workflows in the repository
+   ```
+   Provides: Complete workflow inventory
+   ```
+
+2. **Logs Tool**: Downloads workflow run data from last 24 hours
+   ```
+   Parameters: start_date: "-1d"
+   Provides: Run status, success/failure, tokens, costs, safe outputs
+   ```
+
+3. **Structured Data**: Returns pre-parsed workflow data
+   - No need to parse footers or extract workflow names manually
+   - Token usage and cost data included
+   - Safe output operations already counted
+
+### Secondary: GitHub MCP Server
+
+Used only for supplementary engagement metrics:
+- Reactions on issues/PRs created by workflows
+- Comment counts on PRs
+- Discussion reply counts
+
+This architecture ensures:
+- **Efficiency**: Agentic-workflows tool is optimized for log retrieval
+- **Accuracy**: Data comes from authoritative workflow execution logs
+- **Completeness**: Token usage and cost metrics included
+- **Performance**: Minimal API calls, structured data processing
+
+No additional secrets or configuration needed.
 - Repo-memory tool configured for meta-orchestrators branch
 
 No additional secrets or configuration needed.
