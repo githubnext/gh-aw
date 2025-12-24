@@ -76,10 +76,9 @@ When called with a workflow name, creates a template file with comprehensive exa
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` new                      # Interactive mode
-  ` + constants.CLIExtensionPrefix + ` new --interactive        # Interactive mode (explicit)
   ` + constants.CLIExtensionPrefix + ` new my-workflow          # Create template file
-  ` + constants.CLIExtensionPrefix + ` new my-workflow.md       # Create template file (alternative format)
-  ` + constants.CLIExtensionPrefix + ` new issue-handler --force`,
+  ` + constants.CLIExtensionPrefix + ` new my-workflow.md       # Same as above (.md extension stripped)
+  ` + constants.CLIExtensionPrefix + ` new my-workflow --force  # Overwrite if exists`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		forceFlag, _ := cmd.Flags().GetBool("force")

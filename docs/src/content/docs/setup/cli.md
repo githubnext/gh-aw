@@ -224,10 +224,13 @@ gh aw add ci-doctor --create-pull-request        # Create PR instead of direct c
 Create a new custom workflow from scratch.
 
 ```bash wrap
-gh aw new my-custom-workflow
+gh aw new                      # Interactive mode
+gh aw new my-custom-workflow   # Create template file
+gh aw new my-workflow.md       # Same as above (.md extension stripped)
+gh aw new my-workflow --force  # Overwrite if exists
 ```
 
-Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing.
+Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing. The `.md` extension is optional and will be automatically normalized.
 
 #### `secrets`
 
