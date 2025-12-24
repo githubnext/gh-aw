@@ -16,30 +16,46 @@ const (
 
 // resolveActionReference converts a local action path to the appropriate reference
 // based on the current action mode (dev vs release).
+// If action-tag is specified in features, it overrides the mode check and enables release mode behavior.
 // For dev mode: returns the local path as-is (e.g., "./actions/create-issue")
 // For release mode: converts to SHA-pinned remote reference (e.g., "githubnext/gh-aw/actions/create-issue@SHA # tag")
 func (c *Compiler) resolveActionReference(localActionPath string, data *WorkflowData) string {
-	switch c.actionMode {
-	case ActionModeDev:
-		// Return local path as-is for development
-		actionRefLog.Printf("Dev mode: using local action path: %s", localActionPath)
-		return localActionPath
+	// Check if action-tag is specified in features - if so, override mode and use release behavior
+	hasActionTag := false
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				hasActionTag = true
+				actionRefLog.Printf("action-tag feature detected: %s - using release mode behavior", actionTagStr)
+			}
+		}
+	}
 
-	case ActionModeRelease:
+	// Use release mode if either actionMode is release OR action-tag is specified
+	if c.actionMode == ActionModeRelease || hasActionTag {
 		// Convert to SHA-pinned remote reference for release
 		remoteRef := c.convertToRemoteActionRef(localActionPath, data)
 		if remoteRef == "" {
 			actionRefLog.Printf("WARNING: Could not resolve remote reference for %s", localActionPath)
 			return ""
 		}
-		actionRefLog.Printf("Release mode: using remote action reference: %s", remoteRef)
+		if hasActionTag {
+			actionRefLog.Printf("action-tag override: using remote action reference: %s", remoteRef)
+		} else {
+			actionRefLog.Printf("Release mode: using remote action reference: %s", remoteRef)
+		}
 		return remoteRef
+	}
 
-	default:
-		// Default to dev mode for unknown modes
-		actionRefLog.Printf("WARNING: Unknown action mode %s, defaulting to dev mode", c.actionMode)
+	// Dev mode - return local path
+	if c.actionMode == ActionModeDev {
+		actionRefLog.Printf("Dev mode: using local action path: %s", localActionPath)
 		return localActionPath
 	}
+
+	// Default to dev mode for unknown modes
+	actionRefLog.Printf("WARNING: Unknown action mode %s, defaulting to dev mode", c.actionMode)
+	return localActionPath
 }
 
 // convertToRemoteActionRef converts a local action path to a tag-based remote reference

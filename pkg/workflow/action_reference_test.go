@@ -157,13 +157,13 @@ func TestResolveActionReference(t *testing.T) {
 			description: "Release mode with action-tag SHA should use the SHA",
 		},
 		{
-			name:        "dev mode ignores action-tag",
+			name:        "dev mode with action-tag uses remote reference",
 			actionMode:  ActionModeDev,
 			localPath:   "./actions/setup",
 			version:     "v1.0.0",
 			actionTag:   "latest",
-			expectedRef: "./actions/setup",
-			description: "Dev mode should ignore action-tag and return local path",
+			expectedRef: "githubnext/gh-aw/actions/setup@latest",
+			description: "Dev mode with action-tag should override and use remote reference",
 		},
 	}
 

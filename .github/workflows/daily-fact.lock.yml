@@ -43,6 +43,12 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: githubnext/gh-aw/actions/setup@5c3428a
         with:
@@ -83,6 +89,12 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: githubnext/gh-aw/actions/setup@5c3428a
         with:
@@ -5463,6 +5475,12 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: githubnext/gh-aw/actions/setup@5c3428a
         with:
@@ -5559,6 +5577,12 @@ jobs:
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: githubnext/gh-aw/actions/setup@5c3428a
         with:
@@ -5819,6 +5843,12 @@ jobs:
       add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
       add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
         uses: githubnext/gh-aw/actions/setup@5c3428a
         with:
