@@ -131,8 +131,8 @@ Create a pull request.
 			}
 
 			compiler := NewCompiler(false, "", "test")
-// Use release mode to test with inline JavaScript (no local action checkouts)
-compiler.SetActionMode(ActionModeRelease)
+			// Use release mode to test with inline JavaScript (no local action checkouts)
+			compiler.SetActionMode(ActionModeRelease)
 			compiler.verbose = false
 
 			err = compiler.CompileWorkflow(workflowFile)

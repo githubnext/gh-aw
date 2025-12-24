@@ -76,7 +76,7 @@ func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData
 			}
 		}
 	}
-	
+
 	if tag == "" {
 		tag = c.version
 		if tag == "" || tag == "dev" {
