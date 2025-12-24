@@ -46,9 +46,10 @@ By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
 
 Examples:
-  gh aw mcp-server              # Run with stdio transport
-  gh aw mcp-server --port 8080  # Run HTTP server on port 8080
-  gh aw mcp-server --cmd ./gh-aw # Use custom gh-aw binary`,
+  gh aw mcp-server                    # Run with stdio transport (default for MCP clients)
+  gh aw mcp-server --port 8080        # Run HTTP server on port 8080 (for web-based clients)
+  gh aw mcp-server --cmd ./gh-aw      # Use custom gh-aw binary path
+  DEBUG=mcp:* gh aw mcp-server        # Run with verbose logging for debugging`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMCPServer(port, cmdPath)
 		},
