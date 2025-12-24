@@ -11,8 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var statusLog = logger.New("campaign:status")
 
 // ComputeCompiledState inspects the compiled state of all
 // workflows referenced by a campaign. It returns:
@@ -22,6 +25,8 @@ import (
 //	"Missing workflow" - at least one referenced workflow markdown file does not exist
 //	"N/A"   - campaign does not reference any workflows
 func ComputeCompiledState(spec CampaignSpec, workflowsDir string) string {
+	statusLog.Printf("Computing compiled state for campaign '%s' with %d workflows", spec.ID, len(spec.Workflows))
+
 	if len(spec.Workflows) == 0 {
 		return "N/A"
 	}
@@ -35,7 +40,7 @@ func ComputeCompiledState(spec CampaignSpec, workflowsDir string) string {
 
 		mdInfo, err := os.Stat(mdPath)
 		if err != nil {
-			log.Printf("Workflow markdown not found for campaign '%s': %s", spec.ID, mdPath)
+			statusLog.Printf("Workflow markdown not found for campaign '%s': %s", spec.ID, mdPath)
 			missingAny = true
 			compiledAll = false
 			continue
@@ -43,13 +48,13 @@ func ComputeCompiledState(spec CampaignSpec, workflowsDir string) string {
 
 		lockInfo, err := os.Stat(lockPath)
 		if err != nil {
-			log.Printf("Lock file not found for workflow '%s' in campaign '%s': %s", wf, spec.ID, lockPath)
+			statusLog.Printf("Lock file not found for workflow '%s' in campaign '%s': %s", wf, spec.ID, lockPath)
 			compiledAll = false
 			continue
 		}
 
 		if mdInfo.ModTime().After(lockInfo.ModTime()) {
-			log.Printf("Lock file out of date for workflow '%s' in campaign '%s'", wf, spec.ID)
+			statusLog.Printf("Lock file out of date for workflow '%s' in campaign '%s'", wf, spec.ID)
 			compiledAll = false
 		}
 	}
@@ -75,6 +80,8 @@ type ghIssueOrPRState struct {
 // If trackerLabel is empty or any errors occur, it falls back to zeros and
 // logs at debug level instead of failing the command.
 func FetchItemCounts(trackerLabel string) (issuesOpen, issuesClosed, prsOpen, prsMerged int) {
+	statusLog.Printf("Fetching item counts for tracker label: %s", trackerLabel)
+
 	if strings.TrimSpace(trackerLabel) == "" {
 		return 0, 0, 0, 0
 	}
@@ -94,10 +101,10 @@ func FetchItemCounts(trackerLabel string) (issuesOpen, issuesClosed, prsOpen, pr
 				}
 			}
 		} else if err != nil {
-			log.Printf("Failed to decode issue list for tracker label '%s': %v", trackerLabel, err)
+			statusLog.Printf("Failed to decode issue list for tracker label '%s': %v", trackerLabel, err)
 		}
 	} else if err != nil {
-		log.Printf("Failed to fetch issues for tracker label '%s': %v", trackerLabel, err)
+		statusLog.Printf("Failed to fetch issues for tracker label '%s': %v", trackerLabel, err)
 	}
 
 	// Pull requests
@@ -116,10 +123,10 @@ func FetchItemCounts(trackerLabel string) (issuesOpen, issuesClosed, prsOpen, pr
 				}
 			}
 		} else if err != nil {
-			log.Printf("Failed to decode PR list for tracker label '%s': %v", trackerLabel, err)
+			statusLog.Printf("Failed to decode PR list for tracker label '%s': %v", trackerLabel, err)
 		}
 	} else if err != nil {
-		log.Printf("Failed to fetch PRs for tracker label '%s': %v", trackerLabel, err)
+		statusLog.Printf("Failed to fetch PRs for tracker label '%s': %v", trackerLabel, err)
 	}
 
 	return issuesOpen, issuesClosed, prsOpen, prsMerged
@@ -130,6 +137,8 @@ func FetchItemCounts(trackerLabel string) (issuesOpen, issuesClosed, prsOpen, pr
 // memory/campaigns branch. It is best-effort: errors are logged and
 // treated as "no metrics" rather than failing the command.
 func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, error) {
+	statusLog.Printf("Fetching metrics from repo memory with glob: %s", metricsGlob)
+
 	if strings.TrimSpace(metricsGlob) == "" {
 		return nil, nil
 	}
@@ -138,7 +147,7 @@ func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, e
 	cmd := exec.Command("git", "ls-tree", "-r", "--name-only", "memory/campaigns")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Unable to list repo-memory branch for metrics (memory/campaigns): %v", err)
+		statusLog.Printf("Unable to list repo-memory branch for metrics (memory/campaigns): %v", err)
 		return nil, nil
 	}
 
@@ -151,7 +160,7 @@ func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, e
 		}
 		matched, err := path.Match(metricsGlob, pathStr)
 		if err != nil {
-			log.Printf("Invalid metrics_glob '%s': %v", metricsGlob, err)
+			statusLog.Printf("Invalid metrics_glob '%s': %v", metricsGlob, err)
 			return nil, nil
 		}
 		if matched {
@@ -175,13 +184,13 @@ func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, e
 	showCmd := exec.Command("git", "show", showArg)
 	fileData, err := showCmd.Output()
 	if err != nil {
-		log.Printf("Failed to read metrics file '%s' from memory/campaigns: %v", latest, err)
+		statusLog.Printf("Failed to read metrics file '%s' from memory/campaigns: %v", latest, err)
 		return nil, nil
 	}
 
 	var snapshot CampaignMetricsSnapshot
 	if err := json.Unmarshal(fileData, &snapshot); err != nil {
-		log.Printf("Failed to decode metrics JSON from '%s': %v", latest, err)
+		statusLog.Printf("Failed to decode metrics JSON from '%s': %v", latest, err)
 		return nil, nil
 	}
 
@@ -194,6 +203,8 @@ func FetchMetricsFromRepoMemory(metricsGlob string) (*CampaignMetricsSnapshot, e
 //
 // Errors are treated as "no cursor" rather than failing the command.
 func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, cursorUpdatedAt string) {
+	statusLog.Printf("Fetching cursor freshness from repo memory with glob: %s", cursorGlob)
+
 	if strings.TrimSpace(cursorGlob) == "" {
 		return "", ""
 	}
@@ -201,7 +212,7 @@ func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, c
 	cmd := exec.Command("git", "ls-tree", "-r", "--name-only", "memory/campaigns")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Unable to list repo-memory branch for cursor (memory/campaigns): %v", err)
+		statusLog.Printf("Unable to list repo-memory branch for cursor (memory/campaigns): %v", err)
 		return "", ""
 	}
 
@@ -214,7 +225,7 @@ func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, c
 		}
 		matched, err := path.Match(cursorGlob, pathStr)
 		if err != nil {
-			log.Printf("Invalid cursor_glob '%s': %v", cursorGlob, err)
+			statusLog.Printf("Invalid cursor_glob '%s': %v", cursorGlob, err)
 			return "", ""
 		}
 		if matched {
@@ -238,7 +249,7 @@ func FetchCursorFreshnessFromRepoMemory(cursorGlob string) (cursorPath string, c
 	logCmd := exec.Command("git", "log", "-1", "--format=%cI", "memory/campaigns", "--", latest)
 	logOut, err := logCmd.Output()
 	if err != nil {
-		log.Printf("Failed to read cursor freshness for '%s' from memory/campaigns: %v", latest, err)
+		statusLog.Printf("Failed to read cursor freshness for '%s' from memory/campaigns: %v", latest, err)
 		return latest, ""
 	}
 
@@ -257,7 +268,7 @@ func BuildRuntimeStatus(spec CampaignSpec, workflowsDir string) CampaignRuntimeS
 	var metricsETA string
 	if strings.TrimSpace(spec.MetricsGlob) != "" {
 		if snapshot, err := FetchMetricsFromRepoMemory(spec.MetricsGlob); err != nil {
-			log.Printf("Failed to fetch metrics for campaign '%s': %v", spec.ID, err)
+			statusLog.Printf("Failed to fetch metrics for campaign '%s': %v", spec.ID, err)
 		} else if snapshot != nil {
 			metricsTasksTotal = snapshot.TasksTotal
 			metricsTasksCompleted = snapshot.TasksCompleted

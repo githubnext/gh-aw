@@ -3,21 +3,28 @@ package parser
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var yamlErrorLog = logger.New("parser:yaml_error")
 
 // ExtractYAMLError extracts line and column information from YAML parsing errors
 // frontmatterLineOffset is the line number where the frontmatter content begins in the document (1-based)
 // This allows proper line number reporting when frontmatter is not at the beginning of the document
 func ExtractYAMLError(err error, frontmatterLineOffset int) (line int, column int, message string) {
+	yamlErrorLog.Printf("Extracting YAML error information: offset=%d", frontmatterLineOffset)
 	errStr := err.Error()
 
 	// First try to extract from goccy/go-yaml's [line:column] format
 	line, column, message = extractFromGoccyFormat(errStr, frontmatterLineOffset)
 	if line > 0 || column > 0 {
+		yamlErrorLog.Printf("Extracted error location from goccy format: line=%d, column=%d", line, column)
 		return line, column, message
 	}
 
 	// Fallback to standard YAML error string parsing for other libraries
+	yamlErrorLog.Print("Falling back to string parsing for error location")
 	return extractFromStringParsing(errStr, frontmatterLineOffset)
 }
 
