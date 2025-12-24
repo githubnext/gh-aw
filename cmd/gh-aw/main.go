@@ -40,7 +40,7 @@ var rootCmd = &cobra.Command{
 Common Tasks:
   gh aw init                  # Set up a new repository
   gh aw new my-workflow       # Create your first workflow
-  gh aw compile               # Compile all workflows
+  gh aw compile               # Compile Markdown workflows
   gh aw run my-workflow       # Execute a workflow
   gh aw logs my-workflow      # View execution logs
   gh aw audit <run-id>        # Debug a failed run
