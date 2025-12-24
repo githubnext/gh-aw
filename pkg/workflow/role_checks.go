@@ -32,6 +32,11 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	// This ensures we only use the action token and not any other custom secrets
 	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
+	steps = append(steps, "            global.core = core;\n")
+	steps = append(steps, "            global.github = github;\n")
+	steps = append(steps, "            global.context = context;\n")
+	steps = append(steps, "            global.exec = exec;\n")
+	steps = append(steps, "            global.io = io;\n")
 
 	// Generate the JavaScript code for the membership check (output-only version)
 	scriptContent := c.generateMembershipCheckScript(data.Roles)

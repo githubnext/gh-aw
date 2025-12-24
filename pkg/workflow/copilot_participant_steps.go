@@ -97,6 +97,11 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 		steps = append(steps, fmt.Sprintf("          ISSUE_NUMBER: ${{ steps.%s.outputs.%s }}\n", config.ConditionStepID, config.ConditionOutputKey))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
+		steps = append(steps, "            global.core = core;\n")
+		steps = append(steps, "            global.github = github;\n")
+		steps = append(steps, "            global.context = context;\n")
+		steps = append(steps, "            global.exec = exec;\n")
+		steps = append(steps, "            global.io = io;\n")
 		steps = append(steps, FormatJavaScriptForYAML(getAssignIssueScript())...)
 
 		// Add a comment after each assignee step except the last
@@ -124,6 +129,11 @@ func buildPRReviewerSteps(config CopilotParticipantConfig, effectiveToken string
 			steps = append(steps, "        with:\n")
 			steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 			steps = append(steps, "          script: |\n")
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, FormatJavaScriptForYAML(getAddCopilotReviewerScript())...)
 		} else {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))

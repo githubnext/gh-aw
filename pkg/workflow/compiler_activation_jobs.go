@@ -73,6 +73,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
 			steps = append(steps, formattedScript...)
@@ -104,6 +110,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
 			steps = append(steps, formattedScript...)
@@ -130,6 +142,12 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('"+SetupActionDestination+"/check_command_position.cjs');\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Add the JavaScript script with proper indentation
 			formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
 			steps = append(steps, formattedScript...)
@@ -400,6 +418,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/compute_text.cjs');\n")
 			steps = append(steps, "            await main();\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Inline the JavaScript directly instead of using shared action
 			steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
 		}
@@ -459,6 +483,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            global.io = io;\n")
 			steps = append(steps, "            require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Add each line of the script with proper indentation (bundled version with messages.cjs)
 			formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
 			steps = append(steps, formattedScript...)
@@ -499,6 +529,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/lock-issue.cjs');\n")
 			steps = append(steps, "            await main();\n")
 		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			steps = append(steps, "            global.core = core;\n")
+			steps = append(steps, "            global.github = github;\n")
+			steps = append(steps, "            global.context = context;\n")
+			steps = append(steps, "            global.exec = exec;\n")
+			steps = append(steps, "            global.io = io;\n")
 			// Inline the lock-issue script
 			// Bundle it to remove module.exports and inline dependencies
 			sources := GetJavaScriptSources()
