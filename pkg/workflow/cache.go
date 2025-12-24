@@ -125,6 +125,10 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 						retentionDaysIntValue := int(retentionDaysUint64)
 						entry.RetentionDays = &retentionDaysIntValue
 					}
+					// Validate retention-days bounds
+					if entry.RetentionDays != nil && (*entry.RetentionDays < 1 || *entry.RetentionDays > 90) {
+						return nil, fmt.Errorf("retention-days must be between 1 and 90, got %d", *entry.RetentionDays)
+					}
 				}
 
 				// Parse restore-only flag
@@ -183,6 +187,10 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
 				retentionDaysIntValue := int(retentionDaysUint64)
 				entry.RetentionDays = &retentionDaysIntValue
+			}
+			// Validate retention-days bounds
+			if entry.RetentionDays != nil && (*entry.RetentionDays < 1 || *entry.RetentionDays > 90) {
+				return nil, fmt.Errorf("retention-days must be between 1 and 90, got %d", *entry.RetentionDays)
 			}
 		}
 
