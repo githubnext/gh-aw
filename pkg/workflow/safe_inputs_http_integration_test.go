@@ -37,6 +37,8 @@ Test safe-inputs HTTP server
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
+// Use release mode to test with inline JavaScript (no local action checkouts)
+compiler.SetActionMode(ActionModeRelease)
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -170,6 +172,8 @@ Test safe-inputs with secrets
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
+// Use release mode to test with inline JavaScript (no local action checkouts)
+compiler.SetActionMode(ActionModeRelease)
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -245,6 +249,8 @@ Test entry point script
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
+// Use release mode to test with inline JavaScript (no local action checkouts)
+compiler.SetActionMode(ActionModeRelease)
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -309,6 +315,8 @@ Test readiness check
 
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
+// Use release mode to test with inline JavaScript (no local action checkouts)
+compiler.SetActionMode(ActionModeRelease)
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

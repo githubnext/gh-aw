@@ -5982,6 +5982,8 @@ jobs:
   pre_activation:
     if: startsWith(github.event.issue.title, '[Campaign]')
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:

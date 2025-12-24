@@ -5897,6 +5897,8 @@ jobs:
       ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
@@ -6166,7 +6168,8 @@ jobs:
       - detection
     if: always() && needs.detection.outputs.success == 'true'
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1

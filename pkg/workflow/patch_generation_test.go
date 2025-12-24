@@ -37,6 +37,8 @@ This workflow tests how patches are generated automatically.
 	}
 
 	compiler := NewCompiler(false, "", "test")
+// Use release mode to test with inline JavaScript (no local action checkouts)
+compiler.SetActionMode(ActionModeRelease)
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {

@@ -6125,6 +6125,8 @@ jobs:
   pre_activation:
     if: ${{ github.event.workflow_run.event == 'workflow_dispatch' }}
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
