@@ -42,11 +42,15 @@ async function main() {
 
     core.info(`Successfully added Copilot as reviewer to PR #${prNumber}`);
 
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Copilot Reviewer Added
 
 Successfully added Copilot as a reviewer to PR #${prNumber}.
-`).write();
+`
+      )
+      .write();
   } catch (error) {
     const errorMessage = error?.message ?? String(error);
     core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
