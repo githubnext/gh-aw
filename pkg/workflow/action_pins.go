@@ -148,7 +148,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	// Dynamic resolution failed, try hardcoded pins
 	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
 	actionPins := getActionPins()
-	
+
 	// Find all pins matching the repo
 	var matchingPins []ActionPin
 	for _, pin := range actionPins {
@@ -156,13 +156,13 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			matchingPins = append(matchingPins, pin)
 		}
 	}
-	
+
 	if len(matchingPins) == 0 {
 		// No pins found for this repo, will handle below
 		actionPinsLog.Printf("No hardcoded pins found for %s", actionRepo)
 	} else {
 		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
-		
+
 		// Sort matching pins by version (descending - highest first)
 		// Use bubble sort for simplicity since we typically have few matches
 		for i := 0; i < len(matchingPins); i++ {
@@ -176,7 +176,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				}
 			}
 		}
-		
+
 		// First, try to find an exact version match
 		for _, pin := range matchingPins {
 			if pin.Version == version {
@@ -184,11 +184,11 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				return actionRepo + "@" + pin.SHA + " # " + version, nil
 			}
 		}
-		
+
 		// No exact match found - use the highest version if not in strict mode
 		highestPin := matchingPins[0]
 		actionPinsLog.Printf("No exact match for version %s, highest available is %s", version, highestPin.Version)
-		
+
 		if !data.StrictMode {
 			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 				actionRepo, version, actionRepo, highestPin.Version)
