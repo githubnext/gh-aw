@@ -110,10 +110,3 @@ async function main() {
 }
 
 module.exports = { main };
-
-// Execute main when script is run directly (not when required as a module)
-if (typeof require !== 'undefined' && require.main === module) {
-  main().catch(error => {
-    core.setFailed(error instanceof Error ? error.message : String(error));
-  });
-}
