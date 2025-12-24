@@ -6508,6 +6508,7 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           github-api-url: ${{ github.api_url }}
           permission-contents: read
+          permission-discussions: write
           permission-issues: write
           permission-pull-requests: write
       - name: Debug job inputs
