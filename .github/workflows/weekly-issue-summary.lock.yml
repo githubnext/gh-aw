@@ -77,7 +77,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      issues: read
+          contents: read
+          issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -6608,7 +6609,8 @@ jobs:
       - detection
     if: always() && needs.detection.outputs.success == 'true'
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1

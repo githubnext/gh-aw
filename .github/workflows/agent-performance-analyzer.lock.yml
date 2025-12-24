@@ -6506,6 +6506,8 @@ jobs:
 
   pre_activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
