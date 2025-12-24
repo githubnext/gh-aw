@@ -64,10 +64,10 @@ func TestScriptsExportMain(t *testing.T) {
 // follow the correct pattern and include the require.main check for direct execution
 func TestScriptsWithMainExportPattern(t *testing.T) {
 	jsDir := "js"
-	
+
 	// Pattern to match: module.exports = { main }
 	mainExportPattern := regexp.MustCompile(`module\.exports\s*=\s*\{[^}]*\bmain\b[^}]*\}`)
-	
+
 	// Pattern to check for require.main === module check
 	requireMainPattern := regexp.MustCompile(`require\.main\s*===\s*module`)
 
