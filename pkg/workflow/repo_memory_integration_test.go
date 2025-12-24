@@ -228,14 +228,19 @@ This workflow has file validation.
 	}
 	lockFile := string(lockContent)
 
-	// Check for file size validation
-	if !strings.Contains(lockFile, "File exceeds size limit") && !strings.Contains(lockFile, "maxFileSize") {
+	// Check for file size validation environment variable
+	if !strings.Contains(lockFile, "MAX_FILE_SIZE: 524288") {
 		t.Error("Expected file size validation in push step")
 	}
 
-	// Check for file count validation
-	if !strings.Contains(lockFile, "Too many files") && !strings.Contains(lockFile, "maxFileCount") {
+	// Check for file count validation environment variable
+	if !strings.Contains(lockFile, "MAX_FILE_COUNT: 50") {
 		t.Error("Expected file count validation in push step")
+	}
+
+	// Check that push_repo_memory.cjs is being required (not inlined)
+	if !strings.Contains(lockFile, "require('/tmp/gh-aw/actions/push_repo_memory.cjs')") {
+		t.Error("Expected push_repo_memory script to be loaded via require")
 	}
 
 	// Check for git user configuration

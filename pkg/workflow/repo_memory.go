@@ -529,6 +529,9 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		steps = append(steps, step.String())
 	}
 
+	// Determine script loading method based on action mode
+	useRequire := setupActionRef != ""
+
 	// Add push steps for each memory
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		targetRepo := memory.TargetRepo
@@ -565,10 +568,28 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("        with:\n")
 		step.WriteString("          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(pushRepoMemoryScript)
-		for _, line := range formattedScript {
-			step.WriteString(line)
+		if useRequire {
+			// Use require() to load script from copied files
+			// Attach GitHub Actions builtin objects to global scope before requiring
+			step.WriteString("            global.core = core;\n")
+			step.WriteString("            global.github = github;\n")
+			step.WriteString("            global.context = context;\n")
+			step.WriteString("            global.exec = exec;\n")
+			step.WriteString("            global.io = io;\n")
+			step.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
+			step.WriteString("            await main();\n")
+		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			step.WriteString("            global.core = core;\n")
+			step.WriteString("            global.github = github;\n")
+			step.WriteString("            global.context = context;\n")
+			step.WriteString("            global.exec = exec;\n")
+			step.WriteString("            global.io = io;\n")
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML(pushRepoMemoryScript)
+			for _, line := range formattedScript {
+				step.WriteString(line)
+			}
 		}
 
 		steps = append(steps, step.String())
