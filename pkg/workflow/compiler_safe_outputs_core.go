@@ -386,7 +386,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		setupActionRef := c.resolveActionReference("./actions/setup", data)
 		if setupActionRef != "" {
 			if c.actionMode.IsDev() {
-				insertIndex += 5 // Checkout step (5 lines: name, uses, with, sparse-checkout header, path)
+				insertIndex += 6 // Checkout step (6 lines: name, uses, with, sparse-checkout header, actions, persist-credentials)
 			}
 			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
 		}
