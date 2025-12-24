@@ -635,3 +635,79 @@ func TestGetActionPinSemverPreference(t *testing.T) {
 		})
 	}
 }
+
+// TestGetActionPinWithData_SemverPreference tests that GetActionPinWithData prefers
+// the highest semver version when multiple versions exist for the same repo
+func TestGetActionPinWithData_SemverPreference(t *testing.T) {
+	tests := []struct {
+		name            string
+		repo            string
+		requestedVer    string
+		expectedVer     string
+		strictMode      bool
+		shouldFallback  bool // Whether we expect to fall back to highest version
+	}{
+		{
+			name:            "exact match for setup-go v6.1.0",
+			repo:            "actions/setup-go",
+			requestedVer:    "v6.1.0",
+			expectedVer:     "v6.1.0",
+			strictMode:      false,
+			shouldFallback:  false,
+		},
+		{
+			name:            "fallback to highest version for setup-go when requesting v6",
+			repo:            "actions/setup-go",
+			requestedVer:    "v6",
+			expectedVer:     "v6.1.0", // Should use highest version (v6.1.0) not v6
+			strictMode:      false,
+			shouldFallback:  true,
+		},
+		{
+			name:            "fallback to highest version for upload-artifact when requesting v4",
+			repo:            "actions/upload-artifact",
+			requestedVer:    "v4",
+			expectedVer:     "v5.0.0", // Should use highest available (v5.0.0), not v4.6.2
+			strictMode:      false,
+			shouldFallback:  true,
+		},
+		{
+			name:            "exact match for upload-artifact v4",
+			repo:            "actions/upload-artifact",
+			requestedVer:    "v4.6.2",
+			expectedVer:     "v4.6.2",
+			strictMode:      false,
+			shouldFallback:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				StrictMode: tt.strictMode,
+			}
+
+			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+
+			if err != nil {
+				t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
+			}
+
+			if result == "" {
+				t.Fatalf("GetActionPinWithData(%s, %s) returned empty string", tt.repo, tt.requestedVer)
+			}
+
+			// Check that the result contains the expected version in the comment
+			if !strings.Contains(result, "# "+tt.expectedVer) {
+				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected version %s in comment", 
+					tt.repo, tt.requestedVer, result, tt.expectedVer)
+			}
+
+			// Verify the result format is correct (repo@sha # version)
+			if !strings.Contains(result, "@") || !strings.Contains(result, " # ") {
+				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected format 'repo@sha # version'",
+					tt.repo, tt.requestedVer, result)
+			}
+		})
+	}
+}
