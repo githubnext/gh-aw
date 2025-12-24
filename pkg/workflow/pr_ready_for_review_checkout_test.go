@@ -135,21 +135,18 @@ Test workflow without checkout (has permissions but checkout should be condition
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// If PR checkout is expected, verify it uses actions/github-script
+			// If PR checkout is expected, verify it uses actions/github-script with require()
 			if tt.expectPRCheckout {
 				// Check for actions/github-script usage
 				if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
 					t.Error("PR checkout step should use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 				}
-				// Check for JavaScript code patterns
-				if !strings.Contains(lockStr, "pullRequest.head.ref") {
-					t.Error("PR checkout step should reference PR head ref in JavaScript")
+				// Check for require() pattern to load the checkout module
+				if !strings.Contains(lockStr, "require(") {
+					t.Error("PR checkout step should load module via require()")
 				}
-				if !strings.Contains(lockStr, "exec.exec") {
-					t.Error("PR checkout step should use exec.exec for git commands")
-				}
-				if !strings.Contains(lockStr, "checkout") {
-					t.Error("PR checkout step should checkout the branch")
+				if !strings.Contains(lockStr, "checkout_pr_branch.cjs") {
+					t.Error("PR checkout step should reference checkout_pr_branch.cjs module")
 				}
 			}
 		})
@@ -212,11 +209,11 @@ Test workflow with pull_request triggers.
 		t.Error("Expected PR checkout to use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 	}
 
-	// Verify JavaScript code patterns
+	// Verify JavaScript loads the checkout module via require()
 	expectedPatterns := []string{
-		`pullRequest.head.ref`,
-		`exec.exec`,
-		`checkout`,
+		"require(",
+		"checkout_pr_branch.cjs",
+		"await main()",
 	}
 
 	for _, pattern := range expectedPatterns {

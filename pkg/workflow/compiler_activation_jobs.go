@@ -829,7 +829,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			// Parse existing permissions and add contents: read
 			parser := NewPermissionsParser(permissions)
 			perms := parser.ToPermissions()
-			
+
 			// Only add contents: read if not already present
 			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
 				perms.Set(PermissionContents, PermissionRead)

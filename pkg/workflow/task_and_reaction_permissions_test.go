@@ -65,7 +65,7 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 
 	// Test 2: Verify activation job behavior with local actions
 	activationJobSection := extractJobSection(lockContentStr, constants.ActivationJobName)
-	
+
 	// In dev mode (default), activation job should checkout actions folder for setup action
 	if !strings.Contains(activationJobSection, "Checkout actions folder") {
 		t.Error("Activation job should checkout actions folder for local setup action in dev mode")

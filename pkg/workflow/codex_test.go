@@ -17,7 +17,7 @@ func TestCodexAIConfiguration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "codex-ai-test")
 
 	compiler := NewCompiler(false, "", "test")
-compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 
 	tests := []struct {
 		name          string
@@ -262,7 +262,7 @@ func TestCodexMCPConfigGeneration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "codex-mcp-test")
 
 	compiler := NewCompiler(false, "", "test")
-compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 
 	tests := []struct {
 		name                 string
@@ -471,7 +471,7 @@ This is a test workflow for MCP configuration with different AI engines.
 func TestCodexConfigField(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	compiler := NewCompiler(false, "", "test")
-compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 
 	tests := []struct {
 		name         string

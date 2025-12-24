@@ -53,7 +53,7 @@ steps:
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
-compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -122,25 +122,30 @@ compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScr
 	}
 
 	// Verify the order:
-	// 1. First step should be "Create gh-aw temp directory" (before all steps, including custom steps)
-	// 2. Second step should be "Checkout code" (from custom steps)
-	// 3. Third step should be "Setup Node.js" (runtime setup, inserted after checkout)
-	// 4. Fourth step should be "Use Node" (from custom steps)
+	// 1. First step should be "Setup Scripts" (setup action scripts)
+	// 2. Second step should be "Create gh-aw temp directory" (before all steps, including custom steps)
+	// 3. Third step should be "Checkout code" (from custom steps)
+	// 4. Fourth step should be "Setup Node.js" (runtime setup, inserted after checkout)
+	// 5. Fifth step should be "Use Node" (from custom steps)
 
-	if stepNames[0] != "Create gh-aw temp directory" {
-		t.Errorf("First step should be 'Create gh-aw temp directory', got '%s'", stepNames[0])
+	if stepNames[0] != "Setup Scripts" {
+		t.Errorf("First step should be 'Setup Scripts', got '%s'", stepNames[0])
 	}
 
-	if stepNames[1] != "Checkout code" {
-		t.Errorf("Second step should be 'Checkout code', got '%s'", stepNames[1])
+	if stepNames[1] != "Create gh-aw temp directory" {
+		t.Errorf("Second step should be 'Create gh-aw temp directory', got '%s'", stepNames[1])
 	}
 
-	if stepNames[2] != "Setup Node.js" {
-		t.Errorf("Third step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[2])
+	if stepNames[2] != "Checkout code" {
+		t.Errorf("Third step should be 'Checkout code', got '%s'", stepNames[2])
 	}
 
-	if stepNames[3] != "Use Node" {
-		t.Errorf("Fourth step should be 'Use Node', got '%s'", stepNames[3])
+	if stepNames[3] != "Setup Node.js" {
+		t.Errorf("Fourth step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[3])
+	}
+
+	if stepNames[4] != "Use Node" {
+		t.Errorf("Fifth step should be 'Use Node', got '%s'", stepNames[4])
 	}
 
 	// Additional check: verify temp directory creation is first
@@ -169,7 +174,7 @@ compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScr
 	}
 
 	t.Logf("Step order is correct:")
-	for i, name := range stepNames[:4] {
+	for i, name := range stepNames[:5] {
 		t.Logf("  %d. %s", i+1, name)
 	}
 }
@@ -212,7 +217,7 @@ Run node --version to check the Node.js version.
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
-compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -270,17 +275,23 @@ compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScr
 		}
 	}
 
-	if len(stepNames) < 1 {
-		t.Fatalf("Expected at least 1 step, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 2 {
+		t.Fatalf("Expected at least 2 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
 	// Verify the order:
-	// 1. First step should be "Checkout repository" (automatic)
+	// 1. First step should be "Setup Scripts" (setup action scripts)
+	// 2. Second step should be "Checkout repository" (automatic)
 
-	if stepNames[0] != "Checkout repository" {
-		t.Errorf("First step should be 'Checkout repository', got '%s'", stepNames[0])
+	if stepNames[0] != "Setup Scripts" {
+		t.Errorf("First step should be 'Setup Scripts', got '%s'", stepNames[0])
+	}
+
+	if stepNames[1] != "Checkout repository" {
+		t.Errorf("Second step should be 'Checkout repository', got '%s'", stepNames[1])
 	}
 
 	t.Logf("Step order is correct:")
-	t.Logf("  1. %s (first step is checkout)", stepNames[0])
+	t.Logf("  1. %s", stepNames[0])
+	t.Logf("  2. %s", stepNames[1])
 }
