@@ -105,8 +105,8 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		// Clean index.js for actions that use it (except setup-safe-outputs and setup)
-		if actionName != "setup-safe-outputs" && actionName != "setup" {
+		// Clean index.js for actions that use it (except setup-safe-outputs, setup-safe-inputs, and setup)
+		if actionName != "setup-safe-outputs" && actionName != "setup-safe-inputs" && actionName != "setup" {
 			indexPath := filepath.Join(actionsDir, actionName, "index.js")
 			if _, err := os.Stat(indexPath); err == nil {
 				if err := os.Remove(indexPath); err != nil {
@@ -117,8 +117,8 @@ func ActionsCleanCommand() error {
 			}
 		}
 
-		// Clean js/ directory for setup-safe-outputs
-		if actionName == "setup-safe-outputs" {
+		// Clean js/ directory for setup-safe-outputs and setup-safe-inputs
+		if actionName == "setup-safe-outputs" || actionName == "setup-safe-inputs" {
 			jsDir := filepath.Join(actionsDir, actionName, "js")
 			if _, err := os.Stat(jsDir); err == nil {
 				if err := os.RemoveAll(jsDir); err != nil {
@@ -237,9 +237,9 @@ func buildAction(actionsDir, actionName string) error {
 		return err
 	}
 
-	// Special handling for setup-safe-outputs: copy files instead of embedding
-	if actionName == "setup-safe-outputs" {
-		return buildSetupSafeOutputsAction(actionsDir, actionName)
+	// Special handling for setup-safe-outputs and setup-safe-inputs: copy files instead of embedding
+	if actionName == "setup-safe-outputs" || actionName == "setup-safe-inputs" {
+		return buildCopyFilesAction(actionsDir, actionName)
 	}
 
 	// Special handling for setup: build shell script with embedded files
@@ -305,8 +305,8 @@ func buildAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupSafeOutputsAction builds the setup-safe-outputs action by copying JavaScript files
-func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
+// buildCopyFilesAction builds actions that copy JavaScript files (setup-safe-outputs and setup-safe-inputs)
+func buildCopyFilesAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")
 
@@ -392,6 +392,7 @@ func buildSetupAction(actionsDir, actionName string) error {
 	for filename, content := range shellScripts {
 		destPath := filepath.Join(shDir, filename)
 		// Shell scripts should be executable (0755)
+		//nolint:gosec // G306: Shell scripts require executable permissions
 		if err := os.WriteFile(destPath, []byte(content), 0755); err != nil {
 			return fmt.Errorf("failed to write %s: %w", filename, err)
 		}
@@ -435,6 +436,9 @@ func getActionDependencies(actionName string) []string {
 			"safe_inputs_validation.cjs",
 			"mcp_server_core.cjs",
 			"mcp_logger.cjs",
+			"mcp_handler_python.cjs",
+			"mcp_handler_shell.cjs",
+			"read_buffer.cjs",
 		},
 		"noop": {
 			"load_agent_output.cjs",
