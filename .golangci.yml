@@ -175,6 +175,10 @@ linters:
         path: pkg/cli/mcp_inspect\.go
       - linters:
           - gosec
+        text: "G306" # 0755 is correct permission for shell scripts
+        path: pkg/cli/actions_build_command\.go
+      - linters:
+          - gosec
         text: "G204" # Allow docker commands in poutine
         path: pkg/cli/poutine\.go
       - linters:
