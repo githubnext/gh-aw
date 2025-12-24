@@ -56,8 +56,14 @@ FILE_COUNT=0
 for file in "${JS_SOURCE_DIR}"/*.cjs; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
-    cp "$file" "${DESTINATION}/${filename}"
-    echo "::notice::Copied: ${filename}"
+    # Special handling: rename entry point file to mcp-server.cjs
+    if [ "$filename" = "safe_outputs_mcp_server_entry_point.cjs" ]; then
+      cp "$file" "${DESTINATION}/mcp-server.cjs"
+      echo "::notice::Copied: ${filename} -> mcp-server.cjs"
+    else
+      cp "$file" "${DESTINATION}/${filename}"
+      echo "::notice::Copied: ${filename}"
+    fi
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done

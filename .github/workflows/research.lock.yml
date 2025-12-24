@@ -363,22 +363,6 @@ jobs:
         uses: ./actions/setup-safe-outputs
         with:
           destination: /tmp/gh-aw/safeoutputs
-      - name: Write Safe Outputs MCP Server Entry Point
-        run: |
-          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
-          const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
-          if (require.main === module) {
-            try {
-              startSafeOutputsServer();
-            } catch (error) {
-              console.error(`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`);
-              process.exit(1);
-            }
-          }
-          module.exports = { startSafeOutputsServer };
-          EOF
-          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
-          
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

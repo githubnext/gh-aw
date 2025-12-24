@@ -417,6 +417,7 @@ func getActionDependencies(actionName string) []string {
 	// Static dependencies for other actions
 	dependencyMap := map[string][]string{
 		"setup-safe-outputs": {
+			"safe_outputs_mcp_server_entry_point.cjs", // Entry point - will be renamed to mcp-server.cjs by copy-files.sh
 			"safe_outputs_mcp_server.cjs",
 			"safe_outputs_bootstrap.cjs",
 			"safe_outputs_tools_loader.cjs",

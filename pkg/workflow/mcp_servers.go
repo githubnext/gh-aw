@@ -364,22 +364,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 
-		// Step 3: Write the main MCP server entry point (simple script that requires modules)
-		yaml.WriteString("      - name: Write Safe Outputs MCP Server Entry Point\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
-		// Write entry point script with base indentation only (heredoc doesn't need extra indentation)
-		// Remove comments to keep the heredoc content clean
-		entryScript := removeJavaScriptComments(generateSafeOutputsMCPServerEntryScript())
-		for _, line := range strings.Split(entryScript, "\n") {
-			// Skip empty lines for cleaner output
-			if strings.TrimSpace(line) != "" {
-				yaml.WriteString("          " + line + "\n")
-			}
-		}
-		yaml.WriteString("          EOF\n")
-		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
-		yaml.WriteString("          \n")
+		// The setup-safe-outputs action now copies all files including the entry point (mcp-server.cjs)
+		// No need to generate it separately anymore
 	}
 
 	// Write safe-inputs MCP server if configured and feature flag is enabled
