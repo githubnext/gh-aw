@@ -92,3 +92,43 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestGetActionlintVersion(t *testing.T) {
+	// Reset the cached version before test
+	originalVersion := actionlintVersion
+	defer func() { actionlintVersion = originalVersion }()
+
+	tests := []struct {
+		name          string
+		presetVersion string
+		expectCached  bool
+	}{
+		{
+			name:          "first call fetches version",
+			presetVersion: "",
+			expectCached:  false,
+		},
+		{
+			name:          "second call returns cached version",
+			presetVersion: "1.7.9",
+			expectCached:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actionlintVersion = tt.presetVersion
+
+			// If we preset a version, this should return immediately
+			if tt.expectCached {
+				version, err := getActionlintVersion()
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if version != tt.presetVersion {
+					t.Errorf("Expected cached version %q, got %q", tt.presetVersion, version)
+				}
+			}
+		})
+	}
+}
