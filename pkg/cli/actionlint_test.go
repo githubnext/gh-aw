@@ -210,4 +210,3 @@ func TestParseAndDisplayActionlintOutputMultiFile(t *testing.T) {
 		})
 	}
 }
-
