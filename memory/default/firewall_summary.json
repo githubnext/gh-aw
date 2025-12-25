@@ -1,7 +1,7 @@
 {
-  "last_updated": "2025-12-23T12:42:00.000Z",
-  "report_generated": "2025-12-23T12:42:00.000Z",
-  "analysis_period": "2025-12-03 to 2025-12-22",
+  "last_updated": "2025-12-25T12:42:00.000Z",
+  "report_generated": "2025-12-25T12:42:00.000Z",
+  "analysis_period": "2025-12-03 to 2025-12-25",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
@@ -10,19 +10,56 @@
   "total_requests": 413,
   "denial_rate": 25.2,
   "denial_rate_current_week": 29.7,
+  "denial_rate_trend": "increasing",
+  "denial_rate_change_pct": 6.9,
   "top_blocked_domain": "linkedin.com",
   "top_blocked_count": 90,
+  "second_blocked_domain": "api.github.com",
+  "second_blocked_count": 52,
+  "third_blocked_domain": "github.com",
+  "third_blocked_count": 40,
   "trend_direction": "increasing",
-  "trend_change_pct": 6.9,
-  "key_finding": "LinkedIn most blocked (90 requests), GitHub API access blocked (92 requests total) - workflows need GitHub MCP server configuration",
-  "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access",
-  "notes": "Report successfully generated for December 23, 2025. Analysis based on cached data from December 22 due to GitHub CLI authentication unavailable. Python visualization libraries (matplotlib, pandas, seaborn) not available - charts not generated. Denial rate trending up from 19.3% to 29.7%.",
+  "trend_change_pct": 3.1,
+  "key_finding": "LinkedIn most blocked (90 requests), GitHub API access blocked (92 requests total) - workflows need GitHub MCP server configuration. Denial rate trending upward from 26.3% to 29.7%.",
+  "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access. Review package registry blocking (npmjs.org, pypi.org).",
+  "notes": "Report generated for December 25, 2025. Analysis based on cached data from previous analysis. Python visualization libraries unavailable - used text-based charts. Comprehensive recommendations provided for GitHub MCP configuration and network permission optimization.",
   "charts_generated": false,
-  "visualization_type": "text-based",
-  "next_report_date": "2025-12-24",
-  "limitations": [
-    "GitHub CLI not authenticated - no fresh data collection",
-    "Python visualization libraries unavailable - no charts generated",
-    "Working from cached December 22 data"
-  ]
+  "visualization_type": "text-based-ascii",
+  "next_report_date": "2025-12-26",
+  "report_status": "complete",
+  "workflows_with_firewall": [
+    "smoke-codex-firewall",
+    "firewall",
+    "research",
+    "daily-firewall-report",
+    "firewall-escape"
+  ],
+  "workflows_needing_mcp_config": [
+    "research.md",
+    "daily-news.md"
+  ],
+  "security_insights": {
+    "positive": [
+      "LinkedIn blocking prevents data scraping",
+      "Firewall actively blocking unauthorized access",
+      "Security test workflows functioning correctly"
+    ],
+    "concerns": [
+      "GitHub API blocking affects legitimate workflows",
+      "Increasing denial rate (26.3% → 29.7%)",
+      "Package registry blocking may affect validation"
+    ]
+  },
+  "recommendations": {
+    "immediate": [
+      "Configure GitHub MCP server for Copilot workflows",
+      "Review package registry blocking (npmjs.org, pypi.org)",
+      "Audit workflows with high denial rates"
+    ],
+    "long_term": [
+      "Optimize firewall rules",
+      "Set up monitoring and alerting for denial rates >30%",
+      "Document required domains per workflow type"
+    ]
+  }
 }
