@@ -26,7 +26,7 @@ jobs:
 
       - name: Run Gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.10
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
           gosec -fmt sarif -out gosec-results.sarif -exclude-generated ./...
 
       - name: Upload Gosec SARIF
