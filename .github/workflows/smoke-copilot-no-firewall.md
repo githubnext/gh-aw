@@ -17,7 +17,6 @@ network:
   allowed:
     - defaults
     - node
-    - github
     - playwright
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
@@ -28,6 +27,8 @@ tools:
   bash:
     - "*"
   github:
+    mode: remote
+    toolsets: [default]
   playwright:
     allowed_domains:
       - github.com

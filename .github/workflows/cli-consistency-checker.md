@@ -11,8 +11,11 @@ permissions:
   pull-requests: read
 engine: copilot
 network:
-  allowed: [defaults, node, "api.github.com"]
+  allowed: [defaults, node]
 tools:
+  github:
+    mode: remote
+    toolsets: [default]
   edit:
   web-fetch:
   bash:

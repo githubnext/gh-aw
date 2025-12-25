@@ -17,7 +17,9 @@ engine: copilot
 strict: true
 
 tools:
-  github: false
+  github:
+    mode: remote
+    toolsets: [default]
   edit:
   bash:
     - "*"
@@ -32,8 +34,6 @@ safe-outputs:
 network:
   allowed:
     - defaults
-    - github
-    - api.github.com
 
 imports:
   - shared/gh.md

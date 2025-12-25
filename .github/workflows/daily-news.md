@@ -40,6 +40,9 @@ tools:
   bash:
     - "*"
   web-fetch:
+  github:
+    mode: remote
+    toolsets: [default]
 
 # Pre-download GitHub data in steps to avoid excessive MCP calls
 # Uses cache-memory to persist data across runs and avoid re-fetching

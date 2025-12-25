@@ -22,6 +22,12 @@ network:
 
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
+
+tools:
+  github:
+    mode: remote
+    toolsets: [default]
+
 imports:
   - shared/mcp/tavily.md
   - shared/reporting.md
