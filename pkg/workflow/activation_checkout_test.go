@@ -128,7 +128,7 @@ strict: false
 			// In release mode (which we no longer test here), there would be no checkout
 			// The key is that we're NOT checking out the full .github/workflows directory
 			// for timestamp checking - that uses GitHub API instead
-			
+
 			// Verify it does NOT checkout .github/workflows for timestamp checking
 			if strings.Contains(activationJobSection, "Checkout workflows") {
 				t.Errorf("%s: Should not have 'Checkout workflows' step - uses GitHub API for timestamp checking", tt.description)
@@ -138,7 +138,7 @@ strict: false
 			if !strings.Contains(activationJobSection, "Check workflow file timestamps") {
 				t.Errorf("%s: Should contain timestamp check step", tt.description)
 			}
-			
+
 			// Verify scripts are loaded via require() (not inlined)
 			if !strings.Contains(activationJobSection, "require(") {
 				t.Errorf("%s: Should load scripts via require()", tt.description)
