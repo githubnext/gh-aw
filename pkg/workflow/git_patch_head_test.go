@@ -118,7 +118,7 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 	}
 
 	// Run the patch generation script
-	scriptContent := generateGitPatchScript
+	scriptContent := getGenerateGitPatchScript(t)
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
 	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0755); err != nil {
 		t.Fatalf("Failed to write script file: %v", err)
@@ -285,7 +285,7 @@ func TestGitPatchPrefersBranchOverHEAD(t *testing.T) {
 
 	// Run the script
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
-	if err := os.WriteFile(scriptFile, []byte(generateGitPatchScript), 0755); err != nil {
+	if err := os.WriteFile(scriptFile, []byte(getGenerateGitPatchScript(t)), 0755); err != nil {
 		t.Fatalf("Failed to write script: %v", err)
 	}
 
@@ -366,7 +366,7 @@ func TestGitPatchNoCommits(t *testing.T) {
 
 	// Run script with GITHUB_SHA = current HEAD (no new commits)
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
-	os.WriteFile(scriptFile, []byte(generateGitPatchScript), 0755)
+	os.WriteFile(scriptFile, []byte(getGenerateGitPatchScript(t)), 0755)
 
 	// Ensure /tmp/gh-aw exists and is clean
 	patchFile := "/tmp/gh-aw/aw.patch"
