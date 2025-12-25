@@ -103,7 +103,8 @@ async function main() {
       // Validate file name patterns if filter is set
       if (fileGlobFilter) {
         const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
-          const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
+          // Escape backslashes first to prevent escaping issues, then escape dots and convert asterisks
+          const regexPattern = pattern.replace(/\\/g, "\\\\").replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
           return new RegExp(`^${regexPattern}$`);
         });
 
