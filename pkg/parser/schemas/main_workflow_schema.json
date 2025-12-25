@@ -1903,6 +1903,7 @@
             },
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
+              "$comment": "Engine compatibility: copilot, claude, codex only. Not supported on custom engine. See pkg/workflow/firewall.go:89,105",
               "deprecated": true,
               "x-deprecation-message": "Use 'sandbox.agent: false' instead to disable the firewall for the agent",
               "oneOf": [
@@ -1952,6 +1953,7 @@
     },
     "sandbox": {
       "description": "Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox Runtime) and MCP gateway.",
+      "$comment": "Engine compatibility: Sandbox Runtime (SRT) is copilot only. AWF firewall supported on copilot, claude, codex. See pkg/workflow/firewall.go:135",
       "oneOf": [
         {
           "type": "string",
@@ -2296,6 +2298,7 @@
     },
     "engine": {
       "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'copilot'.",
+      "$comment": "Engine-specific feature compatibility: HTTP transport (copilot, claude, codex), max-turns (claude only), firewall/AWF (copilot, claude, codex), Sandbox Runtime/SRT (copilot only). See pkg/workflow/copilot_engine.go, pkg/workflow/claude_engine.go, pkg/workflow/codex_engine.go",
       "default": "copilot",
       "$ref": "#/$defs/engine_config"
     },
@@ -5195,7 +5198,8 @@
                   "description": "Maximum number of chat iterations per run as a string value"
                 }
               ],
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine.",
+              "$comment": "Engine compatibility: claude only. Not supported on copilot, codex, or custom engines. See pkg/workflow/agent_validation.go:143"
             },
             "concurrency": {
               "oneOf": [
@@ -5432,6 +5436,7 @@
     "http_mcp_tool": {
       "type": "object",
       "description": "HTTP MCP tool configuration",
+      "$comment": "Engine compatibility: HTTP transport is supported on copilot, claude, and codex engines. Not supported on custom engine. See pkg/workflow/agent_validation.go:118-134",
       "properties": {
         "type": {
           "type": "string",
