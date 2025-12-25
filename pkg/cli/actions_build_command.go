@@ -129,26 +129,8 @@ func ActionsCleanCommand() error {
 			}
 		}
 
-		// Clean js/ and sh/ directories for setup action
-		if actionName == "setup" {
-			jsDir := filepath.Join(actionsDir, actionName, "js")
-			if _, err := os.Stat(jsDir); err == nil {
-				if err := os.RemoveAll(jsDir); err != nil {
-					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
-				}
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
-				cleanedCount++
-			}
-
-			shDir := filepath.Join(actionsDir, actionName, "sh")
-			if _, err := os.Stat(shDir); err == nil {
-				if err := os.RemoveAll(shDir); err != nil {
-					return fmt.Errorf("failed to remove %s: %w", shDir, err)
-				}
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/sh/", actionName)))
-				cleanedCount++
-			}
-		}
+		// For setup action, both js/ and sh/ directories are source of truth (NOT generated)
+		// Do not clean them
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
@@ -342,64 +324,43 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupAction builds the setup action by copying JavaScript files to js/ directory
-// and shell scripts to sh/ directory
+// buildSetupAction builds the setup action by checking that source files exist.
+// Note: Both JavaScript and shell scripts are source of truth in actions/setup/js/ and actions/setup/sh/
+// They get synced to pkg/workflow/js/ and pkg/workflow/sh/ during the build process via Makefile targets.
 func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")
 	shDir := filepath.Join(actionPath, "sh")
 
-	// Get dependencies for this action
-	dependencies := getActionDependencies(actionName)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d JavaScript dependencies", len(dependencies))))
-
-	// Get all JavaScript sources
-	sources := workflow.GetJavaScriptSources()
-
-	// Create js directory if it doesn't exist
-	if err := os.MkdirAll(jsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create js directory: %w", err)
-	}
-
-	// Copy each dependency file to the js directory
-	copiedCount := 0
-	for _, dep := range dependencies {
-		if content, ok := sources[dep]; ok {
-			destPath := filepath.Join(jsDir, dep)
-			if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
-				return fmt.Errorf("failed to write %s: %w", dep, err)
+	// JavaScript files in actions/setup/js/ are the source of truth
+	if _, err := os.Stat(jsDir); err == nil {
+		// Count JavaScript files
+		entries, err := os.ReadDir(jsDir)
+		if err == nil {
+			jsCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".cjs") {
+					jsCount++
+				}
 			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
-			copiedCount++
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ JavaScript files in js/ (source of truth): %d", jsCount)))
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
-
-	// Get bundled shell scripts
-	shellScripts := workflow.GetBundledShellScripts()
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d shell scripts", len(shellScripts))))
-
-	// Create sh directory if it doesn't exist
-	if err := os.MkdirAll(shDir, 0755); err != nil {
-		return fmt.Errorf("failed to create sh directory: %w", err)
-	}
-
-	// Copy each shell script to the sh directory
-	shCopiedCount := 0
-	for filename, content := range shellScripts {
-		destPath := filepath.Join(shDir, filename)
-		// Shell scripts should be executable (0755)
-		if err := os.WriteFile(destPath, []byte(content), 0755); err != nil {
-			return fmt.Errorf("failed to write %s: %w", filename, err)
+	// Shell scripts in actions/setup/sh/ are the source of truth
+	if _, err := os.Stat(shDir); err == nil {
+		// Count shell scripts
+		entries, err := os.ReadDir(shDir)
+		if err == nil {
+			shCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sh") {
+					shCount++
+				}
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Shell scripts in sh/ (source of truth): %d", shCount)))
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", filename)))
-		shCopiedCount++
 	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d shell scripts to sh/", shCopiedCount)))
 
 	return nil
 }
