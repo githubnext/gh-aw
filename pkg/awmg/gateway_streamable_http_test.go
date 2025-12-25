@@ -104,62 +104,48 @@ func TestStreamableHTTPTransport_GatewayConnection(t *testing.T) {
 	}
 	t.Logf("✓ Gateway has %d server(s): %v", len(servers), servers)
 
-	// Test 2: Test the MCP endpoint directly using HTTP POST
+	// Test 2: Connect to the MCP endpoint using StreamableClientTransport
 	mcpURL := "http://localhost:8091/mcp/gh-aw"
-	t.Logf("Testing MCP endpoint: %s", mcpURL)
+	t.Logf("Testing MCP endpoint with StreamableClientTransport: %s", mcpURL)
 
-	// Send initialize request
-	initReq := map[string]any{
-		"method": "initialize",
-		"params": map[string]any{},
+	// Create streamable client transport
+	transport := &mcp.StreamableClientTransport{
+		Endpoint: mcpURL,
 	}
-	initReqJSON, _ := json.Marshal(initReq)
 
-	resp, err := http.Post(mcpURL, "application/json", strings.NewReader(string(initReqJSON)))
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Connect to the gateway
+	connectCtx, connectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer connectCancel()
+
+	session, err := client.Connect(connectCtx, transport, nil)
 	if err != nil {
-		t.Fatalf("Failed to send initialize request: %v", err)
+		cancel()
+		t.Fatalf("Failed to connect via StreamableClientTransport: %v", err)
 	}
-	defer resp.Body.Close()
+	defer session.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Initialize request failed: status=%d", resp.StatusCode)
-	}
+	t.Log("✓ Successfully connected via StreamableClientTransport")
 
-	var initResponse map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&initResponse); err != nil {
-		t.Fatalf("Failed to decode initialize response: %v", err)
-	}
-	t.Logf("✓ Initialize response: %v", initResponse)
+	// Test listing tools
+	toolsCtx, toolsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer toolsCancel()
 
-	// Test 3: Send tools/list request
-	listToolsReq := map[string]any{
-		"method": "tools/list",
-		"params": map[string]any{},
-	}
-	listToolsReqJSON, _ := json.Marshal(listToolsReq)
-
-	toolsResp, err := http.Post(mcpURL, "application/json", strings.NewReader(string(listToolsReqJSON)))
+	toolsResult, err := session.ListTools(toolsCtx, &mcp.ListToolsParams{})
 	if err != nil {
-		t.Fatalf("Failed to send tools/list request: %v", err)
-	}
-	defer toolsResp.Body.Close()
-
-	if toolsResp.StatusCode != http.StatusOK {
-		t.Fatalf("tools/list request failed: status=%d", toolsResp.StatusCode)
+		t.Fatalf("Failed to list tools: %v", err)
 	}
 
-	var toolsResponse map[string]any
-	if err := json.NewDecoder(toolsResp.Body).Decode(&toolsResponse); err != nil {
-		t.Fatalf("Failed to decode tools/list response: %v", err)
+	if len(toolsResult.Tools) == 0 {
+		t.Error("Expected at least one tool from backend")
 	}
-	t.Logf("✓ Tools/list response received with %d tools", len(toolsResponse))
 
-	// Verify the response contains tools array
-	if tools, ok := toolsResponse["tools"].([]any); ok {
-		t.Logf("✓ Found %d tools in response", len(tools))
-	} else {
-		t.Logf("Note: Tools response format: %v", toolsResponse)
-	}
+	t.Logf("✓ Found %d tools from backend via gateway", len(toolsResult.Tools))
 
 	t.Log("✓ All streamable HTTP transport tests completed successfully")
 
@@ -437,4 +423,153 @@ This workflow tests the streamable HTTP transport via mcp inspect.
 	}
 
 	t.Log("✓ MCP inspect test for streamable HTTP completed successfully")
+}
+
+// TestStreamableHTTPTransport_GatewayWithSDKClient tests that the gateway properly
+// exposes backend servers via StreamableHTTPHandler and that we can connect to them
+// using the go-sdk StreamableClientTransport.
+func TestStreamableHTTPTransport_GatewayWithSDKClient(t *testing.T) {
+	// Get absolute path to binary
+	binaryPath, err := filepath.Abs(filepath.Join("..", "..", "gh-aw"))
+	if err != nil {
+		t.Fatalf("Failed to get absolute path: %v", err)
+	}
+
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skipf("Skipping test: gh-aw binary not found at %s. Run 'make build' first.", binaryPath)
+	}
+
+	// Create temporary directory for config
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "gateway-config.json")
+
+	// Create gateway config with the gh-aw MCP server
+	config := MCPGatewayConfig{
+		MCPServers: map[string]MCPServerConfig{
+			"gh-aw": {
+				Command: binaryPath,
+				Args:    []string{"mcp-server"},
+			},
+		},
+		Gateway: GatewaySettings{
+			Port: 8092, // Use a different port to avoid conflicts
+		},
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	if err := os.WriteFile(configFile, configJSON, 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	// Start the gateway in background
+	_, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	gatewayErrChan := make(chan error, 1)
+	go func() {
+		gatewayErrChan <- runMCPGateway([]string{configFile}, 8092, tmpDir)
+	}()
+
+	// Wait for gateway to start
+	t.Log("Waiting for MCP gateway to start...")
+	time.Sleep(3 * time.Second)
+
+	// Verify gateway health
+	healthResp, err := http.Get("http://localhost:8092/health")
+	if err != nil {
+		cancel()
+		t.Fatalf("Failed to connect to gateway health endpoint: %v", err)
+	}
+	healthResp.Body.Close()
+
+	if healthResp.StatusCode != http.StatusOK {
+		cancel()
+		t.Fatalf("Gateway health check failed: status=%d", healthResp.StatusCode)
+	}
+	t.Log("✓ Gateway health check passed")
+
+	// Now test connecting to the gateway using StreamableClientTransport
+	gatewayURL := "http://localhost:8092/mcp/gh-aw"
+	t.Logf("Connecting to gateway via StreamableClientTransport: %s", gatewayURL)
+
+	// Create streamable client transport
+	transport := &mcp.StreamableClientTransport{
+		Endpoint: gatewayURL,
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Connect to the gateway
+	connectCtx, connectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer connectCancel()
+
+	session, err := client.Connect(connectCtx, transport, nil)
+	if err != nil {
+		cancel()
+		t.Fatalf("Failed to connect to gateway via StreamableClientTransport: %v", err)
+	}
+	defer session.Close()
+
+	t.Log("✓ Successfully connected to gateway via StreamableClientTransport")
+
+	// Test listing tools
+	toolsCtx, toolsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer toolsCancel()
+
+	toolsResult, err := session.ListTools(toolsCtx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	if len(toolsResult.Tools) == 0 {
+		t.Error("Expected at least one tool from gh-aw MCP server")
+	}
+
+	t.Logf("✓ Successfully listed %d tools from backend via gateway", len(toolsResult.Tools))
+	for i, tool := range toolsResult.Tools {
+		if i < 3 { // Log first 3 tools
+			t.Logf("  - %s: %s", tool.Name, tool.Description)
+		}
+	}
+
+	// Test calling a tool (status tool should be available)
+	callCtx, callCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer callCancel()
+
+	// Create a simple test by calling the status tool
+	callResult, err := session.CallTool(callCtx, &mcp.CallToolParams{
+		Name:      "status",
+		Arguments: map[string]any{},
+	})
+	if err != nil {
+		t.Logf("Note: Failed to call status tool (may not be in test environment): %v", err)
+	} else {
+		t.Logf("✓ Successfully called status tool via gateway")
+		if len(callResult.Content) > 0 {
+			t.Logf("  Tool returned %d content items", len(callResult.Content))
+		}
+	}
+
+	t.Log("✓ All StreamableHTTPHandler gateway tests completed successfully")
+
+	// Clean up
+	cancel()
+
+	// Wait for gateway to stop
+	select {
+	case err := <-gatewayErrChan:
+		if err != nil && err != http.ErrServerClosed && !strings.Contains(err.Error(), "context canceled") {
+			t.Logf("Gateway stopped with error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Log("Gateway shutdown timed out")
+	}
 }

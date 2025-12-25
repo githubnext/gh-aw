@@ -15,14 +15,20 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 )
+
+var logsDisplayLog = logger.New("cli:logs_display")
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
 func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {
+		logsDisplayLog.Print("No processed runs to display")
 		return
 	}
+
+	logsDisplayLog.Printf("Displaying logs overview: runs=%d, verbose=%v", len(processedRuns), verbose)
 
 	// Prepare table data
 	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Noops", "Created", "Logs Path"}
@@ -175,6 +181,8 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		ShowTotal: true,
 		TotalRow:  totalRow,
 	}
+
+	logsDisplayLog.Printf("Rendering table: total_tokens=%d, total_cost=%.3f, total_duration=%s", totalTokens, totalCost, totalDuration)
 
 	fmt.Print(console.RenderTable(tableConfig))
 }

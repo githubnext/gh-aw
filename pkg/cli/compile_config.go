@@ -2,7 +2,11 @@ package cli
 
 import (
 	"regexp"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var compileConfigLog = logger.New("cli:compile_config")
 
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
@@ -105,17 +109,24 @@ func sanitizeErrorMessage(message string) string {
 		return message
 	}
 
+	compileConfigLog.Printf("Sanitizing error message: length=%d", len(message))
+
 	// Redact uppercase snake_case patterns (e.g., MY_SECRET_KEY, API_TOKEN)
 	sanitized := secretNamePattern.ReplaceAllStringFunc(message, func(match string) string {
 		// Don't redact common workflow keywords
 		if commonWorkflowKeywords[match] {
 			return match
 		}
+		compileConfigLog.Printf("Redacted snake_case secret pattern: %s", match)
 		return "[REDACTED]"
 	})
 
 	// Redact PascalCase patterns ending with security suffixes (e.g., GitHubToken, ApiKey)
 	sanitized = pascalCaseSecretPattern.ReplaceAllString(sanitized, "[REDACTED]")
+
+	if sanitized != message {
+		compileConfigLog.Print("Error message sanitization applied redactions")
+	}
 
 	return sanitized
 }
@@ -128,6 +139,8 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 	if results == nil {
 		return nil
 	}
+
+	compileConfigLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
 
 	sanitized := make([]ValidationResult, len(results))
 	for i, result := range results {
