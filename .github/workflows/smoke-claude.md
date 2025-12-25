@@ -1,7 +1,8 @@
 ---
-description: Smoke test workflow that validates Claude engine functionality by reviewing recent PRs every 6 hours
+description: Smoke test workflow that validates Claude engine functionality by reviewing recent PRs twice daily
 on: 
-  schedule: every 6h
+  schedule:
+    - cron: '0 8,20 * * *'  # Twice daily (8am, 8pm UTC)
   workflow_dispatch:
   pull_request:
     types: [labeled]

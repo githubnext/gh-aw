@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Smoke test workflow that validates Codex engine functionality by reviewing recent PRs every 6 hours
+# Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily
 
 name: "Smoke Codex"
 "on":
@@ -29,7 +29,7 @@ name: "Smoke Codex"
     types:
     - labeled
   schedule:
-  - cron: "0 0,6,12,18 * * *"
+  - cron: "0 8,20 * * *"
   workflow_dispatch: null
 
 permissions: {}
@@ -5866,7 +5866,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Smoke Codex"
-          WORKFLOW_DESCRIPTION: "Smoke test workflow that validates Codex engine functionality by reviewing recent PRs every 6 hours"
+          WORKFLOW_DESCRIPTION: "Smoke test workflow that validates Codex engine functionality by reviewing recent PRs twice daily"
         with:
           script: |
             const fs = require('fs');

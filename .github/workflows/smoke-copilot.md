@@ -2,7 +2,7 @@
 description: Smoke Copilot
 on: 
   schedule:
-    - cron: "0 0,7,13,19 * * *"  # Every 6 hours
+    - cron: '0 8,20 * * *'  # Twice daily (8am, 8pm UTC)
   workflow_dispatch:
   pull_request:
     types: [labeled]
@@ -22,6 +22,7 @@ network:
 sandbox:
   agent: awf  # Firewall enabled
   mcp:
+    container: ghcr.io/githubnext/mcp-gateway
     port: 8080
 tools:
   cache-memory: true

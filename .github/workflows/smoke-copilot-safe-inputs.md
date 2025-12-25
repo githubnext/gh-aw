@@ -1,7 +1,8 @@
 ---
 description: Smoke Copilot Safe Inputs
 on: 
-  schedule: daily
+  schedule:
+    - cron: '0 8,20 * * *'  # Twice daily (8am, 8pm UTC)
   workflow_dispatch:
   pull_request:
     types: [labeled]
