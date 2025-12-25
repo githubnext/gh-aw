@@ -278,7 +278,13 @@ function neutralizeAllMentions(s) {
  */
 function removeXmlComments(s) {
   // Remove <!-- comment --> and malformed <!--! comment --!>
-  return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+  // Apply repeatedly to handle nested/overlapping patterns that could reintroduce comment markers
+  let previous;
+  do {
+    previous = s;
+    s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+  } while (s !== previous);
+  return s;
 }
 
 /**
