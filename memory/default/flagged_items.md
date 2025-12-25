@@ -1,3 +1,10 @@
+## Flagged Items for Monitoring (2025-12-25)
+
+- Daily Copilot PR Merged still throws a missing-tool (safeinputs/GITHUB_TOKEN wiring) in latest run (§20507004818); fix safeinputs-gh config and token availability.
+- Firewall denials climbing again (29.7% weekly; api.github.com/github.com + LinkedIn blocks). Copilot workflows like `research.md`/`daily-news.md` still need GitHub MCP toolsets instead of direct API/network allowlists.
+- Tidy lacks build tools (make/go/npm/golangci-lint) leading to repeated permission/missing-tool warnings; Issue Monster hitting GitHub search errors; Smoke Copilot Playwright missing Playwright MCP; Spec-Kit Execute blocked on directory creation; all surfaced in Dec 25 audit (§20498588239).
+- Copilot token spend concentrated: CI Cleaner alone is 26% of 3-day Copilot tokens; Issue Monster + Tidy are high-frequency drivers. Efficiency is improving (-68% DoD) but these workflows remain hotspots.
+
 ## Flagged Items for Monitoring (2025-12-24)
 
 - Daily Copilot PR Merged missing safeinputs-gh/invalid URL with GITHUB_TOKEN unavailable (run §20488854921); requires MCP wiring and token availability fix.

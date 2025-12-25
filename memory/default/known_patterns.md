@@ -1,3 +1,10 @@
+## Known Patterns (2025-12-25)
+
+- Workflow health rebounded: daily audit shows 87.93% success (+32% vs Dec 24) with error/warning volume cut by ~68%; remaining pain points are Tidy lacking build tools, Issue Monster GitHub search errors, Playwright MCP absence, and permission-denied noise.
+- Firewall denials are rising again (29.7% current week) with api.github.com/github.com blocks signaling Copilot workflows still skipping GitHub MCP; LinkedIn remains top blocked (90 requests) but is expected.
+- Copilot token usage is trending down sharply (-68% day-over-day) while spend remains concentrated (CI Cleaner 26% of 3-day total; Issue Monster and Tidy high-frequency drivers); efficiency gains emerging but hot workflows remain.
+- Issue backlog improved: weekly slice at 240 issues with only 24 open and zero unlabeled open; last 3 days closed 113 vs 92 created, reversing prior backlog growth.
+
 ## Known Patterns (2025-12-24)
 
 - Daily Copilot PR Merged continues to misconfigure safeinputs (missing safeinputs-gh tool, invalid URL, GITHUB_TOKEN unavailable) and surfaces the week’s only missing-tool hit.

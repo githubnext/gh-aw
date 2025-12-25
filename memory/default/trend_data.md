@@ -1,3 +1,11 @@
+## Trend Data (as of 2025-12-25T15:10:00Z)
+
+- Workflow snapshot (last ~10 runs, ~7d): 1.0h total duration, 5,650,141 tokens, ~$3.76 est cost, 82 turns, 477 errors, 196 warnings, 1 missing-tool. Recent runs mostly success across Documentation Unbloat, Semantic Function Refactoring, Lockfile Stats, Issue Arborist; only missing-tool surfaced in Daily Copilot PR Merged.
+- Token trend: Copilot token report shows 129,922,734 tokens over Dec 23-25 ($1,948.84, 302 runs) with 68% day-over-day drop; top spenders CI Cleaner (26% of total), Issue Monster, Tidy; average cost/run $6.45.
+- Workflow health trend: Daily audit reports success rate jump to 87.93% (vs 55.8% prior day) with errors down to 323 from 1,021; persistent issues are missing build tools (Tidy), GitHub search errors (Issue Monster), Playwright MCP missing, permission-denied noise.
+- Firewall trend: Daily firewall report shows denial rate back up to 29.7% this week (104 denied of 413 total), led by linkedin.com (90 blocks) and api.github.com/github.com (92 blocks) due to missing GitHub MCP in Copilot workflows.
+- Issue stats (weekly slice): 240 total; 24 open / 216 closed. Created last 3 days: 92; closed last 3 days: 113. Unlabeled issues: 19 total, 0 open. Label leaders: ai-generated 106, plan 105, enhancement 62, automation 37, documentation 36.
+
 ## Trend Data (as of 2025-12-24T15:14:44Z)
 
 - Workflow snapshot (last 5 runs, ~24h): 11.1m total duration, 982,526 tokens, ~$0.00 reported cost, 8 errors, 21 warnings, 1 missing-tool. Outcomes: Tidy (success + one cancel + one in_progress), DeepReport (in_progress), Daily Copilot PR Merged (in_progress, missing safeinputs-gh), Artifacts Summary (in_progress, permission denied warnings), Smoke Codex Firewall (success).
