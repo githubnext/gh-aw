@@ -5,7 +5,6 @@ describe("Safe Output Type Validation", () => {
   (Object.entries({
     "create_issue.cjs": "create_issue",
     "add_comment.cjs": "add_comment",
-    "update_issue.cjs": "update_issue",
     "create_pr_review_comment.cjs": "create_pull_request_review_comment",
     "add_labels.cjs": "add_labels",
     "create_code_scanning_alert.cjs": "create_code_scanning_alert",
@@ -24,6 +23,22 @@ describe("Safe Output Type Validation", () => {
       expect(hasDashType).toBe(!1);
     });
   }),
+    // Special test for update handlers which now use centralized config
+    it("should use underscores in type filter for update handlers in update_runner.cjs", () => {
+      const runnerPath = path.join(process.cwd(), "update_runner.cjs"),
+        runnerContent = fs.readFileSync(runnerPath, "utf8");
+      
+      // Check that update_issue, update_pull_request, and update_discussion use underscores
+      ["update_issue", "update_pull_request", "update_discussion"].forEach(expectedType => {
+        const hasUnderscoreType = runnerContent.includes(`"${expectedType}"`);
+        expect(hasUnderscoreType).toBe(true);
+        
+        // Ensure dash versions are not used
+        const dashType = expectedType.replace(/_/g, "-");
+        const hasDashType = new RegExp(`itemType:\\s*["']${dashType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`).test(runnerContent);
+        expect(hasDashType).toBe(false);
+      });
+    }),
     it("should validate schema uses underscores", () => {
       const schemaPath = path.join(process.cwd(), "..", "..", "..", "schemas", "agent-output.json"),
         schemaContent = fs.readFileSync(schemaPath, "utf8");

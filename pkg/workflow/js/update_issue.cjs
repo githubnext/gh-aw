@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createUpdateHandler } = require("./update_runner.cjs");
+const { createUpdateHandler, getUpdateHandlerConfig } = require("./update_runner.cjs");
 const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs");
 
 /**
@@ -26,20 +26,9 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   return issue;
 }
 
-// Create the handler using the factory
+// Create the handler using the factory with centralized config
 const main = createUpdateHandler({
-  itemType: "update_issue",
-  displayName: "issue",
-  displayNamePlural: "issues",
-  numberField: "issue_number",
-  outputNumberKey: "issue_number",
-  outputUrlKey: "issue_url",
-  entityName: "Issue",
-  entityPrefix: "Issue",
-  targetLabel: "Target Issue:",
-  currentTargetText: "Current issue",
-  supportsStatus: true,
-  supportsOperation: false,
+  ...getUpdateHandlerConfig("issue"),
   isValidContext: isIssueContext,
   getContextNumber: getIssueNumber,
   executeUpdate: executeIssueUpdate,

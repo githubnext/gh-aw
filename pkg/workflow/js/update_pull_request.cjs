@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createUpdateHandler } = require("./update_runner.cjs");
+const { createUpdateHandler, getUpdateHandlerConfig } = require("./update_runner.cjs");
 const { updatePRBody } = require("./update_pr_description_helpers.cjs");
 const { isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
 
@@ -61,20 +61,9 @@ async function executePRUpdate(github, context, prNumber, updateData) {
   return pr;
 }
 
-// Create the handler using the factory
+// Create the handler using the factory with centralized config
 const main = createUpdateHandler({
-  itemType: "update_pull_request",
-  displayName: "pull request",
-  displayNamePlural: "pull requests",
-  numberField: "pull_request_number",
-  outputNumberKey: "pull_request_number",
-  outputUrlKey: "pull_request_url",
-  entityName: "Pull Request",
-  entityPrefix: "PR",
-  targetLabel: "Target PR:",
-  currentTargetText: "Current pull request",
-  supportsStatus: false,
-  supportsOperation: true,
+  ...getUpdateHandlerConfig("pull_request"),
   isValidContext: isPRContext,
   getContextNumber: getPRNumber,
   executeUpdate: executePRUpdate,

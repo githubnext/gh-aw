@@ -417,6 +417,71 @@ function createUpdateHandler(config) {
   };
 }
 
+/**
+ * Centralized configuration map for different entity types.
+ * This eliminates duplication across update_issue, update_pull_request, and update_discussion.
+ *
+ * @type {Object.<string, {itemType: string, displayName: string, displayNamePlural: string, numberField: string, outputNumberKey: string, outputUrlKey: string, entityName: string, entityPrefix: string, targetLabel: string, currentTargetText: string, supportsStatus: boolean, supportsOperation: boolean}>}
+ */
+const UPDATE_HANDLER_CONFIGS = {
+  issue: {
+    itemType: "update_issue",
+    displayName: "issue",
+    displayNamePlural: "issues",
+    numberField: "issue_number",
+    outputNumberKey: "issue_number",
+    outputUrlKey: "issue_url",
+    entityName: "Issue",
+    entityPrefix: "Issue",
+    targetLabel: "Target Issue:",
+    currentTargetText: "Current issue",
+    supportsStatus: true,
+    supportsOperation: false,
+  },
+  pull_request: {
+    itemType: "update_pull_request",
+    displayName: "pull request",
+    displayNamePlural: "pull requests",
+    numberField: "pull_request_number",
+    outputNumberKey: "pull_request_number",
+    outputUrlKey: "pull_request_url",
+    entityName: "Pull Request",
+    entityPrefix: "PR",
+    targetLabel: "Target PR:",
+    currentTargetText: "Current pull request",
+    supportsStatus: false,
+    supportsOperation: true,
+  },
+  discussion: {
+    itemType: "update_discussion",
+    displayName: "discussion",
+    displayNamePlural: "discussions",
+    numberField: "discussion_number",
+    outputNumberKey: "discussion_number",
+    outputUrlKey: "discussion_url",
+    entityName: "Discussion",
+    entityPrefix: "Discussion",
+    targetLabel: "Target Discussion:",
+    currentTargetText: "Current discussion",
+    supportsStatus: false,
+    supportsOperation: false,
+  },
+};
+
+/**
+ * Get the configuration for a specific entity type
+ * @param {string} entityType - Entity type ("issue", "pull_request", or "discussion")
+ * @returns {{itemType: string, displayName: string, displayNamePlural: string, numberField: string, outputNumberKey: string, outputUrlKey: string, entityName: string, entityPrefix: string, targetLabel: string, currentTargetText: string, supportsStatus: boolean, supportsOperation: boolean}} Configuration object
+ * @throws {Error} If entityType is not recognized
+ */
+function getUpdateHandlerConfig(entityType) {
+  const config = UPDATE_HANDLER_CONFIGS[entityType];
+  if (!config) {
+    throw new Error(`Unknown entity type: ${entityType}. Valid types are: ${Object.keys(UPDATE_HANDLER_CONFIGS).join(", ")}`);
+  }
+  return config;
+}
+
 module.exports = {
   runUpdateWorkflow,
   resolveTargetNumber,
@@ -424,4 +489,6 @@ module.exports = {
   createRenderStagedItem,
   createGetSummaryLine,
   createUpdateHandler,
+  getUpdateHandlerConfig,
+  UPDATE_HANDLER_CONFIGS,
 };
