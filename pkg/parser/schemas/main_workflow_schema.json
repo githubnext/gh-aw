@@ -414,7 +414,8 @@
                       "items": {
                         "type": "string",
                         "description": "Label name"
-                      }
+                      },
+                      "minItems": 1
                     }
                   ]
                 }
@@ -486,7 +487,8 @@
                       "items": {
                         "type": "string",
                         "description": "Label name"
-                      }
+                      },
+                      "minItems": 1
                     }
                   ]
                 },
@@ -1899,7 +1901,8 @@
               "items": {
                 "type": "string",
                 "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
-              }
+              },
+              "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions."
             },
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
@@ -2406,7 +2409,9 @@
                       "stargazers",
                       "users"
                     ]
-                  }
+                  },
+                  "minItems": 1,
+                  "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets."
                 }
               },
               "additionalProperties": false,
