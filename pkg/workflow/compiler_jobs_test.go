@@ -567,10 +567,10 @@ func TestParseJobConfig(t *testing.T) {
 			name:   "empty map returns empty config",
 			jobMap: map[string]any{},
 			expected: &JobConfig{
-				Needs:   nil,
-				RunsOn:  nil,
-				Steps:   nil,
-				If:      "",
+				Needs:  nil,
+				RunsOn: nil,
+				Steps:  nil,
+				If:     "",
 			},
 		},
 		{
@@ -600,16 +600,16 @@ func TestParseJobConfig(t *testing.T) {
 		{
 			name: "map with all fields",
 			jobMap: map[string]any{
-				"needs":    "activation",
-				"runs-on":  "ubuntu-latest",
-				"steps":    []any{map[string]any{"run": "echo test"}},
-				"if":       "github.event_name == 'push'",
+				"needs":   "activation",
+				"runs-on": "ubuntu-latest",
+				"steps":   []any{map[string]any{"run": "echo test"}},
+				"if":      "github.event_name == 'push'",
 			},
 			expected: &JobConfig{
-				Needs:   "activation",
-				RunsOn:  "ubuntu-latest",
-				Steps:   []any{map[string]any{"run": "echo test"}},
-				If:      "github.event_name == 'push'",
+				Needs:  "activation",
+				RunsOn: "ubuntu-latest",
+				Steps:  []any{map[string]any{"run": "echo test"}},
+				If:     "github.event_name == 'push'",
 			},
 		},
 	}
@@ -617,24 +617,24 @@ func TestParseJobConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ParseJobConfig(tt.jobMap)
-			
+
 			if tt.expected == nil {
 				if result != nil {
 					t.Errorf("ParseJobConfig() = %+v, want nil", result)
 				}
 				return
 			}
-			
+
 			if result == nil {
 				t.Errorf("ParseJobConfig() = nil, want %+v", tt.expected)
 				return
 			}
-			
+
 			// Compare fields
 			if result.If != tt.expected.If {
 				t.Errorf("If = %q, want %q", result.If, tt.expected.If)
 			}
-			
+
 			// For complex fields, just check they match expected structure
 			if (result.Needs == nil) != (tt.expected.Needs == nil) {
 				t.Errorf("Needs nil mismatch: got %v, want %v", result.Needs, tt.expected.Needs)
@@ -652,10 +652,10 @@ func TestParseJobConfig(t *testing.T) {
 // TestJobConfigHasDependency tests the HasDependency method
 func TestJobConfigHasDependency(t *testing.T) {
 	tests := []struct {
-		name       string
-		config     *JobConfig
-		jobName    string
-		expected   bool
+		name     string
+		config   *JobConfig
+		jobName  string
+		expected bool
 	}{
 		{
 			name:     "nil config returns false",
@@ -705,7 +705,7 @@ func TestJobConfigHasDependency(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.config.HasDependency(tt.jobName)
 			if result != tt.expected {
-				t.Errorf("HasDependency(%q) = %v, want %v (config.Needs = %v)", 
+				t.Errorf("HasDependency(%q) = %v, want %v (config.Needs = %v)",
 					tt.jobName, result, tt.expected, tt.config.Needs)
 			}
 		})
@@ -715,10 +715,10 @@ func TestJobConfigHasDependency(t *testing.T) {
 // TestJobConfigBackwardCompatibility tests backward compatibility with existing functions
 func TestJobConfigBackwardCompatibility(t *testing.T) {
 	tests := []struct {
-		name          string
-		jobMap        map[string]any
-		checkPreAct   bool
-		checkAgent    bool
+		name           string
+		jobMap         map[string]any
+		checkPreAct    bool
+		checkAgent     bool
 		expectedPreAct bool
 		expectedAgent  bool
 	}{
@@ -764,7 +764,7 @@ func TestJobConfigBackwardCompatibility(t *testing.T) {
 					t.Errorf("jobDependsOnPreActivation() = %v, want %v", result, tt.expectedPreAct)
 				}
 			}
-			
+
 			if tt.checkAgent {
 				result := jobDependsOnAgent(tt.jobMap)
 				if result != tt.expectedAgent {

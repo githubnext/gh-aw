@@ -24,12 +24,12 @@ type JobConfig struct {
 	// Needs specifies job dependencies. Can be a single job name or a list of job names.
 	// Examples: "activation", ["activation", "pre_activation"]
 	Needs any `yaml:"needs,omitempty"`
-	
+
 	// RunsOn specifies the runner environment (e.g., "ubuntu-latest")
 	RunsOn any `yaml:"runs-on,omitempty"`
-	
+
 	// Other common job fields can be added as needed
-	Steps []any `yaml:"steps,omitempty"`
+	Steps []any  `yaml:"steps,omitempty"`
 	If    string `yaml:"if,omitempty"`
 }
 
@@ -39,33 +39,33 @@ func ParseJobConfig(jobMap map[string]any) *JobConfig {
 	if jobMap == nil {
 		return nil
 	}
-	
+
 	config := &JobConfig{}
-	
+
 	// Extract needs field
 	if needs, hasNeeds := jobMap["needs"]; hasNeeds {
 		config.Needs = needs
 	}
-	
+
 	// Extract runs-on field
 	if runsOn, hasRunsOn := jobMap["runs-on"]; hasRunsOn {
 		config.RunsOn = runsOn
 	}
-	
+
 	// Extract steps field
 	if steps, hasSteps := jobMap["steps"]; hasSteps {
 		if stepsList, ok := steps.([]any); ok {
 			config.Steps = stepsList
 		}
 	}
-	
+
 	// Extract if field
 	if ifCond, hasIf := jobMap["if"]; hasIf {
 		if ifStr, ok := ifCond.(string); ok {
 			config.If = ifStr
 		}
 	}
-	
+
 	return config
 }
 
@@ -74,12 +74,12 @@ func (j *JobConfig) HasDependency(jobName string) bool {
 	if j == nil || j.Needs == nil {
 		return false
 	}
-	
+
 	// Handle string needs (single dependency)
 	if needStr, ok := j.Needs.(string); ok {
 		return needStr == jobName
 	}
-	
+
 	// Handle []any needs (multiple dependencies)
 	if needsList, ok := j.Needs.([]any); ok {
 		for _, need := range needsList {
@@ -88,7 +88,7 @@ func (j *JobConfig) HasDependency(jobName string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
