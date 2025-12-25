@@ -27,7 +27,7 @@ jobs:
       - name: Run Gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
-          gosec -fmt sarif -out gosec-results.sarif -exclude-generated ./...
+          gosec -fmt sarif -out gosec-results.sarif -exclude-generated -track-suppressions ./...
 
       - name: Upload Gosec SARIF
         uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
