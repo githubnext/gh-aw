@@ -24,7 +24,13 @@ function hasFrontMatter(content) {
  */
 function removeXMLComments(content) {
   // Remove XML/HTML comments: <!-- ... -->
-  return content.replace(/<!--[\s\S]*?-->/g, "");
+  // Apply repeatedly to handle nested/overlapping patterns that could reintroduce comment markers
+  let previous;
+  do {
+    previous = content;
+    content = content.replace(/<!--[\s\S]*?-->/g, "");
+  } while (content !== previous);
+  return content;
 }
 
 /**

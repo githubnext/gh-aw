@@ -2388,7 +2388,12 @@ jobs:
               return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
             }
             function removeXMLComments(content) {
-              return content.replace(/<!--[\s\S]*?-->/g, "");
+              let previous;
+              do {
+                previous = content;
+                content = content.replace(/<!--[\s\S]*?-->/g, "");
+              } while (content !== previous);
+              return content;
             }
             function hasGitHubActionsMacros(content) {
               return /\$\{\{[\s\S]*?\}\}/.test(content);
@@ -2844,7 +2849,12 @@ jobs:
               });
             }
             function removeXmlComments(s) {
-              return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              let previous;
+              do {
+                previous = s;
+                s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              } while (s !== previous);
+              return s;
             }
             function convertXmlTags(s) {
               const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];
