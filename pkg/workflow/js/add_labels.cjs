@@ -59,14 +59,18 @@ async function main() {
   const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
   if (!labelsResult.valid) {
     // If no valid labels, log info and return gracefully instead of failing
-    if (labelsResult.error?.includes("No valid labels")) {
+    if (labelsResult.error && labelsResult.error.includes("No valid labels")) {
       core.info("No labels to add");
       core.setOutput("labels_added", "");
-      await core.summary.addRaw(`
+      await core.summary
+        .addRaw(
+          `
 ## Label Addition
 
 No labels were added (no valid labels found in agent output).
-`).write();
+`
+        )
+        .write();
       return;
     }
     // For other validation errors, fail the workflow
@@ -79,11 +83,15 @@ No labels were added (no valid labels found in agent output).
   if (uniqueLabels.length === 0) {
     core.info("No labels to add");
     core.setOutput("labels_added", "");
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 No labels were added (no valid labels found in agent output).
-`).write();
+`
+      )
+      .write();
     return;
   }
   core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
@@ -97,15 +105,19 @@ No labels were added (no valid labels found in agent output).
     core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
     core.setOutput("labels_added", uniqueLabels.join("\n"));
     const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
 
 ${labelsListMarkdown}
-`).write();
+`
+      )
+      .write();
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to add labels: ${errorMessage}`);
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }
