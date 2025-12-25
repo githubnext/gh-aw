@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/parser"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -38,7 +40,7 @@ func TestStreamableHTTPTransport_GatewayConnection(t *testing.T) {
 
 	// Create gateway config with the gh-aw MCP server
 	config := MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
 				Args:    []string{"mcp-server"},
@@ -336,7 +338,7 @@ func TestStreamableHTTPTransport_URLConfigured(t *testing.T) {
 	}
 
 	// Create a session with URL configuration
-	serverConfig := MCPServerConfig{
+	serverConfig := parser.MCPServerConfig{
 		URL: mockServer.URL,
 	}
 

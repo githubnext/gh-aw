@@ -14,6 +14,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -35,17 +36,8 @@ func GetVersion() string {
 
 // MCPGatewayConfig represents the configuration for the MCP gateway.
 type MCPGatewayConfig struct {
-	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
-	Gateway    GatewaySettings            `json:"gateway,omitempty"`
-}
-
-// MCPServerConfig represents configuration for a single MCP server.
-type MCPServerConfig struct {
-	Command   string            `json:"command,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	URL       string            `json:"url,omitempty"`
-	Container string            `json:"container,omitempty"`
+	MCPServers map[string]parser.MCPServerConfig `json:"mcpServers"`
+	Gateway    GatewaySettings                   `json:"gateway,omitempty"`
 }
 
 // GatewaySettings represents gateway-specific settings.
@@ -312,7 +304,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 
 	// Filter out internal workflow MCP servers (safeinputs and safeoutputs)
 	// These are used internally by the workflow and should not be proxied by the gateway
-	filteredServers := make(map[string]MCPServerConfig)
+	filteredServers := make(map[string]parser.MCPServerConfig)
 	for name, serverConfig := range config.MCPServers {
 		if name == "safeinputs" || name == "safeoutputs" {
 			gatewayLog.Printf("Filtering out internal workflow server: %s", name)
@@ -329,7 +321,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 // mergeConfigs merges two gateway configurations, with the second overriding the first
 func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 	result := &MCPGatewayConfig{
-		MCPServers: make(map[string]MCPServerConfig),
+		MCPServers: make(map[string]parser.MCPServerConfig),
 		Gateway:    base.Gateway,
 	}
 
@@ -508,7 +500,7 @@ func (g *MCPGatewayServer) initializeSessions() error {
 }
 
 // createMCPSession creates an MCP session for a single server configuration
-func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerConfig) (*mcp.ClientSession, error) {
+func (g *MCPGatewayServer) createMCPSession(serverName string, config parser.MCPServerConfig) (*mcp.ClientSession, error) {
 	// Create log file for this server (flat directory structure)
 	logFile := filepath.Join(g.logDir, fmt.Sprintf("%s.log", serverName))
 	gatewayLog.Printf("Creating log file for %s: %s", serverName, logFile)
