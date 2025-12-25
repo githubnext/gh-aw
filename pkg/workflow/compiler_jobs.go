@@ -18,6 +18,80 @@ var compilerJobsLog = logger.New("workflow:compiler_jobs")
 // These functions are responsible for constructing the various jobs that make up
 // a compiled agentic workflow, including activation, main, safe outputs, and custom jobs.
 
+// JobConfig represents a parsed GitHub Actions job configuration with strongly-typed fields.
+// This provides type safety for job dependency checking and other job-level operations.
+type JobConfig struct {
+	// Needs specifies job dependencies. Can be a single job name or a list of job names.
+	// Examples: "activation", ["activation", "pre_activation"]
+	Needs any `yaml:"needs,omitempty"`
+	
+	// RunsOn specifies the runner environment (e.g., "ubuntu-latest")
+	RunsOn any `yaml:"runs-on,omitempty"`
+	
+	// Other common job fields can be added as needed
+	Steps []any `yaml:"steps,omitempty"`
+	If    string `yaml:"if,omitempty"`
+}
+
+// ParseJobConfig converts a map[string]any to a JobConfig struct.
+// This provides a type-safe way to work with job configurations.
+func ParseJobConfig(jobMap map[string]any) *JobConfig {
+	if jobMap == nil {
+		return nil
+	}
+	
+	config := &JobConfig{}
+	
+	// Extract needs field
+	if needs, hasNeeds := jobMap["needs"]; hasNeeds {
+		config.Needs = needs
+	}
+	
+	// Extract runs-on field
+	if runsOn, hasRunsOn := jobMap["runs-on"]; hasRunsOn {
+		config.RunsOn = runsOn
+	}
+	
+	// Extract steps field
+	if steps, hasSteps := jobMap["steps"]; hasSteps {
+		if stepsList, ok := steps.([]any); ok {
+			config.Steps = stepsList
+		}
+	}
+	
+	// Extract if field
+	if ifCond, hasIf := jobMap["if"]; hasIf {
+		if ifStr, ok := ifCond.(string); ok {
+			config.If = ifStr
+		}
+	}
+	
+	return config
+}
+
+// HasDependency checks if the job depends on a specific job name.
+func (j *JobConfig) HasDependency(jobName string) bool {
+	if j == nil || j.Needs == nil {
+		return false
+	}
+	
+	// Handle string needs (single dependency)
+	if needStr, ok := j.Needs.(string); ok {
+		return needStr == jobName
+	}
+	
+	// Handle []any needs (multiple dependencies)
+	if needsList, ok := j.Needs.([]any); ok {
+		for _, need := range needsList {
+			if needStr, ok := need.(string); ok && needStr == jobName {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
 func (c *Compiler) isActivationJobNeeded() bool {
 	// Activation job is always needed to perform the timestamp check
 	// It also handles:
@@ -45,39 +119,18 @@ func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[s
 }
 
 // jobDependsOnPreActivation checks if a job config has pre_activation as a dependency.
+// This is a backward compatibility wrapper. New code should use JobConfig.HasDependency.
 func jobDependsOnPreActivation(jobConfig map[string]any) bool {
-	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
-		if needsList, ok := needs.([]any); ok {
-			for _, need := range needsList {
-				if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
-					return true
-				}
-			}
-		} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
-			return true
-		}
-	}
-	return false
+	config := ParseJobConfig(jobConfig)
+	return config.HasDependency(constants.PreActivationJobName)
 }
 
 // jobDependsOnAgent checks if a job config has agent as a dependency.
 // Jobs that depend on agent should run AFTER the agent job, not before it.
-// The jobConfig parameter is expected to be a map representing the job's YAML configuration,
-// where "needs" can be either a string (single dependency) or []any (multiple dependencies).
-// Returns false if "needs" is missing, malformed, or doesn't contain the agent job.
+// This is a backward compatibility wrapper. New code should use JobConfig.HasDependency.
 func jobDependsOnAgent(jobConfig map[string]any) bool {
-	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
-		if needsList, ok := needs.([]any); ok {
-			for _, need := range needsList {
-				if needStr, ok := need.(string); ok && needStr == constants.AgentJobName {
-					return true
-				}
-			}
-		} else if needStr, ok := needs.(string); ok && needStr == constants.AgentJobName {
-			return true
-		}
-	}
-	return false
+	config := ParseJobConfig(jobConfig)
+	return config.HasDependency(constants.AgentJobName)
 }
 
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
