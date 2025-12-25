@@ -19,22 +19,3 @@ var scriptsLog = logger.New("workflow:scripts")
 func init() {
 	scriptsLog.Print("Script registration completed (embedded scripts removed)")
 }
-
-// Legacy getter functions - these return empty strings since embedded scripts were removed
-// Scripts are now provided by the actions/setup action at runtime
-
-func getCreateIssueScript() string {
-	return ""
-}
-
-func getAddLabelsScript() string {
-	return ""
-}
-
-func getCloseIssueScript() string {
-	return ""
-}
-
-func getHideCommentScript() string {
-	return ""
-}
