@@ -112,6 +112,31 @@ make build       # ~1.5s
 ./gh-aw --help
 ```
 
+## Build System
+
+### Shell Script Sync
+
+**ALWAYS sync shell scripts before building:**
+
+Shell scripts in `actions/setup/sh/` are the **source of truth** and are automatically synced to `pkg/workflow/sh/` during the build process.
+
+```bash
+make sync-shell-scripts  # Copies actions/setup/sh/*.sh → pkg/workflow/sh/
+make build              # Automatically runs sync-shell-scripts
+```
+
+**When modifying shell scripts:**
+1. Edit files in `actions/setup/sh/` (source of truth)
+2. Run `make build` (automatically syncs to pkg/workflow/sh/)
+3. The synced files in `pkg/workflow/sh/` are embedded in the binary via `//go:embed`
+4. **Never** edit files in `pkg/workflow/sh/` directly - they are generated
+
+**Key points:**
+- `actions/setup/sh/*.sh` = Source of truth (manually edited)
+- `pkg/workflow/sh/*.sh` = Generated (copied during build, marked as linguist-generated)
+- The build process: `actions/setup/sh/` → `pkg/workflow/sh/` → embedded in binary
+- Same pattern as JavaScript files: `pkg/workflow/js/*.cjs` → `actions/setup/js/`
+
 ## Development Workflow
 
 ### Build & Test Commands

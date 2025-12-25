@@ -220,17 +220,15 @@ async function startHttpServer(configPath, options = {}) {
         // Let the transport handle the request
         await transport.handleRequest(req, res, body);
       } catch (error) {
-        // Log the full error with stack trace on the server for debugging
         logger.debugError("Error handling request: ", error);
         if (!res.headersSent) {
           res.writeHead(500, { "Content-Type": "application/json" });
-          // Send a generic error message to the client to avoid exposing stack traces
           res.end(
             JSON.stringify({
               jsonrpc: "2.0",
               error: {
                 code: -32603,
-                message: "Internal server error",
+                message: error instanceof Error ? error.message : String(error),
               },
               id: null,
             })

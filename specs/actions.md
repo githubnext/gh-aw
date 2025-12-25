@@ -141,6 +141,14 @@ Create a custom actions system that:
 gh-aw/
 ├── actions/                          # Custom GitHub Actions
 │   ├── README.md                     # Actions documentation
+│   ├── setup/                        # Setup action with shell scripts
+│   │   ├── action.yml               # Action metadata
+│   │   ├── setup.sh                 # Main setup script
+│   │   ├── js/                      # JavaScript files (generated)
+│   │   │   └── *.cjs                # Copied from pkg/workflow/js/
+│   │   ├── sh/                      # Shell scripts (SOURCE OF TRUTH)
+│   │   │   └── *.sh                 # Manually edited shell scripts
+│   │   └── README.md                # Action-specific docs
 │   ├── setup-safe-inputs/           # Safe inputs MCP server setup
 │   │   ├── action.yml               # Action metadata
 │   │   ├── index.js                 # Bundled output (committed)
@@ -158,16 +166,29 @@ gh-aw/
 │   │   └── actions_build_command.go # Build system implementation
 │   └── workflow/
 │       ├── js.go                    # JavaScript sources map
-│       └── js/                      # Embedded JavaScript files
-│           ├── *.cjs                # CommonJS modules
-│           └── *.json               # JSON configuration files
+│       ├── sh.go                    # Shell script sources map
+│       ├── js/                      # Embedded JavaScript files
+│       │   ├── *.cjs                # CommonJS modules
+│       │   └── *.json               # JSON configuration files
+│       └── sh/                      # Embedded shell scripts (GENERATED)
+│           └── *.sh                 # Copied from actions/setup/sh/
 ├── cmd/gh-aw/
 │   └── main.go                      # CLI entry point with commands
-├── Makefile                         # Build targets
-├── .gitattributes                   # Mark generated files
+├── Makefile                         # Build targets (includes sync-shell-scripts)
+├── .gitattributes                   # Mark generated files (pkg/workflow/sh/*.sh)
 └── .github/workflows/
     └── ci.yml                       # CI pipeline with actions-build job
 ```
+
+**Shell Script Sync Flow:**
+1. **Source of Truth**: `actions/setup/sh/*.sh` (manually edited)
+2. **Sync Step**: `make sync-shell-scripts` copies to `pkg/workflow/sh/` 
+3. **Build Step**: `make build` embeds `pkg/workflow/sh/*.sh` via `//go:embed`
+4. **Actions Build**: `make actions-build` does NOT copy shell scripts (they already exist in actions/setup/sh/)
+
+This mirrors the pattern used for JavaScript files but in reverse:
+- JavaScript: `pkg/workflow/js/` (source) → `actions/setup/js/` (generated)
+- Shell: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
 
 ### Action Structure
 
@@ -225,15 +246,45 @@ for (const [filename, content] of Object.entries(FILES)) {
 
 The build system is implemented entirely in Go and follows these steps:
 
-1. **Discovery**: Scans `actions/` directory for action subdirectories
-2. **Validation**: Validates each `action.yml` file structure
-3. **Dependency Resolution**: Maps action name to required JavaScript files (manual mapping in Go)
-4. **File Reading**: Retrieves file contents from `workflow.GetJavaScriptSources()`
-5. **Bundling**: Creates JSON object with all dependencies
-6. **Code Generation**: Replaces `FILES` placeholder in source with bundled content
-7. **Output**: Writes bundled `index.js` to action directory
+1. **Shell Script Sync** (NEW): Copies shell scripts from `actions/setup/sh/` to `pkg/workflow/sh/`
+2. **Discovery**: Scans `actions/` directory for action subdirectories
+3. **Validation**: Validates each `action.yml` file structure
+4. **Dependency Resolution**: Maps action name to required JavaScript files (manual mapping in Go)
+5. **File Reading**: Retrieves file contents from `workflow.GetJavaScriptSources()`
+6. **Bundling**: Creates JSON object with all dependencies
+7. **Code Generation**: Replaces `FILES` placeholder in source with bundled content
+8. **Output**: Writes bundled `index.js` to action directory
 
 **Key Point**: The build system is pure Go code in `pkg/cli/actions_build_command.go`. There are no JavaScript build scripts - everything uses the workflow compiler's existing infrastructure.
+
+### Shell Script Sync Process
+
+**Important**: Shell scripts follow a different pattern than JavaScript files:
+
+**Shell Scripts** (source in actions/setup/sh/):
+```
+actions/setup/sh/*.sh  →  pkg/workflow/sh/*.sh  →  Embedded in binary
+   (SOURCE OF TRUTH)        (GENERATED)              (go:embed)
+```
+
+**JavaScript Files** (source in pkg/workflow/js/):
+```
+pkg/workflow/js/*.cjs  →  actions/setup/js/*.cjs  →  Used by action
+   (SOURCE OF TRUTH)        (GENERATED)              (runtime)
+```
+
+The shell script sync happens via the `sync-shell-scripts` Makefile target, which is automatically run as part of `make build`:
+
+```bash
+make sync-shell-scripts  # Explicit sync
+make build              # Includes sync-shell-scripts
+```
+
+**Why this pattern?**
+- Shell scripts are part of the setup action itself and live in `actions/setup/sh/`
+- They need to be embedded in the Go binary for compilation
+- Syncing before build ensures the embedded scripts match the action's source files
+- This creates a single source of truth in the actions directory
 
 ### Build Commands
 
@@ -533,6 +584,21 @@ The CI runs when:
 
 #### Common Tasks
 
+**Modify a shell script**:
+1. Edit the file in `actions/setup/sh/` (source of truth)
+2. Run `make build` (syncs to pkg/workflow/sh/ and rebuilds binary)
+3. Run `make actions-build` (builds actions including setup)
+4. Test in a workflow to verify behavior
+5. Commit both `actions/setup/sh/*.sh` and generated `pkg/workflow/sh/*.sh`
+
+**Add a new shell script**:
+1. Create the file in `actions/setup/sh/`
+2. Add `//go:embed` directive in `pkg/workflow/sh.go`
+3. Add to `GetBundledShellScripts()` function in `sh.go`
+4. Run `make build` to sync and embed
+5. Update setup action's `setup.sh` to use the new script
+6. Run `make actions-build` to build the setup action
+
 **Add a new action**:
 1. Create directory structure in `actions/`
 2. Write `action.yml`, `src/index.js`, `README.md`
@@ -557,6 +623,13 @@ The CI runs when:
 - `pkg/cli/actions_build_command.go` - **Pure Go build system** (no JavaScript)
 - `internal/tools/actions-build/main.go` - Internal CLI tool dispatcher (development only)
 - `pkg/workflow/js.go` - JavaScript source map and embedded files
+- `pkg/workflow/sh.go` - Shell script source map and embedded files
+- `actions/setup/sh/` - **Source of truth for shell scripts** (manually edited)
+- `pkg/workflow/sh/` - Generated shell scripts (synced from actions/setup/sh/)
+- `Makefile` - Primary interface for building actions (`make actions-build`, `make sync-shell-scripts`)
+- `.github/workflows/ci.yml` - CI validation
+- `actions/README.md` - Actions documentation
+- `.gitattributes` - Marks generated files (pkg/workflow/sh/*.sh, actions/setup/js/*.cjs)
 - `Makefile` - Primary interface for building actions (`make actions-build`)
 - `.github/workflows/ci.yml` - CI validation
 - `actions/README.md` - Actions documentation

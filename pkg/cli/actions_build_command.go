@@ -129,7 +129,8 @@ func ActionsCleanCommand() error {
 			}
 		}
 
-		// Clean js/ and sh/ directories for setup action
+		// Clean js/ directory for setup action
+		// Note: sh/ directory is NOT cleaned because it's the source of truth
 		if actionName == "setup" {
 			jsDir := filepath.Join(actionsDir, actionName, "js")
 			if _, err := os.Stat(jsDir); err == nil {
@@ -137,15 +138,6 @@ func ActionsCleanCommand() error {
 					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
 				}
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
-				cleanedCount++
-			}
-
-			shDir := filepath.Join(actionsDir, actionName, "sh")
-			if _, err := os.Stat(shDir); err == nil {
-				if err := os.RemoveAll(shDir); err != nil {
-					return fmt.Errorf("failed to remove %s: %w", shDir, err)
-				}
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/sh/", actionName)))
 				cleanedCount++
 			}
 		}
@@ -342,12 +334,12 @@ func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupAction builds the setup action by copying JavaScript files to js/ directory
-// and shell scripts to sh/ directory
+// buildSetupAction builds the setup action by copying JavaScript files to js/ directory.
+// Note: Shell scripts are NOT copied here - they are the source of truth in actions/setup/sh/
+// and get synced to pkg/workflow/sh/ during the build process via the sync-shell-scripts Makefile target.
 func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")
-	shDir := filepath.Join(actionPath, "sh")
 
 	// Get dependencies for this action
 	dependencies := getActionDependencies(actionName)
@@ -378,28 +370,22 @@ func buildSetupAction(actionsDir, actionName string) error {
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
 
-	// Get bundled shell scripts
-	shellScripts := workflow.GetBundledShellScripts()
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d shell scripts", len(shellScripts))))
-
-	// Create sh directory if it doesn't exist
-	if err := os.MkdirAll(shDir, 0755); err != nil {
-		return fmt.Errorf("failed to create sh directory: %w", err)
-	}
-
-	// Copy each shell script to the sh directory
-	shCopiedCount := 0
-	for filename, content := range shellScripts {
-		destPath := filepath.Join(shDir, filename)
-		// Shell scripts should be executable (0755)
-		if err := os.WriteFile(destPath, []byte(content), 0755); err != nil {
-			return fmt.Errorf("failed to write %s: %w", filename, err)
+	// Note: Shell scripts in actions/setup/sh/ are the source of truth and are NOT generated.
+	// They are synced to pkg/workflow/sh/ before the binary is built.
+	shDir := filepath.Join(actionPath, "sh")
+	if _, err := os.Stat(shDir); err == nil {
+		// Count shell scripts
+		entries, err := os.ReadDir(shDir)
+		if err == nil {
+			shCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sh") {
+					shCount++
+				}
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Shell scripts in sh/ (source of truth): %d", shCount)))
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", filename)))
-		shCopiedCount++
 	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d shell scripts to sh/", shCopiedCount)))
 
 	return nil
 }
