@@ -285,10 +285,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -305,10 +302,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
@@ -431,10 +425,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -451,10 +442,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
@@ -669,10 +657,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ]
@@ -996,10 +981,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -1016,10 +998,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
