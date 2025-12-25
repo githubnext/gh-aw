@@ -47,6 +47,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
+            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
+            await main({ github, context, core });
 
   close-expired-issues:
     runs-on: ubuntu-latest
@@ -57,6 +59,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
+            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
+            await main({ github, context, core });
 
   compile-workflows:
     runs-on: ubuntu-latest
