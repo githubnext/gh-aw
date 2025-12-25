@@ -112,6 +112,58 @@ make build       # ~1.5s
 ./gh-aw --help
 ```
 
+## Build System
+
+### Shell Script Sync
+
+**ALWAYS sync shell scripts before building:**
+
+Shell scripts in `actions/setup/sh/` are the **source of truth** and are automatically synced to `pkg/workflow/sh/` during the build process.
+
+```bash
+make sync-shell-scripts  # Copies actions/setup/sh/*.sh → pkg/workflow/sh/
+make build              # Automatically runs sync-shell-scripts
+```
+
+**When modifying shell scripts:**
+1. Edit files in `actions/setup/sh/` (source of truth)
+2. Run `make build` (automatically syncs to pkg/workflow/sh/)
+3. The synced files in `pkg/workflow/sh/` are embedded in the binary via `//go:embed`
+4. **Never** edit files in `pkg/workflow/sh/` directly - they are generated
+
+**Key points:**
+- `actions/setup/sh/*.sh` = Source of truth (manually edited)
+- `pkg/workflow/sh/*.sh` = Generated (copied during build, marked as linguist-generated)
+- The build process: `actions/setup/sh/` → `pkg/workflow/sh/` → embedded in binary
+
+### JavaScript File Sync
+
+**JavaScript files follow the SAME pattern as shell scripts:**
+
+JavaScript files in `actions/setup/js/` are the **source of truth** and are automatically synced to `pkg/workflow/js/` during the build process.
+
+```bash
+make sync-js-scripts    # Copies actions/setup/js/*.cjs → pkg/workflow/js/
+make build              # Automatically runs sync-js-scripts
+```
+
+**When modifying JavaScript files:**
+1. Edit files in `actions/setup/js/` (source of truth)
+2. Run `make build` (automatically syncs to pkg/workflow/js/)
+3. The synced files in `pkg/workflow/js/` are embedded in the binary via `//go:embed`
+4. **Never** edit production files in `pkg/workflow/js/` directly - they are generated
+5. Test files (*.test.cjs) remain only in `pkg/workflow/js/` and are not synced
+
+**Key points:**
+- `actions/setup/js/*.cjs` = Source of truth (manually edited, production files only)
+- `pkg/workflow/js/*.cjs` = Generated (copied during build, marked as linguist-generated)
+- `pkg/workflow/js/*.test.cjs` = Test files (remain in pkg/workflow/js/, not synced)
+- The build process: `actions/setup/js/` → `pkg/workflow/js/` → embedded in binary
+
+**Summary of patterns:**
+- Shell scripts: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
+- JavaScript: `actions/setup/js/` (source) → `pkg/workflow/js/` (generated)
+
 ## Development Workflow
 
 ### Build & Test Commands

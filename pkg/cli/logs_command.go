@@ -16,9 +16,12 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var logsCommandLog = logger.New("cli:logs_command")
 
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
@@ -102,8 +105,12 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both Markdown and JSON
   ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
+
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
+				logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
+
 				// Convert workflow ID to GitHub Actions workflow name
 				// First try to resolve as a workflow ID
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
@@ -161,28 +168,35 @@ Examples:
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
 			if startDate != "" {
+				logsCommandLog.Printf("Resolving start date: %s", startDate)
 				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
 				if err != nil {
 					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
 				}
 				startDate = resolvedStartDate
+				logsCommandLog.Printf("Resolved start date to: %s", startDate)
 			}
 			if endDate != "" {
+				logsCommandLog.Printf("Resolving end date: %s", endDate)
 				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
 				if err != nil {
 					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
 				}
 				endDate = resolvedEndDate
+				logsCommandLog.Printf("Resolved end date to: %s", endDate)
 			}
 
 			// Validate engine parameter using the engine registry
 			if engine != "" {
+				logsCommandLog.Printf("Validating engine parameter: %s", engine)
 				registry := workflow.GetGlobalEngineRegistry()
 				if !registry.IsValidEngine(engine) {
 					supportedEngines := registry.GetSupportedEngines()
 					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
 				}
 			}
+
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s", workflowName, count, engine)
 
 			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
 		},

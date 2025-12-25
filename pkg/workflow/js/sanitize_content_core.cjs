@@ -278,11 +278,14 @@ function neutralizeAllMentions(s) {
  */
 function removeXmlComments(s) {
   // Remove <!-- comment --> and malformed <!--! comment --!>
+  // Use a single regex that matches both patterns to avoid introducing comment markers
+  // when removing one pattern reveals another
   // Apply repeatedly to handle nested/overlapping patterns that could reintroduce comment markers
   let previous;
   do {
     previous = s;
-    s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+    // Single regex matches: <!-- ... --> OR <!-- ... --!>
+    s = s.replace(/<!--[\s\S]*?--!?>/g, "");
   } while (s !== previous);
   return s;
 }
