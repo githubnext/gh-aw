@@ -47,8 +47,8 @@ This is a test workflow for trial mode compilation.
 	// Test normal mode compilation (should include safe outputs)
 	t.Run("Normal Mode", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 		compiler.SetTrialMode(false)     // Normal mode
 		compiler.SetSkipValidation(true) // Skip validation for test
 
@@ -106,8 +106,8 @@ This is a test workflow for trial mode compilation.
 	// Test trial mode compilation (should suppress safe outputs and add token)
 	t.Run("Trial Mode", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 		compiler.SetTrialMode(true)      // Trial mode
 		compiler.SetSkipValidation(true) // Skip validation for test
 
@@ -276,8 +276,8 @@ This is a test workflow for trial mode compilation.
 			tmpFile.Close()
 
 			compiler := NewCompiler(false, "", "test")
-			// Use release mode to test with inline JavaScript (no local action checkouts)
-			compiler.SetActionMode(ActionModeRelease)
+			// Use dev mode to test with local action paths
+			compiler.SetActionMode(ActionModeDev)
 			compiler.SetTrialMode(true)      // Trial mode
 			compiler.SetSkipValidation(true) // Skip validation for test
 
@@ -317,8 +317,8 @@ This is a test workflow for trial mode compilation.
 
 func TestTrialModeSetterAndGetter(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
-	// Use release mode to test with inline JavaScript (no local action checkouts)
-	compiler.SetActionMode(ActionModeRelease)
+	// Use dev mode to test with local action paths
+	compiler.SetActionMode(ActionModeDev)
 
 	// Test default value
 	if compiler.trialMode {

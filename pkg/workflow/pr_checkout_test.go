@@ -184,8 +184,8 @@ Test workflow with permissions but checkout should be conditional.
 
 			// Compile workflow
 			compiler := NewCompiler(false, "", "test-version")
-			// Use release mode to test with inline JavaScript (no local action checkouts)
-			compiler.SetActionMode(ActionModeRelease)
+			// Use dev mode to test with local action paths
+			compiler.SetActionMode(ActionModeDev)
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}

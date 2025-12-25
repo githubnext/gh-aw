@@ -38,8 +38,8 @@ This workflow tests the create-pull-request-review-comment configuration parsing
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Parse the workflow data
 		workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -90,8 +90,8 @@ This workflow tests custom configuration values.
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Parse the workflow data
 		workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -135,8 +135,8 @@ This workflow tests null configuration.
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Parse the workflow data
 		workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -182,8 +182,8 @@ This workflow tests target configuration.
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Parse the workflow data
 		workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -225,8 +225,8 @@ This workflow tests invalid side value handling.
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Parse the workflow data - this should fail due to schema validation
 		_, err := compiler.ParseWorkflowFile(testFile)
@@ -267,8 +267,8 @@ This workflow tests job generation for PR review comments.
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)
@@ -350,8 +350,8 @@ This workflow tests job generation for PR review comments with target configurat
 		}
 
 		compiler := NewCompiler(false, "", "test")
-		// Use release mode to test with inline JavaScript (no local action checkouts)
-		compiler.SetActionMode(ActionModeRelease)
+		// Use dev mode to test with local action paths
+		compiler.SetActionMode(ActionModeDev)
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)
