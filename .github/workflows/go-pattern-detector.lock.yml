@@ -290,8 +290,6 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
-        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
             if (require.main === module) {
@@ -921,7 +919,7 @@ jobs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
       - name: Install ast-grep

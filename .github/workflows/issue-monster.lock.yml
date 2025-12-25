@@ -290,8 +290,6 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
-        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
             if (require.main === module) {
@@ -1423,7 +1421,7 @@ jobs:
     steps:
       - name: Search for candidate issues
         id: search
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { owner, repo } = context.repo;

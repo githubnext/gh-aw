@@ -112,7 +112,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           cache: npm
           cache-dependency-path: docs/package-lock.json
@@ -312,8 +312,6 @@ jobs:
             }
           }
           EOF
-      - name: Write Safe Outputs JavaScript Files
-        run: |
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
             if (require.main === module) {
