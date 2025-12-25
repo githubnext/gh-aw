@@ -99,10 +99,19 @@ jobs:
           - name: "CLI Security Tools"  # Group security tool compilation tests
             packages: "./pkg/cli"
             pattern: "TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
+          - name: "CLI Add & List Commands"
+            packages: "./pkg/cli"
+            pattern: "^TestAdd|^TestList"
+          - name: "CLI Update Command"
+            packages: "./pkg/cli"
+            pattern: "^TestUpdate"
+          - name: "CLI Audit & Inspect"
+            packages: "./pkg/cli"
+            pattern: "^TestAudit|^TestInspect"
           - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
-            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
+            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
@@ -121,9 +130,15 @@ jobs:
           - name: "Workflow Rendering & Bundling"
             packages: "./pkg/workflow"
             pattern: "Render|Bundle|Script|WritePromptText"
-          - name: "Workflow Cache & Actions"
+          - name: "Workflow Cache"
             packages: "./pkg/workflow"
-            pattern: "Cache|Action|Container"
+            pattern: "^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache"
+          - name: "Workflow Actions Pin Validation"
+            packages: "./pkg/workflow"
+            pattern: "^TestActionPinSHAsMatchVersionTags"
+          - name: "Workflow Actions & Containers"
+            packages: "./pkg/workflow"
+            pattern: "^TestAction[^P]|Container"
           - name: "Workflow Dependabot & Security"
             packages: "./pkg/workflow"
             pattern: "Dependabot|Security|PII"
@@ -150,10 +165,16 @@ jobs:
           - name: "Workflow Misc Part 1"  # Split large catch-all into two balanced groups
             packages: "./pkg/workflow"
             pattern: "TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
+          - name: "Workflow String & Sanitization"
+            packages: "./pkg/workflow"
+            pattern: "String|Sanitize|Normalize|Trim|Clean|Format"
+          - name: "Workflow Runtime & Setup"
+            packages: "./pkg/workflow"
+            pattern: "Runtime|Setup|Install|Download|Version|Binary"
           - name: "Workflow Misc Part 2"  # Remaining workflow tests
             packages: "./pkg/workflow"
             pattern: ""
-            skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|Cache|Action|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExpression|TestValidateExpressionSafety|TestCheckNetworkSupport|TestValidateStrictMCPNetwork|TestJobManager|TestWorkflowStep|TestScriptRegistry|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
+            skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|^TestActionPinSHAsMatchVersionTags|^TestAction[^P]|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExpression|TestValidateExpressionSafety|TestCheckNetworkSupport|TestValidateStrictMCPNetwork|TestJobManager|TestWorkflowStep|TestScriptRegistry|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|String|Sanitize|Normalize|Trim|Clean|Format|Runtime|Setup|Install|Download|Version|Binary"
     concurrency:
       group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
