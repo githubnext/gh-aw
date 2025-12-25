@@ -719,3 +719,56 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		})
 	}
 }
+
+// TestApplyActionPinsToWorkflowSteps tests the ApplyActionPinsToWorkflowSteps function
+func TestApplyActionPinsToWorkflowSteps(t *testing.T) {
+	steps := []WorkflowStep{
+		{
+			Name: "Checkout code",
+			Uses: "actions/checkout@v4",
+		},
+		{
+			Name: "Setup Node",
+			Uses: "actions/setup-node@v4",
+		},
+		{
+			Name: "Run script",
+			Run:  "npm test",
+		},
+	}
+
+	data := &WorkflowData{}
+	result := ApplyActionPinsToWorkflowSteps(steps, data)
+
+	// Verify result has same length
+	if len(result) != len(steps) {
+		t.Errorf("ApplyActionPinsToWorkflowSteps() returned %d steps, want %d", len(result), len(steps))
+	}
+
+	// Verify first step is pinned
+	if !strings.Contains(result[0].Uses, "@") {
+		t.Errorf("First step not pinned: %s", result[0].Uses)
+	}
+	if !strings.HasPrefix(result[0].Uses, "actions/checkout@") {
+		t.Errorf("First step action changed: %s", result[0].Uses)
+	}
+
+	// Verify second step is pinned
+	if !strings.Contains(result[1].Uses, "@") {
+		t.Errorf("Second step not pinned: %s", result[1].Uses)
+	}
+	if !strings.HasPrefix(result[1].Uses, "actions/setup-node@") {
+		t.Errorf("Second step action changed: %s", result[1].Uses)
+	}
+
+	// Verify third step (run step) is unchanged
+	if result[2].Run != "npm test" {
+		t.Errorf("Third step run changed: %s", result[2].Run)
+	}
+
+	// Verify original steps are not modified
+	if steps[0].Uses != "actions/checkout@v4" {
+		t.Errorf("Original step was modified: %s", steps[0].Uses)
+	}
+}
+

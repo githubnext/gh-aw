@@ -397,12 +397,22 @@ func detectSerenaLanguages(serenaConfig *SerenaToolConfig, requirements map[stri
 }
 
 // detectFromEngineSteps scans engine steps for runtime commands
+// Deprecated: Use detectFromWorkflowSteps for better type safety
 func detectFromEngineSteps(steps []map[string]any, requirements map[string]*RuntimeRequirement) {
 	for _, step := range steps {
 		if run, hasRun := step["run"]; hasRun {
 			if runStr, ok := run.(string); ok {
 				detectRuntimeFromCommand(runStr, requirements)
 			}
+		}
+	}
+}
+
+// detectFromWorkflowSteps scans WorkflowStep slice for runtime commands
+func detectFromWorkflowSteps(steps []WorkflowStep, requirements map[string]*RuntimeRequirement) {
+	for _, step := range steps {
+		if step.Run != "" {
+			detectRuntimeFromCommand(step.Run, requirements)
 		}
 	}
 }

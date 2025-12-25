@@ -317,6 +317,7 @@ func extractActionVersion(uses string) string {
 
 // ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
 // Returns a new slice with pinned references
+// Deprecated: Use ApplyActionPinsToWorkflowSteps for better type safety
 func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	result := make([]any, len(steps))
 	for i, step := range steps {
@@ -324,6 +325,24 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 			result[i] = ApplyActionPinToStep(stepMap, data)
 		} else {
 			result[i] = step
+		}
+	}
+	return result
+}
+
+// ApplyActionPinsToWorkflowSteps applies SHA pinning to a slice of WorkflowStep
+// Returns a new slice with pinned references
+func ApplyActionPinsToWorkflowSteps(steps []WorkflowStep, data *WorkflowData) []WorkflowStep {
+	result := make([]WorkflowStep, len(steps))
+	for i, step := range steps {
+		stepMap := step.ToMap()
+		pinnedMap := ApplyActionPinToStep(stepMap, data)
+		pinnedStep, err := MapToStep(pinnedMap)
+		if err != nil {
+			// If conversion fails, keep the original step
+			result[i] = step
+		} else {
+			result[i] = *pinnedStep
 		}
 	}
 	return result

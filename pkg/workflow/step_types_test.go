@@ -454,6 +454,34 @@ func compareStepValues(a, b any) bool {
 			}
 		}
 		return true
+	case []string:
+		bSlice, ok := b.([]string)
+		if !ok {
+			return false
+		}
+		if len(aVal) != len(bSlice) {
+			return false
+		}
+		for i := range aVal {
+			if aVal[i] != bSlice[i] {
+				return false
+			}
+		}
+		return true
+	case []map[string]any:
+		bSlice, ok := b.([]map[string]any)
+		if !ok {
+			return false
+		}
+		if len(aVal) != len(bSlice) {
+			return false
+		}
+		for i := range aVal {
+			if !compareStepValues(aVal[i], bSlice[i]) {
+				return false
+			}
+		}
+		return true
 	default:
 		return a == b
 	}
@@ -488,6 +516,286 @@ func compareSteps(a, b *WorkflowStep) bool {
 	// Compare Env maps
 	if !compareStepValues(a.Env, b.Env) {
 		return false
+	}
+
+	return true
+}
+
+// Tests for WorkflowJob type
+
+func TestWorkflowJob_ToMap(t *testing.T) {
+	tests := []struct {
+		name string
+		job  *WorkflowJob
+		want map[string]any
+	}{
+		{
+			name: "simple job with steps",
+			job: &WorkflowJob{
+				Name:   "Test Job",
+				RunsOn: "ubuntu-latest",
+				Steps: []WorkflowStep{
+					{Name: "Checkout", Uses: "actions/checkout@v4"},
+					{Name: "Run tests", Run: "npm test"},
+				},
+			},
+			want: map[string]any{
+				"name":    "Test Job",
+				"runs-on": "ubuntu-latest",
+				"steps": []map[string]any{
+					{"name": "Checkout", "uses": "actions/checkout@v4"},
+					{"name": "Run tests", "run": "npm test"},
+				},
+			},
+		},
+		{
+			name: "job with all fields",
+			job: &WorkflowJob{
+				Name:           "Complex Job",
+				RunsOn:         "ubuntu-latest",
+				Needs:          []string{"build"},
+				If:             "success()",
+				TimeoutMinutes: 30,
+				Permissions:    map[string]string{"contents": "read"},
+				Env:            map[string]string{"NODE_ENV": "test"},
+				Steps: []WorkflowStep{
+					{Name: "Test", Run: "npm test"},
+				},
+			},
+			want: map[string]any{
+				"name":            "Complex Job",
+				"runs-on":         "ubuntu-latest",
+				"needs":           []string{"build"},
+				"if":              "success()",
+				"timeout-minutes": 30,
+				"permissions":     map[string]string{"contents": "read"},
+				"env":             map[string]string{"NODE_ENV": "test"},
+				"steps": []map[string]any{
+					{"name": "Test", "run": "npm test"},
+				},
+			},
+		},
+		{
+			name: "reusable workflow job",
+			job: &WorkflowJob{
+				Uses: "./.github/workflows/reusable.yml",
+				With: map[string]any{"config": "test"},
+			},
+			want: map[string]any{
+				"uses": "./.github/workflows/reusable.yml",
+				"with": map[string]any{"config": "test"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.job.ToMap()
+			if !compareJobMaps(got, tt.want) {
+				t.Errorf("WorkflowJob.ToMap() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMapToJob(t *testing.T) {
+	tests := []struct {
+		name    string
+		jobMap  map[string]any
+		want    *WorkflowJob
+		wantErr bool
+	}{
+		{
+			name: "simple job with steps",
+			jobMap: map[string]any{
+				"name":    "Test Job",
+				"runs-on": "ubuntu-latest",
+				"steps": []any{
+					map[string]any{"name": "Checkout", "uses": "actions/checkout@v4"},
+					map[string]any{"name": "Run tests", "run": "npm test"},
+				},
+			},
+			want: &WorkflowJob{
+				Name:   "Test Job",
+				RunsOn: "ubuntu-latest",
+				Steps: []WorkflowStep{
+					{Name: "Checkout", Uses: "actions/checkout@v4"},
+					{Name: "Run tests", Run: "npm test"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "job with needs as string",
+			jobMap: map[string]any{
+				"name":    "Deploy",
+				"runs-on": "ubuntu-latest",
+				"needs":   "build",
+			},
+			want: &WorkflowJob{
+				Name:   "Deploy",
+				RunsOn: "ubuntu-latest",
+				Needs:  []string{"build"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "job with needs as array",
+			jobMap: map[string]any{
+				"name":    "Deploy",
+				"runs-on": "ubuntu-latest",
+				"needs":   []any{"build", "test"},
+			},
+			want: &WorkflowJob{
+				Name:   "Deploy",
+				RunsOn: "ubuntu-latest",
+				Needs:  []string{"build", "test"},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "nil job map",
+			jobMap:  nil,
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MapToJob(tt.jobMap)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MapToJob() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if !compareJobs(got, tt.want) {
+				t.Errorf("MapToJob() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStepsToAny(t *testing.T) {
+	steps := []WorkflowStep{
+		{Name: "Step 1", Uses: "actions/checkout@v4"},
+		{Name: "Step 2", Run: "echo hello"},
+	}
+
+	result := StepsToAny(steps)
+
+	if len(result) != 2 {
+		t.Errorf("StepsToAny() length = %d, want 2", len(result))
+	}
+
+	// Check first step
+	if stepMap, ok := result[0].(map[string]any); ok {
+		if stepMap["name"] != "Step 1" {
+			t.Errorf("StepsToAny()[0][name] = %v, want Step 1", stepMap["name"])
+		}
+	} else {
+		t.Error("StepsToAny()[0] is not a map[string]any")
+	}
+}
+
+func TestStepsFromAny(t *testing.T) {
+	stepsAny := []any{
+		map[string]any{"name": "Step 1", "uses": "actions/checkout@v4"},
+		map[string]any{"name": "Step 2", "run": "echo hello"},
+	}
+
+	steps, err := StepsFromAny(stepsAny)
+	if err != nil {
+		t.Fatalf("StepsFromAny() error = %v", err)
+	}
+
+	if len(steps) != 2 {
+		t.Errorf("StepsFromAny() length = %d, want 2", len(steps))
+	}
+
+	if steps[0].Name != "Step 1" {
+		t.Errorf("StepsFromAny()[0].Name = %s, want Step 1", steps[0].Name)
+	}
+	if steps[1].Run != "echo hello" {
+		t.Errorf("StepsFromAny()[1].Run = %s, want echo hello", steps[1].Run)
+	}
+}
+
+// Helper functions for comparing jobs
+
+func compareJobs(a, b *WorkflowJob) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	if a.Name != b.Name || a.If != b.If || a.TimeoutMinutes != b.TimeoutMinutes {
+		return false
+	}
+
+	// Compare RunsOn
+	if !compareStepValues(a.RunsOn, b.RunsOn) {
+		return false
+	}
+
+	// Compare Needs
+	if len(a.Needs) != len(b.Needs) {
+		return false
+	}
+	for i := range a.Needs {
+		if a.Needs[i] != b.Needs[i] {
+			return false
+		}
+	}
+
+	// Compare Steps
+	if len(a.Steps) != len(b.Steps) {
+		return false
+	}
+	for i := range a.Steps {
+		if !compareSteps(&a.Steps[i], &b.Steps[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func compareJobMaps(a, b map[string]any) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for key, aVal := range a {
+		bVal, ok := b[key]
+		if !ok {
+			return false
+		}
+
+		// Special handling for steps (array of maps)
+		if key == "steps" {
+			aSteps, aOK := aVal.([]map[string]any)
+			bSteps, bOK := bVal.([]map[string]any)
+			if aOK && bOK {
+				if len(aSteps) != len(bSteps) {
+					return false
+				}
+				for i := range aSteps {
+					if !compareStepValues(aSteps[i], bSteps[i]) {
+						return false
+					}
+				}
+				continue
+			}
+		}
+
+		if !compareStepValues(aVal, bVal) {
+			return false
+		}
 	}
 
 	return true

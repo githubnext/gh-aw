@@ -709,3 +709,92 @@ func TestDeduplicateErrorMessageFormat(t *testing.T) {
 			len(errMsg), errMsg)
 	}
 }
+
+// TestDetectFromWorkflowSteps tests the detectFromWorkflowSteps function
+func TestDetectFromWorkflowSteps(t *testing.T) {
+	tests := []struct {
+		name     string
+		steps    []WorkflowStep
+		expected []string // Expected runtime IDs to be detected
+	}{
+		{
+			name: "detect node from npm command",
+			steps: []WorkflowStep{
+				{Name: "Install", Run: "npm install"},
+				{Name: "Test", Run: "npm test"},
+			},
+			expected: []string{"node"},
+		},
+		{
+			name: "detect python from pip command",
+			steps: []WorkflowStep{
+				{Name: "Install", Run: "pip install -r requirements.txt"},
+			},
+			expected: []string{"python"},
+		},
+		{
+			name: "detect go from go command",
+			steps: []WorkflowStep{
+				{Name: "Build", Run: "go build"},
+			},
+			expected: []string{"go"},
+		},
+		{
+			name: "detect multiple runtimes",
+			steps: []WorkflowStep{
+				{Name: "Node", Run: "npm install"},
+				{Name: "Python", Run: "python script.py"},
+			},
+			expected: []string{"node", "python"},
+		},
+		{
+			name: "no runtimes detected",
+			steps: []WorkflowStep{
+				{Name: "Echo", Run: "echo hello"},
+				{Name: "Checkout", Uses: "actions/checkout@v4"},
+			},
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requirements := make(map[string]*RuntimeRequirement)
+			detectFromWorkflowSteps(tt.steps, requirements)
+
+			// Check that expected runtimes were detected
+			for _, expectedID := range tt.expected {
+				if _, found := requirements[expectedID]; !found {
+					t.Errorf("Expected runtime %s to be detected, but it wasn't", expectedID)
+				}
+			}
+
+			// Check that no unexpected runtimes were detected
+			if len(tt.expected) != len(requirements) {
+				var detected []string
+				for id := range requirements {
+					detected = append(detected, id)
+				}
+				t.Errorf("Expected %d runtimes %v, got %d runtimes %v",
+					len(tt.expected), tt.expected, len(requirements), detected)
+			}
+		})
+	}
+}
+
+// TestDetectFromEngineSteps_BackwardCompatibility tests that the old function still works
+func TestDetectFromEngineSteps_BackwardCompatibility(t *testing.T) {
+	steps := []map[string]any{
+		{"name": "Install", "run": "npm install"},
+		{"name": "Test", "run": "npm test"},
+	}
+
+	requirements := make(map[string]*RuntimeRequirement)
+	detectFromEngineSteps(steps, requirements)
+
+	// Check that node was detected
+	if _, found := requirements["node"]; !found {
+		t.Error("Expected node runtime to be detected")
+	}
+}
+
