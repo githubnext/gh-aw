@@ -109,9 +109,13 @@ self-hosted-runner:
 	return nil
 }
 
-// runActionlintOnFile runs the actionlint linter on a single .lock.yml file using Docker
-func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
-	actionlintLog.Printf("Running actionlint on file: %s (verbose=%t, strict=%t)", lockFile, verbose, strict)
+// runActionlintOnFile runs the actionlint linter on one or more .lock.yml files using Docker
+func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+
+	actionlintLog.Printf("Running actionlint on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
 	// Display actionlint version on first use
 	if actionlintVersion == "" {
@@ -135,37 +139,47 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 		return fmt.Errorf("failed to ensure actionlint config: %w", err)
 	}
 
-	// Get the relative path from git root
-	relPath, err := filepath.Rel(gitRoot, lockFile)
-	if err != nil {
-		return fmt.Errorf("failed to get relative path: %w", err)
+	// Get relative paths from git root for all files
+	var relPaths []string
+	for _, lockFile := range lockFiles {
+		relPath, err := filepath.Rel(gitRoot, lockFile)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
+		}
+		relPaths = append(relPaths, relPath)
 	}
 
 	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir rhysd/actionlint:latest -format '{{json .}}' <file>
-	// Set a timeout context to prevent Docker from hanging indefinitely (5 minutes should be sufficient)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir rhysd/actionlint:latest -format '{{json .}}' <file1> <file2> ...
+	// Adjust timeout based on number of files (1 minute per file, minimum 5 minutes)
+	timeoutDuration := time.Duration(max(5, len(lockFiles))) * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
-	cmd := exec.CommandContext(
-		ctx,
-		"docker",
+	// Build Docker command arguments
+	dockerArgs := []string{
 		"run",
 		"--rm",
 		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
 		"-w", "/workdir",
 		"rhysd/actionlint:latest",
 		"-format", "{{json .}}",
-		relPath,
-	)
+	}
+	dockerArgs = append(dockerArgs, relPaths...)
+
+	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
 
 	// Always show that actionlint is running (regular verbosity)
-	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %s", relPath)))
+	if len(lockFiles) == 1 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %s", relPaths[0])))
+	} else {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %d files", len(lockFiles))))
+	}
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir rhysd/actionlint:latest -format '{{json .}}' %s",
-			gitRoot, relPath)
+			gitRoot, strings.Join(relPaths, " "))
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run actionlint directly: "+dockerCmd))
 	}
 
@@ -179,7 +193,11 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("actionlint timed out after 5 minutes on %s - this may indicate a Docker or network issue", filepath.Base(lockFile))
+		fileList := "files"
+		if len(lockFiles) == 1 {
+			fileList = filepath.Base(lockFiles[0])
+		}
+		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
 	}
 
 	// Parse and reformat the output, get total error count
@@ -208,16 +226,24 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 			if exitCode == 1 {
 				// In strict mode, errors are treated as compilation failures
 				if strict {
-					return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, filepath.Base(lockFile))
+					fileDescription := "workflows"
+					if len(lockFiles) == 1 {
+						fileDescription = filepath.Base(lockFiles[0])
+					}
+					return fmt.Errorf("strict mode: actionlint found %d errors in %s - workflows must have no actionlint errors in strict mode", totalErrors, fileDescription)
 				}
 				// In non-strict mode, errors are logged but not treated as failures
 				return nil
 			}
 			// Other exit codes are actual errors
-			return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, filepath.Base(lockFile))
+			fileDescription := "workflows"
+			if len(lockFiles) == 1 {
+				fileDescription = filepath.Base(lockFiles[0])
+			}
+			return fmt.Errorf("actionlint failed with exit code %d on %s", exitCode, fileDescription)
 		}
 		// Non-ExitError errors (e.g., command not found)
-		return fmt.Errorf("actionlint failed on %s: %w", filepath.Base(lockFile), err)
+		return fmt.Errorf("actionlint failed: %w", err)
 	}
 
 	return nil
