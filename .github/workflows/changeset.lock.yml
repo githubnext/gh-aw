@@ -262,7 +262,113 @@ jobs:
           {"missing_tool":{"max":0},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_pull_request":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          []
+          [
+            {
+              "description": "Update an existing GitHub pull request's title or body. Supports replacing, appending to, or prepending content to the body. Title is always replaced. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 pull request(s) can be updated.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator.",
+                    "type": "string"
+                  },
+                  "operation": {
+                    "description": "How to update the PR body: 'replace' (default - completely overwrite), 'append' (add to end with separator), or 'prepend' (add to start with separator). Title is always replaced.",
+                    "enum": [
+                      "replace",
+                      "append",
+                      "prepend"
+                    ],
+                    "type": "string"
+                  },
+                  "pull_request_number": {
+                    "description": "Pull request number to update. Required when the workflow target is '*' (any PR).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "title": {
+                    "description": "New pull request title to replace the existing title.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "name": "update_pull_request"
+            },
+            {
+              "description": "Push committed changes to a pull request's branch. Use this to add follow-up commits to an existing PR, such as addressing review feedback or fixing issues. Changes must be committed locally before calling this tool.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "branch": {
+                    "description": "Branch name to push changes from. If omitted, uses the current working branch. Only specify if you need to push from a different branch.",
+                    "type": "string"
+                  },
+                  "message": {
+                    "description": "Commit message describing the changes. Follow repository commit message conventions (e.g., conventional commits).",
+                    "type": "string"
+                  },
+                  "pull_request_number": {
+                    "description": "Pull request number to push changes to. Required when the workflow target is '*' (any PR).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "push_to_pull_request_branch"
+            },
+            {
+              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "tool": {
+                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_tool"
+            },
+            {
+              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "noop"
+            }
+          ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {

@@ -243,7 +243,85 @@ jobs:
           {"close_discussion":{"max":100},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          []
+          [
+            {
+              "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. CONSTRAINTS: Maximum 100 discussion(s) can be closed.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Closing comment explaining why the discussion is being closed and summarizing any resolution or conclusion.",
+                    "type": "string"
+                  },
+                  "discussion_number": {
+                    "description": "Discussion number to close. If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "reason": {
+                    "description": "Resolution reason: RESOLVED (issue addressed), DUPLICATE (discussed elsewhere), OUTDATED (no longer relevant), or ANSWERED (question answered).",
+                    "enum": [
+                      "RESOLVED",
+                      "DUPLICATE",
+                      "OUTDATED",
+                      "ANSWERED"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "close_discussion"
+            },
+            {
+              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "tool": {
+                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_tool"
+            },
+            {
+              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "noop"
+            }
+          ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {

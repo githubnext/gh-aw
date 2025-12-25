@@ -214,7 +214,103 @@ jobs:
           {"create_code_scanning_alert":{"max":0},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
-          []
+          [
+            {
+              "description": "Create a code scanning alert for security vulnerabilities, code quality issues, or other findings. Alerts appear in the repository's Security tab and integrate with GitHub's security features. Use this for automated security analysis results.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "column": {
+                    "description": "Column number for more precise location of the issue within the line.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "file": {
+                    "description": "File path relative to the repository root where the issue was found (e.g., 'src/auth/password.js').",
+                    "type": "string"
+                  },
+                  "line": {
+                    "description": "Line number where the issue was found in the file.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "message": {
+                    "description": "Clear description of the security issue or finding. Include what's wrong and ideally how to fix it.",
+                    "type": "string"
+                  },
+                  "ruleIdSuffix": {
+                    "description": "Suffix to append to the rule ID for categorizing different types of findings (e.g., 'sql-injection', 'xss').",
+                    "type": "string"
+                  },
+                  "severity": {
+                    "description": "Alert severity level: 'error' (critical security issues), 'warning' (potential problems), 'info' (informational), or 'note' (minor observations).",
+                    "enum": [
+                      "error",
+                      "warning",
+                      "info",
+                      "note"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "line",
+                  "severity",
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "create_code_scanning_alert"
+            },
+            {
+              "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alternatives": {
+                    "description": "Any workarounds, manual steps, or alternative approaches the user could take (max 256 characters).",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "Explanation of why this tool is needed to complete the task (max 256 characters).",
+                    "type": "string"
+                  },
+                  "tool": {
+                    "description": "Name or description of the missing tool or capability (max 128 characters). Be specific about what functionality is needed.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tool",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              "name": "missing_tool"
+            },
+            {
+              "description": "Log a transparency message when no significant actions are needed. Use this to confirm workflow completion and provide visibility when analysis is complete but no changes or outputs are required (e.g., 'No issues found', 'All checks passed'). This ensures the workflow produces human-visible output even when no other actions are taken.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "description": "Status or completion message to log. Should explain what was analyzed and the outcome (e.g., 'Code review complete - no issues found', 'Analysis complete - all tests passing').",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "type": "object"
+              },
+              "name": "noop"
+            }
+          ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {

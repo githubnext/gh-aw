@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	_ "embed"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,9 @@ import (
 )
 
 var jsLog = logger.New("workflow:js")
+
+//go:embed js/safe_outputs_tools.json
+var safeOutputsToolsJSONContent string
 
 // Script variables - all empty since embedded scripts were removed
 // These are kept for compatibility with code that references them directly
@@ -71,7 +75,6 @@ var (
 	safeOutputsBootstrapScript       = ""
 	safeOutputsConfigScript          = ""
 	safeOutputsHandlersScript        = ""
-	safeOutputsToolsJSON             = ""
 	safeOutputsToolsLoaderScript     = ""
 	sanitizeContentCoreScript        = ""
 	sanitizeContentScript            = ""
@@ -159,7 +162,7 @@ func GetSafeOutputsMCPServerScript() string {
 }
 
 func GetSafeOutputsToolsJSON() string {
-	return ""
+	return safeOutputsToolsJSONContent
 }
 
 func GetReadBufferScript() string {
