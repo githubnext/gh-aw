@@ -118,7 +118,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// to add custom arguments without triggering custom MCP tool processing logic. Including "args"
 	// would incorrectly classify built-in tools as custom MCP tools, changing their processing behavior
 	// and causing validation errors.
-	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
+	mcpFields := []string{"type", "url", "command", "container", "env", "headers", "network"}
 
 	// List of all known tool config fields (not just MCP)
 	knownToolFields := map[string]bool{
@@ -132,6 +132,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"args":            true,
 		"entrypointArgs":  true,
 		"proxy-args":      true,
+		"network":         true, // for container-based MCP servers
 		"registry":        true,
 		"allowed":         true,
 		"mode":            true, // for github tool

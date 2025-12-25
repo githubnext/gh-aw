@@ -5136,6 +5136,224 @@
           }
         }
       }
+    },
+    {
+      "$comment": "Strict mode: MCP containers require network configuration",
+      "if": {
+        "properties": {
+          "strict": {
+            "const": true
+          },
+          "mcp-servers": {
+            "type": "object",
+            "patternProperties": {
+              ".*": {
+                "type": "object",
+                "anyOf": [
+                  {
+                    "required": ["container"]
+                  },
+                  {
+                    "properties": {
+                      "type": {
+                        "enum": ["stdio", "local"]
+                      }
+                    },
+                    "required": ["type", "container"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "required": ["strict", "mcp-servers"]
+      },
+      "then": {
+        "properties": {
+          "mcp-servers": {
+            "patternProperties": {
+              ".*": {
+                "if": {
+                  "anyOf": [
+                    {
+                      "required": ["container"]
+                    },
+                    {
+                      "properties": {
+                        "type": {
+                          "enum": ["stdio", "local"]
+                        }
+                      },
+                      "required": ["type", "container"]
+                    }
+                  ]
+                },
+                "then": {
+                  "required": ["network"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "Strict mode: Write permissions require safe-outputs configuration",
+      "if": {
+        "properties": {
+          "strict": {
+            "const": true
+          },
+          "permissions": {
+            "type": "object",
+            "anyOf": [
+              {
+                "properties": {
+                  "contents": {
+                    "const": "write"
+                  }
+                },
+                "required": ["contents"]
+              },
+              {
+                "properties": {
+                  "issues": {
+                    "const": "write"
+                  }
+                },
+                "required": ["issues"]
+              },
+              {
+                "properties": {
+                  "pull-requests": {
+                    "const": "write"
+                  }
+                },
+                "required": ["pull-requests"]
+              }
+            ]
+          }
+        },
+        "required": ["strict", "permissions"]
+      },
+      "then": {
+        "required": ["safe-outputs"]
+      }
+    },
+    {
+      "$comment": "Sandbox-runtime requires feature flag",
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "sandbox": {
+                "const": "sandbox-runtime"
+              }
+            },
+            "required": ["sandbox"]
+          },
+          {
+            "properties": {
+              "sandbox": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "sandbox-runtime"
+                  }
+                },
+                "required": ["type"]
+              }
+            },
+            "required": ["sandbox"]
+          },
+          {
+            "properties": {
+              "sandbox": {
+                "type": "object",
+                "properties": {
+                  "agent": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "const": "sandbox-runtime"
+                      }
+                    },
+                    "required": ["type"]
+                  }
+                },
+                "required": ["agent"]
+              }
+            },
+            "required": ["sandbox"]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "features": {
+            "type": "object",
+            "properties": {
+              "sandbox-runtime": {
+                "const": true
+              }
+            },
+            "required": ["sandbox-runtime"]
+          }
+        },
+        "required": ["features"]
+      }
+    },
+    {
+      "$comment": "UV packages require network access with PyPI",
+      "if": {
+        "properties": {
+          "runtimes": {
+            "type": "object",
+            "properties": {
+              "uv": {
+                "type": "object"
+              }
+            },
+            "required": ["uv"]
+          }
+        },
+        "required": ["runtimes"]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "network": {
+                "type": "object",
+                "properties": {
+                  "allowed": {
+                    "type": "array",
+                    "contains": {
+                      "enum": ["pypi.org", "python", "*"]
+                    }
+                  }
+                },
+                "required": ["allowed"]
+              }
+            },
+            "required": ["network"]
+          },
+          {
+            "properties": {
+              "network": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "defaults"
+                  }
+                },
+                "required": ["mode"]
+              }
+            },
+            "required": ["network"]
+          }
+        ]
+      }
     }
   ],
   "$defs": {

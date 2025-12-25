@@ -794,6 +794,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"entrypointArgs": true,
 		"env":            true,
 		"proxy-args":     true,
+		"network":        true,
 		"url":            true,
 		"headers":        true,
 		"registry":       true,
