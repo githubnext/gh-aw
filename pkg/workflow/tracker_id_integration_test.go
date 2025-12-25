@@ -131,8 +131,8 @@ Create a pull request.
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			// Use release mode to test with inline JavaScript (no local action checkouts)
-			compiler.SetActionMode(ActionModeRelease)
+			// Use dev mode to test with local action paths
+			compiler.SetActionMode(ActionModeDev)
 			compiler.verbose = false
 
 			err = compiler.CompileWorkflow(workflowFile)
@@ -168,13 +168,13 @@ Create a pull request.
 				}
 
 				if tt.shouldHaveInScript {
-					// Check that tracker-id is read from environment
-					if !strings.Contains(contentStr, "process.env.GH_AW_TRACKER_ID") {
-						t.Error("Expected script to read GH_AW_TRACKER_ID from environment")
+					// Check that tracker-id environment variable is set
+					if !strings.Contains(contentStr, "GH_AW_TRACKER_ID") {
+						t.Error("Expected GH_AW_TRACKER_ID environment variable to be set")
 					}
-					// Check that tracker-id is added to body/comment
-					if !strings.Contains(contentStr, "<!-- tracker-id:") {
-						t.Error("Expected script to add tracker-id HTML comment")
+					// Check that scripts are loaded using require() (file mode, not inline)
+					if !strings.Contains(contentStr, "require(") {
+						t.Error("Expected scripts to be loaded using require()")
 					}
 				}
 
