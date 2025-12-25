@@ -6,10 +6,12 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+  actions: read
 engine: copilot
 tools:
+  agentic-workflows:
   github:
-    toolsets: [default]
+    toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**/*"
