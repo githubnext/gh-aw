@@ -263,9 +263,9 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 		return fmt.Errorf("actionlint timed out after %d minutes on %s - this may indicate a Docker or network issue", int(timeoutDuration.Minutes()), fileList)
 	}
 
-	// Track this workflow in statistics
+	// Track workflows in statistics (count number of files validated)
 	if actionlintStats != nil {
-		actionlintStats.TotalWorkflows++
+		actionlintStats.TotalWorkflows += len(lockFiles)
 	}
 
 	// Parse and reformat the output, get total error count and error details
