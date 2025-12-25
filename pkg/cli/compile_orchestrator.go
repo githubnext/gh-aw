@@ -208,6 +208,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v, poutine=%v, actionlint=%v, jsonOutput=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor, poutine, actionlint, jsonOutput)
 
+	// Initialize actionlint statistics if actionlint is enabled
+	if actionlint && !noEmit {
+		initActionlintStats()
+	}
+
 	// Track compilation statistics
 	stats := &CompilationStats{}
 
@@ -620,6 +625,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		} else if !config.Stats {
 			// Print summary for text output (skip if stats mode)
 			printCompilationSummary(stats)
+		}
+
+		// Display actionlint summary if actionlint was enabled and we're not in JSON output mode
+		if actionlint && !noEmit && !jsonOutput {
+			displayActionlintSummary()
 		}
 
 		// Save the action cache after all compilations
@@ -1042,6 +1052,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
 		printCompilationSummary(stats)
+	}
+
+	// Display actionlint summary if actionlint was enabled and we're not in JSON output mode
+	if actionlint && !noEmit && !jsonOutput {
+		displayActionlintSummary()
 	}
 
 	// Save the action cache after all compilations
