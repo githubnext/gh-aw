@@ -185,22 +185,22 @@ func (s *WorkflowStep) ToYAML() (string, error) {
 // WorkflowJob represents a GitHub Actions job configuration from frontmatter
 // This is different from the internal Job type used by the compiler
 type WorkflowJob struct {
-	Name           string            `yaml:"name,omitempty"`
-	RunsOn         any               `yaml:"runs-on,omitempty"`      // Can be string or array
-	Needs          []string          `yaml:"needs,omitempty"`        // Job dependencies
-	If             string            `yaml:"if,omitempty"`           // Conditional expression
-	Steps          []WorkflowStep    `yaml:"steps,omitempty"`        // Job steps
-	Permissions    map[string]string `yaml:"permissions,omitempty"`  // Job-level permissions
-	Environment    any               `yaml:"environment,omitempty"`  // Can be string or map
-	Concurrency    any               `yaml:"concurrency,omitempty"`  // Can be string or map
-	TimeoutMinutes int               `yaml:"timeout-minutes,omitempty"`
-	Container      any               `yaml:"container,omitempty"`    // Can be string or map
-	Services       map[string]any    `yaml:"services,omitempty"`     // Service containers
-	Env            map[string]string `yaml:"env,omitempty"`          // Environment variables
-	Outputs        map[string]string `yaml:"outputs,omitempty"`      // Job outputs
-	Strategy       map[string]any    `yaml:"strategy,omitempty"`     // Matrix strategy
-	ContinueOnError bool             `yaml:"continue-on-error,omitempty"`
-	
+	Name            string            `yaml:"name,omitempty"`
+	RunsOn          any               `yaml:"runs-on,omitempty"`     // Can be string or array
+	Needs           []string          `yaml:"needs,omitempty"`       // Job dependencies
+	If              string            `yaml:"if,omitempty"`          // Conditional expression
+	Steps           []WorkflowStep    `yaml:"steps,omitempty"`       // Job steps
+	Permissions     map[string]string `yaml:"permissions,omitempty"` // Job-level permissions
+	Environment     any               `yaml:"environment,omitempty"` // Can be string or map
+	Concurrency     any               `yaml:"concurrency,omitempty"` // Can be string or map
+	TimeoutMinutes  int               `yaml:"timeout-minutes,omitempty"`
+	Container       any               `yaml:"container,omitempty"` // Can be string or map
+	Services        map[string]any    `yaml:"services,omitempty"`  // Service containers
+	Env             map[string]string `yaml:"env,omitempty"`       // Environment variables
+	Outputs         map[string]string `yaml:"outputs,omitempty"`   // Job outputs
+	Strategy        map[string]any    `yaml:"strategy,omitempty"`  // Matrix strategy
+	ContinueOnError bool              `yaml:"continue-on-error,omitempty"`
+
 	// Reusable workflow fields
 	Uses    string         `yaml:"uses,omitempty"`    // Path to reusable workflow
 	With    map[string]any `yaml:"with,omitempty"`    // Inputs for reusable workflow

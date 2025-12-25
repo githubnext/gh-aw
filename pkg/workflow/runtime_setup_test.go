@@ -797,4 +797,3 @@ func TestDetectFromEngineSteps_BackwardCompatibility(t *testing.T) {
 		t.Error("Expected node runtime to be detected")
 	}
 }
-

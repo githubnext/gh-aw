@@ -771,4 +771,3 @@ func TestApplyActionPinsToWorkflowSteps(t *testing.T) {
 		t.Errorf("Original step was modified: %s", steps[0].Uses)
 	}
 }
-
