@@ -86,7 +86,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // After proper escaping:
       // "test-*.txt" -> "test-*.txt" (no backslashes) -> "test-*.txt" (no dots to escape except at end)
       //  -> "test-[^/]*\.txt" (asterisk converted to wildcard)
-      
+
       // Should match files with the pattern
       expect(regex.test("test-file.txt")).toBe(true);
       expect(regex.test("test-123.txt")).toBe(true);
@@ -164,11 +164,11 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
 
       // The pattern "test.*" should become "test\.[^/]*" in regex
       // Meaning: "test" + literal dot + any characters (not crossing directories)
-      
+
       expect(safeRegex.test("test.txt")).toBe(true);
       expect(safeRegex.test("test.md")).toBe(true);
       expect(safeRegex.test("test.anything")).toBe(true);
-      
+
       // Should NOT match without the dot
       expect(safeRegex.test("testtxt")).toBe(false);
       expect(safeRegex.test("testmd")).toBe(false);
@@ -190,12 +190,10 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Pattern "*.txt" becomes "[^/]*\.txt" in regex
       expect(regex.test("normal.txt")).toBe(true);
       expect(regex.test("file.txt")).toBe(true);
-      
+
       // Should not match non-.txt files
       expect(regex.test("normal.md")).toBe(false);
       expect(regex.test("file.js")).toBe(false);
     });
   });
 });
-
-
