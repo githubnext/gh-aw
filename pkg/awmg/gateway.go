@@ -649,7 +649,7 @@ func (g *MCPGatewayServer) createProxyServer(serverName string, session *mcp.Cli
 		for _, tool := range toolsResult.Tools {
 			toolCopy := tool // Capture for closure
 			gatewayLog.Printf("Registering tool %s from backend %s", tool.Name, serverName)
-			
+
 			server.AddTool(toolCopy, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 				gatewayLog.Printf("Proxy %s: Calling tool %s on backend", serverName, req.Params.Name)
 				return session.CallTool(ctx, &mcp.CallToolParams{
@@ -670,7 +670,7 @@ func (g *MCPGatewayServer) createProxyServer(serverName string, session *mcp.Cli
 		for _, resource := range resourcesResult.Resources {
 			resourceCopy := resource // Capture for closure
 			gatewayLog.Printf("Registering resource %s from backend %s", resource.URI, serverName)
-			
+
 			server.AddResource(resourceCopy, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 				gatewayLog.Printf("Proxy %s: Reading resource %s from backend", serverName, req.Params.URI)
 				return session.ReadResource(ctx, &mcp.ReadResourceParams{
@@ -690,7 +690,7 @@ func (g *MCPGatewayServer) createProxyServer(serverName string, session *mcp.Cli
 		for _, prompt := range promptsResult.Prompts {
 			promptCopy := prompt // Capture for closure
 			gatewayLog.Printf("Registering prompt %s from backend %s", prompt.Name, serverName)
-			
+
 			server.AddPrompt(promptCopy, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 				gatewayLog.Printf("Proxy %s: Getting prompt %s from backend", serverName, req.Params.Name)
 				return session.GetPrompt(ctx, &mcp.GetPromptParams{
