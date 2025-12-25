@@ -2051,7 +2051,12 @@ jobs:
               return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
             }
             function removeXMLComments(content) {
-              return content.replace(/<!--[\s\S]*?-->/g, "");
+              let previous;
+              do {
+                previous = content;
+                content = content.replace(/<!--[\s\S]*?-->/g, "");
+              } while (content !== previous);
+              return content;
             }
             function hasGitHubActionsMacros(content) {
               return /\$\{\{[\s\S]*?\}\}/.test(content);
@@ -2206,7 +2211,7 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2.0.4
+        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v1
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2497,7 +2502,12 @@ jobs:
               });
             }
             function removeXmlComments(s) {
-              return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              let previous;
+              do {
+                previous = s;
+                s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              } while (s !== previous);
+              return s;
             }
             function convertXmlTags(s) {
               const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];

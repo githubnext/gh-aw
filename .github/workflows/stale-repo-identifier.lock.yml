@@ -176,7 +176,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
+        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
@@ -2925,7 +2925,12 @@ jobs:
               return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
             }
             function removeXMLComments(content) {
-              return content.replace(/<!--[\s\S]*?-->/g, "");
+              let previous;
+              do {
+                previous = content;
+                content = content.replace(/<!--[\s\S]*?-->/g, "");
+              } while (content !== previous);
+              return content;
             }
             function hasGitHubActionsMacros(content) {
               return /\$\{\{[\s\S]*?\}\}/.test(content);
@@ -3382,7 +3387,12 @@ jobs:
               });
             }
             function removeXmlComments(s) {
-              return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              let previous;
+              do {
+                previous = s;
+                s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              } while (s !== previous);
+              return s;
             }
             function convertXmlTags(s) {
               const allowedTags = ["b", "blockquote", "br", "code", "details", "em", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "li", "ol", "p", "pre", "strong", "sub", "summary", "sup", "table", "tbody", "td", "th", "thead", "tr", "ul"];

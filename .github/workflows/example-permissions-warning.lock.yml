@@ -476,7 +476,12 @@ jobs:
               return content.trimStart().startsWith("---\n") || content.trimStart().startsWith("---\r\n");
             }
             function removeXMLComments(content) {
-              return content.replace(/<!--[\s\S]*?-->/g, "");
+              let previous;
+              do {
+                previous = content;
+                content = content.replace(/<!--[\s\S]*?-->/g, "");
+              } while (content !== previous);
+              return content;
             }
             function hasGitHubActionsMacros(content) {
               return /\$\{\{[\s\S]*?\}\}/.test(content);
