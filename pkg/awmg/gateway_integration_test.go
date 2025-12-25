@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 func TestMCPGateway_BasicStartup(t *testing.T) {
@@ -24,7 +26,7 @@ func TestMCPGateway_BasicStartup(t *testing.T) {
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 
 	config := MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
 				Args:    []string{"mcp-server"},
