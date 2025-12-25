@@ -197,13 +197,11 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 	tests := []struct {
 		name        string
 		data        *WorkflowData
-		mcpServers  map[string]any
 		expectSteps int
 	}{
 		{
 			name:        "gateway disabled returns no steps",
 			data:        &WorkflowData{},
-			mcpServers:  map[string]any{},
 			expectSteps: 0,
 		},
 		{
@@ -218,16 +216,13 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 					"mcp-gateway": true,
 				},
 			},
-			mcpServers: map[string]any{
-				"github": map[string]any{},
-			},
 			expectSteps: 2,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers)
+			steps := generateMCPGatewaySteps(tt.data)
 			assert.Len(t, steps, tt.expectSteps)
 		})
 	}
@@ -237,11 +232,8 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	config := &MCPGatewayConfig{
 		Port: 8080,
 	}
-	mcpServers := map[string]any{
-		"github": map[string]any{},
-	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
@@ -495,11 +487,8 @@ func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
 		EntrypointArgs: []string{"--config-stdin"},
 		Port:           8000,
 	}
-	mcpServers := map[string]any{
-		"github": map[string]any{},
-	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use container mode
@@ -515,11 +504,8 @@ func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
 		Args:    []string{"--debug"},
 		Port:    9000,
 	}
-	mcpServers := map[string]any{
-		"github": map[string]any{},
-	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use command mode
@@ -533,11 +519,8 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	config := &MCPGatewayConfig{
 		Port: 8080,
 	}
-	mcpServers := map[string]any{
-		"github": map[string]any{},
-	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use default awmg mode
@@ -642,11 +625,8 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 			config := &MCPGatewayConfig{
 				Port: tt.port,
 			}
-			mcpServers := map[string]any{
-				"github": map[string]any{},
-			}
 
-			step := generateMCPGatewayStartStep(config, mcpServers)
+			step := generateMCPGatewayStartStep(config)
 			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port

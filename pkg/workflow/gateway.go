@@ -44,7 +44,7 @@ func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayConfig {
 }
 
 // generateMCPGatewaySteps generates the steps to start and verify the MCP gateway
-func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any) []GitHubActionStep {
+func generateMCPGatewaySteps(workflowData *WorkflowData) []GitHubActionStep {
 	if !isMCPGatewayEnabled(workflowData) {
 		return nil
 	}
@@ -59,7 +59,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	var steps []GitHubActionStep
 
 	// Step 1: Start MCP Gateway (background process)
-	startStep := generateMCPGatewayStartStep(config, mcpServersConfig)
+	startStep := generateMCPGatewayStartStep(config)
 	steps = append(steps, startStep)
 
 	// Step 2: Health check to verify gateway is running
@@ -85,7 +85,7 @@ func validateAndNormalizePort(port int) (int, error) {
 }
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
-func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[string]any) GitHubActionStep {
+func generateMCPGatewayStartStep(config *MCPGatewayConfig) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway start step")
 
 	port, err := validateAndNormalizePort(config.Port)
