@@ -14,7 +14,7 @@ all: build build-awmg
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates sync-action-pins sync-shell-scripts
+build: sync-templates sync-action-pins sync-shell-scripts sync-js-scripts
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build the awmg (MCP gateway) binary
@@ -441,6 +441,15 @@ sync-shell-scripts:
 	@cp actions/setup/sh/*.sh pkg/workflow/sh/
 	@echo "✓ Shell scripts synced successfully"
 
+# Sync JavaScript files from actions/setup/js to pkg/workflow/js
+.PHONY: sync-js-scripts
+sync-js-scripts:
+	@echo "Syncing JavaScript files from actions/setup/js to pkg/workflow/js..."
+	@mkdir -p pkg/workflow/js
+	@cp actions/setup/js/*.cjs pkg/workflow/js/
+	@cp actions/setup/js/*.json pkg/workflow/js/ 2>/dev/null || true
+	@echo "✓ JavaScript files synced successfully"
+
 # Sync action pins from .github/aw to pkg/workflow/data
 .PHONY: sync-action-pins
 sync-action-pins:
@@ -576,6 +585,7 @@ help:
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-shell-scripts - Sync shell scripts from actions/setup/sh to pkg/workflow/sh (runs automatically during build)"
+	@echo "  sync-js-scripts  - Sync JavaScript files from actions/setup/js to pkg/workflow/js (runs automatically during build)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"

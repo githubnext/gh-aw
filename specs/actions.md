@@ -186,9 +186,15 @@ gh-aw/
 3. **Build Step**: `make build` embeds `pkg/workflow/sh/*.sh` via `//go:embed`
 4. **Actions Build**: `make actions-build` does NOT copy shell scripts (they already exist in actions/setup/sh/)
 
-This mirrors the pattern used for JavaScript files but in reverse:
-- JavaScript: `pkg/workflow/js/` (source) → `actions/setup/js/` (generated)
+**JavaScript File Sync Flow:**
+1. **Source of Truth**: `actions/setup/js/*.cjs` (manually edited, production files only)
+2. **Sync Step**: `make sync-js-scripts` copies to `pkg/workflow/js/`
+3. **Build Step**: `make build` embeds `pkg/workflow/js/*.cjs` via `//go:embed`
+4. **Test Files**: `pkg/workflow/js/*.test.cjs` remain only in pkg/workflow/js/ (not synced)
+
+Both follow the same pattern now:
 - Shell: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
+- JavaScript: `actions/setup/js/` (source) → `pkg/workflow/js/` (generated)
 
 ### Action Structure
 
@@ -267,24 +273,28 @@ actions/setup/sh/*.sh  →  pkg/workflow/sh/*.sh  →  Embedded in binary
    (SOURCE OF TRUTH)        (GENERATED)              (go:embed)
 ```
 
-**JavaScript Files** (source in pkg/workflow/js/):
+**JavaScript Files** (source in actions/setup/js/):
 ```
-pkg/workflow/js/*.cjs  →  actions/setup/js/*.cjs  →  Used by action
-   (SOURCE OF TRUTH)        (GENERATED)              (runtime)
+actions/setup/js/*.cjs  →  pkg/workflow/js/*.cjs  →  Embedded in binary
+   (SOURCE OF TRUTH)         (GENERATED)              (go:embed)
 ```
 
-The shell script sync happens via the `sync-shell-scripts` Makefile target, which is automatically run as part of `make build`:
+Note: Test files (`*.test.cjs`) remain only in `pkg/workflow/js/` and are not synced from actions/setup/js/.
+
+The sync happens via Makefile targets, which are automatically run as part of `make build`:
 
 ```bash
-make sync-shell-scripts  # Explicit sync
-make build              # Includes sync-shell-scripts
+make sync-shell-scripts  # Explicit shell sync
+make sync-js-scripts     # Explicit JavaScript sync
+make build              # Includes both syncs
 ```
 
 **Why this pattern?**
-- Shell scripts are part of the setup action itself and live in `actions/setup/sh/`
+- Both shell scripts and JavaScript are part of the setup action itself and live in `actions/setup/`
 - They need to be embedded in the Go binary for compilation
-- Syncing before build ensures the embedded scripts match the action's source files
+- Syncing before build ensures the embedded files match the action's source files
 - This creates a single source of truth in the actions directory
+- Test files remain in pkg/workflow/js/ for development
 
 ### Build Commands
 
