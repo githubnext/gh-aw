@@ -212,6 +212,9 @@ make fmt
 
 # Address linter warnings
 make lint
+
+# Validate workflows with actionlint
+make actionlint
 ```
 
 ## Security Scanning

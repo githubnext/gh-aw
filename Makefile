@@ -333,6 +333,12 @@ validate-workflows:
 	@echo "Validating compiled workflow lock files..."
 	actionlint .github/workflows/*.lock.yml; \
 
+# Run actionlint on all workflow files
+.PHONY: actionlint
+actionlint: build
+	@echo "Validating workflows with actionlint..."
+	./$(BINARY_NAME) compile --actionlint
+
 # Format code
 .PHONY: fmt
 fmt: fmt-go fmt-cjs fmt-json
@@ -579,6 +585,7 @@ help:
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
 	@echo "  security-trivy   - Run trivy filesystem scanner"
+	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
