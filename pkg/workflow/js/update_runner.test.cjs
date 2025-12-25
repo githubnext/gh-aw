@@ -609,7 +609,7 @@ describe("update_runner.cjs", () => {
   describe("getUpdateHandlerConfig", () => {
     it("should return issue config", () => {
       const config = helpers.getUpdateHandlerConfig("issue");
-      
+
       expect(config.itemType).toBe("update_issue");
       expect(config.displayName).toBe("issue");
       expect(config.displayNamePlural).toBe("issues");
@@ -626,7 +626,7 @@ describe("update_runner.cjs", () => {
 
     it("should return pull_request config", () => {
       const config = helpers.getUpdateHandlerConfig("pull_request");
-      
+
       expect(config.itemType).toBe("update_pull_request");
       expect(config.displayName).toBe("pull request");
       expect(config.displayNamePlural).toBe("pull requests");
@@ -643,7 +643,7 @@ describe("update_runner.cjs", () => {
 
     it("should return discussion config", () => {
       const config = helpers.getUpdateHandlerConfig("discussion");
-      
+
       expect(config.itemType).toBe("update_discussion");
       expect(config.displayName).toBe("discussion");
       expect(config.displayNamePlural).toBe("discussions");
@@ -672,7 +672,7 @@ describe("update_runner.cjs", () => {
 
     it("should have consistent structure across all configs", () => {
       const configs = Object.values(helpers.UPDATE_HANDLER_CONFIGS);
-      
+
       configs.forEach(config => {
         expect(config).toHaveProperty("itemType");
         expect(config).toHaveProperty("displayName");

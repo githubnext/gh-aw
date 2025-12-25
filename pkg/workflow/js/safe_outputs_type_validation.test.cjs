@@ -27,12 +27,12 @@ describe("Safe Output Type Validation", () => {
     it("should use underscores in type filter for update handlers in update_runner.cjs", () => {
       const runnerPath = path.join(process.cwd(), "update_runner.cjs"),
         runnerContent = fs.readFileSync(runnerPath, "utf8");
-      
+
       // Check that update_issue, update_pull_request, and update_discussion use underscores
       ["update_issue", "update_pull_request", "update_discussion"].forEach(expectedType => {
         const hasUnderscoreType = runnerContent.includes(`"${expectedType}"`);
         expect(hasUnderscoreType).toBe(true);
-        
+
         // Ensure dash versions are not used
         const dashType = expectedType.replace(/_/g, "-");
         const hasDashType = new RegExp(`itemType:\\s*["']${dashType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`).test(runnerContent);
