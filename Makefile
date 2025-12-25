@@ -128,7 +128,7 @@ security-scan: security-gosec security-govulncheck security-trivy
 security-gosec:
 	@echo "Running gosec security scanner..."
 	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
-	gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated ./...
+	gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions ./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
 
 .PHONY: security-govulncheck
