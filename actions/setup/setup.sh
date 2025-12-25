@@ -105,6 +105,10 @@ SAFE_INPUTS_FILES=(
   "safe_inputs_validation.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
+  "mcp_http_transport.cjs"
+  "mcp_handler_shell.cjs"
+  "mcp_handler_python.cjs"
+  "read_buffer.cjs"
   "generate_safe_inputs_config.cjs"
 )
 

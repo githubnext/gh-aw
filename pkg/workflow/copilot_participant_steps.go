@@ -102,7 +102,9 @@ func buildIssueAssigneeSteps(config CopilotParticipantConfig, effectiveToken str
 		steps = append(steps, "            global.context = context;\n")
 		steps = append(steps, "            global.exec = exec;\n")
 		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, FormatJavaScriptForYAML(getAssignIssueScript())...)
+		// Load script from external file using require()
+		steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/assign_issue.cjs');\n")
+		steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 
 		// Add a comment after each assignee step except the last
 		if i < len(config.Participants)-1 {
@@ -134,7 +136,9 @@ func buildPRReviewerSteps(config CopilotParticipantConfig, effectiveToken string
 			steps = append(steps, "            global.context = context;\n")
 			steps = append(steps, "            global.exec = exec;\n")
 			steps = append(steps, "            global.io = io;\n")
-			steps = append(steps, FormatJavaScriptForYAML(getAddCopilotReviewerScript())...)
+			// Load script from external file using require()
+			steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/add_copilot_reviewer.cjs');\n")
+			steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 		} else {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
 			steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")

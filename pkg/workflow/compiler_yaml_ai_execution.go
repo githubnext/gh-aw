@@ -47,11 +47,9 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(logParserScript)
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
+	// Load log parser script from external file using require()
+	// The parser scripts auto-execute, so just require them
+	fmt.Fprintf(yaml, "            require('/tmp/gh-aw/actions/%s.cjs');\n", parserScriptName)
 }
 
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
@@ -127,9 +125,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(errorValidationScript)
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
+	// Load error validation script from external file using require()
+	// The validate_errors script auto-executes, so just require it
+	yaml.WriteString("            require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
 }
