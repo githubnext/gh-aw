@@ -91,9 +91,76 @@ fi
 
 echo "::notice::Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
+# Copy safe-inputs files to their expected directory
+SAFE_INPUTS_DEST="/tmp/gh-aw/safe-inputs"
+echo "::notice::Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
+mkdir -p "${SAFE_INPUTS_DEST}"
+
+SAFE_INPUTS_FILES=(
+  "safe_inputs_bootstrap.cjs"
+  "safe_inputs_config_loader.cjs"
+  "safe_inputs_mcp_server.cjs"
+  "safe_inputs_mcp_server_http.cjs"
+  "safe_inputs_tool_factory.cjs"
+  "safe_inputs_validation.cjs"
+  "mcp_server_core.cjs"
+  "mcp_logger.cjs"
+  "generate_safe_inputs_config.cjs"
+)
+
+SAFE_INPUTS_COUNT=0
+for file in "${SAFE_INPUTS_FILES[@]}"; do
+  if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
+    cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-inputs: ${file}"
+    SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
+  else
+    echo "::warning::Safe-inputs file not found: ${file}"
+  fi
+done
+
+echo "::notice::Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
+
+# Copy safe-outputs files to their expected directory
+SAFE_OUTPUTS_DEST="/tmp/gh-aw/safeoutputs"
+echo "::notice::Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+mkdir -p "${SAFE_OUTPUTS_DEST}"
+
+SAFE_OUTPUTS_FILES=(
+  "safe_outputs_mcp_server.cjs"
+  "safe_outputs_bootstrap.cjs"
+  "safe_outputs_tools_loader.cjs"
+  "safe_outputs_config.cjs"
+  "safe_outputs_handlers.cjs"
+  "safe_outputs_tools.json"
+  "mcp_server_core.cjs"
+  "mcp_logger.cjs"
+  "messages.cjs"
+)
+
+SAFE_OUTPUTS_COUNT=0
+for file in "${SAFE_OUTPUTS_FILES[@]}"; do
+  if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
+    cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-outputs: ${file}"
+    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+  elif [ -f "${DESTINATION}/${file}" ]; then
+    # If file was already copied to main destination, copy from there
+    cp "${DESTINATION}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-outputs (from destination): ${file}"
+    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+  else
+    echo "::warning::Safe-outputs file not found: ${file}"
+  fi
+done
+
+echo "::notice::Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+
 # Set output
 if [ -n "${GITHUB_OUTPUT}" ]; then
   echo "files_copied=${FILE_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "safe_inputs_files_copied=${SAFE_INPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
 else
   echo "::debug::GITHUB_OUTPUT not set, skipping output"
 fi
