@@ -285,6 +285,17 @@ Security scans run automatically on:
 
 Results are uploaded to the GitHub Security tab in SARIF format.
 
+### Security Scanning Exclusions
+
+For comprehensive documentation of gosec security exclusions, see **<a>Gosec Security Exclusions</a>**.
+
+This documentation provides:
+- Complete list of global and file-specific exclusions
+- CWE mappings for compliance tracking
+- Detailed rationale and mitigation strategies
+- Suppression guidelines for `#nosec` annotations
+- Compliance and audit trail information
+
 ### Development Tips
 
 1. **Use verbose testing**: `go test -v` for detailed output
