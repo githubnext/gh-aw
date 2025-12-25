@@ -29,7 +29,7 @@ name: "Smoke Codex"
     types:
     - labeled
   schedule:
-  - cron: "0 8,20 * * *"
+  - cron: "16 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}

@@ -1,8 +1,7 @@
 ---
 description: Smoke Copilot
 on: 
-  schedule:
-    - cron: '0 8,20 * * *'  # Twice daily (8am, 8pm UTC)
+  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]
