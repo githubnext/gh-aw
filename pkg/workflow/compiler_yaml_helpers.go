@@ -75,14 +75,8 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
-	// Emit the substitute_placeholders script inline and call it
-	script := getSubstitutePlaceholdersScript()
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		yaml.WriteString(indent + "      " + line + "\n")
-	}
-
-	// Call the function with parameters
+	// Use require() to load script from copied files
+	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
 	yaml.WriteString(indent + "      \n")
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
