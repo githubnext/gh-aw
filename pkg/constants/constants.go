@@ -45,6 +45,13 @@ type LineLength int
 type Version string
 
 // FeatureFlag represents a feature flag identifier.
+// This semantic type distinguishes feature flag names from arbitrary strings,
+// providing type safety when working with feature toggles throughout the codebase.
+//
+// Example usage:
+//
+//	const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+//	func IsFeatureEnabled(flag FeatureFlag) bool { ... }
 type FeatureFlag string
 
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.

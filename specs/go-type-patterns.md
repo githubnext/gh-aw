@@ -77,10 +77,10 @@ if len(expression) > int(constants.MaxExpressionLineLength) {
 type Version string
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion Version = "0.0.369"
+const DefaultCopilotVersion Version = "0.0.372"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.71"
+const DefaultClaudeCodeVersion Version = "2.0.76"
 ```
 
 **Benefits**:

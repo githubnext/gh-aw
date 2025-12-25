@@ -259,7 +259,7 @@ type Version string
 type FeatureFlag string
 
 const MaxExpressionLineLength LineLength = 120
-const DefaultCopilotVersion Version = "0.0.369"
+const DefaultCopilotVersion Version = "0.0.372"
 const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 ```
 
