@@ -105,7 +105,7 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	)
 
 	// Always show that actionlint is running (regular verbosity)
-	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint on %s", relPath)))
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running actionlint (includes shellcheck & pyflakes) on %s", relPath)))
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
