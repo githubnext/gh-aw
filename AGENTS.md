@@ -135,7 +135,32 @@ make build              # Automatically runs sync-shell-scripts
 - `actions/setup/sh/*.sh` = Source of truth (manually edited)
 - `pkg/workflow/sh/*.sh` = Generated (copied during build, marked as linguist-generated)
 - The build process: `actions/setup/sh/` → `pkg/workflow/sh/` → embedded in binary
-- Same pattern as JavaScript files: `pkg/workflow/js/*.cjs` → `actions/setup/js/`
+
+### JavaScript File Sync
+
+**JavaScript files follow the OPPOSITE pattern:**
+
+JavaScript files in `pkg/workflow/js/` are the **source of truth** and are automatically copied to `actions/setup/js/` during the actions build process.
+
+```bash
+make actions-build      # Copies pkg/workflow/js/*.cjs → actions/setup/js/
+```
+
+**When modifying JavaScript files:**
+1. Edit files in `pkg/workflow/js/` (source of truth)
+2. Run `make actions-build` to copy to actions/setup/js/
+3. The copied files in `actions/setup/js/` are used by the setup action
+4. **Never** edit files in `actions/setup/js/` directly - they are generated
+
+**Key points:**
+- `pkg/workflow/js/*.cjs` = Source of truth (manually edited, includes test files)
+- `actions/setup/js/*.cjs` = Generated (copied during actions-build, marked as linguist-generated)
+- The build process: `pkg/workflow/js/` → `actions/setup/js/` → used by setup action
+- Only production files are copied to actions/setup/js/ (test files remain in pkg/workflow/js/)
+
+**Summary of patterns:**
+- Shell scripts: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
+- JavaScript: `pkg/workflow/js/` (source) → `actions/setup/js/` (generated)
 
 ## Development Workflow
 
