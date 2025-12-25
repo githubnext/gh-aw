@@ -285,10 +285,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -305,10 +302,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
@@ -414,7 +408,8 @@
                       "items": {
                         "type": "string",
                         "description": "Label name"
-                      }
+                      },
+                      "minItems": 1
                     }
                   ]
                 }
@@ -431,10 +426,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -451,10 +443,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
@@ -486,7 +475,8 @@
                       "items": {
                         "type": "string",
                         "description": "Label name"
-                      }
+                      },
+                      "minItems": 1
                     }
                   ]
                 },
@@ -669,10 +659,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ]
@@ -996,10 +983,7 @@
                 },
                 {
                   "not": {
-                    "anyOf": [
-                      { "required": ["branches"] },
-                      { "required": ["branches-ignore"] }
-                    ]
+                    "anyOf": [{ "required": ["branches"] }, { "required": ["branches-ignore"] }]
                   }
                 }
               ],
@@ -1016,10 +1000,7 @@
                     },
                     {
                       "not": {
-                        "anyOf": [
-                          { "required": ["paths"] },
-                          { "required": ["paths-ignore"] }
-                        ]
+                        "anyOf": [{ "required": ["paths"] }, { "required": ["paths-ignore"] }]
                       }
                     }
                   ]
@@ -1866,6 +1847,7 @@
       }
     },
     "network": {
+      "$comment": "Strict mode requirements: When strict=true, the 'network' field must be present (not null/undefined) and cannot contain wildcard '*' in allowed domains. This is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictNetwork().",
       "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
       "examples": [
         "defaults",
@@ -1899,7 +1881,8 @@
               "items": {
                 "type": "string",
                 "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
-              }
+              },
+              "$comment": "Empty array is valid and means deny all network access. Omit the field entirely or use network: defaults to use default network permissions."
             },
             "firewall": {
               "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
@@ -2124,12 +2107,14 @@
               "properties": {
                 "command": {
                   "type": "string",
-                  "description": "Custom command to execute the MCP gateway (mutually exclusive with 'container')"
+                  "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified.",
+                  "description": "Custom command to execute the MCP gateway"
                 },
                 "container": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-                  "description": "Container image for the MCP gateway executable (mutually exclusive with 'command')"
+                  "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified.",
+                  "description": "Container image for the MCP gateway executable"
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -2148,7 +2133,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Arguments to add after the container image (container entrypoint arguments, only valid with 'container')"
+                  "$comment": "Requires 'container' to be specified - entrypoint arguments only apply to container execution.",
+                  "description": "Arguments to add after the container image (container entrypoint arguments)"
                 },
                 "env": {
                   "type": "object",
@@ -2172,7 +2158,35 @@
                   "description": "API key for authenticating with the MCP gateway (supports ${{ secrets.* }} syntax)"
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "anyOf": [
+                {
+                  "required": ["command"]
+                },
+                {
+                  "required": ["container"]
+                }
+              ],
+              "not": {
+                "allOf": [
+                  {
+                    "required": ["command"]
+                  },
+                  {
+                    "required": ["container"]
+                  }
+                ]
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "required": ["entrypointArgs"]
+                  },
+                  "then": {
+                    "required": ["container"]
+                  }
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -2406,7 +2420,9 @@
                       "stargazers",
                       "users"
                     ]
-                  }
+                  },
+                  "minItems": 1,
+                  "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets."
                 }
               },
               "additionalProperties": false,
@@ -3155,6 +3171,7 @@
     },
     "safe-outputs": {
       "type": "object",
+      "$comment": "Strict mode dependency: When strict=true AND permissions contains write values (contents:write, issues:write, or pull-requests:write), safe-outputs must be configured. This relationship is validated in Go code (pkg/workflow/strict_mode_validation.go) via validateStrictPermissions() because it requires complex logic to check if ANY permission property equals 'write', which cannot be expressed concisely in JSON Schema.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "properties": {
@@ -4861,6 +4878,7 @@
     "strict": {
       "type": "boolean",
       "default": true,
+      "$comment": "Strict mode enforces several security constraints that are validated in Go code (pkg/workflow/strict_mode_validation.go) rather than JSON Schema: (1) Write Permissions + Safe Outputs: When strict=true AND permissions contains write values (contents:write, issues:write, pull-requests:write), safe-outputs must be configured. This relationship is too complex for JSON Schema as it requires checking if ANY permission property has a 'write' value. (2) Network Requirements: When strict=true, the 'network' field must be present and cannot contain wildcard '*'. (3) MCP Container Network: Custom MCP servers with containers require explicit network configuration. (4) Action Pinning: Actions must be pinned to commit SHAs. These are enforced during compilation via validateStrictMode().",
       "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no wildcard '*' in allowed domains, (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
       "examples": [true, false]
     },
@@ -5308,12 +5326,14 @@
         "command": {
           "type": "string",
           "minLength": 1,
+          "$comment": "Mutually exclusive with 'container' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
           "description": "Command for stdio MCP connections"
         },
         "container": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-          "description": "Container image for stdio MCP connections (alternative to command)"
+          "$comment": "Mutually exclusive with 'command' - only one execution mode can be specified. Validated by 'not.allOf' constraint below.",
+          "description": "Container image for stdio MCP connections"
         },
         "version": {
           "type": ["string", "number"],
@@ -5346,6 +5366,7 @@
         },
         "network": {
           "type": "object",
+          "$comment": "Requires 'container' to be specified - network configuration only applies to container-based MCP servers. Validated by 'if/then' constraint in 'allOf' below.",
           "properties": {
             "allowed": {
               "type": "array",
@@ -5378,6 +5399,7 @@
         }
       },
       "additionalProperties": false,
+      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Dependency: 'network' requires 'container' (validated in 'allOf'). (4) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required.",
       "anyOf": [
         {
           "required": ["type"]
