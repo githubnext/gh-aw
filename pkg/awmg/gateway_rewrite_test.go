@@ -41,7 +41,7 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 	}
 
 	// Gateway config only includes external server (github), not internal servers
-	gatewayConfig := &MCPGatewayConfig{
+	gatewayConfig := &MCPGatewayServersConfig{
 		MCPServers: map[string]MCPServerConfig{
 			"github": {
 				Command: "docker",
@@ -183,7 +183,7 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
 
-	gatewayConfig := &MCPGatewayConfig{
+	gatewayConfig := &MCPGatewayServersConfig{
 		MCPServers: map[string]MCPServerConfig{
 			"github": {
 				Command: "gh",

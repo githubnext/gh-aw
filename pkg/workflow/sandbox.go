@@ -44,7 +44,7 @@ const (
 type SandboxConfig struct {
 	// New fields
 	Agent *AgentSandboxConfig `yaml:"agent,omitempty"` // Agent sandbox configuration
-	MCP   *MCPGatewayConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
+	MCP   *MCPGatewayRuntimeConfig   `yaml:"mcp,omitempty"`   // MCP gateway configuration
 
 	// Legacy fields (for backward compatibility)
 	Type   SandboxType           `yaml:"type,omitempty"`   // Sandbox type: "default" or "sandbox-runtime"

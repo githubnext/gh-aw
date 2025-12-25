@@ -34,8 +34,8 @@ func isMCPGatewayEnabled(workflowData *WorkflowData) bool {
 	return true
 }
 
-// getMCPGatewayConfig extracts the MCPGatewayConfig from sandbox configuration
-func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayConfig {
+// getMCPGatewayRuntimeConfig extracts the MCPGatewayRuntimeConfig from sandbox configuration
+func getMCPGatewayRuntimeConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 	if workflowData == nil || workflowData.SandboxConfig == nil {
 		return nil
 	}
@@ -49,7 +49,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 		return nil
 	}
 
-	config := getMCPGatewayConfig(workflowData)
+	config := getMCPGatewayRuntimeConfig(workflowData)
 	if config == nil {
 		return nil
 	}
@@ -85,7 +85,7 @@ func validateAndNormalizePort(port int) (int, error) {
 }
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
-func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[string]any) GitHubActionStep {
+func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConfig map[string]any) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway start step")
 
 	port, err := validateAndNormalizePort(config.Port)
@@ -126,7 +126,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayConfig, mcpServersConfig map[
 }
 
 // generateContainerStartCommands generates shell commands to start the MCP gateway using a Docker container
-func generateContainerStartCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+func generateContainerStartCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath string, port int) []string {
 	var lines []string
 
 	// Build environment variables
@@ -184,7 +184,7 @@ func generateContainerStartCommands(config *MCPGatewayConfig, mcpConfigPath stri
 }
 
 // generateCommandStartCommands generates shell commands to start the MCP gateway using a custom command
-func generateCommandStartCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+func generateCommandStartCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath string, port int) []string {
 	var lines []string
 
 	// Build the command with args
@@ -230,7 +230,7 @@ func generateCommandStartCommands(config *MCPGatewayConfig, mcpConfigPath string
 }
 
 // generateDefaultAWMGCommands generates shell commands to start the MCP gateway using the default awmg binary
-func generateDefaultAWMGCommands(config *MCPGatewayConfig, mcpConfigPath string, port int) []string {
+func generateDefaultAWMGCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath string, port int) []string {
 	var lines []string
 
 	// Detect action mode at compile time
@@ -326,7 +326,7 @@ func generateDefaultAWMGCommands(config *MCPGatewayConfig, mcpConfigPath string,
 }
 
 // generateMCPGatewayHealthCheckStep generates the step that pings the gateway to verify it's running
-func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionStep {
+func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway health check step")
 
 	port, err := validateAndNormalizePort(config.Port)
@@ -420,7 +420,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayConfig) GitHubActionSte
 }
 
 // getMCPGatewayURL returns the HTTP URL for the MCP gateway
-func getMCPGatewayURL(config *MCPGatewayConfig) string {
+func getMCPGatewayURL(config *MCPGatewayRuntimeConfig) string {
 	port, err := validateAndNormalizePort(config.Port)
 	if err != nil {
 		// In case of validation error, log and use default port
@@ -433,7 +433,7 @@ func getMCPGatewayURL(config *MCPGatewayConfig) string {
 
 // transformMCPConfigForGateway transforms the MCP server configuration to use the gateway URL
 // instead of individual server configurations
-func transformMCPConfigForGateway(mcpServers map[string]any, gatewayConfig *MCPGatewayConfig) map[string]any {
+func transformMCPConfigForGateway(mcpServers map[string]any, gatewayConfig *MCPGatewayRuntimeConfig) map[string]any {
 	if gatewayConfig == nil {
 		return mcpServers
 	}

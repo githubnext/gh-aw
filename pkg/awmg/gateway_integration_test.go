@@ -23,7 +23,7 @@ func TestMCPGateway_BasicStartup(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 
-	config := MCPGatewayConfig{
+	config := MCPGatewayServersConfig{
 		MCPServers: map[string]MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
