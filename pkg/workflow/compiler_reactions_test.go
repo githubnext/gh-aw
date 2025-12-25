@@ -41,7 +41,7 @@ Test workflow with reaction.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -132,7 +132,7 @@ Test workflow without explicit reaction (should not create reaction action).
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -212,7 +212,7 @@ Test workflow with reaction and comment creation.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -300,7 +300,7 @@ Test command workflow with reaction and comment editing.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -371,7 +371,7 @@ Test command workflow that should automatically get "eyes" reaction.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -449,7 +449,7 @@ Test command workflow with custom reaction override.
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

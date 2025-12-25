@@ -101,7 +101,7 @@ Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 	}
 
 	compiler := NewCompiler(false, "", "test")
-	compiler.SetActionMode(ActionModeRelease) // Use release mode for inline JavaScript
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow with output.create-issue: %v", err)
 	}
