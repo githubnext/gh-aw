@@ -209,6 +209,19 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.7.0 bash
           which awf
           awf --version
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if gh-aw extension is already installed
+          if gh extension list | grep -q "githubnext/gh-aw"; then
+            echo "gh-aw extension already installed, upgrading..."
+            gh extension upgrade gh-aw || true
+          else
+            echo "Installing gh-aw extension..."
+            gh extension install githubnext/gh-aw
+          fi
+          gh aw --version
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1802,12 +1815,22 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "local",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "github": {
                 "type": "http",
                 "url": "https://api.githubcopilot.com/mcp/",

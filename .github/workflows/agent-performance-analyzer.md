@@ -9,6 +9,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  agentic-workflows:
   github:
     mode: remote
     toolsets: [default, actions]
