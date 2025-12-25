@@ -33,7 +33,7 @@ name: "Smoke Copilot Safe Inputs"
     types:
     - labeled
   schedule:
-  - cron: "9 16 * * *"
+  - cron: "9 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}

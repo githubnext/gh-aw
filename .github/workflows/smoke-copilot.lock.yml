@@ -29,7 +29,7 @@ name: "Smoke Copilot"
     types:
     - labeled
   schedule:
-  - cron: "0 0,7,13,19 * * *"
+  - cron: "1 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}
@@ -1887,35 +1887,13 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-gateway-logs
           echo 'Starting MCP Gateway...'
           
-          # Development mode: Build awmg from sources
-          if [ -f "cmd/awmg/main.go" ] && [ -f "Makefile" ]; then
-            echo 'Building awmg from sources (development mode)...'
-            make build-awmg
-            if [ -f "./awmg" ]; then
-              echo 'Built awmg successfully'
-              AWMG_CMD="./awmg"
-            else
-              echo 'ERROR: Failed to build awmg from sources'
-              exit 1
-            fi
-          # Check if awmg is already in PATH
-          elif command -v awmg &> /dev/null; then
-            echo 'awmg is already available in PATH'
-            AWMG_CMD="awmg"
-          # Check for local awmg build
-          elif [ -f "./awmg" ]; then
-            echo 'Using existing local awmg build'
-            AWMG_CMD="./awmg"
-          else
-            echo 'ERROR: Could not find awmg binary or source files'
-            echo 'Please build awmg with: make build-awmg'
-            exit 1
-          fi
+          # Start MCP gateway using Docker container
+          echo 'Starting MCP Gateway container: ghcr.io/githubnext/mcp-gateway'
           
-          # Start MCP gateway in background with config file
-          $AWMG_CMD --config /home/runner/.copilot/mcp-config.json --port 8080 --log-dir /tmp/gh-aw/mcp-gateway-logs > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
+          # Pipe MCP config to container via stdin
+          cat /home/runner/.copilot/mcp-config.json | docker run ghcr.io/githubnext/mcp-gateway > /tmp/gh-aw/mcp-gateway-logs/gateway.log 2>&1 &
           GATEWAY_PID=$!
-          echo "MCP Gateway started with PID $GATEWAY_PID"
+          echo "MCP Gateway container started with PID $GATEWAY_PID"
           
           # Give the gateway a moment to start
           sleep 2
