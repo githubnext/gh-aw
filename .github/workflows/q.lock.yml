@@ -1080,7 +1080,7 @@ jobs:
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
-            
+            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
@@ -1243,7 +1243,7 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
-            
+            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
             return await substitutePlaceholders({
