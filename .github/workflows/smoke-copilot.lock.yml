@@ -1388,6 +1388,8 @@ jobs:
             global.context = context;
             global.exec = exec;
             global.io = io;
+            const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
+            await main();
 
   safe_outputs:
     needs:

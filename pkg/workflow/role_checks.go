@@ -37,31 +37,10 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	steps = append(steps, "            global.context = context;\n")
 	steps = append(steps, "            global.exec = exec;\n")
 	steps = append(steps, "            global.io = io;\n")
-
-	// Generate the JavaScript code for the membership check (output-only version)
-	scriptContent := c.generateMembershipCheckScript(data.Roles)
-
-	// Use WriteJavaScriptToYAML to remove comments and format properly
-	var scriptBuilder strings.Builder
-	WriteJavaScriptToYAML(&scriptBuilder, scriptContent)
-	steps = append(steps, scriptBuilder.String())
+	steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');\n")
+	steps = append(steps, "            await main();\n")
 
 	return steps
-}
-
-// generateMembershipCheckScript generates JavaScript code to check user permissions (output-only version)
-func (c *Compiler) generateMembershipCheckScript(requiredPermissions []string) string {
-	// If "all" is specified, no checks needed (this shouldn't happen since needsRoleCheck would return false)
-	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
-		return `
-core.setOutput("is_team_member", "true");
-core.setOutput("result", "roles_all");
-console.log("Permission check skipped - 'roles: all' specified");`
-	}
-
-	// Use the embedded check_membership.cjs script (bundled with dependencies)
-	// The GH_AW_REQUIRED_ROLES environment variable is set via the env field
-	return getCheckMembershipScript()
 }
 
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements
