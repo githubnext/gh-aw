@@ -622,6 +622,45 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "minItems: got 0, want 1",
 		},
 		{
+			name: "invalid empty toolsets array",
+			frontmatter: map[string]any{
+				"on": "push",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"toolsets": []string{},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "minItems",
+		},
+		{
+			name: "invalid empty issue names array",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"labeled"},
+						"names": []string{},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "minItems",
+		},
+		{
+			name: "invalid empty pull_request names array",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"labeled"},
+						"names": []string{},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "minItems",
+		},
+		{
 			name: "valid schedule with multiple cron entries",
 			frontmatter: map[string]any{
 				"on": map[string]any{
