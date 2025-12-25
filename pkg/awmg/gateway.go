@@ -14,6 +14,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
@@ -35,17 +36,8 @@ func GetVersion() string {
 
 // MCPGatewayConfig represents the configuration for the MCP gateway.
 type MCPGatewayConfig struct {
-	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
-	Gateway    GatewaySettings            `json:"gateway,omitempty"`
-}
-
-// MCPServerConfig represents configuration for a single MCP server.
-type MCPServerConfig struct {
-	Command   string            `json:"command,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	URL       string            `json:"url,omitempty"`
-	Container string            `json:"container,omitempty"`
+	MCPServers map[string]parser.MCPServerConfig `json:"mcpServers"`
+	Gateway    GatewaySettings                   `json:"gateway,omitempty"`
 }
 
 // GatewaySettings represents gateway-specific settings.
@@ -58,6 +50,7 @@ type GatewaySettings struct {
 type MCPGatewayServer struct {
 	config   *MCPGatewayConfig
 	sessions map[string]*mcp.ClientSession
+	servers  map[string]*mcp.Server // Proxy servers for each session
 	mu       sync.RWMutex
 	logDir   string
 }
@@ -148,6 +141,7 @@ func runMCPGateway(configFiles []string, port int, logDir string) error {
 	gateway := &MCPGatewayServer{
 		config:   config,
 		sessions: make(map[string]*mcp.ClientSession),
+		servers:  make(map[string]*mcp.Server),
 		logDir:   logDir,
 	}
 
@@ -310,7 +304,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 
 	// Filter out internal workflow MCP servers (safeinputs and safeoutputs)
 	// These are used internally by the workflow and should not be proxied by the gateway
-	filteredServers := make(map[string]MCPServerConfig)
+	filteredServers := make(map[string]parser.MCPServerConfig)
 	for name, serverConfig := range config.MCPServers {
 		if name == "safeinputs" || name == "safeoutputs" {
 			gatewayLog.Printf("Filtering out internal workflow server: %s", name)
@@ -327,7 +321,7 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 // mergeConfigs merges two gateway configurations, with the second overriding the first
 func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 	result := &MCPGatewayConfig{
-		MCPServers: make(map[string]MCPServerConfig),
+		MCPServers: make(map[string]parser.MCPServerConfig),
 		Gateway:    base.Gateway,
 	}
 
@@ -489,6 +483,12 @@ func (g *MCPGatewayServer) initializeSessions() error {
 		g.sessions[serverName] = session
 		g.mu.Unlock()
 
+		// Create a proxy MCP server that forwards calls to this session
+		proxyServer := g.createProxyServer(serverName, session)
+		g.mu.Lock()
+		g.servers[serverName] = proxyServer
+		g.mu.Unlock()
+
 		successCount++
 		gatewayLog.Printf("Successfully initialized session for %s (%d/%d)", serverName, successCount, len(g.config.MCPServers))
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully initialized session for %s (%d/%d)", serverName, successCount, len(g.config.MCPServers))))
@@ -500,7 +500,7 @@ func (g *MCPGatewayServer) initializeSessions() error {
 }
 
 // createMCPSession creates an MCP session for a single server configuration
-func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerConfig) (*mcp.ClientSession, error) {
+func (g *MCPGatewayServer) createMCPSession(serverName string, config parser.MCPServerConfig) (*mcp.ClientSession, error) {
 	// Create log file for this server (flat directory structure)
 	logFile := filepath.Join(g.logDir, fmt.Sprintf("%s.log", serverName))
 	gatewayLog.Printf("Creating log file for %s: %s", serverName, logFile)
@@ -604,6 +604,100 @@ func (g *MCPGatewayServer) createMCPSession(serverName string, config MCPServerC
 	return nil, fmt.Errorf("invalid server configuration: must specify command, url, or container")
 }
 
+// createProxyServer creates a proxy MCP server that forwards all calls to the backend session
+func (g *MCPGatewayServer) createProxyServer(serverName string, session *mcp.ClientSession) *mcp.Server {
+	gatewayLog.Printf("Creating proxy MCP server for %s", serverName)
+
+	// Create a server that will proxy requests to the backend session
+	server := mcp.NewServer(&mcp.Implementation{
+		Name:    fmt.Sprintf("gateway-proxy-%s", serverName),
+		Version: GetVersion(),
+	}, &mcp.ServerOptions{
+		Capabilities: &mcp.ServerCapabilities{
+			Tools: &mcp.ToolCapabilities{
+				ListChanged: false,
+			},
+			Resources: &mcp.ResourceCapabilities{
+				Subscribe:   false,
+				ListChanged: false,
+			},
+			Prompts: &mcp.PromptCapabilities{
+				ListChanged: false,
+			},
+		},
+		Logger: logger.NewSlogLoggerWithHandler(gatewayLog),
+	})
+
+	// Query backend for its tools and register them on the proxy server
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// List tools from backend
+	toolsResult, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		gatewayLog.Printf("Warning: Failed to list tools from backend %s: %v", serverName, err)
+	} else {
+		// Register each tool on the proxy server
+		for _, tool := range toolsResult.Tools {
+			toolCopy := tool // Capture for closure
+			gatewayLog.Printf("Registering tool %s from backend %s", tool.Name, serverName)
+
+			server.AddTool(toolCopy, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				gatewayLog.Printf("Proxy %s: Calling tool %s on backend", serverName, req.Params.Name)
+				return session.CallTool(ctx, &mcp.CallToolParams{
+					Name:      req.Params.Name,
+					Arguments: req.Params.Arguments,
+				})
+			})
+		}
+		gatewayLog.Printf("Registered %d tools from backend %s", len(toolsResult.Tools), serverName)
+	}
+
+	// List resources from backend
+	resourcesResult, err := session.ListResources(ctx, &mcp.ListResourcesParams{})
+	if err != nil {
+		gatewayLog.Printf("Warning: Failed to list resources from backend %s: %v", serverName, err)
+	} else {
+		// Register each resource on the proxy server
+		for _, resource := range resourcesResult.Resources {
+			resourceCopy := resource // Capture for closure
+			gatewayLog.Printf("Registering resource %s from backend %s", resource.URI, serverName)
+
+			server.AddResource(resourceCopy, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+				gatewayLog.Printf("Proxy %s: Reading resource %s from backend", serverName, req.Params.URI)
+				return session.ReadResource(ctx, &mcp.ReadResourceParams{
+					URI: req.Params.URI,
+				})
+			})
+		}
+		gatewayLog.Printf("Registered %d resources from backend %s", len(resourcesResult.Resources), serverName)
+	}
+
+	// List prompts from backend
+	promptsResult, err := session.ListPrompts(ctx, &mcp.ListPromptsParams{})
+	if err != nil {
+		gatewayLog.Printf("Warning: Failed to list prompts from backend %s: %v", serverName, err)
+	} else {
+		// Register each prompt on the proxy server
+		for _, prompt := range promptsResult.Prompts {
+			promptCopy := prompt // Capture for closure
+			gatewayLog.Printf("Registering prompt %s from backend %s", prompt.Name, serverName)
+
+			server.AddPrompt(promptCopy, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+				gatewayLog.Printf("Proxy %s: Getting prompt %s from backend", serverName, req.Params.Name)
+				return session.GetPrompt(ctx, &mcp.GetPromptParams{
+					Name:      req.Params.Name,
+					Arguments: req.Params.Arguments,
+				})
+			})
+		}
+		gatewayLog.Printf("Registered %d prompts from backend %s", len(promptsResult.Prompts), serverName)
+	}
+
+	gatewayLog.Printf("Proxy MCP server created for %s", serverName)
+	return server
+}
+
 // startHTTPServer starts the HTTP server for the gateway
 func (g *MCPGatewayServer) startHTTPServer() error {
 	port := g.config.Gateway.Port
@@ -617,41 +711,62 @@ func (g *MCPGatewayServer) startHTTPServer() error {
 		fmt.Fprintf(w, "OK")
 	})
 
-	// MCP endpoint for each server
-	for serverName := range g.config.MCPServers {
-		serverNameCopy := serverName // Capture for closure
-		path := fmt.Sprintf("/mcp/%s", serverName)
-		gatewayLog.Printf("Registering endpoint: %s", path)
-
-		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-			g.handleMCPRequest(w, r, serverNameCopy)
-		})
-	}
-
 	// List servers endpoint
 	mux.HandleFunc("/servers", func(w http.ResponseWriter, r *http.Request) {
 		g.handleListServers(w, r)
 	})
 
-	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+	// Create StreamableHTTPHandler for each MCP server
+	for serverName := range g.config.MCPServers {
+		serverNameCopy := serverName // Capture for closure
+		path := fmt.Sprintf("/mcp/%s", serverName)
+		gatewayLog.Printf("Registering StreamableHTTPHandler endpoint: %s", path)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Registering StreamableHTTPHandler endpoint: %s", path)))
+
+		// Create streamable HTTP handler for this server
+		handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
+			// Get the proxy server for this backend
+			g.mu.RLock()
+			defer g.mu.RUnlock()
+			server, exists := g.servers[serverNameCopy]
+			if !exists {
+				gatewayLog.Printf("Server not found in handler: %s", serverNameCopy)
+				return nil
+			}
+			gatewayLog.Printf("Returning proxy server for: %s", serverNameCopy)
+			return server
+		}, &mcp.StreamableHTTPOptions{
+			SessionTimeout: 2 * time.Hour, // Close idle sessions after 2 hours
+			Logger:         logger.NewSlogLoggerWithHandler(gatewayLog),
+		})
+
+		// Add authentication middleware if API key is configured
+		if g.config.Gateway.APIKey != "" {
+			wrappedHandler := g.withAuth(handler, serverNameCopy)
+			mux.Handle(path, wrappedHandler)
+		} else {
+			mux.Handle(path, handler)
+		}
+	}
+
+	httpServer := &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadHeaderTimeout: 30 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
 	}
 
 	fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fmt.Sprintf("MCP gateway listening on http://localhost:%d", port)))
-	gatewayLog.Printf("HTTP server ready on port %d", port)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using StreamableHTTPHandler for MCP protocol"))
+	gatewayLog.Printf("HTTP server ready on port %d with StreamableHTTPHandler", port)
 
-	return server.ListenAndServe()
+	return httpServer.ListenAndServe()
 }
 
-// handleMCPRequest handles an MCP protocol request for a specific server
-func (g *MCPGatewayServer) handleMCPRequest(w http.ResponseWriter, r *http.Request, serverName string) {
-	gatewayLog.Printf("Handling MCP request for server: %s", serverName)
-
-	// Check API key if configured
-	if g.config.Gateway.APIKey != "" {
+// withAuth wraps an HTTP handler with authentication if API key is configured
+func (g *MCPGatewayServer) withAuth(handler http.Handler, serverName string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		expectedAuth := fmt.Sprintf("Bearer %s", g.config.Gateway.APIKey)
 		if authHeader != expectedAuth {
@@ -659,142 +774,8 @@ func (g *MCPGatewayServer) handleMCPRequest(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-	}
-
-	// Get the session
-	g.mu.RLock()
-	session, exists := g.sessions[serverName]
-	g.mu.RUnlock()
-
-	if !exists {
-		gatewayLog.Printf("Server not found: %s", serverName)
-		http.Error(w, fmt.Sprintf("Server not found: %s", serverName), http.StatusNotFound)
-		return
-	}
-
-	// Parse request body
-	var reqBody map[string]any
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		gatewayLog.Printf("Failed to decode request: %v", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	method, _ := reqBody["method"].(string)
-	gatewayLog.Printf("MCP method: %s for server: %s", method, serverName)
-
-	// Handle different MCP methods
-	var response any
-	var err error
-
-	switch method {
-	case "initialize":
-		response, err = g.handleInitialize(session)
-	case "tools/list":
-		response, err = g.handleListTools(session)
-	case "tools/call":
-		response, err = g.handleCallTool(session, reqBody)
-	case "resources/list":
-		response, err = g.handleListResources(session)
-	case "prompts/list":
-		response, err = g.handleListPrompts(session)
-	default:
-		gatewayLog.Printf("Unsupported method: %s", method)
-		http.Error(w, fmt.Sprintf("Unsupported method: %s", method), http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		gatewayLog.Printf("Error handling %s: %v", method, err)
-		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Send response
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		gatewayLog.Printf("Failed to encode JSON response: %v", err)
-	}
-}
-
-// handleInitialize handles the initialize method
-func (g *MCPGatewayServer) handleInitialize(session *mcp.ClientSession) (any, error) {
-	// Return server capabilities
-	return map[string]any{
-		"protocolVersion": "2024-11-05",
-		"capabilities": map[string]any{
-			"tools":     map[string]any{},
-			"resources": map[string]any{},
-			"prompts":   map[string]any{},
-		},
-		"serverInfo": map[string]any{
-			"name":    "mcp-gateway",
-			"version": GetVersion(),
-		},
-	}, nil
-}
-
-// handleListTools handles the tools/list method
-func (g *MCPGatewayServer) handleListTools(session *mcp.ClientSession) (any, error) {
-	ctx := context.Background()
-	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tools: %w", err)
-	}
-
-	return map[string]any{
-		"tools": result.Tools,
-	}, nil
-}
-
-// handleCallTool handles the tools/call method
-func (g *MCPGatewayServer) handleCallTool(session *mcp.ClientSession, reqBody map[string]any) (any, error) {
-	params, ok := reqBody["params"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid params")
-	}
-
-	name, _ := params["name"].(string)
-	arguments := params["arguments"]
-
-	ctx := context.Background()
-	result, err := session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      name,
-		Arguments: arguments,
+		handler.ServeHTTP(w, r)
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to call tool: %w", err)
-	}
-
-	return map[string]any{
-		"content": result.Content,
-	}, nil
-}
-
-// handleListResources handles the resources/list method
-func (g *MCPGatewayServer) handleListResources(session *mcp.ClientSession) (any, error) {
-	ctx := context.Background()
-	result, err := session.ListResources(ctx, &mcp.ListResourcesParams{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list resources: %w", err)
-	}
-
-	return map[string]any{
-		"resources": result.Resources,
-	}, nil
-}
-
-// handleListPrompts handles the prompts/list method
-func (g *MCPGatewayServer) handleListPrompts(session *mcp.ClientSession) (any, error) {
-	ctx := context.Background()
-	result, err := session.ListPrompts(ctx, &mcp.ListPromptsParams{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list prompts: %w", err)
-	}
-
-	return map[string]any{
-		"prompts": result.Prompts,
-	}, nil
 }
 
 // handleListServers handles the /servers endpoint

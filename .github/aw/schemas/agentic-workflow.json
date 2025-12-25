@@ -273,7 +273,47 @@
                     "type": "string"
                   }
                 }
-              }
+              },
+              "oneOf": [
+                {
+                  "required": ["branches"],
+                  "not": { "required": ["branches-ignore"] }
+                },
+                {
+                  "required": ["branches-ignore"],
+                  "not": { "required": ["branches"] }
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      { "required": ["branches"] },
+                      { "required": ["branches-ignore"] }
+                    ]
+                  }
+                }
+              ],
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "required": ["paths"],
+                      "not": { "required": ["paths-ignore"] }
+                    },
+                    {
+                      "required": ["paths-ignore"],
+                      "not": { "required": ["paths"] }
+                    },
+                    {
+                      "not": {
+                        "anyOf": [
+                          { "required": ["paths"] },
+                          { "required": ["paths-ignore"] }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "pull_request": {
               "description": "Pull request event trigger that runs the workflow when pull requests are created, updated, or closed",
@@ -379,10 +419,50 @@
                   ]
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": ["branches"],
+                  "not": { "required": ["branches-ignore"] }
+                },
+                {
+                  "required": ["branches-ignore"],
+                  "not": { "required": ["branches"] }
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      { "required": ["branches"] },
+                      { "required": ["branches-ignore"] }
+                    ]
+                  }
+                }
+              ],
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "required": ["paths"],
+                      "not": { "required": ["paths-ignore"] }
+                    },
+                    {
+                      "required": ["paths-ignore"],
+                      "not": { "required": ["paths"] }
+                    },
+                    {
+                      "not": {
+                        "anyOf": [
+                          { "required": ["paths"] },
+                          { "required": ["paths-ignore"] }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "issues": {
-              "description": "Issues event trigger that runs the workflow when repository issues are created, updated, or managed",
+              "description": "Issues event trigger that runs when repository issues are created, updated, or managed",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -577,7 +657,25 @@
                     "type": "string"
                   }
                 }
-              }
+              },
+              "oneOf": [
+                {
+                  "required": ["branches"],
+                  "not": { "required": ["branches-ignore"] }
+                },
+                {
+                  "required": ["branches-ignore"],
+                  "not": { "required": ["branches"] }
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      { "required": ["branches"] },
+                      { "required": ["branches-ignore"] }
+                    ]
+                  }
+                }
+              ]
             },
             "release": {
               "description": "Release event trigger",
@@ -886,7 +984,47 @@
                   ]
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": ["branches"],
+                  "not": { "required": ["branches-ignore"] }
+                },
+                {
+                  "required": ["branches-ignore"],
+                  "not": { "required": ["branches"] }
+                },
+                {
+                  "not": {
+                    "anyOf": [
+                      { "required": ["branches"] },
+                      { "required": ["branches-ignore"] }
+                    ]
+                  }
+                }
+              ],
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "required": ["paths"],
+                      "not": { "required": ["paths-ignore"] }
+                    },
+                    {
+                      "required": ["paths-ignore"],
+                      "not": { "required": ["paths"] }
+                    },
+                    {
+                      "not": {
+                        "anyOf": [
+                          { "required": ["paths"] },
+                          { "required": ["paths-ignore"] }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             "pull_request_review": {
               "description": "Pull request review event trigger that runs when a pull request review is submitted, edited, or dismissed",
@@ -4982,6 +5120,16 @@
                     }
                   },
                   "required": ["pull_request_review_comment"]
+                },
+                {
+                  "properties": {
+                    "label": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["label"]
                 }
               ]
             }

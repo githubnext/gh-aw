@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // TestRewriteMCPConfigForGateway_PreservesNonProxiedServers tests that
@@ -42,7 +44,7 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 
 	// Gateway config only includes external server (github), not internal servers
 	gatewayConfig := &MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
 				Command: "docker",
 				Args:    []string{"run", "-i", "--rm", "ghcr.io/github-mcp-server"},
@@ -184,7 +186,7 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 	}
 
 	gatewayConfig := &MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
 				Command: "gh",
 				Args:    []string{"aw", "mcp-server"},

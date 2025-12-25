@@ -458,6 +458,7 @@ engine: copilot
 sandbox:
   agent: awf
   mcp:
+    container: "ghcr.io/githubnext/mcp-gateway"
     port: 9090
     api-key: "${{ secrets.MCP_API_KEY }}"
 features:

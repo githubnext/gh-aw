@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // TestMCPGateway_InspectWithPlaywright tests the MCP gateway by:
@@ -66,7 +68,7 @@ This workflow tests the MCP gateway configuration and tool list.
 	// Create MCP gateway configuration with gh-aw MCP server
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 	config := MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
 				Args:    []string{"mcp-server"},
