@@ -2603,7 +2603,7 @@ jobs:
               let previous;
               do {
                 previous = s;
-                s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+                s = s.replace(/<!--[\s\S]*?--!?>/g, "");
               } while (s !== previous);
               return s;
             }
