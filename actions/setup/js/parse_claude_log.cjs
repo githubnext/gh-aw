@@ -117,8 +117,7 @@ function parseClaudeLog(logContent) {
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    main,
     parseClaudeLog,
   };
 }
-
-main();

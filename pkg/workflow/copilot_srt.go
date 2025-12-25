@@ -243,8 +243,8 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        with:",
 		"          script: |",
 		// Load firewall log parser script from external file using require()
-		// The parse_firewall_logs script auto-executes, so just require it
-		"            require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
+		"            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
+		"            await main({ github, context, core, exec, io });",
 	}
 
 	return GitHubActionStep(stepLines)

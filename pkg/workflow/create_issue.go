@@ -110,8 +110,8 @@ func buildCopilotAssignmentStep(configToken string) []string {
 	steps = append(steps, "            global.exec = exec;\n")
 	steps = append(steps, "            global.io = io;\n")
 	// Load script from external file using require()
-	// The assign_copilot_to_created_issues script auto-executes, so just require it
-	steps = append(steps, "            require('/tmp/gh-aw/actions/assign_copilot_to_created_issues.cjs');\n")
+	steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/assign_copilot_to_created_issues.cjs');\n")
+	steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 
 	return steps
 }

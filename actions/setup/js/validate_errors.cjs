@@ -338,6 +338,7 @@ function truncateString(str, maxLength) {
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    main,
     validateErrors,
     extractLevel,
     extractMessage,
@@ -345,9 +346,4 @@ if (typeof module !== "undefined" && module.exports) {
     truncateString,
     shouldSkipLine,
   };
-}
-
-// Only run main if this script is executed directly, not when imported for testing
-if (typeof module === "undefined" || require.main === module) {
-  main();
 }

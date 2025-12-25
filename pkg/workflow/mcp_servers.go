@@ -312,41 +312,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
-		// Step 2: Write JavaScript files
-		yaml.WriteString("      - name: Write Safe Outputs JavaScript Files\n")
-		yaml.WriteString("        run: |\n")
-
-		// Get the list of required JavaScript dependencies dynamically
-		dependencies, err := getSafeOutputsDependencies()
-		if err != nil {
-			mcpServersLog.Printf("CRITICAL: Error getting safe-outputs dependencies: %v", err)
-			// Fallback to empty list if there's an error
-			dependencies = []string{}
-		}
-
-		// Write each required JavaScript file
-		for _, filename := range dependencies {
-			// Get the content for this file
-			content, err := getJavaScriptFileContent(filename)
-			if err != nil {
-				mcpServersLog.Printf("Error getting content for %s: %v", filename, err)
-				continue
-			}
-
-			// Generate a unique EOF marker based on filename
-			// Remove extension and convert to uppercase for marker
-			markerName := strings.ToUpper(strings.TrimSuffix(filename, filepath.Ext(filename)))
-			markerName = strings.ReplaceAll(markerName, ".", "_")
-			markerName = strings.ReplaceAll(markerName, "-", "_")
-
-			fmt.Fprintf(yaml, "          cat > /tmp/gh-aw/safeoutputs/%s << 'EOF_%s'\n", filename, markerName)
-			for _, line := range FormatJavaScriptForYAML(content) {
-				yaml.WriteString(line)
-			}
-			fmt.Fprintf(yaml, "          EOF_%s\n", markerName)
-		}
-
-		// Write the main MCP server entry point (simple script that requires modules)
+		// Generate the MCP server entry point (simple script that requires modules)
+		// JavaScript modules are now copied by actions/setup
 		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Use the simple entry point script instead of bundled version
 		for _, line := range FormatJavaScriptForYAML(generateSafeOutputsMCPServerEntryScript()) {
@@ -360,87 +327,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Write safe-inputs MCP server if configured and feature flag is enabled
 	// For stdio mode, we only write the files but don't start the HTTP server
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		// Step 1: Write JavaScript and config files
-		yaml.WriteString("      - name: Setup Safe Inputs JavaScript and Config\n")
+		// Step 1: Write config files (JavaScript files are now copied by actions/setup)
+		yaml.WriteString("      - name: Setup Safe Inputs Config\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-inputs/logs\n")
-
-		// Write the reusable MCP server core modules
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/read_buffer.cjs << 'EOF_READ_BUFFER'\n")
-		for _, line := range FormatJavaScriptForYAML(GetReadBufferScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_READ_BUFFER\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_server_core.cjs << 'EOF_MCP_CORE'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPServerCoreScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_MCP_CORE\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_http_transport.cjs << 'EOF_MCP_HTTP_TRANSPORT'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPHTTPTransportScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_MCP_HTTP_TRANSPORT\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_logger.cjs << 'EOF_MCP_LOGGER'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPLoggerScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_MCP_LOGGER\n")
-
-		// Write handler modules (only loaded when needed)
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_handler_shell.cjs << 'EOF_HANDLER_SHELL'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPHandlerShellScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_HANDLER_SHELL\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/mcp_handler_python.cjs << 'EOF_HANDLER_PYTHON'\n")
-		for _, line := range FormatJavaScriptForYAML(GetMCPHandlerPythonScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_HANDLER_PYTHON\n")
-
-		// Write safe-inputs helper modules
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_config_loader.cjs << 'EOF_CONFIG_LOADER'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsConfigLoaderScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_CONFIG_LOADER\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_tool_factory.cjs << 'EOF_TOOL_FACTORY'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsToolFactoryScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_TOOL_FACTORY\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_validation.cjs << 'EOF_VALIDATION'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsValidationScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_VALIDATION\n")
-
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_bootstrap.cjs << 'EOF_BOOTSTRAP'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsBootstrapScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_BOOTSTRAP\n")
-
-		// Write safe-inputs MCP server main module
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server.cjs << 'EOF_SAFE_INPUTS_SERVER'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsMCPServerScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_SAFE_INPUTS_SERVER\n")
-
-		// Write safe-inputs MCP server HTTP transport module
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-inputs/safe_inputs_mcp_server_http.cjs << 'EOF_SAFE_INPUTS_SERVER_HTTP'\n")
-		for _, line := range FormatJavaScriptForYAML(GetSafeInputsMCPServerHTTPScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF_SAFE_INPUTS_SERVER_HTTP\n")
 
 		// Generate the tools.json configuration file
 		toolsJSON := generateSafeInputsToolsConfig(workflowData.SafeInputs)

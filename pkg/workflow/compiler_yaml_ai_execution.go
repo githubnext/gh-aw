@@ -48,8 +48,8 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("          script: |\n")
 
 	// Load log parser script from external file using require()
-	// The parser scripts auto-execute, so just require them
-	fmt.Fprintf(yaml, "            require('/tmp/gh-aw/actions/%s.cjs');\n", parserScriptName)
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/" + parserScriptName + ".cjs');\n")
+	yaml.WriteString("            await main({ github, context, core, exec, io });\n")
 }
 
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
@@ -126,6 +126,6 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("          script: |\n")
 
 	// Load error validation script from external file using require()
-	// The validate_errors script auto-executes, so just require it
-	yaml.WriteString("            require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
+	yaml.WriteString("            await main({ github, context, core, exec, io });\n")
 }
