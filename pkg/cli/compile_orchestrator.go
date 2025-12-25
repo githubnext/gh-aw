@@ -314,6 +314,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		var compiledCount int
 		var errorCount int
 		var errorMessages []string
+		var lockFilesForActionlint []string // Collect lock files for batch actionlint run
 		for _, markdownFile := range markdownFiles {
 			stats.Total++
 
@@ -476,7 +477,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileOrchestratorLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+			// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				if !jsonOutput {
 					fmt.Fprintln(os.Stderr, err.Error())
@@ -497,8 +499,30 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 			compiledCount++
 
+			// Collect lock file for batch actionlint run
+			if actionlint && !noEmit {
+				lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+				if _, err := os.Stat(lockFile); err == nil {
+					lockFilesForActionlint = append(lockFilesForActionlint, lockFile)
+				}
+			}
+
 			// Add successful validation result
 			validationResults = append(validationResults, result)
+		}
+
+		// Run actionlint on all lock files in batch for better performance
+		if actionlint && !noEmit && len(lockFilesForActionlint) > 0 {
+			compileOrchestratorLog.Printf("Running batch actionlint on %d lock files", len(lockFilesForActionlint))
+			if err := RunActionlintOnFiles(lockFilesForActionlint, verbose && !jsonOutput, strict); err != nil {
+				if strict {
+					return workflowDataList, fmt.Errorf("actionlint linter failed: %w", err)
+				}
+				// In non-strict mode, actionlint errors are warnings
+				if verbose && !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
+				}
+			}
 		}
 
 		// Get warning count from compiler
@@ -702,6 +726,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Compile each file (including .campaign.md files)
 	var errorCount int
 	var successCount int
+	var lockFilesForActionlint []string // Collect lock files for batch actionlint run
 	for _, file := range mdFiles {
 		stats.Total++
 
@@ -828,7 +853,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+		// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
 			if !jsonOutput {
 				fmt.Fprintln(os.Stderr, err.Error())
@@ -848,8 +874,30 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		successCount++
 
+		// Collect lock file for batch actionlint run
+		if actionlint && !noEmit {
+			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			if _, err := os.Stat(lockFile); err == nil {
+				lockFilesForActionlint = append(lockFilesForActionlint, lockFile)
+			}
+		}
+
 		// Add successful validation result
 		validationResults = append(validationResults, result)
+	}
+
+	// Run actionlint on all lock files in batch for better performance
+	if actionlint && !noEmit && len(lockFilesForActionlint) > 0 {
+		compileOrchestratorLog.Printf("Running batch actionlint on %d lock files", len(lockFilesForActionlint))
+		if err := RunActionlintOnFiles(lockFilesForActionlint, verbose && !jsonOutput, strict); err != nil {
+			if strict {
+				return workflowDataList, fmt.Errorf("actionlint linter failed: %w", err)
+			}
+			// In non-strict mode, actionlint errors are warnings
+			if verbose && !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
+			}
+		}
 	}
 
 	// Get warning count from compiler

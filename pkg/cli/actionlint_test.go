@@ -149,6 +149,99 @@ func TestGetActionlintVersion(t *testing.T) {
 	}
 }
 
+func TestParseAndDisplayActionlintOutputMultiFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		stdout         string
+		verbose        bool
+		expectedOutput []string
+		expectError    bool
+		expectedCount  int
+		expectedKinds  map[string]int
+	}{
+		{
+			name: "multiple errors from multiple files",
+			stdout: `[
+{"message":"label \"ubuntu-slim\" is unknown","filepath":".github/workflows/test1.lock.yml","line":10,"column":14,"kind":"runner-label","snippet":"    runs-on: ubuntu-slim\n             ^~~~~~~~~~~","end_column":24},
+{"message":"shellcheck reported issue","filepath":".github/workflows/test2.lock.yml","line":25,"column":9,"kind":"shellcheck","snippet":"        run: |\n        ^~~~","end_column":12}
+]`,
+			expectedOutput: []string{
+				".github/workflows/test1.lock.yml:10:14: error: [runner-label]",
+				".github/workflows/test2.lock.yml:25:9: error: [shellcheck]",
+			},
+			expectError:   false,
+			expectedCount: 2,
+			expectedKinds: map[string]int{"runner-label": 1, "shellcheck": 1},
+		},
+		{
+			name: "errors from three files",
+			stdout: `[
+{"message":"error 1","filepath":".github/workflows/a.lock.yml","line":10,"column":1,"kind":"error","snippet":"test","end_column":5},
+{"message":"error 2","filepath":".github/workflows/b.lock.yml","line":20,"column":1,"kind":"error","snippet":"test","end_column":5},
+{"message":"error 3","filepath":".github/workflows/c.lock.yml","line":30,"column":1,"kind":"error","snippet":"test","end_column":5}
+]`,
+			expectedOutput: []string{
+				".github/workflows/a.lock.yml:10:1",
+				".github/workflows/b.lock.yml:20:1",
+				".github/workflows/c.lock.yml:30:1",
+			},
+			expectError:   false,
+			expectedCount: 3,
+			expectedKinds: map[string]int{"error": 3},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Capture stderr output
+			originalStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			count, kinds, err := parseAndDisplayActionlintOutput(tt.stdout, tt.verbose)
+
+			// Restore stderr and get output
+			w.Close()
+			os.Stderr = originalStderr
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
+
+			// Check error expectation
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Check count
+			if count != tt.expectedCount {
+				t.Errorf("Expected count %d, got %d", tt.expectedCount, count)
+			}
+
+			// Check kinds map
+			if !tt.expectError && tt.expectedKinds != nil {
+				if len(kinds) != len(tt.expectedKinds) {
+					t.Errorf("Expected %d kinds, got %d", len(tt.expectedKinds), len(kinds))
+				}
+				for kind, expectedCount := range tt.expectedKinds {
+					if kinds[kind] != expectedCount {
+						t.Errorf("Expected %d errors of kind %s, got %d", expectedCount, kind, kinds[kind])
+					}
+				}
+			}
+
+			// Check expected output strings are present
+			for _, expected := range tt.expectedOutput {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, but it didn't.\nGot: %s", expected, output)
+				}
+			}
+		})
+	}
+}
+
 func TestDisplayActionlintSummary(t *testing.T) {
 	tests := []struct {
 		name             string
