@@ -584,6 +584,13 @@ func FormatJavaScriptForYAML(script string) []string {
 
 // WriteJavaScriptToYAML writes a JavaScript script with proper indentation to a strings.Builder
 func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
+	// Validate that script is not empty - this helps catch errors where getter functions
+	// return empty strings after embedded scripts were removed
+	if strings.TrimSpace(script) == "" {
+		jsLog.Print("WARNING: Attempted to write empty JavaScript script to YAML")
+		return
+	}
+
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
@@ -600,6 +607,13 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 // while preserving JSDoc and inline comments, but removing TypeScript-specific comments.
 // Used for security-sensitive scripts like redact_secrets.
 func WriteJavaScriptToYAMLPreservingComments(yaml *strings.Builder, script string) {
+	// Validate that script is not empty - this helps catch errors where getter functions
+	// return empty strings after embedded scripts were removed
+	if strings.TrimSpace(script) == "" {
+		jsLog.Print("WARNING: Attempted to write empty JavaScript script to YAML (preserving comments)")
+		return
+	}
+
 	scriptLines := strings.Split(script, "\n")
 	previousLineWasEmpty := false
 	hasWrittenContent := false // Track if we've written any content yet

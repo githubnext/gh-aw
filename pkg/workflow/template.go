@@ -115,5 +115,8 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	WriteJavaScriptToYAML(yaml, getInterpolatePromptScript())
+
+	// Load interpolate_prompt script from external file
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs');\n")
+	yaml.WriteString("            await main();\n")
 }

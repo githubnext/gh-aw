@@ -70,8 +70,9 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		yaml.WriteString("        with:\n")
 		yaml.WriteString("          script: |\n")
 
-		// Use the bundled redact_secrets script which has module.exports removed and await main() injected
-		WriteJavaScriptToYAML(yaml, getRedactSecretsScript())
+		// Load redact_secrets script from external file
+		yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/redact_secrets.cjs');\n")
+		yaml.WriteString("            await main();\n")
 
 		// Add environment variables
 		yaml.WriteString("        env:\n")
