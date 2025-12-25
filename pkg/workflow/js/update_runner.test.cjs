@@ -605,4 +605,88 @@ describe("update_runner.cjs", () => {
       expect(result).toContain("**Operation:** replace");
     });
   });
+
+  describe("getUpdateHandlerConfig", () => {
+    it("should return issue config", () => {
+      const config = helpers.getUpdateHandlerConfig("issue");
+      
+      expect(config.itemType).toBe("update_issue");
+      expect(config.displayName).toBe("issue");
+      expect(config.displayNamePlural).toBe("issues");
+      expect(config.numberField).toBe("issue_number");
+      expect(config.outputNumberKey).toBe("issue_number");
+      expect(config.outputUrlKey).toBe("issue_url");
+      expect(config.entityName).toBe("Issue");
+      expect(config.entityPrefix).toBe("Issue");
+      expect(config.targetLabel).toBe("Target Issue:");
+      expect(config.currentTargetText).toBe("Current issue");
+      expect(config.supportsStatus).toBe(true);
+      expect(config.supportsOperation).toBe(false);
+    });
+
+    it("should return pull_request config", () => {
+      const config = helpers.getUpdateHandlerConfig("pull_request");
+      
+      expect(config.itemType).toBe("update_pull_request");
+      expect(config.displayName).toBe("pull request");
+      expect(config.displayNamePlural).toBe("pull requests");
+      expect(config.numberField).toBe("pull_request_number");
+      expect(config.outputNumberKey).toBe("pull_request_number");
+      expect(config.outputUrlKey).toBe("pull_request_url");
+      expect(config.entityName).toBe("Pull Request");
+      expect(config.entityPrefix).toBe("PR");
+      expect(config.targetLabel).toBe("Target PR:");
+      expect(config.currentTargetText).toBe("Current pull request");
+      expect(config.supportsStatus).toBe(false);
+      expect(config.supportsOperation).toBe(true);
+    });
+
+    it("should return discussion config", () => {
+      const config = helpers.getUpdateHandlerConfig("discussion");
+      
+      expect(config.itemType).toBe("update_discussion");
+      expect(config.displayName).toBe("discussion");
+      expect(config.displayNamePlural).toBe("discussions");
+      expect(config.numberField).toBe("discussion_number");
+      expect(config.outputNumberKey).toBe("discussion_number");
+      expect(config.outputUrlKey).toBe("discussion_url");
+      expect(config.entityName).toBe("Discussion");
+      expect(config.entityPrefix).toBe("Discussion");
+      expect(config.targetLabel).toBe("Target Discussion:");
+      expect(config.currentTargetText).toBe("Current discussion");
+      expect(config.supportsStatus).toBe(false);
+      expect(config.supportsOperation).toBe(false);
+    });
+
+    it("should throw error for unknown entity type", () => {
+      expect(() => helpers.getUpdateHandlerConfig("unknown")).toThrow("Unknown entity type: unknown");
+      expect(() => helpers.getUpdateHandlerConfig("unknown")).toThrow("Valid types are: issue, pull_request, discussion");
+    });
+  });
+
+  describe("UPDATE_HANDLER_CONFIGS", () => {
+    it("should contain all three entity configs", () => {
+      expect(helpers.UPDATE_HANDLER_CONFIGS).toBeDefined();
+      expect(Object.keys(helpers.UPDATE_HANDLER_CONFIGS)).toEqual(["issue", "pull_request", "discussion"]);
+    });
+
+    it("should have consistent structure across all configs", () => {
+      const configs = Object.values(helpers.UPDATE_HANDLER_CONFIGS);
+      
+      configs.forEach(config => {
+        expect(config).toHaveProperty("itemType");
+        expect(config).toHaveProperty("displayName");
+        expect(config).toHaveProperty("displayNamePlural");
+        expect(config).toHaveProperty("numberField");
+        expect(config).toHaveProperty("outputNumberKey");
+        expect(config).toHaveProperty("outputUrlKey");
+        expect(config).toHaveProperty("entityName");
+        expect(config).toHaveProperty("entityPrefix");
+        expect(config).toHaveProperty("targetLabel");
+        expect(config).toHaveProperty("currentTargetText");
+        expect(config).toHaveProperty("supportsStatus");
+        expect(config).toHaveProperty("supportsOperation");
+      });
+    });
+  });
 });
