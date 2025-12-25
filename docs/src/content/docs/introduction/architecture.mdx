@@ -311,7 +311,7 @@ flowchart TB
     end
 
     subgraph Scanners["Security Scanners"]
-        ACTIONLINT["actionlint<br/>Workflow linting<br/>Shell script checks"]
+        ACTIONLINT["actionlint<br/>Workflow linting<br/>(includes shellcheck & pyflakes)"]
         ZIZMOR["zizmor<br/>Security vulnerabilities<br/>Privilege escalation"]
         POUTINE["poutine<br/>Supply chain risks<br/>Third-party actions"]
     end
