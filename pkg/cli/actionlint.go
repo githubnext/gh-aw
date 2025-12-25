@@ -17,6 +17,9 @@ import (
 
 var actionlintLog = logger.New("cli:actionlint")
 
+// actionlintVersion caches the actionlint version to avoid repeated Docker calls
+var actionlintVersion string
+
 // actionlintError represents a single error from actionlint JSON output
 type actionlintError struct {
 	Message   string `json:"message"`
@@ -26,6 +29,47 @@ type actionlintError struct {
 	Kind      string `json:"kind"`
 	Snippet   string `json:"snippet"`
 	EndColumn int    `json:"end_column"`
+}
+
+// getActionlintVersion fetches and caches the actionlint version from Docker
+func getActionlintVersion() (string, error) {
+	// Return cached version if already fetched
+	if actionlintVersion != "" {
+		return actionlintVersion, nil
+	}
+
+	actionlintLog.Print("Fetching actionlint version from Docker")
+
+	// Run docker command to get version with a 30 second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		"docker",
+		"run",
+		"--rm",
+		"rhysd/actionlint:latest",
+		"--version",
+	)
+
+	output, err := cmd.Output()
+	if err != nil {
+		actionlintLog.Printf("Failed to get actionlint version: %v", err)
+		return "", fmt.Errorf("failed to get actionlint version: %w", err)
+	}
+
+	// Parse version from output (format: "1.7.9\ninstalled by...\nbuilt with...")
+	// We only want the first line which contains the version number
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) == 0 {
+		return "", fmt.Errorf("no version output from actionlint")
+	}
+	version := strings.TrimSpace(lines[0])
+	actionlintVersion = version
+	actionlintLog.Printf("Cached actionlint version: %s", version)
+
+	return version, nil
 }
 
 // ensureActionlintConfig creates .github/actionlint.yaml to configure custom runner labels if it doesn't exist
@@ -68,6 +112,17 @@ self-hosted-runner:
 // runActionlintOnFile runs the actionlint linter on a single .lock.yml file using Docker
 func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	actionlintLog.Printf("Running actionlint on file: %s (verbose=%t, strict=%t)", lockFile, verbose, strict)
+
+	// Display actionlint version on first use
+	if actionlintVersion == "" {
+		version, err := getActionlintVersion()
+		if err != nil {
+			// Log error but continue - version display is not critical
+			actionlintLog.Printf("Could not fetch actionlint version: %v", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Using actionlint %s", version)))
+		}
+	}
 
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := findGitRoot()
