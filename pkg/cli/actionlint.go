@@ -20,6 +20,17 @@ var actionlintLog = logger.New("cli:actionlint")
 // actionlintVersion caches the actionlint version to avoid repeated Docker calls
 var actionlintVersion string
 
+// actionlintStats tracks aggregate statistics across all actionlint validations
+var actionlintStats *ActionlintStats
+
+// ActionlintStats tracks actionlint validation statistics across all files
+type ActionlintStats struct {
+	TotalWorkflows int
+	TotalErrors    int
+	TotalWarnings  int
+	ErrorsByKind   map[string]int
+}
+
 // actionlintError represents a single error from actionlint JSON output
 type actionlintError struct {
 	Message   string `json:"message"`
@@ -29,6 +40,58 @@ type actionlintError struct {
 	Kind      string `json:"kind"`
 	Snippet   string `json:"snippet"`
 	EndColumn int    `json:"end_column"`
+}
+
+// initActionlintStats initializes the global actionlint statistics tracker
+func initActionlintStats() {
+	actionlintStats = &ActionlintStats{
+		ErrorsByKind: make(map[string]int),
+	}
+}
+
+// displayActionlintSummary displays aggregate statistics for all actionlint validations
+func displayActionlintSummary() {
+	if actionlintStats == nil || actionlintStats.TotalWorkflows == 0 {
+		return
+	}
+
+	// Create visual separator
+	separator := strings.Repeat("━", 60)
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Actionlint Summary"))
+	fmt.Fprintf(os.Stderr, "%s\n\n", separator)
+
+	// Show total workflows checked
+	fmt.Fprintf(os.Stderr, "%s\n",
+		console.FormatSuccessMessage(fmt.Sprintf("Checked %d workflow(s)", actionlintStats.TotalWorkflows)))
+
+	// Show total issues found
+	totalIssues := actionlintStats.TotalErrors + actionlintStats.TotalWarnings
+	if totalIssues > 0 {
+		issueText := fmt.Sprintf("Found %d issue(s)", totalIssues)
+		if actionlintStats.TotalErrors > 0 && actionlintStats.TotalWarnings > 0 {
+			issueText += fmt.Sprintf(" (%d error(s), %d warning(s))", actionlintStats.TotalErrors, actionlintStats.TotalWarnings)
+		} else if actionlintStats.TotalErrors > 0 {
+			issueText += fmt.Sprintf(" (%d error(s))", actionlintStats.TotalErrors)
+		} else if actionlintStats.TotalWarnings > 0 {
+			issueText += fmt.Sprintf(" (%d warning(s))", actionlintStats.TotalWarnings)
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(issueText))
+
+		// Break down by error kind if we have multiple kinds
+		if len(actionlintStats.ErrorsByKind) > 0 {
+			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatInfoMessage("Issues by type:"))
+			for kind, count := range actionlintStats.ErrorsByKind {
+				fmt.Fprintf(os.Stderr, "  • %s: %d\n", kind, count)
+			}
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "%s\n",
+			console.FormatSuccessMessage("No issues found"))
+	}
+
+	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
 }
 
 // getActionlintVersion fetches and caches the actionlint version from Docker
@@ -182,8 +245,13 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 		return fmt.Errorf("actionlint timed out after 5 minutes on %s - this may indicate a Docker or network issue", filepath.Base(lockFile))
 	}
 
-	// Parse and reformat the output, get total error count
-	totalErrors, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)
+	// Track this workflow in statistics
+	if actionlintStats != nil {
+		actionlintStats.TotalWorkflows++
+	}
+
+	// Parse and reformat the output, get total error count and error details
+	totalErrors, errorsByKind, parseErr := parseAndDisplayActionlintOutput(stdout.String(), verbose)
 	if parseErr != nil {
 		actionlintLog.Printf("Failed to parse actionlint output: %v", parseErr)
 		// Fall back to showing raw output
@@ -192,6 +260,14 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 		}
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
+		}
+	} else {
+		// Track error statistics
+		if actionlintStats != nil {
+			actionlintStats.TotalErrors += totalErrors
+			for kind, count := range errorsByKind {
+				actionlintStats.ErrorsByKind[kind] += count
+			}
 		}
 	}
 
@@ -224,25 +300,33 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 }
 
 // parseAndDisplayActionlintOutput parses actionlint JSON output and displays it in the desired format
-// Returns the total number of errors found
-func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, error) {
+// Returns the total number of errors found and a breakdown by kind
+func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, map[string]int, error) {
 	// Skip if no output
 	if stdout == "" || strings.TrimSpace(stdout) == "" {
 		actionlintLog.Print("No actionlint output to parse")
-		return 0, nil
+		return 0, make(map[string]int), nil
 	}
 
 	// Parse JSON errors from stdout - actionlint outputs a single JSON array
 	var errors []actionlintError
 	if err := json.Unmarshal([]byte(stdout), &errors); err != nil {
-		return 0, fmt.Errorf("failed to parse actionlint JSON output: %w", err)
+		return 0, nil, fmt.Errorf("failed to parse actionlint JSON output: %w", err)
 	}
 
 	totalErrors := len(errors)
 	actionlintLog.Printf("Parsed %d actionlint errors from output", totalErrors)
 
+	// Track errors by kind
+	errorsByKind := make(map[string]int)
+
 	// Display errors using CompilerError format
 	for _, err := range errors {
+		// Track error kind
+		if err.Kind != "" {
+			errorsByKind[err.Kind]++
+		}
+
 		// Read file content for context display
 		fileContent, readErr := os.ReadFile(err.Filepath)
 		var fileLines []string
@@ -291,5 +375,5 @@ func parseAndDisplayActionlintOutput(stdout string, verbose bool) (int, error) {
 		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
 	}
 
-	return totalErrors, nil
+	return totalErrors, errorsByKind, nil
 }
