@@ -10,7 +10,7 @@ describe("parse_copilot_log.cjs", () => {
     originalConsole = global.console;
     originalProcess = { ...process };
     global.console = { log: vi.fn(), error: vi.fn() };
-    
+
     mockCore = {
       debug: vi.fn(),
       info: vi.fn(),
@@ -38,16 +38,16 @@ describe("parse_copilot_log.cjs", () => {
       toWin32Path: vi.fn(),
       summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
     };
-    
+
     global.core = mockCore;
-    
+
     // Import the module to get the exported functions
     const module = await import("./parse_copilot_log.cjs?" + Date.now());
     main = module.main;
     parseCopilotLog = module.parseCopilotLog;
     extractPremiumRequestCount = module.extractPremiumRequestCount;
   });
-  
+
   afterEach(() => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     global.console = originalConsole;
@@ -72,7 +72,7 @@ describe("parse_copilot_log.cjs", () => {
         { type: "result", total_cost_usd: 0.0015, usage: { input_tokens: 150, output_tokens: 50 }, num_turns: 1 },
       ]);
       const result = parseCopilotLog(jsonArrayLog);
-      
+
       expect(result.markdown).toContain("🚀 Initialization");
       expect(result.markdown).toContain("🤖 Commands and Tools");
       expect(result.markdown).toContain("copilot-test-123");
@@ -86,7 +86,7 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(
         '[DEBUG] Starting Copilot CLI\n[ERROR] Some error occurred\n[{"type":"system","subtype":"init","session_id":"copilot-456","tools":["Bash","mcp__safe_outputs__missing-tool"],"model":"gpt-5"},{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_123","name":"mcp__safe_outputs__missing-tool","input":{"tool":"draw_pelican","reason":"Tool needed to draw pelican artwork"}}]}},{"type":"result","total_cost_usd":0.1789264,"usage":{"input_tokens":25,"output_tokens":832},"num_turns":10}]\n[DEBUG] Session completed'
       );
-      
+
       expect(result.markdown).toContain("🚀 Initialization");
       expect(result.markdown).toContain("🤖 Commands and Tools");
       expect(result.markdown).toContain("copilot-456");
@@ -98,7 +98,7 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(
         '[DEBUG] Starting Copilot CLI\n{"type":"system","subtype":"init","session_id":"copilot-789","tools":["Bash","Read"],"model":"gpt-5"}\n[DEBUG] Processing user prompt\n{"type":"assistant","message":{"content":[{"type":"text","text":"I\'ll help you."},{"type":"tool_use","id":"tool_123","name":"Bash","input":{"command":"ls -la"}}]}}\n{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool_123","content":"file1.txt\\nfile2.txt"}]}}\n{"type":"result","total_cost_usd":0.002,"usage":{"input_tokens":100,"output_tokens":25},"num_turns":2}\n[DEBUG] Workflow completed'
       );
-      
+
       expect(result.markdown).toContain("🚀 Initialization");
       expect(result.markdown).toContain("🤖 Commands and Tools");
       expect(result.markdown).toContain("copilot-789");
@@ -136,7 +136,7 @@ describe("parse_copilot_log.cjs", () => {
         },
       ]);
       const result = parseCopilotLog(logWithHtmlDetails);
-      
+
       expect(result.markdown).toContain("<details>");
       expect(result.markdown).toContain("</details>");
       expect(result.markdown).toContain("File contents here");
@@ -155,7 +155,7 @@ describe("parse_copilot_log.cjs", () => {
         { type: "result", total_cost_usd: 0.01, usage: { input_tokens: 100, output_tokens: 50 }, num_turns: 1 },
       ]);
       const result = parseCopilotLog(logWithMcpTools);
-      
+
       expect(result.markdown).toContain("github::create_issue");
       expect(result.markdown).toContain("github::list_pull_requests");
     });
@@ -176,7 +176,7 @@ describe("parse_copilot_log.cjs", () => {
         { type: "result", num_turns: 2, usage: { input_tokens: 500, output_tokens: 200 } },
       ]);
       const result = parseCopilotLog(structuredLog);
-      
+
       expect(result.markdown).toContain("gpt-4");
     });
 
@@ -186,7 +186,7 @@ describe("parse_copilot_log.cjs", () => {
         { type: "result", num_turns: 3, usage: { input_tokens: 500, output_tokens: 200 } },
       ]);
       const result = parseCopilotLog(structuredLog);
-      
+
       expect(result.markdown).not.toContain("**Premium Requests:**");
     });
   });
@@ -207,14 +207,14 @@ describe("parse_copilot_log.cjs", () => {
         { type: "system", subtype: "init", session_id: "integration-test", tools: ["Bash"], model: "gpt-5" },
         { type: "result", total_cost_usd: 0.001, usage: { input_tokens: 50, output_tokens: 25 }, num_turns: 1 },
       ]);
-      
+
       const tempFile = path.join(process.cwd(), `test_log_${Date.now()}.txt`);
       fs.writeFileSync(tempFile, validLog);
       process.env.GH_AW_AGENT_OUTPUT = tempFile;
-      
+
       try {
         await main();
-        
+
         expect(mockCore.summary.addRaw).toHaveBeenCalled();
         expect(mockCore.summary.write).toHaveBeenCalled();
       } finally {
@@ -261,22 +261,12 @@ describe("parse_copilot_log.cjs", () => {
             type: "system",
             subtype: "init",
             session_id: "all-tools",
-            tools: [
-              "Bash",
-              "Read",
-              "Write",
-              "Edit",
-              "LS",
-              "Grep",
-              "mcp__github__list_issues",
-              "mcp__github__create_pull_request",
-              "mcp__safe_outputs__create_issue",
-            ],
+            tools: ["Bash", "Read", "Write", "Edit", "LS", "Grep", "mcp__github__list_issues", "mcp__github__create_pull_request", "mcp__safe_outputs__create_issue"],
             model: "gpt-5",
           },
         ])
       );
-      
+
       expect(result.markdown).toContain("Bash");
       expect(result.markdown).toContain("Read");
       expect(result.markdown).toContain("Write");

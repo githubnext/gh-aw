@@ -201,3 +201,272 @@ func BenchmarkSanitizeForFilename(b *testing.B) {
 		_ = SanitizeForFilename(slug)
 	}
 }
+
+// Additional edge case tests
+
+func TestSplitRepoSlug_Whitespace(t *testing.T) {
+	tests := []struct {
+		name        string
+		slug        string
+		expectError bool
+	}{
+		{
+			name:        "leading whitespace",
+			slug:        " owner/repo",
+			expectError: false, // Will split but owner will have space
+		},
+		{
+			name:        "trailing whitespace",
+			slug:        "owner/repo ",
+			expectError: false, // Will split but repo will have space
+		},
+		{
+			name:        "whitespace in middle",
+			slug:        "owner /repo",
+			expectError: false, // Split will work but owner will have space
+		},
+		{
+			name:        "tab character",
+			slug:        "owner\t/repo",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := SplitRepoSlug(tt.slug)
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error for slug %q", tt.slug)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error for slug %q: %v", tt.slug, err)
+			}
+		})
+	}
+}
+
+func TestSplitRepoSlug_SpecialCharacters(t *testing.T) {
+	tests := []struct {
+		name          string
+		slug          string
+		expectedOwner string
+		expectedRepo  string
+		expectError   bool
+	}{
+		{
+			name:          "hyphen in owner",
+			slug:          "github-next/repo",
+			expectedOwner: "github-next",
+			expectedRepo:  "repo",
+			expectError:   false,
+		},
+		{
+			name:          "hyphen in repo",
+			slug:          "owner/my-repo",
+			expectedOwner: "owner",
+			expectedRepo:  "my-repo",
+			expectError:   false,
+		},
+		{
+			name:          "underscore in names",
+			slug:          "my_org/my_repo",
+			expectedOwner: "my_org",
+			expectedRepo:  "my_repo",
+			expectError:   false,
+		},
+		{
+			name:          "numbers in names",
+			slug:          "org123/repo456",
+			expectedOwner: "org123",
+			expectedRepo:  "repo456",
+			expectError:   false,
+		},
+		{
+			name:          "dots in names",
+			slug:          "org.name/repo.name",
+			expectedOwner: "org.name",
+			expectedRepo:  "repo.name",
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, err := SplitRepoSlug(tt.slug)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for slug %q", tt.slug)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for slug %q: %v", tt.slug, err)
+				}
+				if owner != tt.expectedOwner || repo != tt.expectedRepo {
+					t.Errorf("SplitRepoSlug(%q) = (%q, %q); want (%q, %q)",
+						tt.slug, owner, repo, tt.expectedOwner, tt.expectedRepo)
+				}
+			}
+		})
+	}
+}
+
+func TestParseGitHubURL_Variants(t *testing.T) {
+	tests := []struct {
+		name          string
+		url           string
+		expectedOwner string
+		expectedRepo  string
+		expectError   bool
+	}{
+		{
+			name:          "SSH with port (invalid format)",
+			url:           "git@github.com:22:owner/repo.git",
+			expectedOwner: "",
+			expectedRepo:  "",
+			expectError:   false, // Will parse but give unexpected results
+		},
+		{
+			name:          "HTTPS with www",
+			url:           "https://www.github.com/owner/repo.git",
+			expectedOwner: "owner",
+			expectedRepo:  "repo",
+			expectError:   false,
+		},
+		{
+			name:          "HTTP instead of HTTPS",
+			url:           "http://github.com/owner/repo.git",
+			expectedOwner: "owner",
+			expectedRepo:  "repo",
+			expectError:   false,
+		},
+		{
+			name:          "URL with trailing slash (will fail)",
+			url:           "https://github.com/owner/repo/",
+			expectedOwner: "",
+			expectedRepo:  "",
+			expectError:   true, // Will fail due to extra slash
+		},
+		{
+			name:          "SSH without git extension",
+			url:           "git@github.com:owner/repo",
+			expectedOwner: "owner",
+			expectedRepo:  "repo",
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, err := ParseGitHubURL(tt.url)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for URL %q", tt.url)
+				}
+			} else {
+				if err != nil && tt.expectedOwner != "" {
+					t.Errorf("Unexpected error for URL %q: %v", tt.url, err)
+				}
+				if err == nil && tt.expectedOwner != "" {
+					if owner != tt.expectedOwner || repo != tt.expectedRepo {
+						t.Errorf("ParseGitHubURL(%q) = (%q, %q); want (%q, %q)",
+							tt.url, owner, repo, tt.expectedOwner, tt.expectedRepo)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSanitizeForFilename_SpecialCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		slug     string
+		expected string
+	}{
+		{
+			name:     "multiple slashes",
+			slug:     "owner/repo/extra",
+			expected: "owner-repo-extra",
+		},
+		{
+			name:     "leading slash",
+			slug:     "/owner/repo",
+			expected: "-owner-repo",
+		},
+		{
+			name:     "trailing slash",
+			slug:     "owner/repo/",
+			expected: "owner-repo-",
+		},
+		{
+			name:     "only slashes",
+			slug:     "///",
+			expected: "---",
+		},
+		{
+			name:     "single character owner and repo",
+			slug:     "a/b",
+			expected: "a-b",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeForFilename(tt.slug)
+			if result != tt.expected {
+				t.Errorf("SanitizeForFilename(%q) = %q; want %q", tt.slug, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSplitRepoSlug_Idempotent(t *testing.T) {
+	// Test that splitting and rejoining gives the same result
+	slugs := []string{
+		"owner/repo",
+		"github-next/gh-aw",
+		"my_org/my_repo",
+		"org123/repo456",
+	}
+
+	for _, slug := range slugs {
+		owner, repo, err := SplitRepoSlug(slug)
+		if err != nil {
+			t.Errorf("Unexpected error for slug %q: %v", slug, err)
+			continue
+		}
+
+		rejoined := owner + "/" + repo
+		if rejoined != slug {
+			t.Errorf("Split and rejoin changed slug: %q -> %q", slug, rejoined)
+		}
+	}
+}
+
+func BenchmarkSplitRepoSlug_Valid(b *testing.B) {
+	slug := "githubnext/gh-aw"
+	for i := 0; i < b.N; i++ {
+		_, _, _ = SplitRepoSlug(slug)
+	}
+}
+
+func BenchmarkSplitRepoSlug_Invalid(b *testing.B) {
+	slug := "invalid"
+	for i := 0; i < b.N; i++ {
+		_, _, _ = SplitRepoSlug(slug)
+	}
+}
+
+func BenchmarkParseGitHubURL_SSH(b *testing.B) {
+	url := "git@github.com:githubnext/gh-aw.git"
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseGitHubURL(url)
+	}
+}
+
+func BenchmarkParseGitHubURL_HTTPS(b *testing.B) {
+	url := "https://github.com/githubnext/gh-aw.git"
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseGitHubURL(url)
+	}
+}

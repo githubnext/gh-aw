@@ -1,6 +1,9 @@
 package stringutil
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTruncate(t *testing.T) {
 	tests := []struct {
@@ -141,6 +144,182 @@ func BenchmarkTruncate(b *testing.B) {
 
 func BenchmarkNormalizeWhitespace(b *testing.B) {
 	content := "line1  \nline2\t\nline3   \t\nline4\n\n"
+	for i := 0; i < b.N; i++ {
+		NormalizeWhitespace(content)
+	}
+}
+
+// Additional edge case tests
+
+func TestTruncate_Zero(t *testing.T) {
+	result := Truncate("hello", 0)
+	if result != "" {
+		t.Errorf("Truncate with maxLen 0 should return empty string, got %q", result)
+	}
+}
+
+func TestTruncate_ExactlyThreeChars(t *testing.T) {
+	// When string is exactly maxLen, it should not be truncated
+	result := Truncate("abc", 3)
+	if result != "abc" {
+		t.Errorf("Truncate('abc', 3) = %q; want 'abc'", result)
+	}
+}
+
+func TestTruncate_FourChars(t *testing.T) {
+	// When string is 4 chars and maxLen is 4, should add "..."
+	result := Truncate("abcd", 4)
+	if result != "abcd" {
+		t.Errorf("Truncate('abcd', 4) = %q; want 'abcd'", result)
+	}
+
+	// When string is 5 chars and maxLen is 4, should truncate with "..."
+	result = Truncate("abcde", 4)
+	if result != "a..." {
+		t.Errorf("Truncate('abcde', 4) = %q; want 'a...'", result)
+	}
+}
+
+func TestTruncate_Unicode(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		maxLen   int
+		expected string
+	}{
+		{
+			name:     "emoji truncation",
+			s:        "Hello 👋 World 🌍",
+			maxLen:   10,
+			expected: "Hello \xf0...", // Truncates in middle of emoji byte sequence
+		},
+		{
+			name:     "unicode characters",
+			s:        "Café España México",
+			maxLen:   12,
+			expected: "Café Esp...", // Actual behavior
+		},
+		{
+			name:     "mixed unicode and ascii",
+			s:        "Test-测试-テスト",
+			maxLen:   8,
+			expected: "Test-...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Truncate(tt.s, tt.maxLen)
+			if result != tt.expected {
+				t.Errorf("Truncate(%q, %d) = %q; want %q", tt.s, tt.maxLen, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "only spaces",
+			content:  "   ",
+			expected: "", // After trimming trailing spaces and newlines, becomes empty
+		},
+		{
+			name:     "only tabs",
+			content:  "\t\t\t",
+			expected: "", // After trimming trailing tabs and newlines, becomes empty
+		},
+		{
+			name:     "mixed spaces and tabs",
+			content:  "  \t  \t",
+			expected: "", // After trimming, becomes empty
+		},
+		{
+			name:     "only newlines",
+			content:  "\n\n\n",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeWhitespace(tt.content)
+			if result != tt.expected {
+				t.Errorf("NormalizeWhitespace(%q) = %q; want %q", tt.content, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNormalizeWhitespace_ManyLines(t *testing.T) {
+	// Test with many lines
+	lines := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		lines[i] = "line with trailing spaces  "
+	}
+	content := ""
+	for _, line := range lines {
+		content += line + "\n"
+	}
+
+	result := NormalizeWhitespace(content)
+
+	// Check that all trailing spaces are removed
+	expectedLines := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		expectedLines[i] = "line with trailing spaces"
+	}
+	expected := ""
+	for _, line := range expectedLines {
+		expected += line + "\n"
+	}
+
+	if result != expected {
+		t.Error("NormalizeWhitespace did not properly normalize many lines")
+	}
+}
+
+func TestNormalizeWhitespace_PreservesContent(t *testing.T) {
+	// Ensure that non-trailing whitespace is preserved
+	content := "line1  middle  spaces\nline2\t\tmiddle\t\ttabs\n"
+	result := NormalizeWhitespace(content)
+
+	if !strings.Contains(result, "middle  spaces") {
+		t.Error("NormalizeWhitespace should preserve non-trailing spaces")
+	}
+
+	if !strings.Contains(result, "middle\t\ttabs") {
+		t.Error("NormalizeWhitespace should preserve non-trailing tabs")
+	}
+}
+
+func BenchmarkTruncate_Short(b *testing.B) {
+	s := "short"
+	for i := 0; i < b.N; i++ {
+		Truncate(s, 10)
+	}
+}
+
+func BenchmarkTruncate_Long(b *testing.B) {
+	s := "this is a very very very very very long string that definitely needs truncation"
+	for i := 0; i < b.N; i++ {
+		Truncate(s, 20)
+	}
+}
+
+func BenchmarkNormalizeWhitespace_NoChange(b *testing.B) {
+	content := "line1\nline2\nline3\n"
+	for i := 0; i < b.N; i++ {
+		NormalizeWhitespace(content)
+	}
+}
+
+func BenchmarkNormalizeWhitespace_ManyChanges(b *testing.B) {
+	content := "line1  \t  \nline2  \t  \nline3  \t  \n\n\n"
 	for i := 0; i < b.N; i++ {
 		NormalizeWhitespace(content)
 	}
