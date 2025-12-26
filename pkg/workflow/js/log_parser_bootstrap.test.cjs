@@ -153,6 +153,70 @@ describe("log_parser_bootstrap.cjs", () => {
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile));
           const mockParseLog = vi.fn().mockReturnValue("");
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.error).toHaveBeenCalledWith("Failed to parse TestParser log"), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+        }),
+        it("should include safe outputs preview when GH_AW_SAFE_OUTPUTS is set", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
+            logFile = path.join(tmpDir, "test.log"),
+            safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
+          const safeOutputsContent = JSON.stringify({ type: "create_issue", title: "Test Issue", body: "Test body" });
+          (
+            fs.writeFileSync(logFile, "content"),
+            fs.writeFileSync(safeOutputsFile, safeOutputsContent),
+            (process.env.GH_AW_AGENT_OUTPUT = logFile),
+            (process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile)
+          );
+          const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false });
+          runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+          (
+            expect(summaryCall).toBeDefined(),
+            expect(summaryCall[0]).toContain("## 📤 Safe Outputs"),
+            expect(summaryCall[0]).toContain("**Total Entries:** 1"),
+            expect(summaryCall[0]).toContain("create_issue"),
+            fs.unlinkSync(logFile),
+            fs.unlinkSync(safeOutputsFile),
+            fs.rmdirSync(tmpDir)
+          );
+        }),
+        it("should include safe outputs preview in core.info when logEntries available", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
+            logFile = path.join(tmpDir, "test.log"),
+            safeOutputsFile = path.join(tmpDir, "safe-outputs.jsonl");
+          const safeOutputsContent = JSON.stringify({ type: "add_comment", body: "Test comment" });
+          (
+            fs.writeFileSync(logFile, "content"),
+            fs.writeFileSync(safeOutputsFile, safeOutputsContent),
+            (process.env.GH_AW_AGENT_OUTPUT = logFile),
+            (process.env.GH_AW_SAFE_OUTPUTS = safeOutputsFile)
+          );
+          const mockParseLog = vi.fn().mockReturnValue({
+            markdown: "## Result\n",
+            mcpFailures: [],
+            maxTurnsHit: false,
+            logEntries: [
+              { type: "system", subtype: "init", model: "gpt-4" },
+              { type: "assistant", message: { content: [{ type: "text", text: "Hello" }] } },
+              { type: "result", num_turns: 1, duration_ms: 3000 },
+            ],
+          });
+          runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
+          const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("Safe Outputs Preview:"));
+          (
+            expect(infoCall).toBeDefined(),
+            expect(infoCall[0]).toContain("Total: 1 entry"),
+            expect(infoCall[0]).toContain("[1] add_comment"),
+            expect(infoCall[0]).toContain("Body: Test comment"),
+            fs.unlinkSync(logFile),
+            fs.unlinkSync(safeOutputsFile),
+            fs.rmdirSync(tmpDir)
+          );
+        }),
+        it("should handle missing safe outputs file gracefully", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
+            logFile = path.join(tmpDir, "test.log");
+          (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile), (process.env.GH_AW_SAFE_OUTPUTS = "/non/existent/file.jsonl"));
+          const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false });
+          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.warning).toHaveBeenCalled(), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
         }));
     }));
 });
