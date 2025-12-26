@@ -212,7 +212,6 @@ jobs:
           }
           
           docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
-          docker_pull_with_retry mcp/fetch
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -241,16 +240,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }

@@ -201,7 +201,6 @@ jobs:
           }
           
           docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
-          docker_pull_with_retry mcp/fetch
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -453,16 +452,6 @@ jobs:
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }

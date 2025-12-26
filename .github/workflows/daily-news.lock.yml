@@ -254,7 +254,6 @@ jobs:
           }
           
           docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
-          docker_pull_with_retry mcp/fetch
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -489,16 +488,6 @@ jobs:
                 "env": {
                   "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 }
-              },
-              "web-fetch": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "mcp/fetch"
-                ],
-                "tools": ["*"]
               }
             }
           }

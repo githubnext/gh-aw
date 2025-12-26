@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var toolsConfigLog = logger.New("workflow:tools_config")
+
 // ToolsConfig represents the unified configuration for all tools in a workflow.
 // This type provides a structured alternative to the pervasive map[string]any pattern.
 // It includes strongly-typed fields for built-in tools and a flexible Custom map for
@@ -141,7 +145,17 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		result["github"] = githubMap
 	}
 	if t.Bash != nil {
-		result["bash"] = t.Bash.AllowedCommands
+		// Convert []string to []any for backward compatibility
+		if len(t.Bash.AllowedCommands) > 0 {
+			bashCommands := make([]any, len(t.Bash.AllowedCommands))
+			for i, cmd := range t.Bash.AllowedCommands {
+				bashCommands[i] = cmd
+			}
+			result["bash"] = bashCommands
+		} else {
+			// Empty slice means no commands specified (bash: [] or bash with no explicit commands)
+			result["bash"] = []any{}
+		}
 	}
 	if t.WebFetch != nil {
 		result["web-fetch"] = t.WebFetch

@@ -263,15 +263,22 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 		}
 	}
 
+	// Save the raw map for checking original YAML values, but clear it at the end
+	// so ToMap() reconstructs from the modified struct fields
+	originalRaw := toolsConfig.raw
+	defer func() {
+		// Clear raw map so ToMap() will reconstruct from modified fields
+		toolsConfig.raw = nil
+	}()
+
 	// Get existing github tool configuration - GitHub is already parsed
 	// Check if github is explicitly disabled by checking the raw map
 	githubExplicitlyDisabled := false
-	if toolsConfig.raw != nil {
-		if githubRaw, exists := toolsConfig.raw["github"]; exists && githubRaw == false {
+	if originalRaw != nil {
+		if githubRaw, exists := originalRaw["github"]; exists && githubRaw == false {
 			// GitHub was explicitly set to false
 			githubExplicitlyDisabled = true
 			toolsConfig.GitHub = nil
-			delete(toolsConfig.raw, "github")
 		}
 	}
 
@@ -336,7 +343,6 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 			}
 			toolsConfig.Bash.AllowedCommands = newCommands
 		}
-	bashComplete:
 	}
 
 	// Add default bash commands when bash is enabled but no specific commands are provided
@@ -348,31 +354,41 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 	//   - bash: [] → No commands (empty array means no tools allowed)
 	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
 	if toolsConfig.Bash != nil {
-		// Check the raw map to determine if bash was set to boolean values
-		if toolsConfig.raw != nil {
-			if bashRaw, exists := toolsConfig.raw["bash"]; exists {
+		bashCommands := toolsConfig.Bash.AllowedCommands
+		
+		// Check the raw map to determine if bash was set to boolean values or nil
+		bashWasNil := false
+		if originalRaw != nil {
+			if bashRaw, exists := originalRaw["bash"]; exists {
 				if bashRaw == true {
 					// bash is true - convert to wildcard (allow all commands)
 					toolsConfig.Bash = &BashToolConfig{
 						AllowedCommands: []string{"*"},
 					}
+					goto bashComplete
 				} else if bashRaw == false {
 					// bash is false - disable the tool by removing it
 					toolsConfig.Bash = nil
-					delete(toolsConfig.raw, "bash")
+					goto bashComplete
+				} else if bashRaw == nil {
+					// bash was explicitly set to nil (null) in YAML
+					bashWasNil = true
 				}
 			}
 		}
 
 		// Process bash array - merge default commands with custom commands if needed
 		if toolsConfig.Bash != nil {
-			bashCommands := toolsConfig.Bash.AllowedCommands
 			if len(bashCommands) == 0 {
-				// bash is nil (no commands specified) - only add defaults if git commands weren't processed
-				if safeOutputs == nil || !needsGitCommands(safeOutputs) {
-					toolsConfig.Bash.AllowedCommands = make([]string, len(constants.DefaultBashTools))
-					copy(toolsConfig.Bash.AllowedCommands, constants.DefaultBashTools)
+				// Empty commands - could be bash: nil or bash: []
+				if bashWasNil {
+					// bash: nil means add default commands only if git commands weren't needed
+					if safeOutputs == nil || !needsGitCommands(safeOutputs) {
+						toolsConfig.Bash.AllowedCommands = make([]string, len(constants.DefaultBashTools))
+						copy(toolsConfig.Bash.AllowedCommands, constants.DefaultBashTools)
+					}
 				}
+				// bash: [] (empty array) means no bash tools allowed - leave as-is
 			} else if len(bashCommands) > 0 {
 				// bash has commands - merge default commands with custom commands to avoid duplicates
 				existingCommands := make(map[string]bool)
@@ -392,9 +408,9 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 				mergedCommands = append(mergedCommands, bashCommands...)
 				toolsConfig.Bash.AllowedCommands = mergedCommands
 			}
-			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
 		}
 	}
+bashComplete:
 
 	return toolsConfig
 }

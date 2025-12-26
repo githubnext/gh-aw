@@ -1073,18 +1073,9 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
-        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
@@ -1094,7 +1085,7 @@ jobs:
         run: |
           set -o pipefail
                     # Execute Claude Code CLI with prompt from file
-                    export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --model claude-opus-4.5 --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --model claude-opus-4.5 --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASH_DEFAULT_TIMEOUT_MS: 60000

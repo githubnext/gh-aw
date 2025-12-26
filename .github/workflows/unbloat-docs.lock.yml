@@ -518,9 +518,7 @@ jobs:
                   "--allowed-hosts",
                   "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
                   "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*",
-                  "--viewport-size",
-                  "1920x1080"
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*"
                 ]
               },
               "safeoutputs": {
@@ -1679,18 +1677,9 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(jq)
-        # - Bash(ls)
-        # - Bash(tail)
-        # - Bash(wc)
-        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
-        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
@@ -1700,7 +1689,7 @@ jobs:
         run: |
           set -o pipefail
                     # Execute Claude Code CLI with prompt from file
-                    export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --max-turns 90 --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+                    export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && claude --print --disable-slash-commands --no-chrome --max-turns 90 --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_DETECTION_CLAUDE:+ --model "$GH_AW_MODEL_DETECTION_CLAUDE"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BASH_DEFAULT_TIMEOUT_MS: 60000
