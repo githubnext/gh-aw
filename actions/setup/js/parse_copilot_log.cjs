@@ -2,11 +2,11 @@
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
+const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, wrapLogParser } = require("./log_parser_shared.cjs");
 
 function main() {
   runLogParser({
-    parseLog: parseCopilotLog,
+    parseLog: logContent => wrapLogParser(parseCopilotLog, "Copilot", logContent),
     parserName: "Copilot",
     supportsDirectories: true,
   });
@@ -42,102 +42,94 @@ function extractPremiumRequestCount(logContent) {
  * @returns {string} Formatted markdown content
  */
 function parseCopilotLog(logContent) {
+  let logEntries;
+
+  // First, try to parse as JSON array (structured format)
   try {
-    let logEntries;
-
-    // First, try to parse as JSON array (structured format)
-    try {
-      logEntries = JSON.parse(logContent);
-      if (!Array.isArray(logEntries)) {
-        throw new Error("Not a JSON array");
-      }
-    } catch (jsonArrayError) {
-      // If that fails, try to parse as debug logs format
-      const debugLogEntries = parseDebugLogFormat(logContent);
-      if (debugLogEntries && debugLogEntries.length > 0) {
-        logEntries = debugLogEntries;
-      } else {
-        // Try JSONL format using shared function
-        logEntries = parseLogEntries(logContent);
-      }
+    logEntries = JSON.parse(logContent);
+    if (!Array.isArray(logEntries)) {
+      throw new Error("Not a JSON array");
     }
-
-    if (!logEntries || logEntries.length === 0) {
-      return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
+  } catch (jsonArrayError) {
+    // If that fails, try to parse as debug logs format
+    const debugLogEntries = parseDebugLogFormat(logContent);
+    if (debugLogEntries && debugLogEntries.length > 0) {
+      logEntries = debugLogEntries;
+    } else {
+      // Try JSONL format using shared function
+      logEntries = parseLogEntries(logContent);
     }
-
-    // Generate conversation markdown using shared function
-    const conversationResult = generateConversationMarkdown(logEntries, {
-      formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
-      formatInitCallback: initEntry =>
-        formatInitializationSummary(initEntry, {
-          includeSlashCommands: false,
-          modelInfoCallback: entry => {
-            // Display premium model information if available (Copilot-specific)
-            if (!entry.model_info) return "";
-
-            const modelInfo = entry.model_info;
-            let markdown = "";
-
-            // Display model name and vendor
-            if (modelInfo.name) {
-              markdown += `**Model Name:** ${modelInfo.name}`;
-              if (modelInfo.vendor) {
-                markdown += ` (${modelInfo.vendor})`;
-              }
-              markdown += "\n\n";
-            }
-
-            // Display billing/premium information
-            if (modelInfo.billing) {
-              const billing = modelInfo.billing;
-              if (billing.is_premium === true) {
-                markdown += `**Premium Model:** Yes`;
-                if (billing.multiplier && billing.multiplier !== 1) {
-                  markdown += ` (${billing.multiplier}x cost multiplier)`;
-                }
-                markdown += "\n";
-
-                if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-                  markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-                }
-                markdown += "\n";
-              } else if (billing.is_premium === false) {
-                markdown += `**Premium Model:** No\n\n`;
-              }
-            }
-
-            return markdown;
-          },
-        }),
-    });
-
-    let markdown = conversationResult.markdown;
-
-    // Add Information section
-    const lastEntry = logEntries[logEntries.length - 1];
-    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
-    markdown += generateInformationSection(lastEntry, {
-      additionalInfoCallback: entry => {
-        // Display premium request consumption if using a premium model
-        const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-        if (isPremiumModel) {
-          const premiumRequestCount = extractPremiumRequestCount(logContent);
-          return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
-        }
-        return "";
-      },
-    });
-
-    return { markdown, logEntries };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      markdown: `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
-      logEntries: [],
-    };
   }
+
+  if (!logEntries || logEntries.length === 0) {
+    return { markdown: "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n", logEntries: [] };
+  }
+
+  // Generate conversation markdown using shared function
+  const conversationResult = generateConversationMarkdown(logEntries, {
+    formatToolCallback: (toolUse, toolResult) => formatToolUse(toolUse, toolResult, { includeDetailedParameters: true }),
+    formatInitCallback: initEntry =>
+      formatInitializationSummary(initEntry, {
+        includeSlashCommands: false,
+        modelInfoCallback: entry => {
+          // Display premium model information if available (Copilot-specific)
+          if (!entry.model_info) return "";
+
+          const modelInfo = entry.model_info;
+          let markdown = "";
+
+          // Display model name and vendor
+          if (modelInfo.name) {
+            markdown += `**Model Name:** ${modelInfo.name}`;
+            if (modelInfo.vendor) {
+              markdown += ` (${modelInfo.vendor})`;
+            }
+            markdown += "\n\n";
+          }
+
+          // Display billing/premium information
+          if (modelInfo.billing) {
+            const billing = modelInfo.billing;
+            if (billing.is_premium === true) {
+              markdown += `**Premium Model:** Yes`;
+              if (billing.multiplier && billing.multiplier !== 1) {
+                markdown += ` (${billing.multiplier}x cost multiplier)`;
+              }
+              markdown += "\n";
+
+              if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+              }
+              markdown += "\n";
+            } else if (billing.is_premium === false) {
+              markdown += `**Premium Model:** No\n\n`;
+            }
+          }
+
+          return markdown;
+        },
+      }),
+  });
+
+  let markdown = conversationResult.markdown;
+
+  // Add Information section
+  const lastEntry = logEntries[logEntries.length - 1];
+  const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+
+  markdown += generateInformationSection(lastEntry, {
+    additionalInfoCallback: entry => {
+      // Display premium request consumption if using a premium model
+      const isPremiumModel = initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+      if (isPremiumModel) {
+        const premiumRequestCount = extractPremiumRequestCount(logContent);
+        return `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
+      }
+      return "";
+    },
+  });
+
+  return { markdown, logEntries };
 }
 
 /**

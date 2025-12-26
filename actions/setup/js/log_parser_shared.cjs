@@ -1478,6 +1478,29 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
   return preview.join("\n");
 }
 
+/**
+ * Wraps a log parser function with consistent error handling.
+ * This eliminates duplication of try/catch blocks and error message formatting across parsers.
+ *
+ * @param {Function} parseFunction - The parser function to wrap
+ * @param {string} parserName - Name of the parser (e.g., "Claude", "Copilot", "Codex")
+ * @param {string} logContent - The raw log content to parse
+ * @returns {{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array}} Result object with markdown and optional metadata
+ */
+function wrapLogParser(parseFunction, parserName, logContent) {
+  try {
+    return parseFunction(logContent);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      markdown: `## Agent Log Summary\n\nError parsing ${parserName} log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+      mcpFailures: [],
+      maxTurnsHit: false,
+      logEntries: [],
+    };
+  }
+}
+
 // Export functions and constants
 module.exports = {
   // Constants
@@ -1502,4 +1525,5 @@ module.exports = {
   generatePlainTextSummary,
   generateCopilotCliStyleSummary,
   formatSafeOutputsPreview,
+  wrapLogParser,
 };
