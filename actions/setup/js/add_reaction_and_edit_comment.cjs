@@ -148,7 +148,7 @@ async function main() {
       core.info(`Skipping comment for event type: ${eventName}`);
     }
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
   }
@@ -428,7 +428,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     core.setOutput("comment-repo", repoPath);
   } catch (error) {
     // Don't fail the entire job if comment creation fails - just log it
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.warning(`Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): ${errorMessage}`);
   }
 }
