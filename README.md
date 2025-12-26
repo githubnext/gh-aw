@@ -12,6 +12,17 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 > **Custom Agent**: Use the custom agent at `.github/agents/create-agentic-workflow.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/create-agentic-workflow.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/create-agentic-workflow.md)
 -->
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Overview](#overview)
+- [How It Works](#how-it-works)
+- [Safe Agentic Workflows](#safe-agentic-workflows)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Share Feedback](#share-feedback)
+- [Labs](#labs)
+
 ## Quick Start
 
 Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
@@ -32,7 +43,7 @@ safe-outputs:
   create-discussion:
 ---
 
-# Daily Issues Report
+## Daily Issues Report
 
 Analyze repository issues and create a daily discussion 
 with metrics, trends, and key insights.
