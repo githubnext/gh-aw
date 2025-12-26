@@ -393,22 +393,19 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          \n")
 
-		// Step 3: Generate API key and choose port for HTTP server using JavaScript
+		// Step 3: Generate API key and choose port for HTTP server
 		yaml.WriteString("      - name: Generate Safe Inputs MCP Server Config\n")
 		yaml.WriteString("        id: safe-inputs-config\n")
-		fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
-		yaml.WriteString("        with:\n")
-		yaml.WriteString("          script: |\n")
-
-		// Get the bundled script
-		configScript := getGenerateSafeInputsConfigScript()
-		for _, line := range FormatJavaScriptForYAML(configScript) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("            \n")
-		yaml.WriteString("            // Execute the function\n")
-		yaml.WriteString("            const crypto = require('crypto');\n")
-		yaml.WriteString("            generateSafeInputsConfig({ core, crypto });\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          # Generate a secure random API key (360 bits of entropy, 40+ chars)\n")
+		yaml.WriteString("          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')\n")
+		yaml.WriteString("          PORT=3000\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Set outputs for next steps\n")
+		yaml.WriteString("          echo \"safe_inputs_api_key=${API_KEY}\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          echo \"safe_inputs_port=${PORT}\" >> $GITHUB_OUTPUT\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          echo \"Safe Inputs MCP server will run on port ${PORT}\"\n")
 		yaml.WriteString("          \n")
 
 		// Step 4: Start the HTTP server in the background
