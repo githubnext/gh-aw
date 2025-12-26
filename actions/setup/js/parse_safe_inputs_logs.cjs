@@ -194,9 +194,6 @@ function generatePlainTextSummary(logEntries) {
 function generateSafeInputsSummary(logEntries) {
   const summary = [];
 
-  // Header
-  summary.push("## 🛠️ Safe Inputs MCP Server Logs\n");
-
   // Count events by type
   const eventCounts = {
     startup: 0,
@@ -237,8 +234,12 @@ function generateSafeInputsSummary(logEntries) {
     }
   }
 
+  // Wrap entire section in a details tag
+  summary.push("<details>");
+  summary.push("<summary>Safe Inputs MCP Server Logs</summary>\n");
+
   // Statistics
-  summary.push("### 📊 Statistics\n");
+  summary.push("**Statistics**\n");
   summary.push("| Metric | Count |");
   summary.push("|--------|-------|");
   summary.push(`| Total Log Entries | ${logEntries.length} |`);
@@ -251,7 +252,7 @@ function generateSafeInputsSummary(logEntries) {
 
   // Tool execution details (if any)
   if (toolCalls.length > 0) {
-    summary.push("### 🔧 Tool Executions\n");
+    summary.push("**Tool Executions**\n");
     summary.push("<details>");
     summary.push("<summary>View tool execution details</summary>\n");
     summary.push("| Time | Tool Name |");
@@ -265,7 +266,7 @@ function generateSafeInputsSummary(logEntries) {
 
   // Errors (if any)
   if (errors.length > 0) {
-    summary.push("### ⚠️ Errors\n");
+    summary.push("**Errors**\n");
     summary.push("<details>");
     summary.push("<summary>View error details</summary>\n");
     summary.push("```");
@@ -279,7 +280,7 @@ function generateSafeInputsSummary(logEntries) {
   }
 
   // Full log details (collapsed by default)
-  summary.push("### 📝 Full Logs\n");
+  summary.push("**Full Logs**\n");
   summary.push("<details>");
   summary.push("<summary>View full safe-inputs logs</summary>\n");
   summary.push("```");
@@ -295,6 +296,9 @@ function generateSafeInputsSummary(logEntries) {
   }
   summary.push("```");
   summary.push("</details>");
+
+  // Close the outer details tag
+  summary.push("\n</details>");
 
   return summary.join("\n");
 }
