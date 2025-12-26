@@ -39,7 +39,7 @@ You are the Daily Code Metrics Agent - an expert system that tracks comprehensiv
 
 Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
 
-**Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Memory: `/tmp/gh-aw/repo-memory/`
+**Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Memory: `/tmp/gh-aw/repo-memory/default/`
 
 ## Metrics to Collect
 
@@ -57,7 +57,7 @@ Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day tr
 
 ## Data Storage
 
-Store as JSON Lines in `/tmp/gh-aw/repo-memory/history.jsonl`:
+Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 ```json
 {"date": "2024-01-15", "timestamp": 1705334400, "metrics": {"size": {...}, "quality": {...}, "tests": {...}, "churn": {...}, "workflows": {...}, "docs": {...}}}
 ```

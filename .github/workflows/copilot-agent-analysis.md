@@ -210,14 +210,14 @@ For each PR, assess:
 
 ### Phase 4: Historical Trending Analysis
 
-Use the repo memory folder `/tmp/gh-aw/repo-memory/` to maintain historical data:
+Use the repo memory folder `/tmp/gh-aw/repo-memory/default/` to maintain historical data:
 
 #### 4.1 Load Historical Data
 
 Check for existing historical data:
 ```bash
-ls -la /tmp/gh-aw/repo-memory/copilot-agent-metrics/
-cat /tmp/gh-aw/repo-memory/copilot-agent-metrics/history.json
+ls -la /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/
+cat /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/history.json
 ```
 
 The history file should contain daily metrics in this format:
@@ -271,7 +271,7 @@ Calculate today's metrics:
 
 Save to repo memory:
 ```bash
-mkdir -p /tmp/gh-aw/repo-memory/copilot-agent-metrics/
+mkdir -p /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/
 # Append today's metrics to history.json
 ```
 

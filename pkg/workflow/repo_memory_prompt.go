@@ -41,7 +41,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          ## Repo Memory Available\n")
 		yaml.WriteString("          \n")
 		memory := config.Memories[0]
-		memoryDir := "/tmp/gh-aw/repo-memory/"
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s/", memory.ID)
 
 		if memory.Description != "" {
 			fmt.Fprintf(yaml, "          You have access to a persistent repo memory folder at `%s` where you can read and write files that are stored in a git branch. %s\n", memoryDir, memory.Description)
@@ -90,7 +90,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:\n")
 		yaml.WriteString("          \n")
 		for _, memory := range config.Memories {
-			memoryDir := "/tmp/gh-aw/repo-memory/"
+			memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s/", memory.ID)
 			fmt.Fprintf(yaml, "          - **%s**: `%s`", memory.ID, memoryDir)
 			if memory.Description != "" {
 				fmt.Fprintf(yaml, " - %s", memory.Description)

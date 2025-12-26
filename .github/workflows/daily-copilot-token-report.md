@@ -79,7 +79,7 @@ Generate a comprehensive daily report of Copilot token consumption with:
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: $(date +%Y-%m-%d)
-- **Memory Location**: `/tmp/gh-aw/repo-memory/`
+- **Memory Location**: `/tmp/gh-aw/repo-memory/default/`
 - **Analysis Period**: Last 30 days of data
 
 ## Phase 1: Data Collection
@@ -599,7 +599,7 @@ The following workflows account for the majority of token consumption:
 
 - **Data Source**: GitHub Actions workflow run artifacts from last 30 days
 - **Engine Filter**: Copilot engine only
-- **Memory Storage**: `/tmp/gh-aw/repo-memory/`
+- **Memory Storage**: `/tmp/gh-aw/repo-memory/default/`
 - **Analysis Date**: [TIMESTAMP]
 - **Historical Data**: [N] days of trend data
 - **Cost Model**: Based on Copilot token pricing
@@ -627,7 +627,7 @@ The following workflows account for the majority of token consumption:
 - **Efficient processing**: Use bash and Python for data processing, avoid heavy operations
 
 ### Historical Tracking
-- **Persistent storage**: Store daily aggregates in `/tmp/gh-aw/repo-memory/history.jsonl`
+- **Persistent storage**: Store daily aggregates in `/tmp/gh-aw/repo-memory/default/history.jsonl`
 - **JSON Lines format**: One JSON object per line for efficient appending
 - **Data retention**: Keep 90 days of history, prune older data
 - **Recovery**: Handle missing or corrupted memory data gracefully

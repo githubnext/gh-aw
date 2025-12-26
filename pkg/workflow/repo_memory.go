@@ -328,7 +328,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Determine the memory directory
-		memoryDir := "/tmp/gh-aw/repo-memory"
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
@@ -361,7 +361,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := "/tmp/gh-aw/repo-memory"
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step: Push changes to repo-memory branch
 		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
@@ -444,7 +444,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := "/tmp/gh-aw/repo-memory"
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step 1: Clone the repo-memory branch
 		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
@@ -535,7 +535,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
 		fmt.Fprintf(&step, "          name: repo-memory-%s\n", memory.ID)
-		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory\n")
+		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory/%s\n", memory.ID)
 		steps = append(steps, step.String())
 	}
 
@@ -549,7 +549,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			targetRepo = "${{ github.repository }}"
 		}
 
-		artifactDir := "/tmp/gh-aw/repo-memory"
+		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Build file glob filter string
 		fileGlobFilter := ""
