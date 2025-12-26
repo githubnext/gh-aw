@@ -128,14 +128,25 @@ try {
 
 ### 4. Increase Testing
 
+**CRITICAL**: Always add or improve tests for each file you modify.
+
 For each file:
-- If the file has tests:
+- **If the file has tests**:
   - Review test coverage
   - Add tests for edge cases if missing
   - Ensure all code paths are tested
-- If the file lacks tests:
-  - Create a basic test file (`<filename>.test.cjs`)
-  - Add at least 3-5 meaningful test cases
+  - Run the tests to verify they pass: `npm run test:js`
+- **If the file lacks tests** (REQUIRED):
+  - Create a comprehensive test file (`<filename>.test.cjs`) in the same directory
+  - Add at least 5-10 meaningful test cases covering:
+    - Happy path scenarios
+    - Edge cases
+    - Error conditions
+    - Boundary values
+  - Ensure tests follow the existing test patterns in the codebase
+  - Run the tests to verify they pass: `npm run test:js`
+
+Testing is NOT optional - every file you clean must have comprehensive test coverage.
 
 ### 5. Context-Specific Patterns
 
@@ -150,17 +161,18 @@ For each file:
 - Handle errors appropriately
 - Use standard Node.js patterns
 
-### 6. Run TypeScript Build
+### 6. Run Tests and TypeScript Build
 
 After making changes to all three files:
 1. Navigate to the JavaScript directory: `cd /home/runner/work/gh-aw/gh-aw/actions/setup/js/`
-2. Run the TypeScript type checker: `npm run typecheck`
-3. If there are type errors, fix them before proceeding
-4. The typecheck ensures type safety across all JavaScript files
+2. Run the JavaScript tests: `npm run test:js` - verify all tests pass
+3. Run the TypeScript type checker: `npm run typecheck` - verify no type errors
+4. If there are test failures or type errors, fix them before proceeding
+5. The tests and typecheck ensure code quality and type safety across all JavaScript files
 
 ### 7. Create Pull Request
 
-After cleaning all three files and verifying the TypeScript build passes:
+After cleaning all three files, adding/improving tests, and verifying all tests and TypeScript build pass:
 1. Update cache-memory to mark these files as cleaned (add to `cleaned_files` array with timestamps)
 2. Create a pull request with:
    - Title: `[jsweep] Clean <file1>, <file2>, <file3>`
@@ -169,16 +181,18 @@ After cleaning all three files and verifying the TypeScript build passes:
 3. Include in the PR description:
    - Summary of changes for each file
    - Context type (github-script or Node.js) for each file
-   - Any test improvements for each file
+   - Test improvements for each file (number of tests added, coverage improvements)
+   - Confirmation that all tests pass and typecheck succeeds
 
 ## Important Constraints
 
 - **DO NOT change logic** - only make the code cleaner and more maintainable
-- **Always run tests** after changes if they exist
-- **Always run TypeScript typecheck** before creating the PR to ensure type safety
+- **Always add or improve tests** - every file must have comprehensive test coverage with at least 5-10 test cases
+- **Always run tests** after changes to verify they pass: `npm run test:js`
+- **Always run TypeScript typecheck** before creating the PR to ensure type safety: `npm run typecheck`
 - **Preserve all functionality** - ensure each file works exactly as before
 - **Three files per run** - focus on quality over quantity
-- **Document your changes** in the PR description for each file
+- **Document your changes** in the PR description for each file, including test improvements
 
 ## Current Repository Context
 
