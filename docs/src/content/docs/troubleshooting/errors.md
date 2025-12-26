@@ -19,9 +19,9 @@ When you make a typo in frontmatter field names, the compiler automatically sugg
 
 **Error Message:**
 
-```
+```text
 frontmatter not properly closed
-```
+```text
 
 **Cause:** The YAML frontmatter section lacks a closing `---` delimiter, or the delimiters are malformed.
 
@@ -35,15 +35,15 @@ permissions:
 ---
 
 # Workflow content
-```
+```text
 
 ### Failed to Parse Frontmatter
 
 **Error Message:**
 
-```
+```text
 failed to parse frontmatter: [yaml error details]
-```
+```text
 
 **Cause:** The YAML syntax in the frontmatter is invalid. Common issues include incorrect indentation, missing colons, or invalid characters.
 
@@ -54,15 +54,15 @@ failed to parse frontmatter: [yaml error details]
 on:
   issues:
     types: [opened]
-```
+```text
 
 ### Invalid Field Type
 
 **Error Message:**
 
-```
+```text
 timeout-minutes must be an integer
-```
+```text
 
 **Cause:** A field received a value of the wrong type according to the schema.
 
@@ -72,9 +72,9 @@ timeout-minutes must be an integer
 
 **Error Message:**
 
-```
+```text
 Unknown property: permisions. Did you mean 'permissions'?
-```
+```text
 
 **Cause:** A field name in the frontmatter is not recognized by the schema validator, often due to a typo.
 
@@ -84,9 +84,9 @@ Unknown property: permisions. Did you mean 'permissions'?
 
 **Error Message:**
 
-```
+```text
 imports field must be an array of strings
-```
+```text
 
 **Cause:** The `imports:` field was provided but is not an array of string paths.
 
@@ -96,15 +96,15 @@ imports field must be an array of strings
 imports:
   - shared/tools.md
   - shared/security.md
-```
+```text
 
 ### Multiple Agent Files in Imports
 
 **Error Message:**
 
-```
+```text
 multiple agent files found in imports: 'file1.md' and 'file2.md'. Only one agent file is allowed per workflow
-```
+```text
 
 **Cause:** More than one file under `.github/agents/` was included in the imports list.
 
@@ -118,9 +118,9 @@ Compilation errors occur when the workflow file is being converted to a GitHub A
 
 **Error Message:**
 
-```
+```text
 workflow file not found: [path]
-```
+```text
 
 **Cause:** The specified workflow file does not exist at the given path.
 
@@ -130,9 +130,9 @@ workflow file not found: [path]
 
 **Error Message:**
 
-```
+```text
 failed to resolve import 'path': [details]
-```
+```text
 
 **Cause:** An imported file specified in the `imports:` field could not be found or accessed.
 
@@ -142,9 +142,9 @@ failed to resolve import 'path': [details]
 
 **Error Message:**
 
-```
+```text
 invalid workflowspec: must be owner/repo/path[@ref]
-```
+```text
 
 **Cause:** When using remote imports, the specification format is incorrect.
 
@@ -154,9 +154,9 @@ invalid workflowspec: must be owner/repo/path[@ref]
 
 **Error Message:**
 
-```
+```text
 section 'name' not found
-```
+```text
 
 **Cause:** An attempt to extract a specific section from the frontmatter failed because the section doesn't exist.
 
@@ -170,9 +170,9 @@ Runtime errors occur when the compiled workflow executes in GitHub Actions.
 
 **Error Message:**
 
-```
+```text
 invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m
-```
+```text
 
 **Cause:** The `stop-after` field in the `on:` section contains an invalid time delta format.
 
@@ -180,9 +180,9 @@ invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, 
 
 **Error Message:**
 
-```
+```text
 minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[hours]h instead of +[minutes]m
-```
+```text
 
 **Cause:** The `stop-after` field uses minutes (`m`), but the minimum allowed unit is hours.
 
@@ -192,9 +192,9 @@ minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[
 
 **Error Message:**
 
-```
+```text
 time delta too large: [value] [unit] exceeds maximum of [max]
-```
+```text
 
 **Cause:** The time delta exceeds the maximum allowed value for the specified unit.
 
@@ -204,9 +204,9 @@ time delta too large: [value] [unit] exceeds maximum of [max]
 
 **Error Message:**
 
-```
+```text
 duplicate unit '[unit]' in time delta: +[value]
-```
+```text
 
 **Cause:** The same time unit appears multiple times in a time delta.
 
@@ -216,9 +216,9 @@ duplicate unit '[unit]' in time delta: +[value]
 
 **Error Message:**
 
-```
+```text
 unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:SS, MM/DD/YYYY, January 2 2006, 1st June 2025, etc
-```
+```text
 
 **Cause:** The `stop-after` field contains an absolute timestamp that couldn't be parsed.
 
@@ -228,9 +228,9 @@ unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:
 
 **Error Message:**
 
-```
+```text
 jq not found in PATH
-```
+```text
 
 **Cause:** The `jq` command-line tool is required but not available in the environment.
 
@@ -240,9 +240,9 @@ jq not found in PATH
 
 **Error Message:**
 
-```
+```text
 authentication required
-```
+```text
 
 **Cause:** GitHub CLI authentication is required but not configured.
 
@@ -254,9 +254,9 @@ authentication required
 
 **Error Message:**
 
-```
+```text
 manual-approval value must be a string
-```
+```text
 
 **Cause:** The `manual-approval:` field in the `on:` section has an incorrect type.
 
@@ -266,9 +266,9 @@ manual-approval value must be a string
 
 **Error Message:**
 
-```
+```text
 invalid on: section format
-```
+```text
 
 **Cause:** The `on:` trigger configuration is malformed or contains unsupported syntax.
 
@@ -280,9 +280,9 @@ invalid on: section format
 
 **Error Message:**
 
-```
+```text
 failed to read file [path]: [details]
-```
+```text
 
 **Cause:** The file cannot be read due to permissions, missing file, or I/O error.
 
@@ -292,9 +292,9 @@ failed to read file [path]: [details]
 
 **Error Message:**
 
-```
+```text
 failed to create .github/workflows directory: [details]
-```
+```text
 
 **Cause:** The required directory structure cannot be created.
 
@@ -304,9 +304,9 @@ failed to create .github/workflows directory: [details]
 
 **Error Message:**
 
-```
+```text
 workflow file '[path]' already exists. Use --force to overwrite
-```
+```text
 
 **Cause:** Attempting to create a workflow that already exists.
 
@@ -318,9 +318,9 @@ workflow file '[path]' already exists. Use --force to overwrite
 
 **Error Message:**
 
-```
+```text
 failed to parse existing mcp.json: [details]
-```
+```text
 
 **Cause:** The existing `.vscode/mcp.json` file contains invalid JSON.
 
@@ -330,9 +330,9 @@ failed to parse existing mcp.json: [details]
 
 **Error Message:**
 
-```
+```text
 failed to marshal mcp.json: [details]
-```
+```text
 
 **Cause:** Internal error when generating the MCP configuration.
 
@@ -346,9 +346,9 @@ This section documents the most common errors you may encounter when working wit
 
 **Error Message:**
 
-```
+```text
 cannot use 'command' with 'issues' in the same workflow
-```
+```text
 
 **Cause:** The workflow specifies both a `command:` trigger and a conflicting event like `issues`, `issue_comment`, `pull_request`, or `pull_request_review_comment`. Command triggers automatically handle these events internally.
 
@@ -358,9 +358,9 @@ cannot use 'command' with 'issues' in the same workflow
 
 **Error Message:**
 
-```
+```text
 strict mode: 'network' configuration is required
-```
+```text
 
 **Cause:** The workflow is compiled with `--strict` flag but does not include network configuration. Strict mode requires explicit network permissions for security.
 
@@ -370,9 +370,9 @@ strict mode: 'network' configuration is required
 
 **Error Message:**
 
-```
+```text
 strict mode: write permission 'contents: write' is not allowed
-```
+```text
 
 **Cause:** The workflow is compiled with `--strict` flag but requests write permissions on `contents`, `issues`, or `pull-requests`. Strict mode enforces read-only operations.
 
@@ -382,9 +382,9 @@ strict mode: write permission 'contents: write' is not allowed
 
 **Error Message:**
 
-```
+```text
 strict mode: wildcard '*' is not allowed in network.allowed domains
-```
+```text
 
 **Cause:** The workflow uses `*` wildcard in network.allowed domains when compiled with `--strict` flag. Strict mode requires specific domain patterns.
 
@@ -394,9 +394,9 @@ strict mode: wildcard '*' is not allowed in network.allowed domains
 
 **Error Message:**
 
-```
+```text
 http MCP tool 'my-tool' missing required 'url' field
-```
+```text
 
 **Cause:** An HTTP-based MCP server configuration is missing the required `url:` field.
 
@@ -406,9 +406,9 @@ http MCP tool 'my-tool' missing required 'url' field
 
 **Error Message:**
 
-```
+```text
 job name cannot be empty
-```
+```text
 
 **Cause:** A job definition in the workflow has an empty or missing name field.
 
@@ -418,9 +418,9 @@ job name cannot be empty
 
 **Error Message:**
 
-```
+```text
 unable to determine MCP type for tool 'my-tool': missing type, url, command, or container
-```
+```text
 
 **Cause:** An MCP server configuration is missing the required fields to determine its type.
 
@@ -430,9 +430,9 @@ unable to determine MCP type for tool 'my-tool': missing type, url, command, or 
 
 **Error Message:**
 
-```
+```text
 tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'
-```
+```text
 
 **Cause:** An MCP server configuration includes both `container:` and `command:` fields, which are mutually exclusive.
 
@@ -442,9 +442,9 @@ tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'
 
 **Error Message:**
 
-```
+```text
 tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field
-```
+```text
 
 **Cause:** An HTTP MCP server configuration includes the `container:` field, which is only valid for stdio-based servers.
 
@@ -454,9 +454,9 @@ tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field
 
 **Error Message:**
 
-```
+```text
 strict mode: custom MCP server 'my-server' with container must have network configuration
-```
+```text
 
 **Cause:** A containerized MCP server lacks network configuration when workflow is compiled with `--strict` flag.
 
@@ -466,9 +466,9 @@ strict mode: custom MCP server 'my-server' with container must have network conf
 
 **Error Message:**
 
-```
+```text
 workflow uses safe-outputs.create-issue but repository owner/repo does not have issues enabled
-```
+```text
 
 **Cause:** The workflow uses `safe-outputs.create-issue` but the target repository has issues disabled.
 
@@ -478,9 +478,9 @@ workflow uses safe-outputs.create-issue but repository owner/repo does not have 
 
 **Error Message:**
 
-```
+```text
 strict mode: engine does not support firewall
-```
+```text
 
 **Cause:** The workflow specifies network restrictions but uses an engine that doesn't support network firewalling, and strict mode is enabled.
 
@@ -503,9 +503,9 @@ strict mode: engine does not support firewall
 
 **Error Message:**
 
-```
+```text
 invalid toolset: 'action' is not a valid toolset
-```
+```text
 
 **Cause:** A toolset name is misspelled or doesn't exist.
 
@@ -530,7 +530,7 @@ tools:
   github:
     toolsets: [issues]
     allowed: [create_issue]  # Only create_issue from issues toolset
-```
+```text
 
 ## Troubleshooting Tips
 

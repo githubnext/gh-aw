@@ -58,7 +58,7 @@ The workflow uses GitHub's GraphQL API to query issue relationships:
 
 ## Example Scenario
 
-```
+```text
 Parent Issue #100 (Open)
 ├── Sub-Issue #101 (Closed)
 ├── Sub-Issue #102 (Closed)
@@ -69,7 +69,7 @@ Parent Issue #100 (Open)
 
 ### Nested Example
 
-```
+```text
 Grandparent Issue #200 (Open)
 └── Parent Issue #100 (Open)
     ├── Sub-Issue #101 (Closed)
@@ -94,7 +94,7 @@ No configuration needed! The workflow works automatically once added to your rep
 
 ## Logging Examples
 
-```
+```text
 =================================================
 Auto-Close Parent Issues Workflow
 =================================================

@@ -89,7 +89,7 @@ network:
 
 View firewall activity with `gh aw logs --run-id <run-id>` to identify blocked domains:
 
-```
+```text
 🔥 Firewall Log Analysis
 Denied Domains:
   ✗ registry.npmjs.org:443 (3 requests) → Add `node` ecosystem

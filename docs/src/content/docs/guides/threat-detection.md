@@ -13,7 +13,7 @@ Threat detection provides an additional security layer by analyzing agent output
 
 **Security Architecture:**
 
-```
+```text
 ┌─────────────────┐
 │ Agentic Job     │ (Read-only permissions)
 │ Generates       │
@@ -275,7 +275,7 @@ safe-outputs:
 
 The threat detection job fails with a clear error message and safe output jobs are skipped:
 
-```
+```text
 ❌ Threat detected: Potential SQL injection in code changes
 Reasons:
 - Unsanitized user input in database query
