@@ -55,6 +55,24 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("            await main();\n")
 }
 
+// generateSafeInputsLogParsing generates a step that parses safe-inputs logs and adds them to the step summary
+func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating safe-inputs log parsing step")
+
+	yaml.WriteString("      - name: Parse safe-inputs logs for step summary\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	// Load safe-inputs log parser script from external file using require()
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
+	yaml.WriteString("            await main();\n")
+}
+
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
 // This removes Go's (?i) inline case-insensitive flag since JavaScript doesn't support it
 func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {

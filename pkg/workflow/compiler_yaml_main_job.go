@@ -236,6 +236,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
+	// parse safe-inputs logs for GITHUB_STEP_SUMMARY (if safe-inputs is enabled)
+	if IsSafeInputsEnabled(data.SafeInputs, data) {
+		c.generateSafeInputsLogParsing(yaml)
+	}
+
 	// Add Squid logs upload and parsing steps for Copilot and Codex engines (collection happens before secret redaction)
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		squidSteps := copilotEngine.GetSquidLogsSteps(data)
