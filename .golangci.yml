@@ -37,6 +37,7 @@ linters:
         - G101 # Ignore "Potential hardcoded credentials" - often false positives
         - G602 # Ignore "slice bounds check" - handled by runtime
         - G115 # Ignore "integer overflow conversion" - acceptable in most cases
+        - G301 # Ignore "file permissions" - 0644 is acceptable for non-sensitive files
       config:
         G204: "0644" # Allow common file permissions in tests
         G306: "0644" # Allow common file permissions
