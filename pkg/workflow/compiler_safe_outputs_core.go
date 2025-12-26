@@ -507,21 +507,15 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 	// Add the formatted JavaScript script
 	// Use require mode if ScriptName is set, otherwise inline the bundled script
 	if config.ScriptName != "" {
-		// Require mode: Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
+		// Require mode: Use setup_globals helper
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
 		steps = append(steps, "            await main();\n")
 	} else {
-		// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
+		// Inline JavaScript: Use setup_globals helper
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 		// Inline mode: embed the bundled script directly
 		formattedScript := FormatJavaScriptForYAML(config.Script)
 		steps = append(steps, formattedScript...)

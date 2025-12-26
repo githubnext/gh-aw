@@ -128,3 +128,22 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		"          persist-credentials: false\n",
 	}
 }
+
+// generateGitHubScriptWithRequire generates a github-script step that loads a module using require().
+// Instead of repeating the global variable assignments inline, it uses the setup_globals helper function.
+//
+// Parameters:
+//   - scriptPath: The path to the .cjs file to require (e.g., "check_stop_time.cjs")
+//
+// Returns a string containing the complete script content to be used in a github-script action's "script:" field.
+func generateGitHubScriptWithRequire(scriptPath string) string {
+	var script strings.Builder
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
+	script.WriteString("            await main();\n")
+
+	return script.String()
+}

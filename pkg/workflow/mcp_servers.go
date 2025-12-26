@@ -3,8 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -38,83 +36,6 @@ if (require.main === module) {
 
 module.exports = { startSafeOutputsServer };
 `
-}
-
-// getSafeOutputsDependencies returns the list of JavaScript files required for safe-outputs MCP server
-// by analyzing the dependency tree starting from safe_outputs_mcp_server.cjs source
-func getSafeOutputsDependencies() ([]string, error) {
-	// Get all JavaScript sources
-	sources := GetJavaScriptSources()
-
-	// Get the main safe-outputs MCP server script SOURCE (not bundled)
-	mainScript, ok := sources["safe_outputs_mcp_server.cjs"]
-	if !ok {
-		return nil, fmt.Errorf("safe_outputs_mcp_server.cjs not found in sources")
-	}
-
-	// Find all dependencies starting from the main script
-	dependencies, err := FindJavaScriptDependencies(mainScript, sources, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to analyze safe-outputs dependencies: %w", err)
-	}
-
-	// Add the main script itself to the list (dependency tracker only returns required modules)
-	dependencies["safe_outputs_mcp_server.cjs"] = true
-
-	// Convert map to sorted slice for stable generation
-	deps := make([]string, 0, len(dependencies))
-	for dep := range dependencies {
-		// Strip any leading path components (we just want the filename)
-		filename := filepath.Base(dep)
-		deps = append(deps, filename)
-	}
-	sort.Strings(deps)
-
-	mcpServersLog.Printf("Safe-outputs MCP server requires %d dependencies (including main script)", len(deps))
-	return deps, nil
-}
-
-// getJavaScriptFileContent returns the content for a JavaScript file by name.
-// It returns the content as-is without transforming requires.
-// All files are written to the same directory (/tmp/gh-aw/safeoutputs/) so they can
-// use relative requires (./file.cjs) to reference each other at runtime.
-// Files are NOT inlined/bundled - they are written separately and require each other at runtime.
-// Top-level await patterns (like `await main();`) are wrapped in an async IIFE to work in CommonJS.
-func getJavaScriptFileContent(filename string) (string, error) {
-	// Get all sources
-	sources := GetJavaScriptSources()
-
-	// Look up the file
-	content, ok := sources[filename]
-	if !ok {
-		return "", fmt.Errorf("JavaScript file not found: %s", filename)
-	}
-
-	// Patch top-level await patterns to work in CommonJS
-	// This wraps `await main();` calls in an async IIFE
-	content = patchTopLevelAwait(content)
-
-	// Return content - files use relative requires (./file.cjs)
-	// which work because all files are written to the same directory
-	return content, nil
-}
-
-// patchTopLevelAwait wraps top-level `await main();` calls in an async IIFE.
-// CommonJS modules don't support top-level await, so we need to wrap it.
-//
-// This transforms:
-//
-//	await main();
-//
-// Into:
-//
-//	(async () => { await main(); })();
-func patchTopLevelAwait(content string) string {
-	// Match `await main();` at the end of the file (with optional whitespace/newlines)
-	// This pattern is used in safe output scripts as the entry point
-	awaitMainRegex := regexp.MustCompile(`(?m)^await\s+main\s*\(\s*\)\s*;?\s*$`)
-
-	return awaitMainRegex.ReplaceAllString(content, "(async () => { await main(); })();")
 }
 
 // hasMCPServers checks if the workflow has any MCP servers configured
