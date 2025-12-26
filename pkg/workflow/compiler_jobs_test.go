@@ -85,8 +85,8 @@ func TestBuildPreActivationJobWithPermissionCheck(t *testing.T) {
 		t.Fatalf("buildPreActivationJob() returned error: %v", err)
 	}
 
-	if job.Name != constants.PreActivationJobName {
-		t.Errorf("Job name = %q, want %q", job.Name, constants.PreActivationJobName)
+	if job.Name != string(constants.PreActivationJobName) {
+		t.Errorf("Job name = %q, want %q", job.Name, string(constants.PreActivationJobName))
 	}
 
 	// Check that it has outputs
@@ -141,8 +141,8 @@ func TestBuildActivationJob(t *testing.T) {
 		t.Fatalf("buildActivationJob() returned error: %v", err)
 	}
 
-	if job.Name != constants.ActivationJobName {
-		t.Errorf("Job name = %q, want %q", job.Name, constants.ActivationJobName)
+	if job.Name != string(constants.ActivationJobName) {
+		t.Errorf("Job name = %q, want %q", job.Name, string(constants.ActivationJobName))
 	}
 
 	// Check for timestamp check step
@@ -200,20 +200,20 @@ func TestBuildMainJobWithActivation(t *testing.T) {
 		t.Fatalf("buildMainJob() returned error: %v", err)
 	}
 
-	if job.Name != constants.AgentJobName {
-		t.Errorf("Job name = %q, want %q", job.Name, constants.AgentJobName)
+	if job.Name != string(constants.AgentJobName) {
+		t.Errorf("Job name = %q, want %q", job.Name, string(constants.AgentJobName))
 	}
 
 	// Check that it depends on activation job
 	found := false
 	for _, need := range job.Needs {
-		if need == constants.ActivationJobName {
+		if need == string(constants.ActivationJobName) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected job to depend on %s, got needs: %v", constants.ActivationJobName, job.Needs)
+		t.Errorf("Expected job to depend on %s, got needs: %v", string(constants.ActivationJobName), job.Needs)
 	}
 }
 
@@ -388,7 +388,7 @@ Test content`
 	}
 
 	// Check that safe_outputs job depends on detection
-	if !strings.Contains(yamlStr, constants.DetectionJobName) {
+	if !strings.Contains(yamlStr, string(constants.DetectionJobName)) {
 		t.Error("Expected safe output jobs to depend on detection job")
 	}
 }

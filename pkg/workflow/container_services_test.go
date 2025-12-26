@@ -140,11 +140,11 @@ This is a test without container.`,
 				foundContainer := false
 
 				for i, line := range lines {
-					if strings.Contains(line, constants.AgentJobName+":") {
+					if strings.Contains(line, string(constants.AgentJobName)+":") {
 						inMainJob = true
 						continue
 					}
-					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != "  "+constants.AgentJobName+":" {
+					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != "  "+string(constants.AgentJobName)+":" {
 						// Found next job, stop looking
 						break
 					}
@@ -297,11 +297,11 @@ This is a test without services.`,
 				foundServices := false
 
 				for _, line := range lines {
-					if strings.Contains(line, constants.AgentJobName+":") {
+					if strings.Contains(line, string(constants.AgentJobName)+":") {
 						inMainJob = true
 						continue
 					}
-					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != "  "+constants.AgentJobName+":" {
+					if inMainJob && strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && line != "  "+string(constants.AgentJobName)+":" {
 						// Found next job, stop looking
 						break
 					}

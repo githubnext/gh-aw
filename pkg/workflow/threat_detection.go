@@ -129,7 +129,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	condition := BuildDisjunction(false, hasOutputTypes, hasPatch)
 
 	job := &Job{
-		Name:           constants.DetectionJobName,
+		Name:           string(constants.DetectionJobName),
 		If:             condition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    NewPermissionsEmpty().RenderToYAML(),

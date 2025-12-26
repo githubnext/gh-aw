@@ -203,7 +203,7 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 		Timeout: 10 * time.Second,
 	}
 
-	registryURL := constants.DefaultMCPRegistryURL + "/servers"
+	registryURL := string(constants.DefaultMCPRegistryURL) + "/servers"
 
 	req, err := http.NewRequest("GET", registryURL, nil)
 	if err != nil {

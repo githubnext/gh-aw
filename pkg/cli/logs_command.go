@@ -78,32 +78,32 @@ Campaign Orchestrator Usage:
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific workflow
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research.md        # Download logs (alternative format)
-  ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
-  ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
-  ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Download all runs from last week
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
-  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Download all runs until yesterday
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Download all runs from last month
-  ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
-  ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
-  ` + constants.CLIExtensionPrefix + ` logs --engine copilot          # Filter logs by copilot engine
-  ` + constants.CLIExtensionPrefix + ` logs --firewall                # Filter logs with firewall enabled
-  ` + constants.CLIExtensionPrefix + ` logs --no-firewall             # Filter logs without firewall
-  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
-  ` + constants.CLIExtensionPrefix + ` logs --ref main                # Filter logs by branch or tag
-  ` + constants.CLIExtensionPrefix + ` logs --ref feature-xyz         # Filter logs by feature branch
-  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
-  ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
-  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
-  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
-  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate Markdown reports
-  ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
-  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both Markdown and JSON
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` logs -c 10                     # Download last 10 matching runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download all runs after date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download all runs before date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download all runs from last week
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --firewall                # Filter logs with firewall enabled
+  ` + string(constants.CLIExtensionPrefix) + ` logs --no-firewall             # Filter logs without firewall
+  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
+  ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
+  ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
+  ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+  ` + string(constants.CLIExtensionPrefix) + ` logs --tool-graph              # Generate Mermaid tool sequence graph
+  ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
+  ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
+  ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
 
@@ -124,7 +124,7 @@ Examples:
 					} else {
 						// Neither workflow ID nor valid GitHub Actions workflow name
 						suggestions := []string{
-							fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+							fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 							"Check for typos in the workflow name",
 							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
 						}

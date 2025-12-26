@@ -337,7 +337,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 			if len(args) == 0 {
 				// Use default registry URL if not provided
 				if registryURL == "" {
-					registryURL = constants.DefaultMCPRegistryURL
+					registryURL = string(constants.DefaultMCPRegistryURL)
 				}
 				return listAvailableServers(registryURL, verbose)
 			}

@@ -24,15 +24,15 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Add one or more workflows from repositories to .github/workflows.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics                           # List available workflows
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor                # Add specific workflow
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
-  ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --create-pull-request --force
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*@v1.0.0
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics                           # List available workflows
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor                # Add specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/*
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/*@v1.0.0
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
 
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (lists available workflows in the repository)
@@ -297,7 +297,7 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 		exampleSpec += "@" + spec.Version
 	}
 
-	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", string(constants.CLIExtensionPrefix), exampleSpec)
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
@@ -335,7 +335,7 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 		exampleSpec += "@" + version
 	}
 
-	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", string(constants.CLIExtensionPrefix), exampleSpec)
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
@@ -539,11 +539,11 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			fmt.Println("\nTo add workflows to your project:")
 			fmt.Println("=================================")
 			fmt.Println("Use the 'add' command with repository/workflow specifications:")
-			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
-			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
+			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add owner/repo/workflow-name")
+			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add owner/repo/workflow-name@version")
 			fmt.Println("\nExample:")
-			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
-			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
+			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add githubnext/agentics/ci-doctor")
+			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add githubnext/agentics/daily-plan@main")
 		}
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)

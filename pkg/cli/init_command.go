@@ -51,16 +51,16 @@ With --campaign flag:
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
 - Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
-- Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
-- Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
+- Add workflows from the catalog with: ` + string(constants.CLIExtensionPrefix) + ` add <workflow-name>
+- Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` init
-  ` + constants.CLIExtensionPrefix + ` init -v
-  ` + constants.CLIExtensionPrefix + ` init --no-mcp
-  ` + constants.CLIExtensionPrefix + ` init --tokens --engine copilot
-  ` + constants.CLIExtensionPrefix + ` init --codespaces
-  ` + constants.CLIExtensionPrefix + ` init --codespaces repo1,repo2`,
+  ` + string(constants.CLIExtensionPrefix) + ` init
+  ` + string(constants.CLIExtensionPrefix) + ` init -v
+  ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp
+  ` + string(constants.CLIExtensionPrefix) + ` init --tokens --engine copilot
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")

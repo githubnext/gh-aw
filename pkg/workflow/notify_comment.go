@@ -263,7 +263,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
-	needs := []string{mainJobName, constants.ActivationJobName}
+	needs := []string{mainJobName, string(constants.ActivationJobName)}
 	needs = append(needs, safeOutputJobNames...)
 
 	// Add detection job to dependencies if threat detection is enabled

@@ -38,7 +38,7 @@ type MCPRegistryClient struct {
 // NewMCPRegistryClient creates a new MCP registry client
 func NewMCPRegistryClient(registryURL string) *MCPRegistryClient {
 	if registryURL == "" {
-		registryURL = constants.DefaultMCPRegistryURL
+		registryURL = string(constants.DefaultMCPRegistryURL)
 	}
 
 	mcpRegistryLog.Printf("Creating MCP registry client: url=%s", registryURL)
