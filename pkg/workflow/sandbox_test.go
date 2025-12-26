@@ -296,7 +296,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "MCP gateway with both command and container fails",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Command:   "/usr/bin/gateway",
 						Container: "ghcr.io/gateway:latest",
 					},
@@ -309,7 +309,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "MCP gateway with entrypointArgs without container fails",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Command:        "/usr/bin/gateway",
 						EntrypointArgs: []string{"--config-stdin"},
 					},
@@ -322,7 +322,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "MCP gateway with container only is valid",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Container:      "ghcr.io/gateway:latest",
 						EntrypointArgs: []string{"--config-stdin"},
 					},
@@ -334,7 +334,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "MCP gateway with command only is valid",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Command: "/usr/bin/gateway",
 						Args:    []string{"--port", "8080"},
 					},
@@ -346,7 +346,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			name: "MCP gateway with neither command nor container is valid",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Port: 8080,
 					},
 				},

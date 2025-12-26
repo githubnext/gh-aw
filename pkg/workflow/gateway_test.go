@@ -13,7 +13,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    any
-		expected *MCPGatewayConfig
+		expected *MCPGatewayRuntimeConfig
 	}{
 		{
 			name:     "nil input returns nil",
@@ -30,7 +30,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			input: map[string]any{
 				"port": 8080,
 			},
-			expected: &MCPGatewayConfig{
+			expected: &MCPGatewayRuntimeConfig{
 				Port: 8080,
 			},
 		},
@@ -45,7 +45,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 					"DEBUG": "true",
 				},
 			},
-			expected: &MCPGatewayConfig{
+			expected: &MCPGatewayRuntimeConfig{
 				Port:           8888,
 				APIKey:         "${{ secrets.API_KEY }}",
 				Args:           []string{"-v", "--debug"},
@@ -56,7 +56,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 		{
 			name:  "empty config",
 			input: map[string]any{},
-			expected: &MCPGatewayConfig{
+			expected: &MCPGatewayRuntimeConfig{
 				Port: DefaultMCPGatewayPort,
 			},
 		},
@@ -65,7 +65,7 @@ func TestParseMCPGatewayTool(t *testing.T) {
 			input: map[string]any{
 				"port": 8888.0,
 			},
-			expected: &MCPGatewayConfig{
+			expected: &MCPGatewayRuntimeConfig{
 				Port: 8888,
 			},
 		},
@@ -121,7 +121,7 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 			name: "sandbox.mcp configured",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Port: 8080,
 					},
 				},
@@ -132,7 +132,7 @@ func TestIsMCPGatewayEnabled(t *testing.T) {
 			name: "sandbox.mcp with empty config",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{},
+					MCP: &MCPGatewayRuntimeConfig{},
 				},
 			},
 			expected: true,
@@ -171,7 +171,7 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 			name: "valid sandbox.mcp config",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Port: 9090,
 					},
 				},
@@ -210,7 +210,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			name: "gateway enabled returns two steps",
 			data: &WorkflowData{
 				SandboxConfig: &SandboxConfig{
-					MCP: &MCPGatewayConfig{
+					MCP: &MCPGatewayRuntimeConfig{
 						Port: 8080,
 					},
 				},
@@ -234,7 +234,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayStartStep(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 	mcpServers := map[string]any{
@@ -253,7 +253,7 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
@@ -284,17 +284,17 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 func TestGetMCPGatewayURL(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   *MCPGatewayConfig
+		config   *MCPGatewayRuntimeConfig
 		expected string
 	}{
 		{
 			name:     "default port",
-			config:   &MCPGatewayConfig{},
+			config:   &MCPGatewayRuntimeConfig{},
 			expected: "http://localhost:8080",
 		},
 		{
 			name: "custom port",
-			config: &MCPGatewayConfig{
+			config: &MCPGatewayRuntimeConfig{
 				Port: 9090,
 			},
 			expected: "http://localhost:9090",
@@ -313,7 +313,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 	tests := []struct {
 		name       string
 		mcpServers map[string]any
-		config     *MCPGatewayConfig
+		config     *MCPGatewayRuntimeConfig
 		expected   map[string]any
 	}{
 		{
@@ -332,7 +332,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 				"github":     map[string]any{},
 				"playwright": map[string]any{},
 			},
-			config: &MCPGatewayConfig{
+			config: &MCPGatewayRuntimeConfig{
 				Port: 8080,
 			},
 			expected: map[string]any{
@@ -351,7 +351,7 @@ func TestTransformMCPConfigForGateway(t *testing.T) {
 			mcpServers: map[string]any{
 				"github": map[string]any{},
 			},
-			config: &MCPGatewayConfig{
+			config: &MCPGatewayRuntimeConfig{
 				Port:   8080,
 				APIKey: "secret",
 			},
@@ -380,7 +380,7 @@ func TestSandboxConfigWithMCP(t *testing.T) {
 		Agent: &AgentSandboxConfig{
 			Type: SandboxTypeAWF,
 		},
-		MCP: &MCPGatewayConfig{
+		MCP: &MCPGatewayRuntimeConfig{
 			Container: "test-image",
 			Port:      9000,
 		},
@@ -395,7 +395,7 @@ func TestSandboxConfigWithMCP(t *testing.T) {
 }
 
 func TestGenerateContainerStartCommands(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
 		Args:           []string{"--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-p", "8000:8000", "--entrypoint", "/app/flowguard-go"},
 		EntrypointArgs: []string{"--routed", "--listen", "0.0.0.0:8000", "--config-stdin"},
@@ -439,7 +439,7 @@ func TestGenerateContainerStartCommands(t *testing.T) {
 }
 
 func TestGenerateCommandStartCommands(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Command: "/usr/local/bin/mcp-gateway",
 		Args:    []string{"--port", "8080", "--verbose"},
 		Port:    8080,
@@ -470,7 +470,7 @@ func TestGenerateCommandStartCommands(t *testing.T) {
 }
 
 func TestGenerateDefaultAWMGCommands(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
@@ -489,7 +489,7 @@ func TestGenerateDefaultAWMGCommands(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
 		Args:           []string{"--rm", "-i"},
 		EntrypointArgs: []string{"--config-stdin"},
@@ -510,7 +510,7 @@ func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Command: "/usr/local/bin/custom-gateway",
 		Args:    []string{"--debug"},
 		Port:    9000,
@@ -530,7 +530,7 @@ func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 	mcpServers := map[string]any{
@@ -639,7 +639,7 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := &MCPGatewayConfig{
+			config := &MCPGatewayRuntimeConfig{
 				Port: tt.port,
 			}
 			mcpServers := map[string]any{
@@ -676,7 +676,7 @@ func TestGenerateMCPGatewayHealthCheckStepWithInvalidPort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := &MCPGatewayConfig{
+			config := &MCPGatewayRuntimeConfig{
 				Port: tt.port,
 			}
 
@@ -720,7 +720,7 @@ func TestGetMCPGatewayURLWithInvalidPort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := &MCPGatewayConfig{
+			config := &MCPGatewayRuntimeConfig{
 				Port: tt.port,
 			}
 

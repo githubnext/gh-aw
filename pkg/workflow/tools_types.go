@@ -230,9 +230,9 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
-// MCPGatewayConfig represents the configuration for the MCP gateway
+// MCPGatewayRuntimeConfig represents the configuration for the MCP gateway runtime execution
 // The gateway routes MCP server calls through a unified HTTP endpoint
-type MCPGatewayConfig struct {
+type MCPGatewayRuntimeConfig struct {
 	Command        string            `yaml:"command,omitempty"`        // Custom command to execute (mutually exclusive with Container)
 	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway (mutually exclusive with Command)
 	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container

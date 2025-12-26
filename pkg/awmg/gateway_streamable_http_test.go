@@ -39,7 +39,7 @@ func TestStreamableHTTPTransport_GatewayConnection(t *testing.T) {
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 
 	// Create gateway config with the gh-aw MCP server
-	config := MCPGatewayConfig{
+	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
@@ -332,7 +332,7 @@ func TestStreamableHTTPTransport_URLConfigured(t *testing.T) {
 
 	// Test that createMCPSession uses StreamableClientTransport for URL config
 	gateway := &MCPGatewayServer{
-		config:   &MCPGatewayConfig{},
+		config:   &MCPGatewayServiceConfig{},
 		sessions: make(map[string]*mcp.ClientSession),
 		logDir:   t.TempDir(),
 	}
@@ -446,7 +446,7 @@ func TestStreamableHTTPTransport_GatewayWithSDKClient(t *testing.T) {
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 
 	// Create gateway config with the gh-aw MCP server
-	config := MCPGatewayConfig{
+	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,

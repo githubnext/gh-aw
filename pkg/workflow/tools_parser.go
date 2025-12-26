@@ -417,7 +417,7 @@ func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
 }
 
 // parseMCPGatewayTool converts raw mcp-gateway tool configuration
-func parseMCPGatewayTool(val any) *MCPGatewayConfig {
+func parseMCPGatewayTool(val any) *MCPGatewayRuntimeConfig {
 	if val == nil {
 		return nil
 	}
@@ -427,7 +427,7 @@ func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 		return nil
 	}
 
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: DefaultMCPGatewayPort,
 	}
 

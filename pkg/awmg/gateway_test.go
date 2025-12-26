@@ -14,7 +14,7 @@ func TestReadGatewayConfig_FromFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
 
-	config := MCPGatewayConfig{
+	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"test-server": {
 				Command: "test-command",
@@ -84,7 +84,7 @@ func TestReadGatewayConfig_InvalidJSON(t *testing.T) {
 }
 
 func TestMCPGatewayConfig_EmptyServers(t *testing.T) {
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayServiceConfig{
 		MCPServers: make(map[string]parser.MCPServerConfig),
 		Gateway: GatewaySettings{
 			Port: 8080,
@@ -189,7 +189,7 @@ func TestReadGatewayConfig_EmptyServers(t *testing.T) {
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "empty-servers.json")
 
-	config := MCPGatewayConfig{
+	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{},
 		Gateway: GatewaySettings{
 			Port: 8080,
@@ -238,7 +238,7 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 	// Create base config file
 	tmpDir := t.TempDir()
 	baseConfig := filepath.Join(tmpDir, "base-config.json")
-	baseConfigData := MCPGatewayConfig{
+	baseConfigData := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server1": {
 				Command: "command1",
@@ -264,7 +264,7 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 
 	// Create override config file
 	overrideConfig := filepath.Join(tmpDir, "override-config.json")
-	overrideConfigData := MCPGatewayConfig{
+	overrideConfigData := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server2": {
 				Command: "override-command2",
@@ -337,7 +337,7 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 }
 
 func TestMergeConfigs(t *testing.T) {
-	base := &MCPGatewayConfig{
+	base := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server1": {
 				Command: "cmd1",
@@ -352,7 +352,7 @@ func TestMergeConfigs(t *testing.T) {
 		},
 	}
 
-	override := &MCPGatewayConfig{
+	override := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server2": {
 				Command: "override-cmd2",
@@ -397,7 +397,7 @@ func TestMergeConfigs(t *testing.T) {
 }
 
 func TestMergeConfigs_EmptyOverride(t *testing.T) {
-	base := &MCPGatewayConfig{
+	base := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server1": {
 				Command: "cmd1",
@@ -408,7 +408,7 @@ func TestMergeConfigs_EmptyOverride(t *testing.T) {
 		},
 	}
 
-	override := &MCPGatewayConfig{
+	override := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{},
 		Gateway:    GatewaySettings{},
 	}
@@ -534,7 +534,7 @@ func TestRewriteMCPConfigForGateway(t *testing.T) {
 	}
 
 	// Create a gateway config (after filtering)
-	gatewayConfig := &MCPGatewayConfig{
+	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
 				Command: "gh",
@@ -635,7 +635,7 @@ func TestRewriteMCPConfigForGateway_WithAPIKey(t *testing.T) {
 	}
 
 	// Create a gateway config with API key
-	gatewayConfig := &MCPGatewayConfig{
+	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
 				Command: "gh",
