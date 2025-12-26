@@ -572,3 +572,264 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 		}
 	})
 }
+
+// TestFrontmatterConfigTypeSafety demonstrates compile-time type safety benefits
+func TestFrontmatterConfigTypeSafety(t *testing.T) {
+	t.Run("strongly-typed Tools field provides compile-time safety", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"tools": map[string]any{
+				"github": map[string]any{
+					"mode":     "remote",
+					"toolsets": []any{"repos", "issues"},
+				},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Strong typing allows direct access without type assertions
+		if config.Tools != nil {
+			// Tools is *ToolsConfig, not map[string]any
+			// This provides compile-time validation
+			toolsMap := config.Tools.ToMap()
+			if _, ok := toolsMap["github"]; !ok {
+				t.Error("github tool should exist")
+			}
+		} else {
+			t.Error("Tools should not be nil")
+		}
+	})
+
+	t.Run("strongly-typed Network field eliminates type assertions", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"network": map[string]any{
+				"allowed": []any{"github.com", "api.github.com"},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Old pattern required: networkMap, ok := config["network"].(map[string]any)
+		// New pattern: direct access to strongly-typed field
+		if config.Network == nil {
+			t.Fatal("Network should not be nil")
+		}
+
+		// Access allowed domains directly without type assertion
+		if len(config.Network.Allowed) != 2 {
+			t.Errorf("expected 2 allowed domains, got %d", len(config.Network.Allowed))
+		}
+
+		if config.Network.Allowed[0] != "github.com" {
+			t.Errorf("first domain should be github.com, got %s", config.Network.Allowed[0])
+		}
+	})
+
+	t.Run("strongly-typed SafeOutputs eliminates nested type assertions", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"safe-outputs": map[string]any{
+				"staged": true,
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Strong typing provides direct access to nested config
+		if config.SafeOutputs == nil {
+			t.Fatal("SafeOutputs should not be nil")
+		}
+
+		// Access staged flag directly
+		if !config.SafeOutputs.Staged {
+			t.Error("Staged should be true")
+		}
+	})
+
+	t.Run("Env field is type-safe map[string]string", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"env": map[string]any{
+				"VAR1": "value1",
+				"VAR2": "value2",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Env is map[string]string, not map[string]any
+		if len(config.Env) != 2 {
+			t.Errorf("expected 2 env vars, got %d", len(config.Env))
+		}
+
+		// Direct string access without type assertion
+		if config.Env["VAR1"] != "value1" {
+			t.Errorf("VAR1 should be 'value1', got %s", config.Env["VAR1"])
+		}
+	})
+}
+
+// TestFrontmatterConfigEdgeCases tests edge cases and error handling
+func TestFrontmatterConfigEdgeCases(t *testing.T) {
+	t.Run("handles nil values gracefully", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":  "test",
+			"tools": nil,
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		if config.Name != "test" {
+			t.Errorf("name should be 'test', got %s", config.Name)
+		}
+
+		// Nil tools should result in nil Tools field
+		if config.Tools != nil {
+			t.Error("Tools should be nil when frontmatter has nil tools")
+		}
+	})
+
+	t.Run("handles missing optional fields", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "minimal-workflow",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// All optional fields should be nil/empty
+		if config.Tools != nil {
+			t.Error("Tools should be nil for minimal config")
+		}
+		if config.Network != nil {
+			t.Error("Network should be nil for minimal config")
+		}
+		if config.SafeOutputs != nil {
+			t.Error("SafeOutputs should be nil for minimal config")
+		}
+	})
+
+	t.Run("handles Strict pointer correctly", func(t *testing.T) {
+		// Test with explicit false
+		frontmatter1 := map[string]any{
+			"strict": false,
+		}
+		config1, err := ParseFrontmatterConfig(frontmatter1)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if config1.Strict == nil {
+			t.Error("Strict should not be nil when explicitly set to false")
+		}
+		if *config1.Strict != false {
+			t.Error("Strict should be false")
+		}
+
+		// Test with explicit true
+		frontmatter2 := map[string]any{
+			"strict": true,
+		}
+		config2, err := ParseFrontmatterConfig(frontmatter2)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if config2.Strict == nil {
+			t.Error("Strict should not be nil when explicitly set to true")
+		}
+		if *config2.Strict != true {
+			t.Error("Strict should be true")
+		}
+
+		// Test with missing field (should be nil)
+		frontmatter3 := map[string]any{
+			"name": "test",
+		}
+		config3, err := ParseFrontmatterConfig(frontmatter3)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if config3.Strict != nil {
+			t.Error("Strict should be nil when not specified")
+		}
+	})
+}
+
+// TestFrontmatterConfigIntegration tests integration with existing extraction functions
+func TestFrontmatterConfigIntegration(t *testing.T) {
+	t.Run("integrates with ExtractMapField helper", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"tools": map[string]any{
+				"github": map[string]any{
+					"mode": "remote",
+				},
+			},
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+		}
+
+		// Old pattern still works for backward compatibility
+		tools := ExtractMapField(frontmatter, "tools")
+		if len(tools) == 0 {
+			t.Error("ExtractMapField should return tools")
+		}
+
+		// New pattern with strong typing
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		if config.Tools == nil {
+			t.Error("Tools should be parsed")
+		}
+		if config.Runtimes == nil {
+			t.Error("Runtimes should be parsed")
+		}
+	})
+
+	t.Run("ToMap produces compatible output for legacy code", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":        "test-workflow",
+			"description": "A test",
+			"engine":      "copilot",
+			"network": map[string]any{
+				"allowed": []any{"github.com"},
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Convert back to map
+		reconstructed := config.ToMap()
+
+		// Legacy code can use this map
+		if name, ok := reconstructed["name"].(string); !ok || name != "test-workflow" {
+			t.Errorf("name should be reconstructed correctly")
+		}
+
+		if network := reconstructed["network"]; network == nil {
+			t.Error("network should be reconstructed")
+		}
+	})
+}
