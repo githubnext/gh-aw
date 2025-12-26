@@ -678,8 +678,8 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 		t.Skip("Skipping comprehensive file test in short mode")
 	}
 
-	// Find all .cjs files in the pkg/workflow/js directory
-	jsDir := "js"
+	// Find all .cjs files in the actions/setup/js directory
+	jsDir := "../../actions/setup/js"
 	entries, err := os.ReadDir(jsDir)
 	if err != nil {
 		t.Fatalf("Failed to read js directory: %v", err)
@@ -709,7 +709,7 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 
 	for _, filename := range cjsFiles {
 		t.Run(filename, func(t *testing.T) {
-			filepath := "js/" + filename
+			filepath := jsDir + "/" + filename
 			content, err := os.ReadFile(filepath)
 			if err != nil {
 				t.Fatalf("Failed to read file %s: %v", filename, err)

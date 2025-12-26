@@ -34,7 +34,11 @@ imports:
   - shared/copilot-pr-data-fetch.md
 
 tools:
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/copilot-agent-analysis
+    description: "Historical agent performance metrics"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   github:
     toolsets: [default]
   bash:
@@ -206,14 +210,14 @@ For each PR, assess:
 
 ### Phase 4: Historical Trending Analysis
 
-Use the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:
+Use the repo memory folder `/tmp/gh-aw/repo-memory/default/` to maintain historical data:
 
 #### 4.1 Load Historical Data
 
 Check for existing historical data:
 ```bash
-ls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/
-cat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json
+ls -la /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/
+cat /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/history.json
 ```
 
 The history file should contain daily metrics in this format:
@@ -265,9 +269,9 @@ Calculate today's metrics:
 - Average total duration
 - Success rate (merged / total completed)
 
-Save to cache memory:
+Save to repo memory:
 ```bash
-mkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+mkdir -p /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/
 # Append today's metrics to history.json
 ```
 
@@ -311,7 +315,7 @@ Or use `list_pull_requests` with date filtering and filter results by `user.logi
 
 #### 4.3 Store Today's Metrics
 
-After ensuring historical data is available (either from existing cache or rebuilt), add today's metrics:
+After ensuring historical data is available (either from existing repo memory or rebuilt), add today's metrics:
 - Total PRs created today
 - Number merged/closed/open
 - Average comments per PR
@@ -319,7 +323,7 @@ After ensuring historical data is available (either from existing cache or rebui
 - Average total duration
 - Success rate (merged / total completed)
 
-Append to history.json in the cache memory.
+Append to history.json in the repo memory.
 
 #### 4.4 Analyze Trends
 
@@ -445,7 +449,7 @@ The "Agent Task Texts" section should include a table showing all PRs created in
 ### Cache Memory Management
 - **Organize data**: Keep historical data well-structured in JSON format
 - **Limit retention**: Keep last 90 days (3 months) of daily data for trend analysis
-- **Handle errors**: If cache is corrupted, reinitialize gracefully
+- **Handle errors**: If repo memory is corrupted, reinitialize gracefully
 - **Simplified data collection**: Focus on 3-day trends, not weekly or monthly
   - Only collect and maintain last 3 days of data for trend comparison
   - Save progress after each day to ensure data persistence
@@ -462,7 +466,7 @@ The "Agent Task Texts" section should include a table showing all PRs created in
 ### No PRs in Last 24 Hours
 If no PRs were created by Copilot in the last 24 hours:
 - Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
-- Update cache memory with zero counts
+- Update repo memory with zero counts
 - Keep it to 2-3 sentences max
 
 ### Bot Username Changes
@@ -481,7 +485,7 @@ A successful **concise** analysis:
 - ✅ Finds all Copilot PRs from last 24 hours
 - ✅ Calculates key metrics (success rate, duration, comments)
 - ✅ Shows 3-day trend comparison (not 7-day or monthly)
-- ✅ Updates cache memory with today's metrics
+- ✅ Updates repo memory with today's metrics
 - ✅ Only highlights notable PRs (failures, closures, long-open)
 - ✅ Keeps discussion to ~15-20 lines of essential information
 - ✅ Omits verbose tables, detailed breakdowns, and methodology sections

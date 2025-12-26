@@ -152,12 +152,13 @@ make build              # Automatically runs sync-js-scripts
 2. Run `make build` (automatically syncs to pkg/workflow/js/)
 3. The synced files in `pkg/workflow/js/` are embedded in the binary via `//go:embed`
 4. **Never** edit production files in `pkg/workflow/js/` directly - they are generated
-5. Test files (*.test.cjs) remain only in `pkg/workflow/js/` and are not synced
+5. Test files (*.test.cjs) are in `actions/setup/js/` alongside source code
 
 **Key points:**
 - `actions/setup/js/*.cjs` = Source of truth (manually edited, production files only)
 - `pkg/workflow/js/*.cjs` = Generated (copied during build, marked as linguist-generated)
-- `pkg/workflow/js/*.test.cjs` = Test files (remain in pkg/workflow/js/, not synced)
+- `actions/setup/js/*.test.cjs` = Test files (co-located with source code)
+- Test files (*.test.cjs) are not synced between directories
 - The build process: `actions/setup/js/` → `pkg/workflow/js/` → embedded in binary
 
 **Summary of patterns:**

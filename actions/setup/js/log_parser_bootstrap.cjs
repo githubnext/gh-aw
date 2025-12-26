@@ -124,7 +124,7 @@ function runLogParser(options) {
           model,
           parserName,
         });
-        
+
         // Add safe outputs preview to step summary
         let fullMarkdown = copilotCliStyleMarkdown;
         if (safeOutputsContent) {
@@ -133,12 +133,12 @@ function runLogParser(options) {
             fullMarkdown += "\n" + safeOutputsMarkdown;
           }
         }
-        
+
         core.summary.addRaw(fullMarkdown).write();
       } else {
         // Fallback: just log success message for parsers without log entries
         core.info(`${parserName} log parsed successfully`);
-        
+
         // Add safe outputs preview to core.info (fallback path)
         if (safeOutputsContent) {
           const safeOutputsPlainText = formatSafeOutputsPreview(safeOutputsContent, { isPlainText: true });
@@ -146,7 +146,7 @@ function runLogParser(options) {
             core.info(safeOutputsPlainText);
           }
         }
-        
+
         // Write original markdown to step summary if available
         let fullMarkdown = markdown;
         if (safeOutputsContent) {

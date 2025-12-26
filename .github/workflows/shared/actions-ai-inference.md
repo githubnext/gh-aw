@@ -3,7 +3,7 @@ engine:
   id: custom
   steps:
     - name: Run AI Inference
-      uses: actions/ai-inference@v1
+      uses: actions/ai-inference@v2
       with:
         prompt-file: ${{ env.GH_AW_PROMPT }}
         model: gpt-4o-mini

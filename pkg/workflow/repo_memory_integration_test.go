@@ -60,7 +60,7 @@ This workflow uses repo memory.
 	}
 
 	// Check for memory directory path
-	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory-default") {
+	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory/default") {
 		t.Error("Expected memory directory path in compiled workflow")
 	}
 }
@@ -178,10 +178,10 @@ This workflow uses multiple repo memories.
 	}
 
 	// Check for both directories
-	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory-session") {
+	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory/session") {
 		t.Error("Expected session memory directory")
 	}
-	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory-logs") {
+	if !strings.Contains(lockFile, "/tmp/gh-aw/repo-memory/logs") {
 		t.Error("Expected logs memory directory")
 	}
 

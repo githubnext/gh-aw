@@ -435,7 +435,10 @@ func findAvailablePort(startPort int, verbose bool) int {
 	for port := startPort; port < startPort+safeInputsPortRange; port++ {
 		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err == nil {
-			listener.Close()
+			// Close listener and check for errors
+			if err := listener.Close(); err != nil && verbose {
+				mcpInspectLog.Printf("Warning: Failed to close listener on port %d: %v", port, err)
+			}
 			if verbose {
 				mcpInspectLog.Printf("Found available port: %d", port)
 			}

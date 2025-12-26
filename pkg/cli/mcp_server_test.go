@@ -811,3 +811,72 @@ func TestMCPServer_ContextCancellation(t *testing.T) {
 		})
 	}
 }
+
+// TestMCPServer_ToolIcons tests that all tools have icons
+func TestMCPServer_ToolIcons(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(binaryPath, "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// List tools
+	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	// Expected icons for each tool
+	expectedIcons := map[string]string{
+		"status":      "📊",
+		"compile":     "🔨",
+		"logs":        "📜",
+		"audit":       "🔍",
+		"mcp-inspect": "🔎",
+		"add":         "➕",
+		"update":      "🔄",
+	}
+
+	// Verify each tool has an icon
+	for _, tool := range result.Tools {
+		if len(tool.Icons) == 0 {
+			t.Errorf("Tool '%s' is missing an icon", tool.Name)
+			continue
+		}
+
+		// Check that the icon source matches expected emoji
+		if expectedIcon, ok := expectedIcons[tool.Name]; ok {
+			if tool.Icons[0].Source != expectedIcon {
+				t.Errorf("Tool '%s' has unexpected icon. Expected: %s, Got: %s",
+					tool.Name, expectedIcon, tool.Icons[0].Source)
+			}
+			t.Logf("Tool '%s' has correct icon: %s", tool.Name, tool.Icons[0].Source)
+		} else {
+			t.Logf("Tool '%s' has icon (not in expected list): %s", tool.Name, tool.Icons[0].Source)
+		}
+	}
+
+	// Verify we checked all expected tools
+	if len(result.Tools) != len(expectedIcons) {
+		t.Errorf("Expected %d tools with icons, got %d tools", len(expectedIcons), len(result.Tools))
+	}
+}

@@ -10,9 +10,11 @@ permissions:
 tracker-id: daily-code-metrics
 engine: claude
 tools:
-  cache-memory:
-    - id: metrics
-      key: code-metrics-${{ github.workflow }}
+  repo-memory:
+    branch-name: memory/code-metrics
+    description: "Historical code quality and health metrics"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   bash:
 safe-outputs:
   create-discussion:
@@ -37,7 +39,7 @@ You are the Daily Code Metrics Agent - an expert system that tracks comprehensiv
 
 Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day trends. Store in cache, generate reports with visualizations.
 
-**Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Cache: `/tmp/gh-aw/cache-memory/metrics/`
+**Context**: Fresh clone (no git history). Fetch with `git fetch --unshallow` for churn metrics. Memory: `/tmp/gh-aw/repo-memory/default/`
 
 ## Metrics to Collect
 
@@ -55,7 +57,7 @@ Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day tr
 
 ## Data Storage
 
-Store as JSON Lines in `/tmp/gh-aw/cache-memory/metrics/history.jsonl`:
+Store as JSON Lines in `/tmp/gh-aw/repo-memory/default/history.jsonl`:
 ```json
 {"date": "2024-01-15", "timestamp": 1705334400, "metrics": {"size": {...}, "quality": {...}, "tests": {...}, "churn": {...}, "workflows": {...}, "docs": {...}}}
 ```
@@ -86,8 +88,8 @@ Weighted average: Test coverage (30%), Code organization (25%), Documentation (2
 
 - Comprehensive but efficient (complete in 15min)
 - Calculate trends accurately, flag >10% changes
-- Use cache for persistent history (90-day retention)
+- Use repo memory for persistent history (90-day retention)
 - Handle missing data gracefully
 - Visual indicators for quick scanning
-- Store metrics to cache, create discussion report
+- Store metrics to repo memory, create discussion report
 

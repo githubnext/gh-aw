@@ -50,8 +50,7 @@ jobs:
       - check_external_user
       - pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') &&
-      (needs.check_external_user.outputs.should_run)))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.should_skip != 'true'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -992,7 +991,7 @@ jobs:
     needs: pre_activation
     runs-on: ubuntu-slim
     outputs:
-      should_run: ${{ steps.check_actor.outputs.should_run || github.event_name == 'workflow_dispatch' }}
+      should_skip: ${{ steps.check_actor.outputs.should_skip || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Check if actor is external user or GitHub Action bot
         id: check_actor
@@ -1007,7 +1006,7 @@ jobs:
             const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
             if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
               core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
-              core.setOutput('should_run', '');
+              core.setOutput('should_skip', 'true');
               return;
             }
 
@@ -1028,16 +1027,16 @@ jobs:
               const teamPermissions = ['admin', 'maintain', 'write'];
               if (teamPermissions.includes(userPermission)) {
                 core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
-                core.setOutput('should_run', '');
+                core.setOutput('should_skip', 'true');
               } else {
                 core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
-                core.setOutput('should_run', 'true');
+                core.setOutput('should_skip', 'false');
               }
             } catch (error) {
               // If we can't determine permission (e.g., user not a collaborator), assume external and run
               core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
               core.info(`✅ Running workflow - assuming external user`);
-              core.setOutput('should_run', 'true');
+              core.setOutput('should_skip', 'false');
             }
 
   conclusion:

@@ -18,7 +18,7 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 | Command | When to Use | Details |
 |---------|-------------|---------|
 | **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
-| **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
+| **`gh aw add (workflow)`** | Add workflows from The Agentics collection or other repositories | [→ Documentation](#add) |
 | **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
 | **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
 | **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
@@ -208,7 +208,7 @@ Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot
 
 #### `add`
 
-Add workflows from The Agentics collection or other repositories. Displays the workflow description (from frontmatter `description` field) to provide context.
+Add workflows from The Agentics collection or other repositories to .github/workflows. Displays the workflow description (from frontmatter `description` field) to provide context.
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
@@ -221,7 +221,7 @@ gh aw add ci-doctor --create-pull-request        # Create PR instead of direct c
 
 #### `new`
 
-Create a new custom workflow from scratch.
+Create a new workflow Markdown file with example configuration.
 
 ```bash wrap
 gh aw new                      # Interactive mode
@@ -255,7 +255,7 @@ When `--owner` and `--repo` are not specified, the command operates on the curre
 
 ##### `secrets bootstrap`
 
-Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
+Check and suggest setup for gh aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
 
 ```bash wrap
 gh aw secrets bootstrap                    # Check tokens for current repository
@@ -442,7 +442,7 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 #### `campaign`
 
-Inspect and validate first-class agentic campaign definitions declared as `.github/workflows/*.campaign.md` files.
+Inspect first-class agentic campaign definitions declared in .github/workflows/*.campaign.md
 
 For safe scaling and incremental discovery, campaign specs support:
 
