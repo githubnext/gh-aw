@@ -134,8 +134,8 @@ function formatBashCommand(command) {
     .replace(/\s+/g, " ") // Collapse multiple spaces into one
     .trim(); // Remove leading/trailing whitespace
 
-  // Escape backticks to prevent markdown issues
-  formatted = formatted.replace(/`/g, "\\`");
+  // Escape backslashes first to prevent escaping bypass, then escape backticks to prevent markdown issues
+  formatted = formatted.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
 
   // Truncate if too long (keep reasonable length for summary)
   const maxLength = 300;

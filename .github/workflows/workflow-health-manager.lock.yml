@@ -4189,7 +4189,7 @@ jobs:
                 .replace(/\t/g, " ") 
                 .replace(/\s+/g, " ") 
                 .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
+              formatted = formatted.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
               const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
