@@ -142,7 +142,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: download-data
         name: Download repository activity data
-        run: "set -e\n\n# Create directories\nmkdir -p /tmp/gh-aw/daily-news-data\nmkdir -p /tmp/gh-aw/repo-memory-default/memory/default/daily-news-data\n\n# Check if cached data exists and is recent (< 24 hours old)\nCACHE_VALID=false\nCACHE_TIMESTAMP_FILE=\"/tmp/gh-aw/repo-memory-default/memory/default/daily-news-data/.timestamp\"\n\nif [ -f \"$CACHE_TIMESTAMP_FILE\" ]; then\n  CACHE_AGE=$(($(date +%s) - $(cat \"$CACHE_TIMESTAMP_FILE\")))\n  # 24 hours = 86400 seconds\n  if [ $CACHE_AGE -lt 86400 ]; then\n    echo \"✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)\"\n    CACHE_VALID=true\n  else\n    echo \"⚠ Cached data is stale (age: ${CACHE_AGE}s, more than 24h)\"\n  fi\nelse\n  echo \"ℹ No cached data found, will fetch fresh data\"\nfi\n\n# Use cached data if valid, otherwise fetch fresh data\nif [ \"$CACHE_VALID\" = true ]; then\n  echo \"📦 Using cached data from previous run\"\n  cp -r /tmp/gh-aw/repo-memory-default/memory/default/daily-news-data/* /tmp/gh-aw/daily-news-data/\n  echo \"✅ Cached data restored to working directory\"\nelse\n  echo \"🔄 Fetching fresh data from GitHub API...\"\n  \n  # Calculate date range (last 30 days)\n  END_DATE=$(date -u +%Y-%m-%d)\n  START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)\n  \n  echo \"Fetching data from $START_DATE to $END_DATE\"\n  \n  # Fetch issues (open and recently closed)\n  echo \"Fetching issues...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n            comments { totalCount }\n          }\n        }\n        closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            closedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/issues.json\n  \n  # Fetch pull requests (open and recently merged/closed)\n  echo \"Fetching pull requests...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            additions\n            deletions\n            changedFiles\n            reviews(first: 10) { totalCount }\n          }\n        }\n        mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            mergedAt\n            author { login }\n            additions\n            deletions\n          }\n        }\n        closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            closedAt\n            author { login }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/pull_requests.json\n  \n  # Fetch recent commits (last 100)\n  echo \"Fetching commits...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/commits\" \\\n    --paginate \\\n    --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \\\n    > /tmp/gh-aw/daily-news-data/commits.json\n  \n  # Fetch releases\n  echo \"Fetching releases...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/releases\" \\\n    --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \\\n    > /tmp/gh-aw/daily-news-data/releases.json\n  \n  # Fetch discussions\n  echo \"Fetching discussions...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            createdAt\n            updatedAt\n            author { login }\n            category { name }\n            comments { totalCount }\n            url\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/discussions.json\n  \n  # Check for changesets\n  echo \"Checking for changesets...\"\n  if [ -d \".changeset\" ]; then\n    find .changeset -name \"*.md\" -type f ! -name \"README.md\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  else\n    echo \"No changeset directory\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  fi\n  \n  # Cache the freshly downloaded data for next run\n  echo \"💾 Caching data for future runs...\"\n  cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory-default/memory/default/daily-news-data/\n  date +%s > \"$CACHE_TIMESTAMP_FILE\"\n  \n  echo \"✅ Data download and caching complete\"\nfi\n\nls -lh /tmp/gh-aw/daily-news-data/\n"
+        run: "set -e\n\n# Create directories\nmkdir -p /tmp/gh-aw/daily-news-data\nmkdir -p /tmp/gh-aw/repo-memory/daily-news-data\n\n# Check if cached data exists and is recent (< 24 hours old)\nCACHE_VALID=false\nCACHE_TIMESTAMP_FILE=\"/tmp/gh-aw/repo-memory/daily-news-data/.timestamp\"\n\nif [ -f \"$CACHE_TIMESTAMP_FILE\" ]; then\n  CACHE_AGE=$(($(date +%s) - $(cat \"$CACHE_TIMESTAMP_FILE\")))\n  # 24 hours = 86400 seconds\n  if [ $CACHE_AGE -lt 86400 ]; then\n    echo \"✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)\"\n    CACHE_VALID=true\n  else\n    echo \"⚠ Cached data is stale (age: ${CACHE_AGE}s, more than 24h)\"\n  fi\nelse\n  echo \"ℹ No cached data found, will fetch fresh data\"\nfi\n\n# Use cached data if valid, otherwise fetch fresh data\nif [ \"$CACHE_VALID\" = true ]; then\n  echo \"📦 Using cached data from previous run\"\n  cp -r /tmp/gh-aw/repo-memory/daily-news-data/* /tmp/gh-aw/daily-news-data/\n  echo \"✅ Cached data restored to working directory\"\nelse\n  echo \"🔄 Fetching fresh data from GitHub API...\"\n  \n  # Calculate date range (last 30 days)\n  END_DATE=$(date -u +%Y-%m-%d)\n  START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)\n  \n  echo \"Fetching data from $START_DATE to $END_DATE\"\n  \n  # Fetch issues (open and recently closed)\n  echo \"Fetching issues...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n            comments { totalCount }\n          }\n        }\n        closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            closedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/issues.json\n  \n  # Fetch pull requests (open and recently merged/closed)\n  echo \"Fetching pull requests...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            additions\n            deletions\n            changedFiles\n            reviews(first: 10) { totalCount }\n          }\n        }\n        mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            mergedAt\n            author { login }\n            additions\n            deletions\n          }\n        }\n        closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            closedAt\n            author { login }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/pull_requests.json\n  \n  # Fetch recent commits (last 100)\n  echo \"Fetching commits...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/commits\" \\\n    --paginate \\\n    --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \\\n    > /tmp/gh-aw/daily-news-data/commits.json\n  \n  # Fetch releases\n  echo \"Fetching releases...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/releases\" \\\n    --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \\\n    > /tmp/gh-aw/daily-news-data/releases.json\n  \n  # Fetch discussions\n  echo \"Fetching discussions...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            createdAt\n            updatedAt\n            author { login }\n            category { name }\n            comments { totalCount }\n            url\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/discussions.json\n  \n  # Check for changesets\n  echo \"Checking for changesets...\"\n  if [ -d \".changeset\" ]; then\n    find .changeset -name \"*.md\" -type f ! -name \"README.md\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  else\n    echo \"No changeset directory\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  fi\n  \n  # Cache the freshly downloaded data for next run\n  echo \"💾 Caching data for future runs...\"\n  cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory/daily-news-data/\n  date +%s > \"$CACHE_TIMESTAMP_FILE\"\n  \n  echo \"✅ Data download and caching complete\"\nfi\n\nls -lh /tmp/gh-aw/daily-news-data/\n"
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -162,14 +162,14 @@ jobs:
           BRANCH_NAME: memory/daily-news
         run: |
           set +e  # Don't fail if branch doesn't exist
-          git clone --depth 1 --single-branch --branch "memory/daily-news" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          git clone --depth 1 --single-branch --branch "memory/daily-news" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory" 2>/dev/null
           CLONE_EXIT_CODE=$?
           set -e
           
           if [ $CLONE_EXIT_CODE -ne 0 ]; then
             echo "Branch memory/daily-news does not exist, creating orphan branch"
-            mkdir -p "/tmp/gh-aw/repo-memory-default"
-            cd "/tmp/gh-aw/repo-memory-default"
+            mkdir -p "/tmp/gh-aw/repo-memory"
+            cd "/tmp/gh-aw/repo-memory"
             git init
             git checkout --orphan "$BRANCH_NAME"
             git config user.name "github-actions[bot]"
@@ -177,13 +177,13 @@ jobs:
             git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           else
             echo "Successfully cloned memory/daily-news branch"
-            cd "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
           fi
           
-          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
-          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
+          mkdir -p "/tmp/gh-aw/repo-memory"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1175,7 +1175,7 @@ jobs:
           
           ## 💾 Repo Memory Available
           
-          **Repo-memory is enabled** - You have access to persistent storage at `/tmp/gh-aw/repo-memory-default/memory/default/` that persists across workflow runs:
+          **Repo-memory is enabled** - You have access to persistent storage at `/tmp/gh-aw/repo-memory/` that persists across workflow runs:
           
           - Use it to **store intermediate analysis results** that might be useful for future runs
           - Store **processed data, statistics, or insights** that take time to compute
@@ -1183,7 +1183,7 @@ jobs:
           - Files stored here will be available in the next workflow run via Git branches
           
           **Example use cases**:
-          - Save aggregated statistics (e.g., `/tmp/gh-aw/repo-memory-default/memory/default/monthly-stats.json`)
+          - Save aggregated statistics (e.g., `/tmp/gh-aw/repo-memory/monthly-stats.json`)
           - Cache processed trend data for faster chart generation
           - Store analysis results that can inform future reports
           
@@ -1430,7 +1430,7 @@ jobs:
           
           ## Repo Memory Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Historical news digest data
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/` where you can read and write files that are stored in a git branch. Historical news digest data
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
           - **Git Branch Storage**: Files are stored in the `memory/daily-news` branch of the current repository
@@ -1444,9 +1444,9 @@ jobs:
           - **Max File Count**: 100 files per commit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1698,7 +1698,7 @@ jobs:
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory-default
+          path: /tmp/gh-aw/repo-memory
           retention-days: 1
           if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
@@ -2139,14 +2139,14 @@ jobs:
         continue-on-error: true
         with:
           name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory-default
+          path: /tmp/gh-aw/repo-memory
       - name: Push repo-memory changes (default)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/daily-news

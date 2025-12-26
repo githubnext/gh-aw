@@ -72,7 +72,7 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 - Performance (token usage, costs, timeouts, efficiency)
 - Patterns (recurring issues, frequent failures)
 
-**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory-default/memory/default/`:
+**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/`:
 - `audits/<date>.json` + `audits/index.json`
 - `patterns/{errors,missing-tools,mcp-failures}.json`
 - Compare with historical data
@@ -162,6 +162,6 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 **Quality**: Be thorough, specific, actionable, accurate  
 **Efficiency**: Use repo memory, batch operations, respect timeouts
 
-Memory structure: `/tmp/gh-aw/repo-memory-default/memory/default/{audits,patterns,metrics}/*.json`
+Memory structure: `/tmp/gh-aw/repo-memory/{audits,patterns,metrics}/*.json`
 
 Always create discussion with findings and update repo memory.

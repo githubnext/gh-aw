@@ -135,14 +135,14 @@ jobs:
           BRANCH_NAME: memory/copilot-agent-analysis
         run: |
           set +e  # Don't fail if branch doesn't exist
-          git clone --depth 1 --single-branch --branch "memory/copilot-agent-analysis" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory-default" 2>/dev/null
+          git clone --depth 1 --single-branch --branch "memory/copilot-agent-analysis" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory" 2>/dev/null
           CLONE_EXIT_CODE=$?
           set -e
           
           if [ $CLONE_EXIT_CODE -ne 0 ]; then
             echo "Branch memory/copilot-agent-analysis does not exist, creating orphan branch"
-            mkdir -p "/tmp/gh-aw/repo-memory-default"
-            cd "/tmp/gh-aw/repo-memory-default"
+            mkdir -p "/tmp/gh-aw/repo-memory"
+            cd "/tmp/gh-aw/repo-memory"
             git init
             git checkout --orphan "$BRANCH_NAME"
             git config user.name "github-actions[bot]"
@@ -150,13 +150,13 @@ jobs:
             git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           else
             echo "Successfully cloned memory/copilot-agent-analysis branch"
-            cd "/tmp/gh-aw/repo-memory-default"
+            cd "/tmp/gh-aw/repo-memory"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
           fi
           
-          mkdir -p "/tmp/gh-aw/repo-memory-default/memory/default"
-          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory-default/memory/default"
+          mkdir -p "/tmp/gh-aw/repo-memory"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -788,14 +788,14 @@ jobs:
           
           ### Phase 4: Historical Trending Analysis
           
-          Use the repo memory folder `/tmp/gh-aw/repo-memory-default/memory/default/` to maintain historical data:
+          Use the repo memory folder `/tmp/gh-aw/repo-memory/` to maintain historical data:
           
           #### 4.1 Load Historical Data
           
           Check for existing historical data:
           ```bash
-          ls -la /tmp/gh-aw/repo-memory-default/memory/default/copilot-agent-metrics/
-          cat /tmp/gh-aw/repo-memory-default/memory/default/copilot-agent-metrics/history.json
+          ls -la /tmp/gh-aw/repo-memory/copilot-agent-metrics/
+          cat /tmp/gh-aw/repo-memory/copilot-agent-metrics/history.json
           ```
           
           The history file should contain daily metrics in this format:
@@ -849,7 +849,7 @@ jobs:
           
           Save to repo memory:
           ```bash
-          mkdir -p /tmp/gh-aw/repo-memory-default/memory/default/copilot-agent-metrics/
+          mkdir -p /tmp/gh-aw/repo-memory/copilot-agent-metrics/
           # Append today's metrics to history.json
           ```
           
@@ -995,6 +995,8 @@ jobs:
              ```
           
           3. **Status Values:**
+             - "Merged" - PR was successfully merged
+             - "Closed" - PR was closed without merging
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1018,8 +1020,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-             - "Merged" - PR was successfully merged
-             - "Closed" - PR was closed without merging
              - "Open" - PR is still open
           
           4. **If no PRs in last 24 hours:**
@@ -1179,7 +1179,7 @@ jobs:
           
           ## Repo Memory Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory-default/memory/default/` where you can read and write files that are stored in a git branch. Historical agent performance metrics
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/` where you can read and write files that are stored in a git branch. Historical agent performance metrics
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
           - **Git Branch Storage**: Files are stored in the `memory/copilot-agent-analysis` branch of the current repository
@@ -1193,9 +1193,9 @@ jobs:
           - **Max File Count**: 100 files per commit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory-default/memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory-default/memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory-default/memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1531,7 +1531,7 @@ jobs:
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory-default
+          path: /tmp/gh-aw/repo-memory
           retention-days: 1
           if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
@@ -1967,14 +1967,14 @@ jobs:
         continue-on-error: true
         with:
           name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory-default
+          path: /tmp/gh-aw/repo-memory
       - name: Push repo-memory changes (default)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory-default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/copilot-agent-analysis
