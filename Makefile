@@ -151,11 +151,11 @@ security-trivy:
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
-	cd pkg/workflow/js && npm run test:js -- --no-file-parallelism
+	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
 .PHONY: build-js
 build-js:
-	cd pkg/workflow/js && npm run typecheck
+	cd actions/setup/js && npm run typecheck
 
 # Bundle JavaScript files with local requires
 .PHONY: bundle-js
@@ -283,7 +283,7 @@ license-report: ## Generate CSV license report
 deps: check-node-version
 	go mod download
 	go mod tidy
-	cd pkg/workflow/js && npm ci
+	cd actions/setup/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
@@ -298,7 +298,7 @@ download-github-actions-schema:
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
 	@echo "Formatting schema with prettier..."
-	@cd pkg/workflow/js && npm run format:schema >/dev/null 2>&1
+	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter (full repository scan)
@@ -348,15 +348,15 @@ fmt: fmt-go fmt-cjs fmt-json
 fmt-go:
 	go fmt ./...
 
-# Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
+# Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
 fmt-cjs:
-	cd pkg/workflow/js && npm run format:cjs
+	cd actions/setup/js && npm run format:cjs
 
-# Format JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	cd pkg/workflow/js && npm run format:pkg-json
+	cd actions/setup/js && npm run format:pkg-json
 
 # Check formatting
 .PHONY: fmt-check
@@ -366,25 +366,25 @@ fmt-check:
 		exit 1; \
 	fi
 
-# Check JavaScript (.cjs and .js) and JSON file formatting in pkg/workflow/js directory
+# Check JavaScript (.cjs and .js) and JSON file formatting in actions/setup/js directory
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
-	cd pkg/workflow/js && npm run lint:cjs
+	cd actions/setup/js && npm run lint:cjs
 
-# Check JSON file formatting in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Check JSON file formatting in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-check-json
 fmt-check-json:
-	@if ! cd pkg/workflow/js && npm run check:pkg-json 2>&1 | grep -q "All matched files use Prettier code style"; then \
+	@if ! cd actions/setup/js && npm run check:pkg-json 2>&1 | grep -q "All matched files use Prettier code style"; then \
 		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
 		exit 1; \
 	fi
 
-# Lint JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
+# Lint JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: lint-cjs
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
-# Lint JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Lint JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: lint-json
 lint-json: fmt-check-json
 	@echo "✓ JSON formatting validated"
@@ -558,13 +558,13 @@ help:
 	@echo "  golint-incremental - Run golangci-lint incrementally (only changed files, requires BASE_REF)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js"
-	@echo "  fmt-json         - Format JSON files in pkg directory (excluding pkg/workflow/js)"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in actions/setup/js"
+	@echo "  fmt-json         - Format JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  fmt-check        - Check code formatting"
-	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in pkg/workflow/js"
-	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding pkg/workflow/js)"
-	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
-	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
+	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in actions/setup/js"
+	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding actions/setup/js)"
+	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
+	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck, trivy)"
 	@echo "  security-gosec   - Run gosec Go security scanner"
