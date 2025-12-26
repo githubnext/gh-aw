@@ -238,8 +238,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
-	// NOTE: Update Issue and Update Discussion are handled by the handler registry above
-
 	// 16. Update Pull Request step
 	if data.SafeOutputs.UpdatePullRequests != nil {
 		stepConfig := c.buildUpdatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
