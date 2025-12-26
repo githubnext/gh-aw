@@ -32,9 +32,7 @@ tools:
   github:
     toolsets: [default]
   edit:
-  bash:
-    - "wc -w .github/ISSUE_TEMPLATE/*.yml"
-    - "cat .github/ISSUE_TEMPLATE/*.yml"
+  bash: [":*"]
 
 timeout-minutes: 20
 
