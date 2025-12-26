@@ -34,20 +34,14 @@ async function main() {
   core.info(`  Lock file: ${lockFile}`);
 
   // Check if both files exist
-  let workflowExists = false;
-  let lockExists = false;
+  const workflowExists = fs.existsSync(workflowMdFile);
+  const lockExists = fs.existsSync(lockFile);
 
-  try {
-    fs.accessSync(workflowMdFile, fs.constants.F_OK);
-    workflowExists = true;
-  } catch (error) {
+  if (!workflowExists) {
     core.info(`Source file does not exist: ${workflowMdFile}`);
   }
 
-  try {
-    fs.accessSync(lockFile, fs.constants.F_OK);
-    lockExists = true;
-  } catch (error) {
+  if (!lockExists) {
     core.info(`Lock file does not exist: ${lockFile}`);
   }
 
@@ -68,32 +62,18 @@ async function main() {
 
   // Check if workflow file is newer than lock file
   if (workflowMtime > lockMtime) {
-    const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
-
-    core.error(warningMessage);
-
-    // Format timestamps for display
-    const workflowTimestamp = workflowStat.mtime.toISOString();
-    const lockTimestamp = lockStat.mtime.toISOString();
-
-    // Get git commit SHA if available
-    const gitSha = process.env.GITHUB_SHA;
+    core.error(`WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`);
 
     // Add summary to GitHub Step Summary
-    let summary = core.summary
+    await core.summary
       .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
       .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
       .addRaw("**Files:**\n")
-      .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
-      .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
-
-    if (gitSha) {
-      summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
-    }
-
-    summary = summary.addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
-
-    await summary.write();
+      .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowStat.mtime.toISOString()})\n`)
+      .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockStat.mtime.toISOString()})\n\n`)
+      .addRaw(process.env.GITHUB_SHA ? `**Git Commit:** \`${process.env.GITHUB_SHA}\`\n\n` : "")
+      .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n")
+      .write();
   } else {
     core.info("✅ Lock file is up to date");
   }
