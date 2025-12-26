@@ -109,26 +109,24 @@ func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.applyDefaultTools(tt.tools, nil)
+			toolsConfig := NewTools(tt.tools)
+			result := compiler.applyDefaultTools(toolsConfig, nil)
 
 			// Get the github configuration
-			githubConfig, ok := result["github"].(map[string]any)
-			if !ok {
-				t.Fatal("Expected github configuration to be a map")
+			githubConfig := result.GitHub
+			if githubConfig == nil {
+				t.Fatal("Expected github configuration to exist")
 			}
 
 			// Check if allowed field exists
-			_, hasAllowed := githubConfig["allowed"]
+			hasAllowed := len(githubConfig.Allowed) > 0
 			if hasAllowed != tt.expectedHasAllowed {
 				t.Errorf("Expected allowed field presence to be %v, got %v", tt.expectedHasAllowed, hasAllowed)
 			}
 
 			// If allowed exists and we expect it, verify the tools are preserved
 			if tt.expectedHasAllowed {
-				allowed, ok := githubConfig["allowed"].([]any)
-				if !ok {
-					t.Fatal("Expected allowed to be a slice")
-				}
+				allowed := githubConfig.Allowed
 				// Verify the explicitly provided tools are preserved
 				if len(allowed) != 2 {
 					t.Errorf("Expected 2 tools, got %d", len(allowed))

@@ -61,15 +61,16 @@ func TestGitHubToolDisabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.applyDefaultTools(tt.tools, nil)
+			toolsConfig := NewTools(tt.tools)
+			result := compiler.applyDefaultTools(toolsConfig, nil)
 
-			_, hasGitHub := result["github"]
+			hasGitHub := result.GitHub != nil
 			if hasGitHub != tt.expectGitHub {
 				t.Errorf("Expected github presence to be %v, got %v", tt.expectGitHub, hasGitHub)
 			}
 
 			if tt.expectOthers {
-				_, hasEdit := result["edit"]
+				hasEdit := result.Edit != nil
 				if !hasEdit {
 					t.Error("Expected edit tool to be preserved")
 				}

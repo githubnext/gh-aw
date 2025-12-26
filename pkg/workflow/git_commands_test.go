@@ -86,11 +86,13 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 			}
 
 			// Apply both default tool functions in sequence
-			tools = compiler.applyDefaultTools(tools, tt.safeOutputs)
+			toolsConfig := NewTools(tools)
+			toolsConfig = compiler.applyDefaultTools(toolsConfig, tt.safeOutputs)
+			tools = toolsConfig.ToMap()
 
 			// Extract cache-memory config
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tools)
-			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(toolsConfig, tt.safeOutputs, cacheMemoryConfig)
 
 			// Parse the result string into individual tools
 			resultTools := []string{}
@@ -194,11 +196,13 @@ func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
 			}
 
 			// Apply both default tool functions in sequence
-			tools = compiler.applyDefaultTools(tools, tt.safeOutputs)
+			toolsConfig := NewTools(tools)
+			toolsConfig = compiler.applyDefaultTools(toolsConfig, tt.safeOutputs)
+			tools = toolsConfig.ToMap()
 
 			// Extract cache-memory config
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tools)
-			result := engine.computeAllowedClaudeToolsString(tools, tt.safeOutputs, cacheMemoryConfig)
+			result := engine.computeAllowedClaudeToolsString(toolsConfig, tt.safeOutputs, cacheMemoryConfig)
 
 			// Parse the result string into individual tools
 			resultTools := []string{}

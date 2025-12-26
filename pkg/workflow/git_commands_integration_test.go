@@ -196,16 +196,18 @@ func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
 	// Extract and process tools
-	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+	topToolsMap := extractToolsFromFrontmatter(result.Frontmatter)
+	topTools := NewTools(topToolsMap)
 	topTools = c.applyDefaultTools(topTools, safeOutputs)
 
 	// Extract cache-memory config
-	cacheMemoryConfig, _ := c.extractCacheMemoryConfigFromMap(topTools)
+	cacheMemoryConfig, _ := c.extractCacheMemoryConfig(topTools)
 
 	// Build basic workflow data for testing
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
-		Tools:       topTools,
+		Tools:       topTools.ToMap(),
+		ParsedTools: topTools,
 		SafeOutputs: safeOutputs,
 		AI:          "claude",
 	}

@@ -220,10 +220,12 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.expandNeutralToolsToClaudeTools(tt.input)
+			inputConfig := NewTools(tt.input)
+			result := engine.expandNeutralToolsToClaudeTools(inputConfig)
+			resultMap := result.ToMap()
 
 			// Check claude section
-			claudeResult, hasClaudeResult := result["claude"]
+			claudeResult, hasClaudeResult := resultMap["claude"]
 			claudeExpected, hasClaudeExpected := tt.expected["claude"]
 
 			if hasClaudeExpected != hasClaudeResult {
@@ -286,7 +288,7 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 					continue // Already checked above
 				}
 
-				actualValue, exists := result[key]
+				actualValue, exists := resultMap[key]
 				if !exists {
 					t.Errorf("Expected section '%s' not found in result", key)
 					continue
