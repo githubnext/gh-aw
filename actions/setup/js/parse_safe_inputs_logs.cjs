@@ -55,11 +55,13 @@ async function main() {
       return;
     }
 
+    // Generate plain text summary for core.info (Copilot CLI style)
+    const plainTextSummary = generatePlainTextSummary(allLogEntries);
+    core.info(plainTextSummary);
+
     // Generate step summary
     const summary = generateSafeInputsSummary(allLogEntries);
-
     core.summary.addRaw(summary).write();
-    core.info("Safe-inputs log summary generated successfully");
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error));
   }
@@ -93,6 +95,95 @@ function parseSafeInputsLogLine(line) {
     message: message.trim(),
     raw: false,
   };
+}
+
+/**
+ * Generates a lightweight plain text summary optimized for console output.
+ * This is designed for core.info output, similar to agent logs style.
+ *
+ * @param {Array<Object>} logEntries - Parsed log entries
+ * @returns {string} Plain text summary for console output
+ */
+function generatePlainTextSummary(logEntries) {
+  const lines = [];
+
+  // Header
+  lines.push("=== Safe Inputs MCP Server Logs ===");
+  lines.push("");
+
+  // Count events by type
+  const eventCounts = {
+    startup: 0,
+    toolRegistration: 0,
+    toolExecution: 0,
+    errors: 0,
+    other: 0,
+  };
+
+  const errors = [];
+  const toolCalls = [];
+
+  for (const entry of logEntries) {
+    const msg = entry.message.toLowerCase();
+
+    // Categorize log entries
+    if (msg.includes("starting safe inputs") || msg.includes("server started")) {
+      eventCounts.startup++;
+    } else if (msg.includes("registering tool") || msg.includes("tool registration")) {
+      eventCounts.toolRegistration++;
+    } else if (msg.includes("calling handler") || msg.includes("handler returned")) {
+      eventCounts.toolExecution++;
+      if (msg.includes("calling handler")) {
+        // Extract tool name from message like "Calling handler for tool: my-tool"
+        const toolMatch = entry.message.match(/tool:\s*(\S+)/i);
+        if (toolMatch) {
+          toolCalls.push({
+            tool: toolMatch[1],
+            timestamp: entry.timestamp,
+          });
+        }
+      }
+    } else if (msg.includes("error") || msg.includes("failed")) {
+      eventCounts.errors++;
+      errors.push(entry);
+    } else {
+      eventCounts.other++;
+    }
+  }
+
+  // Log events summary
+  lines.push("Log Events:");
+  lines.push(`  Total entries: ${logEntries.length}`);
+  lines.push(`  Startup events: ${eventCounts.startup}`);
+  lines.push(`  Tool registrations: ${eventCounts.toolRegistration}`);
+  lines.push(`  Tool executions: ${eventCounts.toolExecution}`);
+  if (eventCounts.errors > 0) {
+    lines.push(`  Errors: ${eventCounts.errors}`);
+  }
+  lines.push("");
+
+  // Tool execution details
+  if (toolCalls.length > 0) {
+    lines.push("Tool Executions:");
+    for (const call of toolCalls) {
+      const time = call.timestamp ? new Date(call.timestamp).toLocaleTimeString() : "N/A";
+      lines.push(`  ✓ ${time} - ${call.tool}`);
+    }
+    lines.push("");
+  }
+
+  // Errors (if any)
+  if (errors.length > 0) {
+    lines.push("Errors:");
+    for (const error of errors) {
+      const time = error.timestamp ? `[${error.timestamp}]` : "";
+      const server = error.serverName ? `[${error.serverName}]` : "";
+      lines.push(`  ✗ ${time} ${server} ${error.message}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -214,6 +305,7 @@ if (typeof module !== "undefined" && module.exports) {
     main,
     parseSafeInputsLogLine,
     generateSafeInputsSummary,
+    generatePlainTextSummary,
   };
 }
 
