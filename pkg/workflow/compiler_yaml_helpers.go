@@ -138,12 +138,12 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 // Returns a string containing the complete script content to be used in a github-script action's "script:" field.
 func generateGitHubScriptWithRequire(scriptPath string) string {
 	var script strings.Builder
-	
+
 	// Use the setup_globals helper to store GitHub Actions objects in global scope
 	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
 	script.WriteString("            await main();\n")
-	
+
 	return script.String()
 }
