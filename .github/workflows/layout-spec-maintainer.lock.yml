@@ -25,6 +25,7 @@ name: "Layout Specification Maintainer"
 "on":
   schedule:
   - cron: "0 7 * * 1-5"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
