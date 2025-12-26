@@ -326,7 +326,6 @@ func getActionDependencies(actionName string) []string {
             "safe_outputs_tools_loader.cjs",
             "safe_outputs_config.cjs",
             "safe_outputs_handlers.cjs",
-            "safe_outputs_tools.json",
             "mcp_server_core.cjs",
             "mcp_logger.cjs",
             "messages.cjs",
