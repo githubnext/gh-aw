@@ -35,7 +35,11 @@ imports:
   - shared/copilot-pr-data-fetch.md
 
 tools:
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/prompt-analysis
+    description: "Historical prompt pattern analysis"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   edit:
   github:
     toolsets: [default]

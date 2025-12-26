@@ -168,6 +168,35 @@ jobs:
             trending-data-${{ github.workflow }}-
             trending-data-
             trending-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/audit-workflows
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/audit-workflows" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory/default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/audit-workflows does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory/default"
+            cd "/tmp/gh-aw/repo-memory/default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/audit-workflows branch"
+            cd "/tmp/gh-aw/repo-memory/default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -756,7 +785,7 @@ jobs:
           - Performance (token usage, costs, timeouts, efficiency)
           - Patterns (recurring issues, frequent failures)
           
-          **Cache Memory**: Store findings in `/tmp/gh-aw/cache-memory/`:
+          **Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/`:
           - `audits/<date>.json` + `audits/index.json`
           - `patterns/{errors,missing-tools,mcp-failures}.json`
           - Compare with historical data
@@ -844,11 +873,11 @@ jobs:
           
           **Security**: Never execute untrusted code, validate data, sanitize paths
           **Quality**: Be thorough, specific, actionable, accurate  
-          **Efficiency**: Use cache, batch operations, respect timeouts
+          **Efficiency**: Use repo memory, batch operations, respect timeouts
           
-          Cache structure: `/tmp/gh-aw/cache-memory/{audits,patterns,metrics}/*.json`
+          Memory structure: `/tmp/gh-aw/repo-memory/{audits,patterns,metrics}/*.json`
           
-          Always create discussion with findings and update cache memory.
+          Always create discussion with findings and update repo memory.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -922,6 +951,36 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical audit data and patterns
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/audit-workflows` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1230,6 +1289,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
@@ -1261,6 +1329,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
       - update_cache_memory
       - upload_assets
@@ -1632,6 +1701,67 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/audit-workflows
+          MAX_FILE_SIZE: 102400
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+        with:
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/push_repo_memory.cjs');
+            await main();
 
   safe_outputs:
     needs:

@@ -35,14 +35,18 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  cache-memory:
+  repo-memory:
+    branch-name: memory/daily-news
+    description: "Historical news digest data"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   edit:
   bash:
     - "*"
   web-fetch:
 
 # Pre-download GitHub data in steps to avoid excessive MCP calls
-# Uses cache-memory to persist data across runs and avoid re-fetching
+# Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
   - name: Download repository activity data
     id: download-data
@@ -54,11 +58,11 @@ steps:
       
       # Create directories
       mkdir -p /tmp/gh-aw/daily-news-data
-      mkdir -p /tmp/gh-aw/cache-memory/daily-news-data
+      mkdir -p /tmp/gh-aw/repo-memory/default/daily-news-data
       
       # Check if cached data exists and is recent (< 24 hours old)
       CACHE_VALID=false
-      CACHE_TIMESTAMP_FILE="/tmp/gh-aw/cache-memory/daily-news-data/.timestamp"
+      CACHE_TIMESTAMP_FILE="/tmp/gh-aw/repo-memory/default/daily-news-data/.timestamp"
       
       if [ -f "$CACHE_TIMESTAMP_FILE" ]; then
         CACHE_AGE=$(($(date +%s) - $(cat "$CACHE_TIMESTAMP_FILE")))
@@ -76,7 +80,7 @@ steps:
       # Use cached data if valid, otherwise fetch fresh data
       if [ "$CACHE_VALID" = true ]; then
         echo "📦 Using cached data from previous run"
-        cp -r /tmp/gh-aw/cache-memory/daily-news-data/* /tmp/gh-aw/daily-news-data/
+        cp -r /tmp/gh-aw/repo-memory/default/daily-news-data/* /tmp/gh-aw/daily-news-data/
         echo "✅ Cached data restored to working directory"
       else
         echo "🔄 Fetching fresh data from GitHub API..."
@@ -210,7 +214,7 @@ steps:
         
         # Cache the freshly downloaded data for next run
         echo "💾 Caching data for future runs..."
-        cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/cache-memory/daily-news-data/
+        cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/repo-memory/default/daily-news-data/
         date +%s > "$CACHE_TIMESTAMP_FILE"
         
         echo "✅ Data download and caching complete"
@@ -244,17 +248,17 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
 **Load and analyze these files** instead of making repeated GitHub MCP calls. All data is in JSON format (except changesets.txt which lists file paths).
 
-## 💾 Cache Memory Available
+## 💾 Repo Memory Available
 
-**Cache-memory is enabled** - You have access to persistent storage at `/tmp/gh-aw/cache-memory/` that persists across workflow runs:
+**Repo-memory is enabled** - You have access to persistent storage at `/tmp/gh-aw/repo-memory/default/` that persists across workflow runs:
 
 - Use it to **store intermediate analysis results** that might be useful for future runs
 - Store **processed data, statistics, or insights** that take time to compute
 - Cache **expensive computations** like trend analysis or aggregated metrics
-- Files stored here will be available in the next workflow run (cached for 24 hours)
+- Files stored here will be available in the next workflow run via Git branches
 
 **Example use cases**:
-- Save aggregated statistics (e.g., `/tmp/gh-aw/cache-memory/monthly-stats.json`)
+- Save aggregated statistics (e.g., `/tmp/gh-aw/repo-memory/default/monthly-stats.json`)
 - Cache processed trend data for faster chart generation
 - Store analysis results that can inform future reports
 

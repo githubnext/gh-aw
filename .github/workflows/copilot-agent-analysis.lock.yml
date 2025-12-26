@@ -128,6 +128,35 @@ jobs:
             copilot-pr-data-
             copilot-pr-
             copilot-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/copilot-agent-analysis
+        run: |
+          set +e  # Don't fail if branch doesn't exist
+          git clone --depth 1 --single-branch --branch "memory/copilot-agent-analysis" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory/default" 2>/dev/null
+          CLONE_EXIT_CODE=$?
+          set -e
+          
+          if [ $CLONE_EXIT_CODE -ne 0 ]; then
+            echo "Branch memory/copilot-agent-analysis does not exist, creating orphan branch"
+            mkdir -p "/tmp/gh-aw/repo-memory/default"
+            cd "/tmp/gh-aw/repo-memory/default"
+            git init
+            git checkout --orphan "$BRANCH_NAME"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          else
+            echo "Successfully cloned memory/copilot-agent-analysis branch"
+            cd "/tmp/gh-aw/repo-memory/default"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+          fi
+          
+          mkdir -p "/tmp/gh-aw/repo-memory/default"
+          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory/default"
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -759,14 +788,14 @@ jobs:
           
           ### Phase 4: Historical Trending Analysis
           
-          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:
+          Use the repo memory folder `/tmp/gh-aw/repo-memory/` to maintain historical data:
           
           #### 4.1 Load Historical Data
           
           Check for existing historical data:
           ```bash
-          ls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/
-          cat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json
+          ls -la /tmp/gh-aw/repo-memory/copilot-agent-metrics/
+          cat /tmp/gh-aw/repo-memory/copilot-agent-metrics/history.json
           ```
           
           The history file should contain daily metrics in this format:
@@ -818,9 +847,9 @@ jobs:
           - Average total duration
           - Success rate (merged / total completed)
           
-          Save to cache memory:
+          Save to repo memory:
           ```bash
-          mkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+          mkdir -p /tmp/gh-aw/repo-memory/copilot-agent-metrics/
           # Append today's metrics to history.json
           ```
           
@@ -864,7 +893,7 @@ jobs:
           
           #### 4.3 Store Today's Metrics
           
-          After ensuring historical data is available (either from existing cache or rebuilt), add today's metrics:
+          After ensuring historical data is available (either from existing repo memory or rebuilt), add today's metrics:
           - Total PRs created today
           - Number merged/closed/open
           - Average comments per PR
@@ -872,7 +901,7 @@ jobs:
           - Average total duration
           - Success rate (merged / total completed)
           
-          Append to history.json in the cache memory.
+          Append to history.json in the repo memory.
           
           #### 4.4 Analyze Trends
           
@@ -1021,7 +1050,7 @@ jobs:
           ### Cache Memory Management
           - **Organize data**: Keep historical data well-structured in JSON format
           - **Limit retention**: Keep last 90 days (3 months) of daily data for trend analysis
-          - **Handle errors**: If cache is corrupted, reinitialize gracefully
+          - **Handle errors**: If repo memory is corrupted, reinitialize gracefully
           - **Simplified data collection**: Focus on 3-day trends, not weekly or monthly
             - Only collect and maintain last 3 days of data for trend comparison
             - Save progress after each day to ensure data persistence
@@ -1038,7 +1067,7 @@ jobs:
           ### No PRs in Last 24 Hours
           If no PRs were created by Copilot in the last 24 hours:
           - Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
-          - Update cache memory with zero counts
+          - Update repo memory with zero counts
           - Keep it to 2-3 sentences max
           
           ### Bot Username Changes
@@ -1057,7 +1086,7 @@ jobs:
           - ✅ Finds all Copilot PRs from last 24 hours
           - ✅ Calculates key metrics (success rate, duration, comments)
           - ✅ Shows 3-day trend comparison (not 7-day or monthly)
-          - ✅ Updates cache memory with today's metrics
+          - ✅ Updates repo memory with today's metrics
           - ✅ Only highlights notable PRs (failures, closures, long-open)
           - ✅ Keeps discussion to ~15-20 lines of essential information
           - ✅ Omits verbose tables, detailed breakdowns, and methodology sections
@@ -1137,6 +1166,36 @@ jobs:
           - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
           - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
           - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
+      - name: Append repo memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical agent performance metrics
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/copilot-agent-analysis` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1466,6 +1525,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
@@ -1490,6 +1558,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
       - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
@@ -1857,6 +1926,67 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
+
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/copilot-agent-analysis
+          MAX_FILE_SIZE: 102400
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+        with:
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/push_repo_memory.cjs');
+            await main();
 
   safe_outputs:
     needs:
