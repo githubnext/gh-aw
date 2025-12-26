@@ -162,8 +162,8 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		lockFilePath = filepath.Join(".github/workflows", lockFileName)
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 			suggestions := []string{
-				fmt.Sprintf("Run '%s compile' to compile all workflows", constants.CLIExtensionPrefix),
-				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", constants.CLIExtensionPrefix, filename),
+				fmt.Sprintf("Run '%s compile' to compile all workflows", string(constants.CLIExtensionPrefix)),
+				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", string(constants.CLIExtensionPrefix), filename),
 			}
 			return errors.New(console.FormatErrorWithSuggestions(
 				fmt.Sprintf("workflow lock file '%s' not found in .github/workflows", lockFileName),
@@ -394,7 +394,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		runLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
 
 		// Suggest audit command for analysis
-		fmt.Printf("\n💡 To analyze this run, use: %s audit %d\n", constants.CLIExtensionPrefix, runInfo.DatabaseID)
+		fmt.Printf("\n💡 To analyze this run, use: %s audit %d\n", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)
 	} else if verbose && runErr != nil {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
 	}
@@ -963,7 +963,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	suggestions := []string{
 		"Check if the workflow has been pushed to the remote repository",
 		"Verify the workflow file exists in the repository's .github/workflows directory",
-		fmt.Sprintf("Run '%s status' to see available workflows", constants.CLIExtensionPrefix),
+		fmt.Sprintf("Run '%s status' to see available workflows", string(constants.CLIExtensionPrefix)),
 	}
 	return errors.New(console.FormatErrorWithSuggestions(
 		fmt.Sprintf("workflow '%s' not found in repository '%s'", lockFileName, repoOverride),

@@ -52,7 +52,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 				fmt.Printf("  %s\n", name)
 			}
 		}
-		fmt.Println("\nUsage: " + constants.CLIExtensionPrefix + " remove <pattern>")
+		fmt.Println("\nUsage: " + string(constants.CLIExtensionPrefix) + " remove <pattern>")
 		return nil
 	}
 

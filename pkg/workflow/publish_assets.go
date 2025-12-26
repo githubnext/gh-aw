@@ -145,7 +145,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build job dependencies
 	needs := []string{mainJobName}
 	if threatDetectionEnabled {
-		needs = append(needs, constants.DetectionJobName)
+		needs = append(needs, string(constants.DetectionJobName))
 		publishAssetsLog.Printf("Added detection job dependency for upload_assets")
 	}
 

@@ -349,7 +349,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString("\n## Next Steps\n\n")
 	content.WriteString("1. Review and customize the workflow content above\n")
 	content.WriteString("2. Remove TODO sections when ready\n")
-	fmt.Fprintf(&content, "3. Run `%s compile` to generate the GitHub Actions workflow\n", constants.CLIExtensionPrefix)
+	fmt.Fprintf(&content, "3. Run `%s compile` to generate the GitHub Actions workflow\n", string(constants.CLIExtensionPrefix))
 	content.WriteString("4. Test the workflow with a manual trigger or appropriate event\n")
 	content.WriteString("-->\n")
 

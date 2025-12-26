@@ -187,7 +187,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	job := &Job{
-		Name:        constants.PreActivationJobName,
+		Name:        string(constants.PreActivationJobName),
 		If:          jobIfCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
@@ -212,7 +212,7 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 
 	// Check both jobs.pre-activation and jobs.pre_activation (users might define both by mistake)
 	// Import from both if both are defined
-	jobVariants := []string{"pre-activation", constants.PreActivationJobName}
+	jobVariants := []string{"pre-activation", string(constants.PreActivationJobName)}
 
 	for _, jobName := range jobVariants {
 		preActivationJob, exists := jobs[jobName]
@@ -433,13 +433,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	if preActivationJobCreated {
 		// Activation job depends on pre-activation job and checks the "activated" output
-		activationNeeds = []string{constants.PreActivationJobName}
+		activationNeeds = []string{string(constants.PreActivationJobName)}
 
 		// Also depend on custom jobs that run after pre_activation but before activation
 		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
 
 		activatedExpr := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", string(constants.PreActivationJobName), constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
 
@@ -507,7 +507,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	job := &Job{
-		Name:                       constants.ActivationJobName,
+		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
@@ -573,7 +573,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
+		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
@@ -583,7 +583,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
 			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-			if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+			if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 				continue
 			}
 
@@ -605,7 +605,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
 	for _, jobName := range referencedJobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 			continue
 		}
 
@@ -688,7 +688,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	job := &Job{
-		Name:        constants.AgentJobName,
+		Name:        string(constants.AgentJobName),
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Environment: c.indentYAMLLines(data.Environment, "    "),

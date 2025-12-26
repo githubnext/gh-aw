@@ -50,17 +50,17 @@ The --audit flag implies --dry-run (no updates performed).
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` update                    # Check gh aw updates, update actions, and update all workflows
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh aw updates, update actions, and update specific workflow
-  ` + constants.CLIExtensionPrefix + ` update --no-actions      # Skip action updates, only update workflows
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor.md      # Check gh aw updates, update actions, and update specific workflow (alternative format)
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
-  ` + constants.CLIExtensionPrefix + ` update --merge           # Update with 3-way merge to preserve local changes
-  ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
-  ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes
-  ` + constants.CLIExtensionPrefix + ` update --dir custom/workflows  # Update workflows in custom directory
-  ` + constants.CLIExtensionPrefix + ` update --audit           # Check dependency health without updating
-  ` + constants.CLIExtensionPrefix + ` update --dry-run         # Show what would be updated without making changes`,
+  ` + string(constants.CLIExtensionPrefix) + ` update                    # Check gh aw updates, update actions, and update all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` update ci-doctor         # Check gh aw updates, update actions, and update specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` update --no-actions      # Skip action updates, only update workflows
+  ` + string(constants.CLIExtensionPrefix) + ` update ci-doctor.md      # Check gh aw updates, update actions, and update specific workflow (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` update ci-doctor --major # Allow major version updates
+  ` + string(constants.CLIExtensionPrefix) + ` update --merge           # Update with 3-way merge to preserve local changes
+  ` + string(constants.CLIExtensionPrefix) + ` update --pr              # Create PR with changes
+  ` + string(constants.CLIExtensionPrefix) + ` update --force           # Force update even if no changes
+  ` + string(constants.CLIExtensionPrefix) + ` update --dir custom/workflows  # Update workflows in custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` update --audit           # Check dependency health without updating
+  ` + string(constants.CLIExtensionPrefix) + ` update --dry-run         # Show what would be updated without making changes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")

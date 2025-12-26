@@ -451,11 +451,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Build dependencies
 	needs := []string{mainJobName}
 	if threatDetectionEnabled {
-		needs = append(needs, constants.DetectionJobName)
+		needs = append(needs, string(constants.DetectionJobName))
 	}
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch)
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
-		needs = append(needs, constants.ActivationJobName)
+		needs = append(needs, string(constants.ActivationJobName))
 	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID

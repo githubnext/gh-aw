@@ -151,7 +151,7 @@ func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose boo
 	}
 
 	suggestions := []string{
-		fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+		fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 		"Check if the workflow has been compiled and pushed to GitHub",
 		"Verify the workflow name matches the compiled .lock.yml file",
 	}

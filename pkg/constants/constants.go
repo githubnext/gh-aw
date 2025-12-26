@@ -6,7 +6,7 @@ import (
 )
 
 // CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension.
-const CLIExtensionPrefix = "gh aw"
+const CLIExtensionPrefix CommandPrefix = "gh aw"
 
 // Semantic types for measurements and identifiers
 //
@@ -47,6 +47,56 @@ type Version string
 // FeatureFlag represents a feature flag identifier.
 type FeatureFlag string
 
+// URL represents a URL string.
+// This semantic type distinguishes URLs from arbitrary strings,
+// making URL parameters explicit and enabling future validation logic.
+//
+// Example usage:
+//
+//	const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
+//	func FetchFromRegistry(url URL) error { ... }
+type URL string
+
+// ModelName represents an AI model name identifier.
+// This semantic type distinguishes model names from arbitrary strings,
+// making model selection explicit in function signatures.
+//
+// Example usage:
+//
+//	const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
+//	func ExecuteWithModel(model ModelName) error { ... }
+type ModelName string
+
+// JobName represents a GitHub Actions job identifier.
+// This semantic type distinguishes job names from arbitrary strings,
+// preventing mixing of job identifiers with other string types.
+//
+// Example usage:
+//
+//	const AgentJobName JobName = "agent"
+//	func GetJob(name JobName) (*Job, error) { ... }
+type JobName string
+
+// StepID represents a GitHub Actions step identifier.
+// This semantic type distinguishes step IDs from arbitrary strings,
+// preventing mixing of step identifiers with job names or other strings.
+//
+// Example usage:
+//
+//	const CheckMembershipStepID StepID = "check_membership"
+//	func GetStep(id StepID) (*Step, error) { ... }
+type StepID string
+
+// CommandPrefix represents a CLI command prefix.
+// This semantic type distinguishes command prefixes from arbitrary strings,
+// making command-related operations explicit.
+//
+// Example usage:
+//
+//	const CLIExtensionPrefix CommandPrefix = "gh aw"
+//	func FormatCommand(prefix CommandPrefix, cmd string) string { ... }
+type CommandPrefix string
+
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.
 const MaxExpressionLineLength LineLength = 120
 
@@ -54,7 +104,7 @@ const MaxExpressionLineLength LineLength = 120
 const ExpressionBreakThreshold LineLength = 100
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
-const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
+const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
 const DefaultClaudeCodeVersion Version = "2.0.76"
@@ -65,7 +115,7 @@ const DefaultClaudeCodeVersion Version = "2.0.76"
 const DefaultCopilotVersion Version = "0.0.372"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
-const DefaultCopilotDetectionModel = "gpt-5-mini"
+const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
 
 // Environment variable names for model configuration
 const (
@@ -239,10 +289,10 @@ var AllowedExpressions = []string{
 	"github.workspace",
 } // needs., steps. already allowed
 
-const AgentJobName = "agent"
-const ActivationJobName = "activation"
-const PreActivationJobName = "pre_activation"
-const DetectionJobName = "detection"
+const AgentJobName JobName = "agent"
+const ActivationJobName JobName = "activation"
+const PreActivationJobName JobName = "pre_activation"
+const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 
@@ -266,10 +316,10 @@ const (
 )
 
 // Step IDs for pre-activation job
-const CheckMembershipStepID = "check_membership"
-const CheckStopTimeStepID = "check_stop_time"
-const CheckSkipIfMatchStepID = "check_skip_if_match"
-const CheckCommandPositionStepID = "check_command_position"
+const CheckMembershipStepID StepID = "check_membership"
+const CheckStopTimeStepID StepID = "check_stop_time"
+const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
+const CheckCommandPositionStepID StepID = "check_command_position"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"

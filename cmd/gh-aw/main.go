@@ -32,7 +32,7 @@ func validateEngine(engine string) error {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     constants.CLIExtensionPrefix,
+	Use:     string(constants.CLIExtensionPrefix),
 	Short:   "GitHub Agentic Workflows CLI from GitHub Next",
 	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
@@ -75,10 +75,10 @@ When called with a workflow name, creates a template file with comprehensive exa
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` new                      # Interactive mode
-  ` + constants.CLIExtensionPrefix + ` new my-workflow          # Create template file
-  ` + constants.CLIExtensionPrefix + ` new my-workflow.md       # Same as above (.md extension stripped)
-  ` + constants.CLIExtensionPrefix + ` new my-workflow --force  # Overwrite if exists`,
+  ` + string(constants.CLIExtensionPrefix) + ` new                      # Interactive mode
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow          # Create template file
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow.md       # Same as above (.md extension stripped)
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --force  # Overwrite if exists`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		forceFlag, _ := cmd.Flags().GetBool("force")
@@ -116,8 +116,8 @@ The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` remove my-workflow       # Remove specific workflow
-  ` + constants.CLIExtensionPrefix + ` remove test-             # Remove all workflows starting with 'test-'`,
+  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow       # Remove specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-             # Remove all workflows starting with 'test-'`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var pattern string
 		if len(args) > 0 {
@@ -136,11 +136,11 @@ var enableCmd = &cobra.Command{
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
-  ` + constants.CLIExtensionPrefix + ` enable ci-doctor         # Enable specific workflow
-  ` + constants.CLIExtensionPrefix + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
-  ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows
-  ` + constants.CLIExtensionPrefix + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` enable                    # Enable all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor         # Enable specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor.md      # Enable specific workflow (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor daily   # Enable multiple workflows
+  ` + string(constants.CLIExtensionPrefix) + ` enable ci-doctor --repo owner/repo  # Enable workflow in specific repository`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		return cli.EnableWorkflowsByNames(args, repoOverride)
@@ -155,11 +155,11 @@ var disableCmd = &cobra.Command{
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
-  ` + constants.CLIExtensionPrefix + ` disable ci-doctor         # Disable specific workflow
-  ` + constants.CLIExtensionPrefix + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
-  ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows
-  ` + constants.CLIExtensionPrefix + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` disable                    # Disable all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor         # Disable specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor.md      # Disable specific workflow (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor daily   # Disable multiple workflows
+  ` + string(constants.CLIExtensionPrefix) + ` disable ci-doctor --repo owner/repo  # Disable workflow in specific repository`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		return cli.DisableWorkflowsByNames(args, repoOverride)
@@ -185,15 +185,15 @@ The --dependabot flag generates dependency manifests when dependencies are detec
   - Only processes workflows in the default .github/workflows directory
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` compile                    # Compile all Markdown files
-  ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
-  ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
-  ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
-  ` + constants.CLIExtensionPrefix + ` compile --dir custom/workflows  # Compile from custom directory
-  ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
-  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
-  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
-  ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
+  ` + string(constants.CLIExtensionPrefix) + ` compile                    # Compile all Markdown files
+  ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor    # Compile a specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` compile ci-doctor daily-plan  # Compile multiple workflows
+  ` + string(constants.CLIExtensionPrefix) + ` compile workflow.md        # Compile by file path
+  ` + string(constants.CLIExtensionPrefix) + ` compile --dir custom/workflows  # Compile from custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` compile --watch ci-doctor     # Watch and auto-compile
+  ` + string(constants.CLIExtensionPrefix) + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
+  ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot        # Generate Dependabot manifests
+  ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		actionMode, _ := cmd.Flags().GetString("action-mode")
@@ -322,7 +322,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show gh aw extension version information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("%s version %s\n", constants.CLIExtensionPrefix, version)
+		fmt.Printf("%s version %s\n", string(constants.CLIExtensionPrefix), version)
 		return nil
 	},
 }
@@ -369,7 +369,7 @@ func init() {
 	rootCmd.SilenceErrors = true
 
 	// Set version template to match the version subcommand format
-	rootCmd.SetVersionTemplate(fmt.Sprintf("%s version {{.Version}}\n", constants.CLIExtensionPrefix))
+	rootCmd.SetVersionTemplate(fmt.Sprintf("%s version {{.Version}}\n", string(constants.CLIExtensionPrefix)))
 
 	// Override the help function to hide completion command
 	originalHelpFunc := rootCmd.HelpFunc()
@@ -388,9 +388,9 @@ func init() {
 		Use:   "help [command]",
 		Short: "Help about any command",
 		Long: `Help provides help for any command in the application.
-Simply type ` + constants.CLIExtensionPrefix + ` help [path to command] for full details.
+Simply type ` + string(constants.CLIExtensionPrefix) + ` help [path to command] for full details.
 
-Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all commands.`,
+Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all commands.`,
 		RunE: func(c *cobra.Command, args []string) error {
 			// Check if the argument is "all"
 			if len(args) == 1 && args[0] == "all" {
@@ -407,7 +407,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 
 					// Print command separator
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
-					fmt.Fprintf(os.Stderr, "\n%s\n\n", console.FormatInfoMessage(fmt.Sprintf("Command: %s %s", constants.CLIExtensionPrefix, subCmd.Name())))
+					fmt.Fprintf(os.Stderr, "\n%s\n\n", console.FormatInfoMessage(fmt.Sprintf("Command: %s %s", string(constants.CLIExtensionPrefix), subCmd.Name())))
 
 					// Print the command's help
 					_ = subCmd.Help()

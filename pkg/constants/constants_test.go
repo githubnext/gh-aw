@@ -209,19 +209,19 @@ func TestConstantValues(t *testing.T) {
 		value    string
 		expected string
 	}{
-		{"CLIExtensionPrefix", CLIExtensionPrefix, "gh aw"},
-		{"DefaultMCPRegistryURL", DefaultMCPRegistryURL, "https://api.mcp.github.com/v0"},
-		{"AgentJobName", AgentJobName, "agent"},
-		{"ActivationJobName", ActivationJobName, "activation"},
-		{"PreActivationJobName", PreActivationJobName, "pre_activation"},
-		{"DetectionJobName", DetectionJobName, "detection"},
+		{"CLIExtensionPrefix", string(CLIExtensionPrefix), "gh aw"},
+		{"DefaultMCPRegistryURL", string(DefaultMCPRegistryURL), "https://api.mcp.github.com/v0"},
+		{"AgentJobName", string(AgentJobName), "agent"},
+		{"ActivationJobName", string(ActivationJobName), "activation"},
+		{"PreActivationJobName", string(PreActivationJobName), "pre_activation"},
+		{"DetectionJobName", string(DetectionJobName), "detection"},
 		{"SafeOutputArtifactName", SafeOutputArtifactName, "safe_output.jsonl"},
 		{"AgentOutputArtifactName", AgentOutputArtifactName, "agent_output.json"},
 		{"SafeOutputsMCPServerID", SafeOutputsMCPServerID, "safeoutputs"},
-		{"CheckMembershipStepID", CheckMembershipStepID, "check_membership"},
-		{"CheckStopTimeStepID", CheckStopTimeStepID, "check_stop_time"},
-		{"CheckSkipIfMatchStepID", CheckSkipIfMatchStepID, "check_skip_if_match"},
-		{"CheckCommandPositionStepID", CheckCommandPositionStepID, "check_command_position"},
+		{"CheckMembershipStepID", string(CheckMembershipStepID), "check_membership"},
+		{"CheckStopTimeStepID", string(CheckStopTimeStepID), "check_stop_time"},
+		{"CheckSkipIfMatchStepID", string(CheckSkipIfMatchStepID), "check_skip_if_match"},
+		{"CheckCommandPositionStepID", string(CheckCommandPositionStepID), "check_command_position"},
 		{"IsTeamMemberOutput", IsTeamMemberOutput, "is_team_member"},
 		{"StopTimeOkOutput", StopTimeOkOutput, "stop_time_ok"},
 		{"SkipCheckOkOutput", SkipCheckOkOutput, "skip_check_ok"},
@@ -233,6 +233,25 @@ func TestConstantValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.value != tt.expected {
+				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
+			}
+		})
+	}
+}
+
+func TestModelNameConstants(t *testing.T) {
+	// Test that DefaultCopilotDetectionModel has the correct type and value
+	tests := []struct {
+		name     string
+		value    ModelName
+		expected string
+	}{
+		{"DefaultCopilotDetectionModel", DefaultCopilotDetectionModel, "gpt-5-mini"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if string(tt.value) != tt.expected {
 				t.Errorf("%s = %q, want %q", tt.name, tt.value, tt.expected)
 			}
 		})
@@ -379,5 +398,143 @@ func TestFeatureFlagType(t *testing.T) {
 	safeInputsFlag := SafeInputsFeatureFlag
 	if safeInputsFlag != "safe-inputs" {
 		t.Errorf("SafeInputsFeatureFlag assignment failed: got %q, want %q", safeInputsFlag, "safe-inputs")
+	}
+}
+
+func TestSemanticTypeAliases(t *testing.T) {
+	// Test URL type
+	t.Run("URL type", func(t *testing.T) {
+		var testURL URL = "https://example.com"
+		if string(testURL) != "https://example.com" {
+			t.Errorf("URL conversion failed: got %q, want %q", testURL, "https://example.com")
+		}
+
+		// Test DefaultMCPRegistryURL has the correct type
+		registryURL := DefaultMCPRegistryURL
+		if string(registryURL) != "https://api.mcp.github.com/v0" {
+			t.Errorf("DefaultMCPRegistryURL = %q, want %q", registryURL, "https://api.mcp.github.com/v0")
+		}
+	})
+
+	// Test ModelName type
+	t.Run("ModelName type", func(t *testing.T) {
+		var testModel ModelName = "test-model"
+		if string(testModel) != "test-model" {
+			t.Errorf("ModelName conversion failed: got %q, want %q", testModel, "test-model")
+		}
+
+		// Test DefaultCopilotDetectionModel has the correct type
+		detectionModel := DefaultCopilotDetectionModel
+		if string(detectionModel) != "gpt-5-mini" {
+			t.Errorf("DefaultCopilotDetectionModel = %q, want %q", detectionModel, "gpt-5-mini")
+		}
+	})
+
+	// Test JobName type
+	t.Run("JobName type", func(t *testing.T) {
+		var testJob JobName = "test-job"
+		if string(testJob) != "test-job" {
+			t.Errorf("JobName conversion failed: got %q, want %q", testJob, "test-job")
+		}
+
+		// Test job name constants have the correct type
+		agentJob := AgentJobName
+		if string(agentJob) != "agent" {
+			t.Errorf("AgentJobName = %q, want %q", agentJob, "agent")
+		}
+
+		activationJob := ActivationJobName
+		if string(activationJob) != "activation" {
+			t.Errorf("ActivationJobName = %q, want %q", activationJob, "activation")
+		}
+
+		preActivationJob := PreActivationJobName
+		if string(preActivationJob) != "pre_activation" {
+			t.Errorf("PreActivationJobName = %q, want %q", preActivationJob, "pre_activation")
+		}
+
+		detectionJob := DetectionJobName
+		if string(detectionJob) != "detection" {
+			t.Errorf("DetectionJobName = %q, want %q", detectionJob, "detection")
+		}
+	})
+
+	// Test StepID type
+	t.Run("StepID type", func(t *testing.T) {
+		var testStep StepID = "test-step"
+		if string(testStep) != "test-step" {
+			t.Errorf("StepID conversion failed: got %q, want %q", testStep, "test-step")
+		}
+
+		// Test step ID constants have the correct type
+		membershipStep := CheckMembershipStepID
+		if string(membershipStep) != "check_membership" {
+			t.Errorf("CheckMembershipStepID = %q, want %q", membershipStep, "check_membership")
+		}
+
+		stopTimeStep := CheckStopTimeStepID
+		if string(stopTimeStep) != "check_stop_time" {
+			t.Errorf("CheckStopTimeStepID = %q, want %q", stopTimeStep, "check_stop_time")
+		}
+
+		skipMatchStep := CheckSkipIfMatchStepID
+		if string(skipMatchStep) != "check_skip_if_match" {
+			t.Errorf("CheckSkipIfMatchStepID = %q, want %q", skipMatchStep, "check_skip_if_match")
+		}
+
+		commandPosStep := CheckCommandPositionStepID
+		if string(commandPosStep) != "check_command_position" {
+			t.Errorf("CheckCommandPositionStepID = %q, want %q", commandPosStep, "check_command_position")
+		}
+	})
+
+	// Test CommandPrefix type
+	t.Run("CommandPrefix type", func(t *testing.T) {
+		var testPrefix CommandPrefix = "test-prefix"
+		if string(testPrefix) != "test-prefix" {
+			t.Errorf("CommandPrefix conversion failed: got %q, want %q", testPrefix, "test-prefix")
+		}
+
+		// Test CLIExtensionPrefix has the correct type
+		cliPrefix := CLIExtensionPrefix
+		if string(cliPrefix) != "gh aw" {
+			t.Errorf("CLIExtensionPrefix = %q, want %q", cliPrefix, "gh aw")
+		}
+	})
+}
+
+func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
+	// This test demonstrates that semantic types provide type safety
+	// by preventing accidental mixing of different string types
+
+	// These assignments should work (same types)
+	var job1 JobName = AgentJobName
+	var job2 JobName = ActivationJobName
+	if job1 == job2 {
+		t.Error("AgentJobName should not equal ActivationJobName")
+	}
+
+	var step1 StepID = CheckMembershipStepID
+	var step2 StepID = CheckStopTimeStepID
+	if step1 == step2 {
+		t.Error("CheckMembershipStepID should not equal CheckStopTimeStepID")
+	}
+
+	// Verify that we can still convert to string when needed
+	if string(job1) != "agent" {
+		t.Errorf("JobName string conversion failed: got %q, want %q", job1, "agent")
+	}
+
+	if string(step1) != "check_membership" {
+		t.Errorf("StepID string conversion failed: got %q, want %q", step1, "check_membership")
+	}
+
+	// Verify that different semantic types have different underlying types
+	// (this is a compile-time check, but we verify the values are correct)
+	jobStr := string(AgentJobName)
+	stepStr := string(CheckMembershipStepID)
+	if jobStr == stepStr {
+		// This is fine - they can have the same string value
+		// but they have different types which prevents accidental mixing
 	}
 }
