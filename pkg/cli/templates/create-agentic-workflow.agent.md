@@ -202,7 +202,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      edit:        # File editing
      web-fetch:   # Web content fetching
      web-search:  # Web search
-     bash:        # Shell commands (whitelist patterns)
+     bash:        # Shell commands (allowlist patterns)
        - "gh label list:*"
        - "gh label view:*"
        - "git status"

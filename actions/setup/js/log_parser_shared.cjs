@@ -1418,7 +1418,7 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
     preview.push("");
     preview.push("Safe Outputs Preview:");
     preview.push(`  Total: ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`);
-    
+
     for (let i = 0; i < entriesToShow.length; i++) {
       const entry = entriesToShow[i];
       preview.push("");
@@ -1448,12 +1448,12 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
       const entry = entriesToShow[i];
       preview.push(`### ${i + 1}. ${entry.type || "Unknown Type"}`);
       preview.push("");
-      
+
       if (entry.title) {
         preview.push(`**Title:** ${entry.title}`);
         preview.push("");
       }
-      
+
       if (entry.body) {
         const bodyPreview = truncateString(entry.body, 200);
         preview.push("<details>");
