@@ -785,7 +785,7 @@ jobs:
           - Performance (token usage, costs, timeouts, efficiency)
           - Patterns (recurring issues, frequent failures)
           
-          **Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/`:
+          **Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory/default/`:
           - `audits/<date>.json` + `audits/index.json`
           - `patterns/{errors,missing-tools,mcp-failures}.json`
           - Compare with historical data
@@ -875,7 +875,7 @@ jobs:
           **Quality**: Be thorough, specific, actionable, accurate  
           **Efficiency**: Use repo memory, batch operations, respect timeouts
           
-          Memory structure: `/tmp/gh-aw/repo-memory/{audits,patterns,metrics}/*.json`
+          Memory structure: `/tmp/gh-aw/repo-memory/default/{audits,patterns,metrics}/*.json`
           
           Always create discussion with findings and update repo memory.
           
