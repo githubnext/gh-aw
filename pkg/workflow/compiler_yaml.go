@@ -30,6 +30,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		return "", fmt.Errorf("job dependency validation failed: %w", err)
 	}
 
+	// Validate no duplicate steps within jobs (compiler bug detection)
+	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {
+		return "", fmt.Errorf("duplicate step validation failed: %w", err)
+	}
+
 	// Pre-allocate builder capacity based on estimated workflow size
 	// Average workflow generates ~200KB, allocate 256KB to minimize reallocations
 	var yaml strings.Builder
