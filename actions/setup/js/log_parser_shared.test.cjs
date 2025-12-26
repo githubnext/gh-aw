@@ -1849,9 +1849,9 @@ describe("log_parser_shared.cjs", () => {
       const safeOutputs = JSON.stringify({ type: "create_issue", title: "Bug found", body: "Description here" });
       const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
 
-      expect(result).toContain("## 📤 Safe Outputs");
+      expect(result).toContain("<summary>Safe Outputs</summary>");
       expect(result).toContain("**Total Entries:** 1");
-      expect(result).toContain("### 1. create_issue");
+      expect(result).toContain("**1. create_issue**");
       expect(result).toContain("**Title:** Bug found");
       expect(result).toContain("<details>");
       expect(result).toContain("<summary>Preview</summary>");
@@ -1869,9 +1869,9 @@ describe("log_parser_shared.cjs", () => {
       const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
 
       expect(result).toContain("**Total Entries:** 3");
-      expect(result).toContain("### 1. create_issue");
-      expect(result).toContain("### 2. add_comment");
-      expect(result).toContain("### 3. add_labels");
+      expect(result).toContain("**1. create_issue**");
+      expect(result).toContain("**2. add_comment**");
+      expect(result).toContain("**3. add_labels**");
     });
 
     it("should truncate and show more indicator", async () => {
@@ -1885,9 +1885,9 @@ describe("log_parser_shared.cjs", () => {
       const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false, maxEntries: 3 });
 
       expect(result).toContain("**Total Entries:** 10");
-      expect(result).toContain("### 1. create_issue");
-      expect(result).toContain("### 2. create_issue");
-      expect(result).toContain("### 3. create_issue");
+      expect(result).toContain("**1. create_issue**");
+      expect(result).toContain("**2. create_issue**");
+      expect(result).toContain("**3. create_issue**");
       expect(result).toContain("... and 7 more entries");
     });
 
@@ -1909,8 +1909,8 @@ describe("log_parser_shared.cjs", () => {
       const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
 
       expect(result).toContain("**Total Entries:** 2");
-      expect(result).toContain("### 1. create_issue");
-      expect(result).toContain("### 2. add_comment");
+      expect(result).toContain("**1. create_issue**");
+      expect(result).toContain("**2. add_comment**");
     });
 
     it("should truncate long titles and bodies", async () => {

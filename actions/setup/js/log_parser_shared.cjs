@@ -1439,14 +1439,14 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
   } else {
     // Markdown format for step summary
     preview.push("");
-    preview.push("## 📤 Safe Outputs");
-    preview.push("");
+    preview.push("<details>");
+    preview.push("<summary>Safe Outputs</summary>\n");
     preview.push(`**Total Entries:** ${entries.length}`);
     preview.push("");
 
     for (let i = 0; i < entriesToShow.length; i++) {
       const entry = entriesToShow[i];
-      preview.push(`### ${i + 1}. ${entry.type || "Unknown Type"}`);
+      preview.push(`**${i + 1}. ${entry.type || "Unknown Type"}**`);
       preview.push("");
 
       if (entry.title) {
@@ -1471,6 +1471,8 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
       preview.push(`*... and ${entries.length - maxEntries} more ${entries.length - maxEntries === 1 ? "entry" : "entries"}*`);
       preview.push("");
     }
+
+    preview.push("</details>");
   }
 
   return preview.join("\n");
