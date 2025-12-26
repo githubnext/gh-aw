@@ -14,7 +14,8 @@ const { execSync } = require("child_process");
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
  *   MAX_FILE_COUNT: Maximum number of files per commit
- *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md *.txt")
+ *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/**/*.json")
+ *                     Supports * (matches any chars except /) and ** (matches any chars including /)
  *   GH_TOKEN: GitHub token for authentication
  *   GITHUB_RUN_ID: Workflow run ID for commit messages
  */
@@ -86,47 +87,70 @@ async function main() {
   fs.mkdirSync(destMemoryPath, { recursive: true });
   core.info(`Destination directory: ${destMemoryPath}`);
 
-  // Read files from artifact directory and validate before copying
+  // Recursively scan and collect files from artifact directory
   let filesToCopy = [];
-  try {
-    const files = fs.readdirSync(sourceMemoryPath, { withFileTypes: true });
-
-    for (const file of files) {
-      if (!file.isFile()) {
-        continue; // Skip directories
-      }
-
-      const fileName = file.name;
-      const sourceFilePath = path.join(sourceMemoryPath, fileName);
-      const stats = fs.statSync(sourceFilePath);
-
-      // Validate file name patterns if filter is set
-      if (fileGlobFilter) {
-        const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
-          // Escape backslashes first to prevent escaping issues, then escape dots and convert asterisks
-          const regexPattern = pattern.replace(/\\/g, "\\\\").replace(/\./g, "\\.").replace(/\*/g, "[^/]*");
-          return new RegExp(`^${regexPattern}$`);
-        });
-
-        if (!patterns.some(pattern => pattern.test(fileName))) {
-          core.error(`File does not match allowed patterns: ${fileName}`);
-          core.error(`Allowed patterns: ${fileGlobFilter}`);
-          core.setFailed("File pattern validation failed");
-          return;
+  
+  /**
+   * Recursively scan directory and collect files
+   * @param {string} dirPath - Directory to scan
+   * @param {string} relativePath - Relative path from sourceMemoryPath (for nested files)
+   */
+  function scanDirectory(dirPath, relativePath = "") {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      const relativeFilePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+      
+      if (entry.isDirectory()) {
+        // Recursively scan subdirectory
+        scanDirectory(fullPath, relativeFilePath);
+      } else if (entry.isFile()) {
+        const stats = fs.statSync(fullPath);
+        
+        // Validate file name patterns if filter is set
+        if (fileGlobFilter) {
+          const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+            // Convert glob pattern to regex that supports directory wildcards
+            // ** matches any path segment (including /)
+            // * matches any characters except /
+            let regexPattern = pattern
+              .replace(/\\/g, "\\\\")           // Escape backslashes
+              .replace(/\./g, "\\.")            // Escape dots
+              .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
+              .replace(/\*/g, "[^/]*")          // Single * matches non-slash chars
+              .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
+            return new RegExp(`^${regexPattern}$`);
+          });
+          
+          if (!patterns.some(pattern => pattern.test(relativeFilePath))) {
+            core.error(`File does not match allowed patterns: ${relativeFilePath}`);
+            core.error(`Allowed patterns: ${fileGlobFilter}`);
+            core.setFailed("File pattern validation failed");
+            throw new Error("File pattern validation failed");
+          }
         }
+        
+        // Validate file size
+        if (stats.size > maxFileSize) {
+          core.error(`File exceeds size limit: ${relativeFilePath} (${stats.size} bytes > ${maxFileSize} bytes)`);
+          core.setFailed("File size validation failed");
+          throw new Error("File size validation failed");
+        }
+        
+        filesToCopy.push({ 
+          relativePath: relativeFilePath, 
+          source: fullPath, 
+          size: stats.size 
+        });
       }
-
-      // Validate file size
-      if (stats.size > maxFileSize) {
-        core.error(`File exceeds size limit: ${fileName} (${stats.size} bytes > ${maxFileSize} bytes)`);
-        core.setFailed("File size validation failed");
-        return;
-      }
-
-      filesToCopy.push({ name: fileName, source: sourceFilePath, size: stats.size });
     }
+  }
+  
+  try {
+    scanDirectory(sourceMemoryPath);
   } catch (error) {
-    core.setFailed(`Failed to read artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to scan artifact directory: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
@@ -143,14 +167,20 @@ async function main() {
 
   core.info(`Copying ${filesToCopy.length} validated file(s)...`);
 
-  // Copy files to destination
+  // Copy files to destination (preserving directory structure)
   for (const file of filesToCopy) {
-    const destFilePath = path.join(destMemoryPath, file.name);
+    const destFilePath = path.join(destMemoryPath, file.relativePath);
+    const destDir = path.dirname(destFilePath);
+    
     try {
+      // Ensure destination directory exists
+      fs.mkdirSync(destDir, { recursive: true });
+      
+      // Copy file
       fs.copyFileSync(file.source, destFilePath);
-      core.info(`Copied: ${file.name} (${file.size} bytes)`);
+      core.info(`Copied: ${file.relativePath} (${file.size} bytes)`);
     } catch (error) {
-      core.setFailed(`Failed to copy file ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+      core.setFailed(`Failed to copy file ${file.relativePath}: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
   }
