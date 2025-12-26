@@ -22,7 +22,7 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
-if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.should_run))
+if: (github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') && (needs.check_external_user.outputs.should_run == 'true'))
 safe-outputs:
   add-labels:
     allowed: [spam, ai-generated, link-spam, ai-inspected]
