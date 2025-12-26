@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { generatePlainTextSummary, generateCopilotCliStyleSummary } = require("./log_parser_shared.cjs");
+const { generatePlainTextSummary, generateCopilotCliStyleSummary, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 
 /**
  * Bootstrap helper for log parser entry points.
@@ -88,6 +88,17 @@ function runLogParser(options) {
     }
 
     if (markdown) {
+      // Read safe outputs file if available
+      let safeOutputsContent = "";
+      const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+      if (safeOutputsPath && fs.existsSync(safeOutputsPath)) {
+        try {
+          safeOutputsContent = fs.readFileSync(safeOutputsPath, "utf8");
+        } catch (error) {
+          core.warning(`Failed to read safe outputs file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
       // Generate lightweight plain text summary for core.info and Copilot CLI style for step summary
       if (logEntries && Array.isArray(logEntries) && logEntries.length > 0) {
         // Extract model from init entry if available
@@ -100,17 +111,51 @@ function runLogParser(options) {
         });
         core.info(plainTextSummary);
 
+        // Add safe outputs preview to core.info
+        if (safeOutputsContent) {
+          const safeOutputsPlainText = formatSafeOutputsPreview(safeOutputsContent, { isPlainText: true });
+          if (safeOutputsPlainText) {
+            core.info(safeOutputsPlainText);
+          }
+        }
+
         // Generate Copilot CLI style markdown for step summary
         const copilotCliStyleMarkdown = generateCopilotCliStyleSummary(logEntries, {
           model,
           parserName,
         });
-        core.summary.addRaw(copilotCliStyleMarkdown).write();
+        
+        // Add safe outputs preview to step summary
+        let fullMarkdown = copilotCliStyleMarkdown;
+        if (safeOutputsContent) {
+          const safeOutputsMarkdown = formatSafeOutputsPreview(safeOutputsContent, { isPlainText: false });
+          if (safeOutputsMarkdown) {
+            fullMarkdown += "\n" + safeOutputsMarkdown;
+          }
+        }
+        
+        core.summary.addRaw(fullMarkdown).write();
       } else {
         // Fallback: just log success message for parsers without log entries
         core.info(`${parserName} log parsed successfully`);
+        
+        // Add safe outputs preview to core.info (fallback path)
+        if (safeOutputsContent) {
+          const safeOutputsPlainText = formatSafeOutputsPreview(safeOutputsContent, { isPlainText: true });
+          if (safeOutputsPlainText) {
+            core.info(safeOutputsPlainText);
+          }
+        }
+        
         // Write original markdown to step summary if available
-        core.summary.addRaw(markdown).write();
+        let fullMarkdown = markdown;
+        if (safeOutputsContent) {
+          const safeOutputsMarkdown = formatSafeOutputsPreview(safeOutputsContent, { isPlainText: false });
+          if (safeOutputsMarkdown) {
+            fullMarkdown += "\n" + safeOutputsMarkdown;
+          }
+        }
+        core.summary.addRaw(fullMarkdown).write();
       }
     } else {
       core.error(`Failed to parse ${parserName} log`);

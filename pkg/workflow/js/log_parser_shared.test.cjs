@@ -1821,4 +1821,123 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("... (conversation truncated)");
     });
   });
+
+  describe("formatSafeOutputsPreview", () => {
+    it("should return empty string for empty content", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      expect(formatSafeOutputsPreview("")).toBe("");
+      expect(formatSafeOutputsPreview("   ")).toBe("");
+    });
+
+    it("should format single entry in plain text mode", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "create_issue", title: "Bug found", body: "Description here" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+
+      expect(result).toContain("Safe Outputs Preview:");
+      expect(result).toContain("Total: 1 entry");
+      expect(result).toContain("[1] create_issue");
+      expect(result).toContain("Title: Bug found");
+      expect(result).toContain("Body: Description here");
+    });
+
+    it("should format single entry in markdown mode", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "create_issue", title: "Bug found", body: "Description here" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(result).toContain("## 📤 Safe Outputs");
+      expect(result).toContain("**Total Entries:** 1");
+      expect(result).toContain("### 1. create_issue");
+      expect(result).toContain("**Title:** Bug found");
+      expect(result).toContain("<details>");
+      expect(result).toContain("<summary>Preview</summary>");
+    });
+
+    it("should format multiple entries", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const entries = [
+        { type: "create_issue", title: "Issue 1", body: "Body 1" },
+        { type: "add_comment", body: "Comment text" },
+        { type: "add_labels", labels: ["bug", "enhancement"] },
+      ];
+      const safeOutputs = entries.map(e => JSON.stringify(e)).join("\n");
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(result).toContain("**Total Entries:** 3");
+      expect(result).toContain("### 1. create_issue");
+      expect(result).toContain("### 2. add_comment");
+      expect(result).toContain("### 3. add_labels");
+    });
+
+    it("should truncate and show more indicator", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const entries = [];
+      for (let i = 0; i < 10; i++) {
+        entries.push({ type: "create_issue", title: `Issue ${i}`, body: `Body ${i}` });
+      }
+      const safeOutputs = entries.map(e => JSON.stringify(e)).join("\n");
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false, maxEntries: 3 });
+
+      expect(result).toContain("**Total Entries:** 10");
+      expect(result).toContain("### 1. create_issue");
+      expect(result).toContain("### 2. create_issue");
+      expect(result).toContain("### 3. create_issue");
+      expect(result).toContain("... and 7 more entries");
+    });
+
+    it("should handle entries without title or body", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "noop" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+
+      expect(result).toContain("[1] noop");
+      expect(result).not.toContain("Title:");
+      expect(result).not.toContain("Body:");
+    });
+
+    it("should skip invalid JSON lines", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = `{"type": "create_issue", "title": "Valid"}\ninvalid json line\n{"type": "add_comment", "body": "Also valid"}`;
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(result).toContain("**Total Entries:** 2");
+      expect(result).toContain("### 1. create_issue");
+      expect(result).toContain("### 2. add_comment");
+    });
+
+    it("should truncate long titles and bodies", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const longTitle = "A".repeat(100);
+      const longBody = "B".repeat(300);
+      const safeOutputs = JSON.stringify({ type: "create_issue", title: longTitle, body: longBody });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+
+      // Plain text truncates title to 60 chars
+      expect(result).toContain("Title:");
+      expect(result).not.toContain("A".repeat(61));
+
+      // Plain text truncates body to 80 chars
+      expect(result).toContain("Body:");
+      expect(result).not.toContain("B".repeat(81));
+    });
+
+    it("should handle entries with newlines in body", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({ type: "create_issue", title: "Multi-line", body: "Line 1\nLine 2\nLine 3" });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
+
+      // In plain text mode, newlines should be replaced with spaces
+      expect(result).toContain("Body: Line 1 Line 2 Line 3");
+    });
+  });
 });

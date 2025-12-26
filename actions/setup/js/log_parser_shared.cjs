@@ -1374,6 +1374,108 @@ function generateCopilotCliStyleSummary(logEntries, options = {}) {
   return lines.join("\n");
 }
 
+/**
+ * Formats safe outputs preview for display in logs
+ * @param {string} safeOutputsContent - The raw JSONL content from safe outputs file
+ * @param {Object} options - Configuration options
+ * @param {boolean} [options.isPlainText=false] - Whether to format for plain text (core.info) or markdown (step summary)
+ * @param {number} [options.maxEntries=5] - Maximum number of entries to show in preview
+ * @returns {string} Formatted safe outputs preview
+ */
+function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
+  const { isPlainText = false, maxEntries = 5 } = options;
+
+  if (!safeOutputsContent || safeOutputsContent.trim().length === 0) {
+    return "";
+  }
+
+  const lines = safeOutputsContent.trim().split("\n");
+  const entries = [];
+
+  // Parse JSONL entries
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      const entry = JSON.parse(line);
+      entries.push(entry);
+    } catch (e) {
+      // Skip invalid JSON lines
+      continue;
+    }
+  }
+
+  if (entries.length === 0) {
+    return "";
+  }
+
+  // Build preview
+  const preview = [];
+  const entriesToShow = entries.slice(0, maxEntries);
+  const hasMore = entries.length > maxEntries;
+
+  if (isPlainText) {
+    // Plain text format for core.info
+    preview.push("");
+    preview.push("Safe Outputs Preview:");
+    preview.push(`  Total: ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`);
+    
+    for (let i = 0; i < entriesToShow.length; i++) {
+      const entry = entriesToShow[i];
+      preview.push("");
+      preview.push(`  [${i + 1}] ${entry.type || "unknown"}`);
+      if (entry.title) {
+        preview.push(`      Title: ${truncateString(entry.title, 60)}`);
+      }
+      if (entry.body) {
+        const bodyPreview = truncateString(entry.body.replace(/\n/g, " "), 80);
+        preview.push(`      Body: ${bodyPreview}`);
+      }
+    }
+
+    if (hasMore) {
+      preview.push("");
+      preview.push(`  ... and ${entries.length - maxEntries} more ${entries.length - maxEntries === 1 ? "entry" : "entries"}`);
+    }
+  } else {
+    // Markdown format for step summary
+    preview.push("");
+    preview.push("## 📤 Safe Outputs");
+    preview.push("");
+    preview.push(`**Total Entries:** ${entries.length}`);
+    preview.push("");
+
+    for (let i = 0; i < entriesToShow.length; i++) {
+      const entry = entriesToShow[i];
+      preview.push(`### ${i + 1}. ${entry.type || "Unknown Type"}`);
+      preview.push("");
+      
+      if (entry.title) {
+        preview.push(`**Title:** ${entry.title}`);
+        preview.push("");
+      }
+      
+      if (entry.body) {
+        const bodyPreview = truncateString(entry.body, 200);
+        preview.push("<details>");
+        preview.push("<summary>Preview</summary>");
+        preview.push("");
+        preview.push("```");
+        preview.push(bodyPreview);
+        preview.push("```");
+        preview.push("</details>");
+        preview.push("");
+      }
+    }
+
+    if (hasMore) {
+      preview.push(`*... and ${entries.length - maxEntries} more ${entries.length - maxEntries === 1 ? "entry" : "entries"}*`);
+      preview.push("");
+    }
+  }
+
+  return preview.join("\n");
+}
+
 // Export functions and constants
 module.exports = {
   // Constants
@@ -1397,4 +1499,5 @@ module.exports = {
   formatToolCallAsDetails,
   generatePlainTextSummary,
   generateCopilotCliStyleSummary,
+  formatSafeOutputsPreview,
 };
