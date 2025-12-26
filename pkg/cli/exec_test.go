@@ -84,8 +84,8 @@ func TestGhExecOrFallbackWithGHToken(t *testing.T) {
 	// Note: We can't easily test actual gh.Exec without a real token,
 	// so we test that the function attempts to use gh CLI
 
-	// Set a dummy token
-	t.Setenv("GH_TOKEN", "dummy_token_for_test")
+	// Set a placeholder token
+	t.Setenv("GH_TOKEN", "placeholder_token_for_test")
 
 	// This will likely fail since we don't have a valid token,
 	// but we're testing that it attempts gh.Exec path

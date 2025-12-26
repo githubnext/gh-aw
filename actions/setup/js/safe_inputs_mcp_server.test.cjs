@@ -269,7 +269,7 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
 
     it("should handle initialize request", async () => {
       const configPath = path.join(tempDir, "config.json");
-      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ name: "dummy", description: "dummy", inputSchema: {} }] }));
+      fs.writeFileSync(configPath, JSON.stringify({ tools: [{ name: "mock", description: "mock", inputSchema: {} }] }));
 
       const { loadConfig } = await import("./safe_inputs_mcp_server.cjs");
       const { createServer, registerTool, handleMessage } = await import("./mcp_server_core.cjs");

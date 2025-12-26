@@ -418,7 +418,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["comment_repo"] = `""`
 	}
 
-	// If no steps have been added, add a dummy step to make the job valid
+	// If no steps have been added, add a placeholder step to make the job valid
 	// This can happen when the activation job is created only for an if condition
 	if len(steps) == 0 {
 		steps = append(steps, "      - run: echo \"Activation success\"\n")
