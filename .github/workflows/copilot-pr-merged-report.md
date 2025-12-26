@@ -12,6 +12,7 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
+  discussions: write
 
 engine: copilot
 strict: true

@@ -78,6 +78,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: write
       issues: read
       pull-requests: read
     concurrency:
