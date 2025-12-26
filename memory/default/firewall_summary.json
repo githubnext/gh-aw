@@ -1,7 +1,7 @@
 {
-  "last_updated": "2025-12-25T12:42:00.000Z",
-  "report_generated": "2025-12-25T12:42:00.000Z",
-  "analysis_period": "2025-12-03 to 2025-12-25",
+  "last_updated": "2025-12-26T12:42:00.000Z",
+  "report_generated": "2025-12-26T12:42:00.000Z",
+  "analysis_period": "2025-12-19 to 2025-12-26",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
@@ -22,10 +22,10 @@
   "trend_change_pct": 3.1,
   "key_finding": "LinkedIn most blocked (90 requests), GitHub API access blocked (92 requests total) - workflows need GitHub MCP server configuration. Denial rate trending upward from 26.3% to 29.7%.",
   "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access. Review package registry blocking (npmjs.org, pypi.org).",
-  "notes": "Report generated for December 25, 2025. Analysis based on cached data from previous analysis. Python visualization libraries unavailable - used text-based charts. Comprehensive recommendations provided for GitHub MCP configuration and network permission optimization.",
+  "notes": "Report generated for December 26, 2025. Analysis based on cached data from previous analysis. Python visualization libraries unavailable - used text-based analysis. Comprehensive recommendations provided for GitHub MCP configuration and network permission optimization.",
   "charts_generated": false,
-  "visualization_type": "text-based-ascii",
-  "next_report_date": "2025-12-26",
+  "visualization_type": "text-based-tables",
+  "next_report_date": "2025-12-27",
   "report_status": "complete",
   "workflows_with_firewall": [
     "smoke-codex-firewall",
@@ -36,7 +36,8 @@
   ],
   "workflows_needing_mcp_config": [
     "research.md",
-    "daily-news.md"
+    "daily-news.md",
+    "daily-firewall-report.md"
   ],
   "security_insights": {
     "positive": [
