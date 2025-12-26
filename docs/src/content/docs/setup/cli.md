@@ -255,7 +255,7 @@ When `--owner` and `--repo` are not specified, the command operates on the curre
 
 ##### `secrets bootstrap`
 
-Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
+Check and suggest setup for gh aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
 
 ```bash wrap
 gh aw secrets bootstrap                    # Check tokens for current repository
