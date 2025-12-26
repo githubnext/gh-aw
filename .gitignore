@@ -107,6 +107,8 @@ examples/*.lock.yml
 # Large test data files
 pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/
+actions/setup/js/test-*/
+!actions/setup/js/test-data/
 sample-logs/
 *.invalid.yml
 *.tmp
