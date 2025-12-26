@@ -689,6 +689,4 @@ if (typeof module !== "undefined" && module.exports) {
     parseCopilotLog,
     extractPremiumRequestCount,
   };
-} else {
-  main();
 }

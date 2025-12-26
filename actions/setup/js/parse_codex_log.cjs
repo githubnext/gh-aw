@@ -461,6 +461,4 @@ if (typeof module !== "undefined" && module.exports) {
     formatCodexBashCall,
     extractMCPInitialization,
   };
-} else {
-  main();
 }
