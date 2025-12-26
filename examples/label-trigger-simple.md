@@ -14,7 +14,7 @@ This workflow demonstrates the issue labeled trigger shorthand syntax:
 
 ```yaml
 on: issue labeled bug enhancement priority-high
-```
+```text
 
 This short syntax automatically expands to:
 - Issues labeled with any of the specified labels (bug, enhancement, priority-high)
@@ -25,7 +25,7 @@ This short syntax automatically expands to:
 When this workflow is triggered, acknowledge that it was triggered and provide a brief summary.
 
 Example output:
-```
+```text
 ✅ Workflow triggered!
 📋 This workflow responds to label events on issues
 ```

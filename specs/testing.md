@@ -24,7 +24,7 @@ go test -fuzz=FuzzExpressionParser -fuzztime=1m ./pkg/workflow/
 
 # Run seed corpus only (no fuzzing)
 go test -run FuzzExpressionParser ./pkg/workflow/
-```
+```text
 
 **Available Fuzz Tests:**
 - **FuzzParseFrontmatter** (`pkg/parser/frontmatter_fuzz_test.go`): Tests YAML frontmatter parsing for edge cases and malformed input
@@ -55,7 +55,7 @@ Fuzz tests can be run in CI with time limits:
 ```yaml
 - name: Fuzz test expression parser
   run: go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
-```
+```text
 
 ### 3. Security Regression Tests (`*_security_regression_test.go`)
 
@@ -73,7 +73,7 @@ go test -v -run '^TestSecurity' ./pkg/workflow/... ./pkg/cli/...
 go test -v -run 'TestSecurityTemplate' ./pkg/workflow/
 go test -v -run 'TestSecurityDoS' ./pkg/workflow/
 go test -v -run 'TestSecurityCLI' ./pkg/cli/
-```
+```text
 
 **Security Test Categories:**
 
@@ -141,7 +141,7 @@ go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_baseline.txt
 # ... make changes ...
 go test -bench=. -benchtime=3x -run=^$ ./pkg/... > bench_new.txt
 benchstat bench_baseline.txt bench_new.txt
-```
+```text
 
 **Note**: Benchmarks use `-benchtime=3x` (3 iterations) for fast CI execution. For more accurate measurements, use `-benchtime=100x` or longer durations.
 
@@ -197,7 +197,7 @@ make test-security
 
 # Run comprehensive validation
 go run test_validation.go
-```
+```text
 
 ### Test Results Summary
 - **Unit Tests**: ⚠️ Partial - Parser & Workflow packages pass, CLI package has known failures (see #48)

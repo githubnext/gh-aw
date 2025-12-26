@@ -33,7 +33,7 @@ All other expressions are disallowed, including `secrets.*`, `env.*`, `vars.*`, 
 
 Expression safety is validated during compilation. Unauthorized expressions produce errors like:
 
-```
+```text
 error: unauthorized expressions: [secrets.TOKEN, env.MY_VAR]. 
 allowed: [github.repository, github.actor, github.workflow, ...]
 ```

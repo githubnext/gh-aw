@@ -188,7 +188,7 @@ make agent-finish # Complete validation
 
 ## Repository Structure
 
-```
+```text
 cmd/gh-aw/           # CLI entry point
 pkg/
 ├── cli/             # Command implementations  

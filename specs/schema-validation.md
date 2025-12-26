@@ -48,7 +48,7 @@ Run tests with:
 make test-unit
 # or
 go test -v -run TestAdditionalPropertiesFalse ./pkg/parser/
-```
+```text
 
 ## Example Validation Error
 
@@ -57,7 +57,7 @@ When a workflow contains a typo, the compiler provides a clear error message:
 ```bash
 $ ./gh-aw compile workflow-with-typo.md
 ✗ error: Unknown properties: toolz, engnie, permisions. Valid fields are: tools, engine, permissions, ...
-```
+```text
 
 ## Validation Process
 
@@ -93,7 +93,7 @@ var includedFileSchema string
 
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
-```
+```text
 
 This means:
 - Schema changes require running `make build` to take effect

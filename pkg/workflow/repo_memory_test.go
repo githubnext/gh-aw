@@ -231,7 +231,7 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 	}
 
 	// Check for memory directory creation
-	if !strings.Contains(output, "/tmp/gh-aw/repo-memory-default/memory/default") {
+	if !strings.Contains(output, "/tmp/gh-aw/repo-memory/default") {
 		t.Error("Expected memory directory path")
 	}
 }

@@ -73,7 +73,7 @@ type ToolsConfig struct {
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
 
 	// Custom MCP tools (anything not in the above list)
-	Custom map[string]any `yaml:",inline"`
+	Custom map[string]MCPServerConfig `yaml:",inline"`
 
 	// Raw map for backwards compatibility
 	raw map[string]any
@@ -90,6 +90,57 @@ type Tools = ToolsConfig
 func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
 	config := NewTools(toolsMap)
 	return config, nil
+}
+
+// mcpServerConfigToMap converts an MCPServerConfig to map[string]any for backward compatibility
+func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
+	result := make(map[string]any)
+
+	// Add common fields if they're set
+	if config.Command != "" {
+		result["command"] = config.Command
+	}
+	if len(config.Args) > 0 {
+		result["args"] = config.Args
+	}
+	if len(config.Env) > 0 {
+		result["env"] = config.Env
+	}
+	if config.Mode != "" {
+		result["mode"] = config.Mode
+	}
+	if config.Type != "" {
+		result["type"] = config.Type
+	}
+	if config.Version != "" {
+		result["version"] = config.Version
+	}
+	if len(config.Toolsets) > 0 {
+		result["toolsets"] = config.Toolsets
+	}
+
+	// Add HTTP-specific fields
+	if config.URL != "" {
+		result["url"] = config.URL
+	}
+	if len(config.Headers) > 0 {
+		result["headers"] = config.Headers
+	}
+
+	// Add container-specific fields
+	if config.Container != "" {
+		result["container"] = config.Container
+	}
+	if len(config.EntrypointArgs) > 0 {
+		result["entrypointArgs"] = config.EntrypointArgs
+	}
+
+	// Add custom fields (these override standard fields if there are conflicts)
+	for key, value := range config.CustomFields {
+		result[key] = value
+	}
+
+	return result
 }
 
 // ToMap converts the ToolsConfig back to a map[string]any for backward compatibility.
@@ -152,9 +203,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		result["startup-timeout"] = *t.StartupTimeout
 	}
 
-	// Add custom tools
+	// Add custom tools - convert MCPServerConfig to map[string]any
 	for name, config := range t.Custom {
-		result[name] = config
+		result[name] = mcpServerConfigToMap(config)
 	}
 
 	return result
@@ -228,6 +279,31 @@ type AgenticWorkflowsToolConfig struct {
 type CacheMemoryToolConfig struct {
 	// Can be boolean, object, or array - handled by cache.go
 	Raw any `yaml:"-"`
+}
+
+// MCPServerConfig represents the configuration for a custom MCP server.
+// This provides partial type safety for common MCP configuration fields
+// while maintaining flexibility for truly dynamic configurations.
+type MCPServerConfig struct {
+	// Common MCP server fields
+	Command  string            `yaml:"command,omitempty"`  // Command to execute (for stdio mode)
+	Args     []string          `yaml:"args,omitempty"`     // Arguments for the command
+	Env      map[string]string `yaml:"env,omitempty"`      // Environment variables
+	Mode     string            `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
+	Type     string            `yaml:"type,omitempty"`     // MCP server type (stdio, http, remote, local)
+	Version  string            `yaml:"version,omitempty"`  // Version of the MCP server
+	Toolsets []string          `yaml:"toolsets,omitempty"` // Toolsets to enable
+
+	// HTTP-specific fields
+	URL     string            `yaml:"url,omitempty"`     // URL for HTTP mode MCP servers
+	Headers map[string]string `yaml:"headers,omitempty"` // HTTP headers for HTTP mode
+
+	// Container-specific fields
+	Container      string   `yaml:"container,omitempty"`      // Container image for the MCP server
+	EntrypointArgs []string `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
+
+	// For truly dynamic configuration (server-specific fields not covered above)
+	CustomFields map[string]any `yaml:",inline"`
 }
 
 // MCPGatewayRuntimeConfig represents the configuration for the MCP gateway runtime execution

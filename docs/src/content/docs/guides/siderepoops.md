@@ -35,7 +35,7 @@ While [MultiRepoOps](/gh-aw/guides/multirepoops/) runs workflows **from** your m
 
 **Example Architecture:**
 
-```
+```text
 ┌─────────────────┐          ┌──────────────────┐
 │  Side Repo      │          │  Main Repo       │
 │  (workflows)    │ ────────>│  (target code)   │
@@ -358,7 +358,7 @@ Create a PR with suggested improvements.
 
 **Repository Organization**:
 
-```
+```text
 side-repo/
 ├── .github/
 │   └── workflows/

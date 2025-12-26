@@ -107,7 +107,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 		// This should never panic, even on malformed input
 		result := wrapExpressionsInTemplateConditionals(input)
 
-		// Basic sanity checks
+		// Basic validation checks
 		if result == "" && input != "" {
 			// Result should not be empty if input is not empty
 			// (unless the input somehow gets completely removed, which shouldn't happen)

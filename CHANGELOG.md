@@ -230,7 +230,7 @@ Run the following to remove the old secret and add the new one:
 ```bash
 gh secret remove GH_AW_COPILOT_TOKEN -a actions
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "YOUR_PAT"
-```
+```text
 
 This follows the precedent set when `COPILOT_CLI_TOKEN` was removed in v0.26+. All workflow lock files have been regenerated to reflect this new token chain.
 
@@ -378,7 +378,7 @@ Migration example:
 
 ```bash
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "(your-github-pat)"
-```
+```text
 
 
 ## v0.32.1 - 2025-12-09
@@ -831,7 +831,7 @@ on: issues
 permissions:
   contents: write  # Would fail in strict mode
 strict: false      # Opt out
-```
+```text
 
 **CLI behavior update:**
 - `gh aw compile` now uses strict mode by default when `strict:` is not specified in frontmatter (due to schema default)
@@ -934,13 +934,13 @@ For example, if you have:
 
 ```yaml
 timeout_minutes: 30
-```
+```text
 
 Update to the recommended replacement:
 
 ```yaml
 timeout-minutes: 30
-```
+```text
 
 Check the error messages when running `gh aw compile --strict` for specific replacement suggestions for each deprecated field. Non-strict mode continues to work with deprecated fields (showing warnings only).
 `````

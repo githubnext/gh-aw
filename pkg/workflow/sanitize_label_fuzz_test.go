@@ -102,7 +102,7 @@ func FuzzSanitizeLabelContent(f *testing.F) {
 			t.Errorf("Unexpected error from sanitize label content: %v", err)
 		}
 
-		// Basic sanity checks on the result
+		// Basic validation checks on the result
 		if result != nil {
 			// Result can be longer than input due to backtick wrapping and escaping
 			// Allow up to 3x the input length to account for:

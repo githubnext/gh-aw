@@ -14,7 +14,7 @@ This workflow demonstrates the pull_request labeled trigger shorthand syntax:
 
 ```yaml
 on: pull_request labeled needs-review approved ready-to-merge
-```
+```text
 
 This short syntax automatically expands to:
 - Pull request labeled with any of the specified labels
@@ -25,7 +25,7 @@ This short syntax automatically expands to:
 When this workflow is triggered, acknowledge that it was triggered and provide a brief summary.
 
 Example output:
-```
+```text
 ✅ Workflow triggered for PR!
 📋 This workflow responds to label events on pull requests
 ```

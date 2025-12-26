@@ -14,7 +14,7 @@ This workflow tests the syntax without spaces after commas:
 
 ```yaml
 on: issue labeled bug,enhancement,priority-high
-```
+```text
 
 ## Task
 
