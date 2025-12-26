@@ -224,12 +224,15 @@ func TestExpandNeutralToolsToClaudeTools(t *testing.T) {
 			result := engine.expandNeutralToolsToClaudeTools(inputConfig)
 			resultMap := result.ToMap()
 
+			t.Logf("Result Custom: %+v", result.Custom)
+			t.Logf("Result ToMap: %+v", resultMap)
+
 			// Check claude section
 			claudeResult, hasClaudeResult := resultMap["claude"]
 			claudeExpected, hasClaudeExpected := tt.expected["claude"]
 
 			if hasClaudeExpected != hasClaudeResult {
-				t.Errorf("Claude section presence mismatch. Expected: %v, Got: %v", hasClaudeExpected, hasClaudeResult)
+				t.Errorf("Claude section presence mismatch. Expected: %v, Got: %v. ResultMap keys: %v", hasClaudeExpected, hasClaudeResult, mapKeys(resultMap))
 				return
 			}
 
@@ -343,4 +346,12 @@ func compareValues(expected, actual any) bool {
 	default:
 		return expected == actual
 	}
+}
+
+func mapKeys(m map[string]any) []string {
+keys := make([]string, 0, len(m))
+for k := range m {
+keys = append(keys, k)
+}
+return keys
 }

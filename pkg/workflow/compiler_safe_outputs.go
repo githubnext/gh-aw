@@ -264,11 +264,12 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 	}
 
 	// Get existing github tool configuration - GitHub is already parsed
-	// Check if github is explicitly disabled by checking if it's nil when it should be set
-	// We need to check the raw map to determine if github was explicitly set to false
+	// Check if github is explicitly disabled by checking the raw map
+	githubExplicitlyDisabled := false
 	if toolsConfig.raw != nil {
 		if githubRaw, exists := toolsConfig.raw["github"]; exists && githubRaw == false {
-			// Remove the github tool entirely when set to false
+			// GitHub was explicitly set to false
+			githubExplicitlyDisabled = true
 			toolsConfig.GitHub = nil
 			delete(toolsConfig.raw, "github")
 		}
@@ -279,7 +280,7 @@ func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *Safe
 		// Only set allowed tools if explicitly configured
 		// Don't add default tools - let the MCP server use all available tools
 		// The GitHub field is already properly configured by ParseToolsConfig
-	} else if toolsConfig.raw == nil || toolsConfig.raw["github"] != false {
+	} else if !githubExplicitlyDisabled {
 		// GitHub tool doesn't exist and wasn't explicitly disabled - create default config
 		toolsConfig.GitHub = &GitHubToolConfig{
 			ReadOnly: true, // default to read-only for security

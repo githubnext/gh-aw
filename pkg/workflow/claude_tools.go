@@ -15,15 +15,13 @@ var claudeToolsLog = logger.New("workflow:claude_tools")
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(toolsConfig *ToolsConfig) *ToolsConfig {
 	if toolsConfig == nil {
-		return &ToolsConfig{
+		toolsConfig = &ToolsConfig{
 			Custom: make(map[string]any),
-			raw:    make(map[string]any),
 		}
 	}
 
 	result := &ToolsConfig{
 		Custom: make(map[string]any),
-		raw:    make(map[string]any),
 	}
 
 	// Count neutral tools

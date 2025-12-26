@@ -108,7 +108,37 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	result := make(map[string]any)
 
 	if t.GitHub != nil {
-		result["github"] = t.GitHub
+		githubMap := make(map[string]any)
+		if len(t.GitHub.Allowed) > 0 {
+			// Convert to []any for backward compatibility
+			allowed := make([]any, len(t.GitHub.Allowed))
+			for i, v := range t.GitHub.Allowed {
+				allowed[i] = v
+			}
+			githubMap["allowed"] = allowed
+		}
+		if t.GitHub.Mode != "" {
+			githubMap["mode"] = t.GitHub.Mode
+		}
+		if t.GitHub.Version != "" {
+			githubMap["version"] = t.GitHub.Version
+		}
+		if len(t.GitHub.Args) > 0 {
+			githubMap["args"] = t.GitHub.Args
+		}
+		if !t.GitHub.ReadOnly {
+			githubMap["read-only"] = t.GitHub.ReadOnly
+		}
+		if t.GitHub.GitHubToken != "" {
+			githubMap["github-token"] = t.GitHub.GitHubToken
+		}
+		if len(t.GitHub.Toolset) > 0 {
+			githubMap["toolsets"] = t.GitHub.Toolset
+		}
+		if t.GitHub.Lockdown {
+			githubMap["lockdown"] = t.GitHub.Lockdown
+		}
+		result["github"] = githubMap
 	}
 	if t.Bash != nil {
 		result["bash"] = t.Bash.AllowedCommands
