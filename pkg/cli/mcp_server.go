@@ -194,6 +194,18 @@ Note: Output can be filtered using the jq parameter.`,
 		Fix        bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
 		JqFilter   string   `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
+	// Generate schema with elicitation defaults
+	compileSchema, err := GenerateOutputSchema[compileArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate compile tool schema: %v", err)
+		return server
+	}
+	// Add elicitation default: strict defaults to true (most common case)
+	if err := AddSchemaDefault(compileSchema, "strict", true); err != nil {
+		mcpLog.Printf("Failed to add default for strict: %v", err)
+	}
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compile",
 		Description: `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
@@ -210,6 +222,7 @@ Returns JSON array with validation results for each workflow:
 - compiled_file: Path to the generated .lock.yml file
 
 Note: Output can be filtered using the jq parameter.`,
+		InputSchema: compileSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -321,6 +334,24 @@ Note: Output can be filtered using the jq parameter.`,
 		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 		MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
 	}
+
+	// Generate schema with elicitation defaults
+	logsSchema, err := GenerateOutputSchema[logsArgs]()
+	if err != nil {
+		mcpLog.Printf("Failed to generate logs tool schema: %v", err)
+		return server
+	}
+	// Add elicitation defaults for common parameters
+	if err := AddSchemaDefault(logsSchema, "count", 100); err != nil {
+		mcpLog.Printf("Failed to add default for count: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "timeout", 50); err != nil {
+		mcpLog.Printf("Failed to add default for timeout: %v", err)
+	}
+	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
+		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
+	}
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "logs",
 		Description: `Download and analyze workflow logs.
@@ -338,6 +369,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
   - .summary (get only summary statistics)
   - .runs[:5] (get first 5 runs)
   - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
+		InputSchema: logsSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
