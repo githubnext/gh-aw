@@ -157,7 +157,7 @@ func FuzzMentionsFiltering(f *testing.F) {
 			t.Errorf("Unexpected error from mentions filtering: %v", err)
 		}
 
-		// Basic sanity checks on the result
+		// Basic validation checks on the result
 		if result != nil {
 			// Result should not be excessively longer than input
 			// Account for mention wrapping: each @ can be wrapped in backticks (e.g., @ -> `@`)
