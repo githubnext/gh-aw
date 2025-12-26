@@ -131,13 +131,13 @@ func TestExtractFeatures(t *testing.T) {
 				"features": map[string]any{
 					"feature1":   true,
 					"feature2":   "string value",
-					"action-tag": "5c3428a",
+					"action-tag": "2d4c6ce24c55704d72ec674d1f5c357831435180",
 				},
 			},
 			expected: map[string]any{
 				"feature1":   true,
 				"feature2":   "string value",
-				"action-tag": "5c3428a",
+				"action-tag": "2d4c6ce24c55704d72ec674d1f5c357831435180",
 			},
 		},
 		{
