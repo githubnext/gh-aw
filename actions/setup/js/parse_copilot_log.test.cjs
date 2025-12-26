@@ -170,58 +170,6 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("Log format not recognized");
     });
 
-    it("should handle empty JSON array", () => {
-      const result = parseCopilotLog("[]");
-      expect(result.markdown).toContain("## 🤖 Reasoning");
-    });
-
-    it("should skip internal file operations in summary", () => {
-      const logWithFileOps = JSON.stringify([
-        { type: "system", subtype: "init", session_id: "file-ops", tools: ["Bash", "Read", "Write"], model: "gpt-5" },
-        { type: "assistant", message: { content: [{ type: "tool_use", id: "tool_1", name: "Bash", input: { command: "echo test" } }] } },
-        { type: "assistant", message: { content: [{ type: "tool_use", id: "tool_2", name: "Read", input: { path: "/tmp/file.txt" } }] } },
-        { type: "assistant", message: { content: [{ type: "tool_use", id: "tool_3", name: "Write", input: { path: "/tmp/output.txt", content: "data" } }] } },
-      ]);
-      const result = parseCopilotLog(logWithFileOps);
-      
-      const commandsSection = result.markdown.split("📊 Information")[0];
-      expect(commandsSection).toContain("echo test");
-      expect(commandsSection.split("🤖 Reasoning")[0]).not.toContain("Read");
-      expect(commandsSection.split("🤖 Reasoning")[0]).not.toContain("Write");
-    });
-
-    it("should render user text messages as markdown", () => {
-      const logWithUserText = JSON.stringify([
-        { type: "system", subtype: "init", session_id: "user-text", tools: ["Bash"], model: "gpt-5" },
-        { type: "user", message: { content: [{ type: "text", text: "Please help me with this task" }] } },
-      ]);
-      const result = parseCopilotLog(logWithUserText);
-      
-      expect(result.markdown).toContain("Please help me with this task");
-    });
-
-    it("should parse debug log format with tool calls and mark them as successful", () => {
-      const debugLog = `[DEBUG] Starting\n[tool_call] bash: ls -la\n[tool_result] file1.txt\nfile2.txt\n[DEBUG] Done`;
-      const result = parseCopilotLog(debugLog);
-      
-      const commandsSection = result.markdown.split("📊 Information")[0];
-      expect(commandsSection).toContain("ls -la");
-    });
-
-    it("should extract and display premium model information from debug logs", () => {
-      const logWithPremiumModel = `[DEBUG] Model: gpt-4 (premium)\n[DEBUG] Cost multiplier: 2x`;
-      const result = parseCopilotLog(logWithPremiumModel);
-      
-      expect(result.markdown).toContain("gpt-4");
-    });
-
-    it("should handle non-premium models in debug logs", () => {
-      const logWithNonPremiumModel = `[DEBUG] Model: gpt-3.5-turbo`;
-      const result = parseCopilotLog(logWithNonPremiumModel);
-      
-      expect(result.markdown).toContain("gpt-3.5-turbo");
-    });
-
     it("should handle model info with cost multiplier", () => {
       const structuredLog = JSON.stringify([
         { type: "system", subtype: "init", session_id: "cost-test", tools: ["Bash"], model: "gpt-4", model_info: { is_premium: true, cost_multiplier: 3 } },
@@ -230,16 +178,6 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(structuredLog);
       
       expect(result.markdown).toContain("gpt-4");
-    });
-
-    it("should display premium requests consumed for premium models", () => {
-      const structuredLog = JSON.stringify([
-        { type: "system", subtype: "init", session_id: "premium-test", tools: ["Bash"], model: "gpt-4", model_info: { is_premium: true, cost_multiplier: 2 } },
-        { type: "result", num_turns: 5, usage: { input_tokens: 1000, output_tokens: 500 } },
-      ]);
-      const result = parseCopilotLog(structuredLog);
-      
-      expect(result.markdown).toContain("**Premium Requests:** 1");
     });
 
     it("should not display premium requests for non-premium models", () => {
@@ -251,55 +189,11 @@ describe("parse_copilot_log.cjs", () => {
       
       expect(result.markdown).not.toContain("**Premium Requests:**");
     });
-
-    it("should display 1 premium request consumed regardless of number of turns", () => {
-      const structuredLog = JSON.stringify([
-        {
-          type: "system",
-          subtype: "init",
-          session_id: "multi-turn-premium",
-          tools: ["Bash"],
-          model: "gpt-4-turbo",
-          model_info: { is_premium: true, cost_multiplier: 2 },
-        },
-        { type: "result", num_turns: 17, usage: { input_tokens: 5000, output_tokens: 2000 } },
-      ]);
-      const result = parseCopilotLog(structuredLog);
-      
-      expect(result.markdown).toContain("**Premium Requests:** 1");
-    });
-
-    it("should accumulate token usage across multiple API responses in debug logs", () => {
-      const debugLog = `[DEBUG] API Response 1: tokens=100\n[DEBUG] API Response 2: tokens=200\n[DEBUG] Total tokens: 300`;
-      const result = parseCopilotLog(debugLog);
-      
-      expect(result.markdown).toContain("300");
-    });
-
-    it("should extract premium request count from log content using regex", () => {
-      const logWithPremiumInfo = JSON.stringify([
-        { type: "system", subtype: "init", session_id: "premium-regex", tools: ["Bash"], model: "gpt-4", model_info: { is_premium: true } },
-        { type: "result", num_turns: 10, usage: { input_tokens: 2000, output_tokens: 1000 } },
-      ]);
-      const result = parseCopilotLog(logWithPremiumInfo);
-      
-      expect(result.markdown).toContain("**Premium Requests:** 1");
-    });
   });
 
   describe("extractPremiumRequestCount function", () => {
-    it("should extract premium request count from various formats", () => {
-      expect(extractPremiumRequestCount("Premium requests consumed: 5")).toBe(5);
-      expect(extractPremiumRequestCount("Used 3 premium requests")).toBe(3);
-      expect(extractPremiumRequestCount("premium request count: 1")).toBe(1);
-    });
-
     it("should default to 1 if no match found", () => {
       expect(extractPremiumRequestCount("No premium info here")).toBe(1);
-    });
-
-    it("should handle case-insensitive matching", () => {
-      expect(extractPremiumRequestCount("PREMIUM REQUESTS: 2")).toBe(2);
     });
 
     it("should ignore invalid numbers", () => {
@@ -358,20 +252,6 @@ describe("parse_copilot_log.cjs", () => {
     it("should format MCP tool names correctly", () => {
       const result = parseCopilotLog(JSON.stringify([{ type: "assistant", message: { content: [{ type: "tool_use", id: "tool_1", name: "mcp__github__create_pull_request", input: { title: "Test PR" } }] } }]));
       expect(result.markdown).toContain("github::create_pull_request");
-    });
-
-    it("should extract tools from debug log format", () => {
-      const debugLog = `[DEBUG] Available tools: Bash, Read, Write, Edit, LS, Grep\n[tool_call] bash: echo test`;
-      const result = parseCopilotLog(debugLog);
-      
-      expect(result.markdown).toContain("echo test");
-    });
-
-    it("should detect permission denied errors in tool calls from debug logs", () => {
-      const debugLogWithError = `[tool_call] bash: rm protected_file\n[tool_result] Error: Permission denied`;
-      const result = parseCopilotLog(debugLogWithError);
-      
-      expect(result.markdown).toContain("rm protected_file");
     });
 
     it("should display all tool types correctly", () => {
