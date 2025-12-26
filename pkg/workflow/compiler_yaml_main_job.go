@@ -262,14 +262,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	}
-	if codexEngine, ok := engine.(*CodexEngine); ok {
-		squidSteps := codexEngine.GetSquidLogsSteps(data)
-		for _, step := range squidSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
-		}
-	}
 
 	// upload agent logs
 	var _ = logFile
