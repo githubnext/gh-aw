@@ -45,7 +45,7 @@ These workflows are burning money on failed runs...
 ...
 
 [Continues for 4000+ words with no visual breaks]
-```
+```text
 
 **Problems:**
 - ❌ Too long (4000+ words)
@@ -149,7 +149,7 @@ Top 3 workflows account for 32% of total cost:
 ---
 
 **Methodology**: Analysis based on actual workflow execution data from `gh aw logs` for last 30 days. Costs calculated from real token usage.
-```
+```text
 
 **Benefits:**
 - ✅ Concise (1200 words vs 4000+)

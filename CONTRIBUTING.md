@@ -225,7 +225,7 @@ Every agent-created PR automatically runs:
 
 The agent understands this structure:
 
-```
+```text
 /
 ├── cmd/gh-aw/           # Main CLI application
 ├── pkg/                 # Core Go packages

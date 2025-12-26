@@ -47,7 +47,7 @@ Create a custom actions system that:
 
 ### High-Level Design
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    Makefile Interface                    │
 │  ┌────────────────────────────────────────────────────┐ │
@@ -102,7 +102,7 @@ Create a custom actions system that:
 │  │  └── README.md         └── README.md               │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
-```
+```text
 
 ### Component Responsibilities
 
@@ -137,7 +137,7 @@ Create a custom actions system that:
 
 ### Repository Layout
 
-```
+```text
 gh-aw/
 ├── actions/                          # Custom GitHub Actions
 │   ├── README.md                     # Actions documentation
@@ -178,7 +178,7 @@ gh-aw/
 ├── .gitattributes                   # Mark generated files (pkg/workflow/sh/*.sh)
 └── .github/workflows/
     └── ci.yml                       # CI pipeline with actions-build job
-```
+```text
 
 **Shell Script Sync Flow:**
 1. **Source of Truth**: `actions/setup/sh/*.sh` (manually edited)
@@ -200,14 +200,14 @@ Both follow the same pattern now:
 
 Each action follows this template:
 
-```
+```text
 actions/{action-name}/
 ├── action.yml          # Metadata: name, description, inputs, outputs, runs
 ├── index.js            # Bundled JavaScript (generated, committed)
 ├── src/                # Source files
 │   └── index.js        # Main entry point with FILES placeholder
 └── README.md           # Action documentation
-```
+```text
 
 ### action.yml Format
 
@@ -222,7 +222,7 @@ inputs:
 runs:
   using: 'node20'
   main: 'index.js'
-```
+```text
 
 ### Source File Pattern
 
@@ -244,7 +244,7 @@ for (const [filename, content] of Object.entries(FILES)) {
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, content, 'utf8');
 }
-```
+```text
 
 ## Build System
 
@@ -268,16 +268,16 @@ The build system is implemented entirely in Go and follows these steps:
 **Important**: Shell scripts follow a different pattern than JavaScript files:
 
 **Shell Scripts** (source in actions/setup/sh/):
-```
+```text
 actions/setup/sh/*.sh  →  pkg/workflow/sh/*.sh  →  Embedded in binary
    (SOURCE OF TRUTH)        (GENERATED)              (go:embed)
-```
+```text
 
 **JavaScript Files** (source in actions/setup/js/):
-```
+```text
 actions/setup/js/*.cjs  →  pkg/workflow/js/*.cjs  →  Embedded in binary
    (SOURCE OF TRUTH)         (GENERATED)              (go:embed)
-```
+```text
 
 Note: Test files (`*.test.cjs`) remain only in `pkg/workflow/js/` and are not synced from actions/setup/js/.
 
@@ -287,7 +287,7 @@ The sync happens via Makefile targets, which are automatically run as part of `m
 make sync-shell-scripts  # Explicit shell sync
 make sync-js-scripts     # Explicit JavaScript sync
 make build              # Includes both syncs
-```
+```text
 
 **Why this pattern?**
 - Both shell scripts and JavaScript are part of the setup action itself and live in `actions/setup/`
@@ -309,7 +309,7 @@ make actions-validate
 
 # Clean generated files
 make actions-clean
-```
+```text
 
 ### Implementation Details
 
@@ -346,7 +346,7 @@ func getActionDependencies(actionName string) []string {
     }
     return []string{}
 }
-```
+```text
 
 #### File Embedding
 
@@ -359,7 +359,7 @@ outputContent := filesRegex.ReplaceAllString(
     string(sourceContent), 
     fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON))
 )
-```
+```text
 
 ## Architectural Decisions
 
@@ -458,7 +458,7 @@ jobs:
         uses: ./actions/setup-safe-outputs
         with:
           destination: /tmp/safe-outputs
-```
+```text
 
 ### Creating a New Action
 
@@ -549,7 +549,7 @@ actions-build:
     - run: go mod verify
     - run: make actions-build
     - run: make actions-validate
-```
+```text
 
 ### Trigger Conditions
 
@@ -796,7 +796,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
     workflow.RuntimeModeGitHubScript,
     "./actions/create-issue", // Must match action directory name
 )
-```
+```text
 
 #### Step 2: Compile with Custom Action Mode
 
@@ -804,7 +804,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 compiler := workflow.NewCompiler(false, "", "1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
-```
+```text
 
 #### Step 3: Output Comparison
 
@@ -821,7 +821,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-```
+```text
 
 **With Inline Mode (default)** (embeds JavaScript):
 ```yaml
@@ -838,7 +838,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // JavaScript code here
-```
+```text
 
 ### Design Decisions
 
@@ -897,7 +897,7 @@ EOF
 # Update dependency mapping in pkg/cli/actions_build_command.go
 # Build the action
 make actions-build
-```
+```text
 
 #### 2. Register and Compile
 
@@ -914,7 +914,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 compiler := workflow.NewCompiler(false, "", "1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
-```
+```text
 
 #### 3. Result
 
@@ -929,7 +929,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           agent-output: /tmp/agent-output.json
-```
+```text
 
 ### Current Status
 

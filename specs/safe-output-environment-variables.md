@@ -254,7 +254,7 @@ safe-outputs:
     GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}
     DEBUG_MODE: "true"
     CUSTOM_API_KEY: ${{ secrets.CUSTOM_API_KEY }}
-```
+```text
 
 These variables are added to all safe output jobs and take precedence over default values.
 
@@ -289,7 +289,7 @@ safe-outputs:
       steps:
         - name: Print environment variables
           run: env | grep GH_AW_ | sort
-```
+```text
 
 ## Related Documentation
 

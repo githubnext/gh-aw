@@ -126,7 +126,7 @@ func FuzzExpressionParser(f *testing.F) {
 		// find cases where the function panics or behaves unexpectedly.
 		// The fuzzer will help us discover edge cases we haven't considered.
 
-		// However, we can do some basic sanity checks:
+		// However, we can do some basic validation checks:
 		// If the content contains known unauthorized patterns, it should error
 		if containsUnauthorizedPattern(content) {
 			// We expect an error for unauthorized expressions

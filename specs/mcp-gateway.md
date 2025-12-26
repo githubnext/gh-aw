@@ -95,7 +95,7 @@ The gateway accepts configuration matching Claude/Copilot format:
     "apiKey": "optional-api-key"
   }
 }
-```
+```text
 
 ### 7. Logging
 
@@ -131,17 +131,17 @@ The gateway accepts configuration matching Claude/Copilot format:
 **From file**:
 ```bash
 awmg --config examples/mcp-gateway-config.json
-```
+```text
 
 **From stdin**:
 ```bash
 echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | awmg
-```
+```text
 
 **Custom port and logs**:
 ```bash
 awmg --config config.json --port 8088 --log-dir /custom/logs
-```
+```text
 
 ### 10. Smoke Testing
 
@@ -155,7 +155,7 @@ sandbox:
     port: 8080
 features:
   - mcp-gateway
-```
+```text
 
 2. **Using CLI command directly**:
 ```yaml
@@ -164,7 +164,7 @@ steps:
     run: |
       echo '{"mcpServers":{...}}' | awmg --port 8080 &
       sleep 2
-```
+```text
 
 ## Files Changed
 

@@ -40,7 +40,7 @@ When the output is within the token limit, the command returns the full JSON dat
   "tool_usage": [...],
   ...
 }
-```
+```text
 
 ### Guardrail Triggered (Output > Token Limit)
 
@@ -80,7 +80,7 @@ When the output exceeds the token limit (default: 12000 tokens), the command ret
     ...
   ]
 }
-```
+```text
 
 ## Configuring the Token Limit
 
@@ -96,7 +96,7 @@ You can customize the limit using the `max_tokens` parameter:
     "max_tokens": 20000
   }
 }
-```
+```text
 
 **Token Estimation**: The system uses approximately 4 characters per token as an estimation (OpenAI's rule of thumb).
 
@@ -110,7 +110,7 @@ The `jq` parameter allows you to filter the output using jq syntax. Here are the
 {
   "jq": ".summary"
 }
-```
+```text
 
 Returns just the aggregate metrics without individual run data.
 
@@ -120,7 +120,7 @@ Returns just the aggregate metrics without individual run data.
 {
   "jq": ".runs | map({database_id, workflow_name, status})"
 }
-```
+```text
 
 Returns a simplified list of runs with just the essential fields.
 
@@ -130,7 +130,7 @@ Returns a simplified list of runs with just the essential fields.
 {
   "jq": ".runs | map(select(.conclusion == \"failure\"))"
 }
-```
+```text
 
 Filters to show only runs that failed.
 
@@ -140,7 +140,7 @@ Filters to show only runs that failed.
 {
   "jq": "{summary, runs: .runs[:5]}"
 }
-```
+```text
 
 Returns summary plus the first 5 runs only.
 
@@ -150,7 +150,7 @@ Returns summary plus the first 5 runs only.
 {
   "jq": "{errors_and_warnings, missing_tools, mcp_failures}"
 }
-```
+```text
 
 Returns only the diagnostic information.
 
@@ -160,7 +160,7 @@ Returns only the diagnostic information.
 {
   "jq": ".tool_usage"
 }
-```
+```text
 
 Returns aggregated tool usage data.
 
@@ -170,7 +170,7 @@ Returns aggregated tool usage data.
 {
   "jq": ".runs | map(select(.token_usage > 10000))"
 }
-```
+```text
 
 Filters to show only runs with high token usage.
 
@@ -180,7 +180,7 @@ Filters to show only runs with high token usage.
 {
   "jq": ".runs | map(select(.workflow_name == \"YOUR_WORKFLOW_NAME\"))"
 }
-```
+```text
 
 Filters to show runs from a specific workflow.
 
@@ -218,7 +218,7 @@ go test -v -tags integration -run "TestMCPServer_LogsGuardrail" ./pkg/cli/
 
 # All tests
 make test-unit
-```
+```text
 
 ## Benefits
 

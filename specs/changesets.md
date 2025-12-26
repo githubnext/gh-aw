@@ -23,7 +23,7 @@ node scripts/changeset.js release major
 # Skip confirmation prompt
 node scripts/changeset.js release --yes
 node scripts/changeset.js release patch -y
-```
+```text
 
 **Note:** Using `make release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
 
@@ -35,7 +35,7 @@ The `version` command always operates in preview mode and never modifies files. 
 
 ```bash
 node scripts/changeset.js version
-```
+```text
 
 This command:
 - Reads all changeset files from `.changeset/` directory
@@ -54,7 +54,7 @@ node scripts/changeset.js release minor
 # Skip confirmation prompt
 node scripts/changeset.js release --yes
 node scripts/changeset.js release patch -y
-```
+```text
 
 This command:
 - Checks prerequisites (clean tree, main branch)
@@ -80,7 +80,7 @@ Changeset files are markdown files in `.changeset/` directory with YAML frontmat
 ---
 
 Brief description of the change
-```
+```text
 
 **Bump types:**
 - `patch` - Bug fixes and minor changes (0.0.x)
@@ -98,7 +98,7 @@ Example error when not on main branch:
 ```bash
 $ node scripts/changeset.js release
 ✗ Must be on 'main' branch to create a release (currently on 'feature-branch')
-```
+```text
 
 ## Release Workflow
 

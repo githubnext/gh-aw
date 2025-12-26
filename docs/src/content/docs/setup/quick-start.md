@@ -44,7 +44,7 @@ npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubn
 
 Before installing anything, it helps to understand the workflow lifecycle:
 
-```
+```text
 1. You write       2. Compile           3. GitHub Actions runs
    .md file    →    gh aw compile   →    .lock.yml file
    (natural         (translates to        (GitHub Actions
@@ -135,7 +135,7 @@ gh aw status
 ```
 
 **Expected output:**
-```
+```text
 Workflow                 Engine    State     Enabled  Schedule
 ──────────────────────────────────────────────────────────────
 daily-team-status        copilot   ✓         Yes      0 9 * * 1-5

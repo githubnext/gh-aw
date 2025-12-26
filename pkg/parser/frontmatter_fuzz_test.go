@@ -450,7 +450,7 @@ on: push
 		// The parser should never panic, even on malformed input
 		result, err := ExtractFrontmatterFromContent(content)
 
-		// Basic sanity checks:
+		// Basic validation checks:
 		// 1. Either result is non-nil OR error is non-nil (or both in some cases)
 		// When there's an error parsing YAML, result will be nil
 		if result == nil && err == nil {
