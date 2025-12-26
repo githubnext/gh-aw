@@ -108,9 +108,6 @@ linters:
           - gocritic
         text: "badCall" # filepath.Join with 1 arg is acceptable
       - linters:
-          - godot
-        path: _test\.go # Don't require periods in test comments
-      - linters:
           - modernize
         text: "omitzero" # omitzero is acceptable for struct tags
       - linters:
@@ -176,10 +173,6 @@ linters:
         path: pkg/cli/mcp_inspect\.go
       - linters:
           - gosec
-        text: "G306" # 0755 is correct permission for shell scripts
-        path: pkg/cli/actions_build_command\.go
-      - linters:
-          - gosec
         text: "G204" # Allow docker commands in poutine
         path: pkg/cli/poutine\.go
       - linters:
@@ -198,17 +191,11 @@ linters:
           - gosec
         text: "G204" # Allow docker commands in zizmor
         path: pkg/cli/zizmor\.go
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    paths: []
 formatters:
   enable:
     - gofmt
     - goimports
   exclusions:
     generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    paths: []
