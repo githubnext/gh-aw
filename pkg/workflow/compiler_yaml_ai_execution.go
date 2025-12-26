@@ -47,9 +47,12 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load log parser script from external file using require()
 	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/" + parserScriptName + ".cjs');\n")
-	yaml.WriteString("            await main({ github, context, core, exec, io });\n")
+	yaml.WriteString("            await main();\n")
 }
 
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
@@ -119,7 +122,10 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	// Load error validation script from external file using require()
 	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
-	yaml.WriteString("            await main({ github, context, core, exec, io });\n")
+	yaml.WriteString("            await main();\n")
 }
