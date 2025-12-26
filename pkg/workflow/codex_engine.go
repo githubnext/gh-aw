@@ -383,7 +383,7 @@ func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActi
 func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *ToolsConfig {
 	if toolsConfig == nil {
 		return &ToolsConfig{
-			Custom: make(map[string]any),
+			Custom: make(map[string]MCPServerConfig),
 			raw:    make(map[string]any),
 		}
 	}
@@ -401,7 +401,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		SafetyPrompt:     toolsConfig.SafetyPrompt,
 		Timeout:          toolsConfig.Timeout,
 		StartupTimeout:   toolsConfig.StartupTimeout,
-		Custom:           make(map[string]any),
+		Custom:           make(map[string]MCPServerConfig),
 		raw:              make(map[string]any),
 	}
 
