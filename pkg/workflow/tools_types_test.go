@@ -76,11 +76,22 @@ func TestNewTools(t *testing.T) {
 			t.Errorf("expected 2 custom tools, got %d", len(tools.Custom))
 		}
 
-		if tools.Custom["my-custom"] == nil {
+		myCustom, exists := tools.Custom["my-custom"]
+		if !exists {
 			t.Error("expected my-custom tool in Custom map")
+		} else {
+			if myCustom.Command != "node" {
+				t.Errorf("expected my-custom command to be 'node', got %q", myCustom.Command)
+			}
 		}
-		if tools.Custom["another-mcp"] == nil {
+		
+		anotherMCP, exists := tools.Custom["another-mcp"]
+		if !exists {
 			t.Error("expected another-mcp tool in Custom map")
+		} else {
+			if anotherMCP.URL != "http://localhost:8080" {
+				t.Errorf("expected another-mcp URL to be 'http://localhost:8080', got %q", anotherMCP.URL)
+			}
 		}
 
 		names := tools.GetToolNames()
@@ -581,6 +592,210 @@ func TestToolsConfigToMap(t *testing.T) {
 		// Should return the raw map, which is identical to the input
 		if len(result) != len(toolsMap) {
 			t.Errorf("expected %d entries, got %d", len(toolsMap), len(result))
+		}
+	})
+}
+
+func TestParseMCPServerConfig(t *testing.T) {
+	t.Run("parses stdio MCP server config", func(t *testing.T) {
+		configMap := map[string]any{
+			"command": "node",
+			"args":    []any{"server.js", "--port", "3000"},
+			"env": map[string]any{
+				"NODE_ENV": "production",
+			},
+			"mode":    "stdio",
+			"version": "1.0.0",
+		}
+
+		config := parseMCPServerConfig(configMap)
+
+		if config.Command != "node" {
+			t.Errorf("expected command 'node', got %q", config.Command)
+		}
+
+		if len(config.Args) != 3 {
+			t.Errorf("expected 3 args, got %d", len(config.Args))
+		}
+
+		if config.Args[0] != "server.js" {
+			t.Errorf("expected first arg 'server.js', got %q", config.Args[0])
+		}
+
+		if config.Env["NODE_ENV"] != "production" {
+			t.Errorf("expected NODE_ENV 'production', got %q", config.Env["NODE_ENV"])
+		}
+
+		if config.Mode != "stdio" {
+			t.Errorf("expected mode 'stdio', got %q", config.Mode)
+		}
+
+		if config.Version != "1.0.0" {
+			t.Errorf("expected version '1.0.0', got %q", config.Version)
+		}
+	})
+
+	t.Run("parses HTTP MCP server config", func(t *testing.T) {
+		configMap := map[string]any{
+			"type": "http",
+			"url":  "http://localhost:8080",
+			"headers": map[string]any{
+				"Authorization": "Bearer token123",
+			},
+			"toolsets": []any{"repos", "issues"},
+		}
+
+		config := parseMCPServerConfig(configMap)
+
+		if config.Type != "http" {
+			t.Errorf("expected type 'http', got %q", config.Type)
+		}
+
+		if config.URL != "http://localhost:8080" {
+			t.Errorf("expected URL 'http://localhost:8080', got %q", config.URL)
+		}
+
+		if config.Headers["Authorization"] != "Bearer token123" {
+			t.Errorf("expected Authorization header, got %q", config.Headers["Authorization"])
+		}
+
+		if len(config.Toolsets) != 2 {
+			t.Errorf("expected 2 toolsets, got %d", len(config.Toolsets))
+		}
+	})
+
+	t.Run("parses container MCP server config", func(t *testing.T) {
+		configMap := map[string]any{
+			"container":      "ghcr.io/example/mcp-server:latest",
+			"entrypointArgs": []any{"--config", "/etc/config.json"},
+		}
+
+		config := parseMCPServerConfig(configMap)
+
+		if config.Container != "ghcr.io/example/mcp-server:latest" {
+			t.Errorf("expected container image, got %q", config.Container)
+		}
+
+		if len(config.EntrypointArgs) != 2 {
+			t.Errorf("expected 2 entrypoint args, got %d", len(config.EntrypointArgs))
+		}
+	})
+
+	t.Run("preserves custom fields", func(t *testing.T) {
+		configMap := map[string]any{
+			"command":      "node",
+			"customField1": "value1",
+			"customField2": 42,
+		}
+
+		config := parseMCPServerConfig(configMap)
+
+		if config.Command != "node" {
+			t.Errorf("expected command 'node', got %q", config.Command)
+		}
+
+		if config.CustomFields["customField1"] != "value1" {
+			t.Errorf("expected customField1 'value1', got %v", config.CustomFields["customField1"])
+		}
+
+		if config.CustomFields["customField2"] != 42 {
+			t.Errorf("expected customField2 42, got %v", config.CustomFields["customField2"])
+		}
+	})
+
+	t.Run("handles nil config", func(t *testing.T) {
+		config := parseMCPServerConfig(nil)
+
+		if config.Command != "" {
+			t.Errorf("expected empty command, got %q", config.Command)
+		}
+
+		if len(config.CustomFields) != 0 {
+			t.Errorf("expected empty CustomFields, got %d entries", len(config.CustomFields))
+		}
+	})
+
+	t.Run("handles numeric version", func(t *testing.T) {
+		configMap := map[string]any{
+			"version": 2.0,
+		}
+
+		config := parseMCPServerConfig(configMap)
+
+		if config.Version != "2" {
+			t.Errorf("expected version '2', got %q", config.Version)
+		}
+	})
+}
+
+func TestMCPServerConfigToMap(t *testing.T) {
+	t.Run("converts MCPServerConfig to map", func(t *testing.T) {
+		config := MCPServerConfig{
+			Command: "node",
+			Args:    []string{"server.js"},
+			Env: map[string]string{
+				"NODE_ENV": "production",
+			},
+			Mode:     "stdio",
+			Version:  "1.0.0",
+			Toolsets: []string{"default"},
+		}
+
+		result := mcpServerConfigToMap(config)
+
+		if result["command"] != "node" {
+			t.Errorf("expected command 'node', got %v", result["command"])
+		}
+
+		args, ok := result["args"].([]string)
+		if !ok {
+			t.Error("expected args to be []string")
+		} else if len(args) != 1 {
+			t.Errorf("expected 1 arg, got %d", len(args))
+		}
+
+		if result["mode"] != "stdio" {
+			t.Errorf("expected mode 'stdio', got %v", result["mode"])
+		}
+	})
+
+	t.Run("includes HTTP fields when set", func(t *testing.T) {
+		config := MCPServerConfig{
+			Type: "http",
+			URL:  "http://localhost:8080",
+			Headers: map[string]string{
+				"Authorization": "Bearer token",
+			},
+		}
+
+		result := mcpServerConfigToMap(config)
+
+		if result["type"] != "http" {
+			t.Errorf("expected type 'http', got %v", result["type"])
+		}
+
+		if result["url"] != "http://localhost:8080" {
+			t.Errorf("expected URL, got %v", result["url"])
+		}
+
+		headers, ok := result["headers"].(map[string]string)
+		if !ok || len(headers) != 1 {
+			t.Error("expected headers map")
+		}
+	})
+
+	t.Run("includes custom fields", func(t *testing.T) {
+		config := MCPServerConfig{
+			Command: "node",
+			CustomFields: map[string]any{
+				"customField": "customValue",
+			},
+		}
+
+		result := mcpServerConfigToMap(config)
+
+		if result["customField"] != "customValue" {
+			t.Errorf("expected customField, got %v", result["customField"])
 		}
 	})
 }
