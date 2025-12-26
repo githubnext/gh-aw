@@ -34,8 +34,8 @@ func GetVersion() string {
 	return version
 }
 
-// MCPGatewayConfig represents the configuration for the MCP gateway.
-type MCPGatewayConfig struct {
+// MCPGatewayServiceConfig represents the configuration for the MCP gateway service.
+type MCPGatewayServiceConfig struct {
 	MCPServers map[string]parser.MCPServerConfig `json:"mcpServers"`
 	Gateway    GatewaySettings                   `json:"gateway,omitempty"`
 }
@@ -48,7 +48,7 @@ type GatewaySettings struct {
 
 // MCPGatewayServer manages multiple MCP sessions and exposes them via HTTP
 type MCPGatewayServer struct {
-	config   *MCPGatewayConfig
+	config   *MCPGatewayServiceConfig
 	sessions map[string]*mcp.ClientSession
 	servers  map[string]*mcp.Server // Proxy servers for each session
 	mu       sync.RWMutex
@@ -168,8 +168,8 @@ func runMCPGateway(configFiles []string, port int, logDir string) error {
 
 // readGatewayConfig reads the gateway configuration from files or stdin
 // Returns the config, the path to the first config file (for rewriting), and any error
-func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) {
-	var configs []*MCPGatewayConfig
+func readGatewayConfig(configFiles []string) (*MCPGatewayServiceConfig, string, error) {
+	var configs []*MCPGatewayServiceConfig
 	var originalConfigPath string
 
 	if len(configFiles) > 0 {
@@ -288,11 +288,11 @@ func readGatewayConfig(configFiles []string) (*MCPGatewayConfig, string, error) 
 }
 
 // parseGatewayConfig parses raw JSON data into a gateway config
-func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
+func parseGatewayConfig(data []byte) (*MCPGatewayServiceConfig, error) {
 	gatewayLog.Printf("Parsing %d bytes of configuration data", len(data))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %d bytes of configuration data", len(data))))
 
-	var config MCPGatewayConfig
+	var config MCPGatewayServiceConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to parse JSON: %v", err)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Data received (first 500 chars): %s", string(data[:min(500, len(data))]))))
@@ -319,8 +319,8 @@ func parseGatewayConfig(data []byte) (*MCPGatewayConfig, error) {
 }
 
 // mergeConfigs merges two gateway configurations, with the second overriding the first
-func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
-	result := &MCPGatewayConfig{
+func mergeConfigs(base, override *MCPGatewayServiceConfig) *MCPGatewayServiceConfig {
+	result := &MCPGatewayServiceConfig{
 		MCPServers: make(map[string]parser.MCPServerConfig),
 		Gateway:    base.Gateway,
 	}
@@ -350,7 +350,7 @@ func mergeConfigs(base, override *MCPGatewayConfig) *MCPGatewayConfig {
 }
 
 // rewriteMCPConfigForGateway rewrites the MCP config file to point all servers to the gateway
-func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayConfig) error {
+func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConfig) error {
 	gatewayLog.Printf("Rewriting MCP config file: %s", configPath)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Rewriting MCP config file: %s", configPath)))
 

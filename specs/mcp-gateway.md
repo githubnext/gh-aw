@@ -20,7 +20,7 @@ The problem statement requested:
 ### 1. Command Structure (`pkg/cli/mcp_gateway_command.go`)
 
 **Core Components**:
-- `MCPGatewayConfig`: Configuration structure matching Claude/Copilot/Codex format
+- `MCPGatewayServiceConfig`: Configuration structure matching Claude/Copilot/Codex format
 - `MCPServerConfig`: Individual server configuration (command, args, env, url, container)
 - `GatewaySettings`: Gateway-specific settings (port, API key)
 - `MCPGatewayServer`: Main server managing multiple MCP sessions

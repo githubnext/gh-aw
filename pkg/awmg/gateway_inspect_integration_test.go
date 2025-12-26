@@ -67,7 +67,7 @@ This workflow tests the MCP gateway configuration and tool list.
 
 	// Create MCP gateway configuration with gh-aw MCP server
 	configFile := filepath.Join(tmpDir, "gateway-config.json")
-	config := MCPGatewayConfig{
+	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
