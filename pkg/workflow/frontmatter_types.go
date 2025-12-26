@@ -20,41 +20,54 @@ type FrontmatterConfig struct {
 	TrackerID      string `json:"tracker-id,omitempty"`
 	Version        string `json:"version,omitempty"`
 	TimeoutMinutes int    `json:"timeout-minutes,omitempty"`
+	Strict         *bool  `json:"strict,omitempty"` // Pointer to distinguish unset from false
 
-	// Configuration sections
-	Tools       map[string]any `json:"tools,omitempty"`
-	MCPServers  map[string]any `json:"mcp-servers,omitempty"`
-	Runtimes    map[string]any `json:"runtimes,omitempty"`
-	Jobs        map[string]any `json:"jobs,omitempty"`
-	SafeOutputs map[string]any `json:"safe-outputs,omitempty"`
-	SafeJobs    map[string]any `json:"safe-jobs,omitempty"`
-	SafeInputs  map[string]any `json:"safe-inputs,omitempty"`
+	// Configuration sections - using strongly-typed structs
+	Tools       *ToolsConfig       `json:"tools,omitempty"`
+	MCPServers  map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
+	Runtimes    map[string]any     `json:"runtimes,omitempty"`
+	Jobs        map[string]any     `json:"jobs,omitempty"`       // Custom workflow jobs
+	SafeOutputs *SafeOutputsConfig `json:"safe-outputs,omitempty"`
+	SafeJobs    map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
+	SafeInputs  *SafeInputsConfig  `json:"safe-inputs,omitempty"`
 
 	// Event and trigger configuration
-	On          map[string]any `json:"on,omitempty"`
-	Permissions map[string]any `json:"permissions,omitempty"`
+	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants
+	Permissions map[string]any `json:"permissions,omitempty"` // Can be string or map
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`
 
 	// Network and sandbox configuration
-	Network map[string]any `json:"network,omitempty"`
-	Sandbox map[string]any `json:"sandbox,omitempty"`
+	Network *NetworkPermissions `json:"network,omitempty"`
+	Sandbox *SandboxConfig      `json:"sandbox,omitempty"`
 
 	// Feature flags and other settings
-	Features map[string]any `json:"features,omitempty"`
-	Env      map[string]any `json:"env,omitempty"`
-	Secrets  map[string]any `json:"secrets,omitempty"`
+	Features map[string]any    `json:"features,omitempty"` // Dynamic feature flags
+	Env      map[string]string `json:"env,omitempty"`
+	Secrets  map[string]any    `json:"secrets,omitempty"`
 
 	// Workflow execution settings
-	RunsOn  string `json:"runs-on,omitempty"`
-	RunName string `json:"run-name,omitempty"`
+	RunsOn      string         `json:"runs-on,omitempty"`
+	RunName     string         `json:"run-name,omitempty"`
+	Steps       []any          `json:"steps,omitempty"`       // Custom workflow steps
+	PostSteps   []any          `json:"post-steps,omitempty"`  // Post-workflow steps
+	Environment map[string]any `json:"environment,omitempty"` // GitHub environment
+	Container   map[string]any `json:"container,omitempty"`
+	Services    map[string]any `json:"services,omitempty"`
+	Cache       map[string]any `json:"cache,omitempty"`
 
 	// Import and inclusion
 	Imports any `json:"imports,omitempty"` // Can be string or array
 	Include any `json:"include,omitempty"` // Can be string or array
 
 	// Metadata
-	Metadata map[string]string `json:"metadata,omitempty"` // Custom metadata key-value pairs
+	Metadata        map[string]string `json:"metadata,omitempty"` // Custom metadata key-value pairs
+	SecretMasking   *SecretMaskingConfig `json:"secret-masking,omitempty"`
+	GithubToken     string            `json:"github-token,omitempty"`
+	
+	// Command/bot configuration
+	Roles []string `json:"roles,omitempty"`
+	Bots  []string `json:"bots,omitempty"`
 }
 
 // unmarshalFromMap converts a value from a map[string]any to a destination variable
@@ -167,5 +180,165 @@ func ExtractIntField(frontmatter map[string]any, key string) int {
 	if err != nil {
 		return 0
 	}
+	return result
+}
+
+// ToMap converts FrontmatterConfig back to map[string]any for backward compatibility
+// This allows gradual migration from map[string]any to strongly-typed config
+func (fc *FrontmatterConfig) ToMap() map[string]any {
+	result := make(map[string]any)
+	
+	// Core fields
+	if fc.Name != "" {
+		result["name"] = fc.Name
+	}
+	if fc.Description != "" {
+		result["description"] = fc.Description
+	}
+	if fc.Engine != "" {
+		result["engine"] = fc.Engine
+	}
+	if fc.Source != "" {
+		result["source"] = fc.Source
+	}
+	if fc.TrackerID != "" {
+		result["tracker-id"] = fc.TrackerID
+	}
+	if fc.Version != "" {
+		result["version"] = fc.Version
+	}
+	if fc.TimeoutMinutes != 0 {
+		result["timeout-minutes"] = fc.TimeoutMinutes
+	}
+	if fc.Strict != nil {
+		result["strict"] = *fc.Strict
+	}
+	
+	// Configuration sections
+	if fc.Tools != nil {
+		result["tools"] = fc.Tools.ToMap()
+	}
+	if fc.MCPServers != nil {
+		result["mcp-servers"] = fc.MCPServers
+	}
+	if fc.Runtimes != nil {
+		result["runtimes"] = fc.Runtimes
+	}
+	if fc.Jobs != nil {
+		result["jobs"] = fc.Jobs
+	}
+	if fc.SafeOutputs != nil {
+		// Convert SafeOutputsConfig to map - would need a ToMap method
+		result["safe-outputs"] = fc.SafeOutputs
+	}
+	if fc.SafeJobs != nil {
+		result["safe-jobs"] = fc.SafeJobs
+	}
+	if fc.SafeInputs != nil {
+		// Convert SafeInputsConfig to map - would need a ToMap method
+		result["safe-inputs"] = fc.SafeInputs
+	}
+	
+	// Event and trigger configuration
+	if fc.On != nil {
+		result["on"] = fc.On
+	}
+	if fc.Permissions != nil {
+		result["permissions"] = fc.Permissions
+	}
+	if fc.Concurrency != nil {
+		result["concurrency"] = fc.Concurrency
+	}
+	if fc.If != "" {
+		result["if"] = fc.If
+	}
+	
+	// Network and sandbox
+	if fc.Network != nil {
+		// Convert NetworkPermissions to map format
+		networkMap := make(map[string]any)
+		if fc.Network.Mode != "" {
+			if fc.Network.Mode == "defaults" {
+				result["network"] = "defaults"
+			} else {
+				networkMap["mode"] = fc.Network.Mode
+			}
+		}
+		if len(fc.Network.Allowed) > 0 {
+			networkMap["allowed"] = fc.Network.Allowed
+		}
+		if fc.Network.Firewall != nil {
+			networkMap["firewall"] = fc.Network.Firewall
+		}
+		if len(networkMap) > 0 {
+			result["network"] = networkMap
+		}
+	}
+	if fc.Sandbox != nil {
+		result["sandbox"] = fc.Sandbox
+	}
+	
+	// Features and environment
+	if fc.Features != nil {
+		result["features"] = fc.Features
+	}
+	if fc.Env != nil {
+		result["env"] = fc.Env
+	}
+	if fc.Secrets != nil {
+		result["secrets"] = fc.Secrets
+	}
+	
+	// Execution settings
+	if fc.RunsOn != "" {
+		result["runs-on"] = fc.RunsOn
+	}
+	if fc.RunName != "" {
+		result["run-name"] = fc.RunName
+	}
+	if fc.Steps != nil {
+		result["steps"] = fc.Steps
+	}
+	if fc.PostSteps != nil {
+		result["post-steps"] = fc.PostSteps
+	}
+	if fc.Environment != nil {
+		result["environment"] = fc.Environment
+	}
+	if fc.Container != nil {
+		result["container"] = fc.Container
+	}
+	if fc.Services != nil {
+		result["services"] = fc.Services
+	}
+	if fc.Cache != nil {
+		result["cache"] = fc.Cache
+	}
+	
+	// Import and inclusion
+	if fc.Imports != nil {
+		result["imports"] = fc.Imports
+	}
+	if fc.Include != nil {
+		result["include"] = fc.Include
+	}
+	
+	// Metadata
+	if fc.Metadata != nil {
+		result["metadata"] = fc.Metadata
+	}
+	if fc.SecretMasking != nil {
+		result["secret-masking"] = fc.SecretMasking
+	}
+	if fc.GithubToken != "" {
+		result["github-token"] = fc.GithubToken
+	}
+	if fc.Roles != nil {
+		result["roles"] = fc.Roles
+	}
+	if fc.Bots != nil {
+		result["bots"] = fc.Bots
+	}
+	
 	return result
 }

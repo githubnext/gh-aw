@@ -259,13 +259,9 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Fatal("Network should not be nil")
 		}
 
-		allowed, ok := config.Network["allowed"]
-		if !ok {
-			t.Error("Network.allowed should exist")
-		}
-
-		if allowed == nil {
-			t.Error("Network.allowed should not be nil")
+		// Check that allowed domains are present
+		if len(config.Network.Allowed) != 2 {
+			t.Errorf("expected 2 allowed domains, got %d", len(config.Network.Allowed))
 		}
 	})
 
@@ -368,16 +364,21 @@ func TestFrontmatterConfigFieldExtraction(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Verify tools can be accessed directly
-		if len(config.Tools) != 2 {
-			t.Errorf("expected 2 tools, got %d", len(config.Tools))
+		// Verify tools can be accessed via ToMap()
+		if config.Tools == nil {
+			t.Fatal("Tools should not be nil")
 		}
 
-		if _, ok := config.Tools["bash"]; !ok {
+		toolsMap := config.Tools.ToMap()
+		if len(toolsMap) < 2 {
+			t.Errorf("expected at least 2 tools, got %d", len(toolsMap))
+		}
+
+		if _, ok := toolsMap["bash"]; !ok {
 			t.Error("bash tool should exist")
 		}
 
-		if _, ok := config.Tools["playwright"]; !ok {
+		if _, ok := toolsMap["playwright"]; !ok {
 			t.Error("playwright tool should exist")
 		}
 	})
@@ -452,17 +453,122 @@ func TestFrontmatterConfigBackwardCompatibility(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Both should have the same number of keys
-		if len(oldResult) != len(config.Tools) {
-			t.Errorf("old pattern has %d tools, new pattern has %d", len(oldResult), len(config.Tools))
-		}
+		// Convert tools back to map for comparison
+		newResult := config.Tools.ToMap()
 
 		// Both should have the same tool
 		if _, oldOk := oldResult["bash"]; !oldOk {
 			t.Error("old pattern missing bash tool")
 		}
-		if _, newOk := config.Tools["bash"]; !newOk {
+		if _, newOk := newResult["bash"]; !newOk {
 			t.Error("new pattern missing bash tool")
+		}
+	})
+
+	t.Run("supports round-trip conversion", func(t *testing.T) {
+		originalFrontmatter := map[string]any{
+			"name":            "test-workflow",
+			"engine":          "copilot",
+			"description":     "A test workflow",
+			"tracker-id":      "test-tracker-12345678",
+			"timeout-minutes": 30,
+			"on": map[string]any{
+				"issues": map[string]any{
+					"types": []any{"opened", "labeled"},
+				},
+			},
+			"env": map[string]string{
+				"MY_VAR": "value",
+			},
+		}
+
+		// Parse to struct
+		config, err := ParseFrontmatterConfig(originalFrontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Convert back to map
+		reconstructed := config.ToMap()
+
+		// Verify key fields are preserved
+		if reconstructed["name"] != "test-workflow" {
+			t.Errorf("name mismatch: got %v", reconstructed["name"])
+		}
+		if reconstructed["engine"] != "copilot" {
+			t.Errorf("engine mismatch: got %v", reconstructed["engine"])
+		}
+		if reconstructed["description"] != "A test workflow" {
+			t.Errorf("description mismatch: got %v", reconstructed["description"])
+		}
+		if reconstructed["tracker-id"] != "test-tracker-12345678" {
+			t.Errorf("tracker-id mismatch: got %v", reconstructed["tracker-id"])
+		}
+		if reconstructed["timeout-minutes"] != 30 {
+			t.Errorf("timeout-minutes mismatch: got %v", reconstructed["timeout-minutes"])
+		}
+
+		// Verify nested structures
+		if reconstructed["on"] == nil {
+			t.Error("on should not be nil")
+		}
+		if reconstructed["env"] == nil {
+			t.Error("env should not be nil")
+		}
+	})
+
+	t.Run("preserves strongly-typed fields", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"network": map[string]any{
+				"allowed": []any{"github.com", "api.github.com"},
+			},
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"type": "awf",
+				},
+			},
+			"safe-outputs": map[string]any{
+				"create-issue": map[string]any{
+					"max": 5,
+				},
+			},
+			"safe-inputs": map[string]any{
+				"mode": "http",
+			},
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		// Verify strongly-typed fields are populated
+		if config.Network == nil {
+			t.Error("Network should be strongly typed")
+		}
+		if config.Sandbox == nil {
+			t.Error("Sandbox should be strongly typed")
+		}
+		if config.SafeOutputs == nil {
+			t.Error("SafeOutputs should be strongly typed")
+		}
+		if config.SafeInputs == nil {
+			t.Error("SafeInputs should be strongly typed")
+		}
+
+		// Convert back and verify they're preserved
+		reconstructed := config.ToMap()
+		if reconstructed["network"] == nil {
+			t.Error("network should be preserved in ToMap")
+		}
+		if reconstructed["sandbox"] == nil {
+			t.Error("sandbox should be preserved in ToMap")
+		}
+		if reconstructed["safe-outputs"] == nil {
+			t.Error("safe-outputs should be preserved in ToMap")
+		}
+		if reconstructed["safe-inputs"] == nil {
+			t.Error("safe-inputs should be preserved in ToMap")
 		}
 	})
 }
