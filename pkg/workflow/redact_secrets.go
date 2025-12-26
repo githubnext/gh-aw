@@ -71,6 +71,12 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		yaml.WriteString("          script: |\n")
 
 		// Load redact_secrets script from external file
+		// Attach GitHub Actions builtin objects to global scope before requiring
+		yaml.WriteString("            global.core = core;\n")
+		yaml.WriteString("            global.github = github;\n")
+		yaml.WriteString("            global.context = context;\n")
+		yaml.WriteString("            global.exec = exec;\n")
+		yaml.WriteString("            global.io = io;\n")
 		yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/redact_secrets.cjs');\n")
 		yaml.WriteString("            await main();\n")
 

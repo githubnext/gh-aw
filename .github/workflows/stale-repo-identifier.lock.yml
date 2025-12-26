@@ -1529,6 +1529,11 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs');
             await main();
       - name: Print prompt
@@ -1579,6 +1584,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
+            global.core = core;
+            global.github = github;
+            global.context = context;
+            global.exec = exec;
+            global.io = io;
             const { main } = require('/tmp/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
