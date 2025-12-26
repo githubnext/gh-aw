@@ -157,6 +157,16 @@ for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   fi
 done
 
+# Copy the MCP server entry point to mcp-server.cjs (the name expected by MCP config)
+if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
+  cp "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
+  chmod +x "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
+  echo "::notice::Copied safe-outputs MCP entry point: mcp-server.cjs"
+  SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+else
+  echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
+fi
+
 echo "::notice::Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
 
 # Set output

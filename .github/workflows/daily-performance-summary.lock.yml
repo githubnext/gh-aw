@@ -469,20 +469,6 @@ jobs:
             }
           }
           EOF
-          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
-            const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
-            if (require.main === module) {
-              try {
-                startSafeOutputsServer();
-              } catch (error) {
-                console.error(`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`);
-                process.exit(1);
-              }
-            }
-            module.exports = { startSafeOutputsServer };
-          EOF
-          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
-          
       - name: Setup Safe Inputs Config
         run: |
           mkdir -p /tmp/gh-aw/safe-inputs/logs

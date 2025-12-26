@@ -44,19 +44,12 @@ Test workflow for .cjs extension verification`
 	}
 	yaml := string(yamlContent)
 
-	// Verify that the main MCP server entry point uses .cjs extension
-	if !strings.Contains(yaml, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to be written as mcp-server.cjs, not mcp-server.js")
-	}
+	// Note: mcp-server.cjs is now copied by actions/setup from safe-outputs-mcp-server.cjs
+	// So we don't expect a cat command for it anymore
 
 	// Verify that no .js files are written (should be .cjs or other extensions)
 	if err := verifyNoDotJSFiles(yaml, "/tmp/gh-aw/safeoutputs/", t); err != nil {
 		t.Error(err)
-	}
-
-	// Verify the chmod command also uses .cjs
-	if !strings.Contains(yaml, "chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected chmod command to reference mcp-server.cjs")
 	}
 
 	// Verify MCP config references .cjs

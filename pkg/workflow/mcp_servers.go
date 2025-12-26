@@ -13,31 +13,6 @@ import (
 
 var mcpServersLog = logger.New("workflow:mcp_servers")
 
-// getSafeOutputsMCPServerEntryScript generates the entry point script for safe-outputs MCP server
-// This script requires the individual module files (not bundled)
-func generateSafeOutputsMCPServerEntryScript() string {
-	return `// @ts-check
-// Auto-generated safe-outputs MCP server entry point
-// This script uses individual module files (not bundled)
-
-const { startSafeOutputsServer } = require("./safe_outputs_mcp_server.cjs");
-
-// Start the server
-// The server reads configuration from /tmp/gh-aw/safeoutputs/config.json
-// Log directory is configured via GH_AW_MCP_LOG_DIR environment variable
-if (require.main === module) {
-  try {
-    startSafeOutputsServer();
-  } catch (error) {
-    console.error(` + "`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`" + `);
-    process.exit(1);
-  }
-}
-
-module.exports = { startSafeOutputsServer };
-`
-}
-
 // hasMCPServers checks if the workflow has any MCP servers configured
 func HasMCPServers(workflowData *WorkflowData) bool {
 	if workflowData == nil {
@@ -233,16 +208,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		yaml.WriteString("          EOF\n")
 
-		// Generate the MCP server entry point (simple script that requires modules)
-		// JavaScript modules are now copied by actions/setup
-		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
-		// Use the simple entry point script instead of bundled version
-		for _, line := range FormatJavaScriptForYAML(generateSafeOutputsMCPServerEntryScript()) {
-			yaml.WriteString(line)
-		}
-		yaml.WriteString("          EOF\n")
-		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
-		yaml.WriteString("          \n")
+		// Note: The MCP server entry point (mcp-server.cjs) is now copied by actions/setup
+		// from safe-outputs-mcp-server.cjs - no need to generate it here
 	}
 
 	// Write safe-inputs MCP server if configured and feature flag is enabled
