@@ -14,7 +14,7 @@ const { execSync } = require("child_process");
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
  *   MAX_FILE_COUNT: Maximum number of files per commit
- *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/**/*.json")
+ *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/ ** /*")
  *                     Supports * (matches any chars except /) and ** (matches any chars including /)
  *   GH_TOKEN: GitHub token for authentication
  *   GITHUB_RUN_ID: Workflow run ID for commit messages

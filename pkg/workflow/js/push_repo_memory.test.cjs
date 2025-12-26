@@ -152,11 +152,11 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
 
   describe("subdirectory glob pattern support", () => {
     // Tests for the new ** wildcard support added for subdirectory handling
-    
+
     it("should handle ** wildcard to match any path including slashes", () => {
       // Test the new ** pattern that matches across directories
       const pattern = "metrics/**";
-      
+
       // New conversion logic: ** -> .* (matches everything including /)
       const regexPattern = pattern
         .replace(/\\/g, "\\\\")
@@ -165,21 +165,21 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
-      
+
       // Should match nested files in metrics directory (including any extension)
       expect(regex.test("metrics/latest.json")).toBe(true);
       expect(regex.test("metrics/daily/2024-12-26.json")).toBe(true);
       expect(regex.test("metrics/daily/archive/2024-01-01.json")).toBe(true);
       expect(regex.test("metrics/readme.md")).toBe(true);
-      
+
       // Should NOT match files outside metrics directory
       expect(regex.test("data/file.json")).toBe(false);
       expect(regex.test("file.json")).toBe(false);
     });
-    
+
     it("should differentiate between * and ** wildcards", () => {
       // Test that * doesn't cross directories but ** does
-      
+
       // Single * pattern - should NOT match subdirectories
       const singleStarPattern = "metrics/*";
       const singleStarRegex = singleStarPattern
@@ -189,14 +189,14 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const singleStar = new RegExp(`^${singleStarRegex}$`);
-      
+
       // Should match direct children only
       expect(singleStar.test("metrics/file.json")).toBe(true);
       expect(singleStar.test("metrics/latest.json")).toBe(true);
-      
+
       // Should NOT match nested files
       expect(singleStar.test("metrics/daily/file.json")).toBe(false);
-      
+
       // Double ** pattern - should match subdirectories
       const doubleStarPattern = "metrics/**";
       const doubleStarRegex = doubleStarPattern
@@ -206,18 +206,18 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const doubleStar = new RegExp(`^${doubleStarRegex}$`);
-      
+
       // Should match both direct and nested files
       expect(doubleStar.test("metrics/file.json")).toBe(true);
       expect(doubleStar.test("metrics/daily/file.json")).toBe(true);
       expect(doubleStar.test("metrics/daily/archive/file.json")).toBe(true);
     });
-    
+
     it("should handle **/* pattern correctly", () => {
       // Test **/* which requires at least one directory level
       // Note: ** matches one or more path segments in this implementation
       const pattern = "**/*";
-      
+
       const regexPattern = pattern
         .replace(/\\/g, "\\\\")
         .replace(/\./g, "\\.")
@@ -225,20 +225,20 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
-      
+
       // With current implementation, **/* requires at least one slash
       expect(regex.test("dir/file.txt")).toBe(true);
       expect(regex.test("dir/subdir/file.txt")).toBe(true);
       expect(regex.test("very/deep/nested/path/file.json")).toBe(true);
-      
+
       // Does not match files in root (no slash)
       expect(regex.test("file.txt")).toBe(false);
     });
-    
+
     it("should handle mixed * and ** in same pattern", () => {
       // Test patterns with both single and double wildcards
       const pattern = "logs/**";
-      
+
       const regexPattern = pattern
         .replace(/\\/g, "\\\\")
         .replace(/\./g, "\\.")
@@ -246,23 +246,23 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
-      
+
       // Should match any logs at any depth in logs directory
       expect(regex.test("logs/error-123.log")).toBe(true);
       expect(regex.test("logs/2024/error-456.log")).toBe(true);
       expect(regex.test("logs/2024/12/error-789.log")).toBe(true);
       expect(regex.test("logs/info-123.log")).toBe(true);
       expect(regex.test("logs/2024/warning-456.log")).toBe(true);
-      
+
       // Should NOT match logs outside logs directory
       expect(regex.test("error-123.log")).toBe(false);
     });
-    
+
     it("should handle subdirectory patterns for metrics use case", () => {
       // Real-world test for the metrics collector use case
       // Note: metrics/**/* requires at least one directory level under metrics
       const pattern = "metrics/**/*";
-      
+
       const regexPattern = pattern
         .replace(/\\/g, "\\\\")
         .replace(/\./g, "\\.")
@@ -270,16 +270,16 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
-      
+
       // Should match files in subdirectories
       expect(regex.test("metrics/daily/2024-12-26.json")).toBe(true);
       expect(regex.test("metrics/daily/2024-12-25.json")).toBe(true);
       expect(regex.test("metrics/subdir/config.yaml")).toBe(true);
-      
+
       // Does NOT match direct children (needs at least one subdir)
       // This is current behavior - could be improved in future
       expect(regex.test("metrics/latest.json")).toBe(false);
-      
+
       // Should NOT match files outside metrics directory
       expect(regex.test("data/metrics.json")).toBe(false);
       expect(regex.test("latest.json")).toBe(false);
@@ -331,11 +331,11 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       expect(regex.test("normal.md")).toBe(false);
       expect(regex.test("file.js")).toBe(false);
     });
-    
+
     it("should prevent directory traversal with ** wildcard", () => {
       // Ensure ** wildcard doesn't enable directory traversal attacks
       const pattern = "data/**";
-      
+
       const regexPattern = pattern
         .replace(/\\/g, "\\\\")
         .replace(/\./g, "\\.")
@@ -343,11 +343,11 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         .replace(/\*/g, "[^/]*")
         .replace(/<!DOUBLESTAR>/g, ".*");
       const regex = new RegExp(`^${regexPattern}$`);
-      
+
       // Should match legitimate nested files
       expect(regex.test("data/file.json")).toBe(true);
       expect(regex.test("data/subdir/file.json")).toBe(true);
-      
+
       // Should NOT match files outside data directory
       // Note: The pattern is anchored with ^ and $, so it must match the full path
       expect(regex.test("../sensitive/file.json")).toBe(false);
