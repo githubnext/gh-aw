@@ -83,9 +83,10 @@ jobs:
           script: |
 `)
 
-	// Add the close expired discussions script
-	discussionsScript := getCloseExpiredDiscussionsScript()
-	WriteJavaScriptToYAML(&yaml, discussionsScript)
+	// Add the close expired discussions script using require()
+	yaml.WriteString(`            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
+            await main({ github, context, core });
+`)
 
 	// Add close-expired-issues job
 	yaml.WriteString(`
@@ -100,9 +101,10 @@ jobs:
           script: |
 `)
 
-	// Add the close expired issues script
-	issuesScript := getCloseExpiredIssuesScript()
-	WriteJavaScriptToYAML(&yaml, issuesScript)
+	// Add the close expired issues script using require()
+	yaml.WriteString(`            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
+            await main({ github, context, core });
+`)
 
 	// Add compile-workflows job
 	yaml.WriteString(`

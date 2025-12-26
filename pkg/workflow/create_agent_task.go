@@ -98,7 +98,7 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 		StepID:          "create_agent_task",
 		MainJobName:     mainJobName,
 		CustomEnvVars:   customEnvVars,
-		Script:          createAgentTaskScript,
+		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_task.cjs'); await main();",
 		Permissions:     NewPermissionsContentsWriteIssuesWritePRWrite(),
 		Outputs:         outputs,
 		Condition:       jobCondition,

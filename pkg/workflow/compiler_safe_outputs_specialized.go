@@ -121,7 +121,7 @@ func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobNam
 	return SafeOutputStepConfig{
 		StepName:        "Create Agent Task",
 		StepID:          "create_agent_task",
-		Script:          createAgentTaskScript,
+		Script:          "const { main } = require('/tmp/gh-aw/actions/create_agent_task.cjs'); await main();",
 		CustomEnvVars:   customEnvVars,
 		Condition:       condition,
 		Token:           cfg.GitHubToken,

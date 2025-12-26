@@ -154,6 +154,7 @@ async function main() {
   }
 }
 
-(async () => {
-  await main();
-})();
+// Export for use with require()
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { main };
+}

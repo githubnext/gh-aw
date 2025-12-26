@@ -63,16 +63,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_stop_time.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_stop_time.cjs"))
 	}
 
 	// Add skip-if-match check if configured
@@ -89,16 +80,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_skip_if_match.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_match.cjs"))
 	}
 
 	// Add command position check if this is a command workflow
@@ -110,16 +92,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_command_position.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_command_position.cjs"))
 	}
 
 	// Append custom steps from jobs.pre-activation if present
@@ -344,16 +317,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
-
-	// Use require() to load script from copied files
-	// Attach GitHub Actions builtin objects to global scope before requiring
-	steps = append(steps, "            global.core = core;\n")
-	steps = append(steps, "            global.github = github;\n")
-	steps = append(steps, "            global.context = context;\n")
-	steps = append(steps, "            global.exec = exec;\n")
-	steps = append(steps, "            global.io = io;\n")
-	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/check_workflow_timestamp_api.cjs');\n")
-	steps = append(steps, "            await main();\n")
+	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -362,16 +326,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/compute_text.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("compute_text.cjs"))
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -417,16 +372,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/add_reaction_and_edit_comment.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction_and_edit_comment.cjs"))
 
 		// Add reaction outputs
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
@@ -451,16 +397,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load script from copied files
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/lock-issue.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("lock-issue.cjs"))
 
 		// Add output for tracking if issue was locked
 		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"

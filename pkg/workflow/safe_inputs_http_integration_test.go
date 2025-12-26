@@ -66,11 +66,12 @@ Test safe-inputs HTTP server
 		}
 	}
 
-	// Verify API key generation step uses github-script
+	// Verify API key generation step uses shell script
 	apiKeyGenChecks := []string{
-		"uses: actions/github-script@",
-		"generateSafeInputsConfig",
-		"crypto.randomBytes",
+		"Generate Safe Inputs MCP Server Config",
+		"openssl rand -base64 45",
+		"echo \"safe_inputs_api_key=${API_KEY}\" >> $GITHUB_OUTPUT",
+		"echo \"safe_inputs_port=${PORT}\" >> $GITHUB_OUTPUT",
 	}
 
 	for _, check := range apiKeyGenChecks {

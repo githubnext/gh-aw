@@ -75,14 +75,8 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
-	// Emit the substitute_placeholders script inline and call it
-	script := getSubstitutePlaceholdersScript()
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		yaml.WriteString(indent + "      " + line + "\n")
-	}
-
-	// Call the function with parameters
+	// Use require() to load script from copied files
+	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
 	yaml.WriteString(indent + "      \n")
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
@@ -133,4 +127,23 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		"            actions\n",
 		"          persist-credentials: false\n",
 	}
+}
+
+// generateGitHubScriptWithRequire generates a github-script step that loads a module using require().
+// Instead of repeating the global variable assignments inline, it uses the setup_globals helper function.
+//
+// Parameters:
+//   - scriptPath: The path to the .cjs file to require (e.g., "check_stop_time.cjs")
+//
+// Returns a string containing the complete script content to be used in a github-script action's "script:" field.
+func generateGitHubScriptWithRequire(scriptPath string) string {
+	var script strings.Builder
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
+	script.WriteString("            await main();\n")
+
+	return script.String()
 }
