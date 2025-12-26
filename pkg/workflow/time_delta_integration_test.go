@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/testutil"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestStopTimeResolutionIntegration(t *testing.T) {

@@ -346,7 +346,12 @@ fmt: fmt-go fmt-cjs fmt-json
 
 .PHONY: fmt-go
 fmt-go:
-	go fmt ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint fmt; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
+		exit 1; \
+	fi
 
 # Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
@@ -361,8 +366,14 @@ fmt-json:
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
-	@if [ -n "$$(go fmt ./...)" ]; then \
-		echo "Code is not formatted. Run 'make fmt' to fix."; \
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		diff_output=$$(golangci-lint fmt --diff 2>&1); \
+		if [ -n "$$diff_output" ]; then \
+			echo "Code is not formatted. Run 'make fmt' to fix."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
 
