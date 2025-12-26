@@ -765,8 +765,9 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 		totalSize, processedSize, compressionRatio)
 
 	// Ensure we processed a reasonable number of files
-	if len(cjsFiles) < 50 {
-		t.Errorf("Expected to process at least 50 .cjs files, but only found %d", len(cjsFiles))
+	// Note: Lower threshold after removing embedded scripts (which are now loaded at runtime)
+	if len(cjsFiles) < 5 {
+		t.Errorf("Expected to process at least 5 .cjs files, but only found %d", len(cjsFiles))
 	}
 }
 
