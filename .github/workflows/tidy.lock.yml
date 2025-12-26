@@ -138,7 +138,7 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
+          cache-dependency-path: actions/setup/js/package-lock.json
           node-version: "24"
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0

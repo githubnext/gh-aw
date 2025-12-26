@@ -109,7 +109,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: 'pkg/workflow/js/package-lock.json'
+          cache-dependency-path: 'actions/setup/js/package-lock.json'
           package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
@@ -132,7 +132,7 @@ jobs:
         run: make lint-errors
       - name: Install npm dependencies
         run: npm ci
-        working-directory: ./pkg/workflow/js
+        working-directory: ./actions/setup/js
       - name: Build code
         run: make build
       - env:
