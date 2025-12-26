@@ -272,6 +272,9 @@ class MCPHTTPTransport {
       res.writeHead(200, headers);
       res.end(JSON.stringify(response));
     } catch (error) {
+      // Log the full error with stack trace on the server for debugging
+      console.error("MCP HTTP Transport error:", error);
+
       if (!res.headersSent) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
@@ -279,7 +282,7 @@ class MCPHTTPTransport {
             jsonrpc: "2.0",
             error: {
               code: -32603,
-              message: error instanceof Error ? error.message : String(error),
+              message: "Internal server error",
             },
             id: null,
           })

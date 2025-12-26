@@ -220,7 +220,9 @@ async function startHttpServer(configPath, options = {}) {
         // Let the transport handle the request
         await transport.handleRequest(req, res, body);
       } catch (error) {
+        // Log the full error with stack trace on the server for debugging
         logger.debugError("Error handling request: ", error);
+
         if (!res.headersSent) {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(
@@ -228,7 +230,7 @@ async function startHttpServer(configPath, options = {}) {
               jsonrpc: "2.0",
               error: {
                 code: -32603,
-                message: error instanceof Error ? error.message : String(error),
+                message: "Internal server error",
               },
               id: null,
             })
