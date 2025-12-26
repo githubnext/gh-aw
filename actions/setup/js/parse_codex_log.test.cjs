@@ -151,14 +151,12 @@ ToolCall: github__add_labels {}`;
     });
 
     it("should handle log with errors gracefully", () => {
-      // Mock core.error to prevent actual error logging in test output
-      mockCore.error.mockImplementation(() => {});
-
       const malformedLog = null;
       const result = parseCodexLog(malformedLog);
 
-      expect(result).toContain("Error parsing log content");
-      expect(mockCore.error).toHaveBeenCalled();
+      expect(result).toContain("No log content provided");
+      expect(result).toContain("## 🤖 Commands and Tools");
+      expect(result).toContain("## 🤖 Reasoning");
     });
 
     it("should handle tool calls without responses", () => {
