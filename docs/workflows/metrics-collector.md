@@ -57,7 +57,7 @@ Aggregated data across the entire workflow ecosystem:
 
 Metrics are stored in repo-memory under the meta-orchestrators branch:
 
-```
+```text
 /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/
 ├── daily/
 │   ├── 2024-12-24.json

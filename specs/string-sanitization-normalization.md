@@ -55,7 +55,7 @@ opts := &SanitizeOptions{
 }
 result := SanitizeName("@@@", opts)
 // Returns: "default-name"
-```
+```text
 
 **Use case**: When you need custom sanitization behavior with specific character preservation rules.
 
@@ -68,7 +68,7 @@ Sanitizes workflow names for use in artifact names and file paths.
 ```go
 result := SanitizeWorkflowName("My Workflow: Test/Build")
 // Returns: "my-workflow-test-build"
-```
+```text
 
 **Use case**: Artifact names, file paths where dots and underscores are valid.
 
@@ -84,7 +84,7 @@ result := SanitizeIdentifier("My Workflow")
 
 result := SanitizeIdentifier("@@@")
 // Returns: "github-agentic-workflow" (default)
-```
+```text
 
 **Use case**: User agent strings, identifiers that must be purely alphanumeric with hyphens.
 
@@ -105,7 +105,7 @@ result := normalizeWorkflowName("weekly-research.lock.yml")
 
 result := normalizeWorkflowName("weekly-research")
 // Returns: "weekly-research"
-```
+```text
 
 **Use case**: Converting between workflow file names and workflow IDs.
 
@@ -121,13 +121,13 @@ result := normalizeSafeOutputIdentifier("create-issue")
 
 result := normalizeSafeOutputIdentifier("add-comment")
 // Returns: "add_comment"
-```
+```text
 
 **Use case**: Ensuring consistency in safe output identifiers while remaining resilient to LLM-generated variations.
 
 ## Decision Tree
 
-```
+```text
 Need to process a string?
 │
 ├─ Need to ensure character validity? → Use SANITIZE
@@ -138,7 +138,7 @@ Need to process a string?
 └─ Need to standardize format? → Use NORMALIZE
    ├─ Remove file extensions → normalizeWorkflowName()
    └─ Convert conventions → normalizeSafeOutputIdentifier()
-```
+```text
 
 ## Common Patterns
 
@@ -150,7 +150,7 @@ When accepting user input that needs to become a valid identifier:
 // User provides: "My-Project: Feature/Test"
 sanitized := SanitizeIdentifier("My-Project: Feature/Test")
 // Result: "my-project-feature-test"
-```
+```text
 
 ### Pattern 2: Workflow File Resolution
 
@@ -164,7 +164,7 @@ normalized := normalizeWorkflowName(userInput)
 // Use normalized ID to find files:
 // - .github/workflows/weekly-research.md
 // - .github/workflows/weekly-research.lock.yml
-```
+```text
 
 ### Pattern 3: Safe Output Identifier Consistency
 
@@ -174,7 +174,7 @@ When handling safe output identifiers that may use different conventions:
 // From YAML: "create-issue" or "create_issue"
 normalized := normalizeSafeOutputIdentifier(identifier)
 // Result: "create_issue" (consistent internal format)
-```
+```text
 
 ## Anti-Patterns
 
@@ -185,7 +185,7 @@ normalized := normalizeSafeOutputIdentifier(identifier)
 normalized := normalizeWorkflowName("weekly-research.md")
 // normalized = "weekly-research"
 sanitized := SanitizeWorkflowName(normalized) // Unnecessary!
-```
+```text
 
 **Why**: Normalization produces valid identifiers. Sanitizing again adds unnecessary processing and may produce unexpected results if the normalize function's output changes.
 
@@ -196,7 +196,7 @@ sanitized := SanitizeWorkflowName(normalized) // Unnecessary!
 userInput := "My Workflow: Test/Build"
 normalized := normalizeWorkflowName(userInput) // Wrong tool!
 // normalized = "My Workflow: Test/Build" (unchanged - invalid chars remain)
-```
+```text
 
 **Why**: Normalize functions don't validate or fix character validity. Use sanitize functions for this purpose.
 
@@ -208,7 +208,7 @@ input := "my-workflow.md"
 normalized := normalizeWorkflowName(input) // "my-workflow"
 sanitized := SanitizeWorkflowName(normalized) // "my-workflow"
 // Result is same as just normalizing - sanitize was unnecessary
-```
+```text
 
 **Why**: If the input is already a valid workflow file name, normalizing is sufficient. Only sanitize if the input might contain invalid characters.
 
@@ -260,7 +260,7 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
     // No sanitization needed - normalizeWorkflowName output is already valid
     // ...
 }
-```
+```text
 
 **Pattern used**: NORMALIZE (format standardization)  
 **Why**: Input is a file name or workflow ID that needs extension removal, not character validation.
@@ -276,7 +276,7 @@ func SanitizeIdentifier(name string) string {
         DefaultValue:         "github-agentic-workflow", // Fallback
     })
 }
-```
+```text
 
 **Pattern used**: SANITIZE (character validity)  
 **Why**: Input might contain invalid characters that need to be removed for a valid identifier.
@@ -289,7 +289,7 @@ func normalizeSafeOutputIdentifier(identifier string) string {
     // Convert dashes to underscores: "create-issue" -> "create_issue"
     return strings.ReplaceAll(identifier, "-", "_")
 }
-```
+```text
 
 **Pattern used**: NORMALIZE (format standardization)  
 **Why**: Both formats are valid, but internal representation uses underscores for consistency.

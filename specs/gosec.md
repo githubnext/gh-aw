@@ -154,7 +154,7 @@ When you need to suppress gosec warnings in code, use `#nosec` annotations with 
 ```go
 // #nosec G<rule-id> -- <brief justification>
 <code that triggers the warning>
-```
+```text
 
 **Best Practices**:
 1. **Always include the rule ID**: `G204`, `G404`, etc.
@@ -174,7 +174,7 @@ tmpID := fmt.Sprintf("tmp-%d", rand.Intn(1000000))
 
 // #nosec G306 -- Executable script requires 0755 permissions
 os.WriteFile(scriptPath, content, 0755)
-```
+```text
 
 **When to Use Suppressions**:
 - ✅ After confirming the code is actually safe

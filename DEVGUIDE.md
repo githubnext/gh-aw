@@ -275,7 +275,7 @@ secret := "example" // Known test value
 
 #### Trivy
 - Use `.trivyignore` file to exclude specific CVEs:
-```
+```text
 # .trivyignore
 CVE-2023-XXXXX  # False positive: not exploitable in our usage
 ```
@@ -409,7 +409,7 @@ Use this decision tree:
 
 ### Package Structure
 
-```
+```text
 pkg/workflow/
 ├── create_*.go              # GitHub entity creation
 ├── *_engine.go              # AI engine implementations

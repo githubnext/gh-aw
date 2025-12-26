@@ -31,7 +31,7 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ## Campaigns Needing Attention ⚠️
 - Security Q1 (55/100) - Stalled, no progress in 7 days
   Issue #123 created with recommendations
-```
+```text
 
 **When to check it:** 
 - Weekly during planning meetings
@@ -61,7 +61,7 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ## Warnings ⚠️
 - ci-coach: Compilation warnings
   Issue #457 created with migration guide
-```
+```text
 
 **When to check it:**
 - Daily for critical issues (P0/P1)
@@ -92,7 +92,7 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
    Issues: Incomplete outputs, high PR rejection rate
    Recommendations: Refine prompt, add quality checks
    Issue #789 created
-```
+```text
 
 **When to check it:**
 - Daily during agent reviews
@@ -207,7 +207,7 @@ on: daily  # Change to: weekly, or custom schedule
 
 # agent-performance-analyzer.md
 on: daily  # Change to: weekly, biweekly, monthly
-```
+```text
 
 Recompile with: `gh aw compile <workflow>.md`
 
@@ -219,7 +219,7 @@ If meta-orchestrators hit limits:
 safe-outputs:
   create-issue:
     max: 10  # Increase if needed
-```
+```text
 
 ### Refining Prompts
 
