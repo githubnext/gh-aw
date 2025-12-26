@@ -221,7 +221,7 @@ gh aw add ci-doctor --create-pull-request        # Create PR instead of direct c
 
 #### `new`
 
-Create a new custom workflow from scratch.
+Create a new workflow Markdown file with example configuration.
 
 ```bash wrap
 gh aw new                      # Interactive mode
