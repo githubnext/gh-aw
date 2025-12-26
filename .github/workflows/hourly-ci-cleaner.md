@@ -82,10 +82,10 @@ steps:
     with:
       node-version: "24"
       cache: npm
-      cache-dependency-path: pkg/workflow/js/package-lock.json
+      cache-dependency-path: actions/setup/js/package-lock.json
   - name: Install npm dependencies
     run: npm ci
-    working-directory: ./pkg/workflow/js
+    working-directory: ./actions/setup/js
   - name: Install dev dependencies
     run: make deps-dev
 safe-outputs:

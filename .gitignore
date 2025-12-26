@@ -83,6 +83,12 @@ actions/**/node_modules/
 actions/**/*.tmp
 actions/**/.build/
 
+# pkg/workflow/js should only contain generated .cjs files and safe_outputs_tools.json
+# Source of truth is actions/setup/js
+pkg/workflow/js/package.json
+pkg/workflow/js/package-lock.json
+pkg/workflow/js/node_modules/
+
 # Generated action files (created by 'make generate-action-metadata')
 # These are generated from pkg/workflow/js/*.cjs and should not be committed
 actions/noop/
@@ -101,6 +107,8 @@ examples/*.lock.yml
 # Large test data files
 pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/
+actions/setup/js/test-*/
+!actions/setup/js/test-data/
 sample-logs/
 *.invalid.yml
 *.tmp
