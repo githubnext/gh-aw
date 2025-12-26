@@ -100,6 +100,63 @@ func (jm *JobManager) ValidateDependencies() error {
 	return jm.detectCycles()
 }
 
+// ValidateDuplicateSteps checks that no job has duplicate steps
+// This detects compiler bugs where the same step is added multiple times
+func (jm *JobManager) ValidateDuplicateSteps() error {
+	jobLog.Printf("Validating for duplicate steps in %d jobs", len(jm.jobs))
+	
+	for jobName, job := range jm.jobs {
+		if len(job.Steps) == 0 {
+			continue
+		}
+		
+		// Track seen steps to detect duplicates
+		seen := make(map[string]int)
+		
+		for i, step := range job.Steps {
+			// Extract step name from YAML for comparison
+			stepName := extractStepName(step)
+			if stepName == "" {
+				// Steps without names can't be checked for duplicates
+				continue
+			}
+			
+			if firstIndex, exists := seen[stepName]; exists {
+				jobLog.Printf("Duplicate step detected in job '%s': step '%s' at positions %d and %d", jobName, stepName, firstIndex, i)
+				return fmt.Errorf("compiler bug: duplicate step '%s' found in job '%s' (positions %d and %d)", stepName, jobName, firstIndex, i)
+			}
+			
+			seen[stepName] = i
+		}
+	}
+	
+	jobLog.Print("No duplicate steps detected in any job")
+	return nil
+}
+
+// extractStepName extracts the step name from a YAML step string
+// Returns empty string if no name is found
+func extractStepName(stepYAML string) string {
+	// Look for "name: " in the step YAML
+	// Format is typically "      - name: Step Name" with various indentation
+	lines := strings.Split(stepYAML, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Remove leading dash if present
+		trimmed = strings.TrimPrefix(trimmed, "-")
+		trimmed = strings.TrimSpace(trimmed)
+		
+		if strings.HasPrefix(trimmed, "name:") {
+			// Extract the name value after "name:"
+			name := strings.TrimSpace(strings.TrimPrefix(trimmed, "name:"))
+			// Remove quotes if present
+			name = strings.Trim(name, "\"'")
+			return name
+		}
+	}
+	return ""
+}
+
 // detectCycles uses DFS to detect cycles in the job dependency graph
 func (jm *JobManager) detectCycles() error {
 	jobLog.Print("Detecting cycles in job dependency graph")

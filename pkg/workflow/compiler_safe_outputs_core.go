@@ -89,6 +89,17 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, patchDownloadSteps...)
 	}
 
+	// Add shared checkout and git config steps for PR operations
+	// Both create-pull-request and push-to-pull-request-branch need these steps,
+	// so we add them once with a combined condition to avoid duplication
+	var prCheckoutStepsAdded bool
+	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		consolidatedSafeOutputsLog.Print("Adding shared checkout step for PR operations")
+		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
+		steps = append(steps, checkoutSteps...)
+		prCheckoutStepsAdded = true
+	}
+
 	// === Build individual safe output steps ===
 
 	// 1. Create Issue step
@@ -139,8 +150,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.CreatePullRequests != nil {
 		createPullRequestEnabled = true
 		stepConfig := c.buildCreatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Add pre-steps (checkout, git config, etc.)
-		steps = append(steps, stepConfig.PreSteps...)
+		// Skip pre-steps if we've already added the shared checkout steps
+		if !prCheckoutStepsAdded {
+			steps = append(steps, stepConfig.PreSteps...)
+		}
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
 		steps = append(steps, stepConfig.PostSteps...)
@@ -300,8 +313,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// 17. Push To Pull Request Branch step
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		stepConfig := c.buildPushToPullRequestBranchStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Add pre-steps (checkout, git config, etc.)
-		steps = append(steps, stepConfig.PreSteps...)
+		// Skip pre-steps if we've already added the shared checkout steps
+		if !prCheckoutStepsAdded {
+			steps = append(steps, stepConfig.PreSteps...)
+		}
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
@@ -594,4 +609,73 @@ func buildDetectionSuccessCondition() ConditionNode {
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
 		BuildStringLiteral("true"),
 	)
+}
+
+// buildSharedPRCheckoutSteps builds the shared checkout and git config steps
+// used by both create-pull-request and push-to-pull-request-branch operations.
+// This avoids duplicate checkout steps when both operations are configured.
+func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
+	consolidatedSafeOutputsLog.Print("Building shared PR checkout steps")
+	var steps []string
+
+	// Determine which token to use for checkout
+	var checkoutToken string
+	var gitRemoteToken string
+	if data.SafeOutputs.App != nil {
+		checkoutToken = "${{ steps.app-token.outputs.token }}"
+		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
+	} else {
+		checkoutToken = "${{ github.token }}"
+		gitRemoteToken = "${{ github.token }}"
+	}
+
+	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
+	var condition ConditionNode
+	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+		// Both enabled: combine conditions with OR
+		condition = BuildOr(
+			BuildSafeOutputType("create_pull_request"),
+			BuildSafeOutputType("push_to_pull_request_branch"),
+		)
+	} else if data.SafeOutputs.CreatePullRequests != nil {
+		// Only create_pull_request
+		condition = BuildSafeOutputType("create_pull_request")
+	} else {
+		// Only push_to_pull_request_branch
+		condition = BuildSafeOutputType("push_to_pull_request_branch")
+	}
+
+	// Step 1: Checkout repository with conditional execution
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
+	steps = append(steps, "          persist-credentials: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	if c.trialMode {
+		if c.trialLogicalRepoSlug != "" {
+			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+		}
+	}
+
+	// Step 2: Configure Git credentials with conditional execution
+	gitConfigSteps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", condition.Render()),
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          # Re-authenticate git with GitHub token\n",
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+	steps = append(steps, gitConfigSteps...)
+
+	consolidatedSafeOutputsLog.Printf("Added shared checkout with condition: %s", condition.Render())
+	return steps
 }
