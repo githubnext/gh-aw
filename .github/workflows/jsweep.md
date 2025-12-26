@@ -150,9 +150,17 @@ For each file:
 - Handle errors appropriately
 - Use standard Node.js patterns
 
-### 6. Create Pull Request
+### 6. Run TypeScript Build
 
-After cleaning all three files:
+After making changes to all three files:
+1. Navigate to the JavaScript directory: `cd /home/runner/work/gh-aw/gh-aw/actions/setup/js/`
+2. Run the TypeScript type checker: `npm run typecheck`
+3. If there are type errors, fix them before proceeding
+4. The typecheck ensures type safety across all JavaScript files
+
+### 7. Create Pull Request
+
+After cleaning all three files and verifying the TypeScript build passes:
 1. Update cache-memory to mark these files as cleaned (add to `cleaned_files` array with timestamps)
 2. Create a pull request with:
    - Title: `[jsweep] Clean <file1>, <file2>, <file3>`
@@ -167,6 +175,7 @@ After cleaning all three files:
 
 - **DO NOT change logic** - only make the code cleaner and more maintainable
 - **Always run tests** after changes if they exist
+- **Always run TypeScript typecheck** before creating the PR to ensure type safety
 - **Preserve all functionality** - ensure each file works exactly as before
 - **Three files per run** - focus on quality over quantity
 - **Document your changes** in the PR description for each file

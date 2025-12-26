@@ -141,6 +141,9 @@ func TestJSweepWorkflowInstructions(t *testing.T) {
 		"Summary of changes for each file",
 		"Context type (github-script or Node.js) for each file",
 		"Any test improvements for each file",
+		"Run TypeScript Build",
+		"npm run typecheck",
+		"Always run TypeScript typecheck",
 	}
 	
 	for _, required := range requiredStrings {
