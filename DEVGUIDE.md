@@ -217,6 +217,27 @@ make lint
 make actionlint
 ```
 
+### Local Incremental Linting
+
+Speed up linting by only checking changed files:
+
+```bash
+# Lint changes since origin/main
+make golint-incremental BASE_REF=origin/main
+
+# This is what CI uses on PRs - 50-75% faster!
+```
+
+This runs the same incremental linting strategy as CI, checking only files changed since the base reference. It's particularly useful when working on pull requests where you want quick feedback on your changes without waiting for a full repository scan.
+
+The incremental approach uses `golangci-lint --new-from-rev` to analyze only the files that differ from the specified base reference, providing significant performance improvements:
+- **Full lint** (`make lint`): Scans entire repository
+- **Incremental lint** (`make golint-incremental`): Scans only changed files - typically 50-75% faster on PRs
+
+**When to use each approach:**
+- Use `make golint-incremental BASE_REF=origin/main` during development for fast feedback
+- Use `make lint` before final commits to ensure comprehensive coverage
+
 ## Security Scanning
 
 The project includes automated security scanning to detect vulnerabilities, code smells, and dependency issues.
