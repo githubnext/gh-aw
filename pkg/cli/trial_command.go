@@ -14,6 +14,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -441,7 +442,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			workflowResults = append(workflowResults, result)
 
 			// Save individual trial file
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
 			individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 			if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
@@ -478,7 +479,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 				workflowNames[i] = spec.WorkflowName
 			}
 			workflowNamesStr := strings.Join(workflowNames, "-")
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
 			combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 			combinedResult := CombinedTrialResult{
 				WorkflowNames: workflowNames,
@@ -844,7 +845,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	}
 
 	// Copy individual workflow result files
-	sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoSlug)
+	sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoSlug)
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
@@ -933,12 +934,4 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial results copied to repository and pushed"))
 
 	return nil
-}
-
-// sanitizeRepoSlugForFilename converts a repository slug (owner/repo) to a filename-safe string
-func sanitizeRepoSlugForFilename(repoSlug string) string {
-	if repoSlug == "" {
-		return "clone-mode"
-	}
-	return strings.ReplaceAll(repoSlug, "/", "-")
 }

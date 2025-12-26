@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -106,11 +107,9 @@ func GetCurrentRepoSlug() (string, error) {
 	return currentRepoSlugResult, nil
 }
 
-// SplitRepoSlug splits "owner/repo" into owner and repo
+// SplitRepoSlug wraps repoutil.SplitRepoSlug for backward compatibility.
+// It splits a repository slug (owner/repo) into owner and repo parts.
+// New code should use repoutil.SplitRepoSlug directly.
 func SplitRepoSlug(slug string) (owner, repo string, err error) {
-	parts := strings.Split(slug, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid repo format: %s", slug)
-	}
-	return parts[0], parts[1], nil
+	return repoutil.SplitRepoSlug(slug)
 }

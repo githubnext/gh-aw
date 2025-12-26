@@ -17,6 +17,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -118,7 +119,7 @@ Examples:
 					// If that fails, check if it's already a GitHub Actions workflow name
 					// by checking if any .lock.yml files have this as their name
 					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
-					if nameErr == nil && contains(agenticWorkflowNames, args[0]) {
+					if nameErr == nil && sliceutil.Contains(agenticWorkflowNames, args[0]) {
 						// It's already a valid GitHub Actions workflow name
 						workflowName = args[0]
 					} else {

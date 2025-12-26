@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 func TestFormatAge(t *testing.T) {
@@ -87,9 +89,9 @@ func TestTruncate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := truncate(tt.input, tt.maxLen)
+			result := stringutil.Truncate(tt.input, tt.maxLen)
 			if result != tt.want {
-				t.Errorf("truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.want)
+				t.Errorf("stringutil.Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, result, tt.want)
 			}
 		})
 	}

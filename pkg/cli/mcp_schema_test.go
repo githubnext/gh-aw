@@ -5,19 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/google/jsonschema-go/jsonschema"
 )
-
-// containsType checks if a type string is in the Types slice
-// This helper is needed for v0.4.0+ which uses Types []string for nullable types
-func containsType(types []string, targetType string) bool {
-	for _, t := range types {
-		if t == targetType {
-			return true
-		}
-	}
-	return false
-}
 
 func TestGenerateOutputSchema(t *testing.T) {
 	t.Run("generates schema for simple struct", func(t *testing.T) {
@@ -148,7 +138,7 @@ func TestGenerateOutputSchema(t *testing.T) {
 		// Check that items is an array type
 		// In v0.4.0+, nullable slices use Types []string with ["null", "array"]
 		// instead of Type string with "array"
-		isArray := itemsProp.Type == "array" || containsType(itemsProp.Types, "array")
+		isArray := itemsProp.Type == "array" || sliceutil.Contains(itemsProp.Types, "array")
 		if !isArray {
 			t.Errorf("Expected items to be an array type, got Type='%s', Types=%v", itemsProp.Type, itemsProp.Types)
 		}
