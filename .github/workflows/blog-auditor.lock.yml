@@ -1142,8 +1142,10 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');
-            await main({ github, context, core, exec, io });
+            await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
