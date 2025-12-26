@@ -141,10 +141,10 @@ Test workflow content.`,
 				if !hasTeamMemberCheck {
 					t.Errorf("Expected team member check in command workflow but not found")
 				}
-				// Check for the specific failure message (updated for new implementation)
-				if !strings.Contains(lockContentStr, "Access denied: User") {
-					t.Errorf("Expected team member check failure message but not found")
-				}
+				// Note: The specific failure message "Access denied: User" is now in an external script
+				// loaded at runtime, so we can't check for it in the compiled workflow YAML.
+				// The team member check functionality is still present via the pre_activation job.
+				
 				// Note: As per comment feedback, the conditional if statement has been removed
 				// since the JavaScript already tests membership and command filter is applied at job level
 				// Verify that team member check no longer has unnecessary conditional logic
