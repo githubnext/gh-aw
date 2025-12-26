@@ -1,3 +1,11 @@
+## Trend Data (as of 2025-12-26T15:10:00Z)
+
+- Workflow snapshot (last 20 runs, ~3d): 1.6h total duration, 10,246,346 tokens, ~$5.51 est cost, 141 turns, 366 errors, 269 warnings, 1 missing-tool; notable failures in Smoke Claude and Super Linter, missing tool surfaced in Smoke Codex.
+- Audit health (Dec 26): 68 runs across 35+ workflows with 64.7% success (44/68), 1,384 errors/warnings, 4 missing tools, 5 MCP failures; MCP init invalid URL/read_buffer errors and safeoutputs failures dominate.
+- Token trend: Copilot tokens stable at 133,075,886 tokens/day ($2.66) over 341 runs; spend concentrated in CI Cleaner (17.2%), Tidy (10.2%), Issue Monster (8.4%); efficiency flat day-over-day.
+- Firewall trend: Daily report shows 25.2% denial rate (104 denied / 309 allowed; 10 domains) with GitHub API/Web (92 blocks) and LinkedIn (90) leading; research.md and daily-news.md lacking GitHub MCP are primary drivers; npmjs/pypi also blocked in smoke-codex-firewall.
+- Issue stats (weekly slice): 266 total; 44 open / 222 closed. Created last 3 days: 101; closed last 3 days: 90. Unlabeled issues: 13 total, 0 open. Label leaders: ai-generated 128, plan 127, enhancement 76, automation 45, documentation 44.
+
 ## Trend Data (as of 2025-12-25T15:10:00Z)
 
 - Workflow snapshot (last ~10 runs, ~7d): 1.0h total duration, 5,650,141 tokens, ~$3.76 est cost, 82 turns, 477 errors, 196 warnings, 1 missing-tool. Recent runs mostly success across Documentation Unbloat, Semantic Function Refactoring, Lockfile Stats, Issue Arborist; only missing-tool surfaced in Daily Copilot PR Merged.

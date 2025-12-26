@@ -1,3 +1,10 @@
+## Known Patterns (2025-12-26)
+
+- Workflow health dipped: latest audit shows 64.7% success (44/68) with MCP init failures (invalid URL/read_buffer) and safeoutputs outages hitting smoke suites; permission-denied warnings persist across AI Moderator, Issue Monster, Tidy, Spec-Kit.
+- Firewall denials trending higher (25.2% overall; 92 GitHub API/Web blocks, 90 LinkedIn) with research.md and daily-news.md still missing GitHub MCP and driving GitHub/API blocks; package registries (npmjs/pypi) blocked in smoke-codex-firewall.
+- Copilot tokens stable at ~133M/day ($2.66) but concentrated: CI Cleaner 17%, Tidy 10%, Issue Monster 8.4%; efficiency flat day-over-day after prior drop.
+- Issue backlog widening again: weekly slice 266 issues with 44 open (was 24), last 3d 101 created vs 90 closed; unlabeled set shrank to 13 (0 open).
+
 ## Known Patterns (2025-12-25)
 
 - Workflow health rebounded: daily audit shows 87.93% success (+32% vs Dec 24) with error/warning volume cut by ~68%; remaining pain points are Tidy lacking build tools, Issue Monster GitHub search errors, Playwright MCP absence, and permission-denied noise.

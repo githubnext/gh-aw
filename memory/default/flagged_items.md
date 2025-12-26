@@ -1,3 +1,11 @@
+## Flagged Items for Monitoring (2025-12-26)
+
+- MCP client breakage: audit reports invalid URL and missing `read_buffer.cjs` across Smoke Copilot variants plus safeoutputs failures in Smoke Claude—likely tied to recent MCP HTTP transport changes (commit 2dd6edb); blocks MCP coverage.
+- GitHub MCP absent in `research.md`/`daily-news.md`/`daily-firewall-report.md`, causing 92 GitHub API/Web blocks and inflated firewall denials; urgent to wire GitHub MCP toolsets.
+- Missing tools persist: safeinputs-gh absent in Smoke Codex/Safe Inputs; Tidy still lacks make/go/npm/golangci-lint; Spec-Kit Execute blocked on directory creation.
+- Permission-denied noise (90 hits) across AI Moderator, Issue Monster, Tidy, Spec-Kit, and smoke workflows; needs sandbox/permission review to curb warning volume.
+- Success rate regressed to ~65% (24 failures in 68 runs) with 4 missing-tool and 5 MCP failures in last day; health trend reversing prior rebound.
+
 ## Flagged Items for Monitoring (2025-12-25)
 
 - Daily Copilot PR Merged still throws a missing-tool (safeinputs/GITHUB_TOKEN wiring) in latest run (§20507004818); fix safeinputs-gh config and token availability.
