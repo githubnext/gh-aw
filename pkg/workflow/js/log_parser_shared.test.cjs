@@ -95,6 +95,122 @@ describe("log_parser_shared.cjs", () => {
 
       expect(result).toBe("echo line1 echo line2 echo line3");
     });
+
+    // Security tests for Alert #83: Incomplete string escaping vulnerability
+    describe("security: backslash escaping (Alert #83)", () => {
+      it("should escape backslashes before backticks to prevent bypass", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        // Input with backslash before backtick
+        const command = "echo \\`date\\`";
+        const result = formatBashCommand(command);
+
+        // Backslashes must be escaped first: \ -> \\, then ` -> \`
+        // Expected: echo \\\\\\`date\\\\\\`
+        // Explanation: Each \ becomes \\, so \` becomes \\\` (escaped backslash + escaped backtick)
+        expect(result).toBe("echo \\\\\\`date\\\\\\`");
+      });
+
+      it("should properly escape single backslash", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "echo \\";
+        const result = formatBashCommand(command);
+
+        // Single backslash should become double backslash
+        expect(result).toBe("echo \\\\");
+      });
+
+      it("should properly escape multiple consecutive backslashes", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "echo \\\\\\\\";
+        const result = formatBashCommand(command);
+
+        // Four backslashes should become eight backslashes
+        expect(result).toBe("echo \\\\\\\\\\\\\\\\");
+      });
+
+      it("should handle mixed backslashes and backticks correctly", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        // Real-world scenario: command with path containing backslashes and backticks
+        const command = "echo C:\\\\path\\\\to\\\\file `date`";
+        const result = formatBashCommand(command);
+
+        // All backslashes doubled, then backticks escaped
+        expect(result).toBe("echo C:\\\\\\\\path\\\\\\\\to\\\\\\\\file \\`date\\`");
+      });
+
+      it("should prevent escaping bypass with backslash before backtick", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        // Attack scenario: trying to bypass backtick escaping
+        const command = "echo \\`malicious\\`";
+        const result = formatBashCommand(command);
+
+        // Without proper escaping order, this would result in: echo \\\`malicious\\\`
+        // where the backslash escapes the escape, leaving backtick unescaped
+        // With correct escaping order: echo \\\\\\`malicious\\\\\\`
+        // (backslash is properly escaped, then backtick is properly escaped)
+        expect(result).toBe("echo \\\\\\`malicious\\\\\\`");
+        
+        // Verify the backslash is actually escaped (doubled)
+        expect(result).toContain("\\\\\\`");
+        // Ensure we don't have single-escaped backticks that would be vulnerable
+        expect(result).not.toMatch(/[^\\]\\`/); // No backtick with only one preceding backslash
+      });
+
+      it("should handle empty string edge case", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "";
+        const result = formatBashCommand(command);
+
+        expect(result).toBe("");
+      });
+
+      it("should handle command with only backticks", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "```";
+        const result = formatBashCommand(command);
+
+        // Three backticks should all be escaped
+        expect(result).toBe("\\`\\`\\`");
+      });
+
+      it("should handle command with only backslashes", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "\\\\\\";
+        const result = formatBashCommand(command);
+
+        // Three backslashes should become six backslashes
+        expect(result).toBe("\\\\\\\\\\\\");
+      });
+
+      it("should handle alternating backslashes and backticks", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        const command = "\\`\\`\\";
+        const result = formatBashCommand(command);
+
+        // Each backslash doubles, each backtick gets escaped
+        // \` -> \\\` (backslash doubled to \\, backtick escaped to \`)
+        expect(result).toBe("\\\\\\`\\\\\\`\\\\");
+      });
+
+      it("should maintain security with normal bash commands", async () => {
+        const { formatBashCommand } = await import("./log_parser_shared.cjs");
+
+        // Verify normal commands still work correctly
+        const command = "echo hello && ls -la";
+        const result = formatBashCommand(command);
+
+        expect(result).toBe("echo hello && ls -la");
+      });
+    });
   });
 
   describe("truncateString", () => {
