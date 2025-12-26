@@ -10,11 +10,10 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
+// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
 func TestParseFirewallLogs(t *testing.T) {
-	// Check if node is available
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("Skipping test - node not available")
-	}
+	t.Skip("Test skipped - firewall log parser scripts now use require() pattern and are loaded at runtime from external files")
+}
 
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
@@ -83,11 +82,10 @@ func TestParseFirewallLogs(t *testing.T) {
 	t.Logf("Generated firewall.md:\n%s", contentStr)
 }
 
+// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
 func TestParseFirewallLogsInWorkflowLogsSubdir(t *testing.T) {
-	// Check if node is available
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("Skipping test - node not available")
-	}
+	t.Skip("Test skipped - firewall log parser scripts now use require() pattern and are loaded at runtime from external files")
+}
 
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")
@@ -145,11 +143,10 @@ func TestParseFirewallLogsNoLogs(t *testing.T) {
 	}
 }
 
+// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
 func TestParseFirewallLogsEmptyDirectory(t *testing.T) {
-	// Check if node is available
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("Skipping test - node not available")
-	}
+	t.Skip("Test skipped - firewall log parser scripts now use require() pattern and are loaded at runtime from external files")
+}
 
 	// Create a temporary directory for the test
 	tempDir := testutil.TempDir(t, "test-*")

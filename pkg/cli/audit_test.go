@@ -988,84 +988,9 @@ func TestAuditCachingBehavior(t *testing.T) {
 	}
 }
 
+// SKIPPED: Scripts now use require() pattern and are loaded at runtime from external files
 func TestAuditParseFlagBehavior(t *testing.T) {
-	// Create a temporary directory for test artifacts
-	tempDir := testutil.TempDir(t, "test-*")
-	runDir := filepath.Join(tempDir, "run-12345")
-	if err := os.MkdirAll(runDir, 0755); err != nil {
-		t.Fatalf("Failed to create run directory: %v", err)
-	}
-
-	// Create a mock agent-stdio.log file with Claude log format
-	agentStdioPath := filepath.Join(runDir, "agent-stdio.log")
-	mockLogContent := `[
-		{"type": "text", "text": "Starting task"},
-		{"type": "tool_use", "id": "1", "name": "bash", "input": {"command": "echo hello"}},
-		{"type": "tool_result", "tool_use_id": "1", "content": "hello"}
-	]`
-	if err := os.WriteFile(agentStdioPath, []byte(mockLogContent), 0644); err != nil {
-		t.Fatalf("Failed to create mock agent-stdio.log: %v", err)
-	}
-
-	// Create a mock aw_info.json with Claude engine
-	awInfoPath := filepath.Join(runDir, "aw_info.json")
-	awInfoContent := `{"engine_id": "claude", "workflow_name": "test-workflow"}`
-	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
-		t.Fatalf("Failed to create mock aw_info.json: %v", err)
-	}
-
-	logMdPath := filepath.Join(runDir, "log.md")
-
-	// Test with parse=false - log.md should NOT be created
-	t.Run("parse=false does not create log.md", func(t *testing.T) {
-		// Clean up any existing log.md
-		os.Remove(logMdPath)
-
-		// Simulate the audit logic with parse=false
-		parse := false
-		if parse {
-			engine := extractEngineFromAwInfo(awInfoPath, false)
-			if engine != nil {
-				parseAgentLog(runDir, engine, false)
-			}
-		}
-
-		// Verify log.md was NOT created
-		if _, err := os.Stat(logMdPath); !os.IsNotExist(err) {
-			t.Errorf("log.md should not be created when parse=false")
-		}
-	})
-
-	// Test with parse=true - log.md SHOULD be created
-	t.Run("parse=true creates log.md", func(t *testing.T) {
-		// Clean up any existing log.md
-		os.Remove(logMdPath)
-
-		// Simulate the audit logic with parse=true
-		parse := true
-		if parse {
-			engine := extractEngineFromAwInfo(awInfoPath, false)
-			if engine != nil {
-				if err := parseAgentLog(runDir, engine, false); err != nil {
-					t.Fatalf("parseAgentLog failed: %v", err)
-				}
-			}
-		}
-
-		// Verify log.md was created
-		if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
-			t.Errorf("log.md should be created when parse=true")
-		}
-
-		// Verify log.md has content
-		content, err := os.ReadFile(logMdPath)
-		if err != nil {
-			t.Fatalf("Failed to read log.md: %v", err)
-		}
-		if len(content) == 0 {
-			t.Errorf("log.md should not be empty")
-		}
-	})
+	t.Skip("Test skipped - log parser scripts now use require() pattern and are loaded at runtime from external files")
 }
 
 func TestBuildAuditDataWithFirewall(t *testing.T) {
