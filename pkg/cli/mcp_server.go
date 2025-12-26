@@ -157,7 +157,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -176,7 +176,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to execute status command",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
@@ -188,7 +188,7 @@ Note: Output can be filtered using the jq parameter.`,
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInvalidParams,
 					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+					Data:    mcpErrorData(map[string]any{"filter": args.JqFilter}),
 				}
 			}
 			outputStr = filteredOutput
@@ -247,7 +247,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -259,7 +259,7 @@ Note: Output can be filtered using the jq parameter.`,
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInternalError,
 					Message: "docker images not ready",
-					Data:    mcpErrorData(err.Error()),
+					Data:    nil,
 				}
 			}
 
@@ -269,7 +269,7 @@ Note: Output can be filtered using the jq parameter.`,
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInternalError,
 					Message: "request cancelled",
-					Data:    mcpErrorData(ctx.Err().Error()),
+					Data:    nil,
 				}
 			default:
 			}
@@ -310,7 +310,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to compile workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
@@ -322,7 +322,7 @@ Note: Output can be filtered using the jq parameter.`,
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInvalidParams,
 					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+					Data:    mcpErrorData(map[string]any{"filter": args.JqFilter}),
 				}
 			}
 			outputStr = filteredOutput
@@ -394,7 +394,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -460,7 +460,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to download workflow logs",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
@@ -472,7 +472,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInvalidParams,
 					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": err.Error(), "filter": args.JqFilter}),
+					Data:    mcpErrorData(map[string]any{"filter": args.JqFilter}),
 				}
 			}
 			outputStr = filteredOutput
@@ -517,7 +517,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -535,7 +535,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to audit workflow run",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id": args.RunID}),
+				Data:    mcpErrorData(map[string]any{"run_id": args.RunID}),
 			}
 		}
 
@@ -547,7 +547,7 @@ Note: Output can be filtered using the jq parameter.`,
 				return nil, nil, &jsonrpc.Error{
 					Code:    jsonrpc.CodeInvalidParams,
 					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+					Data:    mcpErrorData(map[string]any{"filter": args.JqFilter}),
 				}
 			}
 			outputStr = filteredOutput
@@ -595,7 +595,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -626,7 +626,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to inspect MCP servers",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
@@ -654,7 +654,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -690,7 +690,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to add workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
@@ -733,7 +733,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "request cancelled",
-				Data:    mcpErrorData(ctx.Err().Error()),
+				Data:    nil,
 			}
 		default:
 		}
@@ -760,7 +760,7 @@ Returns formatted text output showing:
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to update workflows",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+				Data:    nil,
 			}
 		}
 
