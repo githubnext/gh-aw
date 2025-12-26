@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,11 +14,27 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
 
 var mcpLog = logger.New("mcp:server")
+
+// mcpErrorData marshals data to JSON for use in jsonrpc.Error.Data field.
+// Returns nil if marshaling fails to avoid errors in error handling.
+func mcpErrorData(v any) json.RawMessage {
+	if v == nil {
+		return nil
+	}
+	data, err := json.Marshal(v)
+	if err != nil {
+		// Log the error but return nil to avoid breaking error handling
+		mcpLog.Printf("Failed to marshal error data: %v", err)
+		return nil
+	}
+	return data
+}
 
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
@@ -140,11 +157,11 @@ Note: Output can be filtered using the jq parameter.`,
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
@@ -159,11 +176,11 @@ Note: Output can be filtered using the jq parameter.`,
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to execute status command",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		// Apply jq filter if provided
@@ -171,11 +188,11 @@ Note: Output can be filtered using the jq parameter.`,
 		if args.JqFilter != "" {
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInvalidParams,
+					Message: "invalid jq filter expression",
+					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+				}
 			}
 			outputStr = filteredOutput
 		}
@@ -233,11 +250,11 @@ Note: Output can be filtered using the jq parameter.`,
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
@@ -245,21 +262,21 @@ Note: Output can be filtered using the jq parameter.`,
 		if args.Zizmor || args.Poutine || args.Actionlint {
 			// Check if Docker images are available; if not, start downloading and return retry message
 			if err := CheckAndPrepareDockerImages(args.Zizmor, args.Poutine, args.Actionlint); err != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: err.Error()},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInternalError,
+					Message: "docker images not ready",
+					Data:    mcpErrorData(err.Error()),
+				}
 			}
 
 			// Check for cancellation after Docker image preparation
 			select {
 			case <-ctx.Done():
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInternalError,
+					Message: "request cancelled",
+					Data:    mcpErrorData(ctx.Err().Error()),
+				}
 			default:
 			}
 		}
@@ -296,11 +313,11 @@ Note: Output can be filtered using the jq parameter.`,
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to compile workflows",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		// Apply jq filter if provided
@@ -308,11 +325,11 @@ Note: Output can be filtered using the jq parameter.`,
 		if args.JqFilter != "" {
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInvalidParams,
+					Message: "invalid jq filter expression",
+					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+				}
 			}
 			outputStr = filteredOutput
 		}
@@ -383,21 +400,21 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
 		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: "Error: cannot specify both 'firewall' and 'no_firewall' parameters"},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInvalidParams,
+				Message: "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'",
+				Data:    nil,
+			}
 		}
 
 		// Build command arguments
@@ -449,11 +466,11 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to download workflow logs",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		// Apply jq filter if provided
@@ -461,11 +478,11 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		if args.JqFilter != "" {
 			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
 			if err != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInvalidParams,
+					Message: "invalid jq filter expression",
+					Data:    mcpErrorData(map[string]any{"error": err.Error(), "filter": args.JqFilter}),
+				}
 			}
 			outputStr = filteredOutput
 		}
@@ -509,11 +526,11 @@ Note: Output can be filtered using the jq parameter.`,
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
@@ -527,11 +544,11 @@ Note: Output can be filtered using the jq parameter.`,
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to audit workflow run",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id": args.RunID}),
+			}
 		}
 
 		// Apply jq filter if provided
@@ -539,11 +556,11 @@ Note: Output can be filtered using the jq parameter.`,
 		if args.JqFilter != "" {
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
-				return &mcp.CallToolResult{
-					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
-					},
-				}, nil, nil
+				return nil, nil, &jsonrpc.Error{
+					Code:    jsonrpc.CodeInvalidParams,
+					Message: "invalid jq filter expression",
+					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
+				}
 			}
 			outputStr = filteredOutput
 		}
@@ -590,11 +607,11 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
@@ -621,11 +638,11 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to inspect MCP servers",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		return &mcp.CallToolResult{
@@ -652,21 +669,21 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
 		// Validate required arguments
 		if len(args.Workflows) == 0 {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: "Error: at least one workflow specification is required"},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInvalidParams,
+				Message: "missing required parameter: at least one workflow specification is required",
+				Data:    nil,
+			}
 		}
 
 		// Build command arguments
@@ -688,11 +705,11 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to add workflows",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		return &mcp.CallToolResult{
@@ -734,11 +751,11 @@ Returns formatted text output showing:
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", ctx.Err())},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "request cancelled",
+				Data:    mcpErrorData(ctx.Err().Error()),
+			}
 		default:
 		}
 
@@ -761,11 +778,11 @@ Returns formatted text output showing:
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
-				},
-			}, nil, nil
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInternalError,
+				Message: "failed to update workflows",
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output)}),
+			}
 		}
 
 		return &mcp.CallToolResult{
