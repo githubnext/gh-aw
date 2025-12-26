@@ -89,7 +89,7 @@ async function main() {
 
   // Recursively scan and collect files from artifact directory
   let filesToCopy = [];
-  
+
   /**
    * Recursively scan directory and collect files
    * @param {string} dirPath - Directory to scan
@@ -97,17 +97,17 @@ async function main() {
    */
   function scanDirectory(dirPath, relativePath = "") {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);
       const relativeFilePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
-      
+
       if (entry.isDirectory()) {
         // Recursively scan subdirectory
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
         const stats = fs.statSync(fullPath);
-        
+
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
           const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
@@ -115,14 +115,14 @@ async function main() {
             // ** matches any path segment (including /)
             // * matches any characters except /
             let regexPattern = pattern
-              .replace(/\\/g, "\\\\")           // Escape backslashes
-              .replace(/\./g, "\\.")            // Escape dots
+              .replace(/\\/g, "\\\\") // Escape backslashes
+              .replace(/\./g, "\\.") // Escape dots
               .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-              .replace(/\*/g, "[^/]*")          // Single * matches non-slash chars
+              .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
               .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
             return new RegExp(`^${regexPattern}$`);
           });
-          
+
           if (!patterns.some(pattern => pattern.test(relativeFilePath))) {
             core.error(`File does not match allowed patterns: ${relativeFilePath}`);
             core.error(`Allowed patterns: ${fileGlobFilter}`);
@@ -130,23 +130,23 @@ async function main() {
             throw new Error("File pattern validation failed");
           }
         }
-        
+
         // Validate file size
         if (stats.size > maxFileSize) {
           core.error(`File exceeds size limit: ${relativeFilePath} (${stats.size} bytes > ${maxFileSize} bytes)`);
           core.setFailed("File size validation failed");
           throw new Error("File size validation failed");
         }
-        
-        filesToCopy.push({ 
-          relativePath: relativeFilePath, 
-          source: fullPath, 
-          size: stats.size 
+
+        filesToCopy.push({
+          relativePath: relativeFilePath,
+          source: fullPath,
+          size: stats.size,
         });
       }
     }
   }
-  
+
   try {
     scanDirectory(sourceMemoryPath);
   } catch (error) {
@@ -171,11 +171,11 @@ async function main() {
   for (const file of filesToCopy) {
     const destFilePath = path.join(destMemoryPath, file.relativePath);
     const destDir = path.dirname(destFilePath);
-    
+
     try {
       // Ensure destination directory exists
       fs.mkdirSync(destDir, { recursive: true });
-      
+
       // Copy file
       fs.copyFileSync(file.source, destFilePath);
       core.info(`Copied: ${file.relativePath} (${file.size} bytes)`);
