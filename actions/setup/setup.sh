@@ -110,6 +110,7 @@ SAFE_INPUTS_FILES=(
   "mcp_handler_python.cjs"
   "read_buffer.cjs"
   "generate_safe_inputs_config.cjs"
+  "setup_globals.cjs"
 )
 
 SAFE_INPUTS_COUNT=0
@@ -156,6 +157,7 @@ SAFE_OUTPUTS_FILES=(
   "normalize_branch_name.cjs"
   "write_large_content_to_file.cjs"
   "generate_compact_schema.cjs"
+  "setup_globals.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0
