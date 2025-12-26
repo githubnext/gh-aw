@@ -13,6 +13,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var depsOutdatedLog = logger.New("cli:deps_outdated")
@@ -112,7 +113,7 @@ func DisplayOutdatedDependencies(outdated []OutdatedDependency, totalDeps int) {
 		age := formatAge(dep.Age)
 		status := getUpdateStatus(dep)
 		fmt.Fprintf(os.Stderr, "%-50s %-12s %-12s %-10s %s\n",
-			truncate(dep.Module, 50), dep.Current, dep.Latest, age, status)
+			stringutil.Truncate(dep.Module, 50), dep.Current, dep.Latest, age, status)
 	}
 
 	fmt.Fprintln(os.Stderr, "")
@@ -251,12 +252,4 @@ func getUpdateStatus(dep OutdatedDependency) string {
 		status += " ⚠️ v0.x"
 	}
 	return status
-}
-
-// truncate truncates a string to the given length
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -619,7 +620,7 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
-				} else if tt.errorText != "" && !containsIgnoreCase(err.Error(), tt.errorText) {
+				} else if tt.errorText != "" && !sliceutil.ContainsIgnoreCase(err.Error(), tt.errorText) {
 					t.Errorf("Expected error containing %q, got: %v", tt.errorText, err)
 				}
 			} else {
@@ -629,10 +630,6 @@ func TestCopyMarkdownFiles_ErrorScenarios(t *testing.T) {
 			}
 		})
 	}
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 func TestIsRunnable(t *testing.T) {

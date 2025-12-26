@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 // renderJSON outputs the audit data as JSON
@@ -212,7 +213,7 @@ func renderJobsTable(jobs []JobData) {
 		}
 
 		row := []string{
-			truncateString(job.Name, 40),
+			stringutil.Truncate(job.Name, 40),
 			job.Status,
 			conclusion,
 			duration,
@@ -246,7 +247,7 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 		}
 
 		row := []string{
-			truncateString(tool.Name, 40),
+			stringutil.Truncate(tool.Name, 40),
 			fmt.Sprintf("%d", tool.CallCount),
 			inputStr,
 			outputStr,
@@ -485,15 +486,4 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 	}
 
 	fmt.Println()
-}
-
-// truncateString truncates a string to maxLen, adding "..." if truncated
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	if maxLen <= 3 {
-		return s[:maxLen]
-	}
-	return s[:maxLen-3] + "..."
 }
