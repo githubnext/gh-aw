@@ -2,11 +2,12 @@
 "gh-aw": patch
 ---
 
-Remove redundant syncing of JavaScript and shell scripts from the Go binary.
+Removed redundant syncing of JavaScript and shell scripts from
+`actions/setup/` into `pkg/workflow/{js,sh}` and converted inline
+JavaScript to a `require()`-based runtime-loading pattern. This reduces
+binary size, eliminates duplicated generated files, consolidates setup
+script copying into `actions/setup/setup.sh`, and updates workflow
+script loading and tests to the new runtime behavior.
 
-- Removed embedding and sync targets for `actions/setup/{js,sh}` scripts.
-- Converted inline JavaScript to use `require()` loading at runtime.
-- Simplified setup/copy logic and updated tests to use external scripts.
-
-This is an internal/tooling change and does not change the CLI public API.
+See PR #7654 for details.
 
