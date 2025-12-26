@@ -47,7 +47,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		StepID:        "missing_tool",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        missingToolScript,
+		Script:        "const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs'); await main();",
 		Permissions:   NewPermissionsContentsRead(),
 		Outputs:       outputs,
 		Condition:     jobCondition,

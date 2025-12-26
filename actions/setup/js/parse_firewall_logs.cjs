@@ -218,9 +218,3 @@ if (typeof module !== "undefined" && module.exports) {
     main,
   };
 }
-
-// Run main when executed directly (not when imported as a module)
-const isDirectExecution = typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-if (isDirectExecution) {
-  main();
-}
