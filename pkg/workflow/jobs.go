@@ -104,15 +104,15 @@ func (jm *JobManager) ValidateDependencies() error {
 // This detects compiler bugs where the same step is added multiple times
 func (jm *JobManager) ValidateDuplicateSteps() error {
 	jobLog.Printf("Validating for duplicate steps in %d jobs", len(jm.jobs))
-	
+
 	for jobName, job := range jm.jobs {
 		if len(job.Steps) == 0 {
 			continue
 		}
-		
+
 		// Track seen steps to detect duplicates
 		seen := make(map[string]int)
-		
+
 		for i, step := range job.Steps {
 			// Extract step name from YAML for comparison
 			stepName := extractStepName(step)
@@ -120,16 +120,16 @@ func (jm *JobManager) ValidateDuplicateSteps() error {
 				// Steps without names can't be checked for duplicates
 				continue
 			}
-			
+
 			if firstIndex, exists := seen[stepName]; exists {
 				jobLog.Printf("Duplicate step detected in job '%s': step '%s' at positions %d and %d", jobName, stepName, firstIndex, i)
 				return fmt.Errorf("compiler bug: duplicate step '%s' found in job '%s' (positions %d and %d)", stepName, jobName, firstIndex, i)
 			}
-			
+
 			seen[stepName] = i
 		}
 	}
-	
+
 	jobLog.Print("No duplicate steps detected in any job")
 	return nil
 }
@@ -145,7 +145,7 @@ func extractStepName(stepYAML string) string {
 		// Remove leading dash if present
 		trimmed = strings.TrimPrefix(trimmed, "-")
 		trimmed = strings.TrimSpace(trimmed)
-		
+
 		if strings.HasPrefix(trimmed, "name:") {
 			// Extract the name value after "name:"
 			name := strings.TrimSpace(strings.TrimPrefix(trimmed, "name:"))
