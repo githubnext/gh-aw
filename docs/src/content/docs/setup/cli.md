@@ -18,7 +18,7 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 | Command | When to Use | Details |
 |---------|-------------|---------|
 | **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
-| **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
+| **`gh aw add (workflow)`** | Add workflows from The Agentics collection or other repositories | [→ Documentation](#add) |
 | **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
 | **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
 | **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
@@ -208,7 +208,7 @@ Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot
 
 #### `add`
 
-Add workflows from The Agentics collection or other repositories. Displays the workflow description (from frontmatter `description` field) to provide context.
+Add workflows from The Agentics collection or other repositories to .github/workflows. Displays the workflow description (from frontmatter `description` field) to provide context.
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
