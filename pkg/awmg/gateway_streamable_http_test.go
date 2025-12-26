@@ -447,7 +447,7 @@ func TestStreamableHTTPTransport_GatewayWithSDKClient(t *testing.T) {
 
 	// Create gateway config with the gh-aw MCP server
 	config := MCPGatewayConfig{
-		MCPServers: map[string]MCPServerConfig{
+		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
 				Command: binaryPath,
 				Args:    []string{"mcp-server"},
