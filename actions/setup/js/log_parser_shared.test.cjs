@@ -1940,4 +1940,88 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("Body: Line 1 Line 2 Line 3");
     });
   });
+
+  describe("wrapLogParser", () => {
+    it("should call parser function and return result on success", async () => {
+      const { wrapLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParser = content => {
+        return {
+          markdown: "## Success\n\nParsed content",
+          mcpFailures: [],
+          maxTurnsHit: false,
+          logEntries: [{ type: "system" }],
+        };
+      };
+
+      const result = wrapLogParser(mockParser, "TestParser", "test log content");
+
+      expect(result.markdown).toContain("## Success");
+      expect(result.markdown).toContain("Parsed content");
+      expect(result.mcpFailures).toEqual([]);
+      expect(result.maxTurnsHit).toBe(false);
+      expect(result.logEntries).toHaveLength(1);
+    });
+
+    it("should catch errors and return error result", async () => {
+      const { wrapLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParser = content => {
+        throw new Error("Parse failed");
+      };
+
+      const result = wrapLogParser(mockParser, "TestParser", "test log content");
+
+      expect(result.markdown).toContain("Error parsing TestParser log");
+      expect(result.markdown).toContain("Parse failed");
+      expect(result.mcpFailures).toEqual([]);
+      expect(result.maxTurnsHit).toBe(false);
+      expect(result.logEntries).toEqual([]);
+    });
+
+    it("should handle non-Error exceptions", async () => {
+      const { wrapLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParser = content => {
+        throw "String error";
+      };
+
+      const result = wrapLogParser(mockParser, "TestParser", "test log content");
+
+      expect(result.markdown).toContain("Error parsing TestParser log");
+      expect(result.markdown).toContain("String error");
+    });
+
+    it("should preserve engine-specific result properties", async () => {
+      const { wrapLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParser = content => {
+        return {
+          markdown: "## Result",
+          customField: "custom value",
+        };
+      };
+
+      const result = wrapLogParser(mockParser, "TestParser", "test content");
+
+      expect(result.markdown).toBe("## Result");
+      expect(result.customField).toBe("custom value");
+    });
+
+    it("should use correct parser name in error message", async () => {
+      const { wrapLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParser = content => {
+        throw new Error("Test error");
+      };
+
+      const claudeResult = wrapLogParser(mockParser, "Claude", "content");
+      const copilotResult = wrapLogParser(mockParser, "Copilot", "content");
+      const codexResult = wrapLogParser(mockParser, "Codex", "content");
+
+      expect(claudeResult.markdown).toContain("Error parsing Claude log");
+      expect(copilotResult.markdown).toContain("Error parsing Copilot log");
+      expect(codexResult.markdown).toContain("Error parsing Codex log");
+    });
+  });
 });
