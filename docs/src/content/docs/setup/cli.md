@@ -534,7 +534,7 @@ gh aw mcp list workflow                    # List servers for specific workflow
 gh aw mcp list-tools <mcp-server>          # List tools for specific MCP server
 gh aw mcp list-tools <mcp-server> workflow # List tools in specific workflow
 gh aw mcp inspect workflow                 # Inspect and test servers (auto-detects safe-inputs)
-gh aw mcp add                              # Add servers from registry
+gh aw mcp add                              # Add an MCP tool to an agentic workflow
 ```
 
 The `mcp inspect` command automatically detects and inspects safe-inputs defined in workflows, including those imported from shared workflows. No additional flag is needed - safe-inputs are inspected alongside other MCP servers when present.
