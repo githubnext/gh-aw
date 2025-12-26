@@ -442,7 +442,7 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 #### `campaign`
 
-Inspect and validate first-class agentic campaign definitions declared as `.github/workflows/*.campaign.md` files.
+Inspect first-class agentic campaign definitions declared in .github/workflows/*.campaign.md
 
 For safe scaling and incremental discovery, campaign specs support:
 
