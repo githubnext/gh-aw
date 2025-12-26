@@ -685,9 +685,8 @@ function parseDebugLogFormat(logContent) {
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    main,
     parseCopilotLog,
     extractPremiumRequestCount,
   };
 }
-
-main();

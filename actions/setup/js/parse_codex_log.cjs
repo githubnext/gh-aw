@@ -455,11 +455,10 @@ function formatCodexBashCall(command, response, statusIcon) {
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    main,
     parseCodexLog,
     formatCodexToolCall,
     formatCodexBashCall,
     extractMCPInitialization,
   };
 }
-
-main();

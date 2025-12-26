@@ -95,19 +95,22 @@ Normal content here.
 		t.Error("Compiled workflow should contain wrapped literal false")
 	}
 
-	// Verify the render function is present
-	if !strings.Contains(compiledStr, "function renderMarkdownTemplate") {
-		t.Error("Template rendering step should contain renderMarkdownTemplate function")
+	// Verify the setupGlobals helper is used
+	if !strings.Contains(compiledStr, "const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs')") {
+		t.Error("Template rendering step should use setupGlobals helper")
 	}
 
-	// Verify that isTruthy function is bundled inline (not via require)
-	if !strings.Contains(compiledStr, "function isTruthy(expr)") {
-		t.Error("Template rendering step should contain isTruthy function bundled inline")
+	if !strings.Contains(compiledStr, "setupGlobals(core, github, context, exec, io)") {
+		t.Error("Template rendering step should call setupGlobals function")
 	}
 
-	// Verify that the require statement is NOT present (should be bundled)
-	if strings.Contains(compiledStr, `require("./is_truthy.cjs")`) {
-		t.Error("Template rendering step should not contain require for is_truthy.cjs (should be bundled inline)")
+	// Verify the interpolate_prompt script is loaded via require
+	if !strings.Contains(compiledStr, "const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs')") {
+		t.Error("Template rendering step should require interpolate_prompt.cjs")
+	}
+
+	if !strings.Contains(compiledStr, "await main()") {
+		t.Error("Template rendering step should call main() function")
 	}
 }
 

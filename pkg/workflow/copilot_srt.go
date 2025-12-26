@@ -242,15 +242,12 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        uses: " + GetActionPin("actions/github-script"),
 		"        with:",
 		"          script: |",
-	}
-
-	// Inline the JavaScript code with proper indentation
-	// FormatJavaScriptForYAML returns lines with trailing \n, but GitHubActionStep lines
-	// go through generateEngineExecutionSteps which adds \n to each line.
-	// Strip trailing \n to avoid double newlines in the output.
-	scriptLines := FormatJavaScriptForYAML(parserScript)
-	for _, line := range scriptLines {
-		stepLines = append(stepLines, strings.TrimSuffix(line, "\n"))
+		// Use the setup_globals helper to store GitHub Actions objects in global scope
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io);",
+		// Load firewall log parser script from external file using require()
+		"            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
+		"            await main();",
 	}
 
 	return GitHubActionStep(stepLines)
