@@ -173,7 +173,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
+        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
@@ -1605,8 +1605,10 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');
-            await main({ github, context, core, exec, io });
+            await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

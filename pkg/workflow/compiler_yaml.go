@@ -586,8 +586,10 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Load script from external file using require()
+	yaml.WriteString("            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');\n")
-	yaml.WriteString("            await main({ github, context, core, exec, io });\n")
+	yaml.WriteString("            await main();\n")
 
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
