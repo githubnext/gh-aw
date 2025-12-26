@@ -77,7 +77,7 @@ Test command workflow with reaction explicitly disabled.
 	}
 
 	// Verify that activation job does NOT have reaction permissions
-	activationJobSection := extractJobSection(compiled, constants.ActivationJobName)
+	activationJobSection := extractJobSection(compiled, string(constants.ActivationJobName))
 	if strings.Contains(activationJobSection, "issues: write") {
 		t.Error("Activation job should not have 'issues: write' permission when reaction is 'none'")
 	}
@@ -165,7 +165,7 @@ Test command workflow with default (eyes) reaction.
 	}
 
 	// Verify that activation job HAS reaction permissions
-	activationJobSection := extractJobSection(compiled, constants.ActivationJobName)
+	activationJobSection := extractJobSection(compiled, string(constants.ActivationJobName))
 	if !strings.Contains(activationJobSection, "issues: write") {
 		t.Error("Activation job should have 'issues: write' permission when reaction is enabled")
 	}

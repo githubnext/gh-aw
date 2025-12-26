@@ -135,7 +135,7 @@ Test workflow content.`,
 			// Check for team member check (now in pre_activation job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
 				strings.Contains(lockContentStr, "Check team membership for workflow") ||
-				strings.Contains(lockContentStr, constants.PreActivationJobName+":")
+				strings.Contains(lockContentStr, string(constants.PreActivationJobName)+":")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
@@ -158,7 +158,7 @@ Test workflow content.`,
 				}
 				if teamMemberCheckStart == -1 {
 					// Look for the new pre_activation job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, constants.PreActivationJobName+":")
+					teamMemberCheckStart = strings.Index(lockContentStr, string(constants.PreActivationJobName)+":")
 				}
 				// Find the next job after the team member check to extract the section
 				var teamMemberCheckEnd int
