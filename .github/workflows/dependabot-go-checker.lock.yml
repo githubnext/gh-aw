@@ -25,7 +25,6 @@ name: "Dependabot Dependency Checker"
 "on":
   schedule:
   - cron: "0 9 * * 1,3,5"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
