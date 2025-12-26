@@ -164,7 +164,7 @@ describe("log_parser_bootstrap.cjs", () => {
           runLogParser({ parseLog: mockParseLog, parserName: "TestParser" });
           const summaryCall = mockCore.summary.addRaw.mock.calls[0];
           (expect(summaryCall).toBeDefined(),
-            expect(summaryCall[0]).toContain("## 📤 Safe Outputs"),
+            expect(summaryCall[0]).toContain("<summary>Safe Outputs</summary>"),
             expect(summaryCall[0]).toContain("**Total Entries:** 1"),
             expect(summaryCall[0]).toContain("create_issue"),
             fs.unlinkSync(logFile),
@@ -202,7 +202,7 @@ describe("log_parser_bootstrap.cjs", () => {
             logFile = path.join(tmpDir, "test.log");
           (fs.writeFileSync(logFile, "content"), (process.env.GH_AW_AGENT_OUTPUT = logFile), (process.env.GH_AW_SAFE_OUTPUTS = "/non/existent/file.jsonl"));
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false });
-          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.warning).toHaveBeenCalled(), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
+          (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.warning).not.toHaveBeenCalled(), fs.unlinkSync(logFile), fs.rmdirSync(tmpDir));
         }));
     }));
 });
