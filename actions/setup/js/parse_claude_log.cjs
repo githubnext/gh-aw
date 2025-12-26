@@ -120,4 +120,6 @@ if (typeof module !== "undefined" && module.exports) {
     main,
     parseClaudeLog,
   };
+} else {
+  main();
 }
