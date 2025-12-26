@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestActivationJobWithIfConditionHasDummyStep(t *testing.T) {
+func TestActivationJobWithIfConditionHasPlaceholderStep(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "task-job-if-test*")
 	if err != nil {
@@ -75,12 +75,12 @@ Check the failed workflow and provide analysis.`
 		t.Error("Expected activation job to include the workflow_run repository safety check")
 	}
 
-	// Test 3: Verify activation job has steps (specifically the dummy step)
+	// Test 3: Verify activation job has steps (specifically the placeholder step)
 	if !strings.Contains(lockContentStr, "steps:") {
 		t.Error("Activation job should contain steps section")
 	}
 
-	// Test 4: Verify the timestamp check step is present (replaces dummy step)
+	// Test 4: Verify the timestamp check step is present (replaces placeholder step)
 	if !strings.Contains(lockContentStr, "Check workflow file timestamps") {
 		t.Error("Activation job should contain the timestamp check step")
 	}

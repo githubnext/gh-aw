@@ -288,7 +288,7 @@ Test workflow for verifying tool list via mcp inspect.
 	inspectCmd.Dir = tmpDir
 	inspectCmd.Env = append(os.Environ(),
 		fmt.Sprintf("HOME=%s", tmpDir),
-		"GH_TOKEN=dummy_token_for_testing", // Provide dummy token for GitHub MCP
+		"GH_TOKEN=placeholder_token_for_testing", // Provide placeholder token for GitHub MCP
 	)
 
 	output, err := inspectCmd.CombinedOutput()
