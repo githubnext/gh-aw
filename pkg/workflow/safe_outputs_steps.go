@@ -215,12 +215,8 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// Use require() if ScriptFile is specified, otherwise inline the script
 	if config.ScriptFile != "" {
-		// Attach GitHub Actions builtin objects to global scope before requiring
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
 		steps = append(steps, "            await main();\n")
 	} else {

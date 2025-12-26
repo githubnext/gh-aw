@@ -61,11 +61,8 @@ jobs:
           GH_AW_WORKFLOW_FILE: "release.lock.yml"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
 
@@ -133,11 +130,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
@@ -1004,11 +998,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
@@ -1020,11 +1011,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
             await main();
       - name: Update reaction comment with completion status
@@ -1041,11 +1029,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
@@ -1334,13 +1319,13 @@ jobs:
       - name: Download Go modules
         run: go mod download
       - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.10
+        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
         with:
           artifact-name: sbom.spdx.json
           format: spdx-json
           output-file: sbom.spdx.json
       - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.10
+        uses: anchore/sbom-action@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
         with:
           artifact-name: sbom.cdx.json
           format: cyclonedx-json
@@ -1387,11 +1372,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
             await main();
 
@@ -1414,7 +1396,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2
+        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
         with:
           build_script_override: scripts/build-release.sh
           go_version_file: go.mod
@@ -1487,11 +1469,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/update_release.cjs');
             await main();
 

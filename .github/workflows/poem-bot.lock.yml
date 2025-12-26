@@ -77,11 +77,8 @@ jobs:
           GH_AW_WORKFLOW_FILE: "poem-bot.lock.yml"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Compute current body text
@@ -89,11 +86,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/compute_text.cjs');
             await main();
       - name: Add eyes reaction to the triggering item
@@ -107,11 +101,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Verses penned by [{workflow_name}]({run_url})*\",\"runStarted\":\"🎭 Hear ye! The muse stirs! [{workflow_name}]({run_url}) takes quill in hand for this {event_type}...\",\"runSuccess\":\"🪶 The poem is writ! [{workflow_name}]({run_url}) has composed verses most fair. Applause! 👏\",\"runFailure\":\"🎭 Alas! [{workflow_name}]({run_url}) {status}. The muse has fled, leaving verses unsung...\"}"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_reaction_and_edit_comment.cjs');
             await main();
 
@@ -184,11 +175,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
@@ -1582,11 +1570,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
@@ -1598,11 +1583,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
             await main();
       - name: Update reaction comment with completion status
@@ -1620,11 +1602,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
@@ -1923,11 +1902,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
             await main();
       - name: Check command position
@@ -1937,11 +1913,8 @@ jobs:
           GH_AW_COMMAND: poem-bot
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_command_position.cjs');
             await main();
 
@@ -2019,11 +1992,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_issue.cjs');
             await main();
       - name: Create Discussion
@@ -2036,11 +2006,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_discussion.cjs');
             await main();
       - name: Checkout repository
@@ -2081,11 +2048,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_pull_request.cjs');
             await main();
       - name: Add Comment
@@ -2106,11 +2070,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_comment.cjs');
             await main();
       - name: Close Pull Request
@@ -2123,11 +2084,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/close_pull_request.cjs');
             await main();
       - name: Create PR Review Comment
@@ -2141,11 +2099,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_pr_review_comment.cjs');
             await main();
       - name: Add Labels
@@ -2160,11 +2115,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_labels.cjs');
             await main();
       - name: Update Issue
@@ -2177,11 +2129,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/update_issue.cjs');
             await main();
       - name: Checkout repository
@@ -2215,11 +2164,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/push_to_pull_request_branch.cjs');
             await main();
       - name: Link Sub Issue
@@ -2234,11 +2180,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/link_sub_issue.cjs');
             await main();
       - name: Create Agent Task
@@ -2251,11 +2194,8 @@ jobs:
         with:
           github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_agent_task.cjs'); await main();
 
   update_cache_memory:

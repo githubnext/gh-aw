@@ -78,11 +78,8 @@ jobs:
           GH_AW_WORKFLOW_FILE: "smoke-claude.lock.yml"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_workflow_timestamp_api.cjs');
             await main();
       - name: Add heart reaction to the triggering item
@@ -95,11 +92,8 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 💥 *[THE END] — Illustrated by [{workflow_name}]({run_url})*\",\"runStarted\":\"💥 **WHOOSH!** [{workflow_name}]({run_url}) springs into action on this {event_type}! *[Panel 1 begins...]*\",\"runSuccess\":\"🎬 **THE END** — [{workflow_name}]({run_url}) **MISSION: ACCOMPLISHED!** The hero saves the day! ✨\",\"runFailure\":\"💫 **TO BE CONTINUED...** [{workflow_name}]({run_url}) {status}! Our hero faces unexpected challenges...\"}"
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_reaction_and_edit_comment.cjs');
             await main();
 
@@ -180,11 +174,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
@@ -1296,11 +1287,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/noop.cjs');
             await main();
       - name: Record Missing Tool
@@ -1312,11 +1300,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs');
             await main();
       - name: Update reaction comment with completion status
@@ -1334,11 +1319,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
@@ -1645,11 +1627,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
             await main();
 
@@ -1709,11 +1688,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/create_issue.cjs');
             await main();
       - name: Add Comment
@@ -1729,11 +1705,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_comment.cjs');
             await main();
       - name: Add Labels
@@ -1746,11 +1719,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/add_labels.cjs');
             await main();
 

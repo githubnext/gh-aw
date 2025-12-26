@@ -209,15 +209,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Use require() to load unlock-issue script
-		steps = append(steps, "            global.core = core;\n")
-		steps = append(steps, "            global.github = github;\n")
-		steps = append(steps, "            global.context = context;\n")
-		steps = append(steps, "            global.exec = exec;\n")
-		steps = append(steps, "            global.io = io;\n")
-		steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/unlock-issue.cjs');\n")
-		steps = append(steps, "            await main();\n")
+		steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
 
 		notifyCommentLog.Print("Added unlock issue step to conclusion job")
 	}
