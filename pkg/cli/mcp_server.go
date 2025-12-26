@@ -133,6 +133,9 @@ Returns a JSON array where each element has the following structure:
 - time_remaining: Time remaining until workflow deadline (if applicable)
 
 Note: Output can be filtered using the jq parameter.`,
+		Icons: []mcp.Icon{
+			{Source: "📊"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -223,6 +226,9 @@ Returns JSON array with validation results for each workflow:
 
 Note: Output can be filtered using the jq parameter.`,
 		InputSchema: compileSchema,
+		Icons: []mcp.Icon{
+			{Source: "🔨"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -370,6 +376,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
   - .runs[:5] (get first 5 runs)
   - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
 		InputSchema: logsSchema,
+		Icons: []mcp.Icon{
+			{Source: "📜"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -493,6 +502,9 @@ Returns JSON with the following structure:
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
 
 Note: Output can be filtered using the jq parameter.`,
+		Icons: []mcp.Icon{
+			{Source: "🔍"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -571,6 +583,9 @@ Returns formatted text output showing:
 - Tools, resources, and roots exposed by each server
 - Secret availability status (if GitHub token is available)
 - Detailed tool information when tool parameter is specified`,
+		Icons: []mcp.Icon{
+			{Source: "🔎"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -630,6 +645,9 @@ Returns formatted text output showing:
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "add",
 		Description: "Add workflows from remote repositories to .github/workflows",
+		Icons: []mcp.Icon{
+			{Source: "➕"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
@@ -709,6 +727,9 @@ Returns formatted text output showing:
 - Extension update status
 - Updated workflows with their new versions
 - Compilation status for each updated workflow`,
+		Icons: []mcp.Icon{
+			{Source: "🔄"},
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, any, error) {
 		// Check for cancellation before starting
 		select {
