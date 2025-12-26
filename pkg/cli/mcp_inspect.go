@@ -459,7 +459,9 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+			}
 			if verbose {
 				mcpInspectLog.Printf("Server is ready on port %d", port)
 			}
