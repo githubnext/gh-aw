@@ -275,7 +275,3 @@ func TestMissingToolConfigParsing(t *testing.T) {
 		})
 	}
 }
-
-func TestMissingToolScriptEmbedding(t *testing.T) {
-	t.Skip("Script embedding tests skipped - scripts now use require() pattern to load external files")
-}

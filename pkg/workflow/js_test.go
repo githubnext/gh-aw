@@ -232,10 +232,6 @@ func TestWriteJavaScriptToYAML(t *testing.T) {
 	}
 }
 
-func TestEmbeddedScriptsNotEmpty(t *testing.T) {
-	t.Skip("Script embedding tests skipped - scripts now use require() pattern to load external files")
-}
-
 func TestFormatJavaScriptForYAMLProducesValidIndentation(t *testing.T) {
 	script := "const x = 1;\nif (x > 0) {\n  console.log('positive');\n}"
 	result := FormatJavaScriptForYAML(script)
