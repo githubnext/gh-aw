@@ -252,66 +252,49 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
-func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
-	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(tools))
+func (c *Compiler) applyDefaultTools(toolsConfig *ToolsConfig, safeOutputs *SafeOutputsConfig) *ToolsConfig {
+	compilerSafeOutputsLog.Printf("Applying default tools: existingToolCount=%d", len(toolsConfig.GetToolNames()))
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
-	if tools == nil {
-		tools = make(map[string]any)
+	if toolsConfig == nil {
+		toolsConfig = &ToolsConfig{
+			Custom: make(map[string]any),
+			raw:    make(map[string]any),
+		}
 	}
 
-	// Get existing github tool configuration
-	githubTool := tools["github"]
-
-	// Check if github is explicitly disabled (github: false)
-	if githubTool == false {
-		// Remove the github tool entirely when set to false
-		delete(tools, "github")
-	} else {
-		// Process github tool configuration
-		var githubConfig map[string]any
-
-		if toolConfig, ok := githubTool.(map[string]any); ok {
-			githubConfig = make(map[string]any)
-			for k, v := range toolConfig {
-				githubConfig[k] = v
-			}
-		} else {
-			githubConfig = make(map[string]any)
+	// Get existing github tool configuration - GitHub is already parsed
+	// Check if github is explicitly disabled by checking if it's nil when it should be set
+	// We need to check the raw map to determine if github was explicitly set to false
+	if toolsConfig.raw != nil {
+		if githubRaw, exists := toolsConfig.raw["github"]; exists && githubRaw == false {
+			// Remove the github tool entirely when set to false
+			toolsConfig.GitHub = nil
+			delete(toolsConfig.raw, "github")
 		}
+	}
 
-		// Get existing allowed tools
-		var existingAllowed []any
-		if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
-			if allowedSlice, ok := allowed.([]any); ok {
-				existingAllowed = allowedSlice
-			}
-		}
-
-		// Create a set of existing tools for efficient lookup
-		existingToolsSet := make(map[string]bool)
-		for _, tool := range existingAllowed {
-			if toolStr, ok := tool.(string); ok {
-				existingToolsSet[toolStr] = true
-			}
-		}
-
+	// Process github tool configuration if it exists
+	if toolsConfig.GitHub != nil {
 		// Only set allowed tools if explicitly configured
 		// Don't add default tools - let the MCP server use all available tools
-		if len(existingAllowed) > 0 {
-			githubConfig["allowed"] = existingAllowed
+		// The GitHub field is already properly configured by ParseToolsConfig
+	} else if toolsConfig.raw == nil || toolsConfig.raw["github"] != false {
+		// GitHub tool doesn't exist and wasn't explicitly disabled - create default config
+		toolsConfig.GitHub = &GitHubToolConfig{
+			ReadOnly: true, // default to read-only for security
 		}
-		tools["github"] = githubConfig
 	}
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
 	if safeOutputs != nil && needsGitCommands(safeOutputs) {
 
 		// Add edit tool with null value
-		if _, exists := tools["edit"]; !exists {
-			tools["edit"] = nil
+		if toolsConfig.Edit == nil {
+			toolsConfig.Edit = &EditToolConfig{}
 		}
-		gitCommands := []any{
+
+		gitCommands := []string{
 			"git checkout:*",
 			"git branch:*",
 			"git switch:*",
@@ -323,40 +306,34 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 
 		// Add bash tool with Git commands if not already present
-		if _, exists := tools["bash"]; !exists {
+		if toolsConfig.Bash == nil {
 			// bash tool doesn't exist, add it with Git commands
-			tools["bash"] = gitCommands
+			toolsConfig.Bash = &BashToolConfig{
+				AllowedCommands: gitCommands,
+			}
 		} else {
 			// bash tool exists, merge Git commands with existing commands
-			existingBash := tools["bash"]
-			if existingCommands, ok := existingBash.([]any); ok {
-				// Convert existing commands to strings for comparison
-				existingSet := make(map[string]bool)
-				for _, cmd := range existingCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						existingSet[cmdStr] = true
-						// If we see :* or *, all bash commands are already allowed
-						if cmdStr == ":*" || cmdStr == "*" {
-							// Don't add specific Git commands since all are already allowed
-							goto bashComplete
-						}
-					}
+			existingCommands := toolsConfig.Bash.AllowedCommands
+			// Convert existing commands to strings for comparison
+			existingSet := make(map[string]bool)
+			for _, cmd := range existingCommands {
+				existingSet[cmd] = true
+				// If we see :* or *, all bash commands are already allowed
+				if cmd == ":*" || cmd == "*" {
+					// Don't add specific Git commands since all are already allowed
+					goto bashComplete
 				}
-
-				// Add Git commands that aren't already present
-				newCommands := make([]any, len(existingCommands))
-				copy(newCommands, existingCommands)
-				for _, gitCmd := range gitCommands {
-					if gitCmdStr, ok := gitCmd.(string); ok {
-						if !existingSet[gitCmdStr] {
-							newCommands = append(newCommands, gitCmd)
-						}
-					}
-				}
-				tools["bash"] = newCommands
-			} else if existingBash == nil {
-				_ = existingBash // Keep the nil value as-is
 			}
+
+			// Add Git commands that aren't already present
+			newCommands := make([]string, 0, len(existingCommands)+len(gitCommands))
+			newCommands = append(newCommands, existingCommands...)
+			for _, gitCmd := range gitCommands {
+				if !existingSet[gitCmd] {
+					newCommands = append(newCommands, gitCmd)
+				}
+			}
+			toolsConfig.Bash.AllowedCommands = newCommands
 		}
 	bashComplete:
 	}
@@ -369,37 +346,41 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	//   - bash: nil → Add default commands
 	//   - bash: [] → No commands (empty array means no tools allowed)
 	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
-	if bashTool, exists := tools["bash"]; exists {
-		// Check if bash was left as nil or true after git processing
-		if bashTool == nil {
-			// bash is nil - only add defaults if this wasn't processed by git commands
-			// If git commands were needed, bash would have been set to git commands or left as nil intentionally
-			if safeOutputs == nil || !needsGitCommands(safeOutputs) {
-				defaultCommands := make([]any, len(constants.DefaultBashTools))
-				for i, cmd := range constants.DefaultBashTools {
-					defaultCommands[i] = cmd
-				}
-				tools["bash"] = defaultCommands
-			}
-		} else if bashTool == true {
-			// bash is true - convert to wildcard (allow all commands)
-			tools["bash"] = []any{"*"}
-		} else if bashTool == false {
-			// bash is false - disable the tool by removing it
-			delete(tools, "bash")
-		} else if bashArray, ok := bashTool.([]any); ok {
-			// bash is an array - merge default commands with custom commands
-			if len(bashArray) > 0 {
-				// Create a set to track existing commands to avoid duplicates
-				existingCommands := make(map[string]bool)
-				for _, cmd := range bashArray {
-					if cmdStr, ok := cmd.(string); ok {
-						existingCommands[cmdStr] = true
+	if toolsConfig.Bash != nil {
+		// Check the raw map to determine if bash was set to boolean values
+		if toolsConfig.raw != nil {
+			if bashRaw, exists := toolsConfig.raw["bash"]; exists {
+				if bashRaw == true {
+					// bash is true - convert to wildcard (allow all commands)
+					toolsConfig.Bash = &BashToolConfig{
+						AllowedCommands: []string{"*"},
 					}
+				} else if bashRaw == false {
+					// bash is false - disable the tool by removing it
+					toolsConfig.Bash = nil
+					delete(toolsConfig.raw, "bash")
+				}
+			}
+		}
+
+		// Process bash array - merge default commands with custom commands if needed
+		if toolsConfig.Bash != nil {
+			bashCommands := toolsConfig.Bash.AllowedCommands
+			if len(bashCommands) == 0 {
+				// bash is nil (no commands specified) - only add defaults if git commands weren't processed
+				if safeOutputs == nil || !needsGitCommands(safeOutputs) {
+					toolsConfig.Bash.AllowedCommands = make([]string, len(constants.DefaultBashTools))
+					copy(toolsConfig.Bash.AllowedCommands, constants.DefaultBashTools)
+				}
+			} else if len(bashCommands) > 0 {
+				// bash has commands - merge default commands with custom commands to avoid duplicates
+				existingCommands := make(map[string]bool)
+				for _, cmd := range bashCommands {
+					existingCommands[cmd] = true
 				}
 
-				// Start with default commands (append handles capacity automatically)
-				var mergedCommands []any
+				// Start with default commands
+				var mergedCommands []string
 				for _, cmd := range constants.DefaultBashTools {
 					if !existingCommands[cmd] {
 						mergedCommands = append(mergedCommands, cmd)
@@ -407,14 +388,14 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				}
 
 				// Add the custom commands
-				mergedCommands = append(mergedCommands, bashArray...)
-				tools["bash"] = mergedCommands
+				mergedCommands = append(mergedCommands, bashCommands...)
+				toolsConfig.Bash.AllowedCommands = mergedCommands
 			}
 			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
 		}
 	}
 
-	return tools
+	return toolsConfig
 }
 
 // needsGitCommands checks if safe outputs configuration requires Git commands

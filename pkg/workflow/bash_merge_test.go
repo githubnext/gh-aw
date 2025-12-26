@@ -79,10 +79,15 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Apply default tools
-			result := compiler.applyDefaultTools(tt.tools, tt.safeOutputs)
+			toolsConfig := NewTools(tt.tools)
+			result := compiler.applyDefaultTools(toolsConfig, tt.safeOutputs)
 
 			// Check the bash tools
-			bashTools, exists := result["bash"]
+			var bashTools []string
+			exists := result.Bash != nil
+			if exists {
+				bashTools = result.Bash.AllowedCommands
+			}
 
 			// Handle case where bash should not exist (e.g., bash: false)
 			if tt.expected == nil {
@@ -96,36 +101,24 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 				t.Fatalf("Expected bash tools to exist")
 			}
 
-			bashArray, ok := bashTools.([]any)
-			if !ok {
-				t.Fatalf("Expected bash tools to be an array, got %T", bashTools)
+			// Compare commands - bashTools is already []string
+			if len(bashTools) != len(tt.expected) {
+				t.Logf("Actual tools: %v", bashTools)
+				t.Logf("Expected tools: %v", tt.expected)
+				t.Fatalf("Expected %d bash tools, got %d", len(tt.expected), len(bashTools))
 			}
 
-			// Convert to string slice
-			actual := make([]string, len(bashArray))
-			for i, tool := range bashArray {
-				actual[i] = tool.(string)
-			}
-
-			// Debug: print actual tools
-			t.Logf("Actual tools: %v", actual)
-			t.Logf("Expected tools: %v", tt.expected)
-
-			// Check length
-			if len(actual) != len(tt.expected) {
-				t.Errorf("Expected %d tools, got %d. Expected: %v, Actual: %v", len(tt.expected), len(actual), tt.expected, actual)
-				return
-			}
-
-			// Check all expected tools are present
-			actualMap := make(map[string]bool)
-			for _, tool := range actual {
-				actualMap[tool] = true
-			}
-
-			for _, expected := range tt.expected {
-				if !actualMap[expected] {
-					t.Errorf("Expected tool '%s' not found in actual tools: %v", expected, actual)
+			// Check that all expected commands are present
+			for _, expectedCmd := range tt.expected {
+				found := false
+				for _, actualCmd := range bashTools {
+					if actualCmd == expectedCmd {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected command %q not found in actual commands: %v", expectedCmd, bashTools)
 				}
 			}
 		})

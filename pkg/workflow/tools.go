@@ -146,9 +146,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		data.RunsOn = "runs-on: ubuntu-latest"
 	}
 	// Apply default tools
-	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
-	// Update ParsedTools to reflect changes made by applyDefaultTools
-	data.ParsedTools = NewTools(data.Tools)
+	data.ParsedTools = c.applyDefaultTools(data.ParsedTools, data.SafeOutputs)
+	// Update Tools map to reflect changes made by applyDefaultTools
+	data.Tools = data.ParsedTools.ToMap()
 
 	if data.Permissions == "" {
 		// Default behavior: keep existing workflows stable with read-all.
