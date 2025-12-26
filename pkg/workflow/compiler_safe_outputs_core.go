@@ -43,41 +43,275 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	consolidatedSafeOutputsLog.Print("Building consolidated safe outputs job with file mode")
 
 	var steps []string
-	var outputs = make(map[string]string)
-	var permissions = NewPermissions()
-	var safeOutputStepNames []string
-
-	// Track whether threat detection job is enabled for step conditions
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Track which outputs are created for dependency tracking
-	var createIssueEnabled bool
-	var createDiscussionEnabled bool
-	var createPullRequestEnabled bool
-
-	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.App != nil {
-		consolidatedSafeOutputsLog.Print("Adding GitHub App token minting step")
-		// We'll compute permissions after collecting all step requirements
-	}
-
 	// Add setup action to copy JavaScript files
-	setupActionRef := c.resolveActionReference("./actions/setup", data)
-	if setupActionRef != "" {
-		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+	steps = append(steps, c.buildSetupScriptSteps(data)...)
 
-		steps = append(steps, "      - name: Setup Scripts\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	// Add artifact download steps
+	steps = append(steps, c.buildSafeOutputsArtifactSteps(data)...)
+
+	// Add shared checkout and git config steps for PR operations
+	var prCheckoutStepsAdded bool
+	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		consolidatedSafeOutputsLog.Print("Adding shared checkout step for PR operations")
+		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
+		steps = append(steps, checkoutSteps...)
+		prCheckoutStepsAdded = true
 	}
 
-	// Add artifact download steps after setup
+	// Build individual safe output steps
+	actionSteps, outputs, permissions, safeOutputStepNames := c.buildSafeOutputActionSteps(
+		data, mainJobName, markdownPath, threatDetectionEnabled, prCheckoutStepsAdded)
+	steps = append(steps, actionSteps...)
+
+	// If no steps were added, return nil
+	if len(safeOutputStepNames) == 0 {
+		consolidatedSafeOutputsLog.Print("No safe output steps were added")
+		return nil, nil, nil
+	}
+
+	// Insert GitHub App token steps if configured
+	steps = c.insertGitHubAppTokenSteps(steps, data, permissions)
+
+	// Assemble and return the final job
+	job := c.assembleSafeOutputsJob(steps, outputs, permissions, data, mainJobName, markdownPath, threatDetectionEnabled)
+
+	consolidatedSafeOutputsLog.Printf("Built consolidated safe outputs job with %d steps", len(safeOutputStepNames))
+
+	return job, safeOutputStepNames, nil
+}
+
+// buildConsolidatedSafeOutputStep builds a single safe output step within the consolidated job
+func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config SafeOutputStepConfig) []string {
+	var steps []string
+
+	// Build step condition if provided
+	var conditionStr string
+	if config.Condition != nil {
+		conditionStr = config.Condition.Render()
+	}
+
+	// Step name and metadata
+	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
+	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
+	if conditionStr != "" {
+		steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
+	}
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Environment variables section
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, config.CustomEnvVars...)
+
+	// Add custom safe output env vars
+	c.addCustomSafeOutputEnvVars(&steps, data)
+
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	if config.UseAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
+	} else if config.UseCopilotToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+	}
+
+	steps = append(steps, "          script: |\n")
+
+	// Add the formatted JavaScript script
+	// Use require mode if ScriptName is set, otherwise inline the bundled script
+	if config.ScriptName != "" {
+		// Require mode: Use setup_globals helper
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
+		steps = append(steps, "            await main();\n")
+	} else {
+		// Inline JavaScript: Use setup_globals helper
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+		// Inline mode: embed the bundled script directly
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
+
+	return steps
+}
+
+// buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
+// for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
+func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
+	envVars := make(map[string]string)
+
+	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
+	// This is used for branch naming in create_pull_request and other operations
+	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
+
+	// Add workflow metadata that's common to all steps
+	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
+
+	if data.Source != "" {
+		envVars["GH_AW_WORKFLOW_SOURCE"] = fmt.Sprintf("%q", data.Source)
+		sourceURL := buildSourceURL(data.Source)
+		if sourceURL != "" {
+			envVars["GH_AW_WORKFLOW_SOURCE_URL"] = fmt.Sprintf("%q", sourceURL)
+		}
+	}
+
+	if data.TrackerID != "" {
+		envVars["GH_AW_TRACKER_ID"] = fmt.Sprintf("%q", data.TrackerID)
+	}
+
+	// Add engine metadata that's common to all steps
+	if data.EngineConfig != nil {
+		if data.EngineConfig.ID != "" {
+			envVars["GH_AW_ENGINE_ID"] = fmt.Sprintf("%q", data.EngineConfig.ID)
+		}
+		if data.EngineConfig.Version != "" {
+			envVars["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
+		}
+		if data.EngineConfig.Model != "" {
+			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("%q", data.EngineConfig.Model)
+		}
+	}
+
+	// Add safe output job environment variables (staged/target repo)
+	if c.trialMode || data.SafeOutputs.Staged {
+		envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
+	}
+
+	// Set GH_AW_TARGET_REPO_SLUG - prefer trial target repo (applies to all steps)
+	// Note: Individual steps with target-repo config will override this in their step-level env
+	if c.trialMode && c.trialLogicalRepoSlug != "" {
+		envVars["GH_AW_TARGET_REPO_SLUG"] = fmt.Sprintf("%q", c.trialLogicalRepoSlug)
+	}
+
+	// Add messages config if present (applies to all steps)
+	if data.SafeOutputs.Messages != nil {
+		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
+		if err != nil {
+			consolidatedSafeOutputsLog.Printf("Warning: failed to serialize messages config: %v", err)
+		} else if messagesJSON != "" {
+			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
+		}
+	}
+
+	// Note: Asset upload configuration is not needed here because upload_assets
+	// is now handled as a separate job (see buildUploadAssetsJob)
+
+	return envVars
+}
+
+// buildDetectionSuccessCondition builds the condition to check if detection passed
+func buildDetectionSuccessCondition() ConditionNode {
+	return BuildEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
+		BuildStringLiteral("true"),
+	)
+}
+
+// buildSharedPRCheckoutSteps builds the shared checkout and git config steps
+// used by both create-pull-request and push-to-pull-request-branch operations.
+// This avoids duplicate checkout steps when both operations are configured.
+func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
+	consolidatedSafeOutputsLog.Print("Building shared PR checkout steps")
+	var steps []string
+
+	// Determine which token to use for checkout
+	var checkoutToken string
+	var gitRemoteToken string
+	if data.SafeOutputs.App != nil {
+		checkoutToken = "${{ steps.app-token.outputs.token }}"
+		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
+	} else {
+		checkoutToken = "${{ github.token }}"
+		gitRemoteToken = "${{ github.token }}"
+	}
+
+	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
+	var condition ConditionNode
+	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
+		// Both enabled: combine conditions with OR
+		condition = BuildOr(
+			BuildSafeOutputType("create_pull_request"),
+			BuildSafeOutputType("push_to_pull_request_branch"),
+		)
+	} else if data.SafeOutputs.CreatePullRequests != nil {
+		// Only create_pull_request
+		condition = BuildSafeOutputType("create_pull_request")
+	} else {
+		// Only push_to_pull_request_branch
+		condition = BuildSafeOutputType("push_to_pull_request_branch")
+	}
+
+	// Step 1: Checkout repository with conditional execution
+	steps = append(steps, "      - name: Checkout repository\n")
+	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
+	steps = append(steps, "          persist-credentials: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	if c.trialMode {
+		if c.trialLogicalRepoSlug != "" {
+			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+		}
+	}
+
+	// Step 2: Configure Git credentials with conditional execution
+	gitConfigSteps := []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        if: %s\n", condition.Render()),
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
+		"          SERVER_URL: ${{ github.server_url }}\n",
+		"        run: |\n",
+		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
+		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          # Re-authenticate git with GitHub token\n",
+		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
+		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
+		"          echo \"Git configured with standard GitHub Actions identity\"\n",
+	}
+	steps = append(steps, gitConfigSteps...)
+
+	consolidatedSafeOutputsLog.Printf("Added shared checkout with condition: %s", condition.Render())
+	return steps
+}
+
+// buildSetupScriptSteps builds the steps needed to set up JavaScript files
+// for safe output operations. This includes checking out the actions folder
+// (if in dev mode) and running the setup action to copy scripts.
+func (c *Compiler) buildSetupScriptSteps(data *WorkflowData) []string {
+	var steps []string
+
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef == "" {
+		return steps
+	}
+
+	// For dev mode (local action path), checkout the actions folder first
+	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+	steps = append(steps, "      - name: Setup Scripts\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+
+	return steps
+}
+
+// buildSafeOutputsArtifactSteps builds artifact download steps for safe outputs,
+// including agent output and patch artifacts if needed.
+func (c *Compiler) buildSafeOutputsArtifactSteps(data *WorkflowData) []string {
+	var steps []string
+
+	// Add agent output download steps
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
 
 	// Add patch artifact download if create-pull-request or push-to-pull-request-branch is enabled
-	// Both of these safe outputs require the patch file to apply changes
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 		consolidatedSafeOutputsLog.Print("Adding patch artifact download for create-pull-request or push-to-pull-request-branch")
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
@@ -89,18 +323,25 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, patchDownloadSteps...)
 	}
 
-	// Add shared checkout and git config steps for PR operations
-	// Both create-pull-request and push-to-pull-request-branch need these steps,
-	// so we add them once with a combined condition to avoid duplication
-	var prCheckoutStepsAdded bool
-	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
-		consolidatedSafeOutputsLog.Print("Adding shared checkout step for PR operations")
-		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
-		steps = append(steps, checkoutSteps...)
-		prCheckoutStepsAdded = true
-	}
+	return steps
+}
 
-	// === Build individual safe output steps ===
+// buildSafeOutputActionSteps builds all individual safe output action steps,
+// collecting them into a slice along with their outputs, permissions, and step names.
+func (c *Compiler) buildSafeOutputActionSteps(
+	data *WorkflowData,
+	mainJobName string,
+	markdownPath string,
+	threatDetectionEnabled bool,
+	prCheckoutStepsAdded bool,
+) (steps []string, outputs map[string]string, permissions *Permissions, safeOutputStepNames []string) {
+	outputs = make(map[string]string)
+	permissions = NewPermissions()
+
+	// Track which outputs are created for dependency tracking
+	var createIssueEnabled bool
+	var createDiscussionEnabled bool
+	var createPullRequestEnabled bool
 
 	// 1. Create Issue step
 	if data.SafeOutputs.CreateIssues != nil {
@@ -110,12 +351,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
-		// Add outputs
 		outputs["create_issue_issue_number"] = "${{ steps.create_issue.outputs.issue_number }}"
 		outputs["create_issue_issue_url"] = "${{ steps.create_issue.outputs.issue_url }}"
 		outputs["create_issue_temporary_id_map"] = "${{ steps.create_issue.outputs.temporary_id_map }}"
 
-		// Merge permissions
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 
@@ -327,8 +566,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// 18. Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
-	// This was moved out of the consolidated job to allow proper git configuration
-	// for pushing to orphaned branches
 
 	// 19. Update Release step
 	if data.SafeOutputs.UpdateRelease != nil {
@@ -380,61 +617,77 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
-		// Update project requires organization-projects permission (via GitHub App token)
-		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
 		permissions.Merge(NewPermissionsContentsReadProjectsWrite())
 	}
 
-	// If no steps were added, return nil
-	if len(safeOutputStepNames) == 0 {
-		consolidatedSafeOutputsLog.Print("No safe output steps were added")
-		return nil, nil, nil
+	return steps, outputs, permissions, safeOutputStepNames
+}
+
+// insertGitHubAppTokenSteps inserts GitHub App token minting and invalidation steps
+// into the steps slice at the appropriate positions.
+func (c *Compiler) insertGitHubAppTokenSteps(
+	steps []string,
+	data *WorkflowData,
+	permissions *Permissions,
+) []string {
+	if data.SafeOutputs.App == nil {
+		return steps
 	}
 
-	// Add GitHub App token minting step at the beginning if app is configured
-	if data.SafeOutputs.App != nil {
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
-		// Calculate insertion index: after setup action (if present) and artifact downloads, but before safe output steps
-		insertIndex := 0
+	// Add minting step at the beginning
+	appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
 
-		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
-		setupActionRef := c.resolveActionReference("./actions/setup", data)
-		if setupActionRef != "" {
-			if len(c.generateCheckoutActionsFolder(data)) > 0 {
-				insertIndex += 6 // Checkout step (6 lines: name, uses, with, sparse-checkout header, actions, persist-credentials)
-			}
-			insertIndex += 4 // Setup step (4 lines: name, uses, with, destination)
+	// Calculate insertion index: after setup action (if present) and artifact downloads
+	insertIndex := 0
+
+	// Count setup action steps
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		if len(c.generateCheckoutActionsFolder(data)) > 0 {
+			insertIndex += 6 // Checkout step
 		}
-
-		// Add artifact download steps count
-		insertIndex += len(buildAgentOutputDownloadSteps())
-
-		// Add patch download steps if present
-		if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
-			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-				ArtifactName: "aw.patch",
-				DownloadPath: "/tmp/gh-aw/",
-				SetupEnvStep: false,
-				StepName:     "Download patch artifact",
-			})
-			insertIndex += len(patchDownloadSteps)
-		}
-
-		// Insert app token steps
-		newSteps := make([]string, 0)
-		newSteps = append(newSteps, steps[:insertIndex]...)
-		newSteps = append(newSteps, appTokenSteps...)
-		newSteps = append(newSteps, steps[insertIndex:]...)
-		steps = newSteps
+		insertIndex += 4 // Setup step
 	}
 
-	// Add GitHub App token invalidation step at the end if app is configured
-	if data.SafeOutputs.App != nil {
-		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
+	// Add artifact download steps count
+	insertIndex += len(buildAgentOutputDownloadSteps())
+
+	// Add patch download steps if present
+	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
+		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+			ArtifactName: "aw.patch",
+			DownloadPath: "/tmp/gh-aw/",
+			SetupEnvStep: false,
+			StepName:     "Download patch artifact",
+		})
+		insertIndex += len(patchDownloadSteps)
 	}
 
+	// Insert app token minting steps
+	newSteps := make([]string, 0)
+	newSteps = append(newSteps, steps[:insertIndex]...)
+	newSteps = append(newSteps, appTokenSteps...)
+	newSteps = append(newSteps, steps[insertIndex:]...)
+	steps = newSteps
+
+	// Add invalidation step at the end
+	steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
+
+	return steps
+}
+
+// assembleSafeOutputsJob assembles the final Job struct with all configuration,
+// including conditions, dependencies, environment variables, and job metadata.
+func (c *Compiler) assembleSafeOutputsJob(
+	steps []string,
+	outputs map[string]string,
+	permissions *Permissions,
+	data *WorkflowData,
+	mainJobName string,
+	markdownPath string,
+	threatDetectionEnabled bool,
+) *Job {
 	// Build the job condition
-	// The job should run if agent job completed (not skipped) AND detection passed (if enabled)
 	agentNotSkipped := BuildAnd(
 		&NotNode{Child: BuildFunctionCall("cancelled")},
 		BuildNotEquals(
@@ -453,229 +706,23 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	if threatDetectionEnabled {
 		needs = append(needs, string(constants.DetectionJobName))
 	}
-	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch)
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 		needs = append(needs, string(constants.ActivationJobName))
 	}
 
-	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
+	// Extract workflow ID and build job-level environment variables
 	workflowID := GetWorkflowIDFromPath(markdownPath)
-
-	// Build job-level environment variables that are common to all safe output steps
 	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
 
-	job := &Job{
+	return &Job{
 		Name:           "safe_outputs",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions.RenderToYAML(),
-		TimeoutMinutes: 15, // Slightly longer timeout for consolidated job with multiple steps
+		TimeoutMinutes: 15,
 		Env:            jobEnv,
 		Steps:          steps,
 		Outputs:        outputs,
 		Needs:          needs,
 	}
-
-	consolidatedSafeOutputsLog.Printf("Built consolidated safe outputs job with %d steps", len(safeOutputStepNames))
-
-	return job, safeOutputStepNames, nil
-}
-
-// buildConsolidatedSafeOutputStep builds a single safe output step within the consolidated job
-func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config SafeOutputStepConfig) []string {
-	var steps []string
-
-	// Build step condition if provided
-	var conditionStr string
-	if config.Condition != nil {
-		conditionStr = config.Condition.Render()
-	}
-
-	// Step name and metadata
-	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
-	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	if conditionStr != "" {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", conditionStr))
-	}
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-
-	// Environment variables section
-	steps = append(steps, "        env:\n")
-	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	steps = append(steps, config.CustomEnvVars...)
-
-	// Add custom safe output env vars
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	// With section for github-token
-	steps = append(steps, "        with:\n")
-	if config.UseAgentToken {
-		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
-		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
-	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
-	}
-
-	steps = append(steps, "          script: |\n")
-
-	// Add the formatted JavaScript script
-	// Use require mode if ScriptName is set, otherwise inline the bundled script
-	if config.ScriptName != "" {
-		// Require mode: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
-		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s.cjs');\n", config.ScriptName))
-		steps = append(steps, "            await main();\n")
-	} else {
-		// Inline JavaScript: Use setup_globals helper
-		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
-		// Inline mode: embed the bundled script directly
-		formattedScript := FormatJavaScriptForYAML(config.Script)
-		steps = append(steps, formattedScript...)
-	}
-
-	return steps
-}
-
-// buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
-// for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
-func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
-	envVars := make(map[string]string)
-
-	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
-	// This is used for branch naming in create_pull_request and other operations
-	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)
-
-	// Add workflow metadata that's common to all steps
-	envVars["GH_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
-
-	if data.Source != "" {
-		envVars["GH_AW_WORKFLOW_SOURCE"] = fmt.Sprintf("%q", data.Source)
-		sourceURL := buildSourceURL(data.Source)
-		if sourceURL != "" {
-			envVars["GH_AW_WORKFLOW_SOURCE_URL"] = fmt.Sprintf("%q", sourceURL)
-		}
-	}
-
-	if data.TrackerID != "" {
-		envVars["GH_AW_TRACKER_ID"] = fmt.Sprintf("%q", data.TrackerID)
-	}
-
-	// Add engine metadata that's common to all steps
-	if data.EngineConfig != nil {
-		if data.EngineConfig.ID != "" {
-			envVars["GH_AW_ENGINE_ID"] = fmt.Sprintf("%q", data.EngineConfig.ID)
-		}
-		if data.EngineConfig.Version != "" {
-			envVars["GH_AW_ENGINE_VERSION"] = fmt.Sprintf("%q", data.EngineConfig.Version)
-		}
-		if data.EngineConfig.Model != "" {
-			envVars["GH_AW_ENGINE_MODEL"] = fmt.Sprintf("%q", data.EngineConfig.Model)
-		}
-	}
-
-	// Add safe output job environment variables (staged/target repo)
-	if c.trialMode || data.SafeOutputs.Staged {
-		envVars["GH_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-	}
-
-	// Set GH_AW_TARGET_REPO_SLUG - prefer trial target repo (applies to all steps)
-	// Note: Individual steps with target-repo config will override this in their step-level env
-	if c.trialMode && c.trialLogicalRepoSlug != "" {
-		envVars["GH_AW_TARGET_REPO_SLUG"] = fmt.Sprintf("%q", c.trialLogicalRepoSlug)
-	}
-
-	// Add messages config if present (applies to all steps)
-	if data.SafeOutputs.Messages != nil {
-		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
-		if err != nil {
-			consolidatedSafeOutputsLog.Printf("Warning: failed to serialize messages config: %v", err)
-		} else if messagesJSON != "" {
-			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
-		}
-	}
-
-	// Note: Asset upload configuration is not needed here because upload_assets
-	// is now handled as a separate job (see buildUploadAssetsJob)
-
-	return envVars
-}
-
-// buildDetectionSuccessCondition builds the condition to check if detection passed
-func buildDetectionSuccessCondition() ConditionNode {
-	return BuildEquals(
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.success", constants.DetectionJobName)),
-		BuildStringLiteral("true"),
-	)
-}
-
-// buildSharedPRCheckoutSteps builds the shared checkout and git config steps
-// used by both create-pull-request and push-to-pull-request-branch operations.
-// This avoids duplicate checkout steps when both operations are configured.
-func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
-	consolidatedSafeOutputsLog.Print("Building shared PR checkout steps")
-	var steps []string
-
-	// Determine which token to use for checkout
-	var checkoutToken string
-	var gitRemoteToken string
-	if data.SafeOutputs.App != nil {
-		checkoutToken = "${{ steps.app-token.outputs.token }}"
-		gitRemoteToken = "${{ steps.app-token.outputs.token }}"
-	} else {
-		checkoutToken = "${{ github.token }}"
-		gitRemoteToken = "${{ github.token }}"
-	}
-
-	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
-	var condition ConditionNode
-	if data.SafeOutputs.CreatePullRequests != nil && data.SafeOutputs.PushToPullRequestBranch != nil {
-		// Both enabled: combine conditions with OR
-		condition = BuildOr(
-			BuildSafeOutputType("create_pull_request"),
-			BuildSafeOutputType("push_to_pull_request_branch"),
-		)
-	} else if data.SafeOutputs.CreatePullRequests != nil {
-		// Only create_pull_request
-		condition = BuildSafeOutputType("create_pull_request")
-	} else {
-		// Only push_to_pull_request_branch
-		condition = BuildSafeOutputType("push_to_pull_request_branch")
-	}
-
-	// Step 1: Checkout repository with conditional execution
-	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", condition.Render()))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, fmt.Sprintf("          token: %s\n", checkoutToken))
-	steps = append(steps, "          persist-credentials: false\n")
-	steps = append(steps, "          fetch-depth: 1\n")
-	if c.trialMode {
-		if c.trialLogicalRepoSlug != "" {
-			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
-		}
-	}
-
-	// Step 2: Configure Git credentials with conditional execution
-	gitConfigSteps := []string{
-		"      - name: Configure Git credentials\n",
-		fmt.Sprintf("        if: %s\n", condition.Render()),
-		"        env:\n",
-		"          REPO_NAME: ${{ github.repository }}\n",
-		"          SERVER_URL: ${{ github.server_url }}\n",
-		"        run: |\n",
-		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
-		"          git config --global user.name \"github-actions[bot]\"\n",
-		"          # Re-authenticate git with GitHub token\n",
-		"          SERVER_URL_STRIPPED=\"${SERVER_URL#https://}\"\n",
-		fmt.Sprintf("          git remote set-url origin \"https://x-access-token:%s@${SERVER_URL_STRIPPED}/${REPO_NAME}.git\"\n", gitRemoteToken),
-		"          echo \"Git configured with standard GitHub Actions identity\"\n",
-	}
-	steps = append(steps, gitConfigSteps...)
-
-	consolidatedSafeOutputsLog.Printf("Added shared checkout with condition: %s", condition.Render())
-	return steps
 }
