@@ -42,6 +42,35 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             
+            // Helper function to retry API calls with exponential backoff
+            async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+              let lastError;
+              for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  lastError = error;
+                  const isRateLimit = error.status === 403 && error.message?.includes('rate limit');
+                  const isServerError = error.status >= 500;
+                  const isTimeout = error.code === 'ETIMEDOUT' || error.message?.includes('timeout');
+                  
+                  // Only retry on rate limits, server errors, or timeouts
+                  if (!isRateLimit && !isServerError && !isTimeout) {
+                    throw error;
+                  }
+                  
+                  if (attempt < maxRetries) {
+                    const delay = baseDelay * Math.pow(2, attempt - 1);
+                    core.warning(`Attempt ${attempt} failed: ${error.message}. Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                  } else {
+                    core.error(`All ${maxRetries} attempts failed. Last error: ${error.message}`);
+                    throw lastError;
+                  }
+                }
+              }
+            }
+            
             try {
               // Labels that indicate an issue should NOT be auto-assigned
               const excludeLabels = [
@@ -71,27 +100,34 @@ jobs:
                 'security'
               ];
               
-              // Search for open issues without excluded labels
+              // Search for open issues without excluded labels - with retry logic
               const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
               core.info(`Searching: ${query}`);
-              const response = await github.rest.search.issuesAndPullRequests({
-                q: query,
-                per_page: 100,
-                sort: 'created',
-                order: 'desc'
+              
+              const response = await retryWithBackoff(async () => {
+                return await github.rest.search.issuesAndPullRequests({
+                  q: query,
+                  per_page: 100,
+                  sort: 'created',
+                  order: 'desc'
+                });
               });
+              
               core.info(`Found ${response.data.total_count} total issues matching basic criteria`);
               
               // Fetch full details for each issue to get labels, assignees, and sub-issues
               const issuesWithDetails = await Promise.all(
                 response.data.items.map(async (issue) => {
-                  const fullIssue = await github.rest.issues.get({
-                    owner,
-                    repo,
-                    issue_number: issue.number
+                  // Get issue details with retry
+                  const fullIssue = await retryWithBackoff(async () => {
+                    return await github.rest.issues.get({
+                      owner,
+                      repo,
+                      issue_number: issue.number
+                    });
                   });
                   
-                  // Check if this issue has sub-issues using GraphQL
+                  // Check if this issue has sub-issues using GraphQL - with retry
                   let subIssuesCount = 0;
                   try {
                     const subIssuesQuery = `
@@ -105,15 +141,17 @@ jobs:
                         }
                       }
                     `;
-                    const subIssuesResult = await github.graphql(subIssuesQuery, {
-                      owner,
-                      repo,
-                      number: issue.number
+                    const subIssuesResult = await retryWithBackoff(async () => {
+                      return await github.graphql(subIssuesQuery, {
+                        owner,
+                        repo,
+                        number: issue.number
+                      });
                     });
                     subIssuesCount = subIssuesResult?.repository?.issue?.subIssues?.totalCount || 0;
                   } catch (error) {
-                    // If GraphQL query fails, continue with 0 sub-issues
-                    core.warning(`Could not check sub-issues for #${issue.number}: ${error.message}`);
+                    // If GraphQL query fails after retries, log and continue with 0 sub-issues
+                    core.warning(`Could not check sub-issues for #${issue.number} after retries: ${error.message}`);
                   }
                   
                   return {
@@ -217,7 +255,27 @@ jobs:
                 core.setOutput('has_issues', 'true');
               }
             } catch (error) {
-              core.error(`Error searching for issues: ${error.message}`);
+              // Enhanced error logging with details
+              const errorDetails = {
+                message: error.message,
+                status: error.status,
+                name: error.name,
+                isRateLimit: error.status === 403 && error.message?.includes('rate limit'),
+                isServerError: error.status >= 500
+              };
+              
+              core.error(`Error searching for issues: ${JSON.stringify(errorDetails)}`);
+              
+              // Log specific guidance based on error type
+              if (errorDetails.isRateLimit) {
+                core.error('Rate limit exceeded. The workflow will skip this run and retry on the next scheduled execution.');
+              } else if (errorDetails.isServerError) {
+                core.error('GitHub API server error. The workflow will skip this run and retry on the next scheduled execution.');
+              } else {
+                core.error('Unexpected error during search. Check the error details above.');
+              }
+              
+              // Set outputs to indicate no issues found (graceful degradation)
               core.setOutput('issue_count', 0);
               core.setOutput('issue_numbers', '');
               core.setOutput('issue_list', '');
