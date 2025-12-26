@@ -787,6 +787,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	// Validate known properties - fail if unknown properties are found
 	knownProperties := map[string]bool{
 		"type":           true,
+		"mode":           true, // Added for MCPServerConfig struct
 		"command":        true,
 		"container":      true,
 		"version":        true,
@@ -798,6 +799,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"headers":        true,
 		"registry":       true,
 		"allowed":        true,
+		"toolsets":       true, // Added for MCPServerConfig struct
 	}
 
 	for key := range toolConfig {
