@@ -12,9 +12,11 @@ permissions:
 tracker-id: daily-copilot-token-report
 engine: copilot
 tools:
-  cache-memory:
-    - id: token-metrics
-      key: copilot-token-metrics-${{ github.workflow }}
+  repo-memory:
+    branch-name: memory/token-metrics
+    description: "Historical token consumption and cost data"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   bash:
     - "*"
 steps:
@@ -77,7 +79,7 @@ Generate a comprehensive daily report of Copilot token consumption with:
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: $(date +%Y-%m-%d)
-- **Cache Location**: `/tmp/gh-aw/cache-memory/token-metrics/`
+- **Memory Location**: `/tmp/gh-aw/repo-memory-default/memory/default/`
 - **Analysis Period**: Last 30 days of data
 
 ## Phase 1: Data Collection
@@ -242,12 +244,12 @@ today_summary['totals'] = {
     'runs': total_runs
 }
 
-# Ensure cache directory exists
-cache_dir = '/tmp/gh-aw/cache-memory/token-metrics'
-os.makedirs(cache_dir, exist_ok=True)
+# Ensure memory directory exists
+memory_dir = '/tmp/gh-aw/repo-memory-default/memory/default'
+os.makedirs(memory_dir, exist_ok=True)
 
 # Append to history (JSON Lines format)
-history_file = f'{cache_dir}/history.jsonl'
+history_file = f'{memory_dir}/history.jsonl'
 with open(history_file, 'a') as f:
     f.write(json.dumps(today_summary) + '\n')
 
@@ -277,9 +279,9 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 
-# Load historical data from cache
-cache_dir = '/tmp/gh-aw/cache-memory/token-metrics'
-history_file = f'{cache_dir}/history.jsonl'
+# Load historical data from repo memory
+memory_dir = '/tmp/gh-aw/repo-memory-default/memory/default'
+history_file = f'{memory_dir}/history.jsonl'
 
 if not os.path.exists(history_file):
     print("⚠️ No historical data available yet. Charts will be generated from today's data only.")
@@ -597,7 +599,7 @@ The following workflows account for the majority of token consumption:
 
 - **Data Source**: GitHub Actions workflow run artifacts from last 30 days
 - **Engine Filter**: Copilot engine only
-- **Cache Storage**: `/tmp/gh-aw/cache-memory/token-metrics/`
+- **Memory Storage**: `/tmp/gh-aw/repo-memory-default/memory/default/`
 - **Analysis Date**: [TIMESTAMP]
 - **Historical Data**: [N] days of trend data
 - **Cost Model**: Based on Copilot token pricing
@@ -625,10 +627,10 @@ The following workflows account for the majority of token consumption:
 - **Efficient processing**: Use bash and Python for data processing, avoid heavy operations
 
 ### Historical Tracking
-- **Persistent storage**: Store daily aggregates in `/tmp/gh-aw/cache-memory/token-metrics/history.jsonl`
+- **Persistent storage**: Store daily aggregates in `/tmp/gh-aw/repo-memory-default/memory/default/history.jsonl`
 - **JSON Lines format**: One JSON object per line for efficient appending
 - **Data retention**: Keep 90 days of history, prune older data
-- **Recovery**: Handle missing or corrupted cache data gracefully
+- **Recovery**: Handle missing or corrupted memory data gracefully
 
 ### Visualization
 - **High-quality charts**: 300 DPI, 12x7 inch figures
@@ -655,7 +657,7 @@ The following workflows account for the majority of token consumption:
 A successful token consumption report:
 - ✅ Uses pre-downloaded logs from `/tmp/gh-aw/copilot-logs.json` (last 30 days)
 - ✅ Generates accurate per-workflow statistics
-- ✅ Stores daily aggregates in persistent cache memory
+- ✅ Stores daily aggregates in persistent repo memory
 - ✅ Creates 3 high-quality trend charts
 - ✅ Uploads charts as artifacts
 - ✅ Publishes comprehensive discussion report
@@ -673,7 +675,7 @@ Your output MUST:
 4. Provide detailed per-workflow statistics in a table
 5. Include trend analysis comparing recent periods
 6. Offer specific optimization recommendations
-7. Store current day's metrics in cache memory for future trend tracking
+7. Store current day's metrics in repo memory for future trend tracking
 8. Use the collapsible details format from the reporting.md import
 
 Begin your analysis now. The logs have been pre-downloaded to `/tmp/gh-aw/copilot-logs.json` - process the data systematically, generate insightful visualizations, and create a comprehensive report that helps optimize Copilot token consumption across all workflows.

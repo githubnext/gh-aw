@@ -11,7 +11,11 @@ permissions:
 tracker-id: audit-workflows-daily
 engine: claude
 tools:
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/audit-workflows
+    description: "Historical audit data and patterns"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   timeout: 300
 steps:
   - name: Download logs from last 24 hours
@@ -68,7 +72,7 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 - Performance (token usage, costs, timeouts, efficiency)
 - Patterns (recurring issues, frequent failures)
 
-**Cache Memory**: Store findings in `/tmp/gh-aw/cache-memory/`:
+**Cache Memory**: Store findings in `/tmp/gh-aw/repo-memory-default/memory/default/`:
 - `audits/<date>.json` + `audits/index.json`
 - `patterns/{errors,missing-tools,mcp-failures}.json`
 - Compare with historical data
@@ -156,8 +160,8 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 
 **Security**: Never execute untrusted code, validate data, sanitize paths
 **Quality**: Be thorough, specific, actionable, accurate  
-**Efficiency**: Use cache, batch operations, respect timeouts
+**Efficiency**: Use repo memory, batch operations, respect timeouts
 
-Cache structure: `/tmp/gh-aw/cache-memory/{audits,patterns,metrics}/*.json`
+Memory structure: `/tmp/gh-aw/repo-memory-default/memory/default/{audits,patterns,metrics}/*.json`
 
-Always create discussion with findings and update cache memory.
+Always create discussion with findings and update repo memory.
