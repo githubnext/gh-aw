@@ -26,7 +26,7 @@ type FrontmatterConfig struct {
 	Tools       *ToolsConfig       `json:"tools,omitempty"`
 	MCPServers  map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
 	Runtimes    map[string]any     `json:"runtimes,omitempty"`
-	Jobs        map[string]any     `json:"jobs,omitempty"`       // Custom workflow jobs
+	Jobs        map[string]any     `json:"jobs,omitempty"` // Custom workflow jobs
 	SafeOutputs *SafeOutputsConfig `json:"safe-outputs,omitempty"`
 	SafeJobs    map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
 	SafeInputs  *SafeInputsConfig  `json:"safe-inputs,omitempty"`
@@ -61,10 +61,10 @@ type FrontmatterConfig struct {
 	Include any `json:"include,omitempty"` // Can be string or array
 
 	// Metadata
-	Metadata        map[string]string `json:"metadata,omitempty"` // Custom metadata key-value pairs
-	SecretMasking   *SecretMaskingConfig `json:"secret-masking,omitempty"`
-	GithubToken     string            `json:"github-token,omitempty"`
-	
+	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
+	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
+	GithubToken   string               `json:"github-token,omitempty"`
+
 	// Command/bot configuration
 	Roles []string `json:"roles,omitempty"`
 	Bots  []string `json:"bots,omitempty"`
@@ -187,7 +187,7 @@ func ExtractIntField(frontmatter map[string]any, key string) int {
 // This allows gradual migration from map[string]any to strongly-typed config
 func (fc *FrontmatterConfig) ToMap() map[string]any {
 	result := make(map[string]any)
-	
+
 	// Core fields
 	if fc.Name != "" {
 		result["name"] = fc.Name
@@ -213,7 +213,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Strict != nil {
 		result["strict"] = *fc.Strict
 	}
-	
+
 	// Configuration sections
 	if fc.Tools != nil {
 		result["tools"] = fc.Tools.ToMap()
@@ -238,7 +238,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		// Convert SafeInputsConfig to map - would need a ToMap method
 		result["safe-inputs"] = fc.SafeInputs
 	}
-	
+
 	// Event and trigger configuration
 	if fc.On != nil {
 		result["on"] = fc.On
@@ -252,7 +252,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.If != "" {
 		result["if"] = fc.If
 	}
-	
+
 	// Network and sandbox
 	if fc.Network != nil {
 		// Convert NetworkPermissions to map format
@@ -277,7 +277,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Sandbox != nil {
 		result["sandbox"] = fc.Sandbox
 	}
-	
+
 	// Features and environment
 	if fc.Features != nil {
 		result["features"] = fc.Features
@@ -288,7 +288,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Secrets != nil {
 		result["secrets"] = fc.Secrets
 	}
-	
+
 	// Execution settings
 	if fc.RunsOn != "" {
 		result["runs-on"] = fc.RunsOn
@@ -314,7 +314,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Cache != nil {
 		result["cache"] = fc.Cache
 	}
-	
+
 	// Import and inclusion
 	if fc.Imports != nil {
 		result["imports"] = fc.Imports
@@ -322,7 +322,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Include != nil {
 		result["include"] = fc.Include
 	}
-	
+
 	// Metadata
 	if fc.Metadata != nil {
 		result["metadata"] = fc.Metadata
@@ -339,6 +339,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.Bots != nil {
 		result["bots"] = fc.Bots
 	}
-	
+
 	return result
 }
