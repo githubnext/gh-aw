@@ -596,7 +596,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			step.WriteString("            global.exec = exec;\n")
 			step.WriteString("            global.io = io;\n")
 			// Add the JavaScript script with proper indentation
-			formattedScript := FormatJavaScriptForYAML(pushRepoMemoryScript)
+			formattedScript := FormatJavaScriptForYAML("const { main } = require('/tmp/gh-aw/actions/push_repo_memory.cjs'); await main();")
 			for _, line := range formattedScript {
 				step.WriteString(line)
 			}

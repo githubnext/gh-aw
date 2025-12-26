@@ -99,12 +99,6 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	// Convert Go regex patterns to JavaScript-compatible patterns
 	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
 
-	errorValidationScript := validateErrorsScript
-	if errorValidationScript == "" {
-		// Skip if validation script not found
-		return
-	}
-
 	// Get the log file path for validation (may be different from stdout/stderr log)
 	logFileForValidation := engine.GetLogFileForParsing()
 

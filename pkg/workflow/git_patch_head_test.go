@@ -117,10 +117,14 @@ func TestGitPatchFromHEADCommits(t *testing.T) {
 		t.Fatalf("Failed to write safe-outputs file: %v", err)
 	}
 
-	// Run the patch generation script
-	scriptContent := getGenerateGitPatchScript(t)
+	// Run the patch generation script from actions/setup/sh
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "generate_git_patch.sh")
+	scriptContent, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read script file: %v", err)
+	}
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
-	if err := os.WriteFile(scriptFile, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptFile, scriptContent, 0755); err != nil {
 		t.Fatalf("Failed to write script file: %v", err)
 	}
 
@@ -283,9 +287,14 @@ func TestGitPatchPrefersBranchOverHEAD(t *testing.T) {
 		t.Fatalf("Failed to write safe-outputs: %v", err)
 	}
 
-	// Run the script
+	// Run the script from actions/setup/sh
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "generate_git_patch.sh")
+	scriptContent, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read script file: %v", err)
+	}
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
-	if err := os.WriteFile(scriptFile, []byte(getGenerateGitPatchScript(t)), 0755); err != nil {
+	if err := os.WriteFile(scriptFile, scriptContent, 0755); err != nil {
 		t.Fatalf("Failed to write script: %v", err)
 	}
 
@@ -364,9 +373,11 @@ func TestGitPatchNoCommits(t *testing.T) {
 	safeOutputsFile := filepath.Join(tmpDir, "safe-outputs.jsonl")
 	os.WriteFile(safeOutputsFile, []byte(""), 0644)
 
-	// Run script with GITHUB_SHA = current HEAD (no new commits)
+	// Run script with GITHUB_SHA = current HEAD (no new commits) from actions/setup/sh
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "generate_git_patch.sh")
+	scriptContent, _ := os.ReadFile(scriptPath)
 	scriptFile := filepath.Join(tmpDir, "generate_patch.sh")
-	os.WriteFile(scriptFile, []byte(getGenerateGitPatchScript(t)), 0755)
+	os.WriteFile(scriptFile, scriptContent, 0755)
 
 	// Ensure /tmp/gh-aw exists and is clean
 	patchFile := "/tmp/gh-aw/aw.patch"

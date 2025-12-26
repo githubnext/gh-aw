@@ -71,6 +71,6 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 		yaml.WriteString("            global.io = io;\n")
 
 		// Add the JavaScript for checking out the PR branch
-		WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
+		WriteJavaScriptToYAML(yaml, "const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs'); await main();")
 	}
 }

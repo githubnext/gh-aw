@@ -121,7 +121,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			StepID:        "missing_tool",
 			MainJobName:   mainJobName,
 			CustomEnvVars: missingToolEnvVars,
-			Script:        missingToolScript,
+			Script:        "const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs'); await main();",
 			ScriptFile:    "missing_tool.cjs",
 			Token:         data.SafeOutputs.MissingTool.GitHubToken,
 		})
