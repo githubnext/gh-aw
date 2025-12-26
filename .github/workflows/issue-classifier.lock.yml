@@ -664,11 +664,8 @@ jobs:
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs');
             await main();
       - name: Print prompt
@@ -690,7 +687,7 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v1
+        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2.0.4
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
