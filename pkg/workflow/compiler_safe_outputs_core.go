@@ -144,27 +144,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 	}
 
-	// NOTE: Add Comment, Update Issue, and Update Discussion are now handled by the handler registry above
-
-	// 5. Close Discussion step
-	if data.SafeOutputs.CloseDiscussions != nil {
-		stepConfig := c.buildCloseDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
-	}
-
-	// 6. Close Issue step
-	if data.SafeOutputs.CloseIssues != nil {
-		stepConfig := c.buildCloseIssueStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
+	// NOTE: Add Comment, Update Issue, Update Discussion, Close Issue, and Close Discussion 
+	// are now handled by the handler registry above
 
 	// 7. Close Pull Request step
 	if data.SafeOutputs.ClosePullRequests != nil {

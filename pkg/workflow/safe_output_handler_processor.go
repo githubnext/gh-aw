@@ -60,6 +60,10 @@ func (c *Compiler) processHandlersSequentially(
 			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 		case "update_discussion":
 			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		case "close_issue":
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		case "close_discussion":
+			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
 		}
 
 		// Mark handler as processed
@@ -83,12 +87,16 @@ func getHandlerRegistry() *SafeOutputHandlerRegistry {
 	// 2. create_discussion - consumes temporary ID map
 	// 3. update_issue - consumes temporary ID map
 	// 4. update_discussion - consumes temporary ID map
-	// 5. add_comment - consumes temporary ID map and references other handler outputs
+	// 5. close_issue - consumes temporary ID map
+	// 6. close_discussion - consumes temporary ID map
+	// 7. add_comment - consumes temporary ID map and references other handler outputs
 
 	registry.Register(NewCreateIssueHandler())
 	registry.Register(NewCreateDiscussionHandler())
 	registry.Register(NewUpdateIssueHandler())
 	registry.Register(NewUpdateDiscussionHandler())
+	registry.Register(NewCloseIssueHandler())
+	registry.Register(NewCloseDiscussionHandler())
 	registry.Register(NewAddCommentHandler())
 
 	// Note: Other handlers (create_pull_request, etc.) will be migrated later
