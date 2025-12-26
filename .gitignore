@@ -136,3 +136,4 @@ actions/setup-safe-outputs/js/
 # License compliance reports
 licenses.csv
 *.bck.yml
+actions/setup/js/test-*/
