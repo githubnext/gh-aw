@@ -365,7 +365,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "agentic_workflows": {

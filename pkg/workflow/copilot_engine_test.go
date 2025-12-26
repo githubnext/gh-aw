@@ -798,7 +798,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	// Verify the MCP config structure
 	expectedStrs := []string{
 		"mkdir -p /home/runner/.copilot",
-		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
+		`cat > /home/runner/.copilot/mcp-config.json << 'EOF'`,
 		`"mcpServers": {`,
 		`"github": {`,
 		`"type": "local",`,

@@ -619,7 +619,9 @@ func RenderJSONMCPConfig(
 	mcpRendererLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
 
 	// Write config file header
-	fmt.Fprintf(yaml, "          cat > %s << EOF\n", options.ConfigPath)
+	// Use 'EOF' (quoted) to prevent bash from processing backslash escapes and variable expansions
+	// This ensures that \${VAR} syntax for Copilot CLI interpolation remains intact in the file
+	fmt.Fprintf(yaml, "          cat > %s << 'EOF'\n", options.ConfigPath)
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 

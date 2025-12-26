@@ -545,7 +545,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat > /tmp/test-config.json << EOF",
+				"cat > /tmp/test-config.json << 'EOF'",
 				"\"mcpServers\": {",
 				"\"github\": { \"test\": true },",
 				"\"playwright\": { \"test\": true }",
@@ -582,7 +582,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 				},
 			},
 			expectedContent: []string{
-				"cat > /tmp/filtered-config.json << EOF",
+				"cat > /tmp/filtered-config.json << 'EOF'",
 				"\"github\": { \"filtered\": true }",
 			},
 			unexpectedContent: []string{

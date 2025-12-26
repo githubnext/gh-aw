@@ -394,7 +394,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
               "github": {
