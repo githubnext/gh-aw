@@ -84,8 +84,10 @@ jobs:
 `)
 
 	// Add the close expired discussions script using require()
-	yaml.WriteString(`            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
-            await main({ github, context, core });
+	yaml.WriteString(`            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/close_expired_discussions.cjs');
+            await main();
 `)
 
 	// Add close-expired-issues job
@@ -102,8 +104,10 @@ jobs:
 `)
 
 	// Add the close expired issues script using require()
-	yaml.WriteString(`            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
-            await main({ github, context, core });
+	yaml.WriteString(`            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/close_expired_issues.cjs');
+            await main();
 `)
 
 	// Add compile-workflows job
