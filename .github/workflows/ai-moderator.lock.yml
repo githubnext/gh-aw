@@ -50,8 +50,7 @@ jobs:
       - check_external_user
       - pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || ((needs.check_external_user.result != 'skipped') &&
-      (needs.check_external_user.outputs.should_skip == 'false')))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.should_skip != 'true'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
