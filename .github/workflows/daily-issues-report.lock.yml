@@ -1752,11 +1752,8 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
-            global.core = core;
-            global.github = github;
-            global.context = context;
-            global.exec = exec;
-            global.io = io;
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/interpolate_prompt.cjs');
             await main();
       - name: Print prompt
