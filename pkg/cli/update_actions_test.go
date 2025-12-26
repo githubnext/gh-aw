@@ -9,7 +9,7 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 	// This test ensures that when an action is updated, the key in the map
 	// is updated to match the new version, preventing key/version mismatches
 	// that would cause version comments to change on each build.
-	
+
 	// Simulate the actions-lock.json structure
 	actionsLock := actionsLockFile{
 		Entries: map[string]actionsLockEntry{
@@ -20,13 +20,13 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Simulate an update to a newer version
 	oldKey := "actions/checkout@v5.0.0"
 	entry := actionsLock.Entries[oldKey]
 	latestVersion := "v5.0.1"
 	latestSHA := "newsha1234567890123456789012345678901234"
-	
+
 	// Apply the update logic from UpdateActions
 	delete(actionsLock.Entries, oldKey)
 	newKey := entry.Repo + "@" + latestVersion
@@ -35,23 +35,23 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 		Version: latestVersion,
 		SHA:     latestSHA,
 	}
-	
+
 	// Verify the old key is gone
 	if _, exists := actionsLock.Entries[oldKey]; exists {
 		t.Errorf("Old key %q should have been deleted", oldKey)
 	}
-	
+
 	// Verify the new key exists
 	updatedEntry, exists := actionsLock.Entries[newKey]
 	if !exists {
 		t.Errorf("New key %q should exist", newKey)
 	}
-	
+
 	// Verify the entry has the correct version
 	if updatedEntry.Version != latestVersion {
 		t.Errorf("Entry version = %q, want %q", updatedEntry.Version, latestVersion)
 	}
-	
+
 	// Most importantly: verify key and version field match
 	keyVersion := newKey[len("actions/checkout@"):]
 	if keyVersion != updatedEntry.Version {
@@ -62,7 +62,7 @@ func TestActionKeyVersionConsistency(t *testing.T) {
 func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
 	// This test ensures that when actions-lock.json is loaded and saved,
 	// there are no key/version mismatches
-	
+
 	jsonData := `{
 		"entries": {
 			"actions/checkout@v5.0.1": {
@@ -77,12 +77,12 @@ func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
 			}
 		}
 	}`
-	
+
 	var actionsLock actionsLockFile
 	if err := json.Unmarshal([]byte(jsonData), &actionsLock); err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
-	
+
 	// Verify all entries have matching key and version
 	for key, entry := range actionsLock.Entries {
 		// Extract version from key (format: "repo@version")
@@ -93,7 +93,7 @@ func TestActionKeyVersionConsistencyInJSON(t *testing.T) {
 				break
 			}
 		}
-		
+
 		if atIndex < len(key) {
 			keyVersion := key[atIndex+1:]
 			if keyVersion != entry.Version {
