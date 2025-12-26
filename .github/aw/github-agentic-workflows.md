@@ -77,7 +77,7 @@ The YAML frontmatter supports these fields:
 - **`on:`** - Workflow triggers (required)
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
-  - Special: `command:` for /mention triggers
+  - Special: `slash_command:` for /mention triggers (replaces deprecated `command:`)
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
@@ -104,6 +104,13 @@ The YAML frontmatter supports these fields:
 
 - **`description:`** - Human-readable workflow description (string)
 - **`source:`** - Workflow origin tracking in format `owner/repo/path@ref` (string)
+- **`labels:`** - Array of labels to categorize and organize workflows (array)
+  - Labels filter workflows in status/list commands
+  - Example: `labels: [automation, security, daily]`
+- **`metadata:`** - Custom key-value pairs compatible with custom agent spec (object)
+  - Key names limited to 64 characters
+  - Values limited to 1024 characters
+  - Example: `metadata: { team: "platform", priority: "high" }`
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
@@ -282,8 +289,11 @@ The YAML frontmatter supports these fields:
         labels: [automation, agentic]    # Optional: labels to attach to issues
         assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
+        expires: 7                      # Optional: auto-close after 7 days (supports: 7d, 2w, 1m, 1y)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
+
+    **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (7d, 2w, 1m, 1y). Generates daily `agentics-maintenance.yml` workflow to close expired items.
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
 
     **Temporary IDs and Sub-Issues:**
@@ -333,8 +343,13 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
         discussion: true                # Optional: target discussions
+        hide-older-comments: true       # Optional: minimize previous comments from same workflow
+        allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
+
+    **Hide Older Comments**: Set `hide-older-comments: true` to minimize previous comments from the same workflow before posting new ones. Useful for status updates. Allowed reasons: `spam`, `abuse`, `off_topic`, `outdated` (default), `resolved`.
+
     When using `safe-outputs.add-comment`, the main job does **not** need `issues: write` or `pull-requests: write` permissions since comment creation is handled by a separate job with appropriate permissions.
   - `create-pull-request:` - Safe pull request creation with git patches
     ```yaml
@@ -554,10 +569,11 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
-  
-- **`command:`** - Command trigger configuration for /mention workflows
+
+- **`slash_command:`** - Command trigger configuration for /mention workflows (replaces deprecated `command:`)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
 - **`cache-memory:`** - Memory MCP server with persistent cache storage (boolean or object)
+- **`repo-memory:`** - Repository-specific memory storage (boolean)
 
 ### Cache Configuration
 
@@ -658,6 +674,17 @@ Cache-memory configurations can be imported from shared agentic workflows using 
 
 The memory MCP server is automatically configured when `cache-memory` is enabled and works with both Claude and Custom engines.
 
+### Repo Memory Configuration
+
+The `repo-memory:` field enables repository-specific memory storage for maintaining context across executions:
+
+```yaml
+tools:
+  repo-memory:
+```
+
+This provides persistent memory storage specific to the repository, useful for maintaining workflow-specific context and state across runs.
+
 ## Output Processing and Issue Creation
 
 ### Automatic GitHub Issue Creation
@@ -731,9 +758,11 @@ on:
 ### Command Triggers (/mentions)
 ```yaml
 on:
-  command:
+  slash_command:
     name: my-bot  # Responds to /my-bot in issues/comments
 ```
+
+**Note**: The `command:` trigger field is deprecated. Use `slash_command:` instead. The old syntax still works but may show deprecation warnings.
 
 This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
@@ -741,7 +770,7 @@ You can restrict where commands are active using the `events:` field:
 
 ```yaml
 on:
-  command:
+  slash_command:
     name: my-bot
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
@@ -1208,7 +1237,7 @@ Research latest developments in ${{ github.repository }}:
 ```markdown
 ---
 on:
-  command:
+  slash_command:
     name: helper-bot
 permissions:
   contents: read
@@ -1219,7 +1248,7 @@ safe-outputs:
 
 # Helper Bot
 
-Respond to /helper-bot mentions with helpful information realted to ${{ github.repository }}. The request is "${{ needs.activation.outputs.text }}".
+Respond to /helper-bot mentions with helpful information related to ${{ github.repository }}. The request is "${{ needs.activation.outputs.text }}".
 ```
 
 ### Workflow Improvement Bot
