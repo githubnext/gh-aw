@@ -12,7 +12,7 @@ require (
 	github.com/goccy/go-yaml v1.19.1
 	github.com/golangci/golangci-lint/v2 v2.7.2
 	github.com/google/jsonschema-go v0.4.0
-	github.com/modelcontextprotocol/go-sdk v1.1.1-0.20251212184941-875d1d30c2af
+	github.com/modelcontextprotocol/go-sdk v1.2.0
 	github.com/rhysd/actionlint v1.7.9
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/securego/gosec/v2 v2.22.11
