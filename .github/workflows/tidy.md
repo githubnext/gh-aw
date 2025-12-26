@@ -45,6 +45,10 @@ safe-outputs:
   push-to-pull-request-branch:
   missing-tool:
 steps:
+  - name: Install make
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y make
   - name: Set up Node.js
     uses: actions/setup-node@v6
     with:
