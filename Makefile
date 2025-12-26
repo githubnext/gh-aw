@@ -304,8 +304,9 @@ download-github-actions-schema:
 # Run linter (full repository scan)
 .PHONY: golint
 golint:
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run; \
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		PATH="$$GOPATH/bin:$$PATH" golangci-lint run; \
 	else \
 		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
@@ -316,7 +317,8 @@ golint:
 # Usage: make golint-incremental BASE_REF=origin/main
 .PHONY: golint-incremental
 golint-incremental:
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+	@GOPATH=$$(go env GOPATH); \
+	if ! command -v golangci-lint >/dev/null 2>&1 && [ ! -x "$$GOPATH/bin/golangci-lint" ]; then \
 		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
@@ -325,7 +327,8 @@ golint-incremental:
 		exit 1; \
 	fi
 	@echo "Running incremental lint against $(BASE_REF)..."
-	golangci-lint run --new-from-rev=$(BASE_REF)
+	@GOPATH=$$(go env GOPATH); \
+	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF)
 
 # Validate compiled workflow lock files (models: read not supported yet)
 .PHONY: validate-workflows
@@ -346,7 +349,13 @@ fmt: fmt-go fmt-cjs fmt-json
 
 .PHONY: fmt-go
 fmt-go:
-	go fmt ./...
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
+		exit 1; \
+	fi
 
 # Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
@@ -361,8 +370,15 @@ fmt-json:
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
-	@if [ -n "$$(go fmt ./...)" ]; then \
-		echo "Code is not formatted. Run 'make fmt' to fix."; \
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		diff_output=$$(PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt --diff 2>&1); \
+		if [ -n "$$diff_output" ]; then \
+			echo "Code is not formatted. Run 'make fmt' to fix."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
 
