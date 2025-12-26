@@ -13,6 +13,33 @@ var jsLog = logger.New("workflow:js")
 //go:embed js/safe_outputs_tools.json
 var safeOutputsToolsJSONContent string
 
+//go:embed js/read_buffer.cjs
+var readBufferScript string
+
+//go:embed js/mcp_http_transport.cjs
+var mcpHTTPTransportScript string
+
+//go:embed js/safe_inputs_config_loader.cjs
+var safeInputsConfigLoaderScript string
+
+//go:embed js/mcp_server_core.cjs
+var mcpServerCoreScript string
+
+//go:embed js/safe_inputs_validation.cjs
+var safeInputsValidationScript string
+
+//go:embed js/mcp_logger.cjs
+var mcpLoggerScript string
+
+//go:embed js/mcp_handler_shell.cjs
+var mcpHandlerShellScript string
+
+//go:embed js/mcp_handler_python.cjs
+var mcpHandlerPythonScript string
+
+//go:embed js/safe_inputs_mcp_server_http.cjs
+var safeInputsMCPServerHTTPScript string
+
 // init registers scripts from js.go with the DefaultScriptRegistry
 // Note: Embedded scripts have been removed - scripts are now provided by actions/setup at runtime
 func init() {
@@ -71,19 +98,19 @@ func GetSafeOutputsToolsJSON() string {
 }
 
 func GetReadBufferScript() string {
-	return ""
+	return readBufferScript
 }
 
 func GetMCPServerCoreScript() string {
-	return ""
+	return mcpServerCoreScript
 }
 
 func GetMCPHTTPTransportScript() string {
-	return ""
+	return mcpHTTPTransportScript
 }
 
 func GetMCPLoggerScript() string {
-	return ""
+	return mcpLoggerScript
 }
 
 func GetSafeInputsMCPServerScript() string {
@@ -91,11 +118,11 @@ func GetSafeInputsMCPServerScript() string {
 }
 
 func GetSafeInputsMCPServerHTTPScript() string {
-	return ""
+	return safeInputsMCPServerHTTPScript
 }
 
 func GetSafeInputsConfigLoaderScript() string {
-	return ""
+	return safeInputsConfigLoaderScript
 }
 
 func GetSafeInputsToolFactoryScript() string {
@@ -107,15 +134,15 @@ func GetSafeInputsBootstrapScript() string {
 }
 
 func GetSafeInputsValidationScript() string {
-	return ""
+	return safeInputsValidationScript
 }
 
 func GetMCPHandlerShellScript() string {
-	return ""
+	return mcpHandlerShellScript
 }
 
 func GetMCPHandlerPythonScript() string {
-	return ""
+	return mcpHandlerPythonScript
 }
 
 func GetSafeOutputsConfigScript() string {

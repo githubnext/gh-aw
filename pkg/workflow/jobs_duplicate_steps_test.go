@@ -154,7 +154,7 @@ func TestJobManager_ValidateDuplicateSteps_StepsWithoutNames(t *testing.T) {
 		RunsOn: "ubuntu-latest",
 		Steps: []string{
 			`      - uses: actions/checkout@v4`, // No name
-			`      - run: echo "Hello"`,          // No name
+			`      - run: echo "Hello"`,         // No name
 			`      - name: Named step
         run: echo "World"`,
 		},

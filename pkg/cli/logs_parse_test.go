@@ -2,12 +2,10 @@ package cli
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
-
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 

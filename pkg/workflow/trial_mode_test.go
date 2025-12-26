@@ -162,28 +162,41 @@ This is a test workflow for trial mode compilation.
 
 		agentJobContent := lockContent[agentJobStart:agentJobEnd]
 
-		// Check specifically that the checkout step in agent job has the token parameter
+		// Check specifically that the "Checkout repository" step has the token parameter
+		// Note: There are multiple checkout steps in the agent job (e.g., "Checkout actions folder"),
+		// but we specifically want to check the "Checkout repository" step
 		lines := strings.Split(agentJobContent, "\n")
 		foundCheckoutToken := false
 		for i, line := range lines {
-			if strings.Contains(line, "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
-				// Check the next few lines for "with:" and "token:"
+			// Look for the "Checkout repository" step name
+			if strings.Contains(line, "- name:") && strings.Contains(line, "Checkout repository") {
+				// Now look for the checkout action in the next few lines
 				for j := i + 1; j < len(lines) && j < i+10; j++ {
-					if strings.TrimSpace(lines[j]) == "with:" {
-						// Found "with:" section, check for token
-						for k := j + 1; k < len(lines) && k < j+5; k++ {
-							if strings.Contains(lines[k], "token:") && strings.Contains(lines[k], "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-								foundCheckoutToken = true
+					if strings.Contains(lines[j], "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd") {
+						// Check the next few lines for "with:" and "token:"
+						for k := j + 1; k < len(lines) && k < j+10; k++ {
+							if strings.TrimSpace(lines[k]) == "with:" {
+								// Found "with:" section, check for token
+								for m := k + 1; m < len(lines) && m < k+5; m++ {
+									if strings.Contains(lines[m], "token:") && strings.Contains(lines[m], "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+										foundCheckoutToken = true
+										break
+									}
+									// If we hit another step or section, stop checking
+									if strings.HasPrefix(strings.TrimSpace(lines[m]), "- name:") {
+										break
+									}
+								}
 								break
 							}
-							// If we hit another step or section, stop checking
+							// If we hit another step, stop checking
 							if strings.HasPrefix(strings.TrimSpace(lines[k]), "- name:") {
 								break
 							}
 						}
 						break
 					}
-					// If we hit another step, stop checking
+					// If we hit another step, stop searching for the checkout action
 					if strings.HasPrefix(strings.TrimSpace(lines[j]), "- name:") {
 						break
 					}
