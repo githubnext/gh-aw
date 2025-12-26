@@ -84,7 +84,7 @@ func TestNewTools(t *testing.T) {
 				t.Errorf("expected my-custom command to be 'node', got %q", myCustom.Command)
 			}
 		}
-		
+
 		anotherMCP, exists := tools.Custom["another-mcp"]
 		if !exists {
 			t.Error("expected another-mcp tool in Custom map")

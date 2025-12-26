@@ -95,7 +95,7 @@ func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
 // mcpServerConfigToMap converts an MCPServerConfig to map[string]any for backward compatibility
 func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	result := make(map[string]any)
-	
+
 	// Add common fields if they're set
 	if config.Command != "" {
 		result["command"] = config.Command
@@ -118,7 +118,7 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if len(config.Toolsets) > 0 {
 		result["toolsets"] = config.Toolsets
 	}
-	
+
 	// Add HTTP-specific fields
 	if config.URL != "" {
 		result["url"] = config.URL
@@ -126,7 +126,7 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if len(config.Headers) > 0 {
 		result["headers"] = config.Headers
 	}
-	
+
 	// Add container-specific fields
 	if config.Container != "" {
 		result["container"] = config.Container
@@ -134,12 +134,12 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if len(config.EntrypointArgs) > 0 {
 		result["entrypointArgs"] = config.EntrypointArgs
 	}
-	
+
 	// Add custom fields (these override standard fields if there are conflicts)
 	for key, value := range config.CustomFields {
 		result[key] = value
 	}
-	
+
 	return result
 }
 
@@ -293,15 +293,15 @@ type MCPServerConfig struct {
 	Type     string            `yaml:"type,omitempty"`     // MCP server type (stdio, http, remote, local)
 	Version  string            `yaml:"version,omitempty"`  // Version of the MCP server
 	Toolsets []string          `yaml:"toolsets,omitempty"` // Toolsets to enable
-	
+
 	// HTTP-specific fields
 	URL     string            `yaml:"url,omitempty"`     // URL for HTTP mode MCP servers
 	Headers map[string]string `yaml:"headers,omitempty"` // HTTP headers for HTTP mode
-	
+
 	// Container-specific fields
 	Container      string   `yaml:"container,omitempty"`      // Container image for the MCP server
 	EntrypointArgs []string `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
-	
+
 	// For truly dynamic configuration (server-specific fields not covered above)
 	CustomFields map[string]any `yaml:",inline"`
 }

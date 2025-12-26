@@ -517,24 +517,24 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 	config := MCPServerConfig{
 		CustomFields: make(map[string]any),
 	}
-	
+
 	// If val is nil, return empty config
 	if val == nil {
 		return config
 	}
-	
+
 	// If it's not a map, store it as a custom field
 	configMap, ok := val.(map[string]any)
 	if !ok {
 		config.CustomFields["value"] = val
 		return config
 	}
-	
+
 	// Parse common MCP server fields
 	if command, ok := configMap["command"].(string); ok {
 		config.Command = command
 	}
-	
+
 	if args, ok := configMap["args"].([]any); ok {
 		config.Args = make([]string, 0, len(args))
 		for _, arg := range args {
@@ -543,7 +543,7 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 			}
 		}
 	}
-	
+
 	if env, ok := configMap["env"].(map[string]any); ok {
 		config.Env = make(map[string]string)
 		for k, v := range env {
@@ -552,21 +552,21 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 			}
 		}
 	}
-	
+
 	if mode, ok := configMap["mode"].(string); ok {
 		config.Mode = mode
 	}
-	
+
 	if mcpType, ok := configMap["type"].(string); ok {
 		config.Type = mcpType
 	}
-	
+
 	if version, ok := configMap["version"].(string); ok {
 		config.Version = version
 	} else if versionNum, ok := configMap["version"].(float64); ok {
 		config.Version = fmt.Sprintf("%.0f", versionNum)
 	}
-	
+
 	if toolsets, ok := configMap["toolsets"].([]any); ok {
 		config.Toolsets = make([]string, 0, len(toolsets))
 		for _, item := range toolsets {
@@ -575,12 +575,12 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 			}
 		}
 	}
-	
+
 	// Parse HTTP-specific fields
 	if url, ok := configMap["url"].(string); ok {
 		config.URL = url
 	}
-	
+
 	if headers, ok := configMap["headers"].(map[string]any); ok {
 		config.Headers = make(map[string]string)
 		for k, v := range headers {
@@ -589,12 +589,12 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 			}
 		}
 	}
-	
+
 	// Parse container-specific fields
 	if container, ok := configMap["container"].(string); ok {
 		config.Container = container
 	}
-	
+
 	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
 		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
 		for _, arg := range entrypointArgs {
@@ -603,7 +603,7 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 			}
 		}
 	}
-	
+
 	// Store any unknown fields in CustomFields
 	knownFields := map[string]bool{
 		"command":        true,
@@ -618,12 +618,12 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 		"container":      true,
 		"entrypointArgs": true,
 	}
-	
+
 	for key, value := range configMap {
 		if !knownFields[key] {
 			config.CustomFields[key] = value
 		}
 	}
-	
+
 	return config
 }
