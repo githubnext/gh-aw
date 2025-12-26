@@ -14,7 +14,7 @@ This workflow demonstrates the discussion labeled trigger shorthand syntax:
 
 ```yaml
 on: discussion labeled question announcement help-wanted
-```
+```text
 
 This short syntax automatically expands to:
 - Discussion labeled with any of the specified labels (question, announcement, help-wanted)
@@ -28,7 +28,7 @@ must be handled via job conditions if needed. The shorthand still provides workf
 When this workflow is triggered, acknowledge that it was triggered and provide a brief summary.
 
 Example output:
-```
+```text
 ✅ Workflow triggered!
 📋 This workflow responds to label events on discussions
 ```

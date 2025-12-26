@@ -37,7 +37,7 @@ The library is used for **automatic JSON schema generation for MCP (Model Contex
 import "github.com/google/jsonschema-go/jsonschema"
 
 schema, err := jsonschema.ForType(typ, &jsonschema.ForOptions{})
-```
+```text
 
 **Purpose:** Generates JSON Schema from Go `reflect.Type`, automatically inferring schema properties from struct fields.
 
@@ -48,7 +48,7 @@ func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
     typ := reflect.TypeOf(zero)
     return jsonschema.ForType(typ, &jsonschema.ForOptions{})
 }
-```
+```text
 
 **Purpose:** Provides a generic wrapper for schema generation, leveraging Go 1.18+ generics for compile-time type safety.
 
@@ -83,7 +83,7 @@ tool := &mcp.Tool{
     Description:  "My tool description",
     OutputSchema: schema,
 }
-```
+```text
 
 ## Research Summary
 
@@ -228,7 +228,7 @@ if err != nil {
 tool := &mcp.Tool{
     OutputSchema: schema,
 }
-```
+```text
 
 ### Schema Generation Guidelines
 

@@ -103,13 +103,13 @@ Labels help organize and triage issues for better project management. Use labels
 ## Label Taxonomy
 
 **Current Label Structure:**
-```
+```text
 Type: bug, enhancement, documentation, question, testing
 Priority: priority-high, priority-medium, priority-low
 Component: cli, workflow, mcp, actions, engine, automation
 Workflow: ai-generated, plan, ai-inspected, smoke-copilot
 Status: good first issue, dependencies
-```
+```text
 
 This taxonomy provides clear filtering while avoiding label sprawl. Use GitHub's issue search to combine labels effectively:
 - `is:issue is:open label:bug label:priority-high` - Critical bugs

@@ -31,7 +31,7 @@ type LineLength int
 
 // Version represents a software version string
 type Version string
-```
+```text
 
 **Benefits**:
 - Self-documenting code - the type name explains the purpose
@@ -56,7 +56,7 @@ const MaxExpressionLineLength LineLength = 120
 
 // ExpressionBreakThreshold is the threshold for breaking long lines
 const ExpressionBreakThreshold LineLength = 100
-```
+```text
 
 **Usage**:
 ```go
@@ -64,7 +64,7 @@ const ExpressionBreakThreshold LineLength = 100
 if len(expression) > int(constants.MaxExpressionLineLength) {
     // Break into multiple lines
 }
-```
+```text
 
 #### Version Type
 
@@ -81,7 +81,7 @@ const DefaultCopilotVersion Version = "0.0.369"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
 const DefaultClaudeCodeVersion Version = "2.0.71"
-```
+```text
 
 **Benefits**:
 - Distinguishes version strings from arbitrary strings
@@ -100,7 +100,7 @@ const MCPGatewayFeatureFlag = "mcp-gateway"
 
 // SafeInputsFeatureFlag is the name of the feature flag for safe-inputs
 const SafeInputsFeatureFlag = "safe-inputs"
-```
+```text
 
 **Benefits**:
 - Single source of truth for feature flag names
@@ -135,7 +135,7 @@ type LineLength int
 
 // ❌ BAD - No explanation
 type LineLength int
-```
+```text
 
 2. **Use descriptive names**: The name should indicate both what it is and how it's used
 
@@ -147,7 +147,7 @@ type LineLength int
 // ❌ BAD - Too generic
 type String string
 type Number int
-```
+```text
 
 3. **Provide constants with the type**: Define common values using the type
 
@@ -157,7 +157,7 @@ const MaxExpressionLineLength LineLength = 120
 
 // ❌ BAD - Constants use primitive type
 const MaxExpressionLineLength = 120  // type: int, should be LineLength
-```
+```text
 
 4. **Convert explicitly**: Make type conversions explicit in code
 
@@ -171,7 +171,7 @@ if len(line) > int(constants.MaxExpressionLineLength) {
 if len(line) > constants.MaxExpressionLineLength {  // Type mismatch
     // ...
 }
-```
+```yaml
 
 ---
 
@@ -215,7 +215,7 @@ func ProcessImportsFromFrontmatter(
 ) (mergedTools string, mergedEngines []string, err error) {
     // Parse dynamic YAML structure...
 }
-```
+```text
 
 **Why `map[string]any`**:
 - Frontmatter structure varies by workflow
@@ -238,7 +238,7 @@ func ValidatePermissions(
 ) *PermissionsValidationResult {
     // Extract toolsets from dynamic configuration...
 }
-```
+```text
 
 **Why `any`**:
 - Tool configuration structure not known at compile time
@@ -257,7 +257,7 @@ func ValidatePermissions(permissions *Permissions, githubTool any)
 
 // ❌ BAD - No explanation
 func ValidatePermissions(permissions *Permissions, githubTool any)
-```
+```text
 
 2. **Validate early**: Convert from `any` to typed structures ASAP
 
@@ -273,7 +273,7 @@ func ProcessConfig(config any) error {
     name, _ := configMap["name"].(string)
     // ...
 }
-```
+```text
 
 3. **Use type assertions safely**: Always check the boolean return
 
@@ -286,7 +286,7 @@ if !ok {
 
 // ❌ BAD - Panic on type mismatch
 value := data["key"].(string)  // Can panic!
-```
+```text
 
 4. **Prefer specific types when structure is known**: Only use `any` when truly dynamic
 
@@ -300,7 +300,7 @@ type ToolConfig struct {
 
 // ❌ BAD - Using any when structure is known
 type ToolConfig map[string]any
-```
+```yaml
 
 ---
 
@@ -325,7 +325,7 @@ type CodingAgentEngine interface {
     // GenerateSteps creates workflow steps for this engine
     GenerateSteps(config EngineConfig) ([]Step, error)
 }
-```
+```text
 
 **Benefits**:
 - Multiple engine implementations (Copilot, Claude, Codex)
@@ -348,7 +348,7 @@ type ToolConfig interface {
     GetType() string
     Validate() error
 }
-```
+```text
 
 **Benefits**:
 - Different tools can have different configuration structures
@@ -395,7 +395,7 @@ type Tool interface {
     Cleanup() error
     // ... many more methods
 }
-```
+```text
 
 2. **Define interfaces where they're used**: Consumers define interfaces they need
 
@@ -418,7 +418,7 @@ func Compile(v Validator) error {
 type Validator interface {
     Validate() error
 }
-```
+```text
 
 3. **Document interface contracts**: Explain what implementations must do
 
@@ -433,7 +433,7 @@ type CodingAgentEngine interface {
     GetName() string
     GenerateSteps(config EngineConfig) ([]Step, error)
 }
-```
+```yaml
 
 ---
 
@@ -468,7 +468,7 @@ if !ok {
 
 // ❌ BAD - Unsafe assertion (can panic)
 value := data["key"].(string)
-```
+```text
 
 ### Avoid Type Name Collisions
 
@@ -483,7 +483,7 @@ type RepositoryPermissions struct { /* ... */ }
 // ❌ BAD - Generic names that might collide
 type Permissions struct { /* ... */ }  // Which permissions?
 type Config struct { /* ... */ }       // Which config?
-```
+```text
 
 **Best practices**:
 - Use package-qualified access when importing types
@@ -520,7 +520,7 @@ func ProcessConfig(config Config) error {
     version := config.Version
     // ...
 }
-```
+```text
 
 ### ❌ Anti-Pattern 2: Using Primitive Types for Domain Concepts
 
@@ -541,7 +541,7 @@ func CallAPI(url string, timeout Timeout, retries RetryCount) error {
     // Type mismatch caught at compile time
     CallAPI("https://api.example.com", Timeout(3), RetryCount(5))
 }
-```
+```text
 
 ### ❌ Anti-Pattern 3: God Interfaces
 
@@ -570,7 +570,7 @@ type Validator interface {
 type Compiler interface {
     Compile() error
 }
-```
+```text
 
 ### ❌ Anti-Pattern 4: Unnecessary Type Aliases
 
@@ -586,7 +586,7 @@ type MyError error
 type URL string
 type Port int
 type ValidationError error
-```
+```text
 
 ### ❌ Anti-Pattern 5: Using `interface{}` Instead of `any`
 
@@ -602,7 +602,7 @@ func Process(data interface{}) error {
 func Process(data any) error {
     // ...
 }
-```
+```text
 
 **Note**: The codebase standard is to **always use `any` instead of `interface{}`**
 
@@ -612,7 +612,7 @@ func Process(data any) error {
 
 ### Quick Decision Tree
 
-```
+```text
 Need to represent a value?
 │
 ├─ Is structure known at compile time?
@@ -630,7 +630,7 @@ Need to represent a value?
 └─ Handling external data (YAML/JSON)?
    ├─ YES → Use map[string]any initially, validate and convert
    └─ NO → Use specific types
-```
+```text
 
 ### Key Principles
 
