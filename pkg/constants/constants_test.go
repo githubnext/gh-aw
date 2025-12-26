@@ -508,14 +508,14 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 	// by preventing accidental mixing of different string types
 
 	// These assignments should work (same types)
-	var job1 JobName = AgentJobName
-	var job2 JobName = ActivationJobName
+	job1 := AgentJobName
+	job2 := ActivationJobName
 	if job1 == job2 {
 		t.Error("AgentJobName should not equal ActivationJobName")
 	}
 
-	var step1 StepID = CheckMembershipStepID
-	var step2 StepID = CheckStopTimeStepID
+	step1 := CheckMembershipStepID
+	step2 := CheckStopTimeStepID
 	if step1 == step2 {
 		t.Error("CheckMembershipStepID should not equal CheckStopTimeStepID")
 	}
@@ -533,8 +533,7 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 	// (this is a compile-time check, but we verify the values are correct)
 	jobStr := string(AgentJobName)
 	stepStr := string(CheckMembershipStepID)
-	if jobStr == stepStr {
-		// This is fine - they can have the same string value
-		// but they have different types which prevents accidental mixing
-	}
+	_ = jobStr  // Used for demonstration
+	_ = stepStr // Used for demonstration
+	// Different semantic types prevent accidental mixing even if string values match
 }
