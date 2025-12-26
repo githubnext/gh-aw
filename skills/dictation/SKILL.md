@@ -1,6 +1,6 @@
 ---
 name: dictation
-description: Dictation Instructions
+description: Fix speech-to-text errors in gh-aw documentation and code
 ---
 
 
@@ -12,166 +12,125 @@ Fix text-to-speech errors in dictated text for creating agentic workflow prompts
 
 The following terms are specific to this project and should be recognized and used correctly:
 
-actionlint
 activation
 add-comment
 add-labels
+add-reviewer
 agentic
 agentic-workflows
 agent
-agent-task
-allowed
-allowed-domains
-anthropic
-args
+agent-files
 assign-milestone
-assignees
+assign-to-agent
+assign-to-user
 audit
+auto-expiration
 bash
-cache
 cache-memory
+campaign
 chatops
-checkout
-claude
-cli
 close-discussion
+close-issue
+close-pull-request
 codex
-command
 compile
 concurrency
-container
-contents
 copilot
 create-agent-task
 create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
-create-pull-request-review-comment
-custom
+cron
+cross-repository
+custom-agents
 dailyops
-defaults
-description
-disable
-discussion
-discussion-comment
-docker
+domains
 draft
+ecosystem
 edit
-enable
 engine
-env
-environment
+environment-variables
+expires
+features
 firewall
-fmt
 fork
 forks
 frontmatter
+fuzzy
 gh-aw
 github
 github-token
-gpt-5
+glossary
+hide-comment
 if-no-changes
 imports
-init
+issue
 issue-comment
 issue_comment
 issueops
-issues
-job
-jobs
-labelops
 labels
-lint
-lock-yml
+link-sub-issue
+lockdown
 lockfile
 log-level
 logs
-manual-approval
 markdown
-max
-max-concurrency
 max-patch-size
-max-turns
 mcp
-mcp-config
+mcp-server
 mcp-servers
-memory
+metadata
+minimize-comment
 missing-tool
-mode
-model
+monthly
 network
-new
 noop
 npm
-npmjs
-on
-output
-permission
+npx
 permissions
+pip
 playwright
-post-steps
-poutine
-projectops
 pull-request
-pull-request-comment
-pull-request-review-comment
 pull_request
-purge
-push
 push-to-pull-request-branch
 pypi
 reaction
 read-only
 recompile
-remote
-remove
-repo
-retention-days
-reviewers
-run
-run-name
+repo-memory
+roles
 runs-on
+safe-inputs
 safe-outputs
-sanitized
+sanitize
 sarif
-schedule
-schema
+sbom
+scheduled
 secrets
-server
-session
-skip-if-match
+slash-command
 staged
 status
-steps
-stop-after
 strict
-target
-target-repo
-test-unit
-timeout
+sub-issue
 timeout-minutes
-title-prefix
 toolset
 toolsets
-tools
-trigger
-triggers
+tracker-id
 trial
-update
+triggers
 update-issue
 update-project
+update-pull-request
 update-release
-verbose
-version
+upload-asset
 web-fetch
 web-search
-workflow
+weekly
 workflow-dispatch
+workflow-run
 workflow_run
 workflows
-yaml
-zizmor
 
 ## Technical Context
 
@@ -183,13 +142,17 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 
 - "ghaw" → "gh-aw"
 - "G H A W" → "gh-aw"
+- "G H dash A W" → "gh-aw"
+- "gee awe" → "gh-aw"
 - "work flow" → "workflow"
 - "work flows" → "workflows"
 - "front matter" → "frontmatter"
 - "lock file" → "lockfile" or "lock-yml"
 - "co-pilot" → "copilot"
+- "safe inputs" → "safe-inputs"
 - "safe outputs" → "safe-outputs"
 - "cache memory" → "cache-memory"
+- "repo memory" → "repo-memory"
 - "max turns" → "max-turns"
 - "max concurrency" → "max-concurrency"
 - "max patch size" → "max-patch-size"
@@ -198,6 +161,7 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "pull request comment" → "pull-request-comment"
 - "pull request review comment" → "pull-request-review-comment"
 - "workflow dispatch" → "workflow-dispatch"
+- "work flow dispatch" → "workflow_dispatch"
 - "runs on" → "runs-on"
 - "run name" → "run-name"
 - "timeout minutes" → "timeout-minutes"
@@ -212,12 +176,14 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "web search" → "web-search"
 - "test unit" → "test-unit"
 - "post steps" → "post-steps"
-- "M C P" → "mcp"
-- "MCP" → "mcp"
+- "M C P" → "MCP"
+- "em see pee" → "MCP"
 - "MCP servers" → "mcp-servers"
+- "MCP server" → "mcp-server"
 - "MCP config" → "mcp-config"
 - "git hub" → "github"
 - "git hub token" → "github-token"
+- "agentive" → "agentic"
 - "agent ick" → "agentic"
 - "agent tick" → "agentic"
 - "label ops" → "labelops"
@@ -226,9 +192,13 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "project ops" → "projectops"
 - "daily ops" → "dailyops"
 - "NPM JS" → "npmjs"
+- "NPX" → "npx"
 - "pi pi" → "pypi"
-- "SAR IF" → "sarif"
-- "SARIF" → "sarif"
+- "pip" → "pip"
+- "SAR IF" → "SARIF"
+- "SARIF" → "SARIF"
+- "SBOM" → "SBOM"
+- "es bom" → "SBOM"
 - "create agent task" → "create-agent-task"
 - "create code scanning alert" → "create-code-scanning-alert"
 - "create discussion" → "create-discussion"
@@ -238,12 +208,23 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "push to pull request branch" → "push-to-pull-request-branch"
 - "update issue" → "update-issue"
 - "update project" → "update-project"
+- "update pull request" → "update-pull-request"
 - "update release" → "update-release"
+- "upload asset" → "upload-asset"
 - "close discussion" → "close-discussion"
+- "close issue" → "close-issue"
+- "close pull request" → "close-pull-request"
+- "hide comment" → "hide-comment"
+- "minimize comment" → "minimize-comment"
 - "missing tool" → "missing-tool"
 - "add comment" → "add-comment"
 - "add labels" → "add-labels"
+- "add reviewer" → "add-reviewer"
 - "assign milestone" → "assign-milestone"
+- "assign to agent" → "assign-to-agent"
+- "assign to user" → "assign-to-user"
+- "link sub issue" → "link-sub-issue"
+- "sub issue" → "sub-issue"
 - "discussion comment" → "discussion-comment"
 - "issue comment" → "issue-comment" or "issue_comment"
 - "pull request" → "pull-request" or "pull_request"
@@ -251,6 +232,15 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "manual approval" → "manual-approval"
 - "log level" → "log-level"
 - "workflow run" → "workflow_run"
+- "tracker ID" → "tracker-id"
+- "custom agents" → "custom-agents"
+- "agent files" → "agent-files"
+- "slash command" → "slash-command" (in frontmatter)
+- "environment variables" → "environment-variables"
+- "auto expiration" → "auto-expiration"
+- "cross repository" → "cross-repository"
+- "tool set" → "toolset"
+- "tool sets" → "toolsets"
 
 ## Guidelines
 
