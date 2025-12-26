@@ -80,6 +80,11 @@
       "version": "v5.0.0",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
+    "anchore/sbom-action@v0.20.10": {
+      "repo": "anchore/sbom-action",
+      "version": "v0.20.10",
+      "sha": "fbfd9c6c189226748411491745178e0c2017392d"
+    },
     "anchore/sbom-action@v0.20.11": {
       "repo": "anchore/sbom-action",
       "version": "v0.20.11",
@@ -129,6 +134,11 @@
       "repo": "ruby/setup-ruby",
       "version": "v1.275.0",
       "sha": "d354de180d0c9e813cfddfcbdc079945d4be589b"
+    },
+    "super-linter/super-linter@v8.2.1": {
+      "repo": "super-linter/super-linter",
+      "version": "v8.2.1",
+      "sha": "2bdd90ed3262e023ac84bf8fe35dc480721fc1f2"
     },
     "super-linter/super-linter@v8.3.1": {
       "repo": "super-linter/super-linter",
