@@ -6,7 +6,8 @@ const fs = require("fs"),
     try {
       content = fs.readFileSync(file, "utf8");
     } catch (error) {
-      throw new Error(`Failed to read file ${file}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to read file ${file}: ${errorMessage}`);
     }
     for (const [key, value] of Object.entries(substitutions)) {
       const placeholder = `__${key}__`;
@@ -15,7 +16,8 @@ const fs = require("fs"),
     try {
       fs.writeFileSync(file, content, "utf8");
     } catch (error) {
-      throw new Error(`Failed to write file ${file}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to write file ${file}: ${errorMessage}`);
     }
     return `Successfully substituted ${Object.keys(substitutions).length} placeholder(s) in ${file}`;
   };

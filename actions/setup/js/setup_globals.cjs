@@ -18,10 +18,15 @@
  * @param {typeof io} ioModule - The @actions/io module
  */
 function setupGlobals(coreModule, githubModule, contextModule, execModule, ioModule) {
+  // @ts-expect-error - Assigning to global properties that are declared as const
   global.core = coreModule;
+  // @ts-expect-error - Assigning to global properties that are declared as const
   global.github = githubModule;
+  // @ts-expect-error - Assigning to global properties that are declared as const
   global.context = contextModule;
+  // @ts-expect-error - Assigning to global properties that are declared as const
   global.exec = execModule;
+  // @ts-expect-error - Assigning to global properties that are declared as const
   global.io = ioModule;
 }
 
