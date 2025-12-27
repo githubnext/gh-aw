@@ -42,16 +42,16 @@ describe("assign_copilot_to_created_issues.cjs", () => {
     // Mock the template string replacement to return empty string
     const originalModule = await import("./assign_copilot_to_created_issues.cjs");
     const script = originalModule.main.toString();
-    
+
     // Simulate empty output
     await main();
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("No issues to assign copilot to");
   });
 
   it("should handle whitespace-only issues_to_assign_copilot", async () => {
     await main();
-    
+
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No issues to assign copilot") || expect.stringContaining("No valid issue entries found"));
   });
 
@@ -91,7 +91,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         results.push({ repo: repoSlug, issue_number: issueNumber, success });
       }
     `;
-    
+
     // Execute test script
     await eval(`(async () => {
       const agentName = "copilot";
@@ -116,7 +116,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
       }
     })()`);
-    
+
     expect(findAgent).toHaveBeenCalledWith("owner", "repo", "copilot");
     expect(getIssueDetails).toHaveBeenCalledWith("owner", "repo", 123);
     expect(assignAgentToIssue).toHaveBeenCalledWith("ISSUE_123", "AGENT_456", [], "copilot");
@@ -157,14 +157,14 @@ describe("assign_copilot_to_created_issues.cjs", () => {
         await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName);
       }
     })()`);
-    
+
     expect(findAgent).toHaveBeenCalledTimes(1); // Should only find agent once
     expect(getIssueDetails).toHaveBeenCalledTimes(2);
     expect(assignAgentToIssue).toHaveBeenCalledTimes(2);
   });
 
   it("should handle invalid issue entry format", async () => {
-    const testInvalidEntry = (entry) => {
+    const testInvalidEntry = entry => {
       const parts = entry.split(":");
       return parts.length !== 2;
     };
@@ -174,7 +174,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
   });
 
   it("should handle invalid issue number", async () => {
-    const testInvalidNumber = (entry) => {
+    const testInvalidNumber = entry => {
       const parts = entry.split(":");
       const issueNumber = parseInt(parts[1], 10);
       return isNaN(issueNumber) || issueNumber <= 0;
@@ -187,7 +187,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
   });
 
   it("should handle invalid repo format", async () => {
-    const testInvalidRepo = (entry) => {
+    const testInvalidRepo = entry => {
       const parts = entry.split(":");
       const repoSlug = parts[0];
       const repoParts = repoSlug.split("/");
@@ -338,7 +338,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
       { repo: "owner/repo", issue_number: 123, success: true },
       { repo: "owner/repo", issue_number: 456, success: true },
     ];
-    
+
     const successCount = results.filter(r => r.success).length;
     expect(successCount).toBe(2);
   });
@@ -348,7 +348,7 @@ describe("assign_copilot_to_created_issues.cjs", () => {
       { repo: "owner/repo", issue_number: 123, success: false, error: "Error 1" },
       { repo: "owner/repo", issue_number: 456, success: false, error: "Error 2" },
     ];
-    
+
     const failureCount = results.length - results.filter(r => r.success).length;
     expect(failureCount).toBe(2);
   });
