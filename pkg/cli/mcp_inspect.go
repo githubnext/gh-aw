@@ -501,7 +501,10 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 
 	// Write safe-inputs files to temporary directory
 	if err := writeSafeInputsFiles(tmpDir, safeInputsConfig, verbose); err != nil {
-		os.RemoveAll(tmpDir)
+		// Clean up temporary directory on error
+		if err := os.RemoveAll(tmpDir); err != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
+		}
 		return nil, nil, "", fmt.Errorf("failed to write safe-inputs files: %w", err)
 	}
 
