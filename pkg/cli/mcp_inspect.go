@@ -522,7 +522,10 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	// Start the HTTP server
 	serverCmd, err := startSafeInputsHTTPServer(tmpDir, port, verbose)
 	if err != nil {
-		os.RemoveAll(tmpDir)
+		// Clean up temporary directory on error
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, rmErr)
+		}
 		return nil, nil, "", fmt.Errorf("failed to start safe-inputs HTTP server: %w", err)
 	}
 
