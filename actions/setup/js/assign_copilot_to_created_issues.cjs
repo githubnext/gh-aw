@@ -13,7 +13,8 @@ async function main() {
   // Get the issues to assign from step output
   const issuesToAssignStr = "${{ steps.create_issue.outputs.issues_to_assign_copilot }}";
 
-  if (!issuesToAssignStr || issuesToAssignStr.trim() === "") {
+  // Check if the template string wasn't replaced (test environment) or is empty
+  if (!issuesToAssignStr || issuesToAssignStr.trim() === "" || issuesToAssignStr.includes("${{")) {
     core.info("No issues to assign copilot to");
     return;
   }

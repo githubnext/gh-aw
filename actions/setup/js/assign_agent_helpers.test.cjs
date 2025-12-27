@@ -208,9 +208,7 @@ describe("assign_agent_helpers.cjs", () => {
     it("should handle GraphQL errors", async () => {
       mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error"));
 
-      const result = await getIssueDetails("owner", "repo", 123);
-
-      expect(result).toBeNull();
+      await expect(getIssueDetails("owner", "repo", 123)).rejects.toThrow("GraphQL error");
       expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to get issue details"));
     });
 
