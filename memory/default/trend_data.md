@@ -1,3 +1,12 @@
+## Trend Data (as of 2025-12-27T02:03:56Z)
+
+- Workflow snapshot (last 20 runs, ~12h): 1.1h duration, 6,415,700 tokens, ~$1.23 est cost, 38 turns, 79 errors, 162 warnings, 2 missing-tools. Outcomes: 8+ successes (Tidy x3, Great Escapi, Issue Monster, Smoke Claude, Plan Command, Smoke Codex), 1 failure (Q), 2 cancels (Tidy), 1 in-progress (DeepReport). Smoke Codex logged the only missing-tool; Tidy/Great Escapi own most warnings/errors.
+- Token highlights: Great Escapi consumed ~2.1M tokens; Tidy runs ranged 0.2–0.6M tokens with repeated warnings/errors despite success.
+- Codebase health (Dec 26 report): LOC steady at 530,568 with workflows dominating (328,678 LOC, 62%); churn very high over 7d (313 commits, -710k net lines) and 10 large files flagged; quality score 94.6/100.
+- Schema consistency (Dec 26): 95%+ alignment; low-priority gaps in firewall log-level validation and documenting safe-outputs max defaults.
+- Module reviews (Dec 26–27): golangci-lint, lipgloss, and huh integrations rated exemplary with optional follow-ups (document incremental linting, clarify lipgloss version pin, add huh accessible mode flag).
+- Issue stats (weekly slice): 270 total; 34 open / 236 closed. Created last 3 days: 115; closed last 3 days: 114. Unlabeled issues: 13 total. Label leaders: ai-generated 154, plan 153, enhancement 92, documentation 46, automation 37.
+
 ## Trend Data (as of 2025-12-26T15:10:00Z)
 
 - Workflow snapshot (last 20 runs, ~3d): 1.6h total duration, 10,246,346 tokens, ~$5.51 est cost, 141 turns, 366 errors, 269 warnings, 1 missing-tool; notable failures in Smoke Claude and Super Linter, missing tool surfaced in Smoke Codex.

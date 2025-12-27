@@ -1,3 +1,10 @@
+## Known Patterns (2025-12-27)
+
+- Code quality modules trend positive: Go Fan reviews for golangci-lint, lipgloss, and huh all rate integration as exemplary with only optional doc/feature experiments (incremental lint docs, lipgloss list/tree, accessible mode flag). Reinforces strong dependency hygiene.
+- Schema consistency remains high (95%+) per Dec 26 checker; remaining gaps are UX-level (firewall log-level accepts any string, safe-outputs max defaults not fully documented).
+- Recent workflow window (last ~12h) mostly stable: 20 runs, one failure (Q), two cancels (Tidy), one missing-tool in Smoke Codex; Tidy and Great Escapi generate most warnings/errors but complete.
+- Issue backlog improving: weekly cache shows 270 issues with 34 open and only 13 unlabeled; creation/closure over last 3d nearly balanced (115 created / 114 closed).
+
 ## Known Patterns (2025-12-26)
 
 - Workflow health dipped: latest audit shows 64.7% success (44/68) with MCP init failures (invalid URL/read_buffer) and safeoutputs outages hitting smoke suites; permission-denied warnings persist across AI Moderator, Issue Monster, Tidy, Spec-Kit.

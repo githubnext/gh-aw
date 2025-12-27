@@ -1,3 +1,11 @@
+## Flagged Items for Monitoring (2025-12-27)
+
+- Smoke Codex still reports a missing tool in the latest run (§20531954774); needs inspection to avoid recurring gaps during smoke coverage.
+- Q workflow failed at §20532080482 while nearby runs were green; grab logs to confirm if config drift or transient infra caused it.
+- Tidy continues to succeed with 3–7 errors and 14–18 warnings per run; investigate noisy checks to prevent alert fatigue.
+- High churn continues (313 commits, -710k net lines over 7d) per Daily Code Health; ensure tests keep pace with refactors.
+- Backlog hygiene: weekly cache shows 34 open issues and 13 unlabeled; quick triage would keep the small backlog clean.
+
 ## Flagged Items for Monitoring (2025-12-26)
 
 - MCP client breakage: audit reports invalid URL and missing `read_buffer.cjs` across Smoke Copilot variants plus safeoutputs failures in Smoke Claude—likely tied to recent MCP HTTP transport changes (commit 2dd6edb); blocks MCP coverage.
