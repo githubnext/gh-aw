@@ -158,7 +158,7 @@ const DefaultGitHubScriptVersion Version = "v8"
 const DefaultBunVersion Version = "1.1"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
-const DefaultNodeVersion Version = "20"
+const DefaultNodeVersion Version = "24"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"

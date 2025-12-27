@@ -47,7 +47,7 @@ steps:
 			expectSetup: []string{
 				"Setup Node.js",
 				"actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f",
-				"node-version: '20'",
+				"node-version: '24'",
 			},
 		},
 		{
