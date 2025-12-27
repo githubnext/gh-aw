@@ -18,17 +18,9 @@ tools:
   serena: ["go"]
   github:
     toolsets: [repos]
+  edit:
   bash:
-    - "find pkg -name '*.go' ! -name '*_test.go' -type f"
-    - "grep -r 'fmt\\.Print' pkg --include='*.go'"
-    - "grep -r 'console\\.' pkg --include='*.go'"
-    - "grep -r 'lipgloss\\.' pkg --include='*.go'"
-    - "grep -r 'github.com/charmbracelet/lipgloss' pkg --include='*.go'"
-    - "grep -r 'huh\\.' pkg --include='*.go'"
-    - "grep -r 'github.com/charmbracelet/huh' pkg --include='*.go'"
-    - "cat pkg/console/*.go"
-    - "cat pkg/cli/interactive.go"
-    - "cat pkg/styles/*.go"
+    - "*"
 
 safe-outputs:
   create-discussion:
