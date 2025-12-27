@@ -213,7 +213,8 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewText().
 				Title("Describe what this workflow should do:").
-				Value(&b.Intent),
+				Value(&b.Intent).
+				Validate(ValidateWorkflowIntent),
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
