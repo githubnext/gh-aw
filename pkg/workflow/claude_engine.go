@@ -204,7 +204,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Prepend PATH setup to find claude in hostedtoolcache
 	// This ensures claude and all its dependencies (including MCP servers) are accessible
-	claudeCommand = fmt.Sprintf(`export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH" && %s`, claudeCommand)
+	// Split export from command substitution to avoid masking return values (SC2155)
+	claudeCommand = fmt.Sprintf(`NODE_BIN_PATH="$(ls /opt/hostedtoolcache/node | head -1)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && %s`, claudeCommand)
 
 	// Add conditional model flag if not explicitly configured
 	// Check if this is a detection job (has no SafeOutputs config)
