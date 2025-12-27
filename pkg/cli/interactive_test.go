@@ -489,7 +489,7 @@ func TestInteractiveWorkflowBuilder_FieldDescriptions(t *testing.T) {
 	// This test verifies that all major form fields have descriptions
 	// We'll use a code inspection approach since we can't test the interactive UI directly
 
-	builder := &InteractiveWorkflowBuilder{}
+	_ = &InteractiveWorkflowBuilder{}
 
 	// Verify promptForWorkflowName has description
 	// The description should guide users on naming conventions
@@ -510,11 +510,6 @@ func TestInteractiveWorkflowBuilder_FieldDescriptions(t *testing.T) {
 	t.Logf("Workflow name description: %s", workflowNameDescription)
 	for field, desc := range expectedDescriptions {
 		t.Logf("Field %q should have description: %s", field, desc)
-	}
-
-	// Verify builder structure can be created without panic
-	if builder == nil {
-		t.Error("Failed to create InteractiveWorkflowBuilder")
 	}
 
 	// This test serves as documentation for the expected field descriptions
