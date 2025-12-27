@@ -418,3 +418,202 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestRenderTree(t *testing.T) {
+	tests := []struct {
+		name     string
+		tree     TreeNode
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name: "simple tree with no children",
+			tree: TreeNode{
+				Value:    "Root",
+				Children: []TreeNode{},
+			},
+			expected: []string{"Root"},
+		},
+		{
+			name: "tree with single level children",
+			tree: TreeNode{
+				Value: "Root",
+				Children: []TreeNode{
+					{Value: "Child1", Children: []TreeNode{}},
+					{Value: "Child2", Children: []TreeNode{}},
+					{Value: "Child3", Children: []TreeNode{}},
+				},
+			},
+			expected: []string{
+				"Root",
+				"Child1",
+				"Child2",
+				"Child3",
+			},
+		},
+		{
+			name: "tree with nested children",
+			tree: TreeNode{
+				Value: "Workflow",
+				Children: []TreeNode{
+					{
+						Value: "Setup",
+						Children: []TreeNode{
+							{Value: "Install dependencies", Children: []TreeNode{}},
+							{Value: "Configure environment", Children: []TreeNode{}},
+						},
+					},
+					{
+						Value: "Build",
+						Children: []TreeNode{
+							{Value: "Compile source", Children: []TreeNode{}},
+							{Value: "Run tests", Children: []TreeNode{}},
+						},
+					},
+					{Value: "Deploy", Children: []TreeNode{}},
+				},
+			},
+			expected: []string{
+				"Workflow",
+				"Setup",
+				"Install dependencies",
+				"Configure environment",
+				"Build",
+				"Compile source",
+				"Run tests",
+				"Deploy",
+			},
+		},
+		{
+			name: "tree with MCP server hierarchy",
+			tree: TreeNode{
+				Value: "MCP Servers",
+				Children: []TreeNode{
+					{
+						Value: "github",
+						Children: []TreeNode{
+							{Value: "list_issues", Children: []TreeNode{}},
+							{Value: "create_issue", Children: []TreeNode{}},
+							{Value: "list_pull_requests", Children: []TreeNode{}},
+						},
+					},
+					{
+						Value: "filesystem",
+						Children: []TreeNode{
+							{Value: "read_file", Children: []TreeNode{}},
+							{Value: "write_file", Children: []TreeNode{}},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"MCP Servers",
+				"github",
+				"list_issues",
+				"create_issue",
+				"list_pull_requests",
+				"filesystem",
+				"read_file",
+				"write_file",
+			},
+		},
+		{
+			name: "deeply nested tree",
+			tree: TreeNode{
+				Value: "Level 1",
+				Children: []TreeNode{
+					{
+						Value: "Level 2",
+						Children: []TreeNode{
+							{
+								Value: "Level 3",
+								Children: []TreeNode{
+									{Value: "Level 4", Children: []TreeNode{}},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"Level 1",
+				"Level 2",
+				"Level 3",
+				"Level 4",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderTree(tt.tree)
+
+			// Check that all expected strings are present
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("RenderTree() output missing expected string '%s'\nGot:\n%s", expected, output)
+				}
+			}
+
+			// Verify output is not empty
+			if output == "" {
+				t.Error("RenderTree() returned empty string")
+			}
+		})
+	}
+}
+
+func TestRenderTreeSimple(t *testing.T) {
+	tests := []struct {
+		name     string
+		tree     TreeNode
+		expected []string // Substrings that should be present
+	}{
+		{
+			name: "simple tree structure",
+			tree: TreeNode{
+				Value: "Root",
+				Children: []TreeNode{
+					{Value: "Child1", Children: []TreeNode{}},
+					{Value: "Child2", Children: []TreeNode{}},
+				},
+			},
+			expected: []string{
+				"Root",
+				"Child1",
+				"Child2",
+			},
+		},
+		{
+			name: "nested tree structure",
+			tree: TreeNode{
+				Value: "Parent",
+				Children: []TreeNode{
+					{
+						Value: "Child",
+						Children: []TreeNode{
+							{Value: "Grandchild", Children: []TreeNode{}},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"Parent",
+				"Child",
+				"Grandchild",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use renderTreeSimple directly for testing
+			output := renderTreeSimple(tt.tree, "", true)
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("renderTreeSimple() output missing expected string '%s'\nGot:\n%s", expected, output)
+				}
+			}
+		})
+	}
+}
