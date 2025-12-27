@@ -225,7 +225,7 @@ For each generated chart:
 
 1. **Verify chart was created**:
    ```bash
-   ls -lh /tmp/gh-aw/python/charts/
+   find /tmp/gh-aw/python/charts/ -maxdepth 1 -ls
    ```
 
 2. **Upload each chart** using the `upload asset` tool

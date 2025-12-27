@@ -32,8 +32,8 @@ tools:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
     - "find pkg -type f -name '*.go' ! -name '*_test.go'"
-    - "ls -la pkg/"
-    - "ls -la pkg/workflow/"
+    - "find pkg/ -maxdepth 1 -ls"
+    - "find pkg/workflow/ -maxdepth 1 -ls"
     - "wc -l pkg/**/*.go"
     - "head -n * pkg/**/*.go"
     - "grep -r 'func ' pkg --include='*.go'"

@@ -36,7 +36,7 @@ tools:
   edit:
   bash:
     - "find specs -type f -name '*.md'"
-    - "ls -la .specify/"
+    - "find .specify/ -maxdepth 1 -ls"
     - "bash .specify/scripts/bash/check-prerequisites.sh"
     - "bash .specify/scripts/bash/create-new-feature.sh"
     - "cat specs/*/plan.md"
@@ -88,7 +88,7 @@ find specs -type f -name 'plan.md' -o -name 'tasks.md'
 List all features and their status:
 
 ```bash
-ls -la specs/
+find specs/ -maxdepth 1 -ls
 ```
 
 ### 3. Identify Pending Work

@@ -20,7 +20,7 @@ tools:
   edit:
   bash:
     - "find *"
-    - "ls *"
+    - "find * -maxdepth 1"
     - "cat *"
     - "wc *"
     - "head *"
