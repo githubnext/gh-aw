@@ -350,6 +350,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			return errors.New(formattedErr)
 		}
 
+		// Validate firewall configuration (log-level enum)
+		log.Print("Validating firewall configuration")
+		if err := c.validateFirewallConfig(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("firewall configuration validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
+
 		// Validate repository features (discussions, issues)
 		log.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
