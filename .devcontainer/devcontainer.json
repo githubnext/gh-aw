@@ -3,7 +3,14 @@
   "image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
   "customizations": {
     "vscode": {
-      "extensions": ["golang.go", "GitHub.copilot-chat", "GitHub.copilot", "github.vscode-github-actions", "astro-build.astro-vscode", "DavidAnson.vscode-markdownlint"]
+      "extensions": [
+        "golang.go",
+        "GitHub.copilot-chat",
+        "GitHub.copilot",
+        "github.vscode-github-actions",
+        "astro-build.astro-vscode",
+        "DavidAnson.vscode-markdownlint"
+      ]
     },
     "codespaces": {
       "repositories": {
