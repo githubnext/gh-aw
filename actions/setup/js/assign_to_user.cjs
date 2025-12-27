@@ -53,12 +53,7 @@ async function main() {
   const issueNumber = targetResult.number;
 
   // Support both singular "assignee" and plural "assignees" for flexibility
-  let requestedAssignees = [];
-  if (assignItem.assignees && Array.isArray(assignItem.assignees)) {
-    requestedAssignees = assignItem.assignees;
-  } else if (assignItem.assignee) {
-    requestedAssignees = [assignItem.assignee];
-  }
+  const requestedAssignees = assignItem.assignees && Array.isArray(assignItem.assignees) ? assignItem.assignees : assignItem.assignee ? [assignItem.assignee] : [];
 
   core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
 
@@ -82,21 +77,17 @@ No users were assigned (no valid assignees found in agent output).
 
   core.info(`Assigning ${uniqueAssignees.length} users to issue #${issueNumber}: ${JSON.stringify(uniqueAssignees)}`);
 
+  // Get target repository from environment or use current
+  const targetRepoEnv = process.env.GH_AW_TARGET_REPO_SLUG?.trim();
+  const [targetOwner, targetRepo] = targetRepoEnv?.includes("/")
+    ? targetRepoEnv.split("/")
+    : [context.repo.owner, context.repo.repo];
+
+  if (targetRepoEnv?.includes("/")) {
+    core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
+  }
+
   try {
-    // Get target repository from environment or use current
-    const targetRepoEnv = process.env.GH_AW_TARGET_REPO_SLUG?.trim();
-    let targetOwner = context.repo.owner;
-    let targetRepo = context.repo.repo;
-
-    if (targetRepoEnv) {
-      const parts = targetRepoEnv.split("/");
-      if (parts.length === 2) {
-        targetOwner = parts[0];
-        targetRepo = parts[1];
-        core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
-      }
-    }
-
     // Add assignees to the issue
     await github.rest.issues.addAssignees({
       owner: targetOwner,
@@ -106,7 +97,6 @@ No users were assigned (no valid assignees found in agent output).
     });
 
     core.info(`Successfully assigned ${uniqueAssignees.length} user(s) to issue #${issueNumber}`);
-
     core.setOutput("assigned_users", uniqueAssignees.join("\n"));
 
     const assigneesListMarkdown = uniqueAssignees.map(assignee => `- \`${assignee}\``).join("\n");
@@ -122,7 +112,7 @@ ${assigneesListMarkdown}
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = error?.message ?? String(error);
     core.error(`Failed to assign users: ${errorMessage}`);
     core.setFailed(`Failed to assign users: ${errorMessage}`);
   }
