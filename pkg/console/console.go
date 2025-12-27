@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/list"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/styles"
@@ -373,4 +374,96 @@ func ClearScreen() {
 	if isTTY() {
 		fmt.Print(clearScreenSequence)
 	}
+}
+
+// RenderList renders a simple list with the specified enumerator
+// Enumerator options: "bullet", "dash", "asterisk", "arabic", "roman", "alphabet"
+// If TTY is not detected, returns plain text without styling
+func RenderList(items []string, enumerator string) string {
+	if len(items) == 0 {
+		return ""
+	}
+
+	consoleLog.Printf("Rendering list: enumerator=%s, items=%d", enumerator, len(items))
+
+	// Convert strings to any for lipgloss/list
+	listItems := make([]any, len(items))
+	for i, item := range items {
+		listItems[i] = item
+	}
+
+	// Create the list
+	l := list.New(listItems...)
+
+	// Set enumerator based on type
+	switch enumerator {
+	case "bullet":
+		l = l.Enumerator(list.Bullet)
+	case "dash":
+		l = l.Enumerator(list.Dash)
+	case "asterisk":
+		l = l.Enumerator(list.Asterisk)
+	case "arabic":
+		l = l.Enumerator(list.Arabic)
+	case "roman":
+		l = l.Enumerator(list.Roman)
+	case "alphabet":
+		l = l.Enumerator(list.Alphabet)
+	default:
+		// Default to bullet
+		l = l.Enumerator(list.Bullet)
+	}
+
+	// Apply styling if TTY
+	if isTTY() {
+		l = l.EnumeratorStyle(styles.ListEnumerator).
+			ItemStyle(styles.ListItem)
+	}
+
+	return l.String()
+}
+
+// RenderNestedList renders a hierarchical list where each key has nested items
+// If TTY is not detected, returns plain text without styling
+func RenderNestedList(sections map[string][]string) string {
+	if len(sections) == 0 {
+		return ""
+	}
+
+	consoleLog.Printf("Rendering nested list: sections=%d", len(sections))
+
+	var result strings.Builder
+
+	// Iterate over sections (order not guaranteed in maps, but that's okay for this use case)
+	for sectionTitle, items := range sections {
+		// Add section header
+		if isTTY() {
+			result.WriteString(styles.ListHeader.Render(sectionTitle))
+		} else {
+			result.WriteString(sectionTitle)
+		}
+		result.WriteString("\n")
+
+		// Create nested list for items
+		if len(items) > 0 {
+			listItems := make([]any, len(items))
+			for i, item := range items {
+				listItems[i] = item
+			}
+
+			nestedList := list.New(listItems...).
+				Enumerator(list.Bullet)
+
+			// Apply styling if TTY
+			if isTTY() {
+				nestedList = nestedList.EnumeratorStyle(styles.ListEnumerator).
+					ItemStyle(styles.ListItem)
+			}
+
+			result.WriteString(nestedList.String())
+			result.WriteString("\n")
+		}
+	}
+
+	return result.String()
 }

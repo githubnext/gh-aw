@@ -418,3 +418,127 @@ func TestClearScreen(t *testing.T) {
 		ClearScreen()
 	})
 }
+
+func TestRenderList(t *testing.T) {
+	tests := []struct {
+		name       string
+		items      []string
+		enumerator string
+		expected   []string // Substrings that should be present in output
+	}{
+		{
+			name:       "bullet list",
+			items:      []string{"Item 1", "Item 2", "Item 3"},
+			enumerator: "bullet",
+			expected:   []string{"Item 1", "Item 2", "Item 3"},
+		},
+		{
+			name:       "dash list",
+			items:      []string{"First", "Second", "Third"},
+			enumerator: "dash",
+			expected:   []string{"First", "Second", "Third"},
+		},
+		{
+			name:       "arabic list",
+			items:      []string{"Alpha", "Beta", "Gamma"},
+			enumerator: "arabic",
+			expected:   []string{"Alpha", "Beta", "Gamma"},
+		},
+		{
+			name:       "empty list",
+			items:      []string{},
+			enumerator: "bullet",
+			expected:   []string{},
+		},
+		{
+			name:       "single item",
+			items:      []string{"Only one"},
+			enumerator: "bullet",
+			expected:   []string{"Only one"},
+		},
+		{
+			name:       "default to bullet when invalid enumerator",
+			items:      []string{"Test"},
+			enumerator: "invalid",
+			expected:   []string{"Test"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderList(tt.items, tt.enumerator)
+
+			// Empty list should return empty string
+			if len(tt.expected) == 0 {
+				if output != "" {
+					t.Errorf("Expected empty output for empty list, got: %s", output)
+				}
+				return
+			}
+
+			// Check all expected strings are present
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+		})
+	}
+}
+
+func TestRenderNestedList(t *testing.T) {
+	tests := []struct {
+		name     string
+		sections map[string][]string
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name: "single section with items",
+			sections: map[string][]string{
+				"Fruits": {"Apple", "Banana", "Orange"},
+			},
+			expected: []string{"Fruits", "Apple", "Banana", "Orange"},
+		},
+		{
+			name: "multiple sections",
+			sections: map[string][]string{
+				"Fruits":     {"Apple", "Banana"},
+				"Vegetables": {"Carrot", "Broccoli"},
+			},
+			expected: []string{"Fruits", "Apple", "Banana", "Vegetables", "Carrot", "Broccoli"},
+		},
+		{
+			name: "section with no items",
+			sections: map[string][]string{
+				"Empty Section": {},
+			},
+			expected: []string{"Empty Section"},
+		},
+		{
+			name:     "empty sections map",
+			sections: map[string][]string{},
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderNestedList(tt.sections)
+
+			// Empty sections should return empty string
+			if len(tt.expected) == 0 {
+				if output != "" {
+					t.Errorf("Expected empty output for empty sections, got: %s", output)
+				}
+				return
+			}
+
+			// Check all expected strings are present
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but got:\n%s", expected, output)
+				}
+			}
+		})
+	}
+}
