@@ -91,8 +91,8 @@ func TestInteractiveWorkflowBuilder_getToolOptionsForEngine(t *testing.T) {
 
 func TestInteractiveWorkflowBuilder_getSafeOutputOptionsForEngine(t *testing.T) {
 	tests := []struct {
-		name              string
-		engine            string
+		name                string
+		engine              string
 		shouldHaveAgentTask bool
 		minExpectedOutputs  int
 	}{
@@ -282,10 +282,10 @@ func TestInteractiveWorkflowBuilder_getNetworkOptionsForTools(t *testing.T) {
 func TestInteractiveWorkflowBuilder_DynamicFormBehavior(t *testing.T) {
 	// Test that the builder properly updates state for dynamic form behavior
 	tests := []struct {
-		name           string
-		engine         string
-		tools          []string
-		expectedState  string
+		name          string
+		engine        string
+		tools         []string
+		expectedState string
 	}{
 		{
 			name:          "copilot with web tools",
