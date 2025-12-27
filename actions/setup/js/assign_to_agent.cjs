@@ -36,7 +36,7 @@ async function main() {
   }
 
   // Get default agent from configuration
-  const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() || "copilot";
+  const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() ?? "copilot";
   core.info(`Default agent: ${defaultAgent}`);
 
   // Get max count configuration
@@ -80,7 +80,7 @@ async function main() {
   const results = [];
   for (const item of itemsToProcess) {
     const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-    const agentName = item.agent || defaultAgent;
+    const agentName = item.agent ?? defaultAgent;
 
     if (isNaN(issueNumber) || issueNumber <= 0) {
       core.error(`Invalid issue_number: ${item.issue_number}`);
@@ -148,7 +148,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      let errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage = error?.message ?? String(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
@@ -172,26 +172,28 @@ async function main() {
 
   // Generate step summary
   const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
+  const failureCount = results.length - successCount;
 
   let summaryContent = "## Agent Assignment\n\n";
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
-    for (const result of results.filter(r => r.success)) {
-      summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}\n`;
-    }
-    summaryContent += "\n";
+    summaryContent += results
+      .filter(r => r.success)
+      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}`)
+      .join("\n");
+    summaryContent += "\n\n";
   }
 
   if (failureCount > 0) {
     summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
-    for (const result of results.filter(r => !r.success)) {
-      summaryContent += `- Issue #${result.issue_number} → Agent: ${result.agent}: ${result.error}\n`;
-    }
+    summaryContent += results
+      .filter(r => !r.success)
+      .map(r => `- Issue #${r.issue_number} → Agent: ${r.agent}: ${r.error}`)
+      .join("\n");
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
+    const hasPermissionError = results.some(r => !r.success && r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();

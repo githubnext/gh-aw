@@ -62,7 +62,7 @@ async function main() {
       allMilestones = milestonesResponse.data;
       core.info(`Fetched ${allMilestones.length} milestones from repository`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error?.message ?? String(error);
       core.error(`Failed to fetch milestones: ${errorMessage}`);
       core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
       return;
@@ -86,7 +86,7 @@ async function main() {
     }
 
     // Validate against allowed list if configured
-    if (allowedMilestones && allowedMilestones.length > 0) {
+    if (allowedMilestones?.length > 0) {
       const milestone = allMilestones.find(m => m.number === milestoneNumber);
 
       if (!milestone) {
@@ -119,7 +119,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error?.message ?? String(error);
       core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
       results.push({
         issue_number: issueNumber,
@@ -132,23 +132,25 @@ async function main() {
 
   // Generate step summary
   const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
+  const failureCount = results.length - successCount;
 
   let summaryContent = "## Milestone Assignment\n\n";
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
-    for (const result of results.filter(r => r.success)) {
-      summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}\n`;
-    }
-    summaryContent += "\n";
+    summaryContent += results
+      .filter(r => r.success)
+      .map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}`)
+      .join("\n");
+    summaryContent += "\n\n";
   }
 
   if (failureCount > 0) {
     summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
-    for (const result of results.filter(r => !r.success)) {
-      summaryContent += `- Issue #${result.issue_number} → Milestone #${result.milestone_number}: ${result.error}\n`;
-    }
+    summaryContent += results
+      .filter(r => !r.success)
+      .map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}: ${r.error}`)
+      .join("\n");
   }
 
   await core.summary.addRaw(summaryContent).write();
