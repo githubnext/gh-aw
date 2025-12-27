@@ -51,7 +51,8 @@ function bootstrapSafeInputsServer(configPath, logger) {
 
   // Load tool handlers from file paths
   // Logger implements the MCPServer interface needed for loadToolHandlers
-  const tools = loadToolHandlers(/** @type {any} */ logger, config.tools, basePath);
+  // prettier-ignore
+  const tools = loadToolHandlers(/** @type {any} */ (logger), config.tools, basePath);
 
   return { config, basePath, tools };
 }
