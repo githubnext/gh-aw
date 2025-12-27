@@ -62,11 +62,15 @@ async function main() {
   if (uniqueReviewers.length === 0) {
     core.info("No reviewers to add");
     core.setOutput("reviewers_added", "");
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Reviewer Addition
 
 No reviewers were added (no valid reviewers found in agent output).
-`).write();
+`
+      )
+      .write();
     return;
   }
 
@@ -107,13 +111,17 @@ No reviewers were added (no valid reviewers found in agent output).
     core.setOutput("reviewers_added", uniqueReviewers.join("\n"));
 
     const reviewersListMarkdown = uniqueReviewers.map(reviewer => `- \`${reviewer}\``).join("\n");
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Reviewer Addition
 
 Successfully added ${uniqueReviewers.length} reviewer(s) to PR #${prNumber}:
 
 ${reviewersListMarkdown}
-`).write();
+`
+      )
+      .write();
   } catch (error) {
     const errorMessage = error?.message ?? String(error);
     core.error(`Failed to add reviewers: ${errorMessage}`);

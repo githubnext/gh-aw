@@ -56,9 +56,7 @@ async function getAvailableAgentLogins(owner, repo) {
     const response = await github.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
-    const available = actors
-      .filter(actor => actor?.login && knownValues.includes(actor.login))
-      .map(actor => actor.login);
+    const available = actors.filter(actor => actor?.login && knownValues.includes(actor.login)).map(actor => actor.login);
     return available.sort();
   } catch (e) {
     core.debug(`Failed to list available agent logins: ${e?.message ?? String(e)}`);
@@ -106,9 +104,7 @@ async function findAgent(owner, repo, agentName) {
     }
 
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
-    const available = actors
-      .filter(a => a?.login && knownValues.includes(a.login))
-      .map(a => a.login);
+    const available = actors.filter(a => a?.login && knownValues.includes(a.login)).map(a => a.login);
 
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
     if (available.length > 0) {
@@ -229,7 +225,10 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
           core.debug(`Raw GraphQL error details: ${serialized}`);
           // Also emit non-debug version so users without ACTIONS_STEP_DEBUG can see it
           core.error("Raw GraphQL error details (for troubleshooting):");
-          serialized.split("\n").filter(line => line.trim()).forEach(line => core.error(line));
+          serialized
+            .split("\n")
+            .filter(line => line.trim())
+            .forEach(line => core.error(line));
         }
       }
     } catch (loggingErr) {

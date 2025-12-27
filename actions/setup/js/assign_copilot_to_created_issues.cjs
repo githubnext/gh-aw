@@ -21,7 +21,10 @@ async function main() {
   core.info(`Issues to assign copilot: ${issuesToAssignStr}`);
 
   // Parse the comma-separated list of repo:number entries
-  const issueEntries = issuesToAssignStr.split(",").map(e => e.trim()).filter(Boolean);
+  const issueEntries = issuesToAssignStr
+    .split(",")
+    .map(e => e.trim())
+    .filter(Boolean);
   if (issueEntries.length === 0) {
     core.info("No valid issue entries found");
     return;
@@ -128,22 +131,16 @@ async function main() {
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned copilot to ${successCount} issue(s):\n\n`;
-    summaryContent += successResults
-      .map(r => `- ${r.repo}#${r.issue_number}${r.already_assigned ? " (already assigned)" : ""}`)
-      .join("\n");
+    summaryContent += successResults.map(r => `- ${r.repo}#${r.issue_number}${r.already_assigned ? " (already assigned)" : ""}`).join("\n");
     summaryContent += "\n\n";
   }
 
   if (failureCount > 0) {
     summaryContent += `❌ Failed to assign copilot to ${failureCount} issue(s):\n\n`;
-    summaryContent += failedResults
-      .map(r => `- ${r.repo}#${r.issue_number}: ${r.error}`)
-      .join("\n");
+    summaryContent += failedResults.map(r => `- ${r.repo}#${r.issue_number}: ${r.error}`).join("\n");
 
     // Check if any failures were permission-related
-    const hasPermissionError = failedResults.some(r =>
-      r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions")
-    );
+    const hasPermissionError = failedResults.some(r => r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();
