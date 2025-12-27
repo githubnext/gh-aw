@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 const { processSafeOutput } = require("./safe_output_processor.cjs");
@@ -41,7 +41,7 @@ async function main() {
     core.setFailed("Internal error: config or milestoneItems is undefined");
     return;
   }
-  const { allowed: allowedMilestones, maxCount } = config;
+  const { allowed: allowedMilestones, maxCount = 1 } = config;
 
   // Limit items to max count
   const itemsToProcess = milestoneItems.slice(0, maxCount);
@@ -62,7 +62,7 @@ async function main() {
       allMilestones = milestonesResponse.data;
       core.info(`Fetched ${allMilestones.length} milestones from repository`);
     } catch (error) {
-      const errorMessage = error?.message ?? String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       core.error(`Failed to fetch milestones: ${errorMessage}`);
       core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
       return;
@@ -86,7 +86,7 @@ async function main() {
     }
 
     // Validate against allowed list if configured
-    if (allowedMilestones?.length > 0) {
+    if (allowedMilestones && allowedMilestones.length > 0) {
       const milestone = allMilestones.find(m => m.number === milestoneNumber);
 
       if (!milestone) {
@@ -119,7 +119,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error?.message ?? String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
       results.push({
         issue_number: issueNumber,

@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
@@ -109,7 +109,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error?.message ?? String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       core.error(`Failed to assign ${agentName} to issue #${issueNumber} in ${repoSlug}: ${errorMessage}`);
       results.push({
         repo: repoSlug,

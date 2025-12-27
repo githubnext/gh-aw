@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 /**
@@ -52,7 +52,7 @@ Successfully added Copilot as a reviewer to PR #${prNumber}.
       )
       .write();
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
     core.setFailed(`Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
   }

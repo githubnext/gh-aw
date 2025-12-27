@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 // This script updates an existing comment created by the activation job

@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 
 /**
  * Safe Inputs Bootstrap Module

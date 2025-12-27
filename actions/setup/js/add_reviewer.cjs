@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
@@ -50,8 +50,8 @@ async function main() {
     core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
     return;
   }
-  const { allowed: allowedReviewers, maxCount } = config;
-  const prNumber = targetResult.number;
+  const { allowed: allowedReviewers, maxCount = 1 } = config;
+  const prNumber = /** @type {number} */ (targetResult.number);
 
   const requestedReviewers = reviewerItem.reviewers || [];
   core.info(`Requested reviewers: ${JSON.stringify(requestedReviewers)}`);
@@ -103,7 +103,8 @@ No reviewers were added (no valid reviewers found in agent output).
         });
         core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
       } catch (copilotError) {
-        core.warning(`Failed to add copilot as reviewer: ${copilotError?.message ?? String(copilotError)}`);
+        const copilotErrorMsg = copilotError instanceof Error ? copilotError.message : String(copilotError);
+        core.warning(`Failed to add copilot as reviewer: ${copilotErrorMsg}`);
         // Don't fail the whole step if copilot reviewer fails
       }
     }
@@ -123,7 +124,7 @@ ${reviewersListMarkdown}
       )
       .write();
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to add reviewers: ${errorMessage}`);
     core.setFailed(`Failed to add reviewers: ${errorMessage}`);
   }

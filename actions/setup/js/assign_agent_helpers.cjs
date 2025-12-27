@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 /**
@@ -59,7 +59,8 @@ async function getAvailableAgentLogins(owner, repo) {
     const available = actors.filter(actor => actor?.login && knownValues.includes(actor.login)).map(actor => actor.login);
     return available.sort();
   } catch (e) {
-    core.debug(`Failed to list available agent logins: ${e?.message ?? String(e)}`);
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    core.debug(`Failed to list available agent logins: ${errorMessage}`);
     return [];
   }
 }
@@ -117,7 +118,8 @@ async function findAgent(owner, repo, agentName) {
     }
     return null;
   } catch (error) {
-    core.error(`Failed to find ${agentName} agent: ${error?.message ?? String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
     return null;
   }
 }
@@ -161,7 +163,8 @@ async function getIssueDetails(owner, repo, issueNumber) {
       currentAssignees,
     };
   } catch (error) {
-    core.error(`Failed to get issue details: ${error?.message ?? String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to get issue details: ${errorMessage}`);
     return null;
   }
 }
@@ -204,21 +207,22 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     core.error("Unexpected response from GitHub API");
     return false;
   } catch (error) {
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Debug: surface the raw GraphQL error structure for troubleshooting fine-grained permission issues
     try {
       core.debug(`Raw GraphQL error message: ${errorMessage}`);
       if (error && typeof error === "object") {
         // Common GraphQL error shapes: error.errors (array), error.data, error.response
+        const err = /** @type {any} */ (error);
         const details = {
-          ...(error.errors && { errors: error.errors }),
-          ...(error.response && { response: error.response }),
-          ...(error.data && { data: error.data }),
+          ...(err.errors && { errors: err.errors }),
+          ...(err.response && { response: err.response }),
+          ...(err.data && { data: err.data }),
         };
         // If GitHub returns an array of errors with 'type'/'message'
-        if (Array.isArray(error.errors)) {
-          details.compactMessages = error.errors.map(e => e.message).filter(Boolean);
+        if (Array.isArray(err.errors)) {
+          details.compactMessages = err.errors.map(e => e.message).filter(Boolean);
         }
         const serialized = JSON.stringify(details, null, 2);
         if (serialized !== "{}") {
@@ -233,7 +237,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       }
     } catch (loggingErr) {
       // Never fail assignment because of debug logging
-      core.debug(`Failed to serialize GraphQL error details: ${loggingErr?.message ?? String(loggingErr)}`);
+      const loggingErrMsg = loggingErr instanceof Error ? loggingErr.message : String(loggingErr);
+      core.debug(`Failed to serialize GraphQL error details: ${loggingErrMsg}`);
     }
 
     // Check for permission-related errors
@@ -263,7 +268,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
         }
         core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
       } catch (fallbackError) {
-        core.error(`Fallback addAssigneesToAssignable failed: ${fallbackError?.message ?? String(fallbackError)}`);
+        const fallbackErrMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        core.error(`Fallback addAssigneesToAssignable failed: ${fallbackErrMsg}`);
       }
       logPermissionError(agentName);
     } else {
@@ -392,7 +398,8 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
     return { success: true };
   } catch (error) {
-    return { success: false, error: error?.message ?? String(error) };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
   }
 }
 
