@@ -111,10 +111,10 @@ func TestPermissionsEnumValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewPermissionsParser(tt.permissions)
-			
+
 			// Check if parser recognized it as a valid shorthand
 			isShorthand := parser.isShorthand
-			
+
 			if tt.expectValid {
 				if !isShorthand {
 					t.Errorf("%s: Expected valid shorthand permission, but was not recognized as shorthand", tt.description)
@@ -211,10 +211,10 @@ func TestPermissionsLevelEnumValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewPermissionsParser(tt.permissions)
-			
+
 			// Check if the scope was parsed
 			actualLevel, exists := parser.parsedPerms[tt.scope]
-			
+
 			if tt.expectValid {
 				if !exists {
 					t.Errorf("Expected scope %q to be parsed", tt.scope)
@@ -287,7 +287,7 @@ func TestPermissionsEdgeCases(t *testing.T) {
 			}()
 
 			parser := NewPermissionsParser(tt.permissions)
-			
+
 			// Just verify it doesn't panic and returns something sensible
 			if parser == nil {
 				t.Errorf("%s: parser should not be nil", tt.description)
@@ -333,7 +333,7 @@ func TestPermissionsAllKeyValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewPermissionsParser(tt.permissions)
-			
+
 			if tt.expectValid {
 				// For valid cases, check that parser processed them correctly
 				if parser.hasAll && parser.allLevel != "read" {
@@ -376,11 +376,11 @@ func TestPermissionsScopeEnumValidation(t *testing.T) {
 		t.Run("valid scope: "+scope, func(t *testing.T) {
 			permissions := "permissions:\n  " + scope + ": read"
 			parser := NewPermissionsParser(permissions)
-			
+
 			if len(parser.parsedPerms) == 0 {
 				t.Errorf("Valid scope %q should be parsed", scope)
 			}
-			
+
 			if level, exists := parser.parsedPerms[scope]; !exists || level != "read" {
 				t.Errorf("Valid scope %q with level 'read' was not parsed correctly", scope)
 			}
@@ -402,7 +402,7 @@ func TestPermissionsInvalidScopeHandling(t *testing.T) {
 		t.Run("invalid scope: "+scope, func(t *testing.T) {
 			permissions := "permissions:\n  " + scope + ": read"
 			parser := NewPermissionsParser(permissions)
-			
+
 			// Invalid scopes might still be parsed by YAML parser
 			// but they won't be recognized as valid GitHub Actions permissions
 			// This test documents that behavior
@@ -453,7 +453,7 @@ func TestPermissionCombinations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewPermissionsParser(tt.permissions)
-			
+
 			if tt.expectValid {
 				if len(parser.parsedPerms) == 0 && !parser.isShorthand {
 					t.Errorf("%s: expected permissions to be parsed", tt.description)

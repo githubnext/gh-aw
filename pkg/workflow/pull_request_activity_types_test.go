@@ -37,7 +37,7 @@ func TestPullRequestActivityTypeEnumValidation(t *testing.T) {
 		t.Run("valid: pull_request "+activityType, func(t *testing.T) {
 			trigger := "pull_request " + activityType
 			ir, err := ParseTriggerShorthand(trigger)
-			
+
 			// Handle cases where activity type is not in trigger parser's validTypes map
 			if err != nil {
 				// Parser explicitly rejected this type with an error
@@ -74,49 +74,49 @@ func TestPullRequestActivityTypeEnumValidation(t *testing.T) {
 // TestPullRequestInvalidActivityTypes tests invalid PR activity types
 func TestPullRequestInvalidActivityTypes(t *testing.T) {
 	invalidActivityTypes := []struct {
-		name        string
+		name         string
 		activityType string
-		description string
+		description  string
 	}{
 		{
-			name:        "uppercase OPENED",
+			name:         "uppercase OPENED",
 			activityType: "OPENED",
-			description: "activity types are case-sensitive",
+			description:  "activity types are case-sensitive",
 		},
 		{
-			name:        "mixed case Opened",
+			name:         "mixed case Opened",
 			activityType: "Opened",
-			description: "activity types are case-sensitive",
+			description:  "activity types are case-sensitive",
 		},
 		{
-			name:        "invalid: merged (special case)",
+			name:         "invalid: merged (special case)",
 			activityType: "merged",
-			description: "merged is handled as closed + condition, not a type",
+			description:  "merged is handled as closed + condition, not a type",
 		},
 		{
-			name:        "invalid: approved",
+			name:         "invalid: approved",
 			activityType: "approved",
-			description: "approved is for pull_request_review, not pull_request",
+			description:  "approved is for pull_request_review, not pull_request",
 		},
 		{
-			name:        "invalid: commented",
+			name:         "invalid: commented",
 			activityType: "commented",
-			description: "not a valid pull_request activity type",
+			description:  "not a valid pull_request activity type",
 		},
 		{
-			name:        "invalid: created",
+			name:         "invalid: created",
 			activityType: "created",
-			description: "not a valid pull_request activity type",
+			description:  "not a valid pull_request activity type",
 		},
 		{
-			name:        "invalid: deleted",
+			name:         "invalid: deleted",
 			activityType: "deleted",
-			description: "not a valid pull_request activity type",
+			description:  "not a valid pull_request activity type",
 		},
 		{
-			name:        "invalid: random",
+			name:         "invalid: random",
 			activityType: "random",
-			description: "not a valid activity type",
+			description:  "not a valid activity type",
 		},
 	}
 
@@ -124,7 +124,7 @@ func TestPullRequestInvalidActivityTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			trigger := "pull_request " + tt.activityType
 			ir, err := ParseTriggerShorthand(trigger)
-			
+
 			// Special case: "merged" is handled specially and should succeed
 			if tt.activityType == "merged" {
 				if err != nil {
@@ -145,7 +145,7 @@ func TestPullRequestInvalidActivityTypes(t *testing.T) {
 			// For truly invalid types, they might not be caught by the parser
 			// if they're not in the validTypes map - this documents behavior
 			if ir != nil {
-				t.Logf("%s: Invalid activity type %q was accepted by parser (behavior: %s)", 
+				t.Logf("%s: Invalid activity type %q was accepted by parser (behavior: %s)",
 					tt.name, tt.activityType, tt.description)
 			}
 		})
@@ -176,7 +176,7 @@ func TestPullRequestActivityTypeCaseSensitivity(t *testing.T) {
 			// Test uppercase (invalid)
 			upperType := strings.ToUpper(baseType)
 			trigger = "pull_request " + upperType
-			ir, err = ParseTriggerShorthand(trigger)
+			ir, _ = ParseTriggerShorthand(trigger)
 			// The parser might not explicitly reject uppercase, but it won't match
 			if ir != nil && len(ir.Types) > 0 && ir.Types[0] == upperType {
 				t.Errorf("Uppercase %q should not be treated as valid type", upperType)
@@ -185,7 +185,7 @@ func TestPullRequestActivityTypeCaseSensitivity(t *testing.T) {
 			// Test mixed case (invalid)
 			mixedType := strings.ToUpper(baseType[:1]) + baseType[1:]
 			trigger = "pull_request " + mixedType
-			ir, err = ParseTriggerShorthand(trigger)
+			ir, _ = ParseTriggerShorthand(trigger)
 			if ir != nil && len(ir.Types) > 0 && ir.Types[0] == mixedType {
 				t.Errorf("Mixed case %q should not be treated as valid type", mixedType)
 			}
@@ -198,7 +198,7 @@ func TestPullRequestMultipleActivityTypes(t *testing.T) {
 	// The shorthand parser handles one activity type at a time
 	// Multiple types would need to be specified in YAML format
 	// This test documents that behavior
-	
+
 	t.Run("single activity type", func(t *testing.T) {
 		trigger := "pull_request opened"
 		ir, err := ParseTriggerShorthand(trigger)
@@ -220,7 +220,7 @@ func TestPullRequestMultipleActivityTypes(t *testing.T) {
 			// When using "affecting" without activity type, it should use default types
 			expectedTypes := []string{"opened", "synchronize", "reopened"}
 			if len(ir.Types) != len(expectedTypes) {
-				t.Errorf("Expected %d default types for 'affecting', got %d: %v", 
+				t.Errorf("Expected %d default types for 'affecting', got %d: %v",
 					len(expectedTypes), len(ir.Types), ir.Types)
 			}
 		}
@@ -284,7 +284,7 @@ func TestPullRequestEdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ir, err := ParseTriggerShorthand(tt.trigger)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("%s: expected error but got none", tt.description)
@@ -325,27 +325,27 @@ func TestPullRequestActivityTypeInTriggerParser(t *testing.T) {
 
 	// All of these should be in the official GitHub Actions spec
 	officialTypes := map[string]bool{
-		"opened":                   true,
-		"edited":                   true,
-		"closed":                   true,
-		"reopened":                 true,
-		"synchronize":              true,
-		"assigned":                 true,
-		"unassigned":               true,
-		"labeled":                  true,
-		"unlabeled":                true,
-		"review_requested":         true,
-		"review_request_removed":   true,
-		"ready_for_review":         true,
-		"converted_to_draft":       true,
-		"auto_merge_enabled":       true,
-		"auto_merge_disabled":      true,
-		"locked":                   true,
-		"unlocked":                 true,
-		"enqueued":                 true,
-		"dequeued":                 true,
-		"milestoned":               true,
-		"demilestoned":             true,
+		"opened":                 true,
+		"edited":                 true,
+		"closed":                 true,
+		"reopened":               true,
+		"synchronize":            true,
+		"assigned":               true,
+		"unassigned":             true,
+		"labeled":                true,
+		"unlabeled":              true,
+		"review_requested":       true,
+		"review_request_removed": true,
+		"ready_for_review":       true,
+		"converted_to_draft":     true,
+		"auto_merge_enabled":     true,
+		"auto_merge_disabled":    true,
+		"locked":                 true,
+		"unlocked":               true,
+		"enqueued":               true,
+		"dequeued":               true,
+		"milestoned":             true,
+		"demilestoned":           true,
 	}
 
 	t.Run("all currently supported types are official", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestPullRequestMergedSpecialCase(t *testing.T) {
 	t.Run("merged creates closed type with condition", func(t *testing.T) {
 		trigger := "pull_request merged"
 		ir, err := ParseTriggerShorthand(trigger)
-		
+
 		if err != nil {
 			t.Fatalf("'merged' should not produce error: %v", err)
 		}
@@ -431,7 +431,7 @@ func TestIssueActivityTypeEnumValidation(t *testing.T) {
 		t.Run("valid: issue "+activityType, func(t *testing.T) {
 			trigger := "issue " + activityType
 			ir, err := ParseTriggerShorthand(trigger)
-			
+
 			if err != nil {
 				// Error means it's not in the validTypes map yet
 				t.Logf("Issue activity type %q is valid in GitHub Actions but not yet in trigger parser (error: %v)", activityType, err)
@@ -472,7 +472,7 @@ func TestDiscussionActivityTypeEnumValidation(t *testing.T) {
 		t.Run("valid: discussion "+activityType, func(t *testing.T) {
 			trigger := "discussion " + activityType
 			ir, err := ParseTriggerShorthand(trigger)
-			
+
 			if err != nil {
 				// Error means it's not in the validTypes map yet
 				t.Logf("Discussion activity type %q is valid in GitHub Actions but not yet in trigger parser (error: %v)", activityType, err)
