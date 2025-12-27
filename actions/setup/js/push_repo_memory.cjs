@@ -38,7 +38,8 @@ async function main() {
   }
 
   // Source directory with memory files (artifact location)
-  const sourceMemoryPath = path.join(artifactDir, "memory", memoryId);
+  // The artifactDir IS the memory directory (no nested structure needed)
+  const sourceMemoryPath = artifactDir;
 
   // Check if artifact memory directory exists
   if (!fs.existsSync(sourceMemoryPath)) {
