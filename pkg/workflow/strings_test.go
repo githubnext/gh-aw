@@ -2,6 +2,121 @@ package workflow
 
 import "testing"
 
+func TestSortStrings(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "already sorted",
+			input:    []string{"a", "b", "c"},
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "reverse order",
+			input:    []string{"c", "b", "a"},
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "mixed order",
+			input:    []string{"github.com", "api.github.com", "raw.githubusercontent.com"},
+			expected: []string{"api.github.com", "github.com", "raw.githubusercontent.com"},
+		},
+		{
+			name:     "empty slice",
+			input:    []string{},
+			expected: []string{},
+		},
+		{
+			name:     "single element",
+			input:    []string{"a"},
+			expected: []string{"a"},
+		},
+		{
+			name:     "duplicates",
+			input:    []string{"b", "a", "b", "c", "a"},
+			expected: []string{"a", "a", "b", "b", "c"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Make a copy to avoid modifying the test case
+			result := make([]string, len(tt.input))
+			copy(result, tt.input)
+
+			SortStrings(result)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("SortStrings() length = %d, want %d", len(result), len(tt.expected))
+				return
+			}
+
+			for i := range result {
+				if result[i] != tt.expected[i] {
+					t.Errorf("SortStrings() at index %d = %q, want %q", i, result[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestSortPermissionScopes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []PermissionScope
+		expected []PermissionScope
+	}{
+		{
+			name:     "already sorted",
+			input:    []PermissionScope{"actions", "contents", "issues"},
+			expected: []PermissionScope{"actions", "contents", "issues"},
+		},
+		{
+			name:     "reverse order",
+			input:    []PermissionScope{"pull-requests", "issues", "contents"},
+			expected: []PermissionScope{"contents", "issues", "pull-requests"},
+		},
+		{
+			name:     "mixed order",
+			input:    []PermissionScope{"issues", "actions", "pull-requests", "contents"},
+			expected: []PermissionScope{"actions", "contents", "issues", "pull-requests"},
+		},
+		{
+			name:     "empty slice",
+			input:    []PermissionScope{},
+			expected: []PermissionScope{},
+		},
+		{
+			name:     "single element",
+			input:    []PermissionScope{"contents"},
+			expected: []PermissionScope{"contents"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Make a copy to avoid modifying the test case
+			result := make([]PermissionScope, len(tt.input))
+			copy(result, tt.input)
+
+			SortPermissionScopes(result)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("SortPermissionScopes() length = %d, want %d", len(result), len(tt.expected))
+				return
+			}
+
+			for i := range result {
+				if result[i] != tt.expected[i] {
+					t.Errorf("SortPermissionScopes() at index %d = %q, want %q", i, result[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
 func TestSanitizeWorkflowName(t *testing.T) {
 	tests := []struct {
 		name     string

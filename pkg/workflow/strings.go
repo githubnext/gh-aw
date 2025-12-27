@@ -56,6 +56,7 @@ package workflow
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -80,28 +81,16 @@ type SanitizeOptions struct {
 	DefaultValue string
 }
 
-// SortStrings sorts a slice of strings in place using bubble sort
+// SortStrings sorts a slice of strings in place using Go's standard library sort
 func SortStrings(s []string) {
-	n := len(s)
-	for i := 0; i < n-1; i++ {
-		for j := 0; j < n-i-1; j++ {
-			if s[j] > s[j+1] {
-				s[j], s[j+1] = s[j+1], s[j]
-			}
-		}
-	}
+	sort.Strings(s)
 }
 
-// SortPermissionScopes sorts a slice of PermissionScope in place using bubble sort
+// SortPermissionScopes sorts a slice of PermissionScope in place using Go's standard library sort
 func SortPermissionScopes(s []PermissionScope) {
-	n := len(s)
-	for i := 0; i < n-1; i++ {
-		for j := 0; j < n-i-1; j++ {
-			if string(s[j]) > string(s[j+1]) {
-				s[j], s[j+1] = s[j+1], s[j]
-			}
-		}
-	}
+	sort.Slice(s, func(i, j int) bool {
+		return string(s[i]) < string(s[j])
+	})
 }
 
 // SanitizeName sanitizes a string for use as an identifier, file name, or similar context.

@@ -719,3 +719,104 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		})
 	}
 }
+
+func TestSortPinsByVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []ActionPin
+		expected []ActionPin
+	}{
+		{
+			name: "versions in ascending order",
+			input: []ActionPin{
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+				{Repo: "actions/checkout", Version: "v2", SHA: "abc2"},
+				{Repo: "actions/checkout", Version: "v3", SHA: "abc3"},
+			},
+			expected: []ActionPin{
+				{Repo: "actions/checkout", Version: "v3", SHA: "abc3"},
+				{Repo: "actions/checkout", Version: "v2", SHA: "abc2"},
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+			},
+		},
+		{
+			name: "versions already in descending order",
+			input: []ActionPin{
+				{Repo: "actions/checkout", Version: "v3", SHA: "abc3"},
+				{Repo: "actions/checkout", Version: "v2", SHA: "abc2"},
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+			},
+			expected: []ActionPin{
+				{Repo: "actions/checkout", Version: "v3", SHA: "abc3"},
+				{Repo: "actions/checkout", Version: "v2", SHA: "abc2"},
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+			},
+		},
+		{
+			name: "mixed version order with patch versions",
+			input: []ActionPin{
+				{Repo: "actions/checkout", Version: "v2.1.0", SHA: "abc210"},
+				{Repo: "actions/checkout", Version: "v3.0.0", SHA: "abc300"},
+				{Repo: "actions/checkout", Version: "v2.0.1", SHA: "abc201"},
+				{Repo: "actions/checkout", Version: "v1.0.0", SHA: "abc100"},
+			},
+			expected: []ActionPin{
+				{Repo: "actions/checkout", Version: "v3.0.0", SHA: "abc300"},
+				{Repo: "actions/checkout", Version: "v2.1.0", SHA: "abc210"},
+				{Repo: "actions/checkout", Version: "v2.0.1", SHA: "abc201"},
+				{Repo: "actions/checkout", Version: "v1.0.0", SHA: "abc100"},
+			},
+		},
+		{
+			name:     "empty slice",
+			input:    []ActionPin{},
+			expected: []ActionPin{},
+		},
+		{
+			name: "single element",
+			input: []ActionPin{
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+			},
+			expected: []ActionPin{
+				{Repo: "actions/checkout", Version: "v1", SHA: "abc1"},
+			},
+		},
+		{
+			name: "versions without v prefix",
+			input: []ActionPin{
+				{Repo: "actions/checkout", Version: "1.0.0", SHA: "abc100"},
+				{Repo: "actions/checkout", Version: "2.0.0", SHA: "abc200"},
+				{Repo: "actions/checkout", Version: "1.5.0", SHA: "abc150"},
+			},
+			expected: []ActionPin{
+				{Repo: "actions/checkout", Version: "2.0.0", SHA: "abc200"},
+				{Repo: "actions/checkout", Version: "1.5.0", SHA: "abc150"},
+				{Repo: "actions/checkout", Version: "1.0.0", SHA: "abc100"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Make a copy to avoid modifying the test case
+			result := make([]ActionPin, len(tt.input))
+			copy(result, tt.input)
+
+			sortPinsByVersion(result)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("sortPinsByVersion() length = %d, want %d", len(result), len(tt.expected))
+				return
+			}
+
+			for i := range result {
+				if result[i].Repo != tt.expected[i].Repo ||
+					result[i].Version != tt.expected[i].Version ||
+					result[i].SHA != tt.expected[i].SHA {
+					t.Errorf("sortPinsByVersion() at index %d = %+v, want %+v",
+						i, result[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
