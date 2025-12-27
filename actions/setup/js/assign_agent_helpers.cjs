@@ -1,14 +1,6 @@
 // @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
 /// <reference types="@actions/github-script" />
 
-/** @param {unknown} error */
-function getErrorMessage(error) {
-  if (error instanceof Error) return getErrorMessage(error);
-  if (error && typeof error === "object" && "message" in error && typeof getErrorMessage(error) === "string") return getErrorMessage(error);
-  return String(error);
-}
-
-
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues
  * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI

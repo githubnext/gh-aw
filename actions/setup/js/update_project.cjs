@@ -1,18 +1,5 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-
-/**
- * @param {unknown} error
- * @returns {string}
- */
-function getErrorMessage(error) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  return String(error);
-}
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 function logGraphQLError(error, operation) {
   (core.info(`GraphQL Error during: ${operation}`), core.info(`Message: ${getErrorMessage(error)}`));

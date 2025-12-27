@@ -1,14 +1,6 @@
 // @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
 /// <reference types="@actions/github-script" />
 
-/** @param {unknown} error */
-function getErrorMessage(error) {
-  if (error instanceof Error) return getErrorMessage(error);
-  if (error && typeof error === "object" && "message" in error && typeof getErrorMessage(error) === "string") return getErrorMessage(error);
-  return String(error);
-}
-
-
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
