@@ -21,7 +21,7 @@ async function main() {
   core.info(`Issues to assign copilot: ${issuesToAssignStr}`);
 
   // Parse the comma-separated list of repo:number entries
-  const issueEntries = issuesToAssignStr.split(",").filter(entry => entry.trim() !== "");
+  const issueEntries = issuesToAssignStr.split(",").map(e => e.trim()).filter(Boolean);
   if (issueEntries.length === 0) {
     core.info("No valid issue entries found");
     return;
@@ -106,7 +106,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error?.message ?? String(error);
       core.error(`Failed to assign ${agentName} to issue #${issueNumber} in ${repoSlug}: ${errorMessage}`);
       results.push({
         repo: repoSlug,
@@ -119,27 +119,31 @@ async function main() {
 
   // Generate step summary
   const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
+  const failureCount = results.length - successCount;
+
+  const successResults = results.filter(r => r.success);
+  const failedResults = results.filter(r => !r.success);
 
   let summaryContent = "## Copilot Assignment for Created Issues\n\n";
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned copilot to ${successCount} issue(s):\n\n`;
-    for (const result of results.filter(r => r.success)) {
-      const note = result.already_assigned ? " (already assigned)" : "";
-      summaryContent += `- ${result.repo}#${result.issue_number}${note}\n`;
-    }
-    summaryContent += "\n";
+    summaryContent += successResults
+      .map(r => `- ${r.repo}#${r.issue_number}${r.already_assigned ? " (already assigned)" : ""}`)
+      .join("\n");
+    summaryContent += "\n\n";
   }
 
   if (failureCount > 0) {
     summaryContent += `❌ Failed to assign copilot to ${failureCount} issue(s):\n\n`;
-    for (const result of results.filter(r => !r.success)) {
-      summaryContent += `- ${result.repo}#${result.issue_number}: ${result.error}\n`;
-    }
+    summaryContent += failedResults
+      .map(r => `- ${r.repo}#${r.issue_number}: ${r.error}`)
+      .join("\n");
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(r => !r.success && r.error && (r.error.includes("Resource not accessible") || r.error.includes("Insufficient permissions")));
+    const hasPermissionError = failedResults.some(r =>
+      r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions")
+    );
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();
