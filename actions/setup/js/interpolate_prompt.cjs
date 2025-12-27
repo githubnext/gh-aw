@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 // interpolate_prompt.cjs
@@ -89,6 +89,7 @@ async function main() {
     }
 
     // Step 2: Interpolate variables
+    /** @type {Record<string, string>} */
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith("GH_AW_EXPR_")) {

@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 // This script updates an existing comment created by the activation job
@@ -65,8 +65,8 @@ async function main() {
   // Load agent output to check for noop messages
   let noopMessages = [];
   const agentOutputResult = loadAgentOutput();
-  if (agentOutputResult.success && agentOutputResult.data) {
-    const noopItems = agentOutputResult.data.items.filter(item => item.type === "noop");
+  if (agentOutputResult.success) {
+    const noopItems = agentOutputResult.items.filter(item => item.type === "noop");
     if (noopItems.length > 0) {
       core.info(`Found ${noopItems.length} noop message(s)`);
       noopMessages = noopItems.map(item => item.message);

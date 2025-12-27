@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
@@ -133,13 +133,24 @@ async function main() {
       continue;
     }
 
-    const parentIssueNumber = parentResolved.resolved.number;
-    const subIssueNumber = subResolved.resolved.number;
+    const parentIssueNumber = parentResolved.resolved?.number;
+    const subIssueNumber = subResolved.resolved?.number;
 
-    if (parentResolved.wasTemporaryId) {
+    if (!parentIssueNumber || !subIssueNumber) {
+      core.error("Internal error: Issue numbers are undefined after successful resolution");
+      results.push({
+        parent_issue_number: item.parent_issue_number,
+        sub_issue_number: item.sub_issue_number,
+        success: false,
+        error: "Issue numbers undefined",
+      });
+      continue;
+    }
+
+    if (parentResolved.wasTemporaryId && parentResolved.resolved) {
       core.info(`Resolved parent temporary ID '${item.parent_issue_number}' to ${parentResolved.resolved.repo}#${parentIssueNumber}`);
     }
-    if (subResolved.wasTemporaryId) {
+    if (subResolved.wasTemporaryId && subResolved.resolved) {
       core.info(`Resolved sub-issue temporary ID '${item.sub_issue_number}' to ${subResolved.resolved.repo}#${subIssueNumber}`);
     }
 

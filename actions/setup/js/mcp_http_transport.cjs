@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 /**
@@ -33,11 +33,14 @@ class MCPServer {
    * @param {string} serverInfo.version - Server version
    * @param {Object} [options] - Server options
    * @param {Object} [options.capabilities] - Server capabilities
+   * @param {string} [options.logDir] - Log directory path
    */
   constructor(serverInfo, options = {}) {
-    this._coreServer = createServer(serverInfo, options);
+    // Extract logDir for createServer, keep capabilities for this class
+    const { capabilities, logDir } = options;
+    this._coreServer = createServer(serverInfo, { logDir });
     this.serverInfo = serverInfo;
-    this.capabilities = options.capabilities || { tools: {} };
+    this.capabilities = capabilities || { tools: {} };
     this.tools = new Map();
     this.transport = null;
     this.initialized = false;
@@ -254,10 +257,10 @@ class MCPHTTPTransport {
       }
 
       // Process the request through the MCP server
-      const response = await this.server.handleRequest(body);
+      const response = await this.server?.handleRequest(body);
 
       // Handle notifications (null response means no reply needed)
-      if (response === null) {
+      if (response === null || response === undefined) {
         res.writeHead(204); // No Content
         res.end();
         return;

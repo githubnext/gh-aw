@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
@@ -39,7 +39,7 @@ function extractPremiumRequestCount(logContent) {
 /**
  * Parses Copilot CLI log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
- * @returns {string} Formatted markdown content
+ * @returns {{markdown: string, logEntries: Array, mcpFailures?: string[], maxTurnsHit?: boolean}} Formatted result with markdown and metadata
  */
 function parseCopilotLog(logContent) {
   let logEntries;
@@ -489,7 +489,9 @@ function parseDebugLogFormat(logContent) {
                 // Accumulate usage/result entry from each response
                 if (jsonData.usage) {
                   // Initialize accumulator if needed
+                  // @ts-ignore - Dynamic property for accumulating usage data
                   if (!entries._accumulatedUsage) {
+                    // @ts-ignore
                     entries._accumulatedUsage = {
                       input_tokens: 0,
                       output_tokens: 0,
@@ -499,16 +501,20 @@ function parseDebugLogFormat(logContent) {
                   // Accumulate token counts from this response
                   // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
                   if (jsonData.usage.prompt_tokens) {
+                    // @ts-ignore
                     entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
                   }
                   if (jsonData.usage.completion_tokens) {
+                    // @ts-ignore
                     entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
                   }
 
                   // Store result entry with accumulated usage
+                  // @ts-ignore - Dynamic property for storing last result
                   entries._lastResult = {
                     type: "result",
                     num_turns: turnCount,
+                    // @ts-ignore
                     usage: entries._accumulatedUsage,
                   };
                 }
@@ -618,7 +624,9 @@ function parseDebugLogFormat(logContent) {
 
         if (jsonData.usage) {
           // Initialize accumulator if needed
+          // @ts-ignore - Dynamic property for accumulating usage data
           if (!entries._accumulatedUsage) {
+            // @ts-ignore
             entries._accumulatedUsage = {
               input_tokens: 0,
               output_tokens: 0,
@@ -628,16 +636,20 @@ function parseDebugLogFormat(logContent) {
           // Accumulate token counts from this response
           // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
           if (jsonData.usage.prompt_tokens) {
+            // @ts-ignore
             entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
           }
           if (jsonData.usage.completion_tokens) {
+            // @ts-ignore
             entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
           }
 
           // Store result entry with accumulated usage
+          // @ts-ignore - Dynamic property for storing last result
           entries._lastResult = {
             type: "result",
             num_turns: turnCount,
+            // @ts-ignore
             usage: entries._accumulatedUsage,
           };
         }
@@ -665,8 +677,11 @@ function parseDebugLogFormat(logContent) {
     entries.unshift(initEntry);
 
     // Add the final result entry if we have it
+    // @ts-ignore - Dynamic property for last result
     if (entries._lastResult) {
+      // @ts-ignore
       entries.push(entries._lastResult);
+      // @ts-ignore
       delete entries._lastResult;
     }
   }

@@ -1,4 +1,4 @@
-// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+// @ts-check
 /// <reference types="@actions/github-script" />
 
 /**
@@ -40,15 +40,20 @@ async function main() {
 
       if (response.data && response.data.length > 0) {
         const commit = response.data[0];
+        const committerDate = commit.commit.committer?.date;
+        if (!committerDate) {
+          return null;
+        }
         return {
           sha: commit.sha,
-          date: commit.commit.committer.date,
+          date: committerDate,
           message: commit.commit.message,
         };
       }
       return null;
     } catch (error) {
-      core.info(`Could not fetch commit for ${path}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.info(`Could not fetch commit for ${path}: ${errorMessage}`);
       return null;
     }
   }
