@@ -14,6 +14,49 @@ const (
 	GitHubOrgRepo = "githubnext/gh-aw"
 )
 
+// ResolveSetupActionReference resolves the actions/setup action reference based on action mode and version.
+// This is a standalone helper function that can be used by both Compiler methods and standalone
+// workflow generators (like maintenance workflow) that don't have access to WorkflowData.
+//
+// Parameters:
+//   - actionMode: The action mode (dev or release)
+//   - version: The version string to use for release mode
+//
+// Returns:
+//   - For dev mode: "./actions/setup" (local path)
+//   - For release mode: "githubnext/gh-aw/actions/setup@<version>" (remote reference)
+//   - Falls back to local path if version is invalid in release mode
+func ResolveSetupActionReference(actionMode ActionMode, version string) string {
+	localPath := "./actions/setup"
+	
+	// Dev mode - return local path
+	if actionMode == ActionModeDev {
+		actionRefLog.Printf("Dev mode: using local action path: %s", localPath)
+		return localPath
+	}
+	
+	// Release mode - convert to remote reference
+	if actionMode == ActionModeRelease {
+		actionPath := strings.TrimPrefix(localPath, "./")
+		
+		// Check if version is valid for release mode
+		if version == "" || version == "dev" {
+			actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty), falling back to local path")
+			return localPath
+		}
+		
+		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
+		// The SHA will be resolved later by action pinning infrastructure
+		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, version)
+		actionRefLog.Printf("Release mode: using remote action reference: %s (SHA will be resolved via action pins)", remoteRef)
+		return remoteRef
+	}
+	
+	// Unknown mode - default to local path
+	actionRefLog.Printf("WARNING: Unknown action mode %s, defaulting to local path", actionMode)
+	return localPath
+}
+
 // resolveActionReference converts a local action path to the appropriate reference
 // based on the current action mode (dev vs release).
 // If action-tag is specified in features, it overrides the mode check and enables release mode behavior.
@@ -29,6 +72,11 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 				actionRefLog.Printf("action-tag feature detected: %s - using release mode behavior", actionTagStr)
 			}
 		}
+	}
+	
+	// For ./actions/setup without action-tag override, use the shared helper
+	if localActionPath == "./actions/setup" && !hasActionTag {
+		return ResolveSetupActionReference(c.actionMode, c.version)
 	}
 
 	// Use release mode if either actionMode is release OR action-tag is specified

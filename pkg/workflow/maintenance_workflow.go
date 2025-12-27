@@ -13,7 +13,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, verbose bool) error {
+func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, verbose bool) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Check if any workflow uses expires field for discussions or issues
@@ -77,6 +77,29 @@ jobs:
     permissions:
       discussions: write
     steps:
+`)
+
+	// Get the setup action reference (local or remote based on mode)
+	setupActionRef := ResolveSetupActionReference(actionMode, version)
+	
+	// Add checkout step only in dev mode (for local action paths)
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+`)
+	}
+	
+	// Add setup step with the resolved action reference
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /tmp/gh-aw/actions
+
       - name: Close expired discussions
         uses: ` + GetActionPin("actions/github-script") + `
         with:
@@ -97,6 +120,26 @@ jobs:
     permissions:
       issues: write
     steps:
+`)
+
+	// Add checkout step only in dev mode (for local action paths)
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+`)
+	}
+	
+	// Add setup step with the resolved action reference
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
+        with:
+          destination: /tmp/gh-aw/actions
+
       - name: Close expired issues
         uses: ` + GetActionPin("actions/github-script") + `
         with:
