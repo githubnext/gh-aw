@@ -138,7 +138,8 @@ function processRuntimeImports(content, workspaceDir) {
       // Replace the macro with the imported content
       processedContent = processedContent.replace(fullMatch, importedContent);
     } catch (error) {
-      throw new Error(`Failed to process runtime import for ${filepath}: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to process runtime import for ${filepath}: ${errorMessage}`);
     }
   }
 

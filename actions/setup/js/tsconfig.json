@@ -32,31 +32,12 @@
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": [
-    "add_reaction_and_edit_comment.cjs",
-    "check_permissions.cjs",
-    "check_team_member.cjs",
-    "compute_text.cjs",
-    "create_code_scanning_alert.cjs",
-    "add_comment.cjs",
-    "create_pr_review_comment.cjs",
-    "create_pull_request.cjs",
-    "missing_tool.cjs",
-    "parse_claude_log.cjs",
-    "parse_codex_log.cjs",
-
-    "push_to_pull_request_branch.cjs",
-    "safe_outputs_mcp_client.cjs",
-    "safe_outputs_mcp_server.cjs",
-    "sanitize_output.cjs",
-    "setup_agent_output.cjs",
-
-    "update_issue.cjs",
-    "validate_errors.cjs",
-    "add_labels.cjs",
-    "create_discussion.cjs",
-    "create_issue.cjs",
-    "collect_ndjson_output.cjs",
+    "*.cjs",
     "types/*.d.ts"
   ],
-  "exclude": ["../../../node_modules", "../../../dist"]
+  "exclude": [
+    "../../../node_modules",
+    "../../../dist",
+    "*.test.cjs"
+  ]
 }
