@@ -264,10 +264,11 @@ func RenderTable(config TableConfig) string {
 	}
 
 	// Create table with lipgloss/table package
+	// Using ASCIIBorder for maximum compatibility with CI/CD logs and all terminal types
 	t := table.New().
 		Headers(config.Headers...).
 		Rows(allRows...).
-		Border(styles.NormalBorder).
+		Border(styles.ASCIIBorder).
 		BorderStyle(styles.TableBorder).
 		StyleFunc(styleFunc)
 

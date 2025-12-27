@@ -405,6 +405,47 @@ func TestRenderTableAsJSON(t *testing.T) {
 	}
 }
 
+func TestRenderTableUsesASCIIBorder(t *testing.T) {
+	// Test that RenderTable uses ASCII border by default for maximum compatibility
+	config := TableConfig{
+		Title:   "Test Table",
+		Headers: []string{"Column 1", "Column 2"},
+		Rows: [][]string{
+			{"Value 1", "Value 2"},
+			{"Value 3", "Value 4"},
+		},
+	}
+
+	output := RenderTable(config)
+
+	// ASCII border uses + for corners, - for horizontal, | for vertical
+	if !strings.Contains(output, "+") {
+		t.Error("Expected output to contain ASCII corner character '+'")
+	}
+	if !strings.Contains(output, "|") {
+		t.Error("Expected output to contain ASCII vertical line '|'")
+	}
+	if !strings.Contains(output, "-") {
+		t.Error("Expected output to contain ASCII horizontal line '-'")
+	}
+
+	// Should not contain unicode box-drawing characters
+	unicodeBoxChars := []string{"┌", "└", "├", "┤", "─", "│", "┬", "┴", "┼"}
+	for _, char := range unicodeBoxChars {
+		if strings.Contains(output, char) {
+			t.Errorf("Expected ASCII border but found unicode box-drawing character: %q", char)
+		}
+	}
+
+	// Verify content is still present
+	if !strings.Contains(output, "Column 1") {
+		t.Error("Expected output to contain header 'Column 1'")
+	}
+	if !strings.Contains(output, "Value 1") {
+		t.Error("Expected output to contain cell 'Value 1'")
+	}
+}
+
 func TestClearScreen(t *testing.T) {
 	// ClearScreen should not panic when called
 	// It only clears if stdout is a TTY, so we can't easily test the output

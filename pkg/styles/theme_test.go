@@ -217,9 +217,11 @@ func TestDarkColorsAreOriginalDracula(t *testing.T) {
 // TestBordersExist verifies that all expected border definitions are defined
 func TestBordersExist(t *testing.T) {
 	borders := map[string]lipgloss.Border{
-		"RoundedBorder": RoundedBorder,
-		"NormalBorder":  NormalBorder,
-		"ThickBorder":   ThickBorder,
+		"RoundedBorder":  RoundedBorder,
+		"NormalBorder":   NormalBorder,
+		"ThickBorder":    ThickBorder,
+		"ASCIIBorder":    ASCIIBorder,
+		"MarkdownBorder": MarkdownBorder,
 	}
 
 	for name, border := range borders {
@@ -247,6 +249,22 @@ func TestBordersAreDistinct(t *testing.T) {
 	// ThickBorder should have thick lines
 	if ThickBorder.Top != "━" {
 		t.Errorf("ThickBorder.Top = %q, want thick line ━", ThickBorder.Top)
+	}
+
+	// ASCIIBorder should use ASCII characters only
+	if ASCIIBorder.TopLeft != "+" {
+		t.Errorf("ASCIIBorder.TopLeft = %q, want ASCII corner +", ASCIIBorder.TopLeft)
+	}
+	if ASCIIBorder.Top != "-" {
+		t.Errorf("ASCIIBorder.Top = %q, want ASCII line -", ASCIIBorder.Top)
+	}
+	if ASCIIBorder.Left != "|" {
+		t.Errorf("ASCIIBorder.Left = %q, want ASCII line |", ASCIIBorder.Left)
+	}
+
+	// MarkdownBorder should use markdown table characters
+	if MarkdownBorder.Left != "|" {
+		t.Errorf("MarkdownBorder.Left = %q, want markdown table delimiter |", MarkdownBorder.Left)
 	}
 }
 

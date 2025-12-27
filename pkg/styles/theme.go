@@ -84,6 +84,16 @@ var (
 	// ThickBorder is used for high-emphasis boxes and critical information.
 	// It draws more attention with heavier visual weight.
 	ThickBorder = lipgloss.ThickBorder()
+
+	// ASCIIBorder is used for tables in CI/CD logs or environments with uncertain unicode support.
+	// It uses only ASCII characters (+, -, |) which work in all environments.
+	// This is the recommended default for table rendering.
+	ASCIIBorder = lipgloss.ASCIIBorder()
+
+	// MarkdownBorder is used for tables that will be copied to markdown (docs, GitHub issues).
+	// It uses markdown table syntax (|, -, :) for native rendering in markdown viewers.
+	// Note: Should typically be used with BorderTop(false) and BorderBottom(false).
+	MarkdownBorder = lipgloss.MarkdownBorder()
 )
 
 // Pre-configured styles for common use cases
