@@ -735,11 +735,11 @@ jobs:
           node ./.srt-wrapper.js 2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf 'string@ %!p(string=/tmp/gh-aw/sandbox/agent/logs/)\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
             echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/sandbox/agent/logs/"
-            mkdir -p %!s(MISSING)
-            mv "$COPILOT_LOGS_DIR"/* %!s(MISSING) || true
+            mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/sandbox/agent/logs/ || true
             rmdir "$COPILOT_LOGS_DIR" || true
           fi
         env:

@@ -195,7 +195,7 @@ SRT_WRAPPER_EOF
 node ./.srt-wrapper.js 2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf '%%T@ %%p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   mkdir -p %s
