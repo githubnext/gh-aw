@@ -79,9 +79,7 @@ No users were assigned (no valid assignees found in agent output).
 
   // Get target repository from environment or use current
   const targetRepoEnv = process.env.GH_AW_TARGET_REPO_SLUG?.trim();
-  const [targetOwner, targetRepo] = targetRepoEnv?.includes("/")
-    ? targetRepoEnv.split("/")
-    : [context.repo.owner, context.repo.repo];
+  const [targetOwner, targetRepo] = targetRepoEnv?.includes("/") ? targetRepoEnv.split("/") : [context.repo.owner, context.repo.repo];
 
   if (targetRepoEnv?.includes("/")) {
     core.info(`Using target repository: ${targetOwner}/${targetRepo}`);

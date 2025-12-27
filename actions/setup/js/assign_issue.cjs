@@ -85,11 +85,15 @@ async function main() {
     core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
 
     // Write summary
-    await core.summary.addRaw(`
+    await core.summary
+      .addRaw(
+        `
 ## Issue Assignment
 
 Successfully assigned issue #${trimmedIssueNumber} to \`${trimmedAssignee}\`.
-`).write();
+`
+      )
+      .write();
   } catch (error) {
     const errorMessage = error?.message ?? String(error);
     core.error(`Failed to assign issue: ${errorMessage}`);
