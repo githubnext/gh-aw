@@ -3,12 +3,22 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var safeInputsLog = logger.New("workflow:safe_inputs")
+
+// safeUint64ToIntForTimeout safely converts uint64 to int for timeout values
+// Returns 0 (which signals to use engine defaults) if overflow would occur
+func safeUint64ToIntForTimeout(u uint64) int {
+	if u > math.MaxInt {
+		return 0 // Return 0 (engine default) if value would overflow
+	}
+	return int(u)
+}
 
 // SafeInputsConfig holds the configuration for safe-inputs custom tools
 type SafeInputsConfig struct {
@@ -211,7 +221,7 @@ func parseSafeInputsMap(safeInputsMap map[string]any) (*SafeInputsConfig, bool) 
 			case int:
 				toolConfig.Timeout = t
 			case uint64:
-				toolConfig.Timeout = int(t)
+				toolConfig.Timeout = safeUint64ToIntForTimeout(t) // Safe conversion to prevent overflow (alert #414)
 			case float64:
 				toolConfig.Timeout = int(t)
 			case string:
@@ -395,7 +405,7 @@ func (c *Compiler) mergeSafeInputs(main *SafeInputsConfig, importedConfigs []str
 				case int:
 					toolConfig.Timeout = t
 				case uint64:
-					toolConfig.Timeout = int(t)
+					toolConfig.Timeout = safeUint64ToIntForTimeout(t) // Safe conversion to prevent overflow (alert #413)
 				case float64:
 					toolConfig.Timeout = int(t)
 				case string:
