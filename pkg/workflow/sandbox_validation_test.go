@@ -89,12 +89,12 @@ func TestSandboxTypeEnumValidation(t *testing.T) {
 // TestSandboxTypeBackwardCompatibility tests backward compatibility of sandbox type aliases
 func TestSandboxTypeBackwardCompatibility(t *testing.T) {
 	tests := []struct {
-		name          string
-		legacyType    SandboxType
-		expectedType  SandboxType
-		shouldBeSRT   bool
-		shouldBeAWF   bool
-		description   string
+		name         string
+		legacyType   SandboxType
+		expectedType SandboxType
+		shouldBeSRT  bool
+		shouldBeAWF  bool
+		description  string
 	}{
 		{
 			name:         "default should be treated as AWF",
@@ -320,7 +320,7 @@ func TestSandboxTypeEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			isValid := isSupportedSandboxType(tt.value)
 			if isValid != tt.expectValid {
-				t.Errorf("%s: isSupportedSandboxType(%q) = %v, want %v", 
+				t.Errorf("%s: isSupportedSandboxType(%q) = %v, want %v",
 					tt.description, tt.value, isValid, tt.expectValid)
 			}
 		})

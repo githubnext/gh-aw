@@ -28,30 +28,30 @@ const (
 //   - Falls back to local path if version is invalid in release mode
 func ResolveSetupActionReference(actionMode ActionMode, version string) string {
 	localPath := "./actions/setup"
-	
+
 	// Dev mode - return local path
 	if actionMode == ActionModeDev {
 		actionRefLog.Printf("Dev mode: using local action path: %s", localPath)
 		return localPath
 	}
-	
+
 	// Release mode - convert to remote reference
 	if actionMode == ActionModeRelease {
 		actionPath := strings.TrimPrefix(localPath, "./")
-		
+
 		// Check if version is valid for release mode
 		if version == "" || version == "dev" {
 			actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty), falling back to local path")
 			return localPath
 		}
-		
+
 		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
 		// The SHA will be resolved later by action pinning infrastructure
 		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, version)
 		actionRefLog.Printf("Release mode: using remote action reference: %s (SHA will be resolved via action pins)", remoteRef)
 		return remoteRef
 	}
-	
+
 	// Unknown mode - default to local path
 	actionRefLog.Printf("WARNING: Unknown action mode %s, defaulting to local path", actionMode)
 	return localPath
@@ -73,7 +73,7 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 			}
 		}
 	}
-	
+
 	// For ./actions/setup without action-tag override, use the shared helper
 	if localActionPath == "./actions/setup" && !hasActionTag {
 		return ResolveSetupActionReference(c.actionMode, c.version)

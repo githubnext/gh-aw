@@ -193,7 +193,7 @@ async function main() {
       .join("\n");
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(r => !r.success && r.error?.includes("Resource not accessible") || r.error?.includes("Insufficient permissions"));
+    const hasPermissionError = results.some(r => (!r.success && r.error?.includes("Resource not accessible")) || r.error?.includes("Insufficient permissions"));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();
