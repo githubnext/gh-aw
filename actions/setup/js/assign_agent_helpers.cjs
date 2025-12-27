@@ -165,7 +165,8 @@ async function getIssueDetails(owner, repo, issueNumber) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.error(`Failed to get issue details: ${errorMessage}`);
-    return null;
+    // Re-throw the error to preserve the original error message for permission error detection
+    throw error;
   }
 }
 
