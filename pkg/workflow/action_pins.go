@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -84,19 +85,15 @@ func getActionPins() []ActionPin {
 }
 
 // sortPinsByVersion sorts action pins by version in descending order (highest first)
-// Uses bubble sort for simplicity since we typically have few matches
+// Uses Go's standard library sort with custom comparison function
 func sortPinsByVersion(pins []ActionPin) {
-	for i := 0; i < len(pins); i++ {
-		for j := i + 1; j < len(pins); j++ {
-			// Strip 'v' prefix for comparison
-			v1 := strings.TrimPrefix(pins[i].Version, "v")
-			v2 := strings.TrimPrefix(pins[j].Version, "v")
-			if compareVersions(v1, v2) < 0 {
-				// v1 < v2, swap to get descending order
-				pins[i], pins[j] = pins[j], pins[i]
-			}
-		}
-	}
+	sort.Slice(pins, func(i, j int) bool {
+		// Strip 'v' prefix for comparison
+		v1 := strings.TrimPrefix(pins[i].Version, "v")
+		v2 := strings.TrimPrefix(pins[j].Version, "v")
+		// Return true if v1 > v2 to get descending order
+		return compareVersions(v1, v2) > 0
+	})
 }
 
 // GetActionPin returns the pinned action reference for a given action repository
