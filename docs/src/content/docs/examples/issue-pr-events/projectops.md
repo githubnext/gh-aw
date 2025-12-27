@@ -136,7 +136,7 @@ Analyze the issue and add it to the organization project board...
 ```
 
 This configuration ensures:
-1. The GitHub MCP toolset can query repository and project information
+1. The GitHub Model Context Protocol (MCP) toolset can query repository and project information
 2. The `update-project` safe output can modify the organization project
 3. Both operations use the same token with appropriate permissions
 

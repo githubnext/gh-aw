@@ -72,7 +72,7 @@ The agent can now call `slack-notify` with a message, and the custom job execute
 
 ## Architecture
 
-Custom safe outputs separate read and write operations: agents use read-only MCP servers with `allowed:` tool lists, while custom jobs handle write operations with secret access after agent completion.
+Custom safe outputs separate read and write operations: agents use read-only Model Context Protocol (MCP) servers with `allowed:` tool lists, while custom jobs handle write operations with secret access after agent completion.
 
 ```text
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐

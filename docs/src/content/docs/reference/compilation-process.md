@@ -76,7 +76,7 @@ The compilation process generates specialized jobs based on workflow configurati
 |-----|---------|---------|------------------|
 | **pre_activation** | Role checks, stop-after deadlines, skip-if-match, or command triggers | Validates permissions, deadlines, and conditions before AI execution | None (runs first) |
 | **activation** | Always | Prepares workflow context, sanitizes event text, validates lock file freshness | `pre_activation` (if exists) |
-| **agent** | Always | Core job that executes AI agent with configured engine, tools, and MCP servers | `activation` |
+| **agent** | Always | Core job that executes AI agent with configured engine, tools, and Model Context Protocol (MCP) servers | `activation` |
 | **detection** | `safe-outputs.threat-detection:` configured | Scans agent output for security threats before processing | `agent` |
 | **Safe output jobs** | Corresponding `safe-outputs.*:` configured | Process agent output to perform GitHub API operations (create issues/PRs, add comments, upload assets, etc.) | `agent`, `detection` (if exists) |
 | **conclusion** | Always (if safe outputs exist) | Aggregates results and generates workflow summary | All safe output jobs |

@@ -200,7 +200,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize your repository for agentic workflows.
 
 ```bash wrap
-gh aw init         # Configure .gitattributes, Copilot instructions (MCP enabled by default)
+gh aw init         # Configure .gitattributes, Copilot instructions (Model Context Protocol (MCP) enabled by default)
 gh aw init --no-mcp # Skip MCP server integration
 ```
 

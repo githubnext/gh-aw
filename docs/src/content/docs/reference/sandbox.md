@@ -8,7 +8,7 @@ sidebar:
 The `sandbox` field configures sandbox environments for AI engines, providing two main capabilities:
 
 1. **Agent Sandbox** - Controls the agent runtime security (AWF or Sandbox Runtime)
-2. **MCP Gateway** - Routes MCP server calls through a unified HTTP gateway
+2. **Model Context Protocol (MCP) Gateway** - Routes MCP server calls through a unified HTTP gateway
 
 ## Configuration
 

@@ -12,7 +12,7 @@ Start the server:
 gh aw mcp-server
 ```
 
-Or configure for any MCP host:
+Or configure for any Model Context Protocol (MCP) host:
 ```yaml wrap
 command: gh
 args: [aw, mcp-server]
