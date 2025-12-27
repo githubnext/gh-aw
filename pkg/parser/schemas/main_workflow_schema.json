@@ -2838,7 +2838,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -3983,7 +3983,8 @@
                   "type": "integer",
                   "description": "Maximum number of issues to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4063,7 +4064,8 @@
                   "type": "integer",
                   "description": "Maximum number of agent tasks to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 1
+                  "maximum": 1,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4092,7 +4094,8 @@
                   "type": "integer",
                   "description": "Maximum number of project operations to perform (default: 10). Each operation may add a project item, or update its fields.",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 10
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -4156,7 +4159,8 @@
                   "type": "integer",
                   "description": "Maximum number of discussions to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4263,7 +4267,8 @@
                   "type": "integer",
                   "description": "Maximum number of discussions to close (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4327,7 +4332,8 @@
                   "type": "integer",
                   "description": "Maximum number of discussions to update (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4371,7 +4377,8 @@
                   "type": "integer",
                   "description": "Maximum number of issues to close (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4427,7 +4434,8 @@
                   "type": "integer",
                   "description": "Maximum number of pull requests to close (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4468,7 +4476,8 @@
                   "type": "integer",
                   "description": "Maximum number of comments to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target": {
                   "type": "string",
@@ -4641,7 +4650,8 @@
                   "type": "integer",
                   "description": "Maximum number of review comments to create (default: 10)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 10
                 },
                 "side": {
                   "type": "string",
@@ -4721,7 +4731,8 @@
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of labels to add (default: 3)",
-                  "minimum": 1
+                  "minimum": 1,
+                  "default": 3
                 },
                 "target": {
                   "type": "string",
@@ -4761,7 +4772,8 @@
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of reviewers to add (default: 3)",
-                  "minimum": 1
+                  "minimum": 1,
+                  "default": 3
                 },
                 "target": {
                   "type": "string",
@@ -4801,7 +4813,8 @@
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of milestone assignments (default: 1)",
-                  "minimum": 1
+                  "minimum": 1,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4833,7 +4846,8 @@
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of agent assignments (default: 1)",
-                  "minimum": 1
+                  "minimum": 1,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -4904,7 +4918,8 @@
                   "type": "integer",
                   "description": "Maximum number of sub-issue links to create (default: 5)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 5
                 },
                 "parent-required-labels": {
                   "type": "array",
@@ -4969,7 +4984,8 @@
                   "type": "integer",
                   "description": "Maximum number of issues to update (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -5010,7 +5026,8 @@
                   "type": "integer",
                   "description": "Maximum number of pull requests to update (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 1
                 },
                 "target-repo": {
                   "type": "string",
@@ -5094,7 +5111,8 @@
                   "type": "integer",
                   "description": "Maximum number of comments to hide (default: 5)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 5
                 },
                 "target-repo": {
                   "type": "string",
@@ -5212,7 +5230,8 @@
                   "type": "integer",
                   "description": "Maximum number of assets to upload (default: 10)",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 100,
+                  "default": 10
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
@@ -5536,9 +5555,9 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
               "examples": [
-                "\ud83c\udfad Preview: {operation}",
+                "🎭 Preview: {operation}",
                 "## Staged Mode: {operation}"
               ]
             },
@@ -5559,26 +5578,26 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
               "examples": [
-                "\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.",
-                "\u2705 [{workflow_name}]({run_url}) finished."
+                "✅ Agentic [{workflow_name}]({run_url}) completed successfully.",
+                "✅ [{workflow_name}]({run_url}) finished."
               ]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
               "examples": [
-                "\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
-                "\u274c [{workflow_name}]({run_url}) {status}."
+                "❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
+                "❌ [{workflow_name}]({run_url}) {status}."
               ]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
               "examples": [
-                "\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
-                "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."
+                "⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
+                "⚠️ Detection job failed in [{workflow_name}]({run_url})."
               ]
             }
           },
@@ -5654,14 +5673,14 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": [
             "all"
           ],
-          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
