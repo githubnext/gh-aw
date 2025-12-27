@@ -150,7 +150,7 @@ Always check the current state:
 
 Use bash commands to inspect:
 ```bash
-ls -la specs/
+find specs/ -maxdepth 1 -ls
 git branch
 find specs -name "spec.md" -o -name "plan.md" -o -name "tasks.md"
 ```

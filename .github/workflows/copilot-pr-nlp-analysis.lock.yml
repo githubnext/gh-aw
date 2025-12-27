@@ -1095,7 +1095,7 @@ jobs:
           
           1. **Verify chart was created**:
              ```bash
-             ls -lh /tmp/gh-aw/python/charts/
+             find /tmp/gh-aw/python/charts/ -maxdepth 1 -ls
              ```
           
           2. **Upload each chart** using the `upload asset` tool
@@ -1114,7 +1114,6 @@ jobs:
           ## Executive Summary
           
           **Analysis Period**: Last 24 hours (merged PRs only)  
-          **Repository**: __GH_AW_GITHUB_REPOSITORY__  
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1141,6 +1140,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          **Repository**: __GH_AW_GITHUB_REPOSITORY__  
           **Total PRs Analyzed**: [count]  
           **Total Messages**: [count] comments, [count] reviews, [count] review comments  
           **Average Sentiment**: [polarity score] ([positive/neutral/negative])
@@ -2357,7 +2357,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "Downloaded asset files:"
-          ls -la /tmp/gh-aw/safeoutputs/assets/
+          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0

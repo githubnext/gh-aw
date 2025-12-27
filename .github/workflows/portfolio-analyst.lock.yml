@@ -856,7 +856,7 @@ jobs:
           find .github/workflows/ -name '*.md' -type f
           
           # Individual run logs are stored in subdirectories (if you need detailed logs)
-          ls -la /tmp/portfolio-logs/run-*/
+          find /tmp/portfolio-logs -type d -name "run-*"
           ```
           
           **Key Metrics to Extract (from summary.json .runs array):**
@@ -2148,7 +2148,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "Downloaded asset files:"
-          ls -la /tmp/gh-aw/safeoutputs/assets/
+          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
