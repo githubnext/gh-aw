@@ -1493,6 +1493,213 @@ Agentic workflows compile to GitHub Actions YAML:
 12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
 13. **Run security scanners** - Use `--actionlint`, `--zizmor`, and `--poutine` flags to scan compiled workflows for security issues, code quality, and supply chain risks
 
+## Shell Scripting Best Practices
+
+When using bash tools in workflows, follow these best practices to avoid common shellcheck violations and write robust shell scripts. The `gh aw compile --actionlint` command includes shellcheck validation.
+
+### Separate Local Declaration from Assignment (SC2155)
+
+**Problem**: Declaring and assigning a local variable in one line masks the exit status of the command, preventing proper error handling.
+
+```bash
+# ❌ Wrong - masks exit status
+local result=$(command_that_might_fail)
+if [[ $? -ne 0 ]]; then
+  echo "Command failed"  # This will never execute
+fi
+```
+
+**Why it's wrong**: The `$?` checks the exit status of `local`, which always succeeds (returns 0), not the exit status of the command in the subshell.
+
+**Solution**: Separate declaration from assignment to preserve exit status:
+
+```bash
+# ✅ Correct - preserves exit status
+local result
+result=$(command_that_might_fail)
+if [[ $? -ne 0 ]]; then
+  echo "Command failed"  # This will work correctly
+fi
+```
+
+### Use find Instead of ls (SC2012)
+
+**Problem**: Using `ls` with pipes is fragile and breaks with filenames containing spaces, newlines, or special characters.
+
+```bash
+# ❌ Wrong - breaks with special characters
+ls -t *.yml | head -5
+
+# ❌ Also wrong - breaks with spaces in filenames
+for file in $(ls *.txt); do
+  echo "$file"
+done
+```
+
+**Why it's wrong**: `ls` output is designed for human reading, not parsing. It doesn't handle special characters safely and can produce unexpected results.
+
+**Solution**: Use `find` for robust filename handling:
+
+```bash
+# ✅ Correct - robust filename handling
+find . -name "*.yml" -type f -printf '%T@ %p\n' | sort -rn | head -5
+
+# ✅ For iteration
+find . -name "*.txt" -type f -print0 | while IFS= read -r -d '' file; do
+  echo "$file"
+done
+
+# ✅ Alternative with globbing
+shopt -s nullglob
+for file in *.txt; do
+  echo "$file"
+done
+```
+
+### Quote Variables (SC2086)
+
+**Problem**: Unquoted variables are subject to word splitting and glob expansion, causing unexpected behavior with filenames containing spaces or special characters.
+
+```bash
+# ❌ Wrong - word splitting/globbing
+echo $variable
+rm $file
+grep $pattern $filename
+```
+
+**Why it's wrong**: If `$file` contains spaces (e.g., "my file.txt"), it will be split into multiple arguments. If it contains glob patterns (e.g., "*.txt"), those will be expanded.
+
+**Solution**: Quote variables to prevent splitting and globbing:
+
+```bash
+# ✅ Correct - safe handling
+echo "$variable"
+rm "$file"
+grep "$pattern" "$filename"
+
+# ✅ For arrays
+files=("file1.txt" "file2.txt")
+echo "${files[@]}"  # Quote array expansions
+
+# Exception: When you intentionally want word splitting
+# Use an array instead
+args=("arg1" "arg2 with spaces")
+command "${args[@]}"
+```
+
+### Group Redirects (SC2129)
+
+**Problem**: Multiple redirect operations to the same file are inefficient because each one opens and closes the file.
+
+```bash
+# ❌ Inefficient - opens file multiple times
+echo "line1" >> file
+echo "line2" >> file
+echo "line3" >> file
+```
+
+**Why it's inefficient**: Each redirect operation opens the file, seeks to the end, writes, and closes. This is slow for many operations.
+
+**Solution**: Group redirects using braces or heredocs:
+
+```bash
+# ✅ Better - single redirect
+{
+  echo "line1"
+  echo "line2"
+  echo "line3"
+} >> file
+
+# ✅ Alternative with heredoc
+cat >> file << 'EOF'
+line1
+line2
+line3
+EOF
+
+# ✅ For complex output
+{
+  echo "Header"
+  command1
+  echo "Footer"
+} > output.txt
+```
+
+### Additional Shell Best Practices
+
+**Use `set -euo pipefail` for safer scripts**:
+
+```bash
+#!/bin/bash
+set -e   # Exit on error
+set -u   # Exit on undefined variable
+set -o pipefail  # Exit on pipe failure
+
+# Your script here
+```
+
+**Prefer `[[ ]]` over `[ ]` for tests**:
+
+```bash
+# ✅ Modern test operator (bash-specific)
+if [[ "$var" == "value" ]]; then
+  echo "Match"
+fi
+
+# ✅ Supports pattern matching
+if [[ "$file" == *.txt ]]; then
+  echo "Text file"
+fi
+```
+
+**Use `printf` instead of `echo` for portability**:
+
+```bash
+# ✅ Portable and predictable
+printf '%s\n' "$variable"
+printf 'Error: %s\n' "$error_msg" >&2
+```
+
+### Workflow Tool Configuration
+
+When configuring bash tools in workflow frontmatter, ensure commands follow these best practices:
+
+```yaml
+tools:
+  bash:
+    - "find . -name '*.go' -type f -exec wc -l {} \\;"
+    - "grep -r 'func ' . --include='*.go'"
+    # ❌ Avoid: ls *.go | head -5
+    # ✅ Use: find . -name '*.go' -type f | head -5
+```
+
+### Validation Tools
+
+- **actionlint**: Validates GitHub Actions workflows and includes shellcheck integration
+  ```bash
+  gh aw compile --actionlint
+  ```
+
+- **shellcheck**: Direct shell script validation (actionlint includes this)
+  ```bash
+  shellcheck script.sh
+  ```
+
+### Common Pitfalls to Avoid
+
+1. **Don't parse `ls` output**: Use `find` or glob patterns instead
+2. **Always quote variables**: Unless you specifically need word splitting
+3. **Separate declaration and assignment**: For proper error handling
+4. **Use command grouping**: For efficient file operations
+5. **Test with spaces in filenames**: Create test files like "my file.txt" to verify robustness
+6. **Avoid `cd` in scripts**: Use absolute paths or subshells to prevent unexpected state changes
+
+### Resources
+
+- [ShellCheck Wiki](https://www.shellcheck.net/wiki/) - Detailed explanations of all shellcheck rules
+- [Bash Pitfalls](https://mywiki.wooledge.org/BashPitfalls) - Common bash mistakes and how to avoid them
+- [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html) - Comprehensive shell scripting guidelines
+
 ## Validation
 
 The workflow frontmatter is validated against JSON Schema during compilation. Common validation errors:

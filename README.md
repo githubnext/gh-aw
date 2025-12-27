@@ -61,6 +61,11 @@ Security is foundational to GitHub Agentic Workflows. Workflows run with read-on
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
 
+### Workflow Authoring
+
+- **[Workflow Template](.github/WORKFLOW_TEMPLATE.md)** - Template with best practices and correct shell scripting patterns
+- **[Shell Scripting Best Practices](.github/aw/github-agentic-workflows.md#shell-scripting-best-practices)** - Guidelines to avoid common shellcheck violations (SC2155, SC2012, SC2086, SC2129)
+
 ## Contributing
 
 We welcome contributions to GitHub Agentic Workflows! Here's how you can help:

@@ -88,6 +88,22 @@ The GitHub Copilot Agent automatically:
 - **Runs all quality checks**: `make agent-finish` (build, test, recompile, format, lint)
 - **Updates documentation** for new features
 - **Creates tests** for new functionality
+- **Validates workflows with actionlint**: Ensures workflows follow shell scripting best practices and avoid common shellcheck violations
+
+### Workflow Authoring Guidelines
+
+When creating or modifying agentic workflows (`.md` files in `.github/workflows/`):
+
+1. **Use the workflow template** at [.github/WORKFLOW_TEMPLATE.md](.github/WORKFLOW_TEMPLATE.md) as a starting point
+2. **Follow shell scripting best practices** to avoid shellcheck violations:
+   - Separate local declaration from assignment (SC2155)
+   - Use `find` instead of `ls` (SC2012)
+   - Quote all variables (SC2086)
+   - Group redirects efficiently (SC2129)
+3. **Run validation** with `gh aw compile --actionlint` to catch issues early
+4. **Review the shell scripting guide** in [GitHub Agentic Workflows documentation](.github/aw/github-agentic-workflows.md#shell-scripting-best-practices)
+
+The agent automatically follows these guidelines when creating workflows.
 
 ### Reporting Issues
 
