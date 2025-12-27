@@ -216,13 +216,6 @@ var Header = lipgloss.NewStyle().
 
 // List styles for structured output
 
-// ListBullet style for bullet points in lists - accent color
-var ListBullet = lipgloss.NewStyle().
-	Foreground(ColorInfo)
-
-// ListEnumerator style for numbered list prefixes - accent color
+// ListEnumerator style for list item prefixes (bullets, numbers, etc.) - accent color
 var ListEnumerator = lipgloss.NewStyle().
 	Foreground(ColorInfo)
-
-// ListIndent defines the indentation level for nested lists
-const ListIndent = 2
