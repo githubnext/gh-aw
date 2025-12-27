@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -143,6 +144,22 @@ func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
 	return true
 }
 
+// safeUintToInt safely converts uint to int, returning 0 if overflow would occur
+func safeUintToInt(u uint) int {
+	if u > math.MaxInt {
+		return 0 // Return 0 (engine default) if value would overflow
+	}
+	return int(u)
+}
+
+// safeUint64ToInt safely converts uint64 to int, returning 0 if overflow would occur
+func safeUint64ToInt(u uint64) int {
+	if u > math.MaxInt {
+		return 0 // Return 0 (engine default) if value would overflow
+	}
+	return int(u)
+}
+
 // extractToolsTimeout extracts the timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)
 func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
@@ -152,16 +169,16 @@ func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
 
 	// Check if timeout is explicitly set in tools
 	if timeoutValue, exists := tools["timeout"]; exists {
-		// Handle different numeric types
+		// Handle different numeric types with safe conversions to prevent overflow
 		switch v := timeoutValue.(type) {
 		case int:
 			return v
 		case int64:
 			return int(v)
 		case uint:
-			return int(v)
+			return safeUintToInt(v) // Safe conversion to prevent overflow (alert #418)
 		case uint64:
-			return int(v)
+			return safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #416)
 		case float64:
 			return int(v)
 		}
@@ -180,16 +197,16 @@ func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) int {
 
 	// Check if startup-timeout is explicitly set in tools
 	if timeoutValue, exists := tools["startup-timeout"]; exists {
-		// Handle different numeric types
+		// Handle different numeric types with safe conversions to prevent overflow
 		switch v := timeoutValue.(type) {
 		case int:
 			return v
 		case int64:
 			return int(v)
 		case uint:
-			return int(v)
+			return safeUintToInt(v) // Safe conversion to prevent overflow (alert #417)
 		case uint64:
-			return int(v)
+			return safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #415)
 		case float64:
 			return int(v)
 		}
