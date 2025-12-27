@@ -9,7 +9,7 @@ GitHub Agentic Workflows enable AI [agents](/gh-aw/reference/glossary/#agent) (a
 
 ## Workflow Structure
 
-Each workflow contains YAML frontmatter (the configuration section between `---` markers) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
+Each workflow contains [frontmatter](/gh-aw/reference/glossary/#frontmatter) (YAML configuration section) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
 
 ```aw warp
 ---
@@ -23,11 +23,11 @@ Analyze this issue and provide helpful triage comments...
 
 ## AI Engines
 
-Workflows support **GitHub Copilot** (default), **Claude Code**, and **Codex**. Each [engine](/gh-aw/reference/engines/) interprets natural language instructions and executes them using configured tools and permissions.
+Workflows support **GitHub Copilot** (default), **Claude Code**, and **Codex**. Each [engine](/gh-aw/reference/engines/) (AI model/provider) interprets natural language instructions and executes them using configured tools and permissions.
 
 ## Tools and Model Context Protocol (MCP)
 
-Workflows use [tools](/gh-aw/reference/tools/) through the **Model Context Protocol (MCP)** — a standardized protocol for connecting AI agents to external tools and services — for GitHub operations, external APIs, file operations, and custom integrations.
+Workflows use [tools](/gh-aw/reference/tools/) through the **[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol)** (MCP, a standard for AI tool integration) — a standardized protocol for connecting AI agents to external tools and services — for GitHub operations, external APIs, file operations, and custom integrations.
 
 ## Agentic vs. Traditional Workflows
 
@@ -50,6 +50,11 @@ flowchart LR
 
 Workflows run with minimal permissions (no write access by default), use tool allowlists, and process outputs through a [safety layer](/gh-aw/guides/security/) before applying changes. Critical actions can require human approval. For detailed security documentation, see the [Security Architecture](/gh-aw/introduction/architecture/) page.
 
+## Safe Inputs and Safe Outputs
+
+- **[Safe inputs](/gh-aw/reference/safe-inputs/)** (validated user input tools) — Custom MCP tools defined inline to prevent injection attacks
+- **[Safe outputs](/gh-aw/reference/safe-outputs/)** (validated GitHub operations) — Pre-approved actions the AI can request without write permissions
+
 ## Compilation
 
 Use `gh aw compile` to generate `.lock.yml` files (compiled GitHub Actions workflow files) from workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
@@ -60,4 +65,4 @@ Enable [Continuous AI](https://githubnext.com/projects/continuous-ai) patterns l
 
 ## Best Practices
 
-Start simple and iterate with clear, specific instructions. Test workflows using `gh aw compile --watch` and `gh aw run`, monitor costs with `gh aw logs`, and review AI-generated content before merging. Use [`safe outputs`](/gh-aw/reference/safe-outputs/) for controlled creation of issues, comments, and PRs.
+Start simple and iterate with clear, specific instructions. Test workflows using `gh aw compile --watch` and `gh aw run`, monitor costs with `gh aw logs`, and review AI-generated content before merging. Use [`safe outputs`](/gh-aw/reference/safe-outputs/) (validated GitHub operations) for controlled creation of issues, comments, and PRs.
