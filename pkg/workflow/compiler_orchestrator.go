@@ -18,8 +18,12 @@ var detectionLog = logger.New("workflow:detection")
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	log.Printf("Reading file: %s", markdownPath)
 
+	// Clean the path to prevent path traversal issues (gosec G304)
+	// filepath.Clean removes ".." and other problematic path elements
+	cleanPath := filepath.Clean(markdownPath)
+
 	// Read the file
-	content, err := os.ReadFile(markdownPath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
@@ -34,7 +38,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if result != nil && result.FrontmatterStart > 0 {
 			frontmatterStart = result.FrontmatterStart
 		}
-		return nil, c.createFrontmatterError(markdownPath, string(content), err, frontmatterStart)
+		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
 	}
 
 	if len(result.Frontmatter) == 0 {
@@ -46,7 +50,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter, markdownPath, string(content)); err != nil {
+	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +59,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
 
 	// Validate main workflow frontmatter contains only expected entries
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, markdownPath); err != nil {
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
 		return nil, err
 	}
 
@@ -66,7 +70,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
-	markdownDir := filepath.Dir(markdownPath)
+	markdownDir := filepath.Dir(cleanPath)
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
@@ -132,7 +136,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Process imports from frontmatter first (before @include directives)
 	importCache := c.getSharedImportCache()
 	// Pass the full file content for accurate line/column error reporting
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, markdownPath, string(content))
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {
 		return nil, err // Error is already formatted with source location
 	}
@@ -397,7 +401,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	sort.Strings(allIncludedFiles)
 
 	// Extract workflow name
-	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(markdownPath)
+	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
 	}
@@ -624,7 +628,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
 	// Process stop-after configuration from the on: section
-	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
+	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, cleanPath)
 	if err != nil {
 		return nil, err
 	}
@@ -710,13 +714,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.SafeOutputs = mergedSafeOutputs
 
 	// Parse the "on" section for command triggers, reactions, and other events
-	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
+	err = c.parseOnSection(result.Frontmatter, workflowData, cleanPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, markdownPath)
+	c.applyDefaults(workflowData, cleanPath)
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
