@@ -128,37 +128,6 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewOption("custom - Custom engine configuration", "custom"),
 	}
 
-	// Prepare tool options
-	toolOptions := []huh.Option[string]{
-		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
-		huh.NewOption("edit - File editing tools", "edit"),
-		huh.NewOption("bash - Shell command tools", "bash"),
-		huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
-		huh.NewOption("web-search - Web search tools", "web-search"),
-		huh.NewOption("playwright - Browser automation tools", "playwright"),
-		huh.NewOption("serena - Serena code analysis tool", "serena"),
-	}
-
-	// Prepare safe output options
-	outputOptions := []huh.Option[string]{
-		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
-		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
-		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
-		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
-		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
-		huh.NewOption("update-issue - Update existing issues", "update-issue"),
-		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
-		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
-		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
-		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
-	}
-
-	// Prepare network options
-	networkOptions := []huh.Option[string]{
-		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
-		huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
-	}
-
 	// Set default network access
 	b.NetworkAccess = "defaults"
 
@@ -187,12 +156,16 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Which tools should the AI have access to?").
-				Options(toolOptions...).
+				OptionsFunc(func() []huh.Option[string] {
+					return b.getToolOptionsForEngine()
+				}, &b.Engine).
 				Height(8).
 				Value(&selectedTools),
 			huh.NewMultiSelect[string]().
 				Title("What outputs should the AI be able to create?").
-				Options(outputOptions...).
+				OptionsFunc(func() []huh.Option[string] {
+					return b.getSafeOutputOptionsForEngine()
+				}, &b.Engine).
 				Height(8).
 				Value(&selectedOutputs),
 		).
@@ -203,7 +176,9 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("What network access does the workflow need?").
-				Options(networkOptions...).
+				OptionsFunc(func() []huh.Option[string] {
+					return b.getNetworkOptionsForTools(selectedTools)
+				}, &selectedTools).
 				Value(&b.NetworkAccess),
 		).
 			Title("Network & Security").
@@ -229,6 +204,107 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	b.SafeOutputs = selectedOutputs
 
 	return nil
+}
+
+// getToolOptionsForEngine returns tool options appropriate for the selected engine
+func (b *InteractiveWorkflowBuilder) getToolOptionsForEngine() []huh.Option[string] {
+	interactiveLog.Printf("Getting tool options for engine: %s", b.Engine)
+
+	// All tools that all engines support
+	commonTools := []huh.Option[string]{
+		huh.NewOption("github - GitHub API tools (issues, PRs, comments)", "github"),
+		huh.NewOption("edit - File editing tools", "edit"),
+		huh.NewOption("bash - Shell command tools", "bash"),
+		huh.NewOption("playwright - Browser automation tools", "playwright"),
+		huh.NewOption("serena - Serena code analysis tool", "serena"),
+	}
+
+	// Additional tools based on engine capabilities
+	switch b.Engine {
+	case "claude":
+		// Claude has built-in web-fetch and web-search support
+		return append(commonTools,
+			huh.NewOption("web-fetch - Web content fetching (built-in to Claude)", "web-fetch"),
+			huh.NewOption("web-search - Web search (built-in to Claude)", "web-search"),
+		)
+	case "codex":
+		// Codex has built-in web-search support
+		return append(commonTools,
+			huh.NewOption("web-fetch - Web content fetching tools", "web-fetch"),
+			huh.NewOption("web-search - Web search (built-in to Codex)", "web-search"),
+		)
+	case "copilot":
+		// Copilot requires MCP servers for web tools
+		return append(commonTools,
+			huh.NewOption("web-fetch - Web content fetching (requires MCP server)", "web-fetch"),
+			huh.NewOption("web-search - Web search (requires MCP server)", "web-search"),
+		)
+	case "custom":
+		// Custom engines may have limited support
+		return append(commonTools,
+			huh.NewOption("web-fetch - Web content fetching (check engine support)", "web-fetch"),
+			huh.NewOption("web-search - Web search (check engine support)", "web-search"),
+		)
+	default:
+		return commonTools
+	}
+}
+
+// getSafeOutputOptionsForEngine returns safe output options appropriate for the selected engine
+func (b *InteractiveWorkflowBuilder) getSafeOutputOptionsForEngine() []huh.Option[string] {
+	interactiveLog.Printf("Getting safe output options for engine: %s", b.Engine)
+
+	// Base outputs available to all engines
+	baseOutputs := []huh.Option[string]{
+		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
+		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
+		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
+		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),
+		huh.NewOption("update-issue - Update existing issues", "update-issue"),
+		huh.NewOption("create-discussion - Create repository discussions", "create-discussion"),
+		huh.NewOption("create-code-scanning-alert - Create security scanning alerts", "create-code-scanning-alert"),
+		huh.NewOption("add-labels - Add labels to issues/PRs", "add-labels"),
+		huh.NewOption("push-to-pull-request-branch - Push changes to PR branches", "push-to-pull-request-branch"),
+	}
+
+	// Create-agent-task is specific to GitHub Copilot
+	if b.Engine == "copilot" {
+		return append([]huh.Option[string]{
+			huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
+		}, baseOutputs...)
+	}
+
+	return baseOutputs
+}
+
+// getNetworkOptionsForTools returns network options based on selected tools
+func (b *InteractiveWorkflowBuilder) getNetworkOptionsForTools(selectedTools []string) []huh.Option[string] {
+	interactiveLog.Printf("Getting network options for tools: %v", selectedTools)
+
+	baseOptions := []huh.Option[string]{
+		huh.NewOption("defaults - Basic infrastructure only", "defaults"),
+	}
+
+	// Check if any tools need ecosystem network access
+	needsEcosystem := false
+	for _, tool := range selectedTools {
+		switch tool {
+		case "bash", "edit", "playwright":
+			// These tools may benefit from ecosystem access for package managers
+			needsEcosystem = true
+		case "web-fetch", "web-search":
+			// Web tools indicate the workflow may need broader network access
+			needsEcosystem = true
+		}
+	}
+
+	if needsEcosystem {
+		return append(baseOptions,
+			huh.NewOption("ecosystem - Common development ecosystems (Python, Node.js, Go, etc.)", "ecosystem"),
+		)
+	}
+
+	return baseOptions
 }
 
 // generateWorkflow creates the markdown workflow file based on user selections
