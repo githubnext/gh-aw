@@ -24,7 +24,7 @@ tools:
 
 The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-inputs`, `safe-outputs`, `network`, `tools`).
 
-Tool configurations (such as `bash`, `edit`, `github`, `web-fetch`, `web-search`, `playwright`, `cache-memory`, and custom MCP servers) are specified under the `tools:` key. Custom inline tools can be defined with the `safe-inputs:` key. See [Tools](/gh-aw/reference/tools/) and [Safe Inputs](/gh-aw/reference/safe-inputs/) for complete documentation.
+Tool configurations (such as `bash`, `edit`, `github`, `web-fetch`, `web-search`, `playwright`, `cache-memory`, and custom Model Context Protocol (MCP) servers) are specified under the `tools:` key. Custom inline tools can be defined with the `safe-inputs:` key. See [Tools](/gh-aw/reference/tools/) and [Safe Inputs](/gh-aw/reference/safe-inputs/) for complete documentation.
 
 ### Trigger Events (`on:`)
 

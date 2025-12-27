@@ -102,7 +102,7 @@ Run `gh aw compile workflow.md` to validate permissions. Common errors include u
 Some tools require specific permissions to function:
 
 - **`agentic-workflows`**: Requires `actions: read` to access workflow logs and run data
-- **GitHub MCP toolsets**: See [Tools](/gh-aw/reference/tools/) for GitHub API permission requirements
+- **GitHub Model Context Protocol (MCP) toolsets**: See [Tools](/gh-aw/reference/tools/) for GitHub API permission requirements
 
 The compiler validates these requirements and provides clear error messages when permissions are missing.
 

@@ -11,13 +11,13 @@ For examples of network configuration with package registries and CDNs:
 
 See the [Network Configuration Guide](../docs/src/content/docs/guides/network-configuration.md) for more information.
 
-## MCP Gateway Examples
+## Model Context Protocol (MCP) Gateway Examples
 
 This directory also contains MCP Gateway configuration files for the `mcp-gateway` command.
 
 ## What is MCP Gateway?
 
-The MCP Gateway is a proxy server that connects to multiple MCP (Model Context Protocol) servers and exposes all their tools through a single HTTP endpoint. This allows clients to access tools from multiple MCP servers without managing individual connections.
+The MCP Gateway is a proxy server that connects to multiple Model Context Protocol (MCP) servers and exposes all their tools through a single HTTP endpoint. This allows clients to access tools from multiple MCP servers without managing individual connections.
 
 ## Example Configurations
 

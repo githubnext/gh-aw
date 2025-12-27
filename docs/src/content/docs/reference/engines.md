@@ -13,7 +13,7 @@ Claude and Codex engines are available but marked as experimental. They are not 
 
 ### GitHub Copilot CLI
 
-GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
+GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides Model Context Protocol (MCP) server support and is designed for conversational AI workflows.
 
 ```yaml wrap
 engine: copilot

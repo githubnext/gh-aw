@@ -314,7 +314,7 @@ workflow file '[path]' already exists. Use --force to overwrite
 
 ## Safe Output Errors
 
-### Failed to Parse Existing MCP Config
+### Failed to Parse Existing Model Context Protocol (MCP) Config
 
 **Error Message:**
 

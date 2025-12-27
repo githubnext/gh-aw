@@ -48,7 +48,7 @@ tools:
   web-search:  # Search the web (engine-dependent)
 ```
 
-**Note:** Some engines require third-party MCP servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
+**Note:** Some engines require third-party Model Context Protocol (MCP) servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
 
 ## GitHub Tools (`github:`)
 
