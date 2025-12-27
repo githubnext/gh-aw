@@ -254,3 +254,109 @@ func TestDefaultMCPToolTableOptions(t *testing.T) {
 		t.Error("Expected default ShowVerboseHint to be false")
 	}
 }
+
+func TestRenderMCPHierarchyTree(t *testing.T) {
+	// Create test configs
+	configs := []parser.MCPServerConfig{
+		{
+			Name:    "github",
+			Type:    "stdio",
+			Allowed: []string{"list_issues", "create_issue"},
+		},
+		{
+			Name:    "filesystem",
+			Type:    "stdio",
+			Allowed: []string{"*"},
+		},
+	}
+
+	// Create test server infos
+	serverInfos := map[string]*parser.MCPServerInfo{
+		"github": {
+			Config: parser.MCPServerConfig{
+				Name:    "github",
+				Allowed: []string{"list_issues", "create_issue"},
+			},
+			Tools: []*mcp.Tool{
+				{Name: "list_issues", Description: "List GitHub issues"},
+				{Name: "create_issue", Description: "Create a new GitHub issue"},
+				{Name: "list_pull_requests", Description: "List pull requests"},
+			},
+			Resources: []*mcp.Resource{
+				{Name: "repo", URI: "github://repo"},
+			},
+			Roots: []*mcp.Root{
+				{Name: "root", URI: "github://root"},
+			},
+		},
+		"filesystem": {
+			Config: parser.MCPServerConfig{
+				Name:    "filesystem",
+				Allowed: []string{"*"},
+			},
+			Tools: []*mcp.Tool{
+				{Name: "read_file", Description: "Read a file"},
+				{Name: "write_file", Description: "Write to a file"},
+			},
+		},
+	}
+
+	// Render tree
+	output := renderMCPHierarchyTree(configs, serverInfos)
+
+	// Verify output contains expected elements
+	expectedStrings := []string{
+		"MCP Servers",
+		"github",
+		"filesystem",
+		"list_issues",
+		"create_issue",
+		"read_file",
+		"write_file",
+		"Tools",
+		"Resources",
+		"Roots",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nGot:\n%s", expected, output)
+		}
+	}
+
+	// Verify output is not empty
+	if output == "" {
+		t.Error("renderMCPHierarchyTree returned empty string")
+	}
+}
+
+func TestRenderMCPHierarchyTree_EmptyConfigs(t *testing.T) {
+	configs := []parser.MCPServerConfig{}
+	serverInfos := map[string]*parser.MCPServerInfo{}
+
+	output := renderMCPHierarchyTree(configs, serverInfos)
+
+	if output != "" {
+		t.Errorf("Expected empty output for empty configs, got: %s", output)
+	}
+}
+
+func TestRenderMCPHierarchyTree_MissingServerInfo(t *testing.T) {
+	configs := []parser.MCPServerConfig{
+		{
+			Name: "missing-server",
+			Type: "stdio",
+		},
+	}
+	serverInfos := map[string]*parser.MCPServerInfo{}
+
+	output := renderMCPHierarchyTree(configs, serverInfos)
+
+	// Should still render, but with a warning
+	if !strings.Contains(output, "missing-server") {
+		t.Errorf("Expected output to contain server name, got: %s", output)
+	}
+	if !strings.Contains(output, "Server info not available") {
+		t.Errorf("Expected output to contain warning about missing info, got: %s", output)
+	}
+}
