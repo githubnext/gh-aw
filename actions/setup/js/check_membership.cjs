@@ -4,7 +4,11 @@
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus } = require("./check_permissions_utils.cjs");
 
 async function main() {
-  const { eventName, actor, repo: { owner, repo } } = context;
+  const {
+    eventName,
+    actor,
+    repo: { owner, repo },
+  } = context;
   const requiredPermissions = parseRequiredPermissions();
   const allowedBots = parseAllowedBots();
 
@@ -56,6 +60,7 @@ async function main() {
     core.setOutput("is_team_member", "true");
     core.setOutput("result", "authorized");
     core.setOutput("user_permission", result.permission);
+    return;
   }
 
   // User doesn't have required permissions, check if they're an allowed bot
@@ -94,7 +99,6 @@ async function main() {
   core.setOutput("result", "insufficient_permissions");
   core.setOutput("user_permission", result.permission);
   core.setOutput("error_message", `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`);
-}
 }
 
 module.exports = { main };

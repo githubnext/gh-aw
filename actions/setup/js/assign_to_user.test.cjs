@@ -273,9 +273,7 @@ describe("assign_to_user.cjs", () => {
       await runScript();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("assigned_users", "user1\nuser2");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining("Successfully assigned 2 user(s) to issue #42")
-      );
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Successfully assigned 2 user(s) to issue #42"));
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
 
@@ -290,9 +288,7 @@ describe("assign_to_user.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(
-        expect.stringContaining("No users were assigned")
-      );
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("No users were assigned"));
     });
   });
 
@@ -340,9 +336,7 @@ describe("assign_to_user.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining("Internal error")
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Internal error"));
     });
 
     it("should handle undefined targetResult gracefully", async () => {
@@ -355,9 +349,7 @@ describe("assign_to_user.cjs", () => {
 
       await runScript();
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining("Internal error")
-      );
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Internal error"));
     });
   });
 });
