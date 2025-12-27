@@ -494,7 +494,9 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir)))
+		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir))); err != nil {
+			mcpInspectLog.Printf("Warning: failed to write to stderr: %v", err)
+		}
 	}
 
 	// Write safe-inputs files to temporary directory
