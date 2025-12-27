@@ -2,24 +2,12 @@
   "servers": {
     "github-agentic-workflows": {
       "command": "gh",
-      "args": [
-        "aw",
-        "mcp-server"
-      ],
+      "args": ["aw", "mcp-server"],
       "cwd": "${workspaceFolder}"
     },
     "serena": {
       "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server",
-        "--context",
-        "codex",
-        "--project",
-        "${workspaceFolder}"
-      ],
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${workspaceFolder}"],
       "cwd": "${workspaceFolder}",
       "env": {
         "PATH": "${env:PATH}:${env:HOME}/go/bin:${env:HOME}/.local/bin"

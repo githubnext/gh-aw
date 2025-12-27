@@ -431,10 +431,10 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 
 	// Define test cases for all tools
 	testCases := []struct {
-		name        string
-		toolName    string
-		args        map[string]any
-		expectJSON  bool
+		name          string
+		toolName      string
+		args          map[string]any
+		expectJSON    bool
 		mayFailInTest bool // Tool may return MCP error in test environment
 	}{
 		{
@@ -455,8 +455,8 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 			args: map[string]any{
 				"run_id": int64(1),
 			},
-			expectJSON: false, // May return error message
-			mayFailInTest: true, // Expected to fail with invalid run ID
+			expectJSON:    false, // May return error message
+			mayFailInTest: true,  // Expected to fail with invalid run ID
 		},
 		{
 			name:     "logs",
@@ -464,8 +464,8 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 			args: map[string]any{
 				"count": 1,
 			},
-			expectJSON: false, // May return error message in test environment
-			mayFailInTest: true, // Expected to fail without workflow runs
+			expectJSON:    false, // May return error message in test environment
+			mayFailInTest: true,  // Expected to fail without workflow runs
 		},
 		{
 			name:       "mcp-inspect",
@@ -474,11 +474,11 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 			expectJSON: false, // Returns text output
 		},
 		{
-			name:       "update",
-			toolName:   "update",
-			args:       map[string]any{},
-			expectJSON: false, // Returns text output
-			mayFailInTest: true, // Expected to fail without changes
+			name:          "update",
+			toolName:      "update",
+			args:          map[string]any{},
+			expectJSON:    false, // Returns text output
+			mayFailInTest: true,  // Expected to fail without changes
 		},
 	}
 
