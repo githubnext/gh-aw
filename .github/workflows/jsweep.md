@@ -10,6 +10,9 @@ permissions:
   pull-requests: read
 tracker-id: jsweep-daily
 engine: copilot
+runtimes:
+  node:
+    version: "20"
 tools:
   serena: ["typescript"]
   github:

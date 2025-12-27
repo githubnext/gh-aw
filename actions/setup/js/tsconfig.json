@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "module": "es2022",
-    "lib": ["es2022"],
+    "target": "es2020",
+    "module": "commonjs",
+    "lib": ["es2020"],
     "types": ["node"],
     "allowJs": true,
     "checkJs": true,
@@ -16,7 +16,7 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
