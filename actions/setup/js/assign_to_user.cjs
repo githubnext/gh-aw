@@ -49,7 +49,7 @@ async function main() {
     core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
     return;
   }
-  const { allowed: allowedAssignees, maxCount } = config;
+  const { allowed: allowedAssignees, maxCount = 1 } = config;
   const issueNumber = targetResult.number;
 
   // Support both singular "assignee" and plural "assignees" for flexibility

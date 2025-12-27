@@ -148,7 +148,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      let errorMessage = error?.message ?? String(error);
+      let errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {

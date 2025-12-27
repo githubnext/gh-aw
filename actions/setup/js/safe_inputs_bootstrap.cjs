@@ -50,7 +50,8 @@ function bootstrapSafeInputsServer(configPath, logger) {
   logger.debug(`Tools to load: ${config.tools.length}`);
 
   // Load tool handlers from file paths
-  const tools = loadToolHandlers(logger, config.tools, basePath);
+  // Logger implements the MCPServer interface needed for loadToolHandlers
+  const tools = loadToolHandlers(/** @type {any} */ (logger), config.tools, basePath);
 
   return { config, basePath, tools };
 }
