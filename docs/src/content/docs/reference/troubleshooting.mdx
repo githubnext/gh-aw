@@ -1,0 +1,1100 @@
+---
+title: Troubleshooting Guide
+description: Common beginner errors and solutions for GitHub Agentic Workflows
+sidebar:
+  order: 900
+---
+
+This guide covers common errors beginners encounter when working with GitHub Agentic Workflows, with clear solutions and prevention strategies.
+
+:::tip[Quick Navigation]
+Use Ctrl+F / Cmd+F to search for specific error messages. For detailed error references, see [Error Reference](/gh-aw/troubleshooting/errors/). For operational issues, see [Common Issues](/gh-aw/troubleshooting/common-issues/).
+:::
+
+## 1. Compilation Fails - Syntax Errors in Frontmatter YAML
+
+### Error Message
+
+```text
+failed to parse frontmatter: yaml: line 5: could not find expected ':'
+```
+
+or
+
+```text
+failed to parse frontmatter: yaml: line 3: mapping values are not allowed in this context
+```
+
+### Root Cause
+
+The YAML syntax in the frontmatter section is invalid. Common mistakes include:
+- Missing colons after field names
+- Incorrect indentation (mixing tabs and spaces)
+- Missing quotes around strings with special characters
+- Inconsistent array syntax
+
+### Resolution Steps
+
+1. **Check indentation**: YAML requires consistent indentation using spaces (not tabs). Each nested level should be indented by 2 spaces.
+
+   ```yaml
+   # ❌ WRONG - Mixed indentation
+   on:
+     issues:
+       types: [opened]
+
+   # ✅ CORRECT - Consistent 2-space indentation
+   on:
+     issues:
+       types: [opened]
+   ```
+
+2. **Verify colons have spaces**: After each colon, include a space before the value.
+
+   ```yaml
+   # ❌ WRONG - No space after colon
+   engine:copilot
+
+   # ✅ CORRECT - Space after colon
+   engine: copilot
+   ```
+
+3. **Quote special characters**: If a string contains special characters (`:`, `#`, `@`, `{`, `}`, `[`, `]`), wrap it in quotes.
+
+   ```yaml
+   # ❌ WRONG - Special characters unquoted
+   command: /analyze: full
+
+   # ✅ CORRECT - Special characters quoted
+   command: "/analyze: full"
+   ```
+
+4. **Use consistent array syntax**: Choose either inline or block style for arrays.
+
+   ```yaml
+   # ✅ CORRECT - Inline style
+   types: [opened, edited]
+
+   # ✅ CORRECT - Block style
+   types:
+     - opened
+     - edited
+   ```
+
+5. **Validate YAML syntax**: Use an online YAML validator or run:
+
+   ```bash wrap
+   gh aw compile workflow.md --verbose
+   ```
+
+### Prevention Tips
+
+- Use a code editor with YAML syntax highlighting (VS Code, Vim, etc.)
+- Enable YAML linting in your editor
+- Copy working examples from [the documentation](/gh-aw/reference/frontmatter/) as templates
+- Test compilation frequently with `gh aw compile` to catch errors early
+- Use [the frontmatter reference](/gh-aw/reference/frontmatter-full/) to verify field syntax
+
+### Related Documentation
+
+- [Frontmatter Reference](/gh-aw/reference/frontmatter/)
+- [Workflow Structure](/gh-aw/reference/workflow-structure/)
+- [Error Reference](/gh-aw/troubleshooting/errors/)
+
+---
+
+## 2. Workflow Doesn't Trigger - Wrong Event Configuration
+
+### Error Message
+
+The workflow compiles successfully but never runs when expected. No error message is shown - the workflow simply doesn't trigger.
+
+### Root Cause
+
+The workflow event configuration is incorrect or missing required permissions. Common causes:
+- Event type doesn't match the desired trigger
+- Activity types are missing or incorrect (e.g., `types: [opened]`)
+- Repository features are disabled (issues, discussions)
+- Missing `permissions:` for the event to access necessary data
+
+### Resolution Steps
+
+1. **Verify event syntax**: Check that your `on:` section matches [GitHub Actions trigger syntax](/gh-aw/reference/triggers/).
+
+   ```yaml
+   # ❌ WRONG - Invalid event name
+   on: issue_opened
+
+   # ✅ CORRECT - Use standard GitHub Actions events
+   on:
+     issues:
+       types: [opened, reopened]
+   ```
+
+2. **Add activity types**: Many events require specific activity types.
+
+   ```yaml
+   # ❌ WRONG - Missing activity types
+   on:
+     pull_request:
+
+   # ✅ CORRECT - Specify activity types
+   on:
+     pull_request:
+       types: [opened, synchronize, reopened]
+   ```
+
+3. **Check repository features**: Ensure required features are enabled in repository settings.
+
+   - For `on: issues:` - Issues must be enabled (Settings → General → Features)
+   - For `on: discussions:` - Discussions must be enabled
+   - For `on: pull_request:` - No special feature required
+
+4. **Add required permissions**: Include the `permissions:` section to grant access to event data.
+
+   ```yaml
+   # ✅ CORRECT - Add minimal required permissions
+   on:
+     issues:
+       types: [opened]
+   permissions:
+     contents: read
+     issues: read  # Required to read issue data
+   ```
+
+5. **Test the trigger**: Create a test event (open an issue, create a PR) and check the Actions tab for the workflow run.
+
+6. **Verify workflow is enabled**: In the repository's Actions tab, check that the workflow is not disabled.
+
+### Prevention Tips
+
+- Use the [trigger reference](/gh-aw/reference/triggers/) to verify correct event syntax
+- Start with simple triggers (e.g., `on: push`) and add complexity gradually
+- Enable `ACTIONS_STEP_DEBUG = true` in repository secrets for detailed logs
+- Test workflows in a test repository first
+- Check the Actions tab regularly after making changes
+
+### Related Documentation
+
+- [Triggers Reference](/gh-aw/reference/triggers/)
+- [Permissions Reference](/gh-aw/reference/permissions/)
+- [Command Triggers](/gh-aw/reference/command-triggers/)
+
+---
+
+## 3. Authentication Errors - Missing GitHub Token or Insufficient Permissions
+
+### Error Message
+
+```text
+authentication required
+```
+
+or
+
+```text
+Resource not accessible by integration
+```
+
+or
+
+```text
+refusing to allow a GitHub App to create or update workflow
+```
+
+### Root Cause
+
+The workflow lacks proper GitHub authentication or the `GITHUB_TOKEN` doesn't have sufficient permissions. This happens when:
+- The workflow tries to perform operations requiring permissions not granted in `permissions:` section
+- Using write operations without explicitly granting write permissions
+- Attempting to modify workflows (which requires a PAT, not `GITHUB_TOKEN`)
+
+### Resolution Steps
+
+1. **Add required permissions**: Grant the minimum necessary permissions in the `permissions:` section.
+
+   ```yaml
+   # For reading repository data
+   permissions:
+     contents: read
+
+   # For creating issues
+   permissions:
+     contents: read
+     issues: write
+
+   # For creating pull requests
+   permissions:
+     contents: read
+     pull-requests: write
+   ```
+
+2. **Use safe-outputs for write operations** (recommended): Instead of granting write permissions, use safe-outputs which require manual approval.
+
+   ```yaml
+   # ✅ RECOMMENDED - Use safe-outputs
+   permissions:
+     contents: read
+   safe-outputs:
+     create-issue:
+       title-prefix: "[bot] "
+       labels: [automation]
+   ```
+
+3. **Verify token scope**: The default `GITHUB_TOKEN` has limitations. For sensitive operations (modifying workflows, accessing organization data), use a Personal Access Token (PAT).
+
+   ```yaml
+   # For operations requiring PAT
+   safe-outputs:
+     github-token: ${{ secrets.CUSTOM_PAT }}
+     create-pull-request:
+   ```
+
+4. **Check repository settings**: Ensure workflow permissions are set correctly in Settings → Actions → General → Workflow permissions.
+
+5. **Avoid modifying workflows**: The `GITHUB_TOKEN` cannot modify workflow files (`.github/workflows/*.yml`). This is a GitHub security restriction.
+
+### Prevention Tips
+
+- Start with `permissions: contents: read` (minimal permissions)
+- Use safe-outputs instead of write permissions when possible
+- Review the [permissions reference](/gh-aw/reference/permissions/) before adding permissions
+- Test permission changes incrementally
+- Create a PAT only when absolutely necessary, with minimal scopes
+- Document why specific permissions are needed
+
+### Related Documentation
+
+- [Permissions Reference](/gh-aw/reference/permissions/)
+- [Safe Outputs](/gh-aw/reference/safe-outputs/)
+- [Tokens Reference](/gh-aw/reference/tokens/)
+- [Common Issues - Token Permission Errors](/gh-aw/troubleshooting/common-issues/#token-permission-errors)
+
+---
+
+## 4. MCP Server Connection Failures - Network or Configuration Issues
+
+### Error Message
+
+```text
+Failed to connect to MCP server: connection refused
+```
+
+or
+
+```text
+MCP server exited with code 1
+```
+
+or
+
+```text
+unable to determine MCP type for tool 'my-tool': missing type, url, command, or container
+```
+
+### Root Cause
+
+The MCP (Model Context Protocol) server cannot be reached or is misconfigured. Common causes:
+- Missing required configuration fields (`url`, `command`, or `container`)
+- Network access not allowed for remote MCP servers
+- Environment variables not set correctly
+- MCP server package not installed
+- Container configuration errors
+
+### Resolution Steps
+
+1. **Verify MCP server configuration**: Ensure all required fields are present.
+
+   ```yaml
+   # ❌ WRONG - Missing required fields
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+
+   # ✅ CORRECT - HTTP server with required url
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           type: http
+           url: "https://api.example.com/mcp"
+
+   # ✅ CORRECT - Local server with command
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           command: "npx"
+           args: ["@myorg/mcp-server"]
+   ```
+
+2. **Add network permissions for remote servers**: Remote MCP servers need network access.
+
+   ```yaml
+   # For remote MCP servers
+   network:
+     allowed:
+       - defaults
+       - "api.example.com"
+   
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           type: http
+           url: "https://api.example.com/mcp"
+   ```
+
+3. **Set required environment variables**: Many MCP servers need API keys or configuration.
+
+   ```yaml
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           command: "npx"
+           args: ["@myorg/mcp-server"]
+           env:
+             API_KEY: "${{ secrets.MCP_API_KEY }}"
+   ```
+
+4. **Verify package installation**: For command-based servers, ensure the package exists.
+
+   ```yaml
+   # Install the package before using it
+   runtime:
+     npm:
+       packages:
+         - "@myorg/mcp-server@1.0.0"
+   
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           command: "npx"
+           args: ["@myorg/mcp-server"]
+   ```
+
+5. **Test MCP server connection**: Use `gh aw mcp inspect` to verify configuration.
+
+   ```bash wrap
+   gh aw mcp inspect workflow-name
+   ```
+
+6. **Check container configuration**: For containerized servers, verify the container image exists.
+
+   ```yaml
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           container: "myorg/mcp-server:latest"
+           env:
+             API_KEY: "${{ secrets.MCP_API_KEY }}"
+   ```
+
+### Prevention Tips
+
+- Start with built-in tools (github, playwright) before adding custom MCP servers
+- Use `gh aw mcp inspect` to verify configuration before running workflows
+- Test MCP servers locally first
+- Document required environment variables in your workflow
+- Use container-based servers for better isolation and reliability
+- Reference the [MCP guide](/gh-aw/guides/mcps/) for configuration patterns
+
+### Related Documentation
+
+- [MCP Servers Guide](/gh-aw/guides/mcps/)
+- [Tools Reference](/gh-aw/reference/tools/)
+- [Network Permissions](/gh-aw/reference/network/)
+- [Common Issues - MCP Server Connection Failures](/gh-aw/troubleshooting/common-issues/#mcp-server-connection-failures)
+
+---
+
+## 5. "Tool Not Found" Errors - Missing Dependencies or Incorrect Names
+
+### Error Message
+
+```text
+Tool 'github-search-code' not found
+```
+
+or
+
+```text
+The tool you requested is not available
+```
+
+or
+
+```text
+jq not found in PATH
+```
+
+### Root Cause
+
+The workflow references a tool that isn't available in the execution environment. Common causes:
+- Tool name is misspelled or incorrect
+- GitHub tool not enabled in `toolsets:` or `allowed:` list
+- System tool (like `jq`) not installed in the runtime
+- Tool moved to a different toolset in newer MCP server versions
+
+### Resolution Steps
+
+1. **Verify tool name spelling**: Check the [tools reference](/gh-aw/reference/tools/) for correct tool names.
+
+   ```yaml
+   # ❌ WRONG - Incorrect tool name
+   tools:
+     github:
+       toolsets: [repos]
+       allowed:
+         - search-code  # Wrong name
+
+   # ✅ CORRECT - Use exact tool name
+   tools:
+     github:
+       toolsets: [search]  # search toolset includes search tools
+   ```
+
+2. **Enable correct toolsets**: Ensure the tool's toolset is enabled.
+
+   ```yaml
+   # ✅ Use toolsets for stability across MCP versions
+   tools:
+     github:
+       toolsets: [default, search, issues]
+   ```
+
+3. **Check tool-to-toolset mapping**: Find which toolset contains your tool.
+
+   ```bash wrap
+   # Inspect available tools
+   gh aw mcp inspect workflow-name
+   ```
+
+   Common tool-to-toolset mappings:
+   - Issue operations → `issues` toolset
+   - PR operations → `pull_requests` toolset
+   - Code search → `search` toolset
+   - Repository info → `repos` toolset
+
+4. **Install system tools**: For CLI tools like `jq`, add them to runtime packages.
+
+   ```yaml
+   # For tools not included by default
+   runtime:
+     apt:
+       packages:
+         - jq
+         - curl
+   ```
+
+5. **Migrate from `allowed:` to `toolsets:`**: If using old `allowed:` patterns, migrate to toolsets for stability.
+
+   ```yaml
+   # ❌ OLD - Individual tool names may change
+   tools:
+     github:
+       allowed:
+         - github-search-code
+
+   # ✅ NEW - Toolsets provide stable API
+   tools:
+     github:
+       toolsets: [search]
+   ```
+
+### Prevention Tips
+
+- Use `toolsets:` instead of `allowed:` for GitHub tools (more stable)
+- Use `gh aw mcp inspect` to see available tools before writing workflows
+- Check the [tools reference](/gh-aw/reference/tools/#toolset-contents) for toolset contents
+- Keep MCP server versions consistent across workflows
+- Test tool availability with a simple workflow first
+- Document which toolsets are needed for your workflow
+
+### Related Documentation
+
+- [Tools Reference](/gh-aw/reference/tools/)
+- [MCP Servers Guide](/gh-aw/guides/mcps/)
+- [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets)
+- [Error Reference](/gh-aw/troubleshooting/errors/)
+
+---
+
+## 6. Rate Limiting Issues - GitHub API Rate Limits Exceeded
+
+### Error Message
+
+```text
+API rate limit exceeded for user ID 12345
+```
+
+or
+
+```text
+You have exceeded a secondary rate limit
+```
+
+or in workflow logs:
+
+```text
+Error: HttpError: You have exceeded a secondary rate limit. Please wait a few minutes before you try again.
+```
+
+### Root Cause
+
+GitHub's API rate limits have been exceeded. There are two types:
+- **Primary rate limit**: 5,000 requests per hour for authenticated users (lower for GITHUB_TOKEN)
+- **Secondary rate limits**: Protect against excessive concurrent requests or expensive operations
+
+This commonly happens when:
+- Workflow makes too many API calls in a short time
+- Multiple workflow runs execute simultaneously
+- Workflow performs expensive operations (searching all code, listing all issues)
+
+### Resolution Steps
+
+1. **Add delays between requests**: Space out API calls to respect rate limits.
+
+   In your workflow prompt, instruct the AI:
+   ```markdown
+   When making multiple GitHub API calls, wait 1 second between requests
+   to avoid rate limits.
+   ```
+
+2. **Reduce number of API calls**: Optimize workflow logic to minimize requests.
+
+   ```yaml
+   # Example: Instead of listing all issues then filtering
+   # Use search with filters to reduce API calls
+   ```
+
+   In workflow instructions:
+   ```markdown
+   Use GitHub search API with filters rather than listing all items.
+   For example, search for `is:issue is:open label:bug` instead of
+   listing all issues and filtering locally.
+   ```
+
+3. **Use pagination wisely**: Only fetch data you need, don't fetch everything.
+
+   ```markdown
+   Fetch only the first 30 items. Don't paginate through all results
+   unless specifically needed.
+   ```
+
+4. **Implement retry logic**: The AI should handle rate limits gracefully.
+
+   ```markdown
+   If you encounter a rate limit error, wait for the time specified
+   in the `Retry-After` header, then retry the request.
+   ```
+
+5. **Use a Personal Access Token**: PATs have higher rate limits than `GITHUB_TOKEN`.
+
+   ```yaml
+   safe-outputs:
+     github-token: ${{ secrets.CUSTOM_PAT }}
+     create-issue:
+   ```
+
+6. **Add concurrency limits**: Prevent multiple workflow runs from running simultaneously.
+
+   ```yaml
+   concurrency:
+     group: workflow-${{ github.workflow }}
+     cancel-in-progress: false  # Let current run finish
+   ```
+
+### Prevention Tips
+
+- Design workflows to minimize API calls
+- Use search APIs with filters instead of list-then-filter patterns
+- Add concurrency groups to prevent simultaneous runs
+- Monitor rate limit headers in workflow logs
+- Cache data when possible to reduce repeated requests
+- Consider using webhooks/events instead of polling
+- Test workflows during low-traffic times first
+
+### Related Documentation
+
+- [Concurrency Reference](/gh-aw/reference/concurrency/)
+- [GitHub Rate Limiting Documentation](https://docs.github.com/en/rest/rate-limit)
+- [Tools Reference](/gh-aw/reference/tools/)
+- [Tokens Reference](/gh-aw/reference/tokens/)
+
+---
+
+## 7. Lock File Conflicts - Merge Conflicts in .lock.yml Files
+
+### Error Message
+
+```text
+CONFLICT (content): Merge conflict in .github/workflows/my-workflow.lock.yml
+```
+
+### Root Cause
+
+Git merge conflicts occur in `.lock.yml` files when:
+- Multiple branches modify the same workflow `.md` file
+- The compiled `.lock.yml` files have diverged
+- Both branches were compiled from different base commits
+
+Lock files are generated artifacts, so conflicts should be resolved by recompiling, not manual editing.
+
+### Resolution Steps
+
+1. **Never manually edit .lock.yml files**: These are generated files that should not be edited by hand.
+
+2. **Resolve conflicts by recompiling**:
+
+   ```bash wrap
+   # If conflict is in your-workflow.lock.yml
+   
+   # Step 1: Keep the source .md file (resolve that conflict if needed)
+   git checkout --ours .github/workflows/your-workflow.md
+   # Or if you want the incoming changes:
+   git checkout --theirs .github/workflows/your-workflow.md
+   
+   # Step 2: Remove the conflicted .lock.yml file
+   rm .github/workflows/your-workflow.lock.yml
+   
+   # Step 3: Recompile from the .md source
+   gh aw compile
+   
+   # Step 4: Stage the regenerated lock file
+   git add .github/workflows/your-workflow.lock.yml
+   git add .github/workflows/your-workflow.md
+   
+   # Step 5: Complete the merge
+   git commit
+   ```
+
+3. **For multiple conflicting workflows**:
+
+   ```bash wrap
+   # Remove all conflicted lock files
+   git diff --name-only --diff-filter=U | grep '\.lock\.yml$' | xargs rm
+   
+   # Recompile all workflows
+   gh aw compile
+   
+   # Stage all changes
+   git add .github/workflows/*.lock.yml
+   git commit
+   ```
+
+4. **Alternative: Accept one side completely**:
+
+   If you want to accept all changes from one branch:
+
+   ```bash wrap
+   # Accept your branch's version
+   git checkout --ours .github/workflows/*.lock.yml
+   git add .github/workflows/*.lock.yml
+   
+   # Then recompile to ensure consistency
+   gh aw compile
+   git add .github/workflows/*.lock.yml
+   git commit
+   ```
+
+### Prevention Tips
+
+- **Communicate with your team**: Coordinate workflow changes to avoid simultaneous edits
+- **Recompile frequently**: Run `gh aw compile` before committing to keep lock files in sync
+- **Use feature branches**: Isolate workflow changes in separate branches
+- **Add pre-commit hook**: Automatically recompile workflows before commits
+
+   Create `.git/hooks/pre-commit`:
+   ```bash
+   #!/bin/bash
+   # Recompile workflows if .md files changed
+   if git diff --cached --name-only | grep -q '\.github/workflows/.*\.md$'; then
+     gh aw compile
+     git add .github/workflows/*.lock.yml
+   fi
+   ```
+
+- **Document the process**: Add instructions to your CONTRIBUTING.md about handling workflow conflicts
+- **Consider .gitignore**: Some teams prefer to gitignore lock files and generate them in CI (though this is not recommended for GitHub Agentic Workflows)
+
+### Related Documentation
+
+- [Compilation Process](/gh-aw/reference/compilation-process/)
+- [Workflow Structure](/gh-aw/reference/workflow-structure/)
+- [Common Issues - Lock File Not Generated](/gh-aw/troubleshooting/common-issues/#lock-file-not-generated)
+
+---
+
+## 8. Secrets Not Available - Missing Environment Variables
+
+### Error Message
+
+```text
+Error: Secret MY_API_KEY not found
+```
+
+or
+
+```text
+Error: Cannot read property 'MY_TOKEN' of undefined
+```
+
+or in workflow output:
+
+```text
+Environment variable MY_VAR is not set
+```
+
+### Root Cause
+
+The workflow references a secret or environment variable that doesn't exist or isn't accessible. Common causes:
+- Secret not added to repository settings
+- Secret name mismatch (case-sensitive)
+- Secret not accessible to forked repositories (for pull_request triggers)
+- Environment variable not passed to the MCP server
+
+### Resolution Steps
+
+1. **Add missing secrets**: In repository Settings → Secrets and variables → Actions
+
+   ```text
+   Settings → Secrets and variables → Actions → New repository secret
+   
+   Name: MY_API_KEY
+   Value: [your secret value]
+   ```
+
+2. **Verify secret name matches**: Secret references are case-sensitive.
+
+   ```yaml
+   # ❌ WRONG - Case mismatch
+   env:
+     API_KEY: "${{ secrets.my_api_key }}"  # secrets.MY_API_KEY
+
+   # ✅ CORRECT - Exact match
+   env:
+     API_KEY: "${{ secrets.MY_API_KEY }}"
+   ```
+
+3. **Pass secrets to MCP servers**: MCP servers need explicit environment variable configuration.
+
+   ```yaml
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           command: "npx"
+           args: ["@myorg/mcp-server"]
+           env:
+             API_KEY: "${{ secrets.MY_API_KEY }}"  # Pass secret to server
+   ```
+
+4. **Use allowed expressions**: Only certain expressions are allowed in workflows.
+
+   ```yaml
+   # ✅ ALLOWED - Passing secrets to env
+   tools:
+     my-tool:
+       mcp-servers:
+         my-server:
+           env:
+             TOKEN: "${{ secrets.MY_TOKEN }}"
+
+   # ❌ NOT ALLOWED - Direct secret access in prompt
+   # Do not reference secrets directly in markdown content
+   ```
+
+5. **Check fork access**: Secrets are not available to workflows triggered by forked repository pull requests (security feature).
+
+   For fork-triggered workflows, either:
+   - Use `pull_request_target` (carefully, has security implications)
+   - Don't require secrets for external contributions
+   - Run workflows manually for fork PRs
+
+### Prevention Tips
+
+- Document required secrets in your workflow's README
+- Use descriptive secret names (e.g., `SLACK_WEBHOOK_URL` not just `WEBHOOK`)
+- Test workflows with all required secrets before merging
+- Use organization-level secrets for shared credentials
+- Implement secret validation at workflow start:
+
+   ```markdown
+   Before proceeding, verify that the required environment variables are set:
+   - API_KEY
+   - WEBHOOK_URL
+   
+   If any are missing, fail with a clear error message.
+   ```
+
+- Never commit secrets to repository (use .gitignore for local env files)
+- Rotate secrets periodically and update in GitHub settings
+
+### Related Documentation
+
+- [Environment Variables](/gh-aw/reference/environment-variables/)
+- [Tokens Reference](/gh-aw/reference/tokens/)
+- [Safe Inputs](/gh-aw/reference/safe-inputs/)
+- [GitHub Secrets Documentation](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+
+---
+
+## 9. Workflow Times Out - Execution Takes Too Long
+
+### Error Message
+
+```text
+The job running on runner [...] has exceeded the maximum execution time of 60 minutes.
+```
+
+or
+
+```text
+Error: Timeout waiting for response from AI engine
+```
+
+### Root Cause
+
+The workflow execution exceeds GitHub Actions' time limits:
+- **Default timeout**: 360 minutes (6 hours) per job
+- **Common timeout**: 60 minutes set in workflow configuration
+- **Engine timeout**: AI engine takes too long to respond
+
+This happens when:
+- AI generates very long responses or makes many tool calls
+- Workflow instructions are too complex
+- External services (MCP servers) are slow
+- Infinite loops or retries in AI logic
+
+### Resolution Steps
+
+1. **Increase timeout**: Adjust the `timeout-minutes` setting.
+
+   ```yaml
+   # Default is often 60 minutes
+   timeout-minutes: 120  # Increase to 2 hours
+   ```
+
+   Maximum allowed: 360 minutes (6 hours) for GitHub-hosted runners.
+
+2. **Simplify workflow instructions**: Break complex tasks into smaller workflows.
+
+   ```markdown
+   # ❌ WRONG - Too complex for one workflow
+   Analyze all issues, categorize them, generate reports for each category,
+   create summary visualizations, update project boards, and notify team members.
+
+   # ✅ CORRECT - Break into steps
+   Analyze open issues and categorize them by type. Create a summary report
+   with issue counts per category.
+   ```
+
+3. **Add completion criteria**: Help the AI know when to stop.
+
+   ```markdown
+   Analyze up to 50 issues. If there are more, note that in your summary
+   and stop processing.
+   ```
+
+4. **Use `stop-after` for automatic termination**: Limit workflow runtime.
+
+   ```yaml
+   on:
+     issues:
+       types: [opened]
+     stop-after: +2h  # Automatically stop after 2 hours
+   ```
+
+5. **Optimize tool calls**: Reduce unnecessary API requests.
+
+   ```markdown
+   Make at most 10 API calls. Prioritize the most important data.
+   ```
+
+6. **Check MCP server responsiveness**: Slow external servers can cause timeouts.
+
+   ```bash wrap
+   # Test MCP server response time locally
+   gh aw mcp inspect workflow-name
+   ```
+
+### Prevention Tips
+
+- Start with short timeout values (30-60 minutes) and increase as needed
+- Design workflows to be focused and specific
+- Test complex workflows in a test repository first
+- Add progress indicators in workflow instructions:
+
+   ```markdown
+   Report progress after processing each 10 issues.
+   ```
+
+- Use pagination to limit data processing
+- Implement checkpoints for long-running tasks
+- Monitor workflow run durations in the Actions tab
+- Consider splitting into multiple chained workflows
+
+### Related Documentation
+
+- [Workflow Structure](/gh-aw/reference/workflow-structure/)
+- [Triggers Reference - stop-after](/gh-aw/reference/triggers/)
+- [GitHub Actions Usage Limits](https://docs.github.com/en/actions/learn-github-actions/usage-limits-billing-and-administration)
+
+---
+
+## 10. Network Access Denied - Blocked Domains
+
+### Error Message
+
+```text
+Network access denied for domain: api.example.com
+```
+
+or
+
+```text
+Failed to fetch https://api.example.com/data: Network request blocked
+```
+
+or URLs show as:
+
+```text
+(redacted)
+```
+
+### Root Cause
+
+The workflow attempts to access a domain not allowed in the network configuration. GitHub Agentic Workflows implement network restrictions to prevent data exfiltration and ensure security.
+
+By default, only GitHub domains are allowed. Any other domain must be explicitly permitted.
+
+### Resolution Steps
+
+1. **Add domain to network.allowed**: Explicitly permit the domain.
+
+   ```yaml
+   network:
+     allowed:
+       - defaults  # GitHub domains
+       - "api.example.com"  # Your custom domain
+   ```
+
+2. **Use ecosystem shortcuts**: For common package registries, use predefined groups.
+
+   ```yaml
+   network:
+     allowed:
+       - defaults      # GitHub domains
+       - python        # PyPI and pip
+       - node          # npm, yarn, pnpm
+       - containers    # Docker Hub, GHCR
+       - go            # Go modules
+   ```
+
+   Full list of ecosystems:
+   - `defaults` - github.com, githubusercontent.com, etc.
+   - `python` - pypi.org, files.pythonhosted.org
+   - `node` - registry.npmjs.org, npm.pkg.github.com
+   - `containers` - docker.io, ghcr.io
+   - `go` - proxy.golang.org, sum.golang.org
+   - `ruby` - rubygems.org
+   - `rust` - crates.io, static.crates.io
+
+3. **Include subdomains**: Some entries automatically include subdomains.
+
+   ```yaml
+   network:
+     allowed:
+       - "example.com"  # Allows *.example.com (all subdomains)
+   ```
+
+4. **Check for MCP server network needs**: MCP servers may need additional domains.
+
+   ```yaml
+   tools:
+     my-tool:
+       mcp-servers:
+         external-api:
+           type: http
+           url: "https://api.service.com/mcp"
+   
+   network:
+     allowed:
+       - defaults
+       - "api.service.com"  # Required for MCP server
+   ```
+
+5. **Verify URL not redacted**: If URLs appear as `(redacted)`, the domain is blocked.
+
+   Check workflow output for:
+   ```text
+   Link: (redacted)
+   ```
+
+   This means the domain needs to be added to `network.allowed`.
+
+### Prevention Tips
+
+- Always include `defaults` in network.allowed for GitHub access
+- Use ecosystem shortcuts for package managers (more maintainable)
+- Document why each domain is needed (security review)
+- Start with minimal network access and expand as needed
+- Test network-dependent workflows to ensure all domains are allowed
+- Review the [network configuration guide](/gh-aw/guides/network-configuration/) before adding domains
+- Use `--strict` mode during development to catch network issues early
+
+   ```bash wrap
+   gh aw compile --strict workflow.md
+   ```
+
+### Related Documentation
+
+- [Network Permissions](/gh-aw/reference/network/)
+- [Network Configuration Guide](/gh-aw/guides/network-configuration/)
+- [Common Issues - Firewall Denials](/gh-aw/troubleshooting/common-issues/#firewall-denials-for-package-registries)
+- [Common Issues - URLs Appearing as Redacted](/gh-aw/troubleshooting/common-issues/#urls-appearing-as-redacted)
+
+---
+
+## Quick Troubleshooting Checklist
+
+When encountering any error, work through this checklist:
+
+1. **Read the error message carefully** - Look for specific field names, line numbers, or hints
+2. **Check YAML syntax** - Validate indentation, colons, and quotes
+3. **Verify permissions** - Ensure workflow has required `permissions:` entries
+4. **Test network access** - Add needed domains to `network.allowed`
+5. **Inspect MCP configuration** - Run `gh aw mcp inspect workflow-name`
+6. **Enable verbose output** - Use `gh aw compile --verbose` for detailed errors
+7. **Check repository settings** - Verify features (issues, discussions) are enabled
+8. **Review recent changes** - Compare with last working version
+9. **Test incrementally** - Add one feature at a time
+10. **Search documentation** - Use Ctrl+F / Cmd+F to find error messages
+
+---
+
+## Getting Help
+
+If you've tried the solutions above and still need help:
+
+1. **Search existing issues**: [GitHub Issues](https://github.com/githubnext/gh-aw/issues)
+2. **Check other troubleshooting pages**:
+   - [Error Reference](/gh-aw/troubleshooting/errors/)
+   - [Common Issues](/gh-aw/troubleshooting/common-issues/)
+3. **Enable debug logging**: Set `ACTIONS_STEP_DEBUG = true` in repository secrets
+4. **Use workflow audit**: `gh aw audit RUN_ID` for detailed run analysis
+5. **Create a new issue**: Include workflow file, error messages, and steps to reproduce
+
+---
+
+## See Also
+
+- [Frontmatter Reference](/gh-aw/reference/frontmatter-full/) - Complete field documentation
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - How workflows are organized
+- [Tools Reference](/gh-aw/reference/tools/) - Available tools and their configurations
+- [Workflow Health Monitoring Runbook](https://github.com/githubnext/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) - Operational troubleshooting guide
