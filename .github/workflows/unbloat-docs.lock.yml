@@ -135,12 +135,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'docs/package-lock.json'
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+          node-version: "24"
       - name: Install dependencies
         run: npm ci
         working-directory: ./docs
@@ -217,7 +216,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: '24'
+          node-version: '20'
           package-manager-cache: false
       - name: Install awf binary
         run: |
@@ -1672,7 +1671,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: '24'
+          node-version: '20'
           package-manager-cache: false
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.0.76

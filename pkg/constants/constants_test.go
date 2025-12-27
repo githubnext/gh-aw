@@ -272,7 +272,7 @@ func TestVersionConstants(t *testing.T) {
 		{"DefaultPlaywrightMCPVersion", DefaultPlaywrightMCPVersion, "0.0.53"},
 		{"DefaultPlaywrightBrowserVersion", DefaultPlaywrightBrowserVersion, "v1.57.0"},
 		{"DefaultBunVersion", DefaultBunVersion, "1.1"},
-		{"DefaultNodeVersion", DefaultNodeVersion, "24"},
+		{"DefaultNodeVersion", DefaultNodeVersion, "20"},
 		{"DefaultPythonVersion", DefaultPythonVersion, "3.12"},
 		{"DefaultRubyVersion", DefaultRubyVersion, "3.3"},
 		{"DefaultDotNetVersion", DefaultDotNetVersion, "8.0"},

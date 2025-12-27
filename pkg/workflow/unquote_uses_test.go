@@ -180,7 +180,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
     with:
       cache: npm
       cache-dependency-path: docs/package-lock.json
-      node-version: "24"`,
+      node-version: "20"`,
 			expected: `steps:
   - name: Checkout repository
     uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -191,7 +191,7 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
     with:
       cache: npm
       cache-dependency-path: docs/package-lock.json
-      node-version: "24"`,
+      node-version: "20"`,
 		},
 		{
 			name: "post-steps with quoted uses",

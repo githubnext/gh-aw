@@ -55,8 +55,8 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(nodeSetupStep, "Setup Node.js") {
 		t.Errorf("Expected 'Setup Node.js' in second installation step, got: %s", nodeSetupStep)
 	}
-	if !strings.Contains(nodeSetupStep, "node-version: '24'") {
-		t.Errorf("Expected 'node-version: '24'' in Node.js setup step, got: %s", nodeSetupStep)
+	if !strings.Contains(nodeSetupStep, "node-version: '20'") {
+		t.Errorf("Expected 'node-version: '20'' in Node.js setup step, got: %s", nodeSetupStep)
 	}
 
 	// Check for install step
