@@ -220,7 +220,7 @@ steps:
         echo "✅ Data download and caching complete"
       fi
       
-      ls -lh /tmp/gh-aw/daily-news-data/
+      find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
   - shared/mcp/tavily.md

@@ -44,7 +44,7 @@ tools:
     - "go list -m all"
     - "grep -r 'import' --include='*.go'"
     - "find pkg -name '*.go'"
-    - "ls -la specs/mods/"
+    - "find specs/mods/ -maxdepth 1 -ls"
     - "cat specs/mods/*"
 
 timeout-minutes: 30

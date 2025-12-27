@@ -40,7 +40,7 @@ tools:
     - "cat pkg/**/*.go"
     - "head -n * pkg/**/*.go"
     - "grep -r 'func ' pkg --include='*.go'"
-    - "ls -la pkg/"
+    - "find pkg/ -maxdepth 1 -ls"
 
 timeout-minutes: 20
 strict: true

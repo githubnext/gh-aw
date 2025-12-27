@@ -22,8 +22,8 @@ tools:
   github:
     toolsets: [default]
   bash:
-    - "ls -la specs/"
-    - "ls -la .specify/"
+    - "find specs/ -maxdepth 1 -ls"
+    - "find .specify/ -maxdepth 1 -ls"
     - "find specs -type f -name '*.md'"
     - "git branch"
     - "git status"
@@ -74,7 +74,7 @@ You are the **Spec-Kit Command Dispatcher**. Your role is to help users navigate
 Check what specs and plans currently exist:
 
 ```bash
-ls -la specs/
+find specs/ -maxdepth 1 -ls
 ```
 
 Check if there are any existing feature specifications:
@@ -205,7 +205,7 @@ The spec-kit workflow follows these stages:
 
 You can use these bash commands to understand the current state:
 
-- `ls -la specs/` - List all feature specifications
+- `find specs/ -maxdepth 1 -ls` - List all feature specifications
 - `find specs -name "*.md"` - Find all markdown files in specs
 - `git branch` - Check current branch
 - `cat specs/*/spec.md` - Read existing specifications

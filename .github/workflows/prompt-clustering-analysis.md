@@ -100,7 +100,7 @@ steps:
       
       # Verify logs were downloaded
       echo "Downloaded workflow logs:"
-      ls -la /tmp/gh-aw/workflow-logs
+      find /tmp/gh-aw/workflow-logs -maxdepth 1 -ls
 
 timeout-minutes: 20
 

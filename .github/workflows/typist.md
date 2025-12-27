@@ -30,7 +30,7 @@ tools:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f"
     - "find pkg -type f -name '*.go' ! -name '*_test.go'"
-    - "ls -la pkg/"
+    - "find pkg/ -maxdepth 1 -ls"
     - "wc -l pkg/**/*.go"
     - "grep -r 'type ' pkg --include='*.go'"
     - "grep -r 'interface{}' pkg --include='*.go'"

@@ -44,7 +44,7 @@ tools:
   bash:
     - "find .github -name '*.md'"
     - "find .github -type f -exec cat {} +"
-    - "ls -la .github"
+    - "find .github -maxdepth 1 -ls"
     - "git log --oneline"
     - "git diff"
     - "gh pr list *"
@@ -216,7 +216,7 @@ Use the repo memory folder `/tmp/gh-aw/repo-memory/default/` to maintain histori
 
 Check for existing historical data:
 ```bash
-ls -la /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/
+find /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/ -maxdepth 1 -ls
 cat /tmp/gh-aw/repo-memory/default/copilot-agent-metrics/history.json
 ```
 

@@ -122,7 +122,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, "        run: |\n")
 	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
-	preSteps = append(preSteps, "          ls -la /tmp/gh-aw/safeoutputs/assets/\n")
+	preSteps = append(preSteps, "          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls\n")
 
 	// Build custom environment variables specific to upload-assets
 	var customEnvVars []string

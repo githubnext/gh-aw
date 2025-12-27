@@ -43,7 +43,7 @@ tools:
     - "find /tmp -type f"
     - "cat /tmp/*"
     - "mkdir -p *"
-    - "ls -la *"
+    - "find * -maxdepth 1"
     - "date *"
 
 imports:
@@ -210,7 +210,7 @@ The session data has already been fetched in the preparation step. You should:
    jq 'length' /tmp/gh-aw/session-data/sessions-list.json
    
    # List log files
-   ls -la /tmp/gh-aw/session-data/logs/
+   find /tmp/gh-aw/session-data/logs/ -maxdepth 1 -ls
    ```
 
 2. **Extract Session Metadata**:

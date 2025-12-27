@@ -31,7 +31,7 @@ tools:
   edit:
   bash:
     - "find .specify/specs -type f -name '*.md'"
-    - "ls -la .specify/specs/"
+    - "find .specify/specs/ -maxdepth 1 -ls"
     - "cat .specify/specs/*/spec.md"
     - "cat .specify/specs/*/plan.md"
     - "cat .specify/specs/*/tasks.md"
@@ -90,7 +90,7 @@ This constitution defines how all development should be conducted in this reposi
 Check for feature specifications in the `.specify/specs/` directory:
 
 ```bash
-ls -la .specify/specs/
+find .specify/specs/ -maxdepth 1 -ls
 ```
 
 List all feature specifications and their files:
