@@ -27,7 +27,8 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		if strings.Contains(mdContent, "three .cjs files per day") {
 			t.Error("jsweep workflow should not process three files")
 		}
-		if !strings.Contains(mdContent, "Pick the **one file**") {
+		// Check for "one file" in either Priority 1 or Priority 2
+		if !strings.Contains(mdContent, "one file") {
 			t.Error("jsweep workflow should pick one file")
 		}
 		if strings.Contains(mdContent, "Pick the **three files**") {
@@ -104,7 +105,33 @@ func TestJSweepWorkflowConfiguration(t *testing.T) {
 		}
 	})
 
-	// Test 8: Verify the workflow has a valid lock file
+	// Test 8: Verify the workflow prioritizes files with @ts-nocheck
+	t.Run("PrioritizesTsNocheck", func(t *testing.T) {
+		if !strings.Contains(mdContent, "Priority 1") {
+			t.Error("jsweep workflow should have Priority 1 for file selection")
+		}
+		if !strings.Contains(mdContent, "@ts-nocheck") {
+			t.Error("jsweep workflow should mention @ts-nocheck")
+		}
+		if !strings.Contains(mdContent, "these need type checking enabled") {
+			t.Error("jsweep workflow should explain why @ts-nocheck files are prioritized")
+		}
+	})
+
+	// Test 9: Verify the workflow has instructions to remove @ts-nocheck
+	t.Run("RemovesTsNocheck", func(t *testing.T) {
+		if !strings.Contains(mdContent, "Remove `@ts-nocheck`") {
+			t.Error("jsweep workflow should have instructions to remove @ts-nocheck")
+		}
+		if !strings.Contains(mdContent, "Replace it with `@ts-check`") {
+			t.Error("jsweep workflow should instruct replacing @ts-nocheck with @ts-check")
+		}
+		if !strings.Contains(mdContent, "Fix type errors") {
+			t.Error("jsweep workflow should mention fixing type errors")
+		}
+	})
+
+	// Test 10: Verify the workflow has a valid lock file
 	t.Run("HasValidLockFile", func(t *testing.T) {
 		lockPath := filepath.Join("..", "..", ".github", "workflows", "jsweep.lock.yml")
 		_, err := os.Stat(lockPath)
@@ -147,6 +174,16 @@ func TestJSweepWorkflowLockFile(t *testing.T) {
 	t.Run("CompiledPrettierFormatting", func(t *testing.T) {
 		if !strings.Contains(lockContent, "npm run format:cjs") {
 			t.Error("Compiled jsweep workflow should include prettier formatting")
+		}
+	})
+
+	// Test 4: Verify @ts-nocheck prioritization is in the compiled workflow
+	t.Run("CompiledTsNocheckPrioritization", func(t *testing.T) {
+		if !strings.Contains(lockContent, "Priority 1") {
+			t.Error("Compiled jsweep workflow should prioritize files with @ts-nocheck")
+		}
+		if !strings.Contains(lockContent, "@ts-nocheck") {
+			t.Error("Compiled jsweep workflow should mention @ts-nocheck")
 		}
 	})
 }
