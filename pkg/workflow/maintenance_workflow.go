@@ -77,6 +77,18 @@ jobs:
     permissions:
       discussions: write
     steps:
+      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
+
       - name: Close expired discussions
         uses: ` + GetActionPin("actions/github-script") + `
         with:
@@ -97,6 +109,18 @@ jobs:
     permissions:
       issues: write
     steps:
+      - name: Checkout actions folder
+        uses: ` + GetActionPin("actions/checkout") + `
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
+
       - name: Close expired issues
         uses: ` + GetActionPin("actions/github-script") + `
         with:
