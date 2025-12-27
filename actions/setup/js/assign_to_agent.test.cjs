@@ -395,7 +395,7 @@ describe("assign_to_agent", () => {
 
     // Simulate permission error during agent assignment mutation (not during getIssueDetails)
     // First call: findAgent succeeds
-    // Second call: getIssueDetails succeeds  
+    // Second call: getIssueDetails succeeds
     // Third call: assignAgentToIssue fails with permission error
     const permissionError = new Error("Resource not accessible by integration");
     mockGithub.graphql
