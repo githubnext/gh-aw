@@ -225,7 +225,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 		// Prepend PATH setup to find codex in hostedtoolcache
 		// This ensures codex and all its dependencies (including MCP servers) are accessible
-		pathSetup := `export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH"`
+		// Split export from command substitution to avoid masking return values (SC2155)
+		pathSetup := `NODE_BIN_PATH="$(ls /opt/hostedtoolcache/node | head -1)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
 
 		// Build the command with agent file handling if specified
