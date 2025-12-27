@@ -50,61 +50,76 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 
 	// Display the MCP servers
 	if verbose {
-		// Create detailed table for verbose mode
-		headers := []string{"Name", "Type", "Command/URL", "Args", "Allowed Tools", "Env Vars"}
-		rows := make([][]string, 0, len(mcpConfigs))
+		// Verbose mode: use nested lists to show detailed server information
+		fmt.Fprintln(os.Stderr, console.FormatListHeader(fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath))))
+		fmt.Fprintln(os.Stderr)
 
 		for _, config := range mcpConfigs {
-			commandOrURL := ""
+			// Server name as the main header
+			fmt.Fprintf(os.Stderr, "  %s (%s)\n", config.Name, config.Type)
+
+			// Build detailed information as a list
+			details := []string{}
+
+			// Command/URL/Container
 			if config.Command != "" {
-				commandOrURL = config.Command
+				details = append(details, fmt.Sprintf("Command: %s", config.Command))
 			} else if config.URL != "" {
-				commandOrURL = config.URL
+				details = append(details, fmt.Sprintf("URL: %s", config.URL))
 			} else if config.Container != "" {
-				commandOrURL = config.Container
+				details = append(details, fmt.Sprintf("Container: %s", config.Container))
+				if config.Version != "" {
+					details = append(details, fmt.Sprintf("Version: %s", config.Version))
+				}
 			}
 
-			args := ""
+			// Registry
+			if config.Registry != "" {
+				details = append(details, fmt.Sprintf("Registry: %s", config.Registry))
+			}
+
+			// Args
 			if len(config.Args) > 0 {
-				args = strings.Join(config.Args, " ")
-				// Truncate if too long
-				if len(args) > 30 {
-					args = args[:27] + "..."
-				}
+				details = append(details, fmt.Sprintf("Args: %s", strings.Join(config.Args, " ")))
 			}
 
-			allowedTools := ""
+			// Entrypoint Args
+			if len(config.EntrypointArgs) > 0 {
+				details = append(details, fmt.Sprintf("Entrypoint Args: %s", strings.Join(config.EntrypointArgs, " ")))
+			}
+
+			// Proxy Args
+			if len(config.ProxyArgs) > 0 {
+				details = append(details, fmt.Sprintf("Proxy Args: %s", strings.Join(config.ProxyArgs, " ")))
+			}
+
+			// Allowed tools
 			if len(config.Allowed) > 0 {
-				allowedTools = strings.Join(config.Allowed, ", ")
-				// Truncate if too long
-				if len(allowedTools) > 30 {
-					allowedTools = allowedTools[:27] + "..."
+				details = append(details, fmt.Sprintf("Allowed Tools: %s", strings.Join(config.Allowed, ", ")))
+			}
+
+			// Headers
+			if len(config.Headers) > 0 {
+				headerStrs := make([]string, 0, len(config.Headers))
+				for k, v := range config.Headers {
+					headerStrs = append(headerStrs, fmt.Sprintf("%s: %s", k, v))
 				}
+				details = append(details, fmt.Sprintf("Headers: %s", strings.Join(headerStrs, ", ")))
 			}
 
-			envVars := ""
+			// Environment variables
 			if len(config.Env) > 0 {
-				envVars = fmt.Sprintf("%d defined", len(config.Env))
+				details = append(details, fmt.Sprintf("Environment Variables: %d defined", len(config.Env)))
 			}
 
-			rows = append(rows, []string{
-				config.Name,
-				config.Type,
-				commandOrURL,
-				args,
-				allowedTools,
-				envVars,
-			})
+			// Render the details as a list
+			if len(details) > 0 {
+				fmt.Fprint(os.Stderr, console.RenderList(details, "bullet"))
+			}
+			fmt.Fprintln(os.Stderr)
 		}
-
-		tableConfig := console.TableConfig{
-			Title:   fmt.Sprintf("MCP servers in %s", filepath.Base(workflowPath)),
-			Headers: headers,
-			Rows:    rows,
-		}
-		fmt.Print(console.RenderTable(tableConfig))
 	} else {
-		// Simple table for basic mode
+		// Simple mode: just list names and types
 		headers := []string{"Name", "Type"}
 		rows := make([][]string, 0, len(mcpConfigs))
 
