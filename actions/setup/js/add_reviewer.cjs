@@ -51,6 +51,7 @@ async function main() {
     return;
   }
   const { allowed: allowedReviewers, maxCount = 1 } = config;
+  // prettier-ignore
   const prNumber = /** @type {number} */ (targetResult.number);
 
   const requestedReviewers = reviewerItem.reviewers || [];

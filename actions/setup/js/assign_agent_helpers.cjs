@@ -214,6 +214,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       core.debug(`Raw GraphQL error message: ${errorMessage}`);
       if (error && typeof error === "object") {
         // Common GraphQL error shapes: error.errors (array), error.data, error.response
+        // prettier-ignore
         const err = /** @type {any} */ (error);
         const details = {
           ...(err.errors && { errors: err.errors }),
