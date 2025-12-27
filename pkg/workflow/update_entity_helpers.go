@@ -294,3 +294,107 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 
 	return baseConfig, configMap
 }
+
+// UpdateEntityConfigContainer is an interface for entity-specific config types
+// that embed UpdateEntityConfig
+type UpdateEntityConfigContainer interface {
+	SetBaseConfig(base UpdateEntityConfig)
+}
+
+// parseUpdateEntityConfigTyped is a generic helper that eliminates the final
+// scaffolding duplication in update entity parsers.
+//
+// It handles the complete parsing flow:
+//  1. Creates entity-specific config struct
+//  2. Builds field specs with pointers to config fields
+//  3. Calls parseUpdateEntityConfigWithFields
+//  4. Checks for nil result (early return)
+//  5. Copies base config into entity-specific struct
+//  6. Returns typed config
+//
+// Type parameter:
+//   - T: The entity-specific config type (must embed UpdateEntityConfig)
+//
+// Parameters:
+//   - c: Compiler instance
+//   - outputMap: The safe-outputs configuration map
+//   - entityType: Type of entity (issue, pull request, discussion, release)
+//   - configKey: Config key in YAML (e.g., "update-issue")
+//   - logger: Logger for this entity type
+//   - buildFields: Function that receives the config struct and returns field specs
+//   - customParser: Optional custom parser for special fields (can be nil)
+//
+// Returns:
+//   - *T: Pointer to the parsed and populated config struct, or nil if parsing failed
+//
+// Usage example:
+//
+//	func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
+//	    return parseUpdateEntityConfigTyped(c, outputMap,
+//	        UpdateEntityIssue, "update-issue", updateIssueLog,
+//	        func(cfg *UpdateIssuesConfig) []UpdateEntityFieldSpec {
+//	            return []UpdateEntityFieldSpec{
+//	                {Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
+//	                {Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+//	                {Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+//	            }
+//	        }, nil)
+//	}
+func parseUpdateEntityConfigTyped[T any](
+	c *Compiler,
+	outputMap map[string]any,
+	entityType UpdateEntityType,
+	configKey string,
+	logger *logger.Logger,
+	buildFields func(*T) []UpdateEntityFieldSpec,
+	customParser func(map[string]any, *T),
+) *T {
+	// Create entity-specific config struct
+	cfg := new(T)
+
+	// Build field specs with pointers to config fields
+	fields := buildFields(cfg)
+
+	// Build parsing options
+	opts := UpdateEntityParseOptions{
+		EntityType: entityType,
+		ConfigKey:  configKey,
+		Logger:     logger,
+		Fields:     fields,
+	}
+
+	// Add custom parser wrapper if provided
+	if customParser != nil {
+		opts.CustomParser = func(cm map[string]any) {
+			customParser(cm, cfg)
+		}
+	}
+
+	// Parse base config and entity-specific fields
+	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, opts)
+	if baseConfig == nil {
+		return nil
+	}
+
+	// Use type assertion to set base config
+	// This relies on T having an embedded UpdateEntityConfig field
+	type baseConfigSetter interface {
+		setBaseConfigValue(UpdateEntityConfig)
+	}
+
+	// Since we can't use interface assertion with generics directly,
+	// we use unsafe reflect-free assignment via any
+	cfgAny := any(cfg)
+	switch v := cfgAny.(type) {
+	case *UpdateIssuesConfig:
+		v.UpdateEntityConfig = *baseConfig
+	case *UpdateDiscussionsConfig:
+		v.UpdateEntityConfig = *baseConfig
+	case *UpdatePullRequestsConfig:
+		v.UpdateEntityConfig = *baseConfig
+	case *UpdateReleaseConfig:
+		v.UpdateEntityConfig = *baseConfig
+	}
+
+	return cfg
+}

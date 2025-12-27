@@ -17,24 +17,12 @@ type UpdatePullRequestsConfig struct {
 func (c *Compiler) parseUpdatePullRequestsConfig(outputMap map[string]any) *UpdatePullRequestsConfig {
 	updatePullRequestLog.Print("Parsing update pull request configuration")
 
-	// Create config struct
-	cfg := &UpdatePullRequestsConfig{}
-
-	// Parse base config and entity-specific fields using generic helper
-	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
-		EntityType: UpdateEntityPullRequest,
-		ConfigKey:  "update-pull-request",
-		Logger:     updatePullRequestLog,
-		Fields: []UpdateEntityFieldSpec{
-			{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
-			{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
-		},
-	})
-	if baseConfig == nil {
-		return nil
-	}
-
-	// Set base fields
-	cfg.UpdateEntityConfig = *baseConfig
-	return cfg
+	return parseUpdateEntityConfigTyped(c, outputMap,
+		UpdateEntityPullRequest, "update-pull-request", updatePullRequestLog,
+		func(cfg *UpdatePullRequestsConfig) []UpdateEntityFieldSpec {
+			return []UpdateEntityFieldSpec{
+				{Name: "title", Mode: FieldParsingBoolValue, Dest: &cfg.Title},
+				{Name: "body", Mode: FieldParsingBoolValue, Dest: &cfg.Body},
+			}
+		}, nil)
 }
