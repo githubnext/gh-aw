@@ -11,9 +11,42 @@ import (
 
 var maintenanceLog = logger.New("workflow:maintenance_workflow")
 
+// resolveSetupActionRef resolves the actions/setup reference based on action mode and version
+// Similar to Compiler.resolveActionReference but standalone for maintenance workflow generation
+func resolveSetupActionRef(actionMode ActionMode, version string) string {
+	localPath := "./actions/setup"
+	
+	// Dev mode - return local path
+	if actionMode == ActionModeDev {
+		maintenanceLog.Printf("Dev mode: using local action path: %s", localPath)
+		return localPath
+	}
+	
+	// Release mode - convert to remote reference
+	if actionMode == ActionModeRelease {
+		actionPath := strings.TrimPrefix(localPath, "./")
+		
+		// Check if version is valid for release mode
+		if version == "" || version == "dev" {
+			maintenanceLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty), falling back to local path")
+			return localPath
+		}
+		
+		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
+		// The SHA will be resolved later by action pinning infrastructure
+		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, version)
+		maintenanceLog.Printf("Release mode: using remote action reference: %s (SHA will be resolved via action pins)", remoteRef)
+		return remoteRef
+	}
+	
+	// Unknown mode - default to local path
+	maintenanceLog.Printf("WARNING: Unknown action mode %s, defaulting to local path", actionMode)
+	return localPath
+}
+
 // GenerateMaintenanceWorkflow generates the agentics-maintenance.yml workflow
 // if any workflows use the expires field for discussions
-func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, verbose bool) error {
+func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir string, version string, actionMode ActionMode, verbose bool) error {
 	maintenanceLog.Print("Checking if maintenance workflow is needed")
 
 	// Check if any workflow uses expires field for discussions or issues
@@ -77,15 +110,26 @@ jobs:
     permissions:
       discussions: write
     steps:
-      - name: Checkout actions folder
+`)
+
+	// Get the setup action reference (local or remote based on mode)
+	setupActionRef := resolveSetupActionRef(actionMode, version)
+	
+	// Add checkout step only in dev mode (for local action paths)
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout actions folder
         uses: ` + GetActionPin("actions/checkout") + `
         with:
           sparse-checkout: |
             actions
           persist-credentials: false
 
-      - name: Setup Scripts
-        uses: ./actions/setup
+`)
+	}
+	
+	// Add setup step with the resolved action reference
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
         with:
           destination: /tmp/gh-aw/actions
 
@@ -109,15 +153,23 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Checkout actions folder
+`)
+
+	// Add checkout step only in dev mode (for local action paths)
+	if actionMode == ActionModeDev {
+		yaml.WriteString(`      - name: Checkout actions folder
         uses: ` + GetActionPin("actions/checkout") + `
         with:
           sparse-checkout: |
             actions
           persist-credentials: false
 
-      - name: Setup Scripts
-        uses: ./actions/setup
+`)
+	}
+	
+	// Add setup step with the resolved action reference
+	yaml.WriteString(`      - name: Setup Scripts
+        uses: ` + setupActionRef + `
         with:
           destination: /tmp/gh-aw/actions
 

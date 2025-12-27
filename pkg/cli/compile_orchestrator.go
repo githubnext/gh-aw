@@ -1006,7 +1006,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
 		}
 
-		if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, absWorkflowDir, verbose); err != nil {
+		if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, absWorkflowDir, compiler.GetVersion(), compiler.GetActionMode(), verbose); err != nil {
 			if strict {
 				return workflowDataList, fmt.Errorf("failed to generate maintenance workflow: %w", err)
 			}

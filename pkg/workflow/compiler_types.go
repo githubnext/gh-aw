@@ -118,6 +118,11 @@ func (c *Compiler) GetActionMode() ActionMode {
 	return c.actionMode
 }
 
+// GetVersion returns the version string used by the compiler
+func (c *Compiler) GetVersion() string {
+	return c.version
+}
+
 // IncrementWarningCount increments the warning counter
 func (c *Compiler) IncrementWarningCount() {
 	c.warningCount++
