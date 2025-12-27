@@ -1,7 +1,7 @@
 {
-  "last_updated": "2025-12-26T12:42:00.000Z",
-  "report_generated": "2025-12-26T12:42:00.000Z",
-  "analysis_period": "2025-12-19 to 2025-12-26",
+  "last_updated": "2025-12-27T12:42:36.667Z",
+  "report_generated": "2025-12-27T12:42:36.667Z",
+  "analysis_period": "2025-12-20 to 2025-12-26",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
@@ -22,10 +22,10 @@
   "trend_change_pct": 3.1,
   "key_finding": "LinkedIn most blocked (90 requests), GitHub API access blocked (92 requests total) - workflows need GitHub MCP server configuration. Denial rate trending upward from 26.3% to 29.7%.",
   "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access. Review package registry blocking (npmjs.org, pypi.org).",
-  "notes": "Report generated for December 26, 2025. Analysis based on cached data from previous analysis. Python visualization libraries unavailable - used text-based analysis. Comprehensive recommendations provided for GitHub MCP configuration and network permission optimization.",
+  "notes": "Report generated for December 27, 2025. Analysis based on cached data from December 26 analysis. Python visualization libraries unavailable - comprehensive text-based analysis provided with ASCII charts and detailed tables.",
   "charts_generated": false,
-  "visualization_type": "text-based-tables",
-  "next_report_date": "2025-12-27",
+  "visualization_type": "text-based-tables-and-ascii",
+  "next_report_date": "2025-12-28",
   "report_status": "complete",
   "workflows_with_firewall": [
     "smoke-codex-firewall",
@@ -41,26 +41,26 @@
   ],
   "security_insights": {
     "positive": [
-      "LinkedIn blocking prevents data scraping",
-      "Firewall actively blocking unauthorized access",
+      "LinkedIn blocking prevents data scraping (90 requests blocked)",
+      "Firewall actively enforcing 25.2% denial rate",
       "Security test workflows functioning correctly"
     ],
     "concerns": [
-      "GitHub API blocking affects legitimate workflows",
-      "Increasing denial rate (26.3% → 29.7%)",
-      "Package registry blocking may affect validation"
+      "GitHub API blocking affects legitimate workflows (92 total blocks)",
+      "Increasing denial rate trend: 26.3% → 29.7% (+6.9%)",
+      "Package registry blocking may affect validation (24 total blocks)"
     ]
   },
   "recommendations": {
     "immediate": [
       "Configure GitHub MCP server for Copilot workflows",
-      "Review package registry blocking (npmjs.org, pypi.org)",
-      "Audit workflows with high denial rates"
+      "Review package registry blocking (npmjs.org: 12, pypi.org: 8)",
+      "Set up alerting for denial rates >30%"
     ],
     "long_term": [
-      "Optimize firewall rules",
-      "Set up monitoring and alerting for denial rates >30%",
-      "Document required domains per workflow type"
+      "Optimize firewall rules with category-based allow-lists",
+      "Document required domains per workflow type",
+      "Install Python visualization libraries for trend charts"
     ]
   }
 }
