@@ -3,6 +3,7 @@ name: Terminal Stylist
 description: Analyzes and improves console output styling and formatting in the codebase
 on:
   workflow_dispatch:
+  schedule: daily
 
 permissions:
   contents: read
@@ -14,6 +15,7 @@ timeout-minutes: 10
 strict: true
 
 tools:
+  serena: ["go"]
   github:
     toolsets: [repos]
   bash:
