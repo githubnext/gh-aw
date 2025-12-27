@@ -497,12 +497,12 @@ func TestInteractiveWorkflowBuilder_FieldDescriptions(t *testing.T) {
 
 	// Verify promptForConfiguration has descriptions for all fields
 	expectedDescriptions := map[string]string{
-		"trigger":       "Choose the GitHub event that triggers this workflow",
-		"engine":        "The AI engine interprets instructions and executes tasks using available tools",
-		"tools":         "Tools enable the AI to interact with code, APIs, and external systems",
-		"safe-outputs":  "Safe outputs allow the AI to create GitHub resources after human approval",
-		"network":       "Network access controls which external domains the workflow can reach",
-		"instructions":  "Provide clear, detailed instructions for the AI to follow when executing this workflow",
+		"trigger":      "Choose the GitHub event that triggers this workflow",
+		"engine":       "The AI engine interprets instructions and executes tasks using available tools",
+		"tools":        "Tools enable the AI to interact with code, APIs, and external systems",
+		"safe-outputs": "Safe outputs allow the AI to create GitHub resources after human approval",
+		"network":      "Network access controls which external domains the workflow can reach",
+		"instructions": "Provide clear, detailed instructions for the AI to follow when executing this workflow",
 	}
 
 	// This test documents the expected descriptions
