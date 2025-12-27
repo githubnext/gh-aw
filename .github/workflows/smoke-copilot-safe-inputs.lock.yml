@@ -440,8 +440,8 @@ jobs:
           PORT=3000
           
           # Set outputs for next steps
-          echo "safe_inputs_api_key=${API_KEY}" >> $GITHUB_OUTPUT
-          echo "safe_inputs_port=${PORT}" >> $GITHUB_OUTPUT
+          echo "safe_inputs_api_key=${API_KEY}" >> "$GITHUB_OUTPUT"
+          echo "safe_inputs_port=${PORT}" >> "$GITHUB_OUTPUT"
           
           echo "Safe Inputs MCP server will run on port ${PORT}"
           
