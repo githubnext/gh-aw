@@ -273,44 +273,55 @@ func TestSandboxTypeCaseSensitivity(t *testing.T) {
 // TestSandboxTypeEdgeCases tests edge cases for sandbox type validation
 func TestSandboxTypeEdgeCases(t *testing.T) {
 	edgeCases := []struct {
-		name      string
-		value     SandboxType
-		expectErr bool
+		name        string
+		value       SandboxType
+		expectValid bool
+		description string
 	}{
-		{"empty string", "", false}, // Empty is valid (no sandbox config)
-		{"whitespace only", "   ", false},
-		{"with leading whitespace", " awf", false},
-		{"with trailing whitespace", "awf ", false},
-		{"with newline", "awf\n", false},
-		{"with tab", "awf\t", false},
+		{
+			name:        "empty string",
+			value:       "",
+			expectValid: false,
+			description: "Empty string is not a valid sandbox type",
+		},
+		{
+			name:        "whitespace only",
+			value:       "   ",
+			expectValid: false,
+			description: "Whitespace-only is not a valid sandbox type",
+		},
+		{
+			name:        "with leading whitespace",
+			value:       " awf",
+			expectValid: false,
+			description: "Leading whitespace makes the value invalid",
+		},
+		{
+			name:        "with trailing whitespace",
+			value:       "awf ",
+			expectValid: false,
+			description: "Trailing whitespace makes the value invalid",
+		},
+		{
+			name:        "with newline",
+			value:       "awf\n",
+			expectValid: false,
+			description: "Newline in value makes it invalid",
+		},
+		{
+			name:        "with tab",
+			value:       "awf\t",
+			expectValid: false,
+			description: "Tab in value makes it invalid",
+		},
 	}
 
 	for _, tt := range edgeCases {
 		t.Run(tt.name, func(t *testing.T) {
-			// These should be handled gracefully by validation
-			workflowData := &WorkflowData{
-				Name: "test-workflow",
-				SandboxConfig: &SandboxConfig{
-					Type: tt.value,
-				},
-			}
-
-			// If value is not empty, it should be validated
-			if strings.TrimSpace(string(tt.value)) != "" && !isSupportedSandboxType(tt.value) {
-				// The type is invalid but validation might not catch it directly
-				// since isSupportedSandboxType handles the enum check
-				return
-			}
-
-			err := validateSandboxConfig(workflowData)
-			hasErr := err != nil
-
-			if hasErr != tt.expectErr {
-				if tt.expectErr {
-					t.Errorf("Edge case %q: expected error but got none", tt.name)
-				} else {
-					t.Errorf("Edge case %q: unexpected error: %v", tt.name, err)
-				}
+			isValid := isSupportedSandboxType(tt.value)
+			if isValid != tt.expectValid {
+				t.Errorf("%s: isSupportedSandboxType(%q) = %v, want %v", 
+					tt.description, tt.value, isValid, tt.expectValid)
 			}
 		})
 	}

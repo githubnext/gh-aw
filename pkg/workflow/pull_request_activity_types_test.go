@@ -38,19 +38,15 @@ func TestPullRequestActivityTypeEnumValidation(t *testing.T) {
 			trigger := "pull_request " + activityType
 			ir, err := ParseTriggerShorthand(trigger)
 			
-			// Some activity types might not be parsed by trigger parser if they're not
-			// in the validTypes map in trigger_parser.go
-			// This test documents which ones are supported vs which are valid in GitHub Actions
+			// Handle cases where activity type is not in trigger parser's validTypes map
 			if err != nil {
-				// Error means it's not in the validTypes map yet
+				// Parser explicitly rejected this type with an error
 				t.Logf("Activity type %q is valid in GitHub Actions but not yet in trigger parser validTypes map (error: %v)", activityType, err)
 				return
 			}
 
-			// Some activity types might not be parsed by trigger parser if they're not
-			// in the validTypes map in trigger_parser.go
-			// This test documents which ones are supported
 			if ir == nil {
+				// Parser returned nil (simple trigger without parsing)
 				t.Logf("Activity type %q is valid in GitHub Actions but not in trigger parser validTypes map", activityType)
 				return
 			}
