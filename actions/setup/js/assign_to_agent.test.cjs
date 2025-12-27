@@ -35,10 +35,7 @@ describe("assign_to_agent", () => {
   let tempFilePath;
 
   const setAgentOutput = data => {
-    tempFilePath = path.join(
-      "/tmp",
-      `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`
-    );
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
     process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
@@ -65,17 +62,13 @@ describe("assign_to_agent", () => {
   it("should handle empty agent output", async () => {
     setAgentOutput({ items: [], errors: [] });
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
-    expect(mockCore.info).toHaveBeenCalledWith(
-      expect.stringContaining("No assign_to_agent items found")
-    );
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No assign_to_agent items found"));
   });
 
   it("should handle missing agent output", async () => {
     delete process.env.GH_AW_AGENT_OUTPUT;
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "No GH_AW_AGENT_OUTPUT environment variable found"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
 
   it("should handle staged mode correctly", async () => {
@@ -195,9 +188,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining("Found 3 agent assignments, but max is 2")
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Found 3 agent assignments, but max is 2"));
   });
 
   it("should reject unsupported agents", async () => {
@@ -214,12 +205,8 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining('Agent "unsupported-agent" is not supported')
-    );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to assign 1 agent(s)")
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Agent "unsupported-agent" is not supported'));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
   it("should handle invalid issue numbers", async () => {
@@ -236,9 +223,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith(
-      expect.stringContaining("Invalid issue_number")
-    );
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Invalid issue_number"));
   });
 
   it("should handle agent already assigned", async () => {
@@ -275,9 +260,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      expect.stringContaining("copilot is already assigned to issue #42")
-    );
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("copilot is already assigned to issue #42"));
   });
 
   it("should handle API errors gracefully", async () => {
@@ -297,12 +280,8 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to assign agent")
-    );
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to assign 1 agent(s)")
-    );
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 
   it("should cache agent IDs for multiple assignments", async () => {
@@ -347,9 +326,7 @@ describe("assign_to_agent", () => {
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
     // Should only look up agent once (cached for second assignment)
-    const graphqlCalls = mockGithub.graphql.mock.calls.filter(call =>
-      call[0].includes("assignableUsers")
-    );
+    const graphqlCalls = mockGithub.graphql.mock.calls.filter(call => call[0].includes("assignableUsers"));
     expect(graphqlCalls).toHaveLength(1);
   });
 
@@ -377,9 +354,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Using target repository: other-owner/other-repo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Using target repository: other-owner/other-repo");
   });
 
   it("should handle invalid max count configuration", async () => {
@@ -397,9 +372,7 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining("Invalid max value: invalid")
-    );
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid max value: invalid"));
   });
 
   it("should generate permission error summary when appropriate", async () => {

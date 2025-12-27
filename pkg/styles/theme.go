@@ -254,3 +254,13 @@ var Header = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(ColorSuccess).
 	MarginBottom(1)
+
+// Tree styles for hierarchical output
+
+// TreeEnumerator style for tree branch characters (├── └──)
+var TreeEnumerator = lipgloss.NewStyle().
+	Foreground(ColorBorder)
+
+// TreeNode style for tree node content
+var TreeNode = lipgloss.NewStyle().
+	Foreground(ColorForeground)

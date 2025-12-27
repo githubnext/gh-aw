@@ -81,7 +81,7 @@ jobs:
 
 	// Get the setup action reference (local or remote based on mode)
 	setupActionRef := ResolveSetupActionReference(actionMode, version)
-	
+
 	// Add checkout step only in dev mode (for local action paths)
 	if actionMode == ActionModeDev {
 		yaml.WriteString(`      - name: Checkout actions folder
@@ -93,7 +93,7 @@ jobs:
 
 `)
 	}
-	
+
 	// Add setup step with the resolved action reference
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `
@@ -133,7 +133,7 @@ jobs:
 
 `)
 	}
-	
+
 	// Add setup step with the resolved action reference
 	yaml.WriteString(`      - name: Setup Scripts
         uses: ` + setupActionRef + `

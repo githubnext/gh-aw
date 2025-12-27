@@ -110,3 +110,115 @@ func renderMCPToolTable(info *parser.MCPServerInfo, opts MCPToolTableOptions) st
 
 	return result
 }
+
+// renderMCPHierarchyTree renders all MCP servers and their tools as a tree structure
+// This provides a hierarchical view of the MCP configuration
+func renderMCPHierarchyTree(configs []parser.MCPServerConfig, serverInfos map[string]*parser.MCPServerInfo) string {
+	if len(configs) == 0 {
+		return ""
+	}
+
+	// Build tree structure
+	root := console.TreeNode{
+		Value:    "MCP Servers",
+		Children: make([]console.TreeNode, 0, len(configs)),
+	}
+
+	for _, config := range configs {
+		serverNode := console.TreeNode{
+			Value:    fmt.Sprintf("📦 %s (%s)", config.Name, config.Type),
+			Children: []console.TreeNode{},
+		}
+
+		// Add server info if available
+		if info, ok := serverInfos[config.Name]; ok && info != nil {
+			// Create a map for quick lookup of allowed tools
+			allowedMap := make(map[string]bool)
+			hasWildcard := false
+			for _, allowed := range config.Allowed {
+				if allowed == "*" {
+					hasWildcard = true
+				}
+				allowedMap[allowed] = true
+			}
+
+			// Add tools section
+			if len(info.Tools) > 0 {
+				toolsNode := console.TreeNode{
+					Value:    fmt.Sprintf("🛠️  Tools (%d)", len(info.Tools)),
+					Children: make([]console.TreeNode, 0, len(info.Tools)),
+				}
+
+				for _, tool := range info.Tools {
+					// Determine if tool is allowed
+					isAllowed := len(config.Allowed) == 0 || hasWildcard || allowedMap[tool.Name]
+					allowIcon := "🚫"
+					if isAllowed {
+						allowIcon = "✅"
+					}
+
+					// Create tool node with truncated description
+					toolDesc := tool.Description
+					if len(toolDesc) > 50 {
+						toolDesc = toolDesc[:47] + "..."
+					}
+
+					toolValue := fmt.Sprintf("%s %s - %s", allowIcon, tool.Name, toolDesc)
+					toolsNode.Children = append(toolsNode.Children, console.TreeNode{
+						Value:    toolValue,
+						Children: []console.TreeNode{},
+					})
+				}
+
+				serverNode.Children = append(serverNode.Children, toolsNode)
+			}
+
+			// Add resources section
+			if len(info.Resources) > 0 {
+				resourcesNode := console.TreeNode{
+					Value:    fmt.Sprintf("📚 Resources (%d)", len(info.Resources)),
+					Children: make([]console.TreeNode, 0, len(info.Resources)),
+				}
+
+				for _, resource := range info.Resources {
+					resourceValue := fmt.Sprintf("%s - %s", resource.Name, resource.URI)
+					resourcesNode.Children = append(resourcesNode.Children, console.TreeNode{
+						Value:    resourceValue,
+						Children: []console.TreeNode{},
+					})
+				}
+
+				serverNode.Children = append(serverNode.Children, resourcesNode)
+			}
+
+			// Add roots section
+			if len(info.Roots) > 0 {
+				rootsNode := console.TreeNode{
+					Value:    fmt.Sprintf("🌳 Roots (%d)", len(info.Roots)),
+					Children: make([]console.TreeNode, 0, len(info.Roots)),
+				}
+
+				for _, root := range info.Roots {
+					rootValue := fmt.Sprintf("%s - %s", root.Name, root.URI)
+					rootsNode.Children = append(rootsNode.Children, console.TreeNode{
+						Value:    rootValue,
+						Children: []console.TreeNode{},
+					})
+				}
+
+				serverNode.Children = append(serverNode.Children, rootsNode)
+			}
+		} else {
+			// Server info not available (error or not yet queried)
+			serverNode.Children = append(serverNode.Children, console.TreeNode{
+				Value:    "⚠️  Server info not available",
+				Children: []console.TreeNode{},
+			})
+		}
+
+		root.Children = append(root.Children, serverNode)
+	}
+
+	// Render the tree
+	return console.RenderTree(root)
+}
