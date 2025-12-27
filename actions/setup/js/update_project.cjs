@@ -6,10 +6,10 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
  */
 function getErrorMessage(error) {
   if (error instanceof Error) {
-    return getErrorMessage(error);
+    return error.message;
   }
-  if (error && typeof error === "object" && "message" in error && typeof getErrorMessage(error) === "string") {
-    return getErrorMessage(error);
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
   }
   return String(error);
 }
