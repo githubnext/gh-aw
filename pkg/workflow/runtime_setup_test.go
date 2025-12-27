@@ -389,7 +389,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			},
 			expectSteps: 1,
 			checkContent: []string{
-				"node-version: '24'",
+				"node-version: '20'",
 			},
 		},
 		{
