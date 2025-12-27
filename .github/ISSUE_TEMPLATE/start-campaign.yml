@@ -6,19 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## Start an Agentic Campaign with AI Assistance
+        ## Start an Agentic Campaign
         
-        Our AI campaign expert will help you create a comprehensive agentic campaign specification. Just provide:
-        1. Your project board URL (for tracking)
-        2. A simple description of what you want to achieve
+        Provide project board URL and campaign goal. The AI generates technical specs, best practices, and governance policies.
         
-        The AI will generate all the technical details, best practices, and governance policies for you.
-        
-        **What happens next:**
-        1. An AI agent analyzes your goal and generates a complete agentic campaign spec
-        2. The spec includes recommended workflows, memory paths, approval policies, and more
-        3. A pull request is created automatically with the generated files
-        4. Review and merge the PR to activate your agentic campaign
+        **Process:**
+        1. AI analyzes goal and generates campaign spec
+        2. PR created with spec and orchestrator files
+        3. Review and merge to activate
 
   - type: input
     id: project_url
@@ -34,15 +29,14 @@ body:
     attributes:
       label: Agentic Campaign Goal
       description: |
-        What do you want this agentic campaign to accomplish? Be as specific or as high-level as you'd like.
+        What should this campaign accomplish? Be specific. (~125 words recommended)
         
         Examples:
-        - "Migrate all services from Node.js 16 to Node.js 20"
-        - "Fix all critical security vulnerabilities across our repositories"
-        - "Refactor legacy authentication code to use our new auth library"
-        - "Upgrade React from v17 to v18 in all frontend projects"
+        - "Migrate services from Node.js 16 to 20"
+        - "Fix critical security vulnerabilities"
+        - "Refactor legacy auth code"
       placeholder: |
-        Describe your agentic campaign goal...
+        Describe your campaign goal...
     validations:
       required: true
 
@@ -50,10 +44,9 @@ body:
     id: additional_context
     attributes:
       label: Additional Context (Optional)
-      description: |
-        Any other information that might be helpful? (constraints, deadlines, specific requirements, prior learnings, etc.)
+      description: Constraints, deadlines, requirements, prior learnings
       placeholder: |
-        Add any relevant context...
+        Add relevant context...
     validations:
       required: false
 
@@ -64,10 +57,7 @@ body:
         
         ### How it works
         
-        After submitting:
-        1. **This issue becomes your agentic campaign hub** - Track everything here
-        2. **AI generates a comprehensive spec** - Including workflows, governance, and metrics
-        3. **A PR is created automatically** - Contains agentic campaign spec and orchestrator files
-        4. **Review and merge** - Activate your agentic campaign once you're satisfied
-        
-        The AI will handle all the technical details and best practices for you!
+        1. Issue becomes campaign hub
+        2. AI generates spec with workflows, governance, metrics
+        3. PR created automatically
+        4. Review and merge to activate
