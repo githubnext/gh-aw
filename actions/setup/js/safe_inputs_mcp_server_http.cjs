@@ -253,9 +253,11 @@ async function startHttpServer(configPath, options = {}) {
 
     // Handle bind errors
     httpServer.on("error", error => {
-      if (error.code === "EADDRINUSE") {
+      /** @type {NodeJS.ErrnoException} */
+      const errnoError = error;
+      if (errnoError.code === "EADDRINUSE") {
         logger.debugError(`ERROR: Port ${port} is already in use. `, error);
-      } else if (error.code === "EACCES") {
+      } else if (errnoError.code === "EACCES") {
         logger.debugError(`ERROR: Permission denied to bind to port ${port}. `, error);
       } else {
         logger.debugError(`ERROR: Failed to start HTTP server: `, error);
@@ -285,13 +287,19 @@ async function startHttpServer(configPath, options = {}) {
     // Log detailed error information for startup failures
     const errorLogger = createLogger("safe-inputs-startup-error");
     errorLogger.debug(`=== FATAL ERROR: Failed to start Safe Inputs MCP HTTP Server ===`);
-    errorLogger.debug(`Error type: ${error.constructor.name}`);
-    errorLogger.debug(`Error message: ${error.message}`);
-    if (error.stack) {
-      errorLogger.debug(`Stack trace:\n${error.stack}`);
-    }
-    if (error.code) {
-      errorLogger.debug(`Error code: ${error.code}`);
+    if (error && typeof error === "object") {
+      if ("constructor" in error && error.constructor) {
+        errorLogger.debug(`Error type: ${error.constructor.name}`);
+      }
+      if ("message" in error) {
+        errorLogger.debug(`Error message: ${error.message}`);
+      }
+      if ("stack" in error && error.stack) {
+        errorLogger.debug(`Stack trace:\n${error.stack}`);
+      }
+      if ("code" in error && error.code) {
+        errorLogger.debug(`Error code: ${error.code}`);
+      }
     }
     errorLogger.debug(`Configuration file: ${configPath}`);
     errorLogger.debug(`Port: ${port}`);
@@ -314,6 +322,7 @@ if (require.main === module) {
   const options = {
     port: 3000,
     stateless: false,
+    /** @type {string | undefined} */
     logDir: undefined,
   };
 

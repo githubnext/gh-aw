@@ -1,6 +1,21 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+
+/**
+ * @param {unknown} error
+ * @returns {string}
+ */
+function getErrorMessage(error) {
+  if (error instanceof Error) {
+    return getErrorMessage(error);
+  }
+  if (error && typeof error === "object" && "message" in error && typeof getErrorMessage(error) === "string") {
+    return getErrorMessage(error);
+  }
+  return String(error);
+}
+
 function logGraphQLError(error, operation) {
-  (core.info(`GraphQL Error during: ${operation}`), core.info(`Message: ${error.message}`));
+  (core.info(`GraphQL Error during: ${operation}`), core.info(`Message: ${getErrorMessage(error)}`));
   const errorList = Array.isArray(error.errors) ? error.errors : [],
     hasInsufficientScopes = errorList.some(e => e && "INSUFFICIENT_SCOPES" === e.type),
     hasNotFound = errorList.some(e => e && "NOT_FOUND" === e.type);
@@ -9,7 +24,7 @@ function logGraphQLError(error, operation) {
         "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
       )
     : hasNotFound &&
-      /projectV2\b/.test(error.message) &&
+      /projectV2\b/.test(getErrorMessage(error)) &&
       core.info(
         "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project."
       ),
@@ -102,7 +117,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
       if (project) return project;
     }
   } catch (error) {
-    core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${error.message}`);
+    core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${getErrorMessage(error)}`);
   }
   const list = await listAccessibleProjectsV2(projectInfo),
     nodes = Array.isArray(list.nodes) ? list.nodes : [],
@@ -144,7 +159,7 @@ async function updateProject(output) {
       const viewerResult = await github.graphql("query {\n          viewer {\n            login\n          }\n        }");
       viewerResult && viewerResult.viewer && viewerResult.viewer.login && core.info(`✓ Authenticated as: ${viewerResult.viewer.login}`);
     } catch (viewerError) {
-      core.warning(`Could not resolve token identity (viewer.login): ${viewerError.message}`);
+      core.warning(`Could not resolve token identity (viewer.login): ${getErrorMessage(viewerError)}`);
     }
     let projectId;
     core.info(`[2/4] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
@@ -212,7 +227,7 @@ async function updateProject(output) {
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
             else
@@ -224,7 +239,7 @@ async function updateProject(output) {
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
           if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
@@ -241,7 +256,7 @@ async function updateProject(output) {
                   ).updateProjectV2Field.projectV2Field;
                 ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
               } catch (createError) {
-                core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
+                core.warning(`Failed to create option "${fieldValue}": ${getErrorMessage(createError)}`);
                 continue;
               }
             if (!option) {
@@ -307,7 +322,7 @@ async function updateProject(output) {
           try {
             await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [`campaign:${campaignId}`] });
           } catch (labelError) {
-            core.warning(`Failed to add campaign label: ${labelError.message}`);
+            core.warning(`Failed to add campaign label: ${getErrorMessage(labelError)}`);
           }
         }
       }
@@ -336,7 +351,7 @@ async function updateProject(output) {
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
             else
@@ -348,7 +363,7 @@ async function updateProject(output) {
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
-                core.warning(`Failed to create field "${fieldName}": ${createError.message}`);
+                core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
           // Check dataType first to properly handle DATE fields before checking for options
@@ -371,7 +386,7 @@ async function updateProject(output) {
                   ).updateProjectV2Field.projectV2Field;
                 ((option = updatedField.options.find(o => o.name === fieldValue)), (field = updatedField));
               } catch (createError) {
-                core.warning(`Failed to create option "${fieldValue}": ${createError.message}`);
+                core.warning(`Failed to create option "${fieldValue}": ${getErrorMessage(createError)}`);
                 continue;
               }
             if (!option) {
@@ -389,13 +404,13 @@ async function updateProject(output) {
       core.setOutput("item-id", itemId);
     }
   } catch (error) {
-    if (error.message && error.message.includes("does not have permission to create projects")) {
+    if (getErrorMessage(error) && getErrorMessage(error).includes("does not have permission to create projects")) {
       const usingCustomToken = !!process.env.GH_AW_PROJECT_GITHUB_TOKEN;
       core.error(
-        `Failed to manage project: ${error.message}\n\nTroubleshooting:\n  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n  • Or use a GitHub App with Projects: Read+Write permission.\n  • Ensure the workflow grants projects: write.\n\n` +
+        `Failed to manage project: ${getErrorMessage(error)}\n\nTroubleshooting:\n  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n  • Or use a GitHub App with Projects: Read+Write permission.\n  • Ensure the workflow grants projects: write.\n\n` +
           (usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN.")
       );
-    } else core.error(`Failed to manage project: ${error.message}`);
+    } else core.error(`Failed to manage project: ${getErrorMessage(error)}`);
     throw error;
   }
 }

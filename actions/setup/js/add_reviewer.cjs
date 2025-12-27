@@ -1,6 +1,14 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/** @param {unknown} error */
+function getErrorMessage(error) {
+  if (error instanceof Error) return getErrorMessage(error);
+  if (error && typeof error === "object" && "message" in error && typeof getErrorMessage(error) === "string") return getErrorMessage(error);
+  return String(error);
+}
+
+
 const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
 
 // GitHub Copilot reviewer bot username
