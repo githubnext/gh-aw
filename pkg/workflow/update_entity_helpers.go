@@ -295,12 +295,6 @@ func (c *Compiler) parseUpdateEntityConfigWithFields(
 	return baseConfig, configMap
 }
 
-// UpdateEntityConfigContainer is an interface for entity-specific config types
-// that embed UpdateEntityConfig
-type UpdateEntityConfigContainer interface {
-	SetBaseConfig(base UpdateEntityConfig)
-}
-
 // parseUpdateEntityConfigTyped is a generic helper that eliminates the final
 // scaffolding duplication in update entity parsers.
 //
@@ -377,13 +371,8 @@ func parseUpdateEntityConfigTyped[T any](
 	}
 
 	// Use type assertion to set base config
-	// This relies on T having an embedded UpdateEntityConfig field
-	type baseConfigSetter interface {
-		setBaseConfigValue(UpdateEntityConfig)
-	}
-
 	// Since we can't use interface assertion with generics directly,
-	// we use unsafe reflect-free assignment via any
+	// we use type switch via any to assign the base config
 	cfgAny := any(cfg)
 	switch v := cfgAny.(type) {
 	case *UpdateIssuesConfig:
