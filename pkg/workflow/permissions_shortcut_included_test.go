@@ -13,11 +13,11 @@ import (
 // work correctly in included files, matching the UX of main workflows.
 func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 	tests := []struct {
-		name                   string
-		includedPermissions    string
-		mainPermissions        string
-		expectCompilationError bool
-		expectLockFileContains string
+		name                    string
+		includedPermissions     string
+		mainPermissions         string
+		expectCompilationError  bool
+		expectLockFileContains  string
 	}{
 		{
 			name:                   "read-all shortcut in included file",
@@ -130,11 +130,11 @@ tools:
 // TestPermissionsShortcutMixedUsage tests that shortcuts and object form can be mixed across files
 func TestPermissionsShortcutMixedUsage(t *testing.T) {
 	tests := []struct {
-		name                   string
-		includedPermissions    string
-		mainPermissions        string
-		expectCompilationError bool
-		expectLockFileContains []string
+		name                    string
+		includedPermissions     string
+		mainPermissions         string
+		expectCompilationError  bool
+		expectLockFileContains  []string
 	}{
 		{
 			name:                   "shortcut in included file, object in main",
