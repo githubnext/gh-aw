@@ -107,30 +107,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: memory/campaigns
-        run: |
-          set +e  # Don't fail if branch doesn't exist
-          git clone --depth 1 --single-branch --branch "memory/campaigns" "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "/tmp/gh-aw/repo-memory/default" 2>/dev/null
-          CLONE_EXIT_CODE=$?
-          set -e
-          
-          if [ $CLONE_EXIT_CODE -ne 0 ]; then
-            echo "Branch memory/campaigns does not exist, creating orphan branch"
-            mkdir -p "/tmp/gh-aw/repo-memory/default"
-            cd "/tmp/gh-aw/repo-memory/default"
-            git init
-            git checkout --orphan "$BRANCH_NAME"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          else
-            echo "Successfully cloned memory/campaigns branch"
-            cd "/tmp/gh-aw/repo-memory/default"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-          fi
-          
-          mkdir -p "/tmp/gh-aw/repo-memory/default"
-          echo "Repo memory directory ready at /tmp/gh-aw/repo-memory/default"
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
