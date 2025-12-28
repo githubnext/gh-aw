@@ -119,7 +119,6 @@ async function main() {
     }
   }
 
-
   // Validate required environment variables
   if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
     core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
@@ -196,7 +195,6 @@ async function main() {
   let campaignCursorFound = false;
   let campaignMetricsCount = 0;
 
-
   /**
    * Recursively scan directory and collect files
    * @param {string} dirPath - Directory to scan
@@ -258,7 +256,6 @@ async function main() {
           }
         }
 
-
         filesToCopy.push({
           relativePath: relativeFilePath,
           source: fullPath,
@@ -290,7 +287,6 @@ async function main() {
     }
   }
 
-
   // Validate file count
   if (filesToCopy.length > maxFileCount) {
     core.setFailed(`Too many files (${filesToCopy.length} > ${maxFileCount})`);
@@ -317,7 +313,6 @@ async function main() {
         core.setFailed(`Refusing to write outside repo-memory directory: ${file.relativePath}`);
         return;
       }
-
 
       // Ensure destination directory exists
       fs.mkdirSync(destDir, { recursive: true });
