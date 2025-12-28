@@ -283,7 +283,7 @@ jobs:
                     "type": "array"
                   },
                   "parent": {
-                    "description": "Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
                     "type": [
                       "number",
                       "string"
@@ -316,7 +316,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
@@ -334,7 +334,7 @@ jobs:
                 "additionalProperties": false,
                 "properties": {
                   "item_number": {
-                    "description": "Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow.",
+                    "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow.",
                     "type": "number"
                   },
                   "labels": {

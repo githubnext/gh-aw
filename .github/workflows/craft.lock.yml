@@ -256,7 +256,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
@@ -282,7 +282,7 @@ jobs:
                     "type": "string"
                   },
                   "pull_request_number": {
-                    "description": "Pull request number to push changes to. Required when the workflow target is '*' (any PR).",
+                    "description": "Pull request number to push changes to. This is the numeric ID from the GitHub URL (e.g., 654 in github.com/owner/repo/pull/654). Required when the workflow target is '*' (any PR).",
                     "type": [
                       "number",
                       "string"

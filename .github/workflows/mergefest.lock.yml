@@ -247,7 +247,7 @@ jobs:
                     "type": "string"
                   },
                   "pull_request_number": {
-                    "description": "Pull request number to push changes to. Required when the workflow target is '*' (any PR).",
+                    "description": "Pull request number to push changes to. This is the numeric ID from the GitHub URL (e.g., 654 in github.com/owner/repo/pull/654). Required when the workflow target is '*' (any PR).",
                     "type": [
                       "number",
                       "string"

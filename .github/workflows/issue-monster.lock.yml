@@ -228,7 +228,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
@@ -250,7 +250,7 @@ jobs:
                     "type": "string"
                   },
                   "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements.",
+                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements.",
                     "type": [
                       "number",
                       "string"
