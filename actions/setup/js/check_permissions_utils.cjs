@@ -92,9 +92,7 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.info(`Repository permission level: ${permission}`);
 
     // Check if user has one of the required permission levels
-    const hasPermission = requiredPermissions.some(
-      requiredPerm => permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")
-    );
+    const hasPermission = requiredPermissions.some(requiredPerm => permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain"));
 
     if (hasPermission) {
       core.info(`✅ User has ${permission} access to repository`);
