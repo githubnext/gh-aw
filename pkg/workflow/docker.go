@@ -85,10 +85,10 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 
 	yaml.WriteString("      - name: Downloading container images\n")
 	yaml.WriteString("        run: |\n")
-	
+
 	// Write the shell script content
 	WriteShellScriptToYAML(yaml, downloadContainerImagesScript, "          ")
-	
+
 	yaml.WriteString("          \n")
 	// Call the script with all images as arguments
 	for _, image := range dockerImages {
