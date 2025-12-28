@@ -8,7 +8,7 @@
 
 const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
 
-function main() {
+async function main() {
   const fs = require("fs");
   const path = require("path");
 
