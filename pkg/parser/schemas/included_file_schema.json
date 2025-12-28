@@ -424,6 +424,223 @@
               }
             ]
           ]
+        },
+        "playwright": {
+          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Playwright tool with default settings (localhost access only for security)"
+            },
+            {
+              "type": "object",
+              "description": "Playwright tool configuration with custom version and domain restrictions",
+              "properties": {
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["v1.41.0", 1.41, 20]
+                },
+                "allowed_domains": {
+                  "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "List of allowed domains or patterns (e.g., ['github.com', '*.example.com'])",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Single allowed domain (e.g., 'github.com')"
+                    }
+                  ]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "serena": {
+          "description": "Serena MCP server for AI-powered code intelligence with language service integration",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Serena with default settings"
+            },
+            {
+              "type": "array",
+              "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"])",
+              "items": {
+                "type": "string",
+                "enum": ["go", "typescript", "python", "java", "rust", "csharp"]
+              }
+            },
+            {
+              "type": "object",
+              "description": "Serena configuration with custom version and language-specific settings",
+              "properties": {
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["latest", "0.1.0", 1.0]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "languages": {
+                  "type": "object",
+                  "description": "Language-specific configuration for Serena language services",
+                  "properties": {
+                    "go": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Go language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Go version (e.g., \"1.21\", 1.21)"
+                            },
+                            "go-mod-file": {
+                              "type": "string",
+                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
+                            },
+                            "gopls-version": {
+                              "type": "string",
+                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "typescript": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable TypeScript language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "python": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Python language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Python version (e.g., \"3.12\", 3.12)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "java": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Java language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Java version (e.g., \"21\", 21)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "rust": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Rust language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Rust version (e.g., \"stable\", \"1.75\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "csharp": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable C# language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "agentic-workflows": {
+          "description": "GitHub Agentic Workflows MCP server for workflow introspection and analysis. Provides tools for checking status, compiling workflows, downloading logs, and auditing runs.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable agentic-workflows tool with default settings"
+            },
+            {
+              "type": "null",
+              "description": "Enable agentic-workflows tool with default settings (same as true)"
+            }
+          ],
+          "examples": [true, null]
         }
       },
       "additionalProperties": {
