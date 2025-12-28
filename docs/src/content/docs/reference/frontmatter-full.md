@@ -824,7 +824,7 @@ network:
     # '*.example.com' and ecosystem names like 'python', 'node')
 
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
-# Runtime) and Model Context Protocol (MCP) gateway.
+# Runtime) and MCP gateway.
 # (optional)
 # This field supports multiple formats (oneOf):
 

@@ -838,6 +838,50 @@
               "items": {
                 "type": "string"
               }
+            },
+            "firewall": {
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
+              "deprecated": true,
+              "x-deprecation-message": "Use 'sandbox.agent: false' instead to disable the firewall for the agent",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Enable AWF with default settings (equivalent to empty object)"
+                },
+                {
+                  "type": "boolean",
+                  "description": "Enable (true) or explicitly disable (false) AWF firewall"
+                },
+                {
+                  "type": "string",
+                  "enum": ["disable"],
+                  "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
+                },
+                {
+                  "type": "object",
+                  "description": "Custom AWF configuration with version and arguments",
+                  "properties": {
+                    "args": {
+                      "type": "array",
+                      "description": "Optional additional arguments to pass to AWF wrapper",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "version": {
+                      "type": ["string", "number"],
+                      "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
+                      "examples": ["v1.0.0", "latest", 20, 3.11]
+                    },
+                    "log-level": {
+                      "type": "string",
+                      "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
+                      "enum": ["debug", "info", "warn", "error"]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
             }
           },
           "additionalProperties": false
