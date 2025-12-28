@@ -527,7 +527,7 @@ Missing actions:read permission.
 	// Compile the workflow - should fail due to missing permission
 	compiler := workflow.NewCompiler(false, "", "test")
 	err := compiler.CompileWorkflow(workflowPath)
-	
+
 	if err == nil {
 		t.Fatal("Expected CompileWorkflow to fail due to missing actions:read permission")
 	}
