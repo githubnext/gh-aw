@@ -94,9 +94,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (missingDescriptions.length > 0) {
-        const errorMessage = missingDescriptions
-          .map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}`)
-          .join("\n");
+        const errorMessage = missingDescriptions.map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}`).join("\n");
         throw new Error(`Required parameters missing descriptions:\n${errorMessage}`);
       }
     });
@@ -127,9 +125,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (shortDescriptions.length > 0) {
-        const errorMessage = shortDescriptions
-          .map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.length} chars - "${item.description}..."`)
-          .join("\n");
+        const errorMessage = shortDescriptions.map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.length} chars - "${item.description}..."`).join("\n");
         throw new Error(`Required parameters have too-short descriptions (< ${MIN_DESCRIPTION_LENGTH} chars):\n${errorMessage}`);
       }
     });
@@ -151,16 +147,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       ];
 
       // Self-explanatory field names that don't need explicit examples
-      const selfExplanatoryFields = [
-        "title",
-        "body",
-        "message",
-        "line",
-        "name",
-        "description",
-        "comment",
-        "content",
-      ];
+      const selfExplanatoryFields = ["title", "body", "message", "line", "name", "description", "comment", "content"];
 
       tools.forEach(tool => {
         const schema = tool.inputSchema;
@@ -200,9 +187,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (missingExamples.length > 0) {
-        const errorMessage = missingExamples
-          .map(item => `  - Tool '${item.tool}', field '${item.field}': "${item.description}..."`)
-          .join("\n");
+        const errorMessage = missingExamples.map(item => `  - Tool '${item.tool}', field '${item.field}': "${item.description}..."`).join("\n");
         throw new Error(`Required parameters missing examples or format guidance:\n${errorMessage}`);
       }
     });
@@ -233,9 +218,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (missingDescriptions.length > 0) {
-        const errorMessage = missingDescriptions
-          .map(item => `  - Tool '${item.tool}', field '${item.field}'`)
-          .join("\n");
+        const errorMessage = missingDescriptions.map(item => `  - Tool '${item.tool}', field '${item.field}'`).join("\n");
         throw new Error(`Optional parameters missing descriptions:\n${errorMessage}`);
       }
     });
@@ -257,9 +240,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (shortDescriptions.length > 0) {
-        const errorMessage = shortDescriptions
-          .map(item => `  - Tool '${item.name}': ${item.length} chars - "${item.description}..."`)
-          .join("\n");
+        const errorMessage = shortDescriptions.map(item => `  - Tool '${item.name}': ${item.length} chars - "${item.description}..."`).join("\n");
         throw new Error(`Tools have too-short descriptions (< ${MIN_TOOL_DESCRIPTION_LENGTH} chars):\n${errorMessage}`);
       }
     });
@@ -283,9 +264,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (missingUseCases.length > 0) {
-        const errorMessage = missingUseCases
-          .map(item => `  - Tool '${item.name}': "${item.description}..."`)
-          .join("\n");
+        const errorMessage = missingUseCases.map(item => `  - Tool '${item.name}': "${item.description}..."`).join("\n");
         throw new Error(`Tools missing clear use cases in descriptions:\n${errorMessage}`);
       }
     });
@@ -335,9 +314,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (inconsistentTypes.length > 0) {
-        const errorMessage = inconsistentTypes
-          .map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}`)
-          .join("\n");
+        const errorMessage = inconsistentTypes.map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}`).join("\n");
         throw new Error(`Schema type definitions are inconsistent:\n${errorMessage}`);
       }
     });
@@ -367,9 +344,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (missingAdditionalProperties.length > 0) {
-        throw new Error(
-          `Tools missing 'additionalProperties: false' for strict validation:\n  - ${missingAdditionalProperties.join("\n  - ")}`
-        );
+        throw new Error(`Tools missing 'additionalProperties: false' for strict validation:\n  - ${missingAdditionalProperties.join("\n  - ")}`);
       }
     });
   });
@@ -415,9 +390,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
       });
 
       if (enumIssues.length > 0) {
-        const errorMessage = enumIssues
-          .map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}${item.values ? ` (values: ${JSON.stringify(item.values)})` : ""}`)
-          .join("\n");
+        const errorMessage = enumIssues.map(item => `  - Tool '${item.tool}', field '${item.field}': ${item.issue}${item.values ? ` (values: ${JSON.stringify(item.values)})` : ""}`).join("\n");
         throw new Error(`Enum value issues found:\n${errorMessage}`);
       }
     });
