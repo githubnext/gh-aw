@@ -7,6 +7,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -25,7 +26,7 @@ function collectGeneratedAssets() {
   try {
     jobOutputMapping = JSON.parse(safeOutputJobsEnv);
   } catch (error) {
-    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_JOBS: ${getErrorMessage(error)}`);
     return assets;
   }
 
@@ -203,7 +204,7 @@ async function main() {
     }
   } catch (error) {
     // Don't fail the workflow if we can't update the comment
-    core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to update comment: ${getErrorMessage(error)}`);
   }
 }
 

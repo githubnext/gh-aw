@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -142,7 +143,7 @@ async function main() {
         core.setOutput("release_tag", updatedRelease.tag_name);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       const tagInfo = updateItem.tag || "inferred from context";
       core.error(`Failed to update release with tag ${tagInfo}: ${errorMessage}`);
 

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -230,7 +231,7 @@ async function main() {
 
     await core.summary.addRaw(summaryContent).write();
   } catch (error) {
-    core.error(`✗ Failed to create SARIF file: ${error instanceof Error ? error.message : String(error)}`);
+    core.error(`✗ Failed to create SARIF file: ${getErrorMessage(error)}`);
     throw error;
   }
 

@@ -53,12 +53,20 @@ describe("checkout_pr_branch.cjs", () => {
     const scriptPath = path.join(import.meta.dirname, "checkout_pr_branch.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
+    // Mock require for the script
+    const mockRequire = module => {
+      if (module === "./error_helpers.cjs") {
+        return { getErrorMessage: error => (error instanceof Error ? error.message : String(error)) };
+      }
+      throw new Error(`Module ${module} not mocked in test`);
+    };
+
     // Execute the script in a new context with our mocks
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-    const wrappedScript = new AsyncFunction("core", "exec", "context", scriptContent.replace(/module\.exports = \{ main \};?\s*$/s, "await main();"));
+    const wrappedScript = new AsyncFunction("core", "exec", "context", "require", scriptContent.replace(/module\.exports = \{ main \};?\s*$/s, "await main();"));
 
     try {
-      await wrappedScript(mockCore, mockExec, mockContext);
+      await wrappedScript(mockCore, mockExec, mockContext, mockRequire);
     } catch (error) {
       // Errors are handled by the script itself via core.setFailed
     }

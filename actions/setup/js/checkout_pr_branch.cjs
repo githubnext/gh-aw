@@ -6,6 +6,8 @@
  * This script handles both pull_request events and comment events on PRs
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   const eventName = context.eventName;
   const pullRequest = context.payload.pull_request;
@@ -38,7 +40,7 @@ async function main() {
       core.info(`✅ Successfully checked out PR #${prNumber}`);
     }
   } catch (error) {
-    core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to checkout PR branch: ${getErrorMessage(error)}`);
   }
 }
 

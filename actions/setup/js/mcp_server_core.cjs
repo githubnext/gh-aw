@@ -25,6 +25,7 @@ const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 
 const encoder = new TextEncoder();
@@ -115,7 +116,7 @@ function createDebugFunction(server) {
  */
 function createDebugErrorFunction(server) {
   return (prefix, error) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     server.debug(`${prefix}${errorMessage}`);
     if (error instanceof Error && error.stack) {
       server.debug(`${prefix}Stack trace: ${error.stack}`);
@@ -704,7 +705,7 @@ async function processReadBuffer(server, defaultHandler) {
     } catch (error) {
       // For parse errors, we can't know the request id, so we shouldn't send a response
       // according to JSON-RPC spec. Just log the error.
-      server.debug(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+      server.debug(`Parse error: ${getErrorMessage(error)}`);
     }
   }
 }

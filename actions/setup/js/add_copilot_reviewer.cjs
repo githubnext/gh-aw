@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Add Copilot as a reviewer to a pull request.
  *
@@ -52,7 +54,7 @@ Successfully added Copilot as a reviewer to PR #${prNumber}.
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to add Copilot as reviewer: ${errorMessage}`);
     core.setFailed(`Failed to add Copilot as reviewer to PR #${prNumber}: ${errorMessage}`);
   }

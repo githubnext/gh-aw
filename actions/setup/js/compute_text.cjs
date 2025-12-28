@@ -7,6 +7,7 @@
  * @returns {string} The sanitized content
  */
 const { sanitizeIncomingText, writeRedactedDomainsLog } = require("./sanitize_incoming_text.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   let text = "";
@@ -125,7 +126,7 @@ async function main() {
               const body = release.body || "";
               text = `${name}\n\n${body}`;
             } catch (error) {
-              core.warning(`Failed to fetch release from URL: ${error instanceof Error ? error.message : String(error)}`);
+              core.warning(`Failed to fetch release from URL: ${getErrorMessage(error)}`);
             }
           }
         } else if (releaseId) {
@@ -140,7 +141,7 @@ async function main() {
             const body = release.body || "";
             text = `${name}\n\n${body}`;
           } catch (error) {
-            core.warning(`Failed to fetch release by ID: ${error instanceof Error ? error.message : String(error)}`);
+            core.warning(`Failed to fetch release by ID: ${getErrorMessage(error)}`);
           }
         }
       }

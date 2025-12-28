@@ -35,7 +35,7 @@ function findFiles(dir, extensions) {
       }
     }
   } catch (error) {
-    core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to scan directory ${dir}: ${getErrorMessage(error)}`);
   }
   return results;
 }
@@ -90,7 +90,7 @@ function processFile(filePath, secretValues) {
     }
     return redactionCount;
   } catch (error) {
-    core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to process file ${filePath}: ${getErrorMessage(error)}`);
     return 0;
   }
 }
@@ -145,8 +145,10 @@ async function main() {
       core.info("Secret redaction complete: no secrets found");
     }
   } catch (error) {
-    core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Secret redaction failed: ${getErrorMessage(error)}`);
   }
 }
+
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 module.exports = { main };

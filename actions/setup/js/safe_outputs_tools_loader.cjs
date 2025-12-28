@@ -1,5 +1,7 @@
 // @ts-check
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 
 /**
@@ -27,7 +29,7 @@ function loadTools(server) {
     server.debug(`Successfully parsed ${tools.length} tools from file`);
     return tools;
   } catch (error) {
-    server.debug(`Error reading tools file: ${error instanceof Error ? error.message : String(error)}`);
+    server.debug(`Error reading tools file: ${getErrorMessage(error)}`);
     server.debug(`Falling back to empty tools array`);
     return [];
   }

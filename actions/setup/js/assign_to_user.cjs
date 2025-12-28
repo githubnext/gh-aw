@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Use shared processor for common steps
@@ -122,7 +123,7 @@ ${assigneesListMarkdown}
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to assign users: ${errorMessage}`);
     core.setFailed(`Failed to assign users: ${errorMessage}`);
   }

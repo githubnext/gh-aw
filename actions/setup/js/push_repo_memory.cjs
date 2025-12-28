@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -201,7 +202,7 @@ async function main() {
       core.info(`Created orphan branch: ${branchName}`);
     }
   } catch (error) {
-    core.setFailed(`Failed to checkout branch: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to checkout branch: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -290,7 +291,7 @@ async function main() {
   try {
     scanDirectory(sourceMemoryPath);
   } catch (error) {
-    core.setFailed(`Failed to scan artifact directory: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to scan artifact directory: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -344,7 +345,7 @@ async function main() {
       fs.copyFileSync(file.source, destFilePath);
       core.info(`Copied: ${file.relativePath} (${file.size} bytes)`);
     } catch (error) {
-      core.setFailed(`Failed to copy file ${file.relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+      core.setFailed(`Failed to copy file ${file.relativePath}: ${getErrorMessage(error)}`);
       return;
     }
   }
@@ -355,7 +356,7 @@ async function main() {
     const status = execSync("git status --porcelain", { encoding: "utf8" });
     hasChanges = status.trim().length > 0;
   } catch (error) {
-    core.setFailed(`Failed to check git status: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to check git status: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -370,7 +371,7 @@ async function main() {
   try {
     execSync("git add .", { stdio: "inherit" });
   } catch (error) {
-    core.setFailed(`Failed to stage changes: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to stage changes: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -378,7 +379,7 @@ async function main() {
   try {
     execSync(`git commit -m "Update repo memory from workflow run ${githubRunId}"`, { stdio: "inherit" });
   } catch (error) {
-    core.setFailed(`Failed to commit changes: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to commit changes: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -389,7 +390,7 @@ async function main() {
     execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
   } catch (error) {
     // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
-    core.warning(`Pull failed (this may be expected): ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Pull failed (this may be expected): ${getErrorMessage(error)}`);
   }
 
   // Push changes
@@ -399,7 +400,7 @@ async function main() {
     execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
     core.info(`Successfully pushed changes to ${branchName} branch`);
   } catch (error) {
-    core.setFailed(`Failed to push changes: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to push changes: ${getErrorMessage(error)}`);
     return;
   }
 }

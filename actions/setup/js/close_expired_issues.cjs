@@ -1,6 +1,8 @@
 // @ts-check
 // <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Maximum number of issues to update per run
  */
@@ -31,6 +33,8 @@ async function searchIssuesWithExpiration(github, owner, repo) {
   const issues = [];
   let hasNextPage = true;
   let cursor = null;
+
+  const { getErrorMessage } = require("./error_helpers.cjs");
 
   while (hasNextPage) {
     const query = `
@@ -249,7 +253,7 @@ async function main() {
       closedCount++;
       core.info(`✓ Closed issue #${issue.number}: ${issue.url}`);
     } catch (error) {
-      core.error(`✗ Failed to close issue #${issue.number}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to close issue #${issue.number}: ${getErrorMessage(error)}`);
       // Continue with other issues even if one fails
     }
 

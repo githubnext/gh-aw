@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Hide a comment using the GraphQL API.
@@ -40,7 +41,7 @@ async function main() {
       allowedReasons = JSON.parse(process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS);
       core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
     } catch (error) {
-      core.warning(`Failed to parse GH_AW_HIDE_COMMENT_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+      core.warning(`Failed to parse GH_AW_HIDE_COMMENT_ALLOWED_REASONS: ${getErrorMessage(error)}`);
     }
   }
 
@@ -110,7 +111,7 @@ async function main() {
         throw new Error(`Failed to hide comment: ${commentId}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.error(`Failed to hide comment: ${errorMessage}`);
       core.setFailed(`Failed to hide comment: ${errorMessage}`);
       return;

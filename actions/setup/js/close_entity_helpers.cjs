@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -324,7 +325,7 @@ async function processCloseEntityItems(config, callbacks) {
         core.setOutput("comment_url", comment.html_url);
       }
     } catch (error) {
-      core.error(`✗ Failed to close ${config.displayName} #${entityNumber}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to close ${config.displayName} #${entityNumber}: ${getErrorMessage(error)}`);
       throw error;
     }
   }

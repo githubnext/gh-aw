@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const crypto = require("crypto");
 
 /**
@@ -116,7 +118,7 @@ function loadTemporaryIdMap() {
     return result;
   } catch (error) {
     if (typeof core !== "undefined") {
-      core.warning(`Failed to parse temporary ID map: ${error instanceof Error ? error.message : String(error)}`);
+      core.warning(`Failed to parse temporary ID map: ${getErrorMessage(error)}`);
     }
     return new Map();
   }

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { processSafeOutput } = require("./safe_output_processor.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Use shared processor for common steps
@@ -62,7 +63,7 @@ async function main() {
       allMilestones = milestonesResponse.data;
       core.info(`Fetched ${allMilestones.length} milestones from repository`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.error(`Failed to fetch milestones: ${errorMessage}`);
       core.setFailed(`Failed to fetch milestones for validation: ${errorMessage}`);
       return;
@@ -119,7 +120,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.error(`Failed to assign milestone #${milestoneNumber} to issue #${issueNumber}: ${errorMessage}`);
       results.push({
         issue_number: issueNumber,

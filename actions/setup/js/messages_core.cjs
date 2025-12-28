@@ -43,11 +43,13 @@ function getMessages() {
     return null;
   }
 
+  const { getErrorMessage } = require("./error_helpers.cjs");
+
   try {
     // Parse JSON with camelCase keys from Go struct (using json struct tags)
     return JSON.parse(messagesEnv);
   } catch (error) {
-    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to parse GH_AW_SAFE_OUTPUT_MESSAGES: ${getErrorMessage(error)}`);
     return null;
   }
 }

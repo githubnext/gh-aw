@@ -22,6 +22,7 @@ const { createServer, registerTool, start } = require("./mcp_server_core.cjs");
 const { loadConfig } = require("./safe_inputs_config_loader.cjs");
 const { createToolConfig } = require("./safe_inputs_tool_factory.cjs");
 const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @typedef {Object} SafeInputsToolConfig
@@ -100,7 +101,7 @@ if (require.main === module) {
   try {
     startSafeInputsServer(configPath, options);
   } catch (error) {
-    console.error(`Error starting safe-inputs server: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error starting safe-inputs server: ${getErrorMessage(error)}`);
     process.exit(1);
   }
 }

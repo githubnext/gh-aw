@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * ReadBuffer Module
  *
@@ -57,7 +59,7 @@ class ReadBuffer {
     try {
       return JSON.parse(line);
     } catch (error) {
-      throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Parse error: ${getErrorMessage(error)}`);
     }
   }
 }

@@ -8,6 +8,8 @@
 async function main() {
   const command = process.env.GH_AW_COMMAND;
 
+  const { getErrorMessage } = require("./error_helpers.cjs");
+
   if (!command) {
     core.setFailed("Configuration error: GH_AW_COMMAND not specified.");
     return;
@@ -62,7 +64,7 @@ async function main() {
       core.setOutput("command_position_ok", "false");
     }
   } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error));
+    core.setFailed(getErrorMessage(error));
   }
 }
 

@@ -6,6 +6,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Hide/minimize a comment using the GraphQL API
@@ -314,7 +315,7 @@ async function main() {
           core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
           return parsed;
         } catch (error) {
-          core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${error instanceof Error ? error.message : String(error)}`);
+          core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${getErrorMessage(error)}`);
           return null;
         }
       })()

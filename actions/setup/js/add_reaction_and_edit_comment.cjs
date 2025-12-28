@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Read inputs from environment variables
@@ -151,7 +152,7 @@ async function main() {
       core.info(`Skipping comment for event type: ${eventName}`);
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
   }
@@ -457,7 +458,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
   } catch (error) {
     // Don't fail the entire job if comment creation fails - just log it
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.warning("Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage);
   }
 }

@@ -15,6 +15,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * @typedef {Object} UpdateRunnerConfig
@@ -276,7 +277,7 @@ async function runUpdateWorkflow(config) {
         core.setOutput(outputUrlKey, updatedItem.html_url);
       }
     } catch (error) {
-      core.error(`✗ Failed to update ${displayName} #${targetNumber}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to update ${displayName} #${targetNumber}: ${getErrorMessage(error)}`);
       throw error;
     }
   }

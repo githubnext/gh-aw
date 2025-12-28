@@ -4,6 +4,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -148,7 +149,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      let errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage = getErrorMessage(error);
       if (errorMessage.includes("coding agent is not available for this repository")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
