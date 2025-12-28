@@ -28,7 +28,9 @@ global.github = mockGithub;
 
 describe("check_permissions_utils", () => {
   let parseRequiredPermissions;
+  let parseAllowedBots;
   let checkRepositoryPermission;
+  let checkBotStatus;
   let originalEnv;
 
   beforeEach(async () => {
@@ -36,21 +38,66 @@ describe("check_permissions_utils", () => {
     vi.clearAllMocks();
 
     // Store original environment
-    originalEnv = process.env.GH_AW_REQUIRED_ROLES;
+    originalEnv = {
+      GH_AW_REQUIRED_ROLES: process.env.GH_AW_REQUIRED_ROLES,
+      GH_AW_ALLOWED_BOTS: process.env.GH_AW_ALLOWED_BOTS,
+    };
 
     // Import the module functions
     const module = await import("./check_permissions_utils.cjs");
     parseRequiredPermissions = module.parseRequiredPermissions;
+    parseAllowedBots = module.parseAllowedBots;
     checkRepositoryPermission = module.checkRepositoryPermission;
+    checkBotStatus = module.checkBotStatus;
   });
 
   afterEach(() => {
     // Restore original environment
-    if (originalEnv !== undefined) {
-      process.env.GH_AW_REQUIRED_ROLES = originalEnv;
-    } else {
-      delete process.env.GH_AW_REQUIRED_ROLES;
-    }
+    Object.keys(originalEnv).forEach(key => {
+      if (originalEnv[key] !== undefined) {
+        process.env[key] = originalEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    });
+  });
+
+  describe("parseAllowedBots", () => {
+    it("should parse comma-separated bot identifiers", () => {
+      process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot],renovate[bot],github-actions[bot]";
+      const result = parseAllowedBots();
+      expect(result).toEqual(["dependabot[bot]", "renovate[bot]", "github-actions[bot]"]);
+    });
+
+    it("should filter out empty strings", () => {
+      process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot],,renovate[bot],";
+      const result = parseAllowedBots();
+      expect(result).toEqual(["dependabot[bot]", "renovate[bot]"]);
+    });
+
+    it("should filter out whitespace-only entries", () => {
+      process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot], ,renovate[bot]";
+      const result = parseAllowedBots();
+      expect(result).toEqual(["dependabot[bot]", "renovate[bot]"]);
+    });
+
+    it("should return empty array when env var is not set", () => {
+      delete process.env.GH_AW_ALLOWED_BOTS;
+      const result = parseAllowedBots();
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array when env var is empty string", () => {
+      process.env.GH_AW_ALLOWED_BOTS = "";
+      const result = parseAllowedBots();
+      expect(result).toEqual([]);
+    });
+
+    it("should handle single bot identifier", () => {
+      process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot]";
+      const result = parseAllowedBots();
+      expect(result).toEqual(["dependabot[bot]"]);
+    });
   });
 
   describe("parseRequiredPermissions", () => {
@@ -220,6 +267,111 @@ describe("check_permissions_utils", () => {
       // Should log success for write, not check read
       const successLog = mockCore.info.mock.calls.find(call => call[0].includes("✅"));
       expect(successLog[0]).toContain("write");
+    });
+  });
+
+  describe("checkBotStatus", () => {
+    it("should identify bot by [bot] suffix", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "write" },
+      });
+
+      const result = await checkBotStatus("dependabot[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
+        isActive: true,
+      });
+
+      expect(mockCore.info).toHaveBeenCalledWith("Checking if bot 'dependabot[bot]' is active on testowner/testrepo");
+      expect(mockCore.info).toHaveBeenCalledWith("Bot 'dependabot[bot]' is active with permission level: write");
+    });
+
+    it("should return false for non-bot users", async () => {
+      const result = await checkBotStatus("regularuser", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: false,
+        isActive: false,
+      });
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+    });
+
+    it("should handle 404 error for inactive bot", async () => {
+      const apiError = { status: 404, message: "Not Found" };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError);
+
+      const result = await checkBotStatus("renovate[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
+        isActive: false,
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith("Bot 'renovate[bot]' is not active/installed on testowner/testrepo");
+    });
+
+    it("should handle other API errors", async () => {
+      const apiError = new Error("API rate limit exceeded");
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError);
+
+      const result = await checkBotStatus("github-actions[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
+        isActive: false,
+        error: "API rate limit exceeded",
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to check bot status: API rate limit exceeded");
+    });
+
+    it("should handle non-Error API failures", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue("String error");
+
+      const result = await checkBotStatus("bot[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
+        isActive: false,
+        error: "String error",
+      });
+
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to check bot status: String error");
+    });
+
+    it("should handle unexpected errors gracefully", async () => {
+      // Simulate an error during bot detection
+      const unexpectedError = new Error("Unexpected error");
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockImplementation(() => {
+        throw unexpectedError;
+      });
+
+      const result = await checkBotStatus("test[bot]", "testowner", "testrepo");
+
+      expect(result).toEqual({
+        isBot: true,
+        isActive: false,
+        error: "Unexpected error",
+      });
+    });
+
+    it("should verify bot is installed on repository", async () => {
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "admin" },
+      });
+
+      const result = await checkBotStatus("dependabot[bot]", "testowner", "testrepo");
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        username: "dependabot[bot]",
+      });
+
+      expect(result.isBot).toBe(true);
+      expect(result.isActive).toBe(true);
     });
   });
 });
