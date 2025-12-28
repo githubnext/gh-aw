@@ -44,6 +44,8 @@ safe-outputs:
     category: "ideas"
 ```
 
+The [`safe-outputs:`](/gh-aw/reference/safe-outputs/) (validated GitHub operations) configuration lets the AI request discussion creation without requiring write permissions.
+
 ### Discussion Comments
 
 For workflows that post updates to an existing discussion, use `add-comment` with `discussion: true` and a specific `target` discussion number:

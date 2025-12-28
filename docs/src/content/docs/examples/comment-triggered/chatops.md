@@ -38,7 +38,7 @@ Examine the diff for potential bugs, security vulnerabilities, performance impli
 Create specific review comments on relevant lines of code and add a summary comment with overall observations and recommendations.
 ```
 
-When someone types `/review`, the AI analyzes code changes and posts review comments. The agent runs with read-only permissions while safe outputs handle write operations securely.
+When someone types `/review`, the AI analyzes code changes and posts review comments. The agent runs with read-only permissions while [safe-outputs](/gh-aw/reference/safe-outputs/) (validated GitHub operations) handle write operations securely.
 
 ## Filtering Command Events
 

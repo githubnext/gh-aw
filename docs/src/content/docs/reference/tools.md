@@ -67,7 +67,7 @@ tools:
 ### GitHub Toolsets
 
 :::tip[Use Toolsets Instead of Allowed]
-Toolsets provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
+[Toolsets](/gh-aw/reference/glossary/#toolsets) (capability collections) provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
 :::
 
 Enable specific API groups to improve tool selection and reduce context size:
