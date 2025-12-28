@@ -9,22 +9,25 @@ import (
 )
 
 // TestCJSFilesNoActionsRequires verifies that .cjs files in actions/setup/js
-// do not use require() statements with "actions/" paths.
+// do not use require() statements with "actions/" paths or "@actions/*" npm packages.
 //
 // When these .cjs files are deployed to GitHub Actions runners, they are copied
 // to /tmp/gh-aw/actions/ as a flat directory structure. Any require() statements
-// that reference "actions/..." paths would fail because:
+// that reference "actions/..." paths or "@actions/*" npm packages would fail because:
 // 1. There's no parent "actions/" directory in the runtime environment
 // 2. All files are in the same flat directory
+// 3. The @actions/* npm packages are not installed in the runtime environment
 //
 // Valid requires:
 //   - require("./file.cjs") - relative paths within the same directory
-//   - require("@actions/core") - npm packages
 //   - require("fs") - built-in Node.js modules
+//   - require("path") - other built-in Node.js modules
 //
 // Invalid requires:
 //   - require("actions/setup/js/file.cjs") - absolute path to actions directory
 //   - require("../../actions/setup/js/file.cjs") - relative path up to actions directory
+//   - require("@actions/core") - npm packages from @actions/* are not available at runtime
+//   - require("@actions/github") - npm packages from @actions/* are not available at runtime
 func TestCJSFilesNoActionsRequires(t *testing.T) {
 	// Find the repository root
 	repoRoot, err := findRepoRoot()
@@ -66,6 +69,10 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 	// Matches: require("../../actions/...") or similar patterns
 	relativeActionsPattern := regexp.MustCompile(`require\s*\(\s*["']\.\./.+/actions/[^"']+["']\s*\)`)
 
+	// Pattern to match require statements with @actions/* npm packages
+	// Matches: require("@actions/core"), require('@actions/github'), etc.
+	npmActionsPattern := regexp.MustCompile(`require\s*\(\s*["']@actions/[^"']+["']\s*\)`)
+
 	var failedFiles []string
 	var violations []string
 
@@ -104,6 +111,19 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 				failedFiles = append(failedFiles, filename)
 			}
 		}
+
+		// Check for @actions/* npm package requires
+		npmMatches := npmActionsPattern.FindAllString(code, -1)
+		if len(npmMatches) > 0 {
+			for _, match := range npmMatches {
+				violation := filename + ": " + match
+				violations = append(violations, violation)
+				t.Errorf("Invalid require in %s: %s", filename, match)
+			}
+			if !sliceContainsString(failedFiles, filename) {
+				failedFiles = append(failedFiles, filename)
+			}
+		}
 	}
 
 	if len(failedFiles) > 0 {
@@ -117,14 +137,19 @@ func TestCJSFilesNoActionsRequires(t *testing.T) {
 		}
 		t.Error("\nWhen .cjs files are deployed to GitHub Actions runners, they are copied")
 		t.Error("to /tmp/gh-aw/actions/ as a flat directory. Any require() statements that")
-		t.Error("reference 'actions/...' paths will fail at runtime.")
+		t.Error("reference 'actions/...' paths or '@actions/*' npm packages will fail at runtime")
+		t.Error("because:")
+		t.Error("  1. The parent 'actions/' directory structure doesn't exist")
+		t.Error("  2. The @actions/* npm packages are not installed in the runtime environment")
 		t.Error("\nUse relative requires instead:")
 		t.Error("  ✓ require('./file.cjs')     - relative path in same directory")
-		t.Error("  ✓ require('@actions/core')  - npm package")
 		t.Error("  ✓ require('fs')             - built-in Node.js module")
+		t.Error("  ✓ require('path')           - built-in Node.js module")
 		t.Error("\nDo not use:")
 		t.Error("  ✗ require('actions/setup/js/file.cjs')     - absolute path to actions directory")
 		t.Error("  ✗ require('../../actions/setup/js/file.cjs') - relative path up to actions directory")
+		t.Error("  ✗ require('@actions/core')                 - @actions/* npm packages not available at runtime")
+		t.Error("  ✗ require('@actions/github')               - @actions/* npm packages not available at runtime")
 	} else {
 		t.Logf("✓ All %d .cjs files use valid require statements", len(cjsFiles))
 	}
