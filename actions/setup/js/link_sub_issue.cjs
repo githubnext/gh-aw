@@ -4,6 +4,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -164,7 +165,7 @@ async function main() {
       });
       parentIssue = parentResponse.data;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
       results.push({
         parent_issue_number: parentIssueNumber,
@@ -212,7 +213,7 @@ async function main() {
       });
       subIssue = subResponse.data;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
       results.push({
         parent_issue_number: parentIssueNumber,
@@ -256,7 +257,7 @@ async function main() {
       }
     } catch (error) {
       // If the GraphQL query fails (e.g., parent field not available), log warning but continue
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.warning(`Could not check if sub-issue #${subIssueNumber} has a parent: ${errorMessage}. Proceeding with link attempt.`);
     }
 
@@ -322,7 +323,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
       results.push({
         parent_issue_number: parentIssueNumber,

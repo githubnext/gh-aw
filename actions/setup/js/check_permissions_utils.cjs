@@ -36,6 +36,8 @@ async function checkBotStatus(actor, owner, repo) {
     // Check if the actor looks like a bot (ends with [bot])
     const isBot = actor.endsWith("[bot]");
 
+    const { getErrorMessage } = require("./error_helpers.cjs");
+
     if (!isBot) {
       return { isBot: false, isActive: false };
     }
@@ -65,7 +67,7 @@ async function checkBotStatus(actor, owner, repo) {
       return { isBot: true, isActive: false, error: errorMessage };
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.warning(`Error checking bot status: ${errorMessage}`);
     return { isBot: false, isActive: false, error: errorMessage };
   }

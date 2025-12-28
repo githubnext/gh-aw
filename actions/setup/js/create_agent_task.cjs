@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 const path = require("path");
 
@@ -21,7 +23,7 @@ async function main() {
   try {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error reading agent output file: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -35,7 +37,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -155,7 +157,7 @@ async function main() {
         createdTasks.push({ number: "", url: output });
       }
     } catch (error) {
-      core.error(`Task ${index + 1}: Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`Task ${index + 1}: Error creating agent task: ${getErrorMessage(error)}`);
     }
   }
 

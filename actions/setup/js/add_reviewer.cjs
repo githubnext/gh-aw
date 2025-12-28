@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { processSafeOutput, processItems } = require("./safe_output_processor.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -125,7 +126,7 @@ ${reviewersListMarkdown}
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to add reviewers: ${errorMessage}`);
     core.setFailed(`Failed to add reviewers: ${errorMessage}`);
   }

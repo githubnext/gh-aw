@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   const fs = require("fs");
 
@@ -29,7 +31,7 @@ async function main() {
   try {
     agentOutput = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
-    core.info(`Agent output file not found or unreadable: ${error instanceof Error ? error.message : String(error)}`);
+    core.info(`Agent output file not found or unreadable: ${getErrorMessage(error)}`);
     core.setOutput("tools_reported", JSON.stringify(missingTools));
     core.setOutput("total_count", missingTools.length.toString());
     return;
@@ -49,7 +51,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(agentOutput);
   } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
     return;
   }
 

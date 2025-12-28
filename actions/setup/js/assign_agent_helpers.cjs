@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues
  * These functions use GraphQL to properly assign bot actors that cannot be assigned via gh CLI
@@ -26,6 +28,8 @@ const AGENT_LOGIN_NAMES = {
 function getAgentName(assignee) {
   // Normalize: remove @ prefix if present
   const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
+
+  const { getErrorMessage } = require("./error_helpers.cjs");
 
   // Check if it's a known agent
   if (AGENT_LOGIN_NAMES[normalized]) {
@@ -118,7 +122,7 @@ async function findAgent(owner, repo, agentName) {
     }
     return null;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
     return null;
   }
@@ -163,7 +167,7 @@ async function getIssueDetails(owner, repo, issueNumber) {
       currentAssignees,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to get issue details: ${errorMessage}`);
     // Re-throw the error to preserve the original error message for permission error detection
     throw error;
@@ -208,7 +212,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
     core.error("Unexpected response from GitHub API");
     return false;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
 
     // Debug: surface the raw GraphQL error structure for troubleshooting fine-grained permission issues
     try {
@@ -400,7 +404,7 @@ async function assignAgentToIssueByName(owner, repo, issueNumber, agentName) {
     core.info(`Successfully assigned ${agentName} coding agent to issue #${issueNumber}`);
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return { success: false, error: errorMessage };
   }
 }

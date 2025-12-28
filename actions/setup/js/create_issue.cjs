@@ -10,6 +10,7 @@ const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTempora
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -287,7 +288,7 @@ async function main() {
 
           core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
         } catch (error) {
-          core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+          core.info(`Warning: Could not link sub-issue to parent: ${getErrorMessage(error)}`);
           core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
           // Fallback: add a comment if sub-issue linking fails
           try {
@@ -313,7 +314,7 @@ async function main() {
         core.setOutput("issue_url", issue.html_url);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       if (errorMessage.includes("Issues has been disabled in this repository")) {
         core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
         core.info("Consider enabling issues in repository settings if you want to create issues automatically");

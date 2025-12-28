@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   const skipQuery = process.env.GH_AW_SKIP_QUERY;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME;
@@ -53,7 +55,7 @@ async function main() {
     core.info(`✓ Found ${totalCount} matches (below threshold of ${maxMatches}), workflow can proceed`);
     core.setOutput("skip_check_ok", "true");
   } catch (error) {
-    core.setFailed(`Failed to execute search query: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to execute search query: ${getErrorMessage(error)}`);
     return;
   }
 }

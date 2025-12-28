@@ -1,6 +1,8 @@
 // @ts-check
 // <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Maximum number of discussions to update per run
  */
@@ -31,6 +33,8 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
   const discussions = [];
   let hasNextPage = true;
   let cursor = null;
+
+  const { getErrorMessage } = require("./error_helpers.cjs");
 
   while (hasNextPage) {
     const query = `
@@ -256,7 +260,7 @@ async function main() {
       closedCount++;
       core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
     } catch (error) {
-      core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to close discussion #${discussion.number}: ${getErrorMessage(error)}`);
       // Continue with other discussions even if one fails
     }
 

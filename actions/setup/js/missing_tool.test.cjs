@@ -43,6 +43,7 @@ describe("missing_tool.cjs", () => {
       (global.require = vi.fn().mockImplementation(module => {
         if ("fs" === module) return fs;
         if ("@actions/core" === module) return mockCore;
+        if ("./error_helpers.cjs" === module) return { getErrorMessage: error => (error instanceof Error ? error.message : String(error)) };
         throw new Error(`Module not found: ${module}`);
       })));
     const scriptPath = path.join(__dirname, "missing_tool.cjs");

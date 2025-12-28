@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Normalizes a branch name to be a valid git branch name.
@@ -158,7 +159,7 @@ async function main() {
 
         core.info(`Added asset: ${targetFileName} (${size} bytes)`);
       } catch (error) {
-        core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+        core.warning(`Failed to process asset ${asset.fileName}: ${getErrorMessage(error)}`);
       }
     }
 
@@ -184,7 +185,7 @@ async function main() {
       core.info("No new assets to upload");
     }
   } catch (error) {
-    core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to upload assets: ${getErrorMessage(error)}`);
     return;
   }
 

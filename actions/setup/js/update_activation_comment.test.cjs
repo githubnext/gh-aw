@@ -5,7 +5,14 @@ const createTestableFunction = scriptContent => {
   const beforeMainCall = scriptContent.match(/^([\s\S]*?)\s*module\.exports\s*=\s*{[\s\S]*?};?\s*$/);
   if (!beforeMainCall) throw new Error("Could not extract script content before module.exports");
   let scriptBody = beforeMainCall[1];
-  return new Function(`\n    const { github, core, context, process } = arguments[0];\n    \n    ${scriptBody}\n    \n    return { updateActivationComment };\n  `);
+  // Mock the error_helpers module
+  const mockRequire = module => {
+    if (module === "./error_helpers.cjs") {
+      return { getErrorMessage: error => (error instanceof Error ? error.message : String(error)) };
+    }
+    throw new Error(`Module ${module} not mocked in test`);
+  };
+  return new Function(`\n    const { github, core, context, process } = arguments[0];\n    const require = ${mockRequire.toString()};\n    \n    ${scriptBody}\n    \n    return { updateActivationComment };\n  `);
 };
 describe("update_activation_comment.cjs", () => {
   let createFunctionFromScript, mockDependencies;

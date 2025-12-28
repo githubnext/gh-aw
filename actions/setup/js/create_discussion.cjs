@@ -8,6 +8,7 @@ const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporar
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -196,7 +197,7 @@ async function main() {
         repoInfoCache.set(itemRepo, repoInfo);
         core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = getErrorMessage(error);
         if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
           core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
           continue;
@@ -319,7 +320,7 @@ async function main() {
         core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
       }
     } catch (error) {
-      core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${getErrorMessage(error)}`);
       throw error;
     }
   }

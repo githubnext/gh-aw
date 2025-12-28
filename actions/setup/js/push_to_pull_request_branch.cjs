@@ -5,6 +5,7 @@
 const fs = require("fs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { updateActivationCommentWithCommit } = require("./update_activation_comment.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -22,7 +23,7 @@ async function main() {
   try {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error reading agent output file: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -120,7 +121,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
     return;
   }
 
@@ -217,7 +218,7 @@ async function main() {
     prTitle = pullRequest.title || "";
     prLabels = pullRequest.labels.map(label => label.name);
   } catch (error) {
-    core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
+    core.info(`Warning: Could not fetch PR ${pullNumber} details: ${getErrorMessage(error)}`);
     // Exit with failure if we cannot determine the branch name
     core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
     return;
@@ -324,7 +325,7 @@ async function main() {
       await exec.exec(`git push origin ${branchName}`);
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
-      core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`Failed to apply patch: ${getErrorMessage(error)}`);
 
       // Investigate why the patch failed by logging git status and the failed patch
       try {

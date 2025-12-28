@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * MCP Logger Utility
  *
@@ -37,7 +39,7 @@ function createLogger(serverName) {
      * @param {Error|string|any} error - Error object or message
      */
     debugError: (prefix, error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       logger.debug(`${prefix}${errorMessage}`);
       if (error instanceof Error && error.stack) {
         logger.debug(`${prefix}Stack trace: ${error.stack}`);

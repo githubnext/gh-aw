@@ -6,6 +6,7 @@
  */
 
 const { resolveMentionsLazily, isPayloadUserBot } = require("./resolve_mentions.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Resolve allowed mentions from the current GitHub event context
@@ -187,7 +188,7 @@ async function resolveAllowedMentionsFromPayload(context, github, core, mentions
 
     return allowedMentions;
   } catch (error) {
-    core.warning(`Failed to resolve mentions for output collector: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to resolve mentions for output collector: ${getErrorMessage(error)}`);
     // Return empty array on error
     return [];
   }

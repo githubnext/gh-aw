@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 function main() {
   const fs = require("fs");
   const path = require("path");
@@ -82,7 +84,7 @@ function main() {
     }
   } catch (error) {
     console.debug(error);
-    core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
+    core.error(`Error validating log: ${getErrorMessage(error)}`);
   }
 }
 

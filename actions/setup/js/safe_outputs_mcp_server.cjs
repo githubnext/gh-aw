@@ -17,6 +17,7 @@ const { createAppendFunction } = require("./safe_outputs_append.cjs");
 const { createHandlers } = require("./safe_outputs_handlers.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Start the safe-outputs MCP server
@@ -70,7 +71,7 @@ if (require.main === module) {
   try {
     startSafeOutputsServer();
   } catch (error) {
-    console.error(`Error starting safe-outputs server: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error starting safe-outputs server: ${getErrorMessage(error)}`);
     process.exit(1);
   }
 }

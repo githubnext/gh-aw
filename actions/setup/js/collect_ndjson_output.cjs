@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   const fs = require("fs");
   const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -19,7 +21,7 @@ async function main() {
       core.info(`Loaded validation config from ${validationConfigPath}`);
     }
   } catch (error) {
-    core.warning(`Failed to read validation config from ${validationConfigPath}: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to read validation config from ${validationConfigPath}: ${getErrorMessage(error)}`);
   }
 
   // Extract mentions configuration from validation config
@@ -187,7 +189,7 @@ async function main() {
       core.info(`[INGESTION] Config file does not exist at: ${configPath}`);
     }
   } catch (error) {
-    core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to read config file from ${configPath}: ${getErrorMessage(error)}`);
   }
 
   core.info(`[INGESTION] Output file path: ${outputFile}`);
@@ -217,7 +219,7 @@ async function main() {
       core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
       core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = getErrorMessage(error);
       core.info(`Warning: Could not parse safe-outputs config: ${errorMsg}`);
     }
   }
@@ -292,7 +294,7 @@ async function main() {
       core.info(`Line ${i + 1}: Valid ${itemType} item`);
       parsedItems.push(item);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = getErrorMessage(error);
       errors.push(`Line ${i + 1}: Invalid JSON - ${errorMsg}`);
     }
   }
@@ -322,7 +324,7 @@ async function main() {
     core.info(`Stored validated output to: ${agentOutputFile}`);
     core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = getErrorMessage(error);
     core.error(`Failed to write agent output file: ${errorMsg}`);
   }
   core.setOutput("output", JSON.stringify(validatedOutput));

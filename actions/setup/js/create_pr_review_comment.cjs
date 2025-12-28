@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -155,7 +156,7 @@ async function main() {
         pullRequest = fullPR;
         core.info(`Fetched full pull request details for PR #${pullRequestNumber}`);
       } catch (error) {
-        core.info(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        core.info(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${getErrorMessage(error)}`);
         continue;
       }
     }
@@ -238,7 +239,7 @@ async function main() {
         core.setOutput("review_comment_url", comment.html_url);
       }
     } catch (error) {
-      core.error(`✗ Failed to create review comment: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to create review comment: ${getErrorMessage(error)}`);
       throw error;
     }
   }

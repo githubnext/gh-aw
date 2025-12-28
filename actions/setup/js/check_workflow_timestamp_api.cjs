@@ -7,6 +7,8 @@
  * with the compiled .lock.yml file and warns if recompilation is needed
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
 
@@ -52,7 +54,7 @@ async function main() {
       }
       return null;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.info(`Could not fetch commit for ${path}: ${errorMessage}`);
       return null;
     }
