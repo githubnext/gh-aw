@@ -329,5 +329,68 @@ const mockCore = {
         (mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue }),
           await eval(`(async () => { ${createIssueScript}; await main(); })()`),
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Parent temporary ID 'aw_000000000000' not found")));
+      }),
+      it("should handle parent issue number with # prefix", async () => {
+        setAgentOutput({ items: [{ type: "create_issue", title: "Sub Issue", body: "Sub issue with parent", parent: "#555" }] });
+        const mockIssue = { number: 556, html_url: "https://github.com/testowner/testrepo/issues/556" };
+        mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+        let graphqlCallCount = 0;
+        (mockGithub.graphql.mockImplementation(
+          () => (
+            graphqlCallCount++,
+            1 === graphqlCallCount
+              ? Promise.resolve({ repository: { issue: { id: "parent-node-id-555" } } })
+              : 2 === graphqlCallCount
+                ? Promise.resolve({ repository: { issue: { id: "child-node-id-556" } } })
+                : 3 === graphqlCallCount
+                  ? Promise.resolve({ addSubIssue: { subIssue: { id: "child-node-id-556", number: 556 } } })
+                  : Promise.reject(new Error("Unexpected graphql call"))
+          )
+        ),
+          await eval(`(async () => { ${createIssueScript}; await main(); })()`));
+        const createArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+        (expect(createArgs.body).toContain("Related to #555"), expect(mockCore.info).toHaveBeenCalledWith("Using explicit parent issue number from item: testowner/testrepo#555"));
+      }),
+      it("should handle parent issue number without # prefix", async () => {
+        setAgentOutput({ items: [{ type: "create_issue", title: "Sub Issue", body: "Sub issue with parent", parent: "777" }] });
+        const mockIssue = { number: 778, html_url: "https://github.com/testowner/testrepo/issues/778" };
+        mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+        let graphqlCallCount = 0;
+        (mockGithub.graphql.mockImplementation(
+          () => (
+            graphqlCallCount++,
+            1 === graphqlCallCount
+              ? Promise.resolve({ repository: { issue: { id: "parent-node-id-777" } } })
+              : 2 === graphqlCallCount
+                ? Promise.resolve({ repository: { issue: { id: "child-node-id-778" } } })
+                : 3 === graphqlCallCount
+                  ? Promise.resolve({ addSubIssue: { subIssue: { id: "child-node-id-778", number: 778 } } })
+                  : Promise.reject(new Error("Unexpected graphql call"))
+          )
+        ),
+          await eval(`(async () => { ${createIssueScript}; await main(); })()`));
+        const createArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+        (expect(createArgs.body).toContain("Related to #777"), expect(mockCore.info).toHaveBeenCalledWith("Using explicit parent issue number from item: testowner/testrepo#777"));
+      }),
+      it("should handle parent issue number as integer", async () => {
+        setAgentOutput({ items: [{ type: "create_issue", title: "Sub Issue", body: "Sub issue with parent", parent: 888 }] });
+        const mockIssue = { number: 889, html_url: "https://github.com/testowner/testrepo/issues/889" };
+        mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+        let graphqlCallCount = 0;
+        (mockGithub.graphql.mockImplementation(
+          () => (
+            graphqlCallCount++,
+            1 === graphqlCallCount
+              ? Promise.resolve({ repository: { issue: { id: "parent-node-id-888" } } })
+              : 2 === graphqlCallCount
+                ? Promise.resolve({ repository: { issue: { id: "child-node-id-889" } } })
+                : 3 === graphqlCallCount
+                  ? Promise.resolve({ addSubIssue: { subIssue: { id: "child-node-id-889", number: 889 } } })
+                  : Promise.reject(new Error("Unexpected graphql call"))
+          )
+        ),
+          await eval(`(async () => { ${createIssueScript}; await main(); })()`));
+        const createArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+        (expect(createArgs.body).toContain("Related to #888"), expect(mockCore.info).toHaveBeenCalledWith("Using explicit parent issue number from item: testowner/testrepo#888"));
       }));
   }));
