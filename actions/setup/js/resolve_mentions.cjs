@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * @typedef {Object} MentionResolutionResult
  * @property {string[]} allowedMentions - List of allowed mention usernames
@@ -18,6 +20,8 @@ function extractMentions(text) {
   if (!text || typeof text !== "string") {
     return [];
   }
+
+  const { getErrorMessage } = require("./error_helpers.cjs");
 
   const mentionRegex = /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g;
   const mentions = [];
@@ -73,7 +77,7 @@ async function getRecentCollaborators(owner, repo, github, core) {
 
     return allowedMap;
   } catch (error) {
-    core.warning(`Failed to fetch recent collaborators: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to fetch recent collaborators: ${getErrorMessage(error)}`);
     return new Map();
   }
 }

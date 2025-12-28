@@ -6,6 +6,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const { getBaseBranch } = require("./get_base_branch.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Generates a git patch file for the current changes
@@ -100,7 +101,7 @@ function generateGitPatch(branchName) {
       }
     }
   } catch (error) {
-    errorMessage = `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`;
+    errorMessage = `Failed to generate patch: ${getErrorMessage(error)}`;
   }
 
   // Check if patch was generated and has content

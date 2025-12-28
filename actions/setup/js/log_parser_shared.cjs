@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Shared utility functions for log parsers
  * Used by parse_claude_log.cjs, parse_copilot_log.cjs, and parse_codex_log.cjs
@@ -1495,7 +1497,7 @@ function wrapLogParser(parseFunction, parserName, logContent) {
   try {
     return parseFunction(logContent);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     return {
       markdown: `## Agent Log Summary\n\nError parsing ${parserName} log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
       mcpFailures: [],

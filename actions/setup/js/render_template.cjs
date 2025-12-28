@@ -5,6 +5,8 @@
 // Single-function Markdown → Markdown postprocessor for GitHub Actions.
 // Processes only {{#if <expr>}} ... {{/if}} blocks after ${{ }} evaluation.
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 
 /**
@@ -79,7 +81,7 @@ function main() {
     core.info("Template rendered successfully");
     // core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
   } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error));
+    core.setFailed(getErrorMessage(error));
   }
 }
 

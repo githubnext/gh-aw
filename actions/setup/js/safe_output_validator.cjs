@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Load and parse the safe outputs configuration from config.json
@@ -18,7 +19,7 @@ function loadSafeOutputsConfig() {
     const configContent = fs.readFileSync(configPath, "utf8");
     return JSON.parse(configContent);
   } catch (error) {
-    core.warning(`Failed to load config: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to load config: ${getErrorMessage(error)}`);
     return {};
   }
 }

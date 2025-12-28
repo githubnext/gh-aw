@@ -25,6 +25,7 @@ const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Create and configure the MCP server with tools
@@ -341,7 +342,7 @@ if (require.main === module) {
   }
 
   startHttpServer(configPath, options).catch(error => {
-    console.error(`Error starting HTTP server: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Error starting HTTP server: ${getErrorMessage(error)}`);
     process.exit(1);
   });
 }

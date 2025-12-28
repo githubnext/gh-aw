@@ -9,6 +9,7 @@ const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -71,7 +72,7 @@ async function main() {
     try {
       outputContent = fs.readFileSync(agentOutputFile, "utf8");
     } catch (error) {
-      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+      core.setFailed(`Error reading agent output file: ${getErrorMessage(error)}`);
       return;
     }
   }
@@ -224,7 +225,7 @@ async function main() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
     return;
   }
 

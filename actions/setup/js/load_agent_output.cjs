@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 
 /**
@@ -53,7 +55,7 @@ function loadAgentOutput() {
   try {
     outputContent = fs.readFileSync(agentOutputFile, "utf8");
   } catch (error) {
-    const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+    const errorMessage = `Error reading agent output file: ${getErrorMessage(error)}`;
     core.error(errorMessage);
     return { success: false, error: errorMessage };
   }
@@ -71,7 +73,7 @@ function loadAgentOutput() {
   try {
     validatedOutput = JSON.parse(outputContent);
   } catch (error) {
-    const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+    const errorMessage = `Error parsing agent output JSON: ${getErrorMessage(error)}`;
     core.error(errorMessage);
     core.info(`Failed to parse content:\n${truncateForLogging(outputContent)}`);
     return { success: false, error: errorMessage };

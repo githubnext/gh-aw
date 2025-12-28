@@ -7,6 +7,8 @@
  * after agent workflow execution completes or fails
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   // Log actor and event information for debugging
   core.info(`Unlock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
@@ -55,7 +57,7 @@ async function main() {
 
     core.info(`✅ Successfully unlocked issue #${issueNumber}`);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to unlock issue: ${errorMessage}`);
     core.setFailed(`Failed to unlock issue #${issueNumber}: ${errorMessage}`);
   }

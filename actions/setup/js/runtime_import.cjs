@@ -5,6 +5,8 @@
 // Processes {{#runtime-import filepath}} and {{#runtime-import? filepath}} macros
 // at runtime to import markdown file contents dynamically.
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 const path = require("path");
 
@@ -138,7 +140,7 @@ function processRuntimeImports(content, workspaceDir) {
       // Replace the macro with the imported content
       processedContent = processedContent.replace(fullMatch, importedContent);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       throw new Error(`Failed to process runtime import for ${filepath}: ${errorMessage}`);
     }
   }

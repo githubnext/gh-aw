@@ -13,6 +13,8 @@ async function main() {
   const fs = require("fs");
   const path = require("path");
 
+  const { getErrorMessage } = require("./error_helpers.cjs");
+
   try {
     // Get the safe-inputs logs directory path
     const safeInputsLogsDir = `/tmp/gh-aw/safe-inputs/logs/`;
@@ -63,7 +65,7 @@ async function main() {
     const summary = generateSafeInputsSummary(allLogEntries);
     core.summary.addRaw(summary).write();
   } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error));
+    core.setFailed(getErrorMessage(error));
   }
 }
 

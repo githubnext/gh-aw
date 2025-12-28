@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Update the activation comment with a link to the created pull request or issue
  * @param {any} github - GitHub REST API instance
@@ -145,7 +147,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
     }
   } catch (error) {
     // Don't fail the workflow if we can't update the comment - just log a warning
-    core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(`Failed to update activation comment: ${getErrorMessage(error)}`);
   }
 }
 

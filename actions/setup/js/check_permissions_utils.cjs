@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Shared utility for repository permission validation
  * Used by both check_permissions.cjs and check_membership.cjs
@@ -59,14 +61,12 @@ async function checkBotStatus(actor, owner, repo) {
         return { isBot: true, isActive: false };
       }
       // For other errors, we'll treat as inactive to be safe
-      // @ts-expect-error - Error handling with optional chaining
-      const errorMessage = botError?.message ?? String(botError);
+      const errorMessage = getErrorMessage(botError);
       core.warning(`Failed to check bot status: ${errorMessage}`);
       return { isBot: true, isActive: false, error: errorMessage };
     }
   } catch (error) {
-    // @ts-expect-error - Error handling with optional chaining
-    const errorMessage = error?.message ?? String(error);
+    const errorMessage = getErrorMessage(error);
     core.warning(`Error checking bot status: ${errorMessage}`);
     return { isBot: false, isActive: false, error: errorMessage };
   }
@@ -105,8 +105,7 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     return { authorized: false, permission };
   } catch (repoError) {
-    // @ts-expect-error - Error handling with optional chaining
-    const errorMessage = repoError?.message ?? String(repoError);
+    const errorMessage = getErrorMessage(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
     return { authorized: false, error: errorMessage };
   }

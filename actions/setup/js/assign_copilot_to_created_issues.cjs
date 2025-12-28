@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Assign copilot to issues created by create_issue job.
@@ -110,7 +111,7 @@ async function main() {
         success: true,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.error(`Failed to assign ${agentName} to issue #${issueNumber} in ${repoSlug}: ${errorMessage}`);
       results.push({
         repo: repoSlug,

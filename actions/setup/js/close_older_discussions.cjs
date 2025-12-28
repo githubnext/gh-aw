@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Maximum number of older discussions to close
@@ -242,7 +243,7 @@ async function closeOlderDiscussions(github, owner, repo, titlePrefix, labels, c
 
       core.info(`✓ Closed discussion #${discussion.number}: ${discussion.url}`);
     } catch (error) {
-      core.error(`✗ Failed to close discussion #${discussion.number}: ${error instanceof Error ? error.message : String(error)}`);
+      core.error(`✗ Failed to close discussion #${discussion.number}: ${getErrorMessage(error)}`);
       // Continue with other discussions even if one fails
     }
 

@@ -7,6 +7,8 @@
  * to prevent concurrent modifications during agent workflow execution
  */
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 async function main() {
   // Log actor and event information for debugging
   core.info(`Lock-issue debug: actor=${context.actor}, eventName=${context.eventName}`);
@@ -59,7 +61,7 @@ async function main() {
     // Set output to indicate the issue was locked and needs to be unlocked
     core.setOutput("locked", "true");
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to lock issue: ${errorMessage}`);
     core.setFailed(`Failed to lock issue #${issueNumber}: ${errorMessage}`);
     core.setOutput("locked", "false");

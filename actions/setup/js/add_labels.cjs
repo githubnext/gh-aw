@@ -3,6 +3,7 @@
 
 const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   // Use shared processor for common steps
@@ -117,7 +118,7 @@ ${labelsListMarkdown}
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to add labels: ${errorMessage}`);
     core.setFailed(`Failed to add labels: ${errorMessage}`);
   }

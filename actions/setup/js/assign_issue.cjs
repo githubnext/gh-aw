@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getAgentName, getIssueDetails, findAgent, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Assign an issue to a user or bot (including copilot)
@@ -95,7 +96,7 @@ Successfully assigned issue #${trimmedIssueNumber} to \`${trimmedAssignee}\`.
       )
       .write();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     core.error(`Failed to assign issue: ${errorMessage}`);
     core.setFailed(`Failed to assign issue #${trimmedIssueNumber} to ${trimmedAssignee}: ${errorMessage}`);
   }

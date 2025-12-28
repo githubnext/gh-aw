@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Bootstrap helper for log parser entry points.
@@ -95,7 +96,7 @@ function runLogParser(options) {
         try {
           safeOutputsContent = fs.readFileSync(safeOutputsPath, "utf8");
         } catch (error) {
-          core.warning(`Failed to read safe outputs file: ${error instanceof Error ? error.message : String(error)}`);
+          core.warning(`Failed to read safe outputs file: ${getErrorMessage(error)}`);
         }
       }
 

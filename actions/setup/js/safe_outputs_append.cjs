@@ -1,5 +1,7 @@
 // @ts-check
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 
 /**
@@ -27,7 +29,7 @@ function createAppendFunction(outputFile) {
     try {
       fs.appendFileSync(outputFile, jsonLine);
     } catch (error) {
-      throw new Error(`Failed to write to output file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to write to output file: ${getErrorMessage(error)}`);
     }
   };
 }

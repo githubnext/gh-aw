@@ -1,5 +1,7 @@
 // @ts-check
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const fs = require("fs");
 const path = require("path");
 
@@ -30,7 +32,7 @@ function loadConfig(server) {
       safeOutputsConfigRaw = {};
     }
   } catch (error) {
-    server.debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+    server.debug(`Error reading config file: ${getErrorMessage(error)}`);
     server.debug(`Falling back to empty configuration`);
     safeOutputsConfigRaw = {};
   }

@@ -8,6 +8,7 @@
 const fs = require("fs");
 const { isTruthy } = require("./is_truthy.cjs");
 const { processRuntimeImports } = require("./runtime_import.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Interpolates variables in the prompt content
@@ -119,7 +120,7 @@ async function main() {
     // Write back to the same file
     fs.writeFileSync(promptPath, content, "utf8");
   } catch (error) {
-    core.setFailed(error instanceof Error ? error.message : String(error));
+    core.setFailed(getErrorMessage(error));
   }
 }
 

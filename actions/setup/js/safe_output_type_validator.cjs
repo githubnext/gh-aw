@@ -11,6 +11,7 @@
 
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { isTemporaryId } = require("./temporary_id.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Default max body length for GitHub content
@@ -73,7 +74,7 @@ function loadValidationConfig() {
     cachedValidationConfig = parsed || {};
     return cachedValidationConfig;
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = getErrorMessage(error);
     // Log as error since missing validation config is critical
     if (typeof core !== "undefined") {
       core.error(`CRITICAL: Failed to parse validation config: ${errorMsg}. Validation will be skipped.`);
