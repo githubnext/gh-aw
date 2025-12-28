@@ -49,6 +49,17 @@ async function main() {
     }
   }
 
+  // ============================================================================
+  // CAMPAIGN-SPECIFIC VALIDATION FUNCTIONS
+  // ============================================================================
+  // The following functions implement validation for the campaign convention:
+  // When memoryId is "campaigns" and file-glob matches "<campaign-id>/**",
+  // enforce specific JSON schemas for cursor.json and metrics/*.json files.
+  //
+  // This is a domain-specific convention used by Campaign Workflows to maintain
+  // durable state in repo-memory. See docs/guides/campaigns/ for details.
+  // ============================================================================
+
   /** @param {any} obj @param {string} campaignId @param {string} relPath */
   function validateCampaignCursor(obj, campaignId, relPath) {
     if (!isPlainObject(obj)) {
@@ -128,9 +139,20 @@ async function main() {
   // The artifactDir IS the memory directory (no nested structure needed)
   const sourceMemoryPath = artifactDir;
 
-  // Campaign mode enforcement (agentic campaigns):
-  // We treat repo-memory ID "campaigns" with a single file-glob like "<campaign-id>/**" as a strong contract.
-  // In this mode, cursor.json and at least one metrics snapshot are required.
+  // ============================================================================
+  // CAMPAIGN MODE DETECTION
+  // ============================================================================
+  // Campaign Workflows use a convention-based pattern in repo-memory:
+  //   - memoryId: "campaigns"
+  //   - file-glob: "<campaign-id>/**"
+  //
+  // When this pattern is detected, we enforce campaign-specific validation:
+  //   1. cursor.json must exist and follow the cursor schema
+  //   2. At least one metrics/*.json file must exist and follow the metrics schema
+  //
+  // This ensures campaigns maintain durable state consistency across workflow runs.
+  // Non-campaign repo-memory configurations bypass this validation entirely.
+  // ============================================================================
   const singlePattern = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
   const campaignPattern = singlePattern.length === 1 ? singlePattern[0] : "";
   const campaignMatch = memoryId === "campaigns" ? /^([^*?]+)\/\*\*$/.exec(campaignPattern) : null;
@@ -242,7 +264,8 @@ async function main() {
           throw new Error("File size validation failed");
         }
 
-        // Campaign JSON contract checks (only for the campaign subtree).
+        // Campaign-specific JSON validation (only when campaign mode is active)
+        // This enforces the campaign state file schemas for cursor and metrics
         if (isCampaignMode && relativeFilePath.startsWith(`${campaignId}/`)) {
           if (relativeFilePath === `${campaignId}/cursor.json`) {
             const obj = tryParseJSONFile(fullPath);
@@ -271,7 +294,8 @@ async function main() {
     return;
   }
 
-  // Campaign mode validation: ensure required files were found
+  // Campaign mode validation: ensure required state files were found
+  // This enforcement is only active when campaign mode is detected
   if (isCampaignMode) {
     if (!campaignCursorFound) {
       core.error(`Missing required campaign cursor file: ${campaignId}/cursor.json`);

@@ -151,10 +151,25 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	data.ParsedTools = NewTools(data.Tools)
 
 	if data.Permissions == "" {
-		// Default behavior: keep existing workflows stable with read-all.
-		// Campaign orchestrators intentionally omit permissions from the generated
-		// .campaign.g.md frontmatter, so we compute explicit, minimal read permissions
-		// for the agent job at compile time.
+		// ============================================================================
+		// PERMISSIONS DEFAULTS
+		// ============================================================================
+		// Default behavior: keep existing workflows stable with read-all permissions.
+		//
+		// CAMPAIGN-SPECIFIC HANDLING:
+		// Campaign orchestrator workflows (.campaign.g.md files) are auto-generated
+		// by the BuildOrchestrator function in pkg/campaign/orchestrator.go.
+		// These generated workflows intentionally omit explicit permissions in their
+		// frontmatter, so we compute minimal read permissions here at compile time.
+		//
+		// This is part of the campaign orchestrator generation pattern where:
+		// 1. Campaign specs (.campaign.md) define high-level campaign configuration
+		// 2. BuildOrchestrator generates orchestrator workflows (.campaign.g.md)
+		// 3. The compiler applies default permissions to the generated workflow
+		//
+		// This separation allows campaign configuration to remain declarative while
+		// ensuring generated orchestrators have appropriate permissions.
+		// ============================================================================
 		if strings.HasSuffix(markdownPath, ".campaign.g.md") {
 			perms := NewPermissions()
 			// Campaign orchestrators always need to read repository contents and tracker issues.
