@@ -825,7 +825,7 @@
       "oneOf": [
         {
           "type": "string",
-          "const": "defaults",
+          "enum": ["defaults"],
           "description": "Use default network access"
         },
         {
@@ -1082,7 +1082,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "const": "http",
+          "enum": ["http"],
           "description": "MCP connection type for HTTP"
         },
         "registry": {
