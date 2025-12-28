@@ -4,7 +4,6 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
-const core = require("@actions/core");
 
 /**
  * Push repo-memory changes to git branch
