@@ -4,7 +4,7 @@
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
 const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, wrapLogParser } = require("./log_parser_shared.cjs");
 
-function main() {
+async function main() {
   runLogParser({
     parseLog: logContent => wrapLogParser(parseClaudeLog, "Claude", logContent),
     parserName: "Claude",

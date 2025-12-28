@@ -5609,7 +5609,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "const": "http",
+          "enum": ["http"],
           "description": "MCP connection type for HTTP"
         },
         "registry": {

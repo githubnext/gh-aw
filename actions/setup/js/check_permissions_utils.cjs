@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Shared utility for repository permission validation
  * Used by both check_permissions.cjs and check_membership.cjs
@@ -11,8 +13,7 @@
  * @returns {string[]} Array of required permission levels
  */
 function parseRequiredPermissions() {
-  const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-  return requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+  return process.env.GH_AW_REQUIRED_ROLES?.split(",").filter(p => p.trim()) ?? [];
 }
 
 /**
@@ -20,8 +21,7 @@ function parseRequiredPermissions() {
  * @returns {string[]} Array of allowed bot identifiers
  */
 function parseAllowedBots() {
-  const allowedBotsEnv = process.env.GH_AW_ALLOWED_BOTS;
-  return allowedBotsEnv ? allowedBotsEnv.split(",").filter(b => b.trim() !== "") : [];
+  return process.env.GH_AW_ALLOWED_BOTS?.split(",").filter(b => b.trim()) ?? [];
 }
 
 /**
@@ -35,8 +35,6 @@ async function checkBotStatus(actor, owner, repo) {
   try {
     // Check if the actor looks like a bot (ends with [bot])
     const isBot = actor.endsWith("[bot]");
-
-    const { getErrorMessage } = require("./error_helpers.cjs");
 
     if (!isBot) {
       return { isBot: false, isActive: false };
@@ -57,12 +55,12 @@ async function checkBotStatus(actor, owner, repo) {
       return { isBot: true, isActive: true };
     } catch (botError) {
       // If we get a 404, the bot is not installed/active on this repository
-      if (typeof botError === "object" && botError !== null && "status" in botError && botError.status === 404) {
+      if (botError?.status === 404) {
         core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
         return { isBot: true, isActive: false };
       }
       // For other errors, we'll treat as inactive to be safe
-      const errorMessage = botError instanceof Error ? botError.message : String(botError);
+      const errorMessage = botError?.message ?? String(botError);
       core.warning(`Failed to check bot status: ${errorMessage}`);
       return { isBot: true, isActive: false, error: errorMessage };
     }
@@ -96,17 +94,17 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.info(`Repository permission level: ${permission}`);
 
     // Check if user has one of the required permission levels
-    for (const requiredPerm of requiredPermissions) {
-      if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-        core.info(`✅ User has ${permission} access to repository`);
-        return { authorized: true, permission: permission };
-      }
+    const hasPermission = requiredPermissions.some(requiredPerm => permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain"));
+
+    if (hasPermission) {
+      core.info(`✅ User has ${permission} access to repository`);
+      return { authorized: true, permission };
     }
 
     core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-    return { authorized: false, permission: permission };
+    return { authorized: false, permission };
   } catch (repoError) {
-    const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+    const errorMessage = repoError?.message ?? String(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
     return { authorized: false, error: errorMessage };
   }

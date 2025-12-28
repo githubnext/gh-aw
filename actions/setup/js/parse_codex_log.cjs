@@ -4,7 +4,7 @@
 const { runLogParser } = require("./log_parser_bootstrap.cjs");
 const { truncateString, estimateTokens, formatToolCallAsDetails, wrapLogParser } = require("./log_parser_shared.cjs");
 
-function main() {
+async function main() {
   runLogParser({
     parseLog: logContent => wrapLogParser(parseCodexLog, "Codex", logContent),
     parserName: "Codex",
