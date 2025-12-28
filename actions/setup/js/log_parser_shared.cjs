@@ -1426,10 +1426,12 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
       preview.push("");
       preview.push(`  [${i + 1}] ${entry.type || "unknown"}`);
       if (entry.title) {
-        preview.push(`      Title: ${truncateString(entry.title, 60)}`);
+        const titleStr = typeof entry.title === "string" ? entry.title : String(entry.title);
+        preview.push(`      Title: ${truncateString(titleStr, 60)}`);
       }
       if (entry.body) {
-        const bodyPreview = truncateString(entry.body.replace(/\n/g, " "), 80);
+        const bodyStr = typeof entry.body === "string" ? entry.body : String(entry.body);
+        const bodyPreview = truncateString(bodyStr.replace(/\n/g, " "), 80);
         preview.push(`      Body: ${bodyPreview}`);
       }
     }
@@ -1452,12 +1454,14 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
       preview.push("");
 
       if (entry.title) {
-        preview.push(`**Title:** ${entry.title}`);
+        const titleStr = typeof entry.title === "string" ? entry.title : String(entry.title);
+        preview.push(`**Title:** ${titleStr}`);
         preview.push("");
       }
 
       if (entry.body) {
-        const bodyPreview = truncateString(entry.body, 200);
+        const bodyStr = typeof entry.body === "string" ? entry.body : String(entry.body);
+        const bodyPreview = truncateString(bodyStr, 200);
         preview.push("<details>");
         preview.push("<summary>Preview</summary>");
         preview.push("");
