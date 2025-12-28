@@ -232,35 +232,6 @@ func TestWriteJavaScriptToYAML(t *testing.T) {
 	}
 }
 
-func TestEmbeddedScriptsNotEmpty(t *testing.T) {
-	tests := []struct {
-		name   string
-		script string
-	}{
-		{"createPullRequestScript", getCreatePullRequestScript()},
-		{"createIssueScript", getCreateIssueScript()},
-		{"createDiscussionScript", getCreateDiscussionScript()},
-		{"createCommentScript", getAddCommentScript()},
-		{"collectJSONLOutputScript", getCollectJSONLOutputScript()},
-		{"addLabelsScript", getAddLabelsScript()},
-		{"updateIssueScript", getUpdateIssueScript()},
-		{"addReactionAndEditCommentScript", getAddReactionAndEditCommentScript()},
-		{"missingToolScript", missingToolScript},
-		{"createCodeScanningAlertScript", getCreateCodeScanningAlertScript()},
-		{"createPRReviewCommentScript", getCreatePRReviewCommentScript()},
-		{"uploadAssetsScript", getUploadAssetsScript()},
-		{"pushToPullRequestBranchScript", getPushToPullRequestBranchScript()},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if strings.TrimSpace(tt.script) == "" {
-				t.Errorf("Embedded script %s is empty", tt.name)
-			}
-		})
-	}
-}
-
 func TestFormatJavaScriptForYAMLProducesValidIndentation(t *testing.T) {
 	script := "const x = 1;\nif (x > 0) {\n  console.log('positive');\n}"
 	result := FormatJavaScriptForYAML(script)

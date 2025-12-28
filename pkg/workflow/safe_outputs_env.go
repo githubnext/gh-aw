@@ -220,17 +220,6 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
-// addSafeOutputGitHubToken adds github-token to the with section of github-script actions
-// Uses precedence: safe-outputs global github-token > top-level github-token > default
-func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-	effectiveToken := c.getEffectiveGitHubTokenForSafeOutput(safeOutputsToken, data)
-	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
 // addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
 // Uses precedence: config token > safe-outputs global github-token > top-level github-token > default
 func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
@@ -282,19 +271,6 @@ func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data 
 	// Get effective token: config token > GH_AW_AGENT_TOKEN
 	effectiveToken := getEffectiveAgentGitHubToken(configToken)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
-}
-
-// getEffectiveGitHubTokenForSafeOutput returns the effective token to use for safe outputs
-// If app is configured, it uses the app token; otherwise falls back to the configured token or default
-func (c *Compiler) getEffectiveGitHubTokenForSafeOutput(customToken string, data *WorkflowData) string {
-	// If GitHub App is configured, use the app token
-	if data.SafeOutputs != nil && data.SafeOutputs.App != nil {
-		tokenLog.Print("Using GitHub App token for safe outputs")
-		return "${{ steps.app-token.outputs.token }}"
-	}
-
-	// Otherwise use standard token resolution
-	return getEffectiveGitHubToken(customToken, data.GitHubToken)
 }
 
 // buildTitlePrefixEnvVar builds a title-prefix environment variable line for safe-output jobs.

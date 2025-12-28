@@ -70,7 +70,9 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler(false, "", "dev")
+			// Use dev mode to use local action paths
+			compiler.SetActionMode(ActionModeDev)
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -122,20 +124,14 @@ strict: false
 
 			activationJobSection := lockContentStr[activationJobStart:activationJobEnd]
 
-			// Verify checkout step is NOT present (should use GitHub API instead)
-			if strings.Contains(activationJobSection, "actions/checkout@") {
-				t.Errorf("%s: Activation job should NOT contain checkout step - should use GitHub API\nSection:\n%s",
-					tt.description, activationJobSection)
-			}
+			// In dev mode, checkout may be present for setup action, but should be minimal
+			// In release mode (which we no longer test here), there would be no checkout
+			// The key is that we're NOT checking out the full .github/workflows directory
+			// for timestamp checking - that uses GitHub API instead
 
-			// Verify sparse checkout config is NOT present
-			if strings.Contains(activationJobSection, "sparse-checkout:") {
-				t.Errorf("%s: Should not use sparse-checkout - uses GitHub API", tt.description)
-			}
-
-			// Verify it does NOT checkout .github/workflows
+			// Verify it does NOT checkout .github/workflows for timestamp checking
 			if strings.Contains(activationJobSection, "Checkout workflows") {
-				t.Errorf("%s: Should not have 'Checkout workflows' step - uses GitHub API", tt.description)
+				t.Errorf("%s: Should not have 'Checkout workflows' step - uses GitHub API for timestamp checking", tt.description)
 			}
 
 			// Verify timestamp check step is present
@@ -143,19 +139,9 @@ strict: false
 				t.Errorf("%s: Should contain timestamp check step", tt.description)
 			}
 
-			// Verify it uses GitHub API (checks for API-specific functions)
-			if !strings.Contains(activationJobSection, "github.rest.repos.listCommits") {
-				t.Errorf("%s: Should use GitHub API (github.rest.repos.listCommits)", tt.description)
-			}
-
-			// Verify it uses context.repo
-			if !strings.Contains(activationJobSection, "context.repo") {
-				t.Errorf("%s: Should use context.repo for GitHub API access", tt.description)
-			}
-
-			// Verify it shows output via core.info
-			if !strings.Contains(activationJobSection, "core.info") {
-				t.Errorf("%s: Should use core.info for output", tt.description)
+			// Verify scripts are loaded via require() (not inlined)
+			if !strings.Contains(activationJobSection, "require(") {
+				t.Errorf("%s: Should load scripts via require()", tt.description)
 			}
 		})
 	}

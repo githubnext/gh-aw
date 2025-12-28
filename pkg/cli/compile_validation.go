@@ -13,6 +13,15 @@ import (
 
 var compileValidationLog = logger.New("cli:compile_validation")
 
+// RunActionlintOnFiles runs actionlint on multiple lock files in a single batch
+// This is more efficient than running actionlint once per file
+func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+	return runActionlintOnFile(lockFiles, verbose, strict)
+}
+
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
@@ -86,8 +95,9 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	}
 
 	// Run actionlint on the generated lock file if requested
+	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFile(lockFile, verbose, strict); err != nil {
+		if err := runActionlintOnFile([]string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}
@@ -153,8 +163,9 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	}
 
 	// Run actionlint on the generated lock file if requested
+	// Note: For batch processing, use RunActionlintOnFiles instead
 	if runActionlintPerFile {
-		if err := runActionlintOnFile(lockFile, verbose, strict); err != nil {
+		if err := runActionlintOnFile([]string{lockFile}, verbose, strict); err != nil {
 			return fmt.Errorf("actionlint linter failed: %w", err)
 		}
 	}

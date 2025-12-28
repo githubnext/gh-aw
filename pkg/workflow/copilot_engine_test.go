@@ -44,8 +44,8 @@ func TestCopilotEngineDefaultDetectionModel(t *testing.T) {
 
 	// Test that GetDefaultDetectionModel returns the expected constant
 	defaultModel := engine.GetDefaultDetectionModel()
-	if defaultModel != constants.DefaultCopilotDetectionModel {
-		t.Errorf("Expected default detection model '%s', got '%s'", constants.DefaultCopilotDetectionModel, defaultModel)
+	if defaultModel != string(constants.DefaultCopilotDetectionModel) {
+		t.Errorf("Expected default detection model '%s', got '%s'", string(constants.DefaultCopilotDetectionModel), defaultModel)
 	}
 
 	// Verify the expected value

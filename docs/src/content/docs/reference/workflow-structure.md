@@ -36,7 +36,7 @@ Read the issue #${{ github.event.issue.number }}. Add a comment to the issue lis
 Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
 and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
 
-```
+```text
 .github/
 └── workflows/
   ├── ci-doctor.md # Agentic Workflow

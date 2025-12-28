@@ -49,10 +49,8 @@ Test safe outputs workflow with MCP server integration.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to be written to temp file")
-	}
+	// Note: mcp-server.cjs is now copied by actions/setup from safe-outputs-mcp-server.cjs
+	// So we don't check for cat command anymore, we just check the MCP config references it
 
 	// Check that safe-outputs configuration file is written
 	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
@@ -117,10 +115,8 @@ Test workflow without safe outputs.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
-	}
+	// Check that safe-outputs MCP server file is NOT written (it's copied by setup.sh instead)
+	// The check is now redundant since we removed the cat command entirely
 
 	// Check that safe-outputs configuration file is NOT written
 	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
@@ -172,10 +168,8 @@ Test safe outputs workflow with Codex engine.
 	}
 	yamlStr := string(yamlContent)
 
-	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
-		t.Error("Expected safe-outputs MCP server to be written to temp file")
-	}
+	// Note: mcp-server.cjs is now copied by actions/setup from safe-outputs-mcp-server.cjs
+	// So we don't check for cat command anymore
 
 	// Check that safe-outputs configuration file is written
 	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {

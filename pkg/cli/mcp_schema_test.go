@@ -5,19 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/google/jsonschema-go/jsonschema"
 )
-
-// containsType checks if a type string is in the Types slice
-// This helper is needed for v0.4.0+ which uses Types []string for nullable types
-func containsType(types []string, targetType string) bool {
-	for _, t := range types {
-		if t == targetType {
-			return true
-		}
-	}
-	return false
-}
 
 func TestGenerateOutputSchema(t *testing.T) {
 	t.Run("generates schema for simple struct", func(t *testing.T) {
@@ -148,7 +138,7 @@ func TestGenerateOutputSchema(t *testing.T) {
 		// Check that items is an array type
 		// In v0.4.0+, nullable slices use Types []string with ["null", "array"]
 		// instead of Type string with "array"
-		isArray := itemsProp.Type == "array" || containsType(itemsProp.Types, "array")
+		isArray := itemsProp.Type == "array" || sliceutil.Contains(itemsProp.Types, "array")
 		if !isArray {
 			t.Errorf("Expected items to be an array type, got Type='%s', Types=%v", itemsProp.Type, itemsProp.Types)
 		}
@@ -217,6 +207,152 @@ func TestGenerateOutputSchema(t *testing.T) {
 		for _, prop := range expectedProps {
 			if _, ok := schema.Properties[prop]; !ok {
 				t.Errorf("Expected '%s' property to be defined", prop)
+			}
+		}
+	})
+}
+
+func TestAddSchemaDefault(t *testing.T) {
+	t.Run("adds default to existing property", func(t *testing.T) {
+		type TestStruct struct {
+			Name  string `json:"name" jsonschema:"Name field"`
+			Count int    `json:"count" jsonschema:"Count field"`
+		}
+
+		schema, err := GenerateOutputSchema[TestStruct]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		// Add defaults
+		if err := AddSchemaDefault(schema, "name", "default_name"); err != nil {
+			t.Fatalf("AddSchemaDefault failed: %v", err)
+		}
+		if err := AddSchemaDefault(schema, "count", 42); err != nil {
+			t.Fatalf("AddSchemaDefault failed: %v", err)
+		}
+
+		// Verify defaults were added
+		nameProp := schema.Properties["name"]
+		if len(nameProp.Default) == 0 {
+			t.Error("Expected name property to have a default")
+		}
+		var nameDefault string
+		if err := json.Unmarshal(nameProp.Default, &nameDefault); err != nil {
+			t.Errorf("Failed to unmarshal name default: %v", err)
+		} else if nameDefault != "default_name" {
+			t.Errorf("Expected name default to be 'default_name', got %v", nameDefault)
+		}
+
+		countProp := schema.Properties["count"]
+		if len(countProp.Default) == 0 {
+			t.Error("Expected count property to have a default")
+		}
+		var countDefault int
+		if err := json.Unmarshal(countProp.Default, &countDefault); err != nil {
+			t.Errorf("Failed to unmarshal count default: %v", err)
+		} else if countDefault != 42 {
+			t.Errorf("Expected count default to be 42, got %v", countDefault)
+		}
+	})
+
+	t.Run("handles non-existent property gracefully", func(t *testing.T) {
+		type TestStruct struct {
+			Name string `json:"name" jsonschema:"Name field"`
+		}
+
+		schema, err := GenerateOutputSchema[TestStruct]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		// Try to add default to non-existent property - should not error
+		if err := AddSchemaDefault(schema, "nonexistent", "value"); err != nil {
+			t.Errorf("AddSchemaDefault should not error on non-existent property: %v", err)
+		}
+	})
+
+	t.Run("handles nil schema gracefully", func(t *testing.T) {
+		// Should not panic or error
+		if err := AddSchemaDefault(nil, "field", "value"); err != nil {
+			t.Errorf("AddSchemaDefault should not error on nil schema: %v", err)
+		}
+	})
+}
+
+func TestGenerateOutputSchemaWithDefaults(t *testing.T) {
+	t.Run("manually adds default values to schema", func(t *testing.T) {
+		type OutputWithDefaults struct {
+			Name    string `json:"name" jsonschema:"Name of the item"`
+			Count   int    `json:"count" jsonschema:"Number of items"`
+			Enabled bool   `json:"enabled" jsonschema:"Whether enabled"`
+		}
+
+		schema, err := GenerateOutputSchema[OutputWithDefaults]()
+		if err != nil {
+			t.Fatalf("GenerateOutputSchema failed: %v", err)
+		}
+
+		if schema == nil {
+			t.Fatal("Expected schema to be non-nil")
+		}
+
+		// Manually add default values
+		if nameProp, ok := schema.Properties["name"]; ok {
+			nameProp.Default = json.RawMessage(`"test"`)
+		}
+		if countProp, ok := schema.Properties["count"]; ok {
+			countProp.Default = json.RawMessage(`100`)
+		}
+		if enabledProp, ok := schema.Properties["enabled"]; ok {
+			enabledProp.Default = json.RawMessage(`true`)
+		}
+
+		// Check name property has default
+		nameProp, ok := schema.Properties["name"]
+		if !ok {
+			t.Fatal("Expected 'name' property to be defined")
+		}
+		if len(nameProp.Default) == 0 {
+			t.Error("Expected 'name' property to have a default value")
+		} else {
+			var nameDefault string
+			if err := json.Unmarshal(nameProp.Default, &nameDefault); err != nil {
+				t.Errorf("Failed to unmarshal name default: %v", err)
+			} else if nameDefault != "test" {
+				t.Errorf("Expected name default to be 'test', got %v", nameDefault)
+			}
+		}
+
+		// Check count property has default
+		countProp, ok := schema.Properties["count"]
+		if !ok {
+			t.Fatal("Expected 'count' property to be defined")
+		}
+		if len(countProp.Default) == 0 {
+			t.Error("Expected 'count' property to have a default value")
+		} else {
+			var countDefault int
+			if err := json.Unmarshal(countProp.Default, &countDefault); err != nil {
+				t.Errorf("Failed to unmarshal count default: %v", err)
+			} else if countDefault != 100 {
+				t.Errorf("Expected count default to be 100, got %v", countDefault)
+			}
+		}
+
+		// Check enabled property has default
+		enabledProp, ok := schema.Properties["enabled"]
+		if !ok {
+			t.Fatal("Expected 'enabled' property to be defined")
+		}
+		if len(enabledProp.Default) == 0 {
+			t.Error("Expected 'enabled' property to have a default value")
+		} else {
+			var enabledDefault bool
+			if err := json.Unmarshal(enabledProp.Default, &enabledDefault); err != nil {
+				t.Errorf("Failed to unmarshal enabled default: %v", err)
+			} else if !enabledDefault {
+				t.Errorf("Expected enabled default to be true, got %v", enabledDefault)
 			}
 		}
 	})

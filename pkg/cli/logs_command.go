@@ -16,9 +16,13 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var logsCommandLog = logger.New("cli:logs_command")
 
 // NewLogsCommand creates the logs command
 func NewLogsCommand() *cobra.Command {
@@ -75,35 +79,39 @@ Campaign Orchestrator Usage:
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific workflow
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research.md        # Download logs (alternative format)
-  ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
-  ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
-  ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Download all runs from last week
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
-  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Download all runs until yesterday
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Download all runs from last month
-  ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
-  ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
-  ` + constants.CLIExtensionPrefix + ` logs --engine copilot          # Filter logs by copilot engine
-  ` + constants.CLIExtensionPrefix + ` logs --firewall                # Filter logs with firewall enabled
-  ` + constants.CLIExtensionPrefix + ` logs --no-firewall             # Filter logs without firewall
-  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
-  ` + constants.CLIExtensionPrefix + ` logs --ref main                # Filter logs by branch or tag
-  ` + constants.CLIExtensionPrefix + ` logs --ref feature-xyz         # Filter logs by feature branch
-  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
-  ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
-  ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
-  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
-  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate Markdown reports
-  ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
-  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both Markdown and JSON
-  ` + constants.CLIExtensionPrefix + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
+  ` + string(constants.CLIExtensionPrefix) + ` logs                           # Download logs for all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research           # Download logs for specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research.md        # Download logs (alternative format)
+  ` + string(constants.CLIExtensionPrefix) + ` logs -c 10                     # Download last 10 matching runs
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date 2024-01-01   # Download all runs after date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date 2024-01-31     # Download all runs before date
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w          # Download all runs from last week
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
+  ` + string(constants.CLIExtensionPrefix) + ` logs --end-date -1d            # Download all runs until yesterday
+  ` + string(constants.CLIExtensionPrefix) + ` logs --start-date -1mo         # Download all runs from last month
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine claude           # Filter logs by claude engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine codex            # Filter logs by codex engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --engine copilot          # Filter logs by copilot engine
+  ` + string(constants.CLIExtensionPrefix) + ` logs --firewall                # Filter logs with firewall enabled
+  ` + string(constants.CLIExtensionPrefix) + ` logs --no-firewall             # Filter logs without firewall
+  ` + string(constants.CLIExtensionPrefix) + ` logs -o ./my-logs              # Custom output directory
+  ` + string(constants.CLIExtensionPrefix) + ` logs --ref main                # Filter logs by branch or tag
+  ` + string(constants.CLIExtensionPrefix) + ` logs --ref feature-xyz         # Filter logs by feature branch
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000       # Filter runs after run ID 1000
+  ` + string(constants.CLIExtensionPrefix) + ` logs --before-run-id 2000      # Filter runs before run ID 2000
+  ` + string(constants.CLIExtensionPrefix) + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+  ` + string(constants.CLIExtensionPrefix) + ` logs --tool-graph              # Generate Mermaid tool sequence graph
+  ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
+  ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
+  ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+  ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
+
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
+				logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
+
 				// Convert workflow ID to GitHub Actions workflow name
 				// First try to resolve as a workflow ID
 				resolvedName, err := workflow.ResolveWorkflowName(args[0])
@@ -111,13 +119,13 @@ Examples:
 					// If that fails, check if it's already a GitHub Actions workflow name
 					// by checking if any .lock.yml files have this as their name
 					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
-					if nameErr == nil && contains(agenticWorkflowNames, args[0]) {
+					if nameErr == nil && sliceutil.Contains(agenticWorkflowNames, args[0]) {
 						// It's already a valid GitHub Actions workflow name
 						workflowName = args[0]
 					} else {
 						// Neither workflow ID nor valid GitHub Actions workflow name
 						suggestions := []string{
-							fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+							fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 							"Check for typos in the workflow name",
 							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
 						}
@@ -161,28 +169,35 @@ Examples:
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
 			if startDate != "" {
+				logsCommandLog.Printf("Resolving start date: %s", startDate)
 				resolvedStartDate, err := workflow.ResolveRelativeDate(startDate, now)
 				if err != nil {
 					return fmt.Errorf("invalid start-date format '%s': %v", startDate, err)
 				}
 				startDate = resolvedStartDate
+				logsCommandLog.Printf("Resolved start date to: %s", startDate)
 			}
 			if endDate != "" {
+				logsCommandLog.Printf("Resolving end date: %s", endDate)
 				resolvedEndDate, err := workflow.ResolveRelativeDate(endDate, now)
 				if err != nil {
 					return fmt.Errorf("invalid end-date format '%s': %v", endDate, err)
 				}
 				endDate = resolvedEndDate
+				logsCommandLog.Printf("Resolved end date to: %s", endDate)
 			}
 
 			// Validate engine parameter using the engine registry
 			if engine != "" {
+				logsCommandLog.Printf("Validating engine parameter: %s", engine)
 				registry := workflow.GetGlobalEngineRegistry()
 				if !registry.IsValidEngine(engine) {
 					supportedEngines := registry.GetSupportedEngines()
 					return fmt.Errorf("invalid engine value '%s'. Must be one of: %s", engine, strings.Join(supportedEngines, ", "))
 				}
 			}
+
+			logsCommandLog.Printf("Executing logs download: workflow=%s, count=%d, engine=%s", workflowName, count, engine)
 
 			return DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, ref, beforeRunID, afterRunID, repoOverride, verbose, toolGraph, noStaged, firewallOnly, noFirewall, parse, jsonOutput, timeout, campaignOnly, summaryFile)
 		},

@@ -40,10 +40,7 @@ func NewPRCommand() *cobra.Command {
 		Long: `Pull request management utilities for transferring PRs between repositories.
 
 This command provides tools for transferring pull requests from one repository
-to another, including the code changes, title, and description.
-
-Available subcommands:
-  transfer  Transfer a pull request from one repository to another`,
+to another, including the code changes, title, and description.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

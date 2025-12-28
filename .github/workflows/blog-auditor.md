@@ -26,7 +26,7 @@ tools:
     - "mktemp *"
     - "cat *"
     - "gh aw compile *"
-    - "ls *"
+    - "find * -maxdepth 1"
     - "rm *"
     - "test *"
 safe-outputs:

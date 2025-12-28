@@ -239,7 +239,7 @@ You should see both the `.md` and `.lock.yml` files.
 
 If you want to create a custom workflow, use the workflow creation agent:
 
-```
+```bash
 activate .github/agents/create-agentic-workflow.agent.md
 ```
 

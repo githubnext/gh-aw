@@ -91,6 +91,18 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Permission checks are now handled by the separate check_membership job
 	// which is always created when needed (when activation job is created)
 
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		preSteps = append(preSteps, c.generateCheckoutActionsFolder(data)...)
+
+		preSteps = append(preSteps, "      - name: Setup Scripts\n")
+		preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		preSteps = append(preSteps, "        with:\n")
+		preSteps = append(preSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
 	// Step 1: Checkout repository
 	preSteps = buildCheckoutRepository(preSteps, c)
 
@@ -110,7 +122,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	preSteps = append(preSteps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	preSteps = append(preSteps, "        run: |\n")
 	preSteps = append(preSteps, "          echo \"Downloaded asset files:\"\n")
-	preSteps = append(preSteps, "          ls -la /tmp/gh-aw/safeoutputs/assets/\n")
+	preSteps = append(preSteps, "          find /tmp/gh-aw/safeoutputs/assets/ -maxdepth 1 -ls\n")
 
 	// Build custom environment variables specific to upload-assets
 	var customEnvVars []string
@@ -133,7 +145,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	// Build job dependencies
 	needs := []string{mainJobName}
 	if threatDetectionEnabled {
-		needs = append(needs, constants.DetectionJobName)
+		needs = append(needs, string(constants.DetectionJobName))
 		publishAssetsLog.Printf("Added detection job dependency for upload_assets")
 	}
 

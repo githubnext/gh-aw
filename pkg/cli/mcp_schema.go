@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -29,4 +32,36 @@ import (
 //	schema, err := GenerateOutputSchema[Output]()
 func GenerateOutputSchema[T any]() (*jsonschema.Schema, error) {
 	return jsonschema.For[T](nil)
+}
+
+// AddSchemaDefault adds a default value to a property in a JSON schema.
+// This is useful for elicitation defaults (SEP-1024) that improve UX by
+// suggesting sensible starting values to MCP clients.
+//
+// The value must be JSON-marshallable and appropriate for the property type.
+//
+// Example:
+//
+//	schema, err := GenerateOutputSchema[MyArgs]()
+//	AddSchemaDefault(schema, "count", 100)          // number default
+//	AddSchemaDefault(schema, "enabled", true)       // boolean default
+//	AddSchemaDefault(schema, "name", "default")     // string default
+func AddSchemaDefault(schema *jsonschema.Schema, propertyName string, value any) error {
+	if schema == nil || schema.Properties == nil {
+		return nil
+	}
+
+	prop, ok := schema.Properties[propertyName]
+	if !ok {
+		return nil // Property doesn't exist, nothing to do
+	}
+
+	// Marshal the value to JSON
+	defaultBytes, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal default value for %s: %w", propertyName, err)
+	}
+
+	prop.Default = json.RawMessage(defaultBytes)
+	return nil
 }

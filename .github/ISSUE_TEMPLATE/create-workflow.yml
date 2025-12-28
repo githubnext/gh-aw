@@ -6,25 +6,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## Create an Agentic Workflow with AI Assistance
+        ## Create an Agentic Workflow
         
-        Our AI workflow expert will help you create a complete agentic workflow specification. Just provide:
-        1. A name for your workflow
-        2. A description of what you want to automate
+        Provide a workflow name and description. The AI generates technical details (triggers, safe outputs, tools).
         
-        The AI will generate all the technical details including triggers, safe outputs, tools, and more.
-        
-        **What happens next:**
-        1. An AI agent analyzes your requirements and generates a complete workflow
-        2. The workflow includes appropriate triggers, tools, permissions, and safe outputs
-        3. A pull request is created automatically with the generated workflow file
-        4. Review and merge the PR to activate your workflow
+        **Process:**
+        1. AI analyzes requirements and generates workflow
+        2. PR created with workflow file
+        3. Review and merge to activate
 
   - type: input
     id: workflow_name
     attributes:
       label: Workflow Name
-      description: A short, descriptive name for your workflow (e.g., "Issue Classifier", "PR Reviewer", "Documentation Generator")
+      description: Short, descriptive name (e.g., "Issue Classifier", "PR Reviewer")
       placeholder: My Workflow Name
     validations:
       required: true
@@ -34,15 +29,14 @@ body:
     attributes:
       label: Workflow Description
       description: |
-        What should this workflow do? Be as specific or as high-level as you'd like.
+        What should this workflow do? Be specific. (~125 words recommended)
         
         Examples:
-        - "Automatically label issues based on their content"
-        - "Review pull requests and provide feedback on code quality"
-        - "Generate weekly reports of repository activity"
-        - "Monitor dependencies and create issues for outdated packages"
+        - "Label issues based on content"
+        - "Review PRs for code quality"
+        - "Generate weekly activity reports"
       placeholder: |
-        Describe what you want this workflow to automate...
+        Describe what you want automated...
     validations:
       required: true
 
@@ -50,10 +44,9 @@ body:
     id: additional_context
     attributes:
       label: Additional Context (Optional)
-      description: |
-        Any other information that might be helpful? (triggers, schedules, specific requirements, constraints, etc.)
+      description: Triggers, schedules, requirements, constraints
       placeholder: |
-        Add any relevant context...
+        Add relevant context...
     validations:
       required: false
 
@@ -64,10 +57,7 @@ body:
         
         ### How it works
         
-        After submitting:
-        1. **This issue becomes your workflow design hub** - Track progress here
-        2. **AI generates a complete workflow** - Including triggers, tools, and safe outputs
-        3. **A PR is created automatically** - Contains the workflow markdown file
-        4. **Review and merge** - Activate your workflow once you're satisfied
-        
-        The AI will handle all the technical details and best practices for you!
+        1. Issue becomes workflow design hub
+        2. AI generates workflow with triggers, tools, safe outputs
+        3. PR created automatically
+        4. Review and merge to activate

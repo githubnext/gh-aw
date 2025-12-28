@@ -165,6 +165,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					} else if sizeUint64, ok := maxFileSize.(uint64); ok {
 						entry.MaxFileSize = int(sizeUint64)
 					}
+					// Validate max-file-size bounds
+					if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+						return nil, err
+					}
 				}
 
 				// Parse max-file-count
@@ -175,6 +179,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 						entry.MaxFileCount = int(countFloat)
 					} else if countUint64, ok := maxFileCount.(uint64); ok {
 						entry.MaxFileCount = int(countUint64)
+					}
+					// Validate max-file-count bounds
+					if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+						return nil, err
 					}
 				}
 
@@ -253,6 +261,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			} else if sizeUint64, ok := maxFileSize.(uint64); ok {
 				entry.MaxFileSize = int(sizeUint64)
 			}
+			// Validate max-file-size bounds
+			if err := validateIntRange(entry.MaxFileSize, 1, 104857600, "max-file-size"); err != nil {
+				return nil, err
+			}
 		}
 
 		// Parse max-file-count
@@ -263,6 +275,10 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 				entry.MaxFileCount = int(countFloat)
 			} else if countUint64, ok := maxFileCount.(uint64); ok {
 				entry.MaxFileCount = int(countUint64)
+			}
+			// Validate max-file-count bounds
+			if err := validateIntRange(entry.MaxFileCount, 1, 1000, "max-file-count"); err != nil {
+				return nil, err
 			}
 		}
 
@@ -312,7 +328,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 
 	for _, memory := range data.RepoMemoryConfig.Memories {
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
@@ -345,7 +361,7 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step: Push changes to repo-memory branch
 		fmt.Fprintf(builder, "      - name: Push repo-memory changes (%s)\n", memory.ID)
@@ -428,7 +444,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Determine the memory directory
-		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Step 1: Clone the repo-memory branch
 		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
@@ -466,9 +482,9 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("          fi\n")
 		builder.WriteString("          \n")
 
-		// Create the memory subdirectory
-		fmt.Fprintf(builder, "          mkdir -p \"%s/memory/%s\"\n", memoryDir, memory.ID)
-		fmt.Fprintf(builder, "          echo \"Repo memory directory ready at %s/memory/%s\"\n", memoryDir, memory.ID)
+		// Create the memory directory (no subdirectory structure)
+		fmt.Fprintf(builder, "          mkdir -p \"%s\"\n", memoryDir)
+		fmt.Fprintf(builder, "          echo \"Repo memory directory ready at %s\"\n", memoryDir)
 	}
 }
 
@@ -483,6 +499,18 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 	repoMemoryLog.Printf("Building push_repo_memory job for %d memories (threatDetectionEnabled=%v)", len(data.RepoMemoryConfig.Memories), threatDetectionEnabled)
 
 	var steps []string
+
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
 
 	// Add checkout step to configure git (without checking out files)
 	// We use sparse-checkout to avoid downloading files since we'll checkout the memory branch
@@ -507,9 +535,12 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
 		fmt.Fprintf(&step, "          name: repo-memory-%s\n", memory.ID)
-		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory-%s\n", memory.ID)
+		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory/%s\n", memory.ID)
 		steps = append(steps, step.String())
 	}
+
+	// Determine script loading method based on action mode
+	useRequire := setupActionRef != ""
 
 	// Add push steps for each memory
 	for _, memory := range data.RepoMemoryConfig.Memories {
@@ -518,7 +549,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 			targetRepo = "${{ github.repository }}"
 		}
 
-		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory-%s", memory.ID)
+		artifactDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
 		// Build file glob filter string
 		fileGlobFilter := ""
@@ -547,10 +578,21 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		step.WriteString("        with:\n")
 		step.WriteString("          script: |\n")
 
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(pushRepoMemoryScript)
-		for _, line := range formattedScript {
-			step.WriteString(line)
+		if useRequire {
+			// Use require() to load script from copied files using setup_globals helper
+			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+			step.WriteString("            const { main } = require('" + SetupActionDestination + "/push_repo_memory.cjs');\n")
+			step.WriteString("            await main();\n")
+		} else {
+			// Inline JavaScript: Attach GitHub Actions builtin objects to global scope before script execution
+			step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+			step.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+			// Add the JavaScript script with proper indentation
+			formattedScript := FormatJavaScriptForYAML("const { main } = require('/tmp/gh-aw/actions/push_repo_memory.cjs'); await main();")
+			for _, line := range formattedScript {
+				step.WriteString(line)
+			}
 		}
 
 		steps = append(steps, step.String())

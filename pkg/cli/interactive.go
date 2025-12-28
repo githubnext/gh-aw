@@ -172,11 +172,13 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("When should this workflow run?").
+				Description("Choose the GitHub event that triggers this workflow").
 				Options(triggerOptions...).
 				Height(8).
 				Value(&b.Trigger),
 			huh.NewSelect[string]().
 				Title("Which AI engine should process this workflow?").
+				Description("The AI engine interprets instructions and executes tasks using available tools").
 				Options(engineOptions...).
 				Value(&b.Engine),
 		).
@@ -187,11 +189,13 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Which tools should the AI have access to?").
+				Description("Tools enable the AI to interact with code, APIs, and external systems").
 				Options(toolOptions...).
 				Height(8).
 				Value(&selectedTools),
 			huh.NewMultiSelect[string]().
 				Title("What outputs should the AI be able to create?").
+				Description("Safe outputs allow the AI to create GitHub resources after human approval").
 				Options(outputOptions...).
 				Height(8).
 				Value(&selectedOutputs),
@@ -203,6 +207,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("What network access does the workflow need?").
+				Description("Network access controls which external domains the workflow can reach").
 				Options(networkOptions...).
 				Value(&b.NetworkAccess),
 		).
@@ -213,7 +218,9 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 		huh.NewGroup(
 			huh.NewText().
 				Title("Describe what this workflow should do:").
-				Value(&b.Intent),
+				Description("Provide clear, detailed instructions for the AI to follow when executing this workflow").
+				Value(&b.Intent).
+				Validate(ValidateWorkflowIntent),
 		).
 			Title("Instructions").
 			Description("Describe what you want this workflow to accomplish"),
@@ -349,7 +356,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 	content.WriteString("\n## Next Steps\n\n")
 	content.WriteString("1. Review and customize the workflow content above\n")
 	content.WriteString("2. Remove TODO sections when ready\n")
-	fmt.Fprintf(&content, "3. Run `%s compile` to generate the GitHub Actions workflow\n", constants.CLIExtensionPrefix)
+	fmt.Fprintf(&content, "3. Run `%s compile` to generate the GitHub Actions workflow\n", string(constants.CLIExtensionPrefix))
 	content.WriteString("4. Test the workflow with a manual trigger or appropriate event\n")
 	content.WriteString("-->\n")
 

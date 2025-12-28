@@ -16,25 +16,13 @@ type UpdateIssuesConfig struct {
 
 // parseUpdateIssuesConfig handles update-issue configuration
 func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssuesConfig {
-	// Create config struct
-	cfg := &UpdateIssuesConfig{}
-
-	// Parse base config and entity-specific fields using generic helper
-	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
-		EntityType: UpdateEntityIssue,
-		ConfigKey:  "update-issue",
-		Logger:     updateIssueLog,
-		Fields: []UpdateEntityFieldSpec{
-			{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
-			{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
-			{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
-		},
-	})
-	if baseConfig == nil {
-		return nil
-	}
-
-	// Set base fields
-	cfg.UpdateEntityConfig = *baseConfig
-	return cfg
+	return parseUpdateEntityConfigTyped(c, outputMap,
+		UpdateEntityIssue, "update-issue", updateIssueLog,
+		func(cfg *UpdateIssuesConfig) []UpdateEntityFieldSpec {
+			return []UpdateEntityFieldSpec{
+				{Name: "status", Mode: FieldParsingKeyExistence, Dest: &cfg.Status},
+				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+				{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+			}
+		}, nil)
 }

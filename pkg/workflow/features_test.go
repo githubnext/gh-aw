@@ -88,7 +88,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 	tests := []struct {
 		name        string
 		envValue    string
-		frontmatter map[string]bool
+		frontmatter map[string]any
 		flag        constants.FeatureFlag
 		expected    bool
 		description string
@@ -96,7 +96,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "frontmatter takes precedence - enabled in frontmatter, disabled in env",
 			envValue:    "",
-			frontmatter: map[string]bool{"firewall": true},
+			frontmatter: map[string]any{"firewall": true},
 			flag:        "firewall",
 			expected:    true,
 			description: "When feature is in frontmatter, it should be enabled regardless of env",
@@ -104,7 +104,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "frontmatter takes precedence - disabled in frontmatter, enabled in env",
 			envValue:    "firewall",
-			frontmatter: map[string]bool{"firewall": false},
+			frontmatter: map[string]any{"firewall": false},
 			flag:        "firewall",
 			expected:    false,
 			description: "When feature is explicitly disabled in frontmatter, env should be ignored",
@@ -112,7 +112,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "fallback to env when not in frontmatter",
 			envValue:    "firewall",
-			frontmatter: map[string]bool{"other-feature": true},
+			frontmatter: map[string]any{"other-feature": true},
 			flag:        "firewall",
 			expected:    true,
 			description: "When feature is not in frontmatter, should check env",
@@ -120,7 +120,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "disabled when not in frontmatter or env",
 			envValue:    "",
-			frontmatter: map[string]bool{"other-feature": true},
+			frontmatter: map[string]any{"other-feature": true},
 			flag:        "firewall",
 			expected:    false,
 			description: "When feature is in neither frontmatter nor env, should be disabled",
@@ -128,7 +128,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "case insensitive frontmatter check",
 			envValue:    "",
-			frontmatter: map[string]bool{"FIREWALL": true},
+			frontmatter: map[string]any{"FIREWALL": true},
 			flag:        "firewall",
 			expected:    true,
 			description: "Frontmatter feature check should be case insensitive",
@@ -144,7 +144,7 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 		{
 			name:        "empty frontmatter falls back to env",
 			envValue:    "firewall",
-			frontmatter: map[string]bool{},
+			frontmatter: map[string]any{},
 			flag:        "firewall",
 			expected:    true,
 			description: "When frontmatter is empty, should check env",

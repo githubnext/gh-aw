@@ -104,7 +104,11 @@ func buildCopilotAssignmentStep(configToken string) []string {
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 	steps = append(steps, "          script: |\n")
-	steps = append(steps, FormatJavaScriptForYAML(getAssignCopilotToCreatedIssuesScript())...)
+	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+	steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+	// Load script from external file using require()
+	steps = append(steps, "            const { main } = require('/tmp/gh-aw/actions/assign_copilot_to_created_issues.cjs');\n")
+	steps = append(steps, "            await main({ github, context, core, exec, io });\n")
 
 	return steps
 }

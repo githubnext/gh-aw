@@ -46,8 +46,8 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		verbose:          verbose,
 		engineOverride:   engineOverride,
 		version:          version,
-		skipValidation:   true,             // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
+		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
@@ -63,8 +63,8 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		engineOverride:   engineOverride,
 		customOutput:     customOutput,
 		version:          version,
-		skipValidation:   true,             // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeInline, // Default to inline mode for backwards compatibility
+		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
@@ -116,6 +116,11 @@ func (c *Compiler) SetActionMode(mode ActionMode) {
 // GetActionMode returns the current action mode
 func (c *Compiler) GetActionMode() ActionMode {
 	return c.actionMode
+}
+
+// GetVersion returns the version string used by the compiler
+func (c *Compiler) GetVersion() string {
+	return c.version
 }
 
 // IncrementWarningCount increments the warning counter
@@ -262,7 +267,7 @@ type WorkflowData struct {
 	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
 	GitHubToken         string               // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                  // timeout in seconds for MCP server startup (0 = use engine default)
-	Features            map[string]bool      // feature flags from frontmatter
+	Features            map[string]any       // feature flags and configuration options from frontmatter (supports bool and string values)
 	ActionCache         *ActionCache         // cache for action pin resolutions
 	ActionResolver      *ActionResolver      // resolver for action pins
 	StrictMode          bool                 // strict mode for action pinning

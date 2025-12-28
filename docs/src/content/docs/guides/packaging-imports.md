@@ -50,7 +50,7 @@ Remote imports are automatically cached in `.github/aw/imports/` by commit SHA. 
 
 ## Example: Modular Workflow with Imports
 
-Create a shared MCP server configuration in `.github/workflows/shared/mcp/tavily.md`:
+Create a shared Model Context Protocol (MCP) server configuration in `.github/workflows/shared/mcp/tavily.md`:
 
 ```yaml wrap
 ---

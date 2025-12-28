@@ -1,5 +1,12 @@
 package cli
 
+import (
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
+)
+
+var compileConfigLog = logger.New("cli:compile_config")
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -54,4 +61,47 @@ type ValidationResult struct {
 	Errors       []ValidationError `json:"errors"`
 	Warnings     []ValidationError `json:"warnings"`
 	CompiledFile string            `json:"compiled_file,omitempty"`
+}
+
+// sanitizeValidationResults creates a sanitized copy of validation results with all
+// error and warning messages sanitized to remove potential secret key names.
+// This is applied at the JSON output boundary to ensure no sensitive information
+// is leaked regardless of where error messages originated.
+func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
+	if results == nil {
+		return nil
+	}
+
+	compileConfigLog.Printf("Sanitizing validation results: workflow_count=%d", len(results))
+
+	sanitized := make([]ValidationResult, len(results))
+	for i, result := range results {
+		sanitized[i] = ValidationResult{
+			Workflow:     result.Workflow,
+			Valid:        result.Valid,
+			CompiledFile: result.CompiledFile,
+			Errors:       make([]ValidationError, len(result.Errors)),
+			Warnings:     make([]ValidationError, len(result.Warnings)),
+		}
+
+		// Sanitize all error messages
+		for j, err := range result.Errors {
+			sanitized[i].Errors[j] = ValidationError{
+				Type:    err.Type,
+				Message: stringutil.SanitizeErrorMessage(err.Message),
+				Line:    err.Line,
+			}
+		}
+
+		// Sanitize all warning messages
+		for j, warn := range result.Warnings {
+			sanitized[i].Warnings[j] = ValidationError{
+				Type:    warn.Type,
+				Message: stringutil.SanitizeErrorMessage(warn.Message),
+				Line:    warn.Line,
+			}
+		}
+	}
+
+	return sanitized
 }

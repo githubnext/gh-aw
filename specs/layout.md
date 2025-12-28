@@ -300,7 +300,7 @@ const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
-```
+```text
 
 ### MCP Server Constants
 
@@ -308,7 +308,7 @@ const AgentOutputArtifactName = "agent_output.json"
 const SafeOutputsMCPServerID = "safeoutputs"
 const SafeInputsMCPServerID = "safeinputs"
 const SafeInputsMCPVersion = "1.0.0"
-```
+```text
 
 ### Step and Output Constants
 
@@ -325,7 +325,7 @@ const StopTimeOkOutput = "stop_time_ok"
 const SkipCheckOkOutput = "skip_check_ok"
 const CommandPositionOkOutput = "command_position_ok"
 const ActivatedOutput = "activated"
-```
+```text
 
 ### Version Constants
 
@@ -339,7 +339,7 @@ const DefaultFirewallVersion = "v0.6.0"
 const DefaultPlaywrightMCPVersion = "0.0.52"
 const DefaultPlaywrightBrowserVersion = "v1.57.0"
 const DefaultMCPSDKVersion = "1.24.0"
-```
+```text
 
 ### Runtime Version Constants
 
@@ -354,7 +354,7 @@ const DefaultElixirVersion = "1.17"
 const DefaultGoVersion = "1.25"
 const DefaultHaskellVersion = "9.10"
 const DefaultDenoVersion = "2.x"
-```
+```text
 
 ### Timeout Constants
 
@@ -365,20 +365,20 @@ const DefaultMCPStartupTimeout = 120 * time.Second
 const DefaultAgenticWorkflowTimeoutMinutes = 20
 const DefaultToolTimeoutSeconds = 60
 const DefaultMCPStartupTimeoutSeconds = 120
-```
+```text
 
 ### Expression Formatting Constants
 
 ```go
 const MaxExpressionLineLength = 120
 const ExpressionBreakThreshold = 100
-```
+```text
 
 ### Runner Image Constants
 
 ```go
 const DefaultActivationJobRunnerImage = "ubuntu-slim"
-```
+```text
 
 ### Directory Helper
 
@@ -386,7 +386,7 @@ const DefaultActivationJobRunnerImage = "ubuntu-slim"
 func GetWorkflowDir() string {
     return filepath.Join(".github", "workflows")
 }
-```
+```text
 
 ## JavaScript Patterns
 
@@ -399,7 +399,7 @@ const path = require("path");
 const workflowBasename = path.basename(workflowFile, ".lock.yml");
 const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
 const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
-```
+```text
 
 ### Script Path References
 

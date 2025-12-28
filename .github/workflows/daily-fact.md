@@ -16,6 +16,8 @@ engine:
   model: gpt-5-mini
 strict: true
 timeout-minutes: 15
+features:
+  action-tag: "523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1"
 
 network:
   allowed:

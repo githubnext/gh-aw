@@ -38,7 +38,7 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeInputs: safeInputsConfig,
 		Tools:      make(map[string]any),
-		Features: map[string]bool{
+		Features: map[string]any{
 			"safe-inputs": true, // Feature flag is optional now
 		},
 	}

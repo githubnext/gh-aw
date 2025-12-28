@@ -54,6 +54,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -346,4 +347,33 @@ func GetScript(name string) string {
 // This is a convenience function equivalent to DefaultScriptRegistry.GetWithMode(name, mode).
 func GetScriptWithMode(name string, mode RuntimeMode) string {
 	return DefaultScriptRegistry.GetWithMode(name, mode)
+}
+
+// GetAllScriptFilenames returns a sorted list of all .cjs filenames from the JavaScript sources.
+// This is used by the build system to discover which files need to be embedded in custom actions.
+// The returned list includes all .cjs files found in pkg/workflow/js/, including dependencies.
+func GetAllScriptFilenames() []string {
+	sources := GetJavaScriptSources()
+	filenames := make([]string, 0, len(sources))
+
+	for filename := range sources {
+		// Only include .cjs files (exclude .json and other files)
+		if strings.HasSuffix(filename, ".cjs") {
+			filenames = append(filenames, filename)
+		}
+	}
+
+	// Sort for consistency
+	sortedFilenames := make([]string, len(filenames))
+	copy(sortedFilenames, filenames)
+	// Using a simple sort to avoid importing sort package issues
+	for i := 0; i < len(sortedFilenames); i++ {
+		for j := i + 1; j < len(sortedFilenames); j++ {
+			if sortedFilenames[i] > sortedFilenames[j] {
+				sortedFilenames[i], sortedFilenames[j] = sortedFilenames[j], sortedFilenames[i]
+			}
+		}
+	}
+
+	return sortedFilenames
 }

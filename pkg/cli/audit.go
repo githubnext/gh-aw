@@ -44,14 +44,14 @@ This command:
 - Generates a concise Markdown report
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890     # Audit run with ID 1234567890
-  ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
-  ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit from job URL
-  ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/runs/1234567890  # Audit from workflow run URL
-  ` + constants.CLIExtensionPrefix + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 -o ./audit-reports  # Custom output directory
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890     # Audit run with ID 1234567890
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit from job URL
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/runs/1234567890  # Audit from workflow run URL
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -o ./audit-reports  # Custom output directory
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -v  # Verbose output
+  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runIDOrURL := args[0]

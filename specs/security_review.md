@@ -27,7 +27,7 @@ Reviewed 2 zizmor template injection findings in GitHub Actions workflows. Both 
     ...
     echo "::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}"
     ...
-```
+```text
 
 ### Data Flow Analysis
 
@@ -46,7 +46,7 @@ graph LR
     style E fill:#FFB6C1
     style F fill:#87CEEB
     style H fill:#FFD700
-```
+```text
 
 1. **Source**: `${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}`
 2. **Origin**: Set by the "Install gh agent-task extension" step (lines 198-203)
@@ -90,7 +90,7 @@ graph LR
     GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
     GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
     GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
-```
+```text
 
 ### Data Flow Analysis
 
@@ -116,7 +116,7 @@ graph TD
     style G fill:#FFB6C1
     style I fill:#FFA500
     style L fill:#DDA0DD
-```
+```text
 
 #### GH_AW_SAFE_OUTPUTS
 1. **Source**: `${{ env.GH_AW_SAFE_OUTPUTS }}`
@@ -166,7 +166,7 @@ The compiler should conditionally include the `GH_AW_ASSETS_*` environment varia
 ```go
 // Always includes ASSETS env vars
 env["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
-```
+```text
 
 **Recommended behavior**:
 ```go
@@ -176,7 +176,7 @@ if workflowData.SafeOutputs.UploadAssets != nil {
     env["GH_AW_ASSETS_MAX_SIZE_KB"] = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}"
     env["GH_AW_ASSETS_ALLOWED_EXTS"] = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
 }
-```
+```text
 
 This would eliminate unnecessary undefined variable references and make the generated workflow cleaner.
 
@@ -206,7 +206,7 @@ on:
   schedule:
     - cron: "0 16 * * *"  # Daily at 16:00 UTC
   workflow_dispatch:
-```
+```text
 
 **mcp-inspector.md**:
 ```yaml
@@ -214,7 +214,7 @@ on:
   schedule:
     - cron: "0 18 * * 1"  # Weekly on Mondays at 18:00 UTC
   workflow_dispatch:
-```
+```text
 
 Neither workflow accepts external input from issues, pull requests, or comments that could be attacker-controlled.
 

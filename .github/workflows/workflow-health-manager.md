@@ -69,11 +69,15 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 - Flag workflows with compilation warnings
 
 **Monitor workflow execution:**
-- Query recent workflow runs (past 7 days) for each workflow
-- Track success/failure rates
+- Load shared metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
+- Use workflow_runs data for each workflow:
+  - Total runs, successful runs, failed runs
+  - Success rate (already calculated)
+- Query recent workflow runs (past 7 days) for detailed error analysis
+- Track success/failure rates from metrics data
 - Identify workflows with:
-  - Consistent failures (>80% failure rate)
-  - Recent regressions (was working, now failing)
+  - Consistent failures (>80% failure rate from metrics)
+  - Recent regressions (compare to historical metrics)
   - Timeout issues
   - Permission/authentication errors
   - Tool invocation failures
@@ -124,14 +128,18 @@ As a meta-orchestrator for workflow health, you oversee the operational health o
 - Flag workflows that could be triggered on-demand instead of scheduled
 
 **Quality metrics:**
+- Use historical metrics for trend analysis:
+  - Load daily metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/`
+  - Calculate 7-day and 30-day success rate trends
+  - Identify workflows with declining quality
 - Calculate workflow reliability score (0-100):
   - Compilation success: +20 points
-  - Recent runs successful: +30 points
+  - Recent runs successful (from metrics): +30 points
   - No timeout issues: +20 points
   - Proper error handling: +15 points
   - Up-to-date documentation: +15 points
 - Rank workflows by reliability
-- Track quality trends over time
+- Track quality trends over time using historical metrics data
 
 ### 5. Proactive Maintenance
 
@@ -158,12 +166,29 @@ Execute these phases each run:
 
 ## Shared Memory Integration
 
-**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/default/`**
 
 This workflow shares memory with other meta-orchestrators (Campaign Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
 
+**Shared Metrics Infrastructure:**
+
+The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
+
+1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
+   - Most recent workflow run statistics
+   - Success rates, failure counts for all workflows
+   - Use to identify failing workflows without querying GitHub API repeatedly
+
+2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/YYYY-MM-DD.json`
+   - Daily metrics for the last 30 days
+   - Track workflow health trends over time
+   - Identify recent regressions by comparing current vs. historical success rates
+   - Calculate mean time between failures (MTBF)
+
 **Read from shared memory:**
 1. Check for existing files in the memory directory:
+   - `metrics/latest.json` - Latest performance metrics (NEW - use this first!)
+   - `metrics/daily/*.json` - Historical daily metrics for trend analysis (NEW)
    - `workflow-health-latest.md` - Your last run's summary
    - `campaign-manager-latest.md` - Latest campaign health insights
    - `agent-performance-latest.md` - Latest agent quality insights

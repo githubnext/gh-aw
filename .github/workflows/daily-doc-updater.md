@@ -35,7 +35,7 @@ tools:
   edit:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
-    - "ls -la docs"
+    - "find docs -maxdepth 1 -ls"
     - "find docs -name '*.md' -exec cat {} +"
     - "grep -r '*' docs"
 

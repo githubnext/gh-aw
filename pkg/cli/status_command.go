@@ -30,8 +30,8 @@ type WorkflowStatus struct {
 	RunConclusion string   `json:"run_conclusion,omitempty" console:"header:Run Conclusion,omitempty"`
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string) error {
-	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s", pattern, jsonOutput, ref, labelFilter)
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error {
+	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s, repo=%s", pattern, jsonOutput, ref, labelFilter, repoOverride)
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -66,7 +66,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 
 	// Get GitHub workflows data
 	statusLog.Print("Fetching GitHub workflow status")
-	githubWorkflows, err := fetchGitHubWorkflows("", verbose && !jsonOutput)
+	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose && !jsonOutput)
 	if err != nil {
 		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		if verbose && !jsonOutput {
@@ -89,7 +89,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 		if verbose && !jsonOutput {
 			fmt.Printf("Fetching latest runs for ref: %s\n", ref)
 		}
-		latestRunsByWorkflow, err = fetchLatestRunsByRef(ref, verbose && !jsonOutput)
+		latestRunsByWorkflow, err = fetchLatestRunsByRef(ref, repoOverride, verbose && !jsonOutput)
 		if err != nil {
 			statusLog.Printf("Failed to fetch workflow runs for ref %s: %v", ref, err)
 			if verbose && !jsonOutput {
@@ -454,8 +454,8 @@ func extractEngineIDFromFile(filePath string) string {
 }
 
 // fetchLatestRunsByRef fetches the latest workflow run for each workflow from a specific ref (branch or tag)
-func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, error) {
-	statusLog.Printf("Fetching latest workflow runs for ref: %s", ref)
+func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[string]*WorkflowRun, error) {
+	statusLog.Printf("Fetching latest workflow runs for ref: %s, repo: %s", ref, repoOverride)
 
 	// Start spinner for network operation (only if not in verbose mode)
 	spinner := console.NewSpinner("Fetching workflow runs for ref...")
@@ -465,6 +465,9 @@ func fetchLatestRunsByRef(ref string, verbose bool) (map[string]*WorkflowRun, er
 
 	// Fetch workflow runs for the ref (uses --branch flag which also works for tags)
 	args := []string{"run", "list", "--branch", ref, "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,headBranch", "--limit", "100"}
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
+	}
 	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 

@@ -17,9 +17,7 @@
           "completedAt": "2025-12-23T08:49:13Z",
           "log": {
             "title": "Step logs: Set up job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -31,9 +29,7 @@
           "completedAt": "2025-12-23T08:49:14Z",
           "log": {
             "title": "Step logs: Check workflow file timestamps",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -45,9 +41,7 @@
           "completedAt": "2025-12-23T08:49:14Z",
           "log": {
             "title": "Step logs: Complete job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         }
       ],
@@ -89,19 +83,11 @@
           },
           {
             "title": "VM Image",
-            "lines": [
-              "2025-12-23T08:49:12.2013576Z - OS: Linux (x64)",
-              "2025-12-23T08:49:12.2014122Z - Source: Docker",
-              "2025-12-23T08:49:12.2014633Z - Name: ubuntu:24.04",
-              "2025-12-23T08:49:12.2015123Z - Version: 20251212.32.1"
-            ]
+            "lines": ["2025-12-23T08:49:12.2013576Z - OS: Linux (x64)", "2025-12-23T08:49:12.2014122Z - Source: Docker", "2025-12-23T08:49:12.2014633Z - Name: ubuntu:24.04", "2025-12-23T08:49:12.2015123Z - Version: 20251212.32.1"]
           },
           {
             "title": "GITHUB_TOKEN Permissions",
-            "lines": [
-              "2025-12-23T08:49:12.2018587Z Contents: read",
-              "2025-12-23T08:49:12.2019112Z Metadata: read"
-            ]
+            "lines": ["2025-12-23T08:49:12.2018587Z Contents: read", "2025-12-23T08:49:12.2019112Z Metadata: read"]
           },
           {
             "title": "Run actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
@@ -213,9 +199,7 @@
           "completedAt": "2025-12-23T08:49:22Z",
           "log": {
             "title": "Step logs: Set up job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -227,9 +211,7 @@
           "completedAt": "2025-12-23T08:49:23Z",
           "log": {
             "title": "Step logs: Checkout repository",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -241,9 +223,7 @@
           "completedAt": "2025-12-23T08:49:23Z",
           "log": {
             "title": "Step logs: Create gh-aw temp directory",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -255,9 +235,7 @@
           "completedAt": "2025-12-23T08:49:23Z",
           "log": {
             "title": "Step logs: Configure Git credentials",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -269,9 +247,7 @@
           "completedAt": "2025-12-23T08:49:23Z",
           "log": {
             "title": "Step logs: Checkout PR branch",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -283,9 +259,7 @@
           "completedAt": "2025-12-23T08:49:23Z",
           "log": {
             "title": "Step logs: Validate COPILOT_GITHUB_TOKEN secret",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -297,9 +271,7 @@
           "completedAt": "2025-12-23T08:49:28Z",
           "log": {
             "title": "Step logs: Install GitHub Copilot CLI",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -311,9 +283,7 @@
           "completedAt": "2025-12-23T08:49:29Z",
           "log": {
             "title": "Step logs: Install awf binary",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -325,9 +295,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Downloading container images",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -339,9 +307,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Write Safe Outputs Config",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -353,9 +319,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Write Safe Outputs JavaScript Files",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -367,9 +331,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Setup MCPs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -381,9 +343,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Generate agentic run info",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -395,9 +355,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Generate workflow overview",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -409,9 +367,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Create prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -423,9 +379,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Append XPIA security instructions to prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -437,9 +391,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Append temporary folder instructions to prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -451,9 +403,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Append safe outputs instructions to prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -465,9 +415,7 @@
           "completedAt": "2025-12-23T08:49:32Z",
           "log": {
             "title": "Step logs: Append GitHub context to prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -479,9 +427,7 @@
           "completedAt": "2025-12-23T08:49:33Z",
           "log": {
             "title": "Step logs: Substitute placeholders",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -493,9 +439,7 @@
           "completedAt": "2025-12-23T08:49:33Z",
           "log": {
             "title": "Step logs: Interpolate variables and render templates",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -541,9 +485,7 @@
           "completedAt": "2025-12-23T08:49:34Z",
           "log": {
             "title": "Step logs: Upload prompt",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -555,9 +497,7 @@
           "completedAt": "2025-12-23T08:49:35Z",
           "log": {
             "title": "Step logs: Upload agentic run info",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -569,9 +509,7 @@
           "completedAt": "2025-12-23T08:50:42Z",
           "log": {
             "title": "Step logs: Execute GitHub Copilot CLI",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -583,9 +521,7 @@
           "completedAt": "2025-12-23T08:50:42Z",
           "log": {
             "title": "Step logs: Redact secrets in logs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -597,9 +533,7 @@
           "completedAt": "2025-12-23T08:50:43Z",
           "log": {
             "title": "Step logs: Upload Safe Outputs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -611,9 +545,7 @@
           "completedAt": "2025-12-23T08:50:44Z",
           "log": {
             "title": "Step logs: Ingest agent output",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -625,9 +557,7 @@
           "completedAt": "2025-12-23T08:50:45Z",
           "log": {
             "title": "Step logs: Upload sanitized agent output",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -639,9 +569,7 @@
           "completedAt": "2025-12-23T08:50:46Z",
           "log": {
             "title": "Step logs: Upload engine output files",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -653,9 +581,7 @@
           "completedAt": "2025-12-23T08:50:47Z",
           "log": {
             "title": "Step logs: Upload MCP logs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -667,9 +593,7 @@
           "completedAt": "2025-12-23T08:50:47Z",
           "log": {
             "title": "Step logs: Parse agent logs for step summary",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -681,9 +605,7 @@
           "completedAt": "2025-12-23T08:50:48Z",
           "log": {
             "title": "Step logs: Upload Firewall Logs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -695,9 +617,7 @@
           "completedAt": "2025-12-23T08:50:49Z",
           "log": {
             "title": "Step logs: Parse firewall logs for step summary",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -709,9 +629,7 @@
           "completedAt": "2025-12-23T08:50:50Z",
           "log": {
             "title": "Step logs: Upload Agent Stdio",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -723,9 +641,7 @@
           "completedAt": "2025-12-23T08:50:50Z",
           "log": {
             "title": "Step logs: Validate agent logs for errors",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -737,9 +653,7 @@
           "completedAt": "2025-12-23T08:50:50Z",
           "log": {
             "title": "Step logs: Post Checkout repository",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -751,9 +665,7 @@
           "completedAt": "2025-12-23T08:50:50Z",
           "log": {
             "title": "Step logs: Complete job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         }
       ],
@@ -900,11 +812,7 @@
           },
           {
             "title": "Operating System",
-            "lines": [
-              "2025-12-23T08:49:21.4537528Z Ubuntu",
-              "2025-12-23T08:49:21.4538227Z 24.04.3",
-              "2025-12-23T08:49:21.4538914Z LTS"
-            ]
+            "lines": ["2025-12-23T08:49:21.4537528Z Ubuntu", "2025-12-23T08:49:21.4538227Z 24.04.3", "2025-12-23T08:49:21.4538914Z LTS"]
           },
           {
             "title": "Runner Image",
@@ -917,12 +825,7 @@
           },
           {
             "title": "GITHUB_TOKEN Permissions",
-            "lines": [
-              "2025-12-23T08:49:21.4555839Z Contents: read",
-              "2025-12-23T08:49:21.4556724Z Issues: read",
-              "2025-12-23T08:49:21.4557532Z Metadata: read",
-              "2025-12-23T08:49:21.4558388Z PullRequests: read"
-            ]
+            "lines": ["2025-12-23T08:49:21.4555839Z Contents: read", "2025-12-23T08:49:21.4556724Z Issues: read", "2025-12-23T08:49:21.4557532Z Metadata: read", "2025-12-23T08:49:21.4558388Z PullRequests: read"]
           },
           {
             "title": "Run actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd",
@@ -979,9 +882,7 @@
           },
           {
             "title": "Disabling automatic garbage collection",
-            "lines": [
-              "2025-12-23T08:49:23.1677231Z [command]/usr/bin/git config --local gc.auto 0"
-            ]
+            "lines": ["2025-12-23T08:49:23.1677231Z [command]/usr/bin/git config --local gc.auto 0"]
           },
           {
             "title": "Setting up auth",
@@ -2164,9 +2065,7 @@
           "completedAt": "2025-12-23T08:51:00Z",
           "log": {
             "title": "Step logs: Set up job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2178,9 +2077,7 @@
           "completedAt": "2025-12-23T08:51:01Z",
           "log": {
             "title": "Step logs: Download prompt artifact",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2192,9 +2089,7 @@
           "completedAt": "2025-12-23T08:51:01Z",
           "log": {
             "title": "Step logs: Download agent output artifact",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2206,9 +2101,7 @@
           "completedAt": "2025-12-23T08:51:01Z",
           "log": {
             "title": "Step logs: Download patch artifact",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2237,9 +2130,7 @@
           "completedAt": "2025-12-23T08:51:02Z",
           "log": {
             "title": "Step logs: Setup threat detection",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2251,9 +2142,7 @@
           "completedAt": "2025-12-23T08:51:02Z",
           "log": {
             "title": "Step logs: Ensure threat-detection directory and log",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2265,9 +2154,7 @@
           "completedAt": "2025-12-23T08:51:02Z",
           "log": {
             "title": "Step logs: Validate COPILOT_GITHUB_TOKEN secret",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2279,9 +2166,7 @@
           "completedAt": "2025-12-23T08:51:06Z",
           "log": {
             "title": "Step logs: Install GitHub Copilot CLI",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2293,9 +2178,7 @@
           "completedAt": "2025-12-23T08:51:18Z",
           "log": {
             "title": "Step logs: Execute GitHub Copilot CLI",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2307,9 +2190,7 @@
           "completedAt": "2025-12-23T08:51:18Z",
           "log": {
             "title": "Step logs: Parse threat detection results",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2321,9 +2202,7 @@
           "completedAt": "2025-12-23T08:51:19Z",
           "log": {
             "title": "Step logs: Upload threat detection log",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2335,9 +2214,7 @@
           "completedAt": "2025-12-23T08:51:19Z",
           "log": {
             "title": "Step logs: Complete job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         }
       ],
@@ -2475,11 +2352,7 @@
           },
           {
             "title": "Operating System",
-            "lines": [
-              "2025-12-23T08:50:58.0134482Z Ubuntu",
-              "2025-12-23T08:50:58.0134988Z 24.04.3",
-              "2025-12-23T08:50:58.0135434Z LTS"
-            ]
+            "lines": ["2025-12-23T08:50:58.0134482Z Ubuntu", "2025-12-23T08:50:58.0134988Z 24.04.3", "2025-12-23T08:50:58.0135434Z LTS"]
           },
           {
             "title": "Runner Image",
@@ -2492,9 +2365,7 @@
           },
           {
             "title": "GITHUB_TOKEN Permissions",
-            "lines": [
-              "2025-12-23T08:50:58.0144923Z Metadata: read"
-            ]
+            "lines": ["2025-12-23T08:50:58.0144923Z Metadata: read"]
           },
           {
             "title": "Run actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
@@ -2804,9 +2675,7 @@
           "completedAt": "2025-12-23T08:51:25Z",
           "log": {
             "title": "Step logs: Set up job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2818,9 +2687,7 @@
           "completedAt": "2025-12-23T08:51:26Z",
           "log": {
             "title": "Step logs: Download agent output artifact",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2832,9 +2699,7 @@
           "completedAt": "2025-12-23T08:51:26Z",
           "log": {
             "title": "Step logs: Setup agent output environment variable",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2846,9 +2711,7 @@
           "completedAt": "2025-12-23T08:51:26Z",
           "log": {
             "title": "Step logs: Setup JavaScript files",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2860,9 +2723,7 @@
           "completedAt": "2025-12-23T08:51:30Z",
           "log": {
             "title": "Step logs: Update Project",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -2874,9 +2735,7 @@
           "completedAt": "2025-12-23T08:51:30Z",
           "log": {
             "title": "Step logs: Complete job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         }
       ],
@@ -2937,19 +2796,11 @@
           },
           {
             "title": "VM Image",
-            "lines": [
-              "2025-12-23T08:51:24.4155132Z - OS: Linux (x64)",
-              "2025-12-23T08:51:24.4155581Z - Source: Docker",
-              "2025-12-23T08:51:24.4156077Z - Name: ubuntu:24.04",
-              "2025-12-23T08:51:24.4156532Z - Version: 20251212.32.1"
-            ]
+            "lines": ["2025-12-23T08:51:24.4155132Z - OS: Linux (x64)", "2025-12-23T08:51:24.4155581Z - Source: Docker", "2025-12-23T08:51:24.4156077Z - Name: ubuntu:24.04", "2025-12-23T08:51:24.4156532Z - Version: 20251212.32.1"]
           },
           {
             "title": "GITHUB_TOKEN Permissions",
-            "lines": [
-              "2025-12-23T08:51:24.4160147Z Contents: read",
-              "2025-12-23T08:51:24.4160701Z Metadata: read"
-            ]
+            "lines": ["2025-12-23T08:51:24.4160147Z Contents: read", "2025-12-23T08:51:24.4160701Z Metadata: read"]
           },
           {
             "title": "Run actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
@@ -3226,9 +3077,7 @@
           "completedAt": "2025-12-23T08:51:37Z",
           "log": {
             "title": "Step logs: Set up job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3240,9 +3089,7 @@
           "completedAt": "2025-12-23T08:51:37Z",
           "log": {
             "title": "Step logs: Debug job inputs",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3254,9 +3101,7 @@
           "completedAt": "2025-12-23T08:51:38Z",
           "log": {
             "title": "Step logs: Download agent output artifact",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3268,9 +3113,7 @@
           "completedAt": "2025-12-23T08:51:38Z",
           "log": {
             "title": "Step logs: Setup agent output environment variable",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3282,9 +3125,7 @@
           "completedAt": "2025-12-23T08:51:39Z",
           "log": {
             "title": "Step logs: Process No-Op Messages",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3296,9 +3137,7 @@
           "completedAt": "2025-12-23T08:51:39Z",
           "log": {
             "title": "Step logs: Record Missing Tool",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3310,9 +3149,7 @@
           "completedAt": "2025-12-23T08:51:39Z",
           "log": {
             "title": "Step logs: Update reaction comment with completion status",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         },
         {
@@ -3324,9 +3161,7 @@
           "completedAt": "2025-12-23T08:51:39Z",
           "log": {
             "title": "Step logs: Complete job",
-            "lines": [
-              "(No separate log group found for this step. See job logs above.)"
-            ]
+            "lines": ["(No separate log group found for this step. See job logs above.)"]
           }
         }
       ],
@@ -3396,12 +3231,7 @@
           },
           {
             "title": "VM Image",
-            "lines": [
-              "2025-12-23T08:51:35.1573315Z - OS: Linux (x64)",
-              "2025-12-23T08:51:35.1574217Z - Source: Docker",
-              "2025-12-23T08:51:35.1575006Z - Name: ubuntu:24.04",
-              "2025-12-23T08:51:35.1575479Z - Version: 20251212.32.1"
-            ]
+            "lines": ["2025-12-23T08:51:35.1573315Z - OS: Linux (x64)", "2025-12-23T08:51:35.1574217Z - Source: Docker", "2025-12-23T08:51:35.1575006Z - Name: ubuntu:24.04", "2025-12-23T08:51:35.1575479Z - Version: 20251212.32.1"]
           },
           {
             "title": "GITHUB_TOKEN Permissions",

@@ -37,7 +37,11 @@ imports:
   - shared/copilot-pr-data-fetch.md
 
 tools:
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/nlp-analysis
+    description: "Historical NLP analysis results"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   edit:
   github:
     toolsets: [default]
@@ -221,7 +225,7 @@ For each generated chart:
 
 1. **Verify chart was created**:
    ```bash
-   ls -lh /tmp/gh-aw/python/charts/
+   find /tmp/gh-aw/python/charts/ -maxdepth 1 -ls
    ```
 
 2. **Upload each chart** using the `upload asset` tool

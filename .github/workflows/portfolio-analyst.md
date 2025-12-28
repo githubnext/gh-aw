@@ -153,7 +153,7 @@ cat /tmp/portfolio-logs/summary.json | jq '.runs[]'
 find .github/workflows/ -name '*.md' -type f
 
 # Individual run logs are stored in subdirectories (if you need detailed logs)
-ls -la /tmp/portfolio-logs/run-*/
+find /tmp/portfolio-logs -type d -name "run-*"
 ```
 
 **Key Metrics to Extract (from summary.json .runs array):**

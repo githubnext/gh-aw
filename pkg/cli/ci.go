@@ -1,6 +1,12 @@
 package cli
 
-import "os"
+import (
+	"os"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var ciLog = logger.New("cli:ci")
 
 // IsRunningInCI checks if we're running in a CI environment
 func IsRunningInCI() bool {
@@ -13,8 +19,10 @@ func IsRunningInCI() bool {
 
 	for _, v := range ciVars {
 		if os.Getenv(v) != "" {
+			ciLog.Printf("CI environment detected via %s", v)
 			return true
 		}
 	}
+	ciLog.Print("No CI environment detected")
 	return false
 }

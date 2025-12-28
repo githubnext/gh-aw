@@ -67,7 +67,7 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 
 	// Build the step based on action mode
 	var scriptSteps []string
-	if (c.actionMode == ActionModeDev || c.actionMode == ActionModeRelease) && config.ScriptName != "" {
+	if c.actionMode.UsesExternalActions() && config.ScriptName != "" {
 		// Use custom action mode (dev or release) if enabled and script name is provided
 		safeOutputsJobsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
 		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{

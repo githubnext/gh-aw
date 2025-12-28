@@ -23,6 +23,28 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		return nil, err
 	}
 
+	// Add setup step to copy activation scripts (required - no inline fallback)
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef == "" {
+		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+	}
+
+	// For dev mode (local action path), checkout the actions folder first
+	// This requires contents: read permission
+	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+	needsContentsRead := c.actionMode.IsDev() && len(c.generateCheckoutActionsFolder(data)) > 0
+
+	steps = append(steps, "      - name: Setup Scripts\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+
+	// Set permissions if checkout is needed (for local actions in dev mode)
+	if needsContentsRead {
+		perms := NewPermissionsContentsRead()
+		permissions = perms.RenderToYAML()
+	}
+
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
@@ -41,10 +63,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("check_stop_time.cjs"))
 	}
 
 	// Add skip-if-match check if configured
@@ -61,10 +80,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MAX_MATCHES: \"%d\"\n", data.SkipIfMatch.Max))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkSkipIfMatchScript)
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_match.cjs"))
 	}
 
 	// Add command position check if this is a command workflow
@@ -76,10 +92,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add the JavaScript script with proper indentation
-		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("check_command_position.cjs"))
 	}
 
 	// Append custom steps from jobs.pre-activation if present
@@ -174,7 +187,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	}
 
 	job := &Job{
-		Name:        constants.PreActivationJobName,
+		Name:        string(constants.PreActivationJobName),
 		If:          jobIfCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
@@ -199,7 +212,7 @@ func (c *Compiler) extractPreActivationCustomFields(jobs map[string]any) ([]stri
 
 	// Check both jobs.pre-activation and jobs.pre_activation (users might define both by mistake)
 	// Import from both if both are defined
-	jobVariants := []string{"pre-activation", constants.PreActivationJobName}
+	jobVariants := []string{"pre-activation", string(constants.PreActivationJobName)}
 
 	for _, jobName := range jobVariants {
 		preActivationJob, exists := jobs[jobName]
@@ -282,6 +295,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add setup step to copy activation scripts (required - no inline fallback)
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef == "" {
+		return nil, fmt.Errorf("setup action reference is required but could not be resolved")
+	}
+
+	// For dev mode (local action path), checkout the actions folder first
+	steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+	steps = append(steps, "      - name: Setup Scripts\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -290,10 +317,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
-
-	// Add the JavaScript script with proper indentation (using API-based version)
-	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampAPIScript)
-	steps = append(steps, formattedScript...)
+	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -302,9 +326,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
+		steps = append(steps, generateGitHubScriptWithRequire("compute_text.cjs"))
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -350,10 +372,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add each line of the script with proper indentation (bundled version with messages.cjs)
-		formattedScript := FormatJavaScriptForYAML(getAddReactionAndEditCommentScript())
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("add_reaction_and_edit_comment.cjs"))
 
 		// Add reaction outputs
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
@@ -378,10 +397,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add the lock-issue script
-		formattedScript := FormatJavaScriptForYAML(lockIssueScript)
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("lock-issue.cjs"))
 
 		// Add output for tracking if issue was locked
 		outputs["issue_locked"] = "${{ steps.lock-issue.outputs.locked }}"
@@ -402,7 +418,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["comment_repo"] = `""`
 	}
 
-	// If no steps have been added, add a dummy step to make the job valid
+	// If no steps have been added, add a placeholder step to make the job valid
 	// This can happen when the activation job is created only for an if condition
 	if len(steps) == 0 {
 		steps = append(steps, "      - run: echo \"Activation success\"\n")
@@ -417,13 +433,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	if preActivationJobCreated {
 		// Activation job depends on pre-activation job and checks the "activated" output
-		activationNeeds = []string{constants.PreActivationJobName}
+		activationNeeds = []string{string(constants.PreActivationJobName)}
 
 		// Also depend on custom jobs that run after pre_activation but before activation
 		activationNeeds = append(activationNeeds, customJobsBeforeActivation...)
 
 		activatedExpr := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", string(constants.PreActivationJobName), constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
 
@@ -491,7 +507,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	}
 
 	job := &Job{
-		Name:                       constants.ActivationJobName,
+		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "", // Mark job as having workflow_run safety checks
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
@@ -510,6 +526,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	log.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
+
+	// Add setup action steps at the beginning of the job
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
@@ -545,7 +573,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
+		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
@@ -555,7 +583,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.Jobs != nil {
 		for jobName := range data.Jobs {
 			// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-			if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+			if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 				continue
 			}
 
@@ -577,7 +605,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	referencedJobs := c.getReferencedCustomJobs(data.MarkdownContent, data.Jobs)
 	for _, jobName := range referencedJobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially
-		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 			continue
 		}
 
@@ -637,14 +665,36 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
+	// Set up permissions for the agent job
+	// If using local actions (dev mode without action-tag), we need to add contents: read to access the actions folder
+	permissions := data.Permissions
+	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
+		// Need to merge contents: read with existing permissions
+		if permissions == "" {
+			// No permissions specified, just add contents: read
+			perms := NewPermissionsContentsRead()
+			permissions = perms.RenderToYAML()
+		} else {
+			// Parse existing permissions and add contents: read
+			parser := NewPermissionsParser(permissions)
+			perms := parser.ToPermissions()
+
+			// Only add contents: read if not already present
+			if level, exists := perms.Get(PermissionContents); !exists || level == PermissionNone {
+				perms.Set(PermissionContents, PermissionRead)
+				permissions = perms.RenderToYAML()
+			}
+		}
+	}
+
 	job := &Job{
-		Name:        constants.AgentJobName,
+		Name:        string(constants.AgentJobName),
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Environment: c.indentYAMLLines(data.Environment, "    "),
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
-		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Permissions: c.indentYAMLLines(permissions, "    "),
 		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,

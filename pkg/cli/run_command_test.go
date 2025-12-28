@@ -15,14 +15,14 @@ func TestAuditSuggestionMessage(t *testing.T) {
 	runID := int64(1234567890)
 
 	// Generate the audit suggestion message
-	auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", constants.CLIExtensionPrefix, runID)
+	auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), runID)
 
 	// Verify the message contains the expected elements
 	expectedElements := []string{
 		"💡", // Lightbulb emoji for friendly suggestion
 		"To analyze this run",
 		"use:",
-		constants.CLIExtensionPrefix, // Should be "gh aw"
+		string(constants.CLIExtensionPrefix), // Should be "gh aw"
 		"audit",
 		fmt.Sprintf("%d", runID),
 	}
@@ -34,7 +34,7 @@ func TestAuditSuggestionMessage(t *testing.T) {
 	}
 
 	// Verify the full command format
-	expectedCommand := fmt.Sprintf("%s audit %d", constants.CLIExtensionPrefix, runID)
+	expectedCommand := fmt.Sprintf("%s audit %d", string(constants.CLIExtensionPrefix), runID)
 	if !strings.Contains(auditSuggestion, expectedCommand) {
 		t.Errorf("Expected audit suggestion to contain full command %q, got: %s", expectedCommand, auditSuggestion)
 	}
@@ -67,7 +67,7 @@ func TestAuditSuggestionMessageFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Generate the audit suggestion message
-			auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", constants.CLIExtensionPrefix, tt.runID)
+			auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), tt.runID)
 
 			// Verify exact format
 			if auditSuggestion != tt.expected {
@@ -93,7 +93,7 @@ func TestAuditSuggestionMessageFormat(t *testing.T) {
 // TestAuditSuggestionAgentFriendliness tests that the message is suitable for AI agents
 func TestAuditSuggestionAgentFriendliness(t *testing.T) {
 	runID := int64(1234567890)
-	auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", constants.CLIExtensionPrefix, runID)
+	auditSuggestion := fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), runID)
 
 	// Agent-friendly characteristics:
 	// 1. Clear action verb ("use")

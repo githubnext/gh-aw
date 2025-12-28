@@ -75,7 +75,7 @@ tools:
 ```
 
 :::tip[Migrate to Toolsets]
-If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between MCP server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
+If you're using the `allowed:` pattern with GitHub tools, consider migrating to `toolsets:` for better maintainability. Tool names may change between Model Context Protocol (MCP) server versions, but toolsets provide a stable API. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets).
 :::
 
 ### Toolset Missing Expected Tools
@@ -211,6 +211,22 @@ make test-unit
 ```
 
 ## Network and Connectivity Issues
+
+### Firewall Denials for Package Registries
+
+If you're experiencing firewall denials when installing packages from npm, PyPI, Docker Hub, or other registries, add the appropriate ecosystem identifier to your network configuration:
+
+```yaml wrap
+network:
+  allowed:
+    - defaults       # Basic infrastructure
+    - python        # For PyPI and pip
+    - node          # For npm, yarn, pnpm
+    - containers    # For Docker Hub, GHCR
+    - go            # For Go modules
+```
+
+See the [Network Configuration Guide](/gh-aw/guides/network-configuration/) for complete examples, ecosystem domain lists, and troubleshooting steps.
 
 ### URLs Appearing as "(redacted)"
 

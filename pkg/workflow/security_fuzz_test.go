@@ -201,7 +201,7 @@ func FuzzTemplateRendering(f *testing.F) {
 		// Expression safety validation should never panic
 		err := validateExpressionSafety(content)
 
-		// Basic sanity checks
+		// Basic validation checks
 		if err != nil && err.Error() == "" {
 			t.Errorf("validateExpressionSafety returned error with empty message")
 		}

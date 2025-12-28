@@ -127,8 +127,8 @@ security-scan: security-gosec security-govulncheck security-trivy
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@latest
-	gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated ./...
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+	gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions ./...
 	@echo "✓ Gosec scan complete (results in gosec-report.json)"
 
 .PHONY: security-govulncheck
@@ -151,11 +151,11 @@ security-trivy:
 # Test JavaScript files
 .PHONY: test-js
 test-js: build-js
-	cd pkg/workflow/js && npm run test:js -- --no-file-parallelism
+	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
 .PHONY: build-js
 build-js:
-	cd pkg/workflow/js && npm run typecheck
+	cd actions/setup/js && npm run typecheck
 
 # Bundle JavaScript files with local requires
 .PHONY: bundle-js
@@ -283,7 +283,7 @@ license-report: ## Generate CSV license report
 deps: check-node-version
 	go mod download
 	go mod tidy
-	cd pkg/workflow/js && npm ci
+	cd actions/setup/js && npm ci
 
 # Install development tools (including linter)
 .PHONY: deps-dev
@@ -298,24 +298,49 @@ download-github-actions-schema:
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
 	@echo "Formatting schema with prettier..."
-	@cd pkg/workflow/js && npm run format:schema >/dev/null 2>&1
+	@cd actions/setup/js && npm run format:schema >/dev/null 2>&1
 	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
-# Run linter
+# Run linter (full repository scan)
 .PHONY: golint
 golint:
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run; \
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		PATH="$$GOPATH/bin:$$PATH" golangci-lint run; \
 	else \
 		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
+
+# Run incremental linter (only changed files since BASE_REF)
+# This provides 50-75% faster linting on PRs by only checking changed files
+# Usage: make golint-incremental BASE_REF=origin/main
+.PHONY: golint-incremental
+golint-incremental:
+	@GOPATH=$$(go env GOPATH); \
+	if ! command -v golangci-lint >/dev/null 2>&1 && [ ! -x "$$GOPATH/bin/golangci-lint" ]; then \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
+		exit 1; \
+	fi
+	@if [ -z "$(BASE_REF)" ]; then \
+		echo "Error: BASE_REF not set. Use: make golint-incremental BASE_REF=origin/main"; \
+		exit 1; \
+	fi
+	@echo "Running incremental lint against $(BASE_REF)..."
+	@GOPATH=$$(go env GOPATH); \
+	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF)
 
 # Validate compiled workflow lock files (models: read not supported yet)
 .PHONY: validate-workflows
 validate-workflows:
 	@echo "Validating compiled workflow lock files..."
 	actionlint .github/workflows/*.lock.yml; \
+
+# Run actionlint on all workflow files
+.PHONY: actionlint
+actionlint: build
+	@echo "Validating workflows with actionlint..."
+	./$(BINARY_NAME) compile --actionlint
 
 # Format code
 .PHONY: fmt
@@ -324,45 +349,58 @@ fmt: fmt-go fmt-cjs fmt-json
 
 .PHONY: fmt-go
 fmt-go:
-	go fmt ./...
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
+		exit 1; \
+	fi
 
-# Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
+# Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
 fmt-cjs:
-	cd pkg/workflow/js && npm run format:cjs
+	cd actions/setup/js && npm run format:cjs
 
-# Format JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	cd pkg/workflow/js && npm run format:pkg-json
+	cd actions/setup/js && npm run format:pkg-json
 
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
-	@if [ -n "$$(go fmt ./...)" ]; then \
-		echo "Code is not formatted. Run 'make fmt' to fix."; \
+	@GOPATH=$$(go env GOPATH); \
+	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
+		diff_output=$$(PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt --diff 2>&1); \
+		if [ -n "$$diff_output" ]; then \
+			echo "Code is not formatted. Run 'make fmt' to fix."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
 		exit 1; \
 	fi
 
-# Check JavaScript (.cjs and .js) and JSON file formatting in pkg/workflow/js directory
+# Check JavaScript (.cjs and .js) and JSON file formatting in actions/setup/js directory
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
-	cd pkg/workflow/js && npm run lint:cjs
+	cd actions/setup/js && npm run lint:cjs
 
-# Check JSON file formatting in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Check JSON file formatting in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-check-json
 fmt-check-json:
-	@if ! cd pkg/workflow/js && npm run check:pkg-json 2>&1 | grep -q "All matched files use Prettier code style"; then \
+	@if ! cd actions/setup/js && npm run check:pkg-json 2>&1 | grep -q "All matched files use Prettier code style"; then \
 		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
 		exit 1; \
 	fi
 
-# Lint JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
+# Lint JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: lint-cjs
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
-# Lint JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
+# Lint JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: lint-json
 lint-json: fmt-check-json
 	@echo "✓ JSON formatting validated"
@@ -416,6 +454,8 @@ sync-templates:
 	@cp .github/agents/create-shared-agentic-workflow.agent.md pkg/cli/templates/
 	@cp .github/agents/debug-agentic-workflow.agent.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
+
+
 
 # Sync action pins from .github/aw to pkg/workflow/data
 .PHONY: sync-action-pins
@@ -530,20 +570,23 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  deps-dev         - Install development dependencies (includes tools)"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
+	@echo "  golint           - Run golangci-lint (full repository scan)"
+	@echo "  golint-incremental - Run golangci-lint incrementally (only changed files, requires BASE_REF)"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js"
-	@echo "  fmt-json         - Format JSON files in pkg directory (excluding pkg/workflow/js)"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in actions/setup/js"
+	@echo "  fmt-json         - Format JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  fmt-check        - Check code formatting"
-	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in pkg/workflow/js"
-	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding pkg/workflow/js)"
-	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
-	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
+	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in actions/setup/js"
+	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding actions/setup/js)"
+	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in actions/setup/js"
+	@echo "  lint-json        - Lint JSON files in pkg directory (excluding actions/setup/js)"
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck, trivy)"
 	@echo "  security-gosec   - Run gosec Go security scanner"
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
 	@echo "  security-trivy   - Run trivy filesystem scanner"
+	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"

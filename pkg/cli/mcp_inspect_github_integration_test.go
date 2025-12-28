@@ -71,7 +71,7 @@ This workflow tests GitHub tool configuration.
 			// Run mcp inspect command to verify GitHub configuration
 			cmd := exec.Command(setup.binaryPath, "mcp", "inspect", "test-github-"+tc.name, "--server", "github", "--verbose")
 			cmd.Dir = setup.tempDir
-			// Set a dummy GitHub token to avoid token validation errors
+			// Set a placeholder GitHub token to avoid token validation errors
 			cmd.Env = append(os.Environ(), "GITHUB_TOKEN=test_token_for_integration_test")
 
 			output, err := cmd.CombinedOutput()

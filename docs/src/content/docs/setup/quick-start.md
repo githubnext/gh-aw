@@ -14,9 +14,9 @@ sidebar:
 
 Before installing, ensure you have:
 
-- ✅ **[GitHub CLI](https://cli.github.com/)** v2.0.0+ installed and authenticated (`gh auth login`)
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
 - ✅ **GitHub account** with admin or write access to a repository
-- ✅ **GitHub Actions** enabled in your repository
+- ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
 - ✅ **Git** installed on your machine
 - ✅ **Operating System:** Linux, macOS, or Windows with WSL
 
@@ -44,7 +44,7 @@ npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubn
 
 Before installing anything, it helps to understand the workflow lifecycle:
 
-```
+```text
 1. You write       2. Compile           3. GitHub Actions runs
    .md file    →    gh aw compile   →    .lock.yml file
    (natural         (translates to        (GitHub Actions
@@ -92,7 +92,7 @@ This creates a pull request that adds `.github/workflows/daily-team-status.md` a
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI that executes your workflow instructions).
+Agentic workflows need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
 
 To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
 
@@ -135,7 +135,7 @@ gh aw status
 ```
 
 **Expected output:**
-```
+```text
 Workflow                 Engine    State     Enabled  Schedule
 ──────────────────────────────────────────────────────────────
 daily-team-status        copilot   ✓         Yes      0 9 * * 1-5
@@ -165,7 +165,9 @@ Once complete, a new issue will be created in your repository with daily news! T
 
 ## Understanding Your First Workflow
 
-The daily team status workflow creates a status report every weekday and posts it as an issue:
+The daily team status workflow creates a status report every weekday and posts it as an issue. The workflow file has two parts:
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section) — The section between `---` markers that configures when the workflow runs and what it can do
+- **Markdown instructions** — Natural language task descriptions for the AI
 
 ```aw wrap
 ---
@@ -197,6 +199,10 @@ Create an upbeat daily status report for the team as a GitHub issue.
 1. Gather recent activity from the repository
 2. Create a new GitHub issue with your findings and insights
 ```
+
+**Key configuration elements:**
+- **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (GitHub API access)
+- **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (validated GitHub API operations) — Allows creating issues without giving the AI write permissions
 
 ## Customize Your Workflow
 

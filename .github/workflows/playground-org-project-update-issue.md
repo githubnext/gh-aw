@@ -12,13 +12,11 @@ permissions:
 tools:
   github:
     toolsets: [default, projects]
-
-imports:
-  - shared/safe-output-app.md
+    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }}
 
 safe-outputs:
-  update-project: {}
-
+  update-project:
+    github-token: ${{ secrets.TEST_ORG_PROJECT_WRITE }}
 ---
 
 # Issue Updater
@@ -27,4 +25,4 @@ Goal: prove we can **update a Project item** that points to a real GitHub Issue.
 
 Project board: <https://github.com/orgs/githubnext/projects/66>
 
-Task: Update all issue items to Status "In Progress".
+Task: Update all issue items that are currently on the project board with Status "In Progress".

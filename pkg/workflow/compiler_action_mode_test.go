@@ -65,14 +65,7 @@ func TestActionModeDetection(t *testing.T) {
 			expectedMode: ActionModeDev,
 			description:  "Local development (no GITHUB_REF) should use dev mode",
 		},
-		{
-			name:         "env override to inline",
-			githubRef:    "refs/heads/main",
-			githubEvent:  "push",
-			envOverride:  "inline",
-			expectedMode: ActionModeInline,
-			description:  "Environment variable should override detection",
-		},
+		// Removed inline mode test case as inline mode no longer exists
 		{
 			name:         "env override to dev",
 			githubRef:    "refs/heads/main",
@@ -144,7 +137,7 @@ func TestActionModeDetection(t *testing.T) {
 			}
 
 			// Test detection
-			mode := DetectActionMode()
+			mode := DetectActionMode("dev")
 			if mode != tt.expectedMode {
 				t.Errorf("%s: expected mode %s, got %s", tt.description, tt.expectedMode, mode)
 			}
@@ -160,6 +153,120 @@ func TestActionModeReleaseValidation(t *testing.T) {
 
 	if ActionModeRelease.String() != "release" {
 		t.Errorf("Expected string 'release', got %q", ActionModeRelease.String())
+	}
+}
+
+// TestActionModeDetectionWithReleaseFlag tests that DetectActionMode uses the release flag
+func TestActionModeDetectionWithReleaseFlag(t *testing.T) {
+	tests := []struct {
+		name         string
+		isRelease    bool
+		githubRef    string
+		githubEvent  string
+		envOverride  string
+		expectedMode ActionMode
+		description  string
+	}{
+		{
+			name:         "release flag true",
+			isRelease:    true,
+			githubRef:    "",
+			githubEvent:  "",
+			expectedMode: ActionModeRelease,
+			description:  "Release flag set to true should use release mode",
+		},
+		{
+			name:         "release flag false",
+			isRelease:    false,
+			githubRef:    "",
+			githubEvent:  "",
+			expectedMode: ActionModeDev,
+			description:  "Release flag set to false should use dev mode",
+		},
+		{
+			name:         "release flag true with main branch",
+			isRelease:    true,
+			githubRef:    "refs/heads/main",
+			githubEvent:  "push",
+			expectedMode: ActionModeRelease,
+			description:  "Release flag should take precedence over branch",
+		},
+		{
+			name:         "release flag false with release tag",
+			isRelease:    false,
+			githubRef:    "refs/tags/v1.0.0",
+			githubEvent:  "push",
+			expectedMode: ActionModeRelease,
+			description:  "GitHub release tag should still work when release flag is false",
+		},
+		{
+			name:         "env override with release flag",
+			isRelease:    true,
+			githubRef:    "",
+			githubEvent:  "",
+			envOverride:  "dev",
+			expectedMode: ActionModeDev,
+			description:  "Environment variable should override release flag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original environment and release flag
+			origRef := os.Getenv("GITHUB_REF")
+			origEvent := os.Getenv("GITHUB_EVENT_NAME")
+			origMode := os.Getenv("GH_AW_ACTION_MODE")
+			origRelease := IsRelease()
+
+			defer func() {
+				// Restore environment variables
+				if origRef != "" {
+					os.Setenv("GITHUB_REF", origRef)
+				} else {
+					os.Unsetenv("GITHUB_REF")
+				}
+				if origEvent != "" {
+					os.Setenv("GITHUB_EVENT_NAME", origEvent)
+				} else {
+					os.Unsetenv("GITHUB_EVENT_NAME")
+				}
+				if origMode != "" {
+					os.Setenv("GH_AW_ACTION_MODE", origMode)
+				} else {
+					os.Unsetenv("GH_AW_ACTION_MODE")
+				}
+				// Restore release flag
+				SetIsRelease(origRelease)
+			}()
+
+			// Set test environment
+			if tt.githubRef != "" {
+				os.Setenv("GITHUB_REF", tt.githubRef)
+			} else {
+				os.Unsetenv("GITHUB_REF")
+			}
+
+			if tt.githubEvent != "" {
+				os.Setenv("GITHUB_EVENT_NAME", tt.githubEvent)
+			} else {
+				os.Unsetenv("GITHUB_EVENT_NAME")
+			}
+
+			if tt.envOverride != "" {
+				os.Setenv("GH_AW_ACTION_MODE", tt.envOverride)
+			} else {
+				os.Unsetenv("GH_AW_ACTION_MODE")
+			}
+
+			// Set release flag
+			SetIsRelease(tt.isRelease)
+
+			// Test detection (version parameter is ignored now)
+			mode := DetectActionMode("ignored-version")
+			if mode != tt.expectedMode {
+				t.Errorf("%s: expected mode %s, got %s", tt.description, tt.expectedMode, mode)
+			}
+		})
 	}
 }
 
@@ -231,7 +338,7 @@ Test workflow with release mode.
 	// Compile - should auto-detect release mode from GITHUB_REF
 	compiler := NewCompiler(false, "", "1.0.0")
 	// Don't set action mode explicitly - let it auto-detect
-	compiler.SetActionMode(DetectActionMode())
+	compiler.SetActionMode(DetectActionMode("1.0.0"))
 	compiler.SetNoEmit(false)
 
 	if compiler.GetActionMode() != ActionModeRelease {
@@ -306,7 +413,7 @@ Test
 	}()
 
 	compiler := NewCompiler(false, "", "1.0.0")
-	compiler.SetActionMode(DetectActionMode())
+	compiler.SetActionMode(DetectActionMode("dev"))
 	compiler.SetNoEmit(false)
 
 	if compiler.GetActionMode() != ActionModeDev {

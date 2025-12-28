@@ -17,20 +17,16 @@ type UpdateDiscussionsConfig struct {
 
 // parseUpdateDiscussionsConfig handles update-discussion configuration
 func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *UpdateDiscussionsConfig {
-	// Create config struct
-	cfg := &UpdateDiscussionsConfig{}
-
-	// Parse base config and entity-specific fields using generic helper
-	baseConfig, _ := c.parseUpdateEntityConfigWithFields(outputMap, UpdateEntityParseOptions{
-		EntityType: UpdateEntityDiscussion,
-		ConfigKey:  "update-discussion",
-		Logger:     updateDiscussionLog,
-		Fields: []UpdateEntityFieldSpec{
-			{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
-			{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
-			{Name: "labels", Mode: FieldParsingKeyExistence, Dest: &cfg.Labels},
+	return parseUpdateEntityConfigTyped(c, outputMap,
+		UpdateEntityDiscussion, "update-discussion", updateDiscussionLog,
+		func(cfg *UpdateDiscussionsConfig) []UpdateEntityFieldSpec {
+			return []UpdateEntityFieldSpec{
+				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
+				{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+				{Name: "labels", Mode: FieldParsingKeyExistence, Dest: &cfg.Labels},
+			}
 		},
-		CustomParser: func(cm map[string]any) {
+		func(cm map[string]any, cfg *UpdateDiscussionsConfig) {
 			// Parse allowed-labels using shared helper
 			cfg.AllowedLabels = parseAllowedLabelsFromConfig(cm)
 			if len(cfg.AllowedLabels) > 0 {
@@ -40,13 +36,5 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 					cfg.Labels = new(bool)
 				}
 			}
-		},
-	})
-	if baseConfig == nil {
-		return nil
-	}
-
-	// Set base fields
-	cfg.UpdateEntityConfig = *baseConfig
-	return cfg
+		})
 }

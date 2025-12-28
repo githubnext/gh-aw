@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-This guide walks you through integrating MCP servers with GitHub Agentic Workflows, from your first configuration to advanced patterns.
+This guide walks you through integrating Model Context Protocol (MCP) servers with GitHub Agentic Workflows, from your first configuration to advanced patterns.
 
 ## What is MCP?
 

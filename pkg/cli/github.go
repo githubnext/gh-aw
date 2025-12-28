@@ -3,7 +3,11 @@ package cli
 import (
 	"os"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var githubLog = logger.New("cli:github")
 
 // getGitHubHost returns the GitHub host URL from environment variables.
 // It checks GITHUB_SERVER_URL first (GitHub Actions standard),
@@ -16,6 +20,9 @@ func getGitHubHost() string {
 	}
 	if host == "" {
 		host = "https://github.com"
+		githubLog.Print("Using default GitHub host: https://github.com")
+	} else {
+		githubLog.Printf("Resolved GitHub host: %s", host)
 	}
 
 	// Remove trailing slash for consistency

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -83,6 +84,18 @@ func getActionPins() []ActionPin {
 	return pins
 }
 
+// sortPinsByVersion sorts action pins by version in descending order (highest first)
+// Uses Go's standard library sort with custom comparison function
+func sortPinsByVersion(pins []ActionPin) {
+	sort.Slice(pins, func(i, j int) bool {
+		// Strip 'v' prefix for comparison
+		v1 := strings.TrimPrefix(pins[i].Version, "v")
+		v2 := strings.TrimPrefix(pins[j].Version, "v")
+		// Return true if v1 > v2 to get descending order
+		return compareVersions(v1, v2) > 0
+	})
+}
+
 // GetActionPin returns the pinned action reference for a given action repository
 // When multiple versions exist for the same repo, it returns the latest version by semver
 // If no pin is found, it returns an empty string
@@ -104,18 +117,7 @@ func GetActionPin(actionRepo string) string {
 	}
 
 	// Sort matching pins by version (descending - latest first)
-	// Use bubble sort for simplicity since we typically have few matches
-	for i := 0; i < len(matchingPins); i++ {
-		for j := i + 1; j < len(matchingPins); j++ {
-			// Strip 'v' prefix for comparison
-			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
-			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
-			if compareVersions(v1, v2) < 0 {
-				// v1 < v2, swap to get descending order
-				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
-			}
-		}
-	}
+	sortPinsByVersion(matchingPins)
 
 	// Return the latest version (first after sorting)
 	latestPin := matchingPins[0]
@@ -148,25 +150,47 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	// Dynamic resolution failed, try hardcoded pins
 	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
 	actionPins := getActionPins()
+
+	// Find all pins matching the repo
+	var matchingPins []ActionPin
 	for _, pin := range actionPins {
 		if pin.Repo == actionRepo {
-			actionPinsLog.Printf("Found hardcoded pin for %s: version=%s, sha=%s", actionRepo, pin.Version, pin.SHA[:8])
-			// Check if the version matches the hardcoded version
+			matchingPins = append(matchingPins, pin)
+		}
+	}
+
+	if len(matchingPins) == 0 {
+		// No pins found for this repo, will handle below
+		actionPinsLog.Printf("No hardcoded pins found for %s", actionRepo)
+	} else {
+		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
+
+		// Sort matching pins by version (descending - highest first)
+		sortPinsByVersion(matchingPins)
+
+		// First, try to find an exact version match
+		for _, pin := range matchingPins {
 			if pin.Version == version {
 				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
-				return actionRepo + "@" + pin.SHA + " # " + version, nil
-			}
-			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-			actionPinsLog.Printf("Version mismatch: requested=%s, found=%s, strict_mode=%t", version, pin.Version, data.StrictMode)
-			if !data.StrictMode {
-				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, pin.Version)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-				actionPinsLog.Printf("Using mismatched version in non-strict mode: %s@%s (requested) → %s@%s (used)",
-					actionRepo, version, actionRepo, pin.Version)
 				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
 			}
-			break
+		}
+
+		// No exact match found
+		// In non-strict mode, use the first pin we found (which is the highest due to sorting above)
+		// This matches the behavior of GetActionPin and GetActionPinByRepo, which return
+		// "the latest version by semver" without regard to major version boundaries.
+		// This ensures consistency across all action pin lookup functions and satisfies
+		// the requirement to "always pick the highest release according to semver".
+		if !data.StrictMode && len(matchingPins) > 0 {
+			highestPin := matchingPins[0]
+			actionPinsLog.Printf("No exact match for version %s, using highest available: %s", version, highestPin.Version)
+			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+				actionRepo, version, actionRepo, highestPin.Version)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			actionPinsLog.Printf("Using highest version in non-strict mode: %s@%s (requested) → %s@%s (used)",
+				actionRepo, version, actionRepo, highestPin.Version)
+			return actionRepo + "@" + highestPin.SHA + " # " + highestPin.Version, nil
 		}
 	}
 
@@ -320,18 +344,7 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	}
 
 	// Sort matching pins by version (descending - latest first)
-	// Use bubble sort for simplicity since we typically have few matches
-	for i := 0; i < len(matchingPins); i++ {
-		for j := i + 1; j < len(matchingPins); j++ {
-			// Strip 'v' prefix for comparison
-			v1 := strings.TrimPrefix(matchingPins[i].Version, "v")
-			v2 := strings.TrimPrefix(matchingPins[j].Version, "v")
-			if compareVersions(v1, v2) < 0 {
-				// v1 < v2, swap to get descending order
-				matchingPins[i], matchingPins[j] = matchingPins[j], matchingPins[i]
-			}
-		}
-	}
+	sortPinsByVersion(matchingPins)
 
 	// Return the latest version (first after sorting)
 	return matchingPins[0], true

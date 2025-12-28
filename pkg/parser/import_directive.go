@@ -3,7 +3,11 @@ package parser
 import (
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var importDirectiveLog = logger.New("parser:import_directive")
 
 // IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
 // The colon after #import is optional and ignored if present
@@ -32,6 +36,7 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 
 	// Check if it's legacy syntax
 	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
+	importDirectiveLog.Printf("Parsing import directive: legacy=%t, line=%s", isLegacy, trimmedLine)
 
 	var isOptional bool
 	var path string
@@ -48,10 +53,12 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 		path = strings.TrimSpace(matches[4])
 	}
 
-	return &ImportDirectiveMatch{
+	match := &ImportDirectiveMatch{
 		IsOptional: isOptional,
 		Path:       path,
 		IsLegacy:   isLegacy,
 		Original:   trimmedLine,
 	}
+	importDirectiveLog.Printf("Parsed import directive: path=%s, optional=%t, legacy=%t", path, isOptional, isLegacy)
+	return match
 }

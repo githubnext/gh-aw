@@ -1,5 +1,5 @@
 ---
-description: Daily JavaScript unbloater that cleans one .cjs file per day using modern JavaScript patterns
+description: Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking
 on:
   schedule: daily
   workflow_dispatch:
@@ -10,6 +10,9 @@ permissions:
   pull-requests: read
 tracker-id: jsweep-daily
 engine: copilot
+runtimes:
+  node:
+    version: "20"
 tools:
   serena: ["typescript"]
   github:
@@ -17,7 +20,7 @@ tools:
   edit:
   bash:
     - "find *"
-    - "ls *"
+    - "find * -maxdepth 1"
     - "cat *"
     - "wc *"
     - "head *"
@@ -37,7 +40,7 @@ strict: true
 
 # jsweep - JavaScript Unbloater
 
-You are a JavaScript unbloater expert specializing in creating solid, simple, and lean CommonJS code. Your task is to clean and modernize **one .cjs file per day** from the `pkg/workflow/js/` directory.
+You are a JavaScript unbloater expert specializing in creating solid, simple, and lean CommonJS code. Your task is to clean and modernize **one .cjs file per day** from the `actions/setup/js/` directory.
 
 ## Your Expertise
 
@@ -54,24 +57,64 @@ You are an expert at:
 ### 1. Find the Next File to Clean
 
 Use cache-memory to track which files you've already cleaned. Look for:
-- Files in `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/*.cjs`
+- Files in `/home/runner/work/gh-aw/gh-aw/actions/setup/js/*.cjs`
 - Exclude test files (`*.test.cjs`)
 - Exclude files you've already cleaned (stored in cache-memory as `cleaned_files` array)
-- Pick the file with the earliest modification timestamp that hasn't been cleaned
+- **Priority 1**: Pick files with `@ts-nocheck` or `// @ts-nocheck` comments (these need type checking enabled)
+- **Priority 2**: If no uncleaned files with `@ts-nocheck` remain, pick the **one file** with the earliest modification timestamp that hasn't been cleaned
 
-If you've cleaned all files, start over with the oldest cleaned file.
+If no uncleaned files remain, start over with the oldest cleaned file.
 
 ### 2. Analyze the File
 
-Before making changes:
+Before making changes to the file:
 - Determine the execution context (github-script vs Node.js)
+- **Check if the file has `@ts-nocheck` comment** - if so, your goal is to remove it and fix type errors
 - Identify code smells: unnecessary try/catch, verbose patterns, missing modern syntax
 - Check if the file has a corresponding test file
 - Read the test file to understand expected behavior
 
 ### 3. Clean the Code
 
-Apply these principles:
+Apply these principles to the file:
+
+**Remove `@ts-nocheck` and Fix Type Errors (High Priority):**
+```javascript
+// ❌ BEFORE: Type checking disabled
+// @ts-nocheck - Type checking disabled due to complex type errors requiring refactoring
+/// <reference types="@actions/github-script" />
+
+async function processData(data) {
+  return data.items.map(item => item.value);  // Type errors ignored
+}
+
+// ✅ AFTER: Type checking enabled with proper types
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * Process data items
+ * @param {{ items: Array<{ value: string }> }} data - Input data
+ * @returns {Array<string>} Processed values
+ */
+async function processData(data) {
+  return data.items.map(item => item.value);
+}
+```
+
+**Steps to remove `@ts-nocheck`:**
+1. Remove the `@ts-nocheck` comment from the file
+2. Replace it with `@ts-check` to enable type checking
+3. Run `npm run typecheck` to see type errors
+4. Fix type errors by:
+   - Adding JSDoc type annotations for functions and parameters
+   - Adding proper type declarations for variables
+   - Fixing incorrect type usage
+   - Adding proper null checks where needed
+5. Re-run `npm run typecheck` until all errors are resolved
+6. The file must pass type checking before creating the PR
+
+Apply these principles to the file:
 
 **Remove Unnecessary Try/Catch:**
 ```javascript
@@ -128,14 +171,25 @@ try {
 
 ### 4. Increase Testing
 
-If the file has tests:
-- Review test coverage
-- Add tests for edge cases if missing
-- Ensure all code paths are tested
+**CRITICAL**: Always add or improve tests for the file you modify.
 
-If the file lacks tests:
-- Create a basic test file (`<filename>.test.cjs`)
-- Add at least 3-5 meaningful test cases
+For the file:
+- **If the file has tests**:
+  - Review test coverage
+  - Add tests for edge cases if missing
+  - Ensure all code paths are tested
+  - Run the tests to verify they pass: `npm run test:js`
+- **If the file lacks tests** (REQUIRED):
+  - Create a comprehensive test file (`<filename>.test.cjs`) in the same directory
+  - Add at least 5-10 meaningful test cases covering:
+    - Happy path scenarios
+    - Edge cases
+    - Error conditions
+    - Boundary values
+  - Ensure tests follow the existing test patterns in the codebase
+  - Run the tests to verify they pass: `npm run test:js`
+
+Testing is NOT optional - the file you clean must have comprehensive test coverage.
 
 ### 5. Context-Specific Patterns
 
@@ -150,31 +204,49 @@ If the file lacks tests:
 - Handle errors appropriately
 - Use standard Node.js patterns
 
-### 6. Create Pull Request
+### 6. Run Tests and TypeScript Build
 
-After cleaning the file:
+After making changes to the file:
+1. Navigate to the JavaScript directory: `cd /home/runner/work/gh-aw/gh-aw/actions/setup/js/`
+2. Run the JavaScript tests: `npm run test:js` - verify all tests pass
+3. Run the TypeScript type checker: `npm run typecheck` - verify no type errors
+4. Run prettier to format the code: `npm run format:cjs` - ensure consistent formatting
+5. If there are test failures or type errors, fix them before proceeding
+6. The tests, typecheck, and prettier ensure code quality, type safety, and consistent formatting
+
+### 7. Create Pull Request
+
+After cleaning the file, adding/improving tests, and verifying all tests, TypeScript validation, and prettier formatting pass:
 1. Update cache-memory to mark this file as cleaned (add to `cleaned_files` array with timestamp)
 2. Create a pull request with:
    - Title: `[jsweep] Clean <filename>`
-   - Description explaining what was improved
+   - Description explaining what was improved in the file
    - The `unbloat` and `automation` labels
 3. Include in the PR description:
-   - Summary of changes
-   - Context type (github-script or Node.js)
-   - Any test improvements
+   - Summary of changes for the file
+   - Context type (github-script or Node.js) for the file
+   - Test improvements (number of tests added, coverage improvements)
+   - Confirmation that all tests pass, typecheck succeeds, and prettier formatting is applied
 
 ## Important Constraints
 
+- **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
 - **DO NOT change logic** - only make the code cleaner and more maintainable
-- **Always run tests** after changes if they exist
+- **Always add or improve tests** - the file must have comprehensive test coverage with at least 5-10 test cases
+- **Always run tests** after changes to verify they pass: `npm run test:js`
+- **Always run TypeScript typecheck** before creating the PR to ensure type safety: `npm run typecheck`
+  - If the file had `@ts-nocheck`, it MUST pass typecheck after removing it
+- **Always run prettier** to format the code consistently: `npm run format:cjs`
 - **Preserve all functionality** - ensure the file works exactly as before
 - **One file per run** - focus on quality over quantity
-- **Document your changes** in the PR description
+- **Document your changes** in the PR description, including:
+  - Whether `@ts-nocheck` was removed and type errors fixed
+  - Test improvements (number of tests added, coverage improvements)
 
 ## Current Repository Context
 
 - **Repository**: ${{ github.repository }}
 - **Workflow Run**: ${{ github.run_id }}
-- **JavaScript Files Location**: `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/`
+- **JavaScript Files Location**: `/home/runner/work/gh-aw/gh-aw/actions/setup/js/`
 
 Begin by checking cache-memory for previously cleaned files, then find and clean the next `.cjs` file!

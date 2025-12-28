@@ -14,6 +14,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -50,38 +51,38 @@ workflow(s) from their source repositories, and runs them in "trial mode" to cap
 making actual changes to the "simulated" host repository
 
 Single workflow:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/weekly-research
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research
   Outputs: stdout + local trials/weekly-research.DATETIME-ID.json + trial repo trials/
 
 Multiple workflows (for comparison):
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research
   Outputs: stdout + local trials/ + trial repo trials/ (individual + combined results)
 
 Workflows from different repositories:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan myorg/myrepo/custom-workflow
 
 Repository mode examples:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repo myorg/myrepo            # Run directly in myorg/myrepo (no simulation)
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repo myorg/myrepo            # Run directly in myorg/myrepo (no simulation)
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --logical-repo myorg/myrepo  # Simulate running against myorg/myrepo
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
 Repeat and cleanup examples:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 3 times total
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --quiet --host-repo my-trial # Custom host repo
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 3 times total
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --quiet --host-repo my-trial # Custom host repo
 
 Auto-merge examples:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --auto-merge-prs          # Auto-merge any PRs created during trial
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --auto-merge-prs          # Auto-merge any PRs created during trial
 
 Advanced examples:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
-  ` + constants.CLIExtensionPrefix + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
+  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
+  ` + string(constants.CLIExtensionPrefix) + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
 
 Repository modes:
-- Default: Simulate execution against current repository (using --logical-repo semantics)
-- --repo: Run directly in the specified repository (no simulation, workflows installed and run in that repo)
-- --logical-repo: Simulate execution against specified repository (github.repository points to that repo)
-- --clone-repo: Clone specified repository contents into host repository (no simulation)
+- Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to current repo)
+- --logical-repo REPO: Simulates execution against a specified repository (github.repository context points to REPO while actually running in a temporary trial repository)
+- --repo REPO: Runs directly in the specified repository (no simulation, workflows installed and executed in REPO)
+- --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.
 The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
@@ -441,7 +442,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			workflowResults = append(workflowResults, result)
 
 			// Save individual trial file
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
 			individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 			if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
@@ -478,7 +479,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 				workflowNames[i] = spec.WorkflowName
 			}
 			workflowNamesStr := strings.Join(workflowNames, "-")
-			sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoForFilename)
+			sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoForFilename)
 			combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 			combinedResult := CombinedTrialResult{
 				WorkflowNames: workflowNames,
@@ -844,7 +845,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	}
 
 	// Copy individual workflow result files
-	sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoSlug)
+	sanitizedTargetRepo := repoutil.SanitizeForFilename(targetRepoSlug)
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
@@ -933,12 +934,4 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial results copied to repository and pushed"))
 
 	return nil
-}
-
-// sanitizeRepoSlugForFilename converts a repository slug (owner/repo) to a filename-safe string
-func sanitizeRepoSlugForFilename(repoSlug string) string {
-	if repoSlug == "" {
-		return "clone-mode"
-	}
-	return strings.ReplaceAll(repoSlug, "/", "-")
 }

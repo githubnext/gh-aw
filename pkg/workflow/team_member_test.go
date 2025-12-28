@@ -135,16 +135,16 @@ Test workflow content.`,
 			// Check for team member check (now in pre_activation job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
 				strings.Contains(lockContentStr, "Check team membership for workflow") ||
-				strings.Contains(lockContentStr, constants.PreActivationJobName+":")
+				strings.Contains(lockContentStr, string(constants.PreActivationJobName)+":")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
 					t.Errorf("Expected team member check in command workflow but not found")
 				}
-				// Check for the specific failure message (updated for new implementation)
-				if !strings.Contains(lockContentStr, "Access denied: User") {
-					t.Errorf("Expected team member check failure message but not found")
-				}
+				// Note: The specific failure message "Access denied: User" is now in an external script
+				// loaded at runtime, so we can't check for it in the compiled workflow YAML.
+				// The team member check functionality is still present via the pre_activation job.
+
 				// Note: As per comment feedback, the conditional if statement has been removed
 				// since the JavaScript already tests membership and command filter is applied at job level
 				// Verify that team member check no longer has unnecessary conditional logic
@@ -158,7 +158,7 @@ Test workflow content.`,
 				}
 				if teamMemberCheckStart == -1 {
 					// Look for the new pre_activation job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, constants.PreActivationJobName+":")
+					teamMemberCheckStart = strings.Index(lockContentStr, string(constants.PreActivationJobName)+":")
 				}
 				// Find the next job after the team member check to extract the section
 				var teamMemberCheckEnd int

@@ -139,7 +139,7 @@ sandbox:
 - ✅ **Protocol Support**: Supports initialize, list_tools, call_tool, list_resources, list_prompts
 - ✅ **Comprehensive Logging**: Per-server log files with detailed operation logs
 - ✅ **Command Transport**: Subprocess-based MCP servers via stdio
-- ⏳ **HTTP Transport**: HTTP/SSE transport (planned)
+- ✅ **Streamable HTTP Transport**: HTTP transport using go-sdk StreamableClientTransport
 - ⏳ **Docker Support**: Container-based MCP servers (planned)
 
 ## Development

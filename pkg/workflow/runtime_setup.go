@@ -292,19 +292,11 @@ func detectFromMCPConfigs(tools *ToolsConfig, requirements map[string]*RuntimeRe
 
 	// Scan custom MCP tools for runtime commands
 	for _, tool := range tools.Custom {
-		// Handle structured MCP config with command field
-		if toolMap, ok := tool.(map[string]any); ok {
-			if command, exists := toolMap["command"]; exists {
-				if cmdStr, ok := command.(string); ok {
-					if runtime, found := commandToRuntime[cmdStr]; found {
-						updateRequiredRuntime(runtime, "", requirements)
-					}
-				}
+		// MCPServerConfig has a Command field directly
+		if tool.Command != "" {
+			if runtime, found := commandToRuntime[tool.Command]; found {
+				updateRequiredRuntime(runtime, "", requirements)
 			}
-		} else if cmdStr, ok := tool.(string); ok {
-			// Handle string-format MCP tool (e.g., "npx -y package")
-			// Parse the command string to detect runtime
-			detectRuntimeFromCommand(cmdStr, requirements)
 		}
 	}
 }

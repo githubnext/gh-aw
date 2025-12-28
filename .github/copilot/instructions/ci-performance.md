@@ -146,7 +146,7 @@ test:
   with:
     path: |
       ~/.npm
-      pkg/workflow/js/node_modules
+      actions/setup/js/node_modules
     key: npm-deps-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
     restore-keys: |
       npm-deps-${{ runner.os }}-

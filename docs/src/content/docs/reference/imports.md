@@ -96,7 +96,7 @@ Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-a
 
 Imported files can define `tools:`, `mcp-servers:`, `services:`, and `safe-outputs:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields are merged with the main workflow's configuration.
 
-### Tools and MCP Servers
+### Tools and Model Context Protocol (MCP) Servers
 
 ```aw wrap
 # Base workflow

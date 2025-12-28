@@ -125,6 +125,12 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 						retentionDaysIntValue := int(retentionDaysUint64)
 						entry.RetentionDays = &retentionDaysIntValue
 					}
+					// Validate retention-days bounds
+					if entry.RetentionDays != nil {
+						if err := validateIntRange(*entry.RetentionDays, 1, 90, "retention-days"); err != nil {
+							return nil, err
+						}
+					}
 				}
 
 				// Parse restore-only flag
@@ -183,6 +189,12 @@ func (c *Compiler) extractCacheMemoryConfig(toolsConfig *ToolsConfig) (*CacheMem
 			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
 				retentionDaysIntValue := int(retentionDaysUint64)
 				entry.RetentionDays = &retentionDaysIntValue
+			}
+			// Validate retention-days bounds
+			if entry.RetentionDays != nil {
+				if err := validateIntRange(*entry.RetentionDays, 1, 90, "retention-days"); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -337,8 +349,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		if useBackwardCompatiblePaths {
 			// For single default cache, use the original directory for backward compatibility
 			builder.WriteString("      - name: Create cache-memory directory\n")
-			builder.WriteString("        run: |\n")
-			WriteShellScriptToYAML(builder, createCacheMemoryDirScript, "          ")
+			builder.WriteString("        run: bash /tmp/gh-aw/actions/create_cache_memory_dir.sh\n")
 		} else {
 			fmt.Fprintf(builder, "      - name: Create cache-memory directory (%s)\n", cache.ID)
 			builder.WriteString("        run: |\n")
@@ -618,15 +629,40 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		return nil, nil
 	}
 
+	// Add setup step to copy scripts at the beginning
+	var setupSteps []string
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		setupSteps = append(setupSteps, c.generateCheckoutActionsFolder(data)...)
+
+		setupSteps = append(setupSteps, "      - name: Setup Scripts\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		setupSteps = append(setupSteps, "        with:\n")
+		setupSteps = append(setupSteps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
+	// Prepend setup steps to all cache steps
+	steps = append(setupSteps, steps...)
+
 	// Job condition: only run if detection passed
 	jobCondition := "always() && needs.detection.outputs.success == 'true'"
+
+	// Set up permissions for the cache update job
+	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder
+	permissions := NewPermissionsEmpty().RenderToYAML() // Default: no special permissions needed
+	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
+		// Need contents: read to checkout the actions folder
+		perms := NewPermissionsContentsRead()
+		permissions = perms.RenderToYAML()
+	}
 
 	job := &Job{
 		Name:        "update_cache_memory",
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
-		Permissions: NewPermissionsEmpty().RenderToYAML(), // No special permissions needed
+		Permissions: permissions,
 		Needs:       []string{"agent", "detection"},
 		Steps:       steps,
 	}

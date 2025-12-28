@@ -129,7 +129,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	condition := BuildDisjunction(false, hasOutputTypes, hasPatch)
 
 	job := &Job{
-		Name:           constants.DetectionJobName,
+		Name:           string(constants.DetectionJobName),
 		If:             condition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    NewPermissionsEmpty().RenderToYAML(),
@@ -148,6 +148,18 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 // buildThreatDetectionSteps builds the steps for the threat detection job
 func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName string) []string {
 	var steps []string
+
+	// Add setup action steps at the beginning of the job
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
 
 	// Step 1: Download agent artifacts
 	steps = append(steps, c.buildDownloadArtifactStep(mainJobName)...)

@@ -30,7 +30,7 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "add_comment", "create_issue", "missing_tool"},
 		},
 		{
 			name:               "conclusion job depends on all safe output jobs",
@@ -44,7 +44,7 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "add_comment", "create_issue", "missing_tool"},
 		},
 		{
 			name:               "conclusion job not created when add-comment is not configured",
@@ -66,7 +66,7 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "add_comment", "missing_tool"},
 		},
 		{
 			name:               "conclusion job created when reaction is explicitly set to none",
@@ -80,7 +80,7 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "add_comment", "missing_tool"},
 		},
 		{
 			name:               "conclusion job created when command and reaction are configured (no add-comment)",
@@ -93,7 +93,7 @@ func TestConclusionJob(t *testing.T) {
 				"always()",
 				"needs.agent.result != 'skipped'",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "missing_tool"},
 		},
 		{
 			name:               "conclusion job created when command is configured with push-to-pull-request-branch",
@@ -106,7 +106,7 @@ func TestConclusionJob(t *testing.T) {
 				"always()",
 				"needs.agent.result != 'skipped'",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "push_to_pull_request_branch", "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "push_to_pull_request_branch", "missing_tool"},
 		},
 		{
 			name:               "conclusion job created when command is configured but reaction is none",
@@ -119,7 +119,7 @@ func TestConclusionJob(t *testing.T) {
 				"always()",
 				"needs.agent.result != 'skipped'",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "missing_tool"},
 		},
 		{
 			name:               "conclusion job depends on custom safe-jobs",
@@ -133,7 +133,7 @@ func TestConclusionJob(t *testing.T) {
 				"needs.agent.result != 'skipped'",
 				"!(needs.add_comment.outputs.comment_id)",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
+			expectNeeds: []string{string(constants.AgentJobName), string(constants.ActivationJobName), "add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
 		},
 	}
 
@@ -164,7 +164,7 @@ func TestConclusionJob(t *testing.T) {
 			}
 
 			// Build the conclusion job
-			job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, tt.safeOutputJobNames)
+			job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), tt.safeOutputJobNames)
 			if err != nil {
 				t.Fatalf("Failed to build conclusion job: %v", err)
 			}
@@ -251,7 +251,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 
 	// Build the conclusion job with sample safe output job names
 	safeOutputJobNames := []string{"add_comment", "missing_tool"}
-	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), safeOutputJobNames)
 	if err != nil {
 		t.Fatalf("Failed to build conclusion job: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestConclusionJobWithMessages(t *testing.T) {
 
 	// Build the conclusion job
 	safeOutputJobNames := []string{"add_comment", "missing_tool"}
-	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), safeOutputJobNames)
 	if err != nil {
 		t.Fatalf("Failed to build conclusion job: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 
 	// Build the conclusion job
 	safeOutputJobNames := []string{"add_comment", "missing_tool"}
-	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), safeOutputJobNames)
 	if err != nil {
 		t.Fatalf("Failed to build conclusion job: %v", err)
 	}
@@ -510,7 +510,7 @@ func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 	}
 
 	// Build the conclusion job
-	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), safeOutputJobNames)
 	if err != nil {
 		t.Fatalf("Failed to build conclusion job: %v", err)
 	}

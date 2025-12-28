@@ -131,7 +131,7 @@ Analyze documentation files in the `docs/` directory and make targeted improveme
 
 First, check the cache folder for notes about previous cleanups:
 ```bash
-ls -la /tmp/gh-aw/cache-memory/
+find /tmp/gh-aw/cache-memory/ -maxdepth 1 -ls
 cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous cleanups found"
 ```
 

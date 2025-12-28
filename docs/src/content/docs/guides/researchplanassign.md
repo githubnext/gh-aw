@@ -11,7 +11,7 @@ The strategy follows three distinct phases:
 
 ### Phase 1: Research
 
-A research agent (typically scheduled daily or weekly) investigates the repository under a specific angle and generates a comprehensive report. Using advanced MCP tools for deep analysis (static analysis, logging data, semantic search), it examines the codebase from a specific perspective and creates a detailed discussion or issue with findings, recommendations, and supporting data. Cache memory maintains historical context to track trends over time.
+A research agent (typically scheduled daily or weekly) investigates the repository under a specific angle and generates a comprehensive report. Using advanced Model Context Protocol (MCP) tools for deep analysis (static analysis, logging data, semantic search), it examines the codebase from a specific perspective and creates a detailed discussion or issue with findings, recommendations, and supporting data. Cache memory maintains historical context to track trends over time.
 
 ### Phase 2: Plan
 

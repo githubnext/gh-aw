@@ -217,7 +217,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 
 			if job != nil {
 				// Verify job properties
-				if job.Name != constants.DetectionJobName {
+				if job.Name != string(constants.DetectionJobName) {
 					t.Errorf("Expected job name 'detection', got %q", job.Name)
 				}
 				if job.RunsOn != "runs-on: ubuntu-latest" {
@@ -304,7 +304,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 	for _, job := range jobs {
 		switch job.Name {
-		case constants.DetectionJobName:
+		case string(constants.DetectionJobName):
 			detectionJob = job
 		case "safe_outputs":
 			safeOutputsJob = job
@@ -320,7 +320,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	}
 
 	// Check that detection job depends on agent job
-	if len(detectionJob.Needs) != 1 || detectionJob.Needs[0] != constants.AgentJobName {
+	if len(detectionJob.Needs) != 1 || detectionJob.Needs[0] != string(constants.AgentJobName) {
 		t.Errorf("Expected detection job to depend on agent job, got dependencies: %v", detectionJob.Needs)
 	}
 
@@ -328,10 +328,10 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	hasAgent := false
 	hasDetection := false
 	for _, dep := range safeOutputsJob.Needs {
-		if dep == constants.AgentJobName {
+		if dep == string(constants.AgentJobName) {
 			hasAgent = true
 		}
-		if dep == constants.DetectionJobName {
+		if dep == string(constants.DetectionJobName) {
 			hasDetection = true
 		}
 	}
@@ -931,7 +931,7 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 	}
 
 	// Build the threat detection job
-	job, err := compiler.buildThreatDetectionJob(data, constants.AgentJobName)
+	job, err := compiler.buildThreatDetectionJob(data, string(constants.AgentJobName))
 	if err != nil {
 		t.Fatalf("Failed to build detection job: %v", err)
 	}
@@ -987,7 +987,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      constants.DefaultCopilotDetectionModel,
+			expectedModel:      string(constants.DefaultCopilotDetectionModel),
 		},
 		{
 			name: "copilot engine with custom model uses specified model",
@@ -1033,7 +1033,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      constants.DefaultCopilotDetectionModel,
+			expectedModel:      string(constants.DefaultCopilotDetectionModel),
 		},
 		{
 			name: "claude engine does not add model parameter",

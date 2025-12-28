@@ -116,7 +116,7 @@ nslookup github.com
 
 Run:
 ```bash
-ls -la $HOME
+find $HOME -maxdepth 1 -ls
 cat /etc/hostname
 ```
 

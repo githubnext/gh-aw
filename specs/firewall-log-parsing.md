@@ -66,16 +66,16 @@ Integration tests for:
 
 Firewall logs use a space-separated format with 10 fields:
 
-```
+```text
 timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
-```
+```text
 
 ### Example Log Entries
 
-```
+```text
 1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"
 1761332531.123 172.30.0.20:35289 blocked.example.com:443 140.82.112.23:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
-```
+```text
 
 ### Field Descriptions
 
@@ -121,7 +121,7 @@ Requests are classified as allowed or denied based on:
 
 ### Console Output
 
-```
+```text
 🔥 Firewall Log Analysis
 Total Requests   : 8
 Allowed Requests : 5
@@ -136,7 +136,7 @@ Allowed Domains:
 Denied Domains:
   ✗ blocked-domain.example.com:443 (2 requests)
   ✗ denied.malicious.site:443 (1 requests)
-```
+```text
 
 ### JSON Output
 
@@ -175,7 +175,7 @@ Denied Domains:
     }
   }
 }
-```
+```text
 
 ## Integration Points
 
@@ -210,17 +210,17 @@ The `audit` command now automatically:
 make test-unit
 # or
 go test ./pkg/cli -run "Firewall|IsRequest"
-```
+```text
 
 ### Integration Tests (2 total)
 ```bash
 go test ./pkg/cli -run TestFirewallLogIntegration
-```
+```text
 
 ### All Tests
 ```bash
 make agent-finish
-```
+```text
 
 ## Validation Results
 

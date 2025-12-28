@@ -75,14 +75,8 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
-	// Emit the substitute_placeholders script inline and call it
-	script := getSubstitutePlaceholdersScript()
-	scriptLines := strings.Split(script, "\n")
-	for _, line := range scriptLines {
-		yaml.WriteString(indent + "      " + line + "\n")
-	}
-
-	// Call the function with parameters
+	// Use require() to load script from copied files
+	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
 	yaml.WriteString(indent + "      \n")
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
@@ -99,4 +93,57 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 
 	yaml.WriteString(indent + "        }\n")
 	yaml.WriteString(indent + "      });\n")
+}
+
+// generateCheckoutActionsFolder generates the checkout step for the actions folder
+// when running in dev mode and not using the action-tag feature. This is used to
+// checkout the local actions before running the setup action.
+//
+// Returns a slice of strings that can be appended to a steps array, where each
+// string represents a line of YAML for the checkout step. Returns nil if:
+// - Not in dev mode
+// - action-tag feature is specified (uses remote actions instead)
+func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
+	// Check if action-tag is specified - if so, we're using remote actions
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				// action-tag is set, use remote actions - no checkout needed
+				return nil
+			}
+		}
+	}
+
+	// Only generate checkout in dev mode (local actions)
+	if !c.actionMode.IsDev() {
+		return nil
+	}
+
+	return []string{
+		"      - name: Checkout actions folder\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+		"        with:\n",
+		"          sparse-checkout: |\n",
+		"            actions\n",
+		"          persist-credentials: false\n",
+	}
+}
+
+// generateGitHubScriptWithRequire generates a github-script step that loads a module using require().
+// Instead of repeating the global variable assignments inline, it uses the setup_globals helper function.
+//
+// Parameters:
+//   - scriptPath: The path to the .cjs file to require (e.g., "check_stop_time.cjs")
+//
+// Returns a string containing the complete script content to be used in a github-script action's "script:" field.
+func generateGitHubScriptWithRequire(scriptPath string) string {
+	var script strings.Builder
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	script.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	script.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	script.WriteString("            const { main } = require('" + SetupActionDestination + "/" + scriptPath + "');\n")
+	script.WriteString("            await main();\n")
+
+	return script.String()
 }

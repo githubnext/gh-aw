@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -279,10 +280,12 @@ func checkSecretExistsInRepo(secretName, repoSlug string) (bool, error) {
 }
 
 // splitRepoSlug splits "owner/repo" into [owner, repo]
+// Uses repoutil.SplitRepoSlug internally but provides backward-compatible array return
 func splitRepoSlug(slug string) [2]string {
-	parts := strings.SplitN(slug, "/", 2)
-	if len(parts) == 2 {
-		return [2]string{parts[0], parts[1]}
+	owner, repo, err := repoutil.SplitRepoSlug(slug)
+	if err != nil {
+		// Fallback behavior for invalid format
+		return [2]string{slug, ""}
 	}
-	return [2]string{slug, ""}
+	return [2]string{owner, repo}
 }

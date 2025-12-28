@@ -15,6 +15,46 @@ The gh-aw project uses CommonJS modules (`.cjs` files) for JavaScript code that 
 - Bundled using a custom JavaScript bundler that inlines local `require()` calls
 - Executed in GitHub Actions using `actions/github-script@v8`
 
+### Top-Level Script Pattern
+
+Top-level `.cjs` scripts (those that are executed directly in workflows) follow a specific pattern:
+
+**✅ Correct Pattern - Export main, but don't call it:**
+```javascript
+async function main() {
+  // Script logic here
+  core.info("Running the script");
+}
+
+module.exports = { main };
+```
+
+**❌ Incorrect Pattern - Don't call main in the file:**
+```javascript
+async function main() {
+  // Script logic here
+  core.info("Running the script");
+}
+
+await main(); // ❌ Don't do this!
+
+module.exports = { main };
+```
+
+**Why this pattern?**
+- The bundler automatically injects `await main()` during inline execution in GitHub Actions
+- This allows the script to be both imported (for testing) and executed (in workflows)
+- It provides a clean separation between module definition and execution
+- It enables better testing by allowing tests to import and call `main()` with mocks
+
+**Examples of top-level scripts:**
+- `create_issue.cjs` - Creates GitHub issues
+- `add_comment.cjs` - Adds comments to issues/PRs
+- `add_labels.cjs` - Adds labels to issues/PRs
+- `update_project.cjs` - Updates GitHub Projects
+
+All of these files export `main` but do not call it directly.
+
 ## Step 1: Create the New .cjs File
 
 Create your new file in `/home/runner/work/gh-aw/gh-aw/pkg/workflow/js/` with a descriptive name:
@@ -218,8 +258,10 @@ async function main() {
   core.info(`Result: ${result}`);
 }
 
-await main();
+module.exports = { main };
 ```
+
+**Important:** Top-level scripts should export `main` but **NOT** call it directly. The bundler injects `await main()` during inline execution in GitHub Actions.
 
 **Require guidelines:**
 - Use relative paths starting with `./`
@@ -339,8 +381,10 @@ async function main() {
   core.info(`Current time: ${formatTimestamp(now)}`);
 }
 
-await main();
+module.exports = { main };
 ```
+
+**Note:** The script exports `main` but does not call it. The bundler will inject `await main()` when the script is executed inline in GitHub Actions.
 
 ### 5. Build and test:
 
@@ -389,6 +433,7 @@ Files like `create_issue.cjs`, `add_labels.cjs` that are top-level scripts:
 - Add to `scripts.go` with `//go:embed` as `xxxSource` variable
 - Create bundling getter function with `sync.Once` pattern
 - These scripts can `require()` utilities from `GetJavaScriptSources()`
+- **Must export `main` function but NOT call it** - the bundler injects `await main()` during execution
 
 ### Pattern 3: Log Parser
 
