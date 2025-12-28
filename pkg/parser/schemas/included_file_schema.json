@@ -148,7 +148,7 @@
     },
     "tools": {
       "type": "object",
-      "description": "Tools configuration for the included file",
+      "description": "Tools configuration for included files. Included files support a subset of tools available in main workflows, specifically those needed for shared configurations and reusable tool settings. Available tools: bash (shell commands), cache-memory (persistent memory), github (GitHub API), repo-memory (git-based storage). Tools restricted to main workflows: playwright, web-fetch, web-search, edit, agentic-workflows, serena (full-featured tools), and engine-specific configs (timeout, startup-timeout, safety-prompt). This design ensures included files focus on shareable configurations while keeping workflow-specific tool behavior in the main workflow definition.",
       "properties": {
         "bash": {
           "description": "Bash shell command execution tool for running command-line programs and scripts",
