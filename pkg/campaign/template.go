@@ -22,6 +22,12 @@ var closingInstructionsTemplate string
 
 // CampaignPromptData holds data for rendering campaign orchestrator prompts.
 type CampaignPromptData struct {
+	// Objective is the campaign objective statement.
+	Objective string
+
+	// KPIs is the KPI definition list for this campaign.
+	KPIs []CampaignKPI
+
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
 
@@ -30,6 +36,9 @@ type CampaignPromptData struct {
 
 	// CursorGlob is a glob for locating the durable cursor/checkpoint file in repo-memory.
 	CursorGlob string
+
+	// MetricsGlob is a glob for locating the metrics snapshot directory in repo-memory.
+	MetricsGlob string
 
 	// MaxDiscoveryItemsPerRun caps how many candidate items may be scanned during discovery.
 	MaxDiscoveryItemsPerRun int

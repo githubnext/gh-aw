@@ -3,76 +3,86 @@ title: "Getting Started"
 description: "Quick start guide for creating and launching agentic campaigns"
 ---
 
-This guide walks through the fastest way to create and launch an agentic campaign.
+This guide is the shortest path from “we want a campaign” to a working dashboard.
 
-## Quick start
+## Quick start (5 steps)
 
-1. Create an agentic campaign spec: `.github/workflows/<id>.campaign.md`.
-2. Reference one or more workflows in `workflows:`.
-3. Set `project-url` to the org Project v2 URL you use as the agentic campaign dashboard.
-4. Add a `tracker-label` so issues/PRs can be queried consistently.
-5. Run `gh aw compile` to validate campaign specs and compile workflows.
+1. Create a GitHub Project board (manual, one-time) and copy its URL.
+2. Add `.github/workflows/<id>.campaign.md` in a PR.
+3. Run `gh aw compile`.
+4. Run the generated orchestrator workflow from the Actions tab.
+5. Apply the tracker label to issues/PRs you want tracked.
 
-## Lowest-friction walkthrough (recommended)
+## 1) Create the dashboard (GitHub Project)
 
-The simplest, least-permissions way to run an agentic campaign is:
+In GitHub: your org → **Projects** → **New project**.
 
-### 1. Create the agentic campaign spec (in a PR)
+- Keep it simple: a Table view is enough.
+- If you want lanes, create a Board view and group by a single-select field (commonly `Status`).
 
-Choose one of these approaches:
+Copy the Project URL (it must be a full URL).
 
-**Option A (No-code)**: Use the "🚀 start an agentic campaign" issue form in the GitHub UI to capture intent with structured fields. The form creates an agentic campaign issue, and an agent can scaffold the spec file for you.
+## 2) Create the campaign spec
 
-**Option B (CLI)**: Use `gh aw campaign new <id>` to generate an agentic campaign spec file locally.
+Create `.github/workflows/<id>.campaign.md` with frontmatter like:
 
-**Option C (Manual)**: Author `.github/workflows/<id>.campaign.md` manually.
+```yaml
+id: framework-upgrade
+version: "v1"
+name: "Framework Upgrade"
 
-### 2. Create the org Project board once (manual)
+project-url: "https://github.com/orgs/ORG/projects/1"
+tracker-label: "campaign:framework-upgrade"
 
-Create an org Project v2 in the GitHub UI and copy its URL into `project-url`.
+objective: "Upgrade all services to Framework vNext with zero downtime."
+kpis:
+  - id: services_upgraded
+    name: "Services upgraded"
+    primary: true
+    direction: "increase"
+    target: 50
 
-This avoids requiring a PAT or GitHub App setup just to provision boards.
+workflows:
+  - framework-upgrade
+```
 
-Minimum clicks (one-time setup):
-- In GitHub: your org → **Projects** → **New project**.
-- Give it a name (for example: `Code Health: <Campaign Name>`).
-- Choose any starting layout (Table/Board). You can change views later.
-- Copy the Project URL and set it as `project-url` in the agentic campaign spec.
+You can add governance and repo-memory wiring later; start with a working loop.
 
-Optional but recommended for "kanban lanes":
-- Create a **Board** view and set **Group by** to a single-select field (commonly `Status`).
-- Note: workflows can create/update fields and single-select options, but they do not currently create or configure Project views.
+## 3) Compile
 
-### 3. Have workflows keep the board in sync using `GITHUB_TOKEN`
+Run:
 
-The generated orchestrator workflow automatically keeps the board in sync using the `update-project` safe output.
+```bash
+gh aw compile
+```
 
-Default behavior is **update-only**: if the board does not exist, the project job fails with instructions.
+This validates the spec. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `compile` also generates an orchestrator `.campaign.g.md` and compiles it to `.lock.yml`.
 
-### 4. Opt in to auto-creating the board only when you intend to
+## 4) Run the orchestrator
 
-If you want workflows to create missing boards, explicitly set `create_if_missing: true` in the `update_project` output.
+Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the dashboard in sync:
 
-For many orgs, you may also need a token override (`safe-outputs.update-project.github-token`) with sufficient org Project permissions.
+- Finds tracker-labeled issues/PRs
+- Adds them to the Project
+- Updates fields/status
+- Posts a short report
 
-## Start an Agentic Campaign with GitHub Issue Forms
+## 5) Add work items
 
-For a low-code/no-code approach, you can create an agentic campaign using the GitHub UI with the "🚀 Start an Agentic Campaign" issue form:
+Apply the tracker label (for example `campaign:framework-upgrade`) to issues/PRs you want tracked. The orchestrator will pick them up on the next run.
 
-1. **Go to the repository's Issues tab** and click "New issue"
-2. **Select "🚀 Start an Agentic Campaign"** from the available templates
-3. **Fill in the structured form fields**:
-   - **Campaign Name** (required): Human-readable name (e.g., "Framework Upgrade Q1 2025")
-   - **Campaign Identifier** (required): Unique ID using lowercase letters, digits, and hyphens (e.g., "framework-upgrade-q1-2025")
-   - **Campaign Version** (required): Version string (defaults to "v1")
-   - **Project Board URL** (required): URL of the GitHub Project you created to serve as the agentic campaign dashboard
-   - **Campaign Type** (optional): Select from Migration, Upgrade/Modernization, Security Remediation, etc.
-   - **Scope** (optional): Define what repositories, components, or areas will be affected
-   - **Constraints** (optional): List any constraints or requirements (deadlines, approvals, etc.)
-   - **Prior Learnings** (optional): Share relevant learnings from past similar campaigns
-4. **Submit the form** to create the agentic campaign issue
+## Optional: repo-memory for durable state
 
-### What happens after submission
+If you enable repo-memory for campaigns, use a stable layout:
+
+- `memory/campaigns/<campaign-id>/cursor.json`
+- `memory/campaigns/<campaign-id>/metrics/<date>.json`
+
+Campaign tooling enforces that a campaign repo-memory write includes a cursor and at least one metrics snapshot.
+
+## Start an agentic campaign with GitHub Issue Forms
+
+This repo also includes a “🚀 Start an Agentic Campaign” issue form. Use it when you want to capture intent first and let an agent scaffold the spec in a PR.
 
 When you submit the issue form:
 

@@ -31,6 +31,104 @@ async function main() {
   const ghToken = process.env.GH_TOKEN;
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
 
+  /** @param {unknown} value */
+  function isPlainObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {string} absPath */
+  function tryParseJSONFile(absPath) {
+    const raw = fs.readFileSync(absPath, "utf8");
+    if (!raw.trim()) {
+      throw new Error(`Empty JSON file: ${absPath}`);
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      throw new Error(`Invalid JSON in ${absPath}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // ============================================================================
+  // CAMPAIGN-SPECIFIC VALIDATION FUNCTIONS
+  // ============================================================================
+  // The following functions implement validation for the campaign convention:
+  // When memoryId is "campaigns" and file-glob matches "<campaign-id>/**",
+  // enforce specific JSON schemas for cursor.json and metrics/*.json files.
+  //
+  // This is a domain-specific convention used by Campaign Workflows to maintain
+  // durable state in repo-memory. See docs/guides/campaigns/ for details.
+  // ============================================================================
+
+  /** @param {any} obj @param {string} campaignId @param {string} relPath */
+  function validateCampaignCursor(obj, campaignId, relPath) {
+    if (!isPlainObject(obj)) {
+      throw new Error(`Cursor must be a JSON object: ${relPath}`);
+    }
+
+    // Cursor payload is intentionally treated as an opaque checkpoint.
+    // We only enforce that it is valid JSON and (optionally) self-identifies the campaign.
+    if (obj.campaign_id !== undefined) {
+      if (typeof obj.campaign_id !== "string" || obj.campaign_id.trim() === "") {
+        throw new Error(`Cursor 'campaign_id' must be a non-empty string when present: ${relPath}`);
+      }
+      if (obj.campaign_id !== campaignId) {
+        throw new Error(`Cursor 'campaign_id' must match '${campaignId}' when present: ${relPath}`);
+      }
+    }
+
+    // Allow optional date metadata if the cursor chooses to include it.
+    if (obj.date !== undefined) {
+      if (typeof obj.date !== "string" || obj.date.trim() === "") {
+        throw new Error(`Cursor 'date' must be a non-empty string (YYYY-MM-DD) when present: ${relPath}`);
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(obj.date)) {
+        throw new Error(`Cursor 'date' must be YYYY-MM-DD when present: ${relPath}`);
+      }
+    }
+  }
+
+  /** @param {any} obj @param {string} campaignId @param {string} relPath */
+  function validateCampaignMetricsSnapshot(obj, campaignId, relPath) {
+    if (!isPlainObject(obj)) {
+      throw new Error(`Metrics snapshot must be a JSON object: ${relPath}`);
+    }
+    if (typeof obj.campaign_id !== "string" || obj.campaign_id.trim() === "") {
+      throw new Error(`Metrics snapshot must include non-empty 'campaign_id': ${relPath}`);
+    }
+    if (obj.campaign_id !== campaignId) {
+      throw new Error(`Metrics snapshot 'campaign_id' must match '${campaignId}': ${relPath}`);
+    }
+    if (typeof obj.date !== "string" || obj.date.trim() === "") {
+      throw new Error(`Metrics snapshot must include non-empty 'date' (YYYY-MM-DD): ${relPath}`);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(obj.date)) {
+      throw new Error(`Metrics snapshot 'date' must be YYYY-MM-DD: ${relPath}`);
+    }
+
+    // Require these to be present and non-negative integers (aligns with CampaignMetricsSnapshot).
+    const requiredIntFields = ["tasks_total", "tasks_completed"];
+    for (const field of requiredIntFields) {
+      if (!Number.isInteger(obj[field]) || obj[field] < 0) {
+        throw new Error(`Metrics snapshot '${field}' must be a non-negative integer: ${relPath}`);
+      }
+    }
+
+    // Optional numeric fields, if present.
+    const optionalIntFields = ["tasks_in_progress", "tasks_blocked"];
+    for (const field of optionalIntFields) {
+      if (obj[field] !== undefined && (!Number.isInteger(obj[field]) || obj[field] < 0)) {
+        throw new Error(`Metrics snapshot '${field}' must be a non-negative integer when present: ${relPath}`);
+      }
+    }
+    if (obj.velocity_per_day !== undefined && (typeof obj.velocity_per_day !== "number" || obj.velocity_per_day < 0)) {
+      throw new Error(`Metrics snapshot 'velocity_per_day' must be a non-negative number when present: ${relPath}`);
+    }
+    if (obj.estimated_completion !== undefined && typeof obj.estimated_completion !== "string") {
+      throw new Error(`Metrics snapshot 'estimated_completion' must be a string when present: ${relPath}`);
+    }
+  }
+
   // Validate required environment variables
   if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
     core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
@@ -41,8 +139,32 @@ async function main() {
   // The artifactDir IS the memory directory (no nested structure needed)
   const sourceMemoryPath = artifactDir;
 
+  // ============================================================================
+  // CAMPAIGN MODE DETECTION
+  // ============================================================================
+  // Campaign Workflows use a convention-based pattern in repo-memory:
+  //   - memoryId: "campaigns"
+  //   - file-glob: "<campaign-id>/**"
+  //
+  // When this pattern is detected, we enforce campaign-specific validation:
+  //   1. cursor.json must exist and follow the cursor schema
+  //   2. At least one metrics/*.json file must exist and follow the metrics schema
+  //
+  // This ensures campaigns maintain durable state consistency across workflow runs.
+  // Non-campaign repo-memory configurations bypass this validation entirely.
+  // ============================================================================
+  const singlePattern = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+  const campaignPattern = singlePattern.length === 1 ? singlePattern[0] : "";
+  const campaignMatch = memoryId === "campaigns" ? /^([^*?]+)\/\*\*$/.exec(campaignPattern) : null;
+  const campaignId = campaignMatch ? campaignMatch[1].replace(/\/$/, "") : "";
+  const isCampaignMode = Boolean(campaignId);
+
   // Check if artifact memory directory exists
   if (!fs.existsSync(sourceMemoryPath)) {
+    if (isCampaignMode) {
+      core.setFailed(`Campaign repo-memory is enabled but no campaign state was written. Expected to find cursor and metrics under: ${sourceMemoryPath}/${campaignId}/`);
+      return;
+    }
     core.info(`Memory directory not found in artifact: ${sourceMemoryPath}`);
     return;
   }
@@ -90,6 +212,9 @@ async function main() {
 
   // Recursively scan and collect files from artifact directory
   let filesToCopy = [];
+  // Track campaign files for validation
+  let campaignCursorFound = false;
+  let campaignMetricsCount = 0;
 
   /**
    * Recursively scan directory and collect files
@@ -139,6 +264,20 @@ async function main() {
           throw new Error("File size validation failed");
         }
 
+        // Campaign-specific JSON validation (only when campaign mode is active)
+        // This enforces the campaign state file schemas for cursor and metrics
+        if (isCampaignMode && relativeFilePath.startsWith(`${campaignId}/`)) {
+          if (relativeFilePath === `${campaignId}/cursor.json`) {
+            const obj = tryParseJSONFile(fullPath);
+            validateCampaignCursor(obj, campaignId, relativeFilePath);
+            campaignCursorFound = true;
+          } else if (relativeFilePath.startsWith(`${campaignId}/metrics/`) && relativeFilePath.endsWith(".json")) {
+            const obj = tryParseJSONFile(fullPath);
+            validateCampaignMetricsSnapshot(obj, campaignId, relativeFilePath);
+            campaignMetricsCount++;
+          }
+        }
+
         filesToCopy.push({
           relativePath: relativeFilePath,
           source: fullPath,
@@ -153,6 +292,22 @@ async function main() {
   } catch (error) {
     core.setFailed(`Failed to scan artifact directory: ${error instanceof Error ? error.message : String(error)}`);
     return;
+  }
+
+  // Campaign mode validation: ensure required state files were found
+  // This enforcement is only active when campaign mode is detected
+  if (isCampaignMode) {
+    if (!campaignCursorFound) {
+      core.error(`Missing required campaign cursor file: ${campaignId}/cursor.json`);
+      core.setFailed("Campaign cursor validation failed");
+      return;
+    }
+
+    if (campaignMetricsCount === 0) {
+      core.error(`Missing required campaign metrics snapshots under: ${campaignId}/metrics/*.json`);
+      core.setFailed("Campaign metrics validation failed");
+      return;
+    }
   }
 
   // Validate file count
@@ -174,6 +329,14 @@ async function main() {
     const destDir = path.dirname(destFilePath);
 
     try {
+      // Path traversal protection
+      const resolvedRoot = path.resolve(destMemoryPath) + path.sep;
+      const resolvedDest = path.resolve(destFilePath);
+      if (!resolvedDest.startsWith(resolvedRoot)) {
+        core.setFailed(`Refusing to write outside repo-memory directory: ${file.relativePath}`);
+        return;
+      }
+
       // Ensure destination directory exists
       fs.mkdirSync(destDir, { recursive: true });
 

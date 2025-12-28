@@ -54,6 +54,32 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		fmt.Fprintf(markdownBuilder, "- Tracker label: `%s`\n", spec.TrackerLabel)
 		hasDetails = true
 	}
+	if strings.TrimSpace(spec.Objective) != "" {
+		fmt.Fprintf(markdownBuilder, "- Objective: %s\n", strings.TrimSpace(spec.Objective))
+		hasDetails = true
+	}
+	if len(spec.KPIs) > 0 {
+		markdownBuilder.WriteString("- KPIs:\n")
+		for _, kpi := range spec.KPIs {
+			name := strings.TrimSpace(kpi.Name)
+			if name == "" {
+				name = "(unnamed)"
+			}
+			priority := strings.TrimSpace(kpi.Priority)
+			if priority == "" && len(spec.KPIs) == 1 {
+				priority = "primary"
+			}
+			unit := strings.TrimSpace(kpi.Unit)
+			if unit != "" {
+				unit = " " + unit
+			}
+			if priority != "" {
+				priority = " (" + priority + ")"
+			}
+			fmt.Fprintf(markdownBuilder, "  - %s%s: baseline %.4g → target %.4g over %d days%s\n", name, priority, kpi.Baseline, kpi.Target, kpi.TimeWindowDays, unit)
+		}
+		hasDetails = true
+	}
 	if len(spec.Workflows) > 0 {
 		markdownBuilder.WriteString("- Associated workflows: ")
 		markdownBuilder.WriteString(strings.Join(spec.Workflows, ", "))
@@ -123,8 +149,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{ProjectURL: strings.TrimSpace(spec.ProjectURL)}
+	promptData.Objective = strings.TrimSpace(spec.Objective)
+	if len(spec.KPIs) > 0 {
+		promptData.KPIs = spec.KPIs
+	}
 	promptData.TrackerLabel = strings.TrimSpace(spec.TrackerLabel)
 	promptData.CursorGlob = strings.TrimSpace(spec.CursorGlob)
+	promptData.MetricsGlob = strings.TrimSpace(spec.MetricsGlob)
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
 		promptData.MaxDiscoveryPagesPerRun = spec.Governance.MaxDiscoveryPagesPerRun
@@ -181,7 +212,19 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		RunsOn: "runs-on: ubuntu-latest",
 		// Default roles match the workflow compiler's defaults so that
 		// membership checks have a non-empty GH_AW_REQUIRED_ROLES value.
-		Roles:       []string{"admin", "maintainer", "write"},
+		Roles: []string{"admin", "maintainer", "write"},
+		Tools: map[string]any{
+			"github": map[string]any{
+				"toolsets": []any{"default", "actions", "code_security"},
+			},
+			"repo-memory": []any{
+				map[string]any{
+					"id":          "campaigns",
+					"branch-name": "memory/campaigns",
+					"file-glob":   []any{fmt.Sprintf("%s/**", spec.ID)},
+				},
+			},
+		},
 		SafeOutputs: safeOutputs,
 	}
 

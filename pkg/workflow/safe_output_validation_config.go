@@ -232,7 +232,10 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"update_project": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
+			"project": {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
+			// campaign_id is an optional field used by Campaign Workflows to tag project items.
+			// When provided, the update-project safe output applies a "campaign:<id>" label.
+			// This is part of the campaign tracking convention but not required for general use.
 			"campaign_id":    {Type: "string", Sanitize: true, MaxLength: 128},
 			"content_type":   {Type: "string", Enum: []string{"issue", "pull_request"}},
 			"content_number": {OptionalPositiveInteger: true},
