@@ -53,16 +53,19 @@ async function checkBotStatus(actor, owner, repo) {
       return { isBot: true, isActive: true };
     } catch (botError) {
       // If we get a 404, the bot is not installed/active on this repository
+      // @ts-expect-error - Error handling with optional chaining
       if (botError?.status === 404) {
         core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
         return { isBot: true, isActive: false };
       }
       // For other errors, we'll treat as inactive to be safe
+      // @ts-expect-error - Error handling with optional chaining
       const errorMessage = botError?.message ?? String(botError);
       core.warning(`Failed to check bot status: ${errorMessage}`);
       return { isBot: true, isActive: false, error: errorMessage };
     }
   } catch (error) {
+    // @ts-expect-error - Error handling with optional chaining
     const errorMessage = error?.message ?? String(error);
     core.warning(`Error checking bot status: ${errorMessage}`);
     return { isBot: false, isActive: false, error: errorMessage };
@@ -102,6 +105,7 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
     return { authorized: false, permission };
   } catch (repoError) {
+    // @ts-expect-error - Error handling with optional chaining
     const errorMessage = repoError?.message ?? String(repoError);
     core.warning(`Repository permission check failed: ${errorMessage}`);
     return { authorized: false, error: errorMessage };
