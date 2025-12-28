@@ -298,7 +298,7 @@ jobs:
                     "type": "string"
                   },
                   "discussion_number": {
-                    "description": "Discussion number to close. If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
+                    "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger).",
                     "type": [
                       "number",
                       "string"

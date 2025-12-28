@@ -23,7 +23,7 @@
         },
         "parent": {
           "type": ["number", "string"],
-          "description": "Parent issue number for creating sub-issues. Can be a real issue number (e.g., 42) or a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run."
+          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run."
         },
         "temporary_id": {
           "type": "string",
@@ -87,7 +87,7 @@
         },
         "discussion_number": {
           "type": ["number", "string"],
-          "description": "Discussion number to update. Required when the workflow target is '*' (any discussion)."
+          "description": "Discussion number to update. This is the numeric ID from the GitHub URL (e.g., 345 in github.com/owner/repo/discussions/345). Required when the workflow target is '*' (any discussion)."
         }
       },
       "additionalProperties": false
@@ -111,7 +111,7 @@
         },
         "discussion_number": {
           "type": ["number", "string"],
-          "description": "Discussion number to close. If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger)."
+          "description": "Discussion number to close. This is the numeric ID from the GitHub URL (e.g., 678 in github.com/owner/repo/discussions/678). If omitted, closes the discussion that triggered this workflow (requires a discussion event trigger)."
         }
       },
       "additionalProperties": false
@@ -130,7 +130,7 @@
         },
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to close. If omitted, closes the issue that triggered this workflow (requires an issue event trigger)."
+          "description": "Issue number to close. This is the numeric ID from the GitHub URL (e.g., 901 in github.com/owner/repo/issues/901). If omitted, closes the issue that triggered this workflow (requires an issue event trigger)."
         }
       },
       "additionalProperties": false
@@ -149,7 +149,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to close. If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger)."
+          "description": "Pull request number to close. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, closes the PR that triggered this workflow (requires a pull_request event trigger)."
         }
       },
       "additionalProperties": false
@@ -168,7 +168,7 @@
         },
         "item_number": {
           "type": "number",
-          "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository."
+          "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required."
         }
       },
       "additionalProperties": false
@@ -288,7 +288,7 @@
         },
         "item_number": {
           "type": "number",
-          "description": "Issue or PR number to add labels to. If omitted, adds labels to the item that triggered this workflow."
+          "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow."
         }
       },
       "additionalProperties": false
@@ -310,7 +310,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to add reviewers to. If omitted, adds reviewers to the PR that triggered this workflow."
+          "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow."
         }
       },
       "additionalProperties": false
@@ -325,11 +325,11 @@
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign to the milestone."
+          "description": "Issue number to assign to the milestone. This is the numeric ID from the GitHub URL (e.g., 567 in github.com/owner/repo/issues/567)."
         },
         "milestone_number": {
           "type": ["number", "string"],
-          "description": "Milestone number (not title) to assign the issue to. Find milestone numbers in the repository's Milestones page."
+          "description": "Milestone number (not title) to assign the issue to. This is the numeric ID from the milestone URL (e.g., 12 in github.com/owner/repo/milestone/12). Find milestone numbers in the repository's Milestones page."
         }
       },
       "additionalProperties": false
@@ -344,7 +344,7 @@
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign the Copilot agent to. The issue should contain clear, actionable requirements."
+          "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements."
         },
         "agent": {
           "type": "string",
@@ -363,7 +363,7 @@
       "properties": {
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to assign users to. If omitted, assigns to the issue that triggered this workflow."
+          "description": "Issue number to assign users to. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, assigns to the issue that triggered this workflow."
         },
         "assignees": {
           "type": "array",
@@ -401,7 +401,7 @@
         },
         "issue_number": {
           "type": ["number", "string"],
-          "description": "Issue number to update. Required when the workflow target is '*' (any issue)."
+          "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue)."
         }
       },
       "additionalProperties": false
@@ -428,7 +428,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to update. Required when the workflow target is '*' (any PR)."
+          "description": "Pull request number to update. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/pull/234). Required when the workflow target is '*' (any PR)."
         }
       },
       "additionalProperties": false
@@ -451,7 +451,7 @@
         },
         "pull_request_number": {
           "type": ["number", "string"],
-          "description": "Pull request number to push changes to. Required when the workflow target is '*' (any PR)."
+          "description": "Pull request number to push changes to. This is the numeric ID from the GitHub URL (e.g., 654 in github.com/owner/repo/pull/654). Required when the workflow target is '*' (any PR)."
         }
       },
       "additionalProperties": false
@@ -543,11 +543,11 @@
       "properties": {
         "parent_issue_number": {
           "type": ["number", "string"],
-          "description": "The parent issue number to link the sub-issue to."
+          "description": "The parent issue number to link the sub-issue to. This is the numeric ID from the GitHub URL (e.g., 100 in github.com/owner/repo/issues/100)."
         },
         "sub_issue_number": {
           "type": ["number", "string"],
-          "description": "The issue number to link as a sub-issue of the parent."
+          "description": "The issue number to link as a sub-issue of the parent. This is the numeric ID from the GitHub URL (e.g., 101 in github.com/owner/repo/issues/101)."
         }
       },
       "additionalProperties": false
@@ -591,7 +591,7 @@
         },
         "content_number": {
           "type": "number",
-          "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123). Required when content_type is 'issue' or 'pull_request'."
+          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'."
         },
         "draft_title": {
           "type": "string",

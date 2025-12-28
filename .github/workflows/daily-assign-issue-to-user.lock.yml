@@ -218,7 +218,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
@@ -247,7 +247,7 @@ jobs:
                     "type": "array"
                   },
                   "issue_number": {
-                    "description": "Issue number to assign users to. If omitted, assigns to the issue that triggered this workflow.",
+                    "description": "Issue number to assign users to. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, assigns to the issue that triggered this workflow.",
                     "type": [
                       "number",
                       "string"

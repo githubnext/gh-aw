@@ -219,7 +219,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
@@ -313,7 +313,7 @@ jobs:
                     "type": "string"
                   },
                   "content_number": {
-                    "description": "Issue or pull request number to add to the project (e.g., 123 for issue #123). Required when content_type is 'issue' or 'pull_request'.",
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
                     "type": "number"
                   },
                   "content_type": {

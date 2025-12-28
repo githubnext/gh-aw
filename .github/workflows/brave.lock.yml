@@ -256,7 +256,7 @@ jobs:
                     "type": "string"
                   },
                   "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. Must be a valid existing item in the repository.",
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
                     "type": "number"
                   }
                 },
