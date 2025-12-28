@@ -1,0 +1,83 @@
+{
+  "daily_analysis": [
+    {
+      "date": "2025-12-28",
+      "total_prs": 1000,
+      "merged": 734,
+      "closed": 260,
+      "open": 6,
+      "merged_avg_words": 452.7,
+      "closed_avg_words": 507.8,
+      "category_stats": {
+        "other": {
+          "total": 3,
+          "merged": 0,
+          "closed": 3,
+          "rate": 0.0
+        },
+        "merge": {
+          "total": 24,
+          "merged": 9,
+          "closed": 15,
+          "rate": 37.5
+        },
+        "bug_fix": {
+          "total": 165,
+          "merged": 84,
+          "closed": 81,
+          "rate": 50.90909090909091
+        },
+        "test": {
+          "total": 129,
+          "merged": 64,
+          "closed": 65,
+          "rate": 49.6124031007752
+        },
+        "refactor": {
+          "total": 38,
+          "merged": 14,
+          "closed": 24,
+          "rate": 36.84210526315789
+        },
+        "feature": {
+          "total": 146,
+          "merged": 65,
+          "closed": 81,
+          "rate": 44.52054794520548
+        },
+        "documentation": {
+          "total": 119,
+          "merged": 50,
+          "closed": 69,
+          "rate": 42.016806722689076
+        },
+        "config": {
+          "total": 138,
+          "merged": 73,
+          "closed": 65,
+          "rate": 52.89855072463768
+        },
+        "schema": {
+          "total": 103,
+          "merged": 52,
+          "closed": 51,
+          "rate": 50.48543689320388
+        }
+      },
+      "top_merged_keywords": [
+        "copilot",
+        "agent",
+        "coding",
+        "workflow",
+        "github"
+      ],
+      "top_closed_keywords": [
+        "copilot",
+        "workflow",
+        "agent",
+        "github",
+        "coding"
+      ]
+    }
+  ]
+}
