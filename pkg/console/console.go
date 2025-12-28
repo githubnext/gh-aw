@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	"github.com/charmbracelet/lipgloss/tree"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
@@ -373,4 +374,83 @@ func ClearScreen() {
 	if isTTY() {
 		fmt.Print(clearScreenSequence)
 	}
+}
+
+// TreeNode represents a node in a hierarchical tree structure
+type TreeNode struct {
+	Value    string
+	Children []TreeNode
+}
+
+// RenderTree renders a hierarchical tree structure using lipgloss/tree package
+// Returns styled tree output for TTY, or simple indented text for non-TTY
+func RenderTree(root TreeNode) string {
+	if !isTTY() {
+		// For non-TTY, render simple indented text
+		return renderTreeSimple(root, "", true)
+	}
+
+	// For TTY, use lipgloss/tree for styled output
+	lipglossTree := buildLipglossTree(root)
+	return lipglossTree.String()
+}
+
+// renderTreeSimple renders a simple text-based tree without styling
+func renderTreeSimple(node TreeNode, prefix string, isLast bool) string {
+	var output strings.Builder
+
+	// Current node
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+	if prefix == "" {
+		// Root node has no connector
+		output.WriteString(node.Value + "\n")
+	} else {
+		output.WriteString(prefix + connector + node.Value + "\n")
+	}
+
+	// Children
+	for i, child := range node.Children {
+		childIsLast := i == len(node.Children)-1
+		var childPrefix string
+		if prefix == "" {
+			childPrefix = ""
+		} else {
+			if isLast {
+				childPrefix = prefix + "    "
+			} else {
+				childPrefix = prefix + "│   "
+			}
+		}
+		output.WriteString(renderTreeSimple(child, childPrefix, childIsLast))
+	}
+
+	return output.String()
+}
+
+// buildLipglossTree converts our TreeNode structure to lipgloss/tree format
+func buildLipglossTree(node TreeNode) *tree.Tree {
+	// Create root tree
+	t := tree.Root(node.Value).
+		EnumeratorStyle(styles.TreeEnumerator).
+		ItemStyle(styles.TreeNode)
+
+	// Add children recursively
+	if len(node.Children) > 0 {
+		children := make([]any, len(node.Children))
+		for i, child := range node.Children {
+			if len(child.Children) > 0 {
+				// If child has children, create a subtree
+				children[i] = buildLipglossTree(child)
+			} else {
+				// If child is a leaf, add as string
+				children[i] = child.Value
+			}
+		}
+		t.Child(children...)
+	}
+
+	return t
 }

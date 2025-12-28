@@ -17,6 +17,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -239,7 +240,7 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 		}
 
 		for _, run := range runs {
-			if contains(agenticWorkflowNames, run.WorkflowName) {
+			if sliceutil.Contains(agenticWorkflowNames, run.WorkflowName) {
 				agenticRuns = append(agenticRuns, run)
 			}
 		}

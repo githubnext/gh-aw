@@ -3,6 +3,7 @@ package cli
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,7 +68,7 @@ func TestMCPRegistryClient_ImprovedErrorHandling(t *testing.T) {
 				t.Fatalf("Expected error for status %d, got nil", tc.statusCode)
 			}
 
-			if !containsSubstring(err.Error(), tc.expectedError) {
+			if !strings.Contains(err.Error(), tc.expectedError) {
 				t.Errorf("Expected error to contain '%s', got: %s", tc.expectedError, err.Error())
 			}
 		})
@@ -164,21 +165,6 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 	}
 }
 
-// Helper functions
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr ||
-		len(s) > len(substr) && anySubstring(s, substr)
-}
-
-func anySubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 func joinStrings(strs []string, sep string) string {
 	if len(strs) == 0 {
 		return ""
@@ -203,7 +189,7 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 		Timeout: 10 * time.Second,
 	}
 
-	registryURL := constants.DefaultMCPRegistryURL + "/servers"
+	registryURL := string(constants.DefaultMCPRegistryURL) + "/servers"
 
 	req, err := http.NewRequest("GET", registryURL, nil)
 	if err != nil {
@@ -236,7 +222,7 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 
 	// Verify the Content-Type header indicates this is a JSON API
 	contentType := resp.Header.Get("Content-Type")
-	if contentType != "" && !containsSubstring(contentType, "application/json") {
+	if contentType != "" && !strings.Contains(contentType, "application/json") {
 		t.Logf("Note: Content-Type is '%s', expected JSON", contentType)
 	}
 }

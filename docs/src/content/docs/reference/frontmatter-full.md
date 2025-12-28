@@ -153,101 +153,27 @@ on:
 
   # Push event trigger that runs the workflow when code is pushed to the repository
   # (optional)
-  push:
-    # Branches to filter on
-    # (optional)
-    branches: []
-      # Array of strings
+  # This field supports multiple formats (oneOf):
 
-    # Branches to ignore
-    # (optional)
-    branches-ignore: []
-      # Array of strings
+  # Option 1: undefined
 
-    # Paths to filter on
-    # (optional)
-    paths: []
-      # Array of strings
+  # Option 2: undefined
 
-    # Paths to ignore
-    # (optional)
-    paths-ignore: []
-      # Array of strings
-
-    # List of git tag names or patterns to include for push events (supports
-    # wildcards)
-    # (optional)
-    tags: []
-      # Array of strings
-
-    # List of git tag names or patterns to exclude from push events (supports
-    # wildcards)
-    # (optional)
-    tags-ignore: []
-      # Array of strings
+  # Option 3: undefined
 
   # Pull request event trigger that runs the workflow when pull requests are
   # created, updated, or closed
   # (optional)
-  pull_request:
-    # Pull request event types to trigger on. Note: 'converted_to_draft' and
-    # 'ready_for_review' represent state transitions (events) rather than states.
-    # While technically valid to listen for both, consider if you need to handle both
-    # transitions or just one.
-    # (optional)
-    types: []
-      # Array of strings
+  # This field supports multiple formats (oneOf):
 
-    # Branches to filter on
-    # (optional)
-    branches: []
-      # Array of strings
+  # Option 1: undefined
 
-    # Branches to ignore
-    # (optional)
-    branches-ignore: []
-      # Array of strings
+  # Option 2: undefined
 
-    # Paths to filter on
-    # (optional)
-    paths: []
-      # Array of strings
+  # Option 3: undefined
 
-    # Paths to ignore
-    # (optional)
-    paths-ignore: []
-      # Array of strings
-
-    # Filter by draft pull request state. Set to false to exclude draft PRs, true to
-    # include only drafts, or omit to include both
-    # (optional)
-    draft: true
-
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single fork pattern (e.g., '*' for all forks, 'org/*' for org glob,
-    # 'org/repo' for exact match)
-    forks: "example-value"
-
-    # Option 2: List of allowed fork repositories with glob support (e.g., 'org/repo',
-    # 'org/*', '*' for all forks)
-    forks: []
-      # Array items: Repository pattern with optional glob support
-
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single label name to filter labeled/unlabeled events (e.g., 'bug')
-    names: "example-value"
-
-    # Option 2: List of label names to filter labeled/unlabeled events. Only applies
-    # when 'labeled' or 'unlabeled' is in the types array
-    names: []
-      # Array items: Label name
-
-  # Issues event trigger that runs the workflow when repository issues are created,
-  # updated, or managed
+  # Issues event trigger that runs when repository issues are created, updated, or
+  # managed
   # (optional)
   issues:
     # Types of issue events
@@ -340,26 +266,13 @@ on:
 
   # Workflow run trigger
   # (optional)
-  workflow_run:
-    # List of workflows to trigger on
-    # (optional)
-    workflows: []
-      # Array of strings
+  # This field supports multiple formats (oneOf):
 
-    # Types of workflow run events
-    # (optional)
-    types: []
-      # Array of strings
+  # Option 1: undefined
 
-    # Branches to filter on
-    # (optional)
-    branches: []
-      # Array of strings
+  # Option 2: undefined
 
-    # Branches to ignore
-    # (optional)
-    branches-ignore: []
-      # Array of strings
+  # Option 3: undefined
 
   # Release event trigger
   # (optional)
@@ -521,45 +434,13 @@ on:
   # Pull request target event trigger that runs in the context of the base
   # repository (secure for fork PRs)
   # (optional)
-  pull_request_target:
-    # List of pull request target event types to trigger on
-    # (optional)
-    types: []
-      # Array of strings
+  # This field supports multiple formats (oneOf):
 
-    # Branches to filter on
-    # (optional)
-    branches: []
-      # Array of strings
+  # Option 1: undefined
 
-    # Branches to ignore
-    # (optional)
-    branches-ignore: []
-      # Array of strings
+  # Option 2: undefined
 
-    # Paths to filter on
-    # (optional)
-    paths: []
-      # Array of strings
-
-    # Paths to ignore
-    # (optional)
-    paths-ignore: []
-      # Array of strings
-
-    # Filter by draft pull request state
-    # (optional)
-    draft: true
-
-    # (optional)
-    # This field supports multiple formats (oneOf):
-
-    # Option 1: Single fork pattern
-    forks: "example-value"
-
-    # Option 2: List of allowed fork repositories with glob support
-    forks: []
-      # Array items: string
+  # Option 3: undefined
 
   # Pull request review event trigger that runs when a pull request review is
   # submitted, edited, or dismissed
@@ -855,8 +736,10 @@ env:
 # Option 2: string
 env: "example-value"
 
-# Feature flags to enable experimental or optional features in the workflow. Each
-# feature is specified as a key with a boolean value.
+# Feature flags and configuration options for experimental or optional features in
+# the workflow. Each feature can be a boolean flag or a string value. The
+# 'action-tag' feature (string) specifies the tag or SHA to use when referencing
+# actions/setup in compiled workflows (for testing purposes only).
 # (optional)
 features:
   {}
@@ -941,7 +824,7 @@ network:
     # '*.example.com' and ecosystem names like 'python', 'node')
 
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
-# Runtime) and MCP gateway.
+# Runtime) and Model Context Protocol (MCP) gateway.
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -1061,44 +944,11 @@ sandbox:
   # MCP Gateway configuration for routing MCP server calls through a unified HTTP
   # gateway. Requires the 'mcp-gateway' feature flag to be enabled.
   # (optional)
-  mcp:
-    # Custom command to execute the MCP gateway (mutually exclusive with 'container')
-    # (optional)
-    command: "example-value"
+  # This field supports multiple formats (anyOf):
 
-    # Container image for the MCP gateway executable (mutually exclusive with
-    # 'command')
-    # (optional)
-    container: "example-value"
+  # Option 1: undefined
 
-    # Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')
-    # (optional)
-    version: null
-
-    # Arguments for command or docker run
-    # (optional)
-    args: []
-      # Array of strings
-
-    # Arguments to add after the container image (container entrypoint arguments, only
-    # valid with 'container')
-    # (optional)
-    entrypointArgs: []
-      # Array of strings
-
-    # Environment variables for MCP gateway
-    # (optional)
-    env:
-      {}
-
-    # Port number for the MCP gateway HTTP server (default: 8080)
-    # (optional)
-    port: 1
-
-    # API key for authenticating with the MCP gateway (supports ${{ secrets.* }}
-    # syntax)
-    # (optional)
-    api-key: "example-value"
+  # Option 2: undefined
 
 # Conditional execution expression
 # (optional)

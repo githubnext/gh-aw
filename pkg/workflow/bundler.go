@@ -135,6 +135,14 @@ func BundleJavaScriptWithMode(mainContent string, sources map[string]string, bas
 		// GitHub Script mode: remove module.exports from final output
 		bundled = removeExports(bundled)
 
+		// Inject await main() call for inline execution
+		// This allows scripts to export main when used with require(), but still execute
+		// when inlined directly in github-script action
+		if strings.Contains(bundled, "async function main()") || strings.Contains(bundled, "async function main ()") {
+			bundled = bundled + "\nawait main();\n"
+			bundlerLog.Print("Injected 'await main()' call for GitHub Script inline execution")
+		}
+
 		// Validate all local requires are bundled and module references removed
 		if err := validateNoLocalRequires(bundled); err != nil {
 			bundlerLog.Printf("Validation failed: %v", err)

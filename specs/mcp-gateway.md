@@ -20,7 +20,7 @@ The problem statement requested:
 ### 1. Command Structure (`pkg/cli/mcp_gateway_command.go`)
 
 **Core Components**:
-- `MCPGatewayConfig`: Configuration structure matching Claude/Copilot/Codex format
+- `MCPGatewayServiceConfig`: Configuration structure matching Claude/Copilot/Codex format
 - `MCPServerConfig`: Individual server configuration (command, args, env, url, container)
 - `GatewaySettings`: Gateway-specific settings (port, API key)
 - `MCPGatewayServer`: Main server managing multiple MCP sessions
@@ -55,7 +55,7 @@ Implemented MCP methods:
 | Transport | Status | Description |
 |-----------|--------|-------------|
 | Command/Stdio | ✅ Implemented | Subprocess with stdin/stdout communication |
-| HTTP/SSE | ⏳ Planned | Server-Sent Events transport (not yet in go-mcp SDK) |
+| Streamable HTTP | ✅ Implemented | HTTP transport with SSE using go-sdk StreamableClientTransport |
 | Docker | ⏳ Planned | Container-based MCP servers |
 
 ### 5. Integration Points
@@ -95,7 +95,7 @@ The gateway accepts configuration matching Claude/Copilot format:
     "apiKey": "optional-api-key"
   }
 }
-```
+```text
 
 ### 7. Logging
 
@@ -131,17 +131,17 @@ The gateway accepts configuration matching Claude/Copilot format:
 **From file**:
 ```bash
 awmg --config examples/mcp-gateway-config.json
-```
+```text
 
 **From stdin**:
 ```bash
 echo '{"mcpServers":{"gh-aw":{"command":"gh","args":["aw","mcp-server"]}}}' | awmg
-```
+```text
 
 **Custom port and logs**:
 ```bash
 awmg --config config.json --port 8088 --log-dir /custom/logs
-```
+```text
 
 ### 10. Smoke Testing
 
@@ -155,7 +155,7 @@ sandbox:
     port: 8080
 features:
   - mcp-gateway
-```
+```text
 
 2. **Using CLI command directly**:
 ```yaml
@@ -164,7 +164,7 @@ steps:
     run: |
       echo '{"mcpServers":{...}}' | awmg --port 8080 &
       sleep 2
-```
+```text
 
 ## Files Changed
 
@@ -181,7 +181,7 @@ steps:
 ## Future Enhancements
 
 Potential improvements for future versions:
-- [ ] HTTP/SSE transport support (when available in go-mcp SDK)
+- [x] Streamable HTTP transport support (implemented using go-sdk StreamableClientTransport)
 - [ ] Docker container transport
 - [ ] WebSocket transport
 - [ ] Gateway metrics and monitoring endpoints

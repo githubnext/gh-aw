@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// QualityIssue represents a quality issue with an error message
+// QualityIssue represents a quality issue with an error message.
 type QualityIssue struct {
 	File       string
 	Line       int
@@ -20,7 +20,7 @@ type QualityIssue struct {
 	Suggestion string
 }
 
-// FileStats tracks statistics for a single file
+// FileStats tracks statistics for a single file.
 type FileStats struct {
 	Total     int
 	Compliant int
@@ -28,17 +28,17 @@ type FileStats struct {
 }
 
 var (
-	// Patterns to detect good error messages
+	// Patterns to detect good error messages.
 	hasExample  = regexp.MustCompile(`(?i)\bexample:\s`)
 	hasExpected = regexp.MustCompile(`(?i)\b(expected|valid|must be|should be)\b`)
 
-	// Patterns for error types that MUST have examples
+	// Patterns for error types that MUST have examples.
 	isValidationError = regexp.MustCompile(`(?i)\b(invalid|must|cannot|missing|required|unknown|duplicate|unsupported)\b`)
 	isFormatError     = regexp.MustCompile(`(?i)\bformat\b`)
 	isTypeError       = regexp.MustCompile(`(?i)\b(must be|got %T|expected type)\b`)
 	isEnumError       = regexp.MustCompile(`(?i)\b(valid (options|values|engines|modes|levels)|one of)\b`)
 
-	// Patterns for errors that can skip examples
+	// Patterns for errors that can skip examples.
 	isWrappedError = regexp.MustCompile(`%w`)
 	hasDocLink     = regexp.MustCompile(`https?://`)
 )

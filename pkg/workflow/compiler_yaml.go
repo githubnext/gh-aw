@@ -30,6 +30,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		return "", fmt.Errorf("job dependency validation failed: %w", err)
 	}
 
+	// Validate no duplicate steps within jobs (compiler bug detection)
+	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {
+		return "", fmt.Errorf("duplicate step validation failed: %w", err)
+	}
+
 	// Pre-allocate builder capacity based on estimated workflow size
 	// Average workflow generates ~200KB, allocate 256KB to minimize reallocations
 	var yaml strings.Builder
@@ -209,7 +214,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	}
 
 	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
+	yaml.WriteString("          bash /tmp/gh-aw/actions/create_prompt_first.sh\n")
 
 	if len(chunks) > 0 {
 		// Write template with placeholders directly to target file
@@ -309,8 +314,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
+	yaml.WriteString("        run: bash /tmp/gh-aw/actions/print_prompt_summary.sh\n")
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
@@ -586,8 +590,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Add each line of the script with proper indentation
-	WriteJavaScriptToYAML(yaml, getCollectJSONLOutputScript())
+	// Load script from external file using require()
+	yaml.WriteString("            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/collect_ndjson_output.cjs');\n")
+	yaml.WriteString("            await main();\n")
 
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})

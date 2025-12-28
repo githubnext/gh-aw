@@ -15,34 +15,24 @@ Then the [`update-project`](/gh-aw/reference/safe-outputs/#project-board-updates
 
 1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
 
-2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned** 
-For user-owned projects, use a **classic PAT** with `read:project` scope (for queries) or `project` scope (for queries and mutations).
+2. **Create a token**: The kind of token you need depends on whether the Project you created is **user-owned** or **organization-owned**.
 
-Required scopes:
+#### User-owned Projects (v2)
 
+Use a **classic PAT** with scopes:
 - `project` (required for user Projects)
 - `repo` (required if accessing private repositories)
 
-Create at: [https://github.com/settings/tokens/new](https://github.com/settings/tokens/new)
-
 #### Organization-owned Projects (v2)
 
-You can use either a classic or fine-grained PAT.
-
-**Classic PAT** scopes:
-
-- `project` (required)
-- `read:org` (required for org Projects)
-- `repo` (required if accessing private repositories)
-
-**Fine-grained PAT** settings:
-
-- Repository access: Select specific repos or "All repositories"
-- Organization access: Must be granted to the target organization
-- Organization permissions: Projects = Read+Write
-- Important: Fine-grained PATs work by default only for public org resources. You must explicitly grant organization access and Projects permissions.
-
-Create at: [https://github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
+Use a **fine-grained** PAT with scopes:
+- Repository access: Select specific repos that will use the workflow
+- Repository permissions:
+  - Contents: Read
+  - Issues: Read (if workflow is triggered by issues)
+  - Pull requests: Read (if workflow is triggered by pull requests)
+- Organization permissions:
+  - Projects: Read & Write (required for updating projects)
 
 ### 3) Store the token as a secret
 
@@ -74,6 +64,10 @@ on:
 permissions:
   contents: read
   actions: read
+tools:
+  github:
+    toolsets: [default, projects]
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 safe-outputs:
   update-project:
     max: 1
@@ -103,8 +97,8 @@ ProjectOps workflows use the `update-project` safe output to ensure secure proje
 ```yaml wrap
 safe-outputs:
   update-project:
-    max: 10                              # Optional: max project operations (default: 10)
-    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Required: PAT with Projects access (default GITHUB_TOKEN won't work)
+    max: 10
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
 ```
 
 The `update-project` tool provides intelligent project management:
@@ -114,6 +108,37 @@ The `update-project` tool provides intelligent project management:
 - **Updates fields**: Sets status, priority, and other custom fields
 - **Applies a tracking label**: When adding a new item, it can apply a consistent tracking label to the underlying issue/PR
 - **Returns outputs**: Exposes the Project item ID (`item-id`) for downstream steps
+
+## Organization-Owned Project Configuration
+
+For workflows that interact with organization-owned projects and need to query GitHub information, use the following configuration:
+
+```yaml wrap
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+tools:
+  github:
+    toolsets: [default, projects]
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+---
+
+# Smart Issue Triage for Organization Project
+
+Analyze the issue and add it to the organization project board...
+```
+
+This configuration ensures:
+1. The GitHub Model Context Protocol (MCP) toolset can query repository and project information
+2. The `update-project` safe output can modify the organization project
+3. Both operations use the same token with appropriate permissions
 
 ## Accessing Issue Context
 
@@ -125,85 +150,6 @@ Analyze this issue to determine priority: "${{ needs.activation.outputs.text }}"
 ```
 
 **Security Note**: Always treat user content as potentially untrusted and design workflows to be resilient against prompt injection attempts.
-
-## Common ProjectOps Patterns
-
-### Initiative Launch and Tracking
-
-Use an existing project board for a focused initiative and add related issues with tracking metadata.
-
-Create the initiative Project in the GitHub UI first (the `update-project` safe output does not create Projects).
-
-This goes beyond native GitHub automation by analyzing the codebase to generate related issues and coordinating multiple related work items.
-
-```aw wrap
----
-on:
-  workflow_dispatch:
-    inputs:
-      initiative_name:
-        description: "Initiative name"
-        required: true
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  create-issue:
-    max: 20
-  update-project:
-    max: 20
----
-
-# Launch Initiative
-
-Use the initiative project board: "{{inputs.initiative_name}}"
-
-Analyze the repository to identify tasks needed for this initiative.
-
-For each task:
-1. Create an issue with detailed description
-2. Add the issue to the initiative project board
-3. Set status to "Todo"
-4. Set priority based on impact
-5. Apply a tracking label for reporting
-
-The initiative board provides a visual dashboard showing all related work.
-```
-
-
-
-### Content-Based Priority Assignment
-
-Analyze issue content to set priority automatically, going beyond what labels can provide:
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-safe-outputs:
-  update-project:
-    max: 1
----
-
-# Intelligent Priority Triage
-
-When an issue is created, analyze its content to set priority and effort.
-
-Analyze the issue description for:
-- Security vulnerabilities → Priority: "Critical", add to "Security" project
-- Production crashes or data loss → Priority: "High", Effort: "Medium"
-- Performance degradation → Priority: "High", Effort: "Large"
-- Minor bugs or improvements → Priority: "Low", Effort: "Small"
-
-Add to "Engineering Backlog" project with calculated priority and effort fields.
-```
-
-**Why use ProjectOps:** Native GitHub automation can't analyze issue content to determine priority - it only reacts to labels and status changes.
-
 
 
 ## Project Management Features

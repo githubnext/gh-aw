@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# Setup Action
+# Copies activation job files to the agent environment
+#
+# This script copies JavaScript (.cjs) and JSON files from the js/ directory
+# to the destination directory. The js/ directory is created by running
+# 'make actions-build' which copies files from pkg/workflow/js/*.cjs
+#
+# Note: The js/ directory is in .gitignore as it's a build artifact.
+# Workflows must ensure 'make actions-build' is run before using this action,
+# or the js/ directory must be populated by another mechanism.
+
+set -e
+
+# Get destination from input or use default
+DESTINATION="${INPUT_DESTINATION:-/tmp/gh-aw/actions}"
+
+echo "::notice::Copying activation files to ${DESTINATION}"
+
+# Create destination directory if it doesn't exist
+mkdir -p "${DESTINATION}"
+echo "::notice::Created directory: ${DESTINATION}"
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JS_SOURCE_DIR="${SCRIPT_DIR}/js"
+
+echo "::debug::Script directory: ${SCRIPT_DIR}"
+echo "::debug::Looking for JavaScript sources in: ${JS_SOURCE_DIR}"
+
+# Debug: List the contents of the script directory to understand the file layout
+echo "::debug::Contents of ${SCRIPT_DIR}:"
+ls -la "${SCRIPT_DIR}" || echo "::warning::Failed to list ${SCRIPT_DIR}"
+
+# Check if js directory exists
+if [ ! -d "${JS_SOURCE_DIR}" ]; then
+  echo "::error::JavaScript source directory not found: ${JS_SOURCE_DIR}"
+  echo "::error::This typically means 'make actions-build' was not run to populate the js/ directory"
+  echo "::error::The js/ directory is a build artifact (in .gitignore) and must be created before running this script"
+  
+  # Additional debugging: show what's in the parent directory
+  echo "::debug::Contents of parent directory $(dirname "${SCRIPT_DIR}"):"
+  ls -la "$(dirname "${SCRIPT_DIR}")" || echo "::warning::Failed to list parent directory"
+  
+  exit 1
+fi
+
+# List files in js directory for debugging
+echo "::debug::Files in ${JS_SOURCE_DIR}:"
+ls -1 "${JS_SOURCE_DIR}" | head -10 || echo "::warning::Failed to list files in ${JS_SOURCE_DIR}"
+FILE_COUNT_IN_DIR=$(ls -1 "${JS_SOURCE_DIR}" 2>/dev/null | wc -l)
+echo "::notice::Found ${FILE_COUNT_IN_DIR} files in ${JS_SOURCE_DIR}"
+
+# Copy all .cjs files from js/ to destination
+FILE_COUNT=0
+for file in "${JS_SOURCE_DIR}"/*.cjs; do
+  if [ -f "$file" ]; then
+    filename=$(basename "$file")
+    cp "$file" "${DESTINATION}/${filename}"
+    echo "::notice::Copied: ${filename}"
+    FILE_COUNT=$((FILE_COUNT + 1))
+  fi
+done
+
+# Copy any .json files as well
+for file in "${JS_SOURCE_DIR}"/*.json; do
+  if [ -f "$file" ]; then
+    filename=$(basename "$file")
+    cp "$file" "${DESTINATION}/${filename}"
+    echo "::notice::Copied: ${filename}"
+    FILE_COUNT=$((FILE_COUNT + 1))
+  fi
+done
+
+# Copy shell scripts from sh/ directory with executable permissions
+SH_SOURCE_DIR="${SCRIPT_DIR}/sh"
+if [ -d "${SH_SOURCE_DIR}" ]; then
+  echo "::debug::Found shell scripts directory: ${SH_SOURCE_DIR}"
+  for file in "${SH_SOURCE_DIR}"/*.sh; do
+    if [ -f "$file" ]; then
+      filename=$(basename "$file")
+      cp "$file" "${DESTINATION}/${filename}"
+      chmod +x "${DESTINATION}/${filename}"
+      echo "::notice::Copied shell script: ${filename}"
+      FILE_COUNT=$((FILE_COUNT + 1))
+    fi
+  done
+else
+  echo "::debug::No shell scripts directory found at ${SH_SOURCE_DIR}"
+fi
+
+echo "::notice::Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
+
+# Copy safe-inputs files to their expected directory
+SAFE_INPUTS_DEST="/tmp/gh-aw/safe-inputs"
+echo "::notice::Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
+mkdir -p "${SAFE_INPUTS_DEST}"
+
+SAFE_INPUTS_FILES=(
+  "safe_inputs_bootstrap.cjs"
+  "safe_inputs_config_loader.cjs"
+  "safe_inputs_mcp_server.cjs"
+  "safe_inputs_mcp_server_http.cjs"
+  "safe_inputs_tool_factory.cjs"
+  "safe_inputs_validation.cjs"
+  "mcp_server_core.cjs"
+  "mcp_logger.cjs"
+  "mcp_http_transport.cjs"
+  "mcp_handler_shell.cjs"
+  "mcp_handler_python.cjs"
+  "read_buffer.cjs"
+  "generate_safe_inputs_config.cjs"
+  "setup_globals.cjs"
+)
+
+SAFE_INPUTS_COUNT=0
+for file in "${SAFE_INPUTS_FILES[@]}"; do
+  if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
+    cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-inputs: ${file}"
+    SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
+  else
+    echo "::warning::Safe-inputs file not found: ${file}"
+  fi
+done
+
+echo "::notice::Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
+
+# Copy safe-outputs files to their expected directory
+SAFE_OUTPUTS_DEST="/tmp/gh-aw/safeoutputs"
+echo "::notice::Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+mkdir -p "${SAFE_OUTPUTS_DEST}"
+
+SAFE_OUTPUTS_FILES=(
+  "safe_outputs_mcp_server.cjs"
+  "safe_outputs_bootstrap.cjs"
+  "safe_outputs_tools_loader.cjs"
+  "safe_outputs_config.cjs"
+  "safe_outputs_handlers.cjs"
+  "safe_outputs_append.cjs"
+  "mcp_server_core.cjs"
+  "mcp_logger.cjs"
+  "mcp_handler_python.cjs"
+  "mcp_handler_shell.cjs"
+  "read_buffer.cjs"
+  "safe_inputs_validation.cjs"
+  "messages.cjs"
+  "messages_core.cjs"
+  "messages_footer.cjs"
+  "messages_run_status.cjs"
+  "messages_staged.cjs"
+  "messages_close_discussion.cjs"
+  "estimate_tokens.cjs"
+  "generate_git_patch.cjs"
+  "get_base_branch.cjs"
+  "get_current_branch.cjs"
+  "normalize_branch_name.cjs"
+  "write_large_content_to_file.cjs"
+  "generate_compact_schema.cjs"
+  "setup_globals.cjs"
+)
+
+SAFE_OUTPUTS_COUNT=0
+for file in "${SAFE_OUTPUTS_FILES[@]}"; do
+  if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
+    cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-outputs: ${file}"
+    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+  elif [ -f "${DESTINATION}/${file}" ]; then
+    # If file was already copied to main destination, copy from there
+    cp "${DESTINATION}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
+    echo "::notice::Copied safe-outputs (from destination): ${file}"
+    SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+  else
+    echo "::warning::Safe-outputs file not found: ${file}"
+  fi
+done
+
+# Copy the MCP server entry point to mcp-server.cjs (the name expected by MCP config)
+if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
+  cp "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
+  chmod +x "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
+  echo "::notice::Copied safe-outputs MCP entry point: mcp-server.cjs"
+  SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+else
+  echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
+fi
+
+echo "::notice::Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+
+# Set output
+if [ -n "${GITHUB_OUTPUT}" ]; then
+  echo "files_copied=${FILE_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "safe_inputs_files_copied=${SAFE_INPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
+else
+  echo "::debug::GITHUB_OUTPUT not set, skipping output"
+fi

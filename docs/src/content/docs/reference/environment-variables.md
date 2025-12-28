@@ -20,7 +20,7 @@ GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 | **Container** | `container.env` | Container runtime | Container settings |
 | **Services** | `services.<id>.env` | Service containers | Database credentials |
 | **Sandbox Agent** | `sandbox.agent.env` | Sandbox runtime | Sandbox configuration |
-| **Sandbox MCP** | `sandbox.mcp.env` | MCP gateway | MCP debugging |
+| **Sandbox MCP** | `sandbox.mcp.env` | Model Context Protocol (MCP) gateway | MCP debugging |
 | **MCP Tools** | `tools.<name>.env` | MCP server process | MCP server secrets |
 | **Safe Inputs** | `safe-inputs.<name>.env` | Safe-input execution | Tool-specific tokens |
 | **Safe Outputs Global** | `safe-outputs.env` | All safe-output jobs | Shared safe-output config |

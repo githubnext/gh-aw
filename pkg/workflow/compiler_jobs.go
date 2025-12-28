@@ -49,11 +49,11 @@ func jobDependsOnPreActivation(jobConfig map[string]any) bool {
 	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
 		if needsList, ok := needs.([]any); ok {
 			for _, need := range needsList {
-				if needStr, ok := need.(string); ok && needStr == constants.PreActivationJobName {
+				if needStr, ok := need.(string); ok && needStr == string(constants.PreActivationJobName) {
 					return true
 				}
 			}
-		} else if needStr, ok := needs.(string); ok && needStr == constants.PreActivationJobName {
+		} else if needStr, ok := needs.(string); ok && needStr == string(constants.PreActivationJobName) {
 			return true
 		}
 	}
@@ -69,11 +69,11 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
 		if needsList, ok := needs.([]any); ok {
 			for _, need := range needsList {
-				if needStr, ok := need.(string); ok && needStr == constants.AgentJobName {
+				if needStr, ok := need.(string); ok && needStr == string(constants.AgentJobName) {
 					return true
 				}
 			}
-		} else if needStr, ok := needs.(string); ok && needStr == constants.AgentJobName {
+		} else if needStr, ok := needs.(string); ok && needStr == string(constants.AgentJobName) {
 			return true
 		}
 	}
@@ -189,10 +189,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if err := c.jobManager.AddJob(mainJob); err != nil {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
-	compilerJobsLog.Printf("Successfully added main job: %s", constants.AgentJobName)
+	compilerJobsLog.Printf("Successfully added main job: %s", string(constants.AgentJobName))
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, string(constants.AgentJobName), markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
@@ -219,7 +219,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		if pushRepoMemoryJob != nil {
 			// Add detection dependency if threat detection is enabled
 			if threatDetectionEnabledForSafeJobs {
-				pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, constants.DetectionJobName)
+				pushRepoMemoryJob.Needs = append(pushRepoMemoryJob.Needs, string(constants.DetectionJobName))
 				compilerJobsLog.Print("Added detection dependency to push_repo_memory job")
 			}
 			if err := c.jobManager.AddJob(pushRepoMemoryJob); err != nil {
@@ -286,7 +286,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 	compilerJobsLog.Printf("Building %d custom jobs", len(data.Jobs))
 	for jobName, jobConfig := range data.Jobs {
 		// Skip jobs.pre-activation (or pre_activation) as it's handled specially in buildPreActivationJob
-		if jobName == constants.PreActivationJobName || jobName == "pre-activation" {
+		if jobName == string(constants.PreActivationJobName) || jobName == "pre-activation" {
 			compilerJobsLog.Printf("Skipping jobs.%s (handled in buildPreActivationJob)", jobName)
 			continue
 		}
@@ -315,8 +315,8 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// If no explicit needs and activation job exists, automatically add activation as dependency
 			// This ensures custom jobs wait for workflow validation before executing
 			if !hasExplicitNeeds && activationJobCreated {
-				job.Needs = append(job.Needs, constants.ActivationJobName)
-				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, constants.ActivationJobName)
+				job.Needs = append(job.Needs, string(constants.ActivationJobName))
+				compilerJobsLog.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, string(constants.ActivationJobName))
 			}
 
 			// Extract other job properties

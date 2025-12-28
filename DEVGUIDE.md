@@ -212,7 +212,31 @@ make fmt
 
 # Address linter warnings
 make lint
+
+# Validate workflows with actionlint
+make actionlint
 ```
+
+### Local Incremental Linting
+
+Speed up linting by only checking changed files:
+
+```bash
+# Lint changes since origin/main
+make golint-incremental BASE_REF=origin/main
+
+# This is what CI uses on PRs - 50-75% faster!
+```
+
+This runs the same incremental linting strategy as CI, checking only files changed since the base reference. It's particularly useful when working on pull requests where you want quick feedback on your changes without waiting for a full repository scan.
+
+The incremental approach uses `golangci-lint --new-from-rev` to analyze only the files that differ from the specified base reference, providing significant performance improvements:
+- **Full lint** (`make lint`): Scans entire repository
+- **Incremental lint** (`make golint-incremental`): Scans only changed files - typically 50-75% faster on PRs
+
+**When to use each approach:**
+- Use `make golint-incremental BASE_REF=origin/main` during development for fast feedback
+- Use `make lint` before final commits to ensure comprehensive coverage
 
 ## Security Scanning
 
@@ -272,7 +296,7 @@ secret := "example" // Known test value
 
 #### Trivy
 - Use `.trivyignore` file to exclude specific CVEs:
-```
+```text
 # .trivyignore
 CVE-2023-XXXXX  # False positive: not exploitable in our usage
 ```
@@ -284,6 +308,17 @@ Security scans run automatically on:
 - Manual workflow dispatch
 
 Results are uploaded to the GitHub Security tab in SARIF format.
+
+### Security Scanning Exclusions
+
+For comprehensive documentation of gosec security exclusions, see **<a>Gosec Security Exclusions</a>**.
+
+This documentation provides:
+- Complete list of global and file-specific exclusions
+- CWE mappings for compliance tracking
+- Detailed rationale and mitigation strategies
+- Suppression guidelines for `#nosec` annotations
+- Compliance and audit trail information
 
 ### Development Tips
 
@@ -395,7 +430,7 @@ Use this decision tree:
 
 ### Package Structure
 
-```
+```text
 pkg/workflow/
 ├── create_*.go              # GitHub entity creation
 ├── *_engine.go              # AI engine implementations

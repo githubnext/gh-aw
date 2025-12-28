@@ -47,11 +47,30 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(logParserScript)
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	// Load log parser script from external file using require()
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/" + parserScriptName + ".cjs');\n")
+	yaml.WriteString("            await main();\n")
+}
+
+// generateSafeInputsLogParsing generates a step that parses safe-inputs logs and adds them to the step summary
+func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
+	compilerYamlLog.Print("Generating safe-inputs log parsing step")
+
+	yaml.WriteString("      - name: Parse safe-inputs logs for step summary\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	// Load safe-inputs log parser script from external file using require()
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/parse_safe_inputs_logs.cjs');\n")
+	yaml.WriteString("            await main();\n")
 }
 
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
@@ -101,12 +120,6 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	// Convert Go regex patterns to JavaScript-compatible patterns
 	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
 
-	errorValidationScript := validateErrorsScript
-	if errorValidationScript == "" {
-		// Skip if validation script not found
-		return
-	}
-
 	// Get the log file path for validation (may be different from stdout/stderr log)
 	logFileForValidation := engine.GetLogFileForParsing()
 
@@ -127,9 +140,10 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Inline the JavaScript code with proper indentation
-	steps := FormatJavaScriptForYAML(errorValidationScript)
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
+	// Use the setup_globals helper to store GitHub Actions objects in global scope
+	yaml.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
+	// Load error validation script from external file using require()
+	yaml.WriteString("            const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');\n")
+	yaml.WriteString("            await main();\n")
 }

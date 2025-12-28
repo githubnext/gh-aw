@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 )
 
 // TestMCPToolOutputSchemas verifies that output schemas are correctly generated for MCP tools
@@ -98,7 +100,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 		// This will be an array schema
 		// In v0.4.0+, nullable arrays use Types []string with ["null", "array"]
 		// instead of Type string with "array"
-		isArray := schema.Type == "array" || containsType(schema.Types, "array")
+		isArray := schema.Type == "array" || sliceutil.Contains(schema.Types, "array")
 		if !isArray {
 			t.Errorf("Expected schema to be an array type, got Type='%s', Types=%v", schema.Type, schema.Types)
 		}

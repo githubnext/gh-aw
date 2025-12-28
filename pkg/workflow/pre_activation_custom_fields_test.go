@@ -340,7 +340,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 		{
 			name: "valid_steps_and_outputs",
 			jobs: map[string]any{
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"steps": []any{
 						map[string]any{
 							"name": "Test step",
@@ -359,7 +359,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 		{
 			name: "unsupported_field",
 			jobs: map[string]any{
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"runs-on": "ubuntu-latest",
 					"steps": []any{
 						map[string]any{"run": "echo test"},
@@ -372,7 +372,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 		{
 			name: "invalid_steps_type",
 			jobs: map[string]any{
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"steps": "not an array",
 				},
 			},
@@ -382,7 +382,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 		{
 			name: "invalid_outputs_type",
 			jobs: map[string]any{
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"outputs": "not an object",
 				},
 			},
@@ -392,7 +392,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 		{
 			name: "invalid_output_value_type",
 			jobs: map[string]any{
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"outputs": map[string]any{
 						"test": 123,
 					},
@@ -415,7 +415,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 						"hyphen_output": "${{ steps.hyphen.outputs.value }}",
 					},
 				},
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"steps": []any{
 						map[string]any{
 							"name": "Underscore step",
@@ -439,7 +439,7 @@ func TestExtractPreActivationCustomFields(t *testing.T) {
 						"same_key": "from hyphen variant",
 					},
 				},
-				constants.PreActivationJobName: map[string]any{
+				string(constants.PreActivationJobName): map[string]any{
 					"outputs": map[string]any{
 						"same_key": "from underscore variant",
 					},

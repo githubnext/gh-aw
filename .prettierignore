@@ -1,0 +1,14 @@
+# Prettier ignore file for gh-aw
+
+# Package manager files (should not be reformatted)
+package.json
+package-lock.json
+
+# Build artifacts
+node_modules/
+dist/
+build/
+*.min.js
+
+# Generated files
+*.lock.yml

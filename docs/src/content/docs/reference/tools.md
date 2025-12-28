@@ -48,7 +48,7 @@ tools:
   web-search:  # Search the web (engine-dependent)
 ```
 
-**Note:** Some engines require third-party MCP servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
+**Note:** Some engines require third-party Model Context Protocol (MCP) servers for web search. See [Using Web Search](/gh-aw/guides/web-search/).
 
 ## GitHub Tools (`github:`)
 
@@ -67,7 +67,7 @@ tools:
 ### GitHub Toolsets
 
 :::tip[Use Toolsets Instead of Allowed]
-Toolsets provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
+[Toolsets](/gh-aw/reference/glossary/#toolsets) (capability collections) provide a stable API across MCP server versions and automatically include new related tools. See [Migration from Allowed to Toolsets](/gh-aw/guides/mcps/#migration-from-allowed-to-toolsets) for guidance.
 :::
 
 Enable specific API groups to improve tool selection and reduce context size:

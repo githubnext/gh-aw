@@ -127,7 +127,7 @@ git diff --name-only origin/<BASE_BRANCH>...HEAD | grep -E '\.github/workflows/.
 git diff --stat origin/<BASE_BRANCH>...HEAD
 
 # Check if there are any existing .yml files in workflows that we need to be careful with
-ls -la .github/workflows/*.yml 2>/dev/null || true
+find .github/workflows -name "*.yml" -type f 2>/dev/null | head -20 || true
 ```
 
 Replace <BASE_BRANCH> with the actual base branch name from the GitHub API response.

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 // workflowNameRegex validates workflow names contain only alphanumeric characters, hyphens, and underscores
@@ -16,6 +17,20 @@ func ValidateWorkflowName(s string) error {
 	}
 	if !workflowNameRegex.MatchString(s) {
 		return errors.New("workflow name must contain only alphanumeric characters, hyphens, and underscores")
+	}
+	return nil
+}
+
+// ValidateWorkflowIntent checks if the provided workflow intent is valid.
+// It ensures the intent has meaningful content with at least 20 characters
+// and is not just whitespace.
+func ValidateWorkflowIntent(s string) error {
+	trimmed := strings.TrimSpace(s)
+	if len(trimmed) == 0 {
+		return errors.New("workflow instructions cannot be empty")
+	}
+	if len(trimmed) < 20 {
+		return errors.New("please provide at least 20 characters of instructions")
 	}
 	return nil
 }

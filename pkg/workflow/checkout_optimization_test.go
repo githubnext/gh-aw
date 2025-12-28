@@ -275,7 +275,8 @@ strict: false
 				}
 
 				agentJobSection := lockContentStr[agentJobStart:agentJobEnd]
-				hasCheckout := strings.Contains(agentJobSection, "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd")
+				// Check for repository checkout specifically (not actions folder checkout for local actions)
+				hasCheckout := strings.Contains(agentJobSection, "Checkout repository")
 
 				if hasCheckout != tt.expectedHasCheckout {
 					t.Errorf("%s: Expected hasCheckout=%v in agent job, got %v\nAgent job section:\n%s",

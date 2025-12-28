@@ -678,8 +678,8 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 		t.Skip("Skipping comprehensive file test in short mode")
 	}
 
-	// Find all .cjs files in the pkg/workflow/js directory
-	jsDir := "js"
+	// Find all .cjs files in the actions/setup/js directory
+	jsDir := "../../actions/setup/js"
 	entries, err := os.ReadDir(jsDir)
 	if err != nil {
 		t.Fatalf("Failed to read js directory: %v", err)
@@ -709,7 +709,7 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 
 	for _, filename := range cjsFiles {
 		t.Run(filename, func(t *testing.T) {
-			filepath := "js/" + filename
+			filepath := jsDir + "/" + filename
 			content, err := os.ReadFile(filepath)
 			if err != nil {
 				t.Fatalf("Failed to read file %s: %v", filename, err)
@@ -765,8 +765,9 @@ func TestRemoveJavaScriptCommentsAllRepoFiles(t *testing.T) {
 		totalSize, processedSize, compressionRatio)
 
 	// Ensure we processed a reasonable number of files
-	if len(cjsFiles) < 50 {
-		t.Errorf("Expected to process at least 50 .cjs files, but only found %d", len(cjsFiles))
+	// Note: Lower threshold after removing embedded scripts (which are now loaded at runtime)
+	if len(cjsFiles) < 5 {
+		t.Errorf("Expected to process at least 5 .cjs files, but only found %d", len(cjsFiles))
 	}
 }
 

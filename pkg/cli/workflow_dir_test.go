@@ -208,7 +208,7 @@ func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
 				if err := os.MkdirAll(expectedDir, 0755); err != nil {
 					t.Fatalf("Failed to create workflow directory: %v", err)
 				}
-				// Create a dummy workflow file
+				// Create a placeholder workflow file
 				workflowFile := filepath.Join(expectedDir, "test.md")
 				workflowContent := `---
 on: push

@@ -89,7 +89,7 @@ post-steps:
       if [ -d "/tmp/gh-aw/mcp-logs/playwright" ]; then
         echo "Found Playwright MCP logs directory"
         cp -r /tmp/gh-aw/mcp-logs/playwright/* /tmp/gh-aw/playwright-debug-logs/ 2>/dev/null || true
-        ls -la /tmp/gh-aw/playwright-debug-logs/
+        find /tmp/gh-aw/playwright-debug-logs/ -maxdepth 1 -ls
       else
         echo "No Playwright MCP logs directory found at /tmp/gh-aw/mcp-logs/playwright"
       fi

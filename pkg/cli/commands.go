@@ -82,8 +82,8 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 	_, path, err := readWorkflowFile(workflowPath, workflowsDir)
 	if err != nil {
 		suggestions := []string{
-			fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
-			fmt.Sprintf("Create a new workflow with '%s new %s'", constants.CLIExtensionPrefix, fileOrWorkflowName),
+			fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
+			fmt.Sprintf("Create a new workflow with '%s new %s'", string(constants.CLIExtensionPrefix), fileOrWorkflowName),
 			"Check for typos in the workflow name",
 		}
 
@@ -157,7 +157,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	}
 
 	fmt.Printf("Created new workflow: %s\n", destFile)
-	fmt.Printf("Edit the file to customize your workflow, then run '" + constants.CLIExtensionPrefix + " compile' to generate the GitHub Actions workflow.\n")
+	fmt.Printf("Edit the file to customize your workflow, then run '" + string(constants.CLIExtensionPrefix) + " compile' to generate the GitHub Actions workflow.\n")
 
 	return nil
 }
@@ -212,7 +212,7 @@ Be clear and specific about what the AI should accomplish.
 
 ## Notes
 
-- Run ` + "`" + constants.CLIExtensionPrefix + " compile`" + ` to generate the GitHub Actions workflow
+- Run ` + "`" + string(constants.CLIExtensionPrefix) + " compile`" + ` to generate the GitHub Actions workflow
 - See https://githubnext.github.io/gh-aw/ for complete configuration options and tools documentation
 `
 }

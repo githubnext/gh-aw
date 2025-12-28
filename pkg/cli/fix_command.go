@@ -53,11 +53,11 @@ The command will:
 ` + WorkflowIDExplanation + `
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` fix                     # Check all workflows (dry-run)
-  ` + constants.CLIExtensionPrefix + ` fix --write             # Fix all workflows
-  ` + constants.CLIExtensionPrefix + ` fix my-workflow         # Check specific workflow
-  ` + constants.CLIExtensionPrefix + ` fix my-workflow --write # Fix specific workflow
-  ` + constants.CLIExtensionPrefix + ` fix --list-codemods     # List available codemods`,
+  ` + string(constants.CLIExtensionPrefix) + ` fix                     # Check all workflows (dry-run)
+  ` + string(constants.CLIExtensionPrefix) + ` fix --write             # Fix all workflows
+  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow         # Check specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow --write # Fix specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` fix --list-codemods     # List available codemods`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listCodemods, _ := cmd.Flags().GetBool("list-codemods")
 			write, _ := cmd.Flags().GetBool("write")

@@ -13,24 +13,6 @@ var shLog = logger.New("workflow:sh")
 //go:embed prompts/pr_context_prompt.md
 var prContextPromptText string
 
-//go:embed sh/print_prompt_summary.sh
-var printPromptSummaryScript string
-
-//go:embed sh/create_prompt_first.sh
-var createPromptFirstScript string
-
-//go:embed sh/generate_git_patch.sh
-var generateGitPatchScript string
-
-//go:embed sh/create_cache_memory_dir.sh
-var createCacheMemoryDirScript string
-
-//go:embed sh/create_gh_aw_tmp_dir.sh
-var createGhAwTmpDirScript string
-
-//go:embed sh/start_safe_inputs_server.sh
-var startSafeInputsServerScript string
-
 //go:embed prompts/xpia_prompt.md
 var xpiaPromptText string
 

@@ -59,24 +59,21 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 	lockContentStr := string(lockContent)
 
 	// Test 1: Verify activation job exists and has reaction permissions
-	if !strings.Contains(lockContentStr, constants.ActivationJobName+":") {
+	if !strings.Contains(lockContentStr, string(constants.ActivationJobName)+":") {
 		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify activation job does NOT have checkout step (uses GitHub API instead)
-	activationJobSection := extractJobSection(lockContentStr, constants.ActivationJobName)
-	if strings.Contains(activationJobSection, "actions/checkout") {
-		t.Error("Activation job should NOT contain actions/checkout step - should use GitHub API instead")
+	// Test 2: Verify activation job behavior with local actions
+	activationJobSection := extractJobSection(lockContentStr, string(constants.ActivationJobName))
+
+	// In dev mode (default), activation job should checkout actions folder for setup action
+	if !strings.Contains(activationJobSection, "Checkout actions folder") {
+		t.Error("Activation job should checkout actions folder for local setup action in dev mode")
 	}
 
-	// Verify it does NOT use sparse checkout
-	if strings.Contains(activationJobSection, "sparse-checkout:") {
-		t.Error("Activation job should NOT use sparse-checkout - uses GitHub API instead")
-	}
-
-	// Verify it uses GitHub API for timestamp check
-	if !strings.Contains(activationJobSection, "github.rest.repos.listCommits") {
-		t.Error("Activation job should use GitHub API (github.rest.repos.listCommits) for timestamp check")
+	// Verify it uses GitHub API script for timestamp check (not repository checkout for that purpose)
+	if !strings.Contains(activationJobSection, "check_workflow_timestamp_api.cjs") {
+		t.Error("Activation job should use check_workflow_timestamp_api.cjs which calls GitHub API for timestamp check")
 	}
 
 	// Test 3: Verify activation job has contents: read permission for GitHub API access

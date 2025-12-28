@@ -90,8 +90,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
+	yaml.WriteString("        run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh\n")
 
 	// Add custom steps if present
 	if data.CustomSteps != "" {
@@ -237,6 +236,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
+	// parse safe-inputs logs for GITHUB_STEP_SUMMARY (if safe-inputs is enabled)
+	if IsSafeInputsEnabled(data.SafeInputs, data) {
+		c.generateSafeInputsLogParsing(yaml)
+	}
+
 	// Add Squid logs upload and parsing steps for Copilot and Codex engines (collection happens before secret redaction)
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		squidSteps := copilotEngine.GetSquidLogsSteps(data)
@@ -257,14 +261,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add Squid logs upload and parsing steps for Claude engine (collection happens before secret redaction)
 	if claudeEngine, ok := engine.(*ClaudeEngine); ok {
 		squidSteps := claudeEngine.GetSquidLogsSteps(data)
-		for _, step := range squidSteps {
-			for _, line := range step {
-				yaml.WriteString(line + "\n")
-			}
-		}
-	}
-	if codexEngine, ok := engine.(*CodexEngine); ok {
-		squidSteps := codexEngine.GetSquidLogsSteps(data)
 		for _, step := range squidSteps {
 			for _, line := range step {
 				yaml.WriteString(line + "\n")

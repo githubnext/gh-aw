@@ -1,0 +1,115 @@
+---
+title: Network Configuration Guide
+description: Common network configurations for package registries, CDNs, and development tools
+sidebar:
+  order: 450
+---
+
+This guide provides practical examples for configuring network access in GitHub Agentic Workflows while maintaining security.
+
+## Quick Start
+
+Configure network access by adding ecosystem identifiers to the `network.allowed` list. Always include `defaults` for basic infrastructure:
+
+```yaml
+network:
+  allowed:
+    - defaults      # Required: Basic infrastructure
+    - python        # PyPI, conda (for Python projects)
+    - node          # npm, yarn, pnpm (for Node.js projects)
+    - go            # Go module proxy (for Go projects)
+    - containers    # Docker Hub, GHCR (for container projects)
+```
+
+## Available Ecosystems
+
+| Ecosystem | Includes | Use For |
+|-----------|----------|---------|
+| `defaults` | Certificates, JSON schema, Ubuntu mirrors | All workflows (required) |
+| `python` | PyPI, conda, pythonhosted.org | Python packages |
+| `node` | npm, yarn, pnpm, Node.js | JavaScript/TypeScript |
+| `go` | proxy.golang.org, sum.golang.org | Go modules |
+| `containers` | Docker Hub, GHCR, Quay, GCR, MCR | Container images |
+| `java` | Maven, Gradle | Java dependencies |
+| `dotnet` | NuGet | .NET packages |
+| `ruby` | RubyGems, Bundler | Ruby gems |
+| `rust` | crates.io | Rust crates |
+| `github` | githubusercontent.com | GitHub resources |
+| `terraform` | HashiCorp registry | Terraform modules |
+| `playwright` | Browser downloads | Web testing |
+| `linux-distros` | Debian, Ubuntu, Alpine | Linux packages |
+
+## Common Configuration Patterns
+
+```yaml
+# Python project with containers
+network:
+  allowed:
+    - defaults
+    - python
+    - containers
+
+# Full-stack web development
+network:
+  allowed:
+    - defaults
+    - node
+    - playwright
+    - github
+
+# DevOps automation
+network:
+  allowed:
+    - defaults
+    - terraform
+    - containers
+    - github
+```
+
+## Custom Domains
+
+Add specific domains for your services:
+
+```yaml
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+    - "*.cdn.example.com"  # Wildcard for subdomains
+```
+
+## Security Best Practices
+
+1. **Start minimal** - Only add ecosystems you actually use
+2. **Use ecosystem identifiers** - Don't list individual domains (use `python` instead of `pypi.org`, `files.pythonhosted.org`, etc.)
+3. **Add incrementally** - Start with `defaults`, add ecosystems as needed based on firewall denials
+
+## Troubleshooting Firewall Denials
+
+View firewall activity with `gh aw logs --run-id <run-id>` to identify blocked domains:
+
+```text
+🔥 Firewall Log Analysis
+Denied Domains:
+  ✗ registry.npmjs.org:443 (3 requests) → Add `node` ecosystem
+  ✗ pypi.org:443 (2 requests) → Add `python` ecosystem
+```
+
+Common mappings: npm/Node.js → `node`, PyPI/Python → `python`, Docker → `containers`, Go modules → `go`.
+
+## Advanced Options
+
+Disable all external network access (engine communication still allowed):
+
+```yaml
+network: {}
+```
+
+View complete ecosystem domain lists in the [ecosystem domains source](https://github.com/githubnext/gh-aw/blob/main/pkg/workflow/data/ecosystem_domains.json).
+
+## Related Documentation
+
+- [Network Permissions Reference](/gh-aw/reference/network/) - Complete network configuration reference
+- [Security Guide](/gh-aw/guides/security/) - Security best practices
+- [Troubleshooting](/gh-aw/troubleshooting/common-issues/) - Common issues and solutions

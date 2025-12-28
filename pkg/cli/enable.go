@@ -179,7 +179,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 	// Report any workflows that weren't found
 	if len(notFoundNames) > 0 {
 		suggestions := []string{
-			fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+			fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 			"Check for typos in the workflow names",
 			"Ensure the workflows have been compiled and pushed to GitHub",
 		}

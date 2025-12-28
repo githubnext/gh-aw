@@ -20,7 +20,7 @@ steps:
   - name: My Step
     run: |
       echo "Value: ${{ steps.previous.outputs.value }}"
-```
+```text
 
 If the output value contains malicious content, it could be executed when the template is expanded.
 
@@ -34,7 +34,7 @@ steps:
       MY_VALUE: ${{ steps.previous.outputs.value }}
     run: |
       echo "Value: $MY_VALUE"
-```
+```text
 
 By passing the value through an environment variable, the content is treated as data, not executable code.
 
@@ -56,7 +56,7 @@ graph TB
         D2 --> E2[No Code Execution]
         style E2 fill:#8f8,stroke:#0f0
     end
-```
+```text
 
 ## Changes Made
 
@@ -84,7 +84,7 @@ graph TB
 +       echo "::warning::Extension installation status from previous step: $EXTENSION_INSTALLED"
         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
         # ...
-```
+```text
 
 ### mcp-inspector.md
 

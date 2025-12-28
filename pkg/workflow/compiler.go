@@ -87,6 +87,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate feature flags
+	log.Printf("Validating feature flags")
+	if err := validateFeatures(workflowData); err != nil {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return errors.New(formattedErr)
+	}
+
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
@@ -331,6 +346,21 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				},
 				Type:    "error",
 				Message: fmt.Sprintf("runtime package validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
+
+		// Validate firewall configuration (log-level enum)
+		log.Print("Validating firewall configuration")
+		if err := c.validateFirewallConfig(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("firewall configuration validation failed: %v", err),
 			})
 			return errors.New(formattedErr)
 		}

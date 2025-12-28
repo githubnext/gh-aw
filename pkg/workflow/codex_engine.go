@@ -225,7 +225,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 		// Prepend PATH setup to find codex in hostedtoolcache
 		// This ensures codex and all its dependencies (including MCP servers) are accessible
-		pathSetup := `export PATH="/opt/hostedtoolcache/node/$(ls /opt/hostedtoolcache/node | head -1)/x64/bin:$PATH"`
+		// Split export from command substitution to avoid masking return values (SC2155)
+		pathSetup := `NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH"`
 		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
 
 		// Build the command with agent file handling if specified
@@ -383,7 +384,7 @@ func (e *CodexEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActi
 func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *ToolsConfig {
 	if toolsConfig == nil {
 		return &ToolsConfig{
-			Custom: make(map[string]any),
+			Custom: make(map[string]MCPServerConfig),
 			raw:    make(map[string]any),
 		}
 	}
@@ -401,7 +402,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 		SafetyPrompt:     toolsConfig.SafetyPrompt,
 		Timeout:          toolsConfig.Timeout,
 		StartupTimeout:   toolsConfig.StartupTimeout,
-		Custom:           make(map[string]any),
+		Custom:           make(map[string]MCPServerConfig),
 		raw:              make(map[string]any),
 	}
 

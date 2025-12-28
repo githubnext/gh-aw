@@ -435,7 +435,10 @@ func findAvailablePort(startPort int, verbose bool) int {
 	for port := startPort; port < startPort+safeInputsPortRange; port++ {
 		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err == nil {
-			listener.Close()
+			// Close listener and check for errors
+			if err := listener.Close(); err != nil && verbose {
+				mcpInspectLog.Printf("Warning: Failed to close listener on port %d: %v", port, err)
+			}
 			if verbose {
 				mcpInspectLog.Printf("Found available port: %d", port)
 			}
@@ -456,7 +459,9 @@ func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+			}
 			if verbose {
 				mcpInspectLog.Printf("Server is ready on port %d", port)
 			}
@@ -489,12 +494,17 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir)))
+		if _, err := fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created temporary directory: %s", tmpDir))); err != nil {
+			mcpInspectLog.Printf("Warning: failed to write to stderr: %v", err)
+		}
 	}
 
 	// Write safe-inputs files to temporary directory
 	if err := writeSafeInputsFiles(tmpDir, safeInputsConfig, verbose); err != nil {
-		os.RemoveAll(tmpDir)
+		// Clean up temporary directory on error
+		if err := os.RemoveAll(tmpDir); err != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
+		}
 		return nil, nil, "", fmt.Errorf("failed to write safe-inputs files: %w", err)
 	}
 
@@ -512,7 +522,10 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	// Start the HTTP server
 	serverCmd, err := startSafeInputsHTTPServer(tmpDir, port, verbose)
 	if err != nil {
-		os.RemoveAll(tmpDir)
+		// Clean up temporary directory on error
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, rmErr)
+		}
 		return nil, nil, "", fmt.Errorf("failed to start safe-inputs HTTP server: %w", err)
 	}
 

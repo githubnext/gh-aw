@@ -148,7 +148,7 @@ func FuzzSanitizeOutput(f *testing.F) {
 			t.Errorf("Unexpected error from sanitize output: %v", err)
 		}
 
-		// Basic sanity checks on the result
+		// Basic validation checks on the result
 		if result != nil {
 			// Result should not be excessively longer than input
 			expectedMaxLen := len(text) + len(text)/2

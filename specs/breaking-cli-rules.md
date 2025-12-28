@@ -129,7 +129,7 @@ The following changes are **not breaking** and typically require:
 
 ## Decision Tree: Is This Breaking?
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  Is the change removing or renaming a command,  │
 │  subcommand, or flag?                           │
@@ -171,7 +171,7 @@ The following changes are **not breaking** and typically require:
                        │
                        ▼ NO
                   NOT BREAKING
-```
+```text
 
 ## Guidelines for Contributors
 
@@ -201,7 +201,7 @@ Remove deprecated `--old-flag` option
 - Scripts using this flag will need to be updated
 
 **Reason**: The option was deprecated in v0.X.0 and has been removed to simplify the CLI.
-```
+```text
 
 ### Changeset Format for Non-Breaking Changes
 
@@ -212,7 +212,7 @@ For new features:
 ---
 
 Add --json flag to logs command for structured output
-```
+```text
 
 For bug fixes:
 ```markdown
@@ -221,7 +221,7 @@ For bug fixes:
 ---
 
 Fix incorrect exit code when workflow file not found
-```
+```text
 
 ## Review Checklist for CLI Changes
 

@@ -31,7 +31,11 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
-  cache-memory: true
+  repo-memory:
+    branch-name: memory/session-insights
+    description: "Historical session analysis data"
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    max-file-size: 102400  # 100KB
   github:
     toolsets: [default]
   bash:
@@ -39,12 +43,11 @@ tools:
     - "find /tmp -type f"
     - "cat /tmp/*"
     - "mkdir -p *"
-    - "ls -la *"
+    - "find * -maxdepth 1"
     - "date *"
 
 imports:
   - shared/copilot-session-data-fetch.md
-  - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md
 
@@ -207,7 +210,7 @@ The session data has already been fetched in the preparation step. You should:
    jq 'length' /tmp/gh-aw/session-data/sessions-list.json
    
    # List log files
-   ls -la /tmp/gh-aw/session-data/logs/
+   find /tmp/gh-aw/session-data/logs/ -maxdepth 1 -ls
    ```
 
 2. **Extract Session Metadata**:

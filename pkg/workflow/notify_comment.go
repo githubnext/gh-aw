@@ -45,6 +45,18 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	// Build the job steps
 	var steps []string
 
+	// Add setup step to copy scripts
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		// For dev mode (local action path), checkout the actions folder first
+		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+
+		steps = append(steps, "      - name: Setup Scripts\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", setupActionRef))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, fmt.Sprintf("          destination: %s\n", SetupActionDestination))
+	}
+
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		// Use permissions for the conclusion job
@@ -86,6 +98,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			MainJobName:   mainJobName,
 			CustomEnvVars: noopEnvVars,
 			Script:        getNoOpScript(),
+			ScriptFile:    "noop.cjs",
 			Token:         data.SafeOutputs.NoOp.GitHubToken,
 		})
 		steps = append(steps, noopSteps...)
@@ -108,7 +121,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			StepID:        "missing_tool",
 			MainJobName:   mainJobName,
 			CustomEnvVars: missingToolEnvVars,
-			Script:        missingToolScript,
+			Script:        "const { main } = require('/tmp/gh-aw/actions/missing_tool.cjs'); await main();",
+			ScriptFile:    "missing_tool.cjs",
 			Token:         data.SafeOutputs.MissingTool.GitHubToken,
 		})
 		steps = append(steps, missingToolSteps...)
@@ -165,6 +179,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getNotifyCommentErrorScript(),
+		ScriptFile:    "notify_comment_error.cjs",
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
@@ -194,10 +209,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-
-		// Add the unlock-issue script
-		formattedScript := FormatJavaScriptForYAML(unlockIssueScript)
-		steps = append(steps, formattedScript...)
+		steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
 
 		notifyCommentLog.Print("Added unlock issue step to conclusion job")
 	}
@@ -251,7 +263,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
-	needs := []string{mainJobName, constants.ActivationJobName}
+	needs := []string{mainJobName, string(constants.ActivationJobName)}
 	needs = append(needs, safeOutputJobNames...)
 
 	// Add detection job to dependencies if threat detection is enabled

@@ -1,6 +1,47 @@
 // Package styles provides centralized style and color definitions for terminal output.
-// It uses lipgloss.AdaptiveColor to automatically adapt colors based on the terminal background,
-// ensuring good readability in both light and dark terminal themes.
+//
+// # Adaptive Color System
+//
+// This package uses lipgloss.AdaptiveColor to automatically adapt colors based on the
+// terminal background, ensuring good readability in both light and dark terminal themes.
+// Each color constant includes both Light and Dark variants that are automatically
+// selected based on the user's terminal configuration.
+//
+// # Design Philosophy
+//
+// Light Mode Strategy:
+//   - Uses darker, more saturated colors for visibility on light backgrounds
+//   - Ensures high contrast ratios for accessibility
+//   - Colors are muted to reduce visual fatigue
+//
+// Dark Mode Strategy:
+//   - Inspired by the Dracula color theme (https://draculatheme.com/)
+//   - Uses bright, vibrant colors optimized for dark backgrounds
+//   - Maintains consistency with popular dark terminal themes
+//
+// # Color Palette Overview
+//
+// The palette includes semantic colors for common CLI use cases:
+//   - Status colors: Error (red), Warning (orange), Success (green), Info (cyan)
+//   - Highlight colors: Purple (commands, file paths), Yellow (progress, attention)
+//   - Structural colors: Comment (muted text), Foreground (primary text), Background, Border
+//
+// Each color constant is documented with its light/dark hex values and semantic usage.
+// For visual examples and usage guidelines, see specs/styles-guide.md
+//
+// # Usage Example
+//
+//	import "github.com/githubnext/gh-aw/pkg/styles"
+//
+//	// Using pre-configured styles
+//	fmt.Println(styles.Error.Render("Something went wrong"))
+//	fmt.Println(styles.Success.Render("Operation completed"))
+//
+//	// Using color constants for custom styles
+//	customStyle := lipgloss.NewStyle().
+//		Foreground(styles.ColorInfo).
+//		Bold(true)
+//	fmt.Println(customStyle.Render("Custom styled text"))
 package styles
 
 import "github.com/charmbracelet/lipgloss"
@@ -9,19 +50,19 @@ import "github.com/charmbracelet/lipgloss"
 // Light variants use darker, more saturated colors for visibility on light backgrounds.
 // Dark variants use brighter colors (Dracula theme inspired) for dark backgrounds.
 var (
-	// ColorError is used for error messages and critical issues
+	// ColorError is used for error messages and critical issues.
 	ColorError = lipgloss.AdaptiveColor{
 		Light: "#D73737", // Darker red for light backgrounds
 		Dark:  "#FF5555", // Bright red for dark backgrounds (Dracula)
 	}
 
-	// ColorWarning is used for warning messages and cautionary information
+	// ColorWarning is used for warning messages and cautionary information.
 	ColorWarning = lipgloss.AdaptiveColor{
 		Light: "#E67E22", // Darker orange for light backgrounds
 		Dark:  "#FFB86C", // Bright orange for dark backgrounds (Dracula)
 	}
 
-	// ColorSuccess is used for success messages and confirmations
+	// ColorSuccess is used for success messages and confirmations.
 	ColorSuccess = lipgloss.AdaptiveColor{
 		Light: "#27AE60", // Darker green for light backgrounds
 		Dark:  "#50FA7B", // Bright green for dark backgrounds (Dracula)
@@ -213,3 +254,13 @@ var Header = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(ColorSuccess).
 	MarginBottom(1)
+
+// Tree styles for hierarchical output
+
+// TreeEnumerator style for tree branch characters (├── └──)
+var TreeEnumerator = lipgloss.NewStyle().
+	Foreground(ColorBorder)
+
+// TreeNode style for tree node content
+var TreeNode = lipgloss.NewStyle().
+	Foreground(ColorForeground)

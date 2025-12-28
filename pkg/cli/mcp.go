@@ -17,13 +17,7 @@ func NewMCPCommand() *cobra.Command {
 
 MCP enables AI workflows to connect to external tools and data sources through
 standardized servers. This command provides tools for inspecting and managing
-MCP server configurations in your agentic workflows.
-
-Available subcommands:
-  add         Add an MCP tool to an agentic workflow
-  list        List MCP servers defined in agentic workflows
-  list-tools  List available tools for a specific MCP server
-  inspect     Inspect MCP servers and list available tools, resources, and roots`,
+MCP server configurations in your agentic workflows.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

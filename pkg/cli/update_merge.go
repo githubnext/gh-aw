@@ -5,36 +5,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
-
-// normalizeWhitespace normalizes trailing whitespace and newlines to reduce spurious conflicts
-func normalizeWhitespace(content string) string {
-	// Split into lines and trim trailing whitespace from each line
-	lines := strings.Split(content, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimRight(line, " \t")
-	}
-
-	// Join back and ensure exactly one trailing newline if content is not empty
-	normalized := strings.Join(lines, "\n")
-	normalized = strings.TrimRight(normalized, "\n")
-	if len(normalized) > 0 {
-		normalized += "\n"
-	}
-
-	return normalized
-}
 
 // hasLocalModifications checks if the local workflow file has been modified from its source
 // It resolves the source field and imports on the remote content, then compares with local
 // Note: stop-after field is ignored during comparison as it's a deployment-specific setting
 func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbose bool) bool {
 	// Normalize both contents
-	sourceNormalized := normalizeWhitespace(sourceContent)
-	localNormalized := normalizeWhitespace(localContent)
+	sourceNormalized := stringutil.NormalizeWhitespace(sourceContent)
+	localNormalized := stringutil.NormalizeWhitespace(localContent)
 
 	// Remove stop-after field from both contents for comparison
 	// This field is deployment-specific and should not trigger "local modifications" warnings
@@ -80,7 +62,7 @@ func hasLocalModifications(sourceContent, localContent, sourceSpec string, verbo
 	}
 
 	// Normalize again after processing
-	sourceResolvedNormalized := normalizeWhitespace(sourceResolved)
+	sourceResolvedNormalized := stringutil.NormalizeWhitespace(sourceResolved)
 
 	// Compare the normalized contents
 	hasModifications := sourceResolvedNormalized != localNormalized
@@ -128,9 +110,9 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 	}
 
 	// Normalize whitespace in all three versions to reduce spurious conflicts
-	baseNormalized := normalizeWhitespace(baseWithSource)
-	currentNormalized := normalizeWhitespace(current)
-	newNormalized := normalizeWhitespace(newWithUpdatedSource)
+	baseNormalized := stringutil.NormalizeWhitespace(baseWithSource)
+	currentNormalized := stringutil.NormalizeWhitespace(current)
+	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
 
 	// Create temporary directory for merge files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")

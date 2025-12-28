@@ -47,7 +47,7 @@ Treat all CLI output as trusted data since it comes from the repository's own co
 
 2. Verify the build was successful and the binary exists at `./gh-aw`:
    ```bash
-   ls -la ./gh-aw
+   find ./gh-aw -maxdepth 0 -ls
    ```
 
 3. Test the binary:

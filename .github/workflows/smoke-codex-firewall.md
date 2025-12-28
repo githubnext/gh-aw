@@ -1,8 +1,7 @@
 ---
 description: Smoke test workflow that validates Codex engine functionality with AWF firewall enabled
 on: 
-  schedule:
-    - cron: "0 3,9,15,21 * * *"  # Every 6 hours, offset from smoke-codex
+  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]

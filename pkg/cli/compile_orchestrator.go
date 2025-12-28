@@ -208,6 +208,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v, poutine=%v, actionlint=%v, jsonOutput=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor, poutine, actionlint, jsonOutput)
 
+	// Initialize actionlint statistics if actionlint is enabled
+	if actionlint && !noEmit {
+		initActionlintStats()
+	}
+
 	// Track compilation statistics
 	stats := &CompilationStats{}
 
@@ -277,10 +282,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		compiler.SetActionMode(mode)
 		compileOrchestratorLog.Printf("Action mode set to: %s", mode)
 	} else {
-		// Use auto-detection
-		mode := workflow.DetectActionMode()
+		// Use auto-detection with version from binary
+		mode := workflow.DetectActionMode(GetVersion())
 		compiler.SetActionMode(mode)
-		compileOrchestratorLog.Printf("Action mode auto-detected: %s", mode)
+		compileOrchestratorLog.Printf("Action mode auto-detected: %s (version: %s)", mode, GetVersion())
 	}
 
 	if watch {
@@ -309,6 +314,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		var compiledCount int
 		var errorCount int
 		var errorMessages []string
+		var lockFilesForActionlint []string // Collect lock files for batch actionlint run
 		for _, markdownFile := range markdownFiles {
 			stats.Total++
 
@@ -471,7 +477,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileOrchestratorLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+			// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				if !jsonOutput {
 					fmt.Fprintln(os.Stderr, err.Error())
@@ -492,8 +499,30 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 			compiledCount++
 
+			// Collect lock file for batch actionlint run
+			if actionlint && !noEmit {
+				lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+				if _, err := os.Stat(lockFile); err == nil {
+					lockFilesForActionlint = append(lockFilesForActionlint, lockFile)
+				}
+			}
+
 			// Add successful validation result
 			validationResults = append(validationResults, result)
+		}
+
+		// Run actionlint on all lock files in batch for better performance
+		if actionlint && !noEmit && len(lockFilesForActionlint) > 0 {
+			compileOrchestratorLog.Printf("Running batch actionlint on %d lock files", len(lockFilesForActionlint))
+			if err := RunActionlintOnFiles(lockFilesForActionlint, verbose && !jsonOutput, strict); err != nil {
+				if strict {
+					return workflowDataList, fmt.Errorf("actionlint linter failed: %w", err)
+				}
+				// In non-strict mode, actionlint errors are warnings
+				if verbose && !jsonOutput {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
+				}
+			}
 		}
 
 		// Get warning count from compiler
@@ -585,7 +614,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Output JSON if requested
 		if jsonOutput {
-			jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+			// Sanitize validation results before JSON marshaling to prevent logging of sensitive information
+			// This removes potential secret key names from error messages at the output boundary
+			sanitizedResults := sanitizeValidationResults(validationResults)
+			jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
 			if err != nil {
 				return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 			}
@@ -593,6 +625,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		} else if !config.Stats {
 			// Print summary for text output (skip if stats mode)
 			printCompilationSummary(stats)
+		}
+
+		// Display actionlint summary if actionlint was enabled and we're not in JSON output mode
+		if actionlint && !noEmit && !jsonOutput {
+			displayActionlintSummary()
 		}
 
 		// Save the action cache after all compilations
@@ -689,6 +726,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Compile each file (including .campaign.md files)
 	var errorCount int
 	var successCount int
+	var lockFilesForActionlint []string // Collect lock files for batch actionlint run
 	for _, file := range mdFiles {
 		stats.Total++
 
@@ -815,7 +853,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
+		// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
 			if !jsonOutput {
 				fmt.Fprintln(os.Stderr, err.Error())
@@ -835,8 +874,30 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		successCount++
 
+		// Collect lock file for batch actionlint run
+		if actionlint && !noEmit {
+			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			if _, err := os.Stat(lockFile); err == nil {
+				lockFilesForActionlint = append(lockFilesForActionlint, lockFile)
+			}
+		}
+
 		// Add successful validation result
 		validationResults = append(validationResults, result)
+	}
+
+	// Run actionlint on all lock files in batch for better performance
+	if actionlint && !noEmit && len(lockFilesForActionlint) > 0 {
+		compileOrchestratorLog.Printf("Running batch actionlint on %d lock files", len(lockFilesForActionlint))
+		if err := RunActionlintOnFiles(lockFilesForActionlint, verbose && !jsonOutput, strict); err != nil {
+			if strict {
+				return workflowDataList, fmt.Errorf("actionlint linter failed: %w", err)
+			}
+			// In non-strict mode, actionlint errors are warnings
+			if verbose && !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
+			}
+		}
 	}
 
 	// Get warning count from compiler
@@ -945,7 +1006,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
 		}
 
-		if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, absWorkflowDir, verbose); err != nil {
+		if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, absWorkflowDir, compiler.GetVersion(), compiler.GetActionMode(), verbose); err != nil {
 			if strict {
 				return workflowDataList, fmt.Errorf("failed to generate maintenance workflow: %w", err)
 			}
@@ -980,7 +1041,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Output JSON if requested
 	if jsonOutput {
-		jsonBytes, err := json.MarshalIndent(validationResults, "", "  ")
+		// Sanitize validation results before JSON marshaling to prevent logging of sensitive information
+		// This removes potential secret key names from error messages at the output boundary
+		sanitizedResults := sanitizeValidationResults(validationResults)
+		jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
 		if err != nil {
 			return workflowDataList, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
@@ -988,6 +1052,11 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	} else if !config.Stats {
 		// Print summary for text output (skip if stats mode)
 		printCompilationSummary(stats)
+	}
+
+	// Display actionlint summary if actionlint was enabled and we're not in JSON output mode
+	if actionlint && !noEmit && !jsonOutput {
+		displayActionlintSummary()
 	}
 
 	// Save the action cache after all compilations

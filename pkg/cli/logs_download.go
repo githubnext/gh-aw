@@ -294,7 +294,9 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		// Check if it's because there are no artifacts
 		if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
 			// Clean up empty directory
-			os.RemoveAll(outputDir)
+			if err := os.RemoveAll(outputDir); err != nil && verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up empty directory %s: %v", outputDir, err)))
+			}
 			if verbose {
 				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
 			}

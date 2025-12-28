@@ -184,6 +184,8 @@ Test workflow with permissions but checkout should be conditional.
 
 			// Compile workflow
 			compiler := NewCompiler(false, "", "test-version")
+			// Use dev mode to test with local action paths
+			compiler.SetActionMode(ActionModeDev)
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -208,16 +210,17 @@ Test workflow with permissions but checkout should be conditional.
 				t.Errorf("Expected PR context prompt: %v, got: %v", tt.expectPRPrompt, hasPRPrompt)
 			}
 
-			// If PR checkout is expected, verify it uses JavaScript
+			// If PR checkout is expected, verify it uses JavaScript with require()
 			if tt.expectPRCheckout {
 				if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
 					t.Error("PR checkout step should use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 				}
-				if !strings.Contains(lockStr, "pullRequest") {
-					t.Error("PR checkout step should reference pullRequest in JavaScript")
+				// In release mode, the script is loaded via require() from the custom action
+				if !strings.Contains(lockStr, "require(") {
+					t.Error("PR checkout step should load module via require()")
 				}
-				if !strings.Contains(lockStr, "gh pr checkout") {
-					t.Error("PR checkout step should use gh pr checkout command")
+				if !strings.Contains(lockStr, "checkout_pr_branch.cjs") {
+					t.Error("PR checkout step should reference checkout_pr_branch.cjs module")
 				}
 			}
 
@@ -292,12 +295,12 @@ Test workflow with multiple comment triggers.
 		t.Error("Expected PR checkout to use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 	}
 
-	// Verify JavaScript code handles PR checkout
+	// Verify JavaScript code loads PR checkout module via require()
+	// In dev mode (default), the script is loaded from a file via require()
 	expectedPatterns := []string{
-		"pullRequest.head.ref",
-		"exec.exec",
-		"checkout",
-		"gh pr checkout",
+		"require(",
+		"checkout_pr_branch.cjs",
+		"await main()",
 	}
 
 	for _, pattern := range expectedPatterns {
@@ -393,14 +396,18 @@ Test workflow to verify GH_TOKEN configuration.
 		t.Error("Expected standard token fallback pattern in PR checkout step")
 	}
 
-	// Verify JavaScript does not include redundant env passing
-	// The old problematic code was: env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN }
-	if strings.Contains(stepSection, "process.env.GITHUB_TOKEN") {
-		t.Error("JavaScript should not reference process.env.GITHUB_TOKEN - token is passed via step env")
+	// Verify JavaScript loads the checkout module via require() in dev mode
+	// In dev mode, the script is loaded from a file, not inlined
+	if !strings.Contains(stepSection, "require(") {
+		t.Error("Expected require() call to load checkout_pr_branch.cjs module")
 	}
 
-	// Verify gh pr checkout is called correctly
-	if !strings.Contains(stepSection, `exec.exec("gh", ["pr", "checkout", prNumber.toString()])`) {
-		t.Error("Expected simplified gh pr checkout call without explicit env options")
+	if !strings.Contains(stepSection, "checkout_pr_branch.cjs") {
+		t.Error("Expected reference to checkout_pr_branch.cjs module")
+	}
+
+	// Verify the module's main function is called
+	if !strings.Contains(stepSection, "await main()") {
+		t.Error("Expected call to main() function from checkout module")
 	}
 }

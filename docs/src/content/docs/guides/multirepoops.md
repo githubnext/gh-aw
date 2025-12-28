@@ -97,7 +97,7 @@ See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete authen
 
 Central repository aggregates issues from multiple component repositories:
 
-```
+```text
 Component Repo A ──┐
 Component Repo B ──┼──> Central Tracker
 Component Repo C ──┘
@@ -109,7 +109,7 @@ Each component workflow creates tracking issues in the central repo using `targe
 
 Main repository propagates changes to downstream repositories:
 
-```
+```text
 Main Repo ──> Sub-Repo Alpha
           ──> Sub-Repo Beta
           ──> Sub-Repo Gamma
@@ -121,7 +121,7 @@ Use cross-repo pull requests with `create-pull-request` safe output and `target-
 
 Single workflow creates issues across multiple repositories:
 
-```
+```text
 Control Workflow ──> Repo 1 (tracking issue)
                  ──> Repo 2 (tracking issue)
                  ──> Repo 3 (tracking issue)

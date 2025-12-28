@@ -92,8 +92,12 @@ func UpdateActions(allowMajor, verbose bool) error {
 		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, entry.SHA[:7], latestVersion, latestSHA[:7])
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
 
-		// Update the map entry
-		actionsLock.Entries[key] = actionsLockEntry{
+		// Delete the old key (which has the old version)
+		delete(actionsLock.Entries, key)
+
+		// Create a new key with the new version
+		newKey := entry.Repo + "@" + latestVersion
+		actionsLock.Entries[newKey] = actionsLockEntry{
 			Repo:    entry.Repo,
 			Version: latestVersion,
 			SHA:     latestSHA,

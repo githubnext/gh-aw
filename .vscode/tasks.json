@@ -5,7 +5,7 @@
       "label": "Compile gh-aw",
       "type": "shell",
       "command": "make",
-      "args": ["build"],
+      "args": ["build"]
     },
     {
       "label": "Compile Github Agentic Workflows (watch)",

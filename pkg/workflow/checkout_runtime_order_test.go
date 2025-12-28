@@ -53,6 +53,7 @@ steps:
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -116,30 +117,40 @@ steps:
 
 	t.Logf("Found %d steps: %v", len(stepNames), stepNames)
 
-	if len(stepNames) < 4 {
-		t.Fatalf("Expected at least 4 steps, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 5 {
+		t.Fatalf("Expected at least 5 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
-	// Verify the order:
-	// 1. First step should be "Create gh-aw temp directory" (before all steps, including custom steps)
-	// 2. Second step should be "Checkout code" (from custom steps)
-	// 3. Third step should be "Setup Node.js" (runtime setup, inserted after checkout)
-	// 4. Fourth step should be "Use Node" (from custom steps)
+	// Verify the order in dev mode (when local actions are used):
+	// 1. First step should be "Checkout actions folder" (checkout local actions)
+	// 2. Second step should be "Setup Scripts" (use the checked out action)
+	// 3. Third step should be "Create gh-aw temp directory" (before custom steps)
+	// 4. Fourth step should be "Checkout code" (from custom steps)
+	// 5. Fifth step should be "Setup Node.js" (runtime setup, inserted after checkout)
+	// 6. Sixth step should be "Use Node" (from custom steps)
 
-	if stepNames[0] != "Create gh-aw temp directory" {
-		t.Errorf("First step should be 'Create gh-aw temp directory', got '%s'", stepNames[0])
+	if stepNames[0] != "Checkout actions folder" {
+		t.Errorf("First step should be 'Checkout actions folder', got '%s'", stepNames[0])
 	}
 
-	if stepNames[1] != "Checkout code" {
-		t.Errorf("Second step should be 'Checkout code', got '%s'", stepNames[1])
+	if stepNames[1] != "Setup Scripts" {
+		t.Errorf("Second step should be 'Setup Scripts', got '%s'", stepNames[1])
 	}
 
-	if stepNames[2] != "Setup Node.js" {
-		t.Errorf("Third step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[2])
+	if stepNames[2] != "Create gh-aw temp directory" {
+		t.Errorf("Third step should be 'Create gh-aw temp directory', got '%s'", stepNames[2])
 	}
 
-	if stepNames[3] != "Use Node" {
-		t.Errorf("Fourth step should be 'Use Node', got '%s'", stepNames[3])
+	if stepNames[3] != "Checkout code" {
+		t.Errorf("Fourth step should be 'Checkout code', got '%s'", stepNames[3])
+	}
+
+	if stepNames[4] != "Setup Node.js" {
+		t.Errorf("Fifth step should be 'Setup Node.js' (runtime setup after checkout), got '%s'", stepNames[4])
+	}
+
+	if stepNames[5] != "Use Node" {
+		t.Errorf("Sixth step should be 'Use Node', got '%s'", stepNames[5])
 	}
 
 	// Additional check: verify temp directory creation is first
@@ -168,7 +179,7 @@ steps:
 	}
 
 	t.Logf("Step order is correct:")
-	for i, name := range stepNames[:4] {
+	for i, name := range stepNames[:6] {
 		t.Logf("  %d. %s", i+1, name)
 	}
 }
@@ -211,6 +222,7 @@ Run node --version to check the Node.js version.
 
 	// Compile workflow
 	compiler := NewCompiler(false, "", "test-version")
+	compiler.SetActionMode(ActionModeDev) // Use dev mode with local action paths
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -268,17 +280,29 @@ Run node --version to check the Node.js version.
 		}
 	}
 
-	if len(stepNames) < 1 {
-		t.Fatalf("Expected at least 1 step, got %d: %v", len(stepNames), stepNames)
+	if len(stepNames) < 3 {
+		t.Fatalf("Expected at least 3 steps, got %d: %v", len(stepNames), stepNames)
 	}
 
-	// Verify the order:
-	// 1. First step should be "Checkout repository" (automatic)
+	// Verify the order in dev mode:
+	// 1. First step should be "Checkout actions folder" (checkout local actions)
+	// 2. Second step should be "Setup Scripts" (use the checked out action)
+	// 3. Third step should be "Checkout repository" (automatic)
 
-	if stepNames[0] != "Checkout repository" {
-		t.Errorf("First step should be 'Checkout repository', got '%s'", stepNames[0])
+	if stepNames[0] != "Checkout actions folder" {
+		t.Errorf("First step should be 'Checkout actions folder', got '%s'", stepNames[0])
+	}
+
+	if stepNames[1] != "Setup Scripts" {
+		t.Errorf("Second step should be 'Setup Scripts', got '%s'", stepNames[1])
+	}
+
+	if stepNames[2] != "Checkout repository" {
+		t.Errorf("Third step should be 'Checkout repository', got '%s'", stepNames[2])
 	}
 
 	t.Logf("Step order is correct:")
-	t.Logf("  1. %s (first step is checkout)", stepNames[0])
+	t.Logf("  1. %s", stepNames[0])
+	t.Logf("  2. %s", stepNames[1])
+	t.Logf("  3. %s", stepNames[2])
 }

@@ -55,7 +55,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		hasDetails = true
 	}
 	if strings.TrimSpace(spec.Objective) != "" {
-		markdownBuilder.WriteString(fmt.Sprintf("- Objective: %s\n", strings.TrimSpace(spec.Objective)))
+		fmt.Fprintf(markdownBuilder, "- Objective: %s\n", strings.TrimSpace(spec.Objective))
 		hasDetails = true
 	}
 	if len(spec.KPIs) > 0 {
@@ -76,7 +76,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 			if priority != "" {
 				priority = " (" + priority + ")"
 			}
-			markdownBuilder.WriteString(fmt.Sprintf("  - %s%s: baseline %.4g → target %.4g over %d days%s\n", name, priority, kpi.Baseline, kpi.Target, kpi.TimeWindowDays, unit))
+			fmt.Fprintf(markdownBuilder, "  - %s%s: baseline %.4g → target %.4g over %d days%s\n", name, priority, kpi.Baseline, kpi.Target, kpi.TimeWindowDays, unit)
 		}
 		hasDetails = true
 	}

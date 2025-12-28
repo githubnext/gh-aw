@@ -62,13 +62,13 @@ func NewTools(toolsMap map[string]any) *Tools {
 	toolsParserLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
 	if toolsMap == nil {
 		return &Tools{
-			Custom: make(map[string]any),
+			Custom: make(map[string]MCPServerConfig),
 			raw:    make(map[string]any),
 		}
 	}
 
 	tools := &Tools{
-		Custom: make(map[string]any),
+		Custom: make(map[string]MCPServerConfig),
 		raw:    make(map[string]any),
 	}
 
@@ -138,7 +138,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 	customCount := 0
 	for name, config := range toolsMap {
 		if !knownTools[name] {
-			tools.Custom[name] = config
+			tools.Custom[name] = parseMCPServerConfig(config)
 			customCount++
 		}
 	}
@@ -417,7 +417,7 @@ func parseRepoMemoryTool(val any) *RepoMemoryToolConfig {
 }
 
 // parseMCPGatewayTool converts raw mcp-gateway tool configuration
-func parseMCPGatewayTool(val any) *MCPGatewayConfig {
+func parseMCPGatewayTool(val any) *MCPGatewayRuntimeConfig {
 	if val == nil {
 		return nil
 	}
@@ -427,7 +427,7 @@ func parseMCPGatewayTool(val any) *MCPGatewayConfig {
 		return nil
 	}
 
-	config := &MCPGatewayConfig{
+	config := &MCPGatewayRuntimeConfig{
 		Port: DefaultMCPGatewayPort,
 	}
 
@@ -510,4 +510,120 @@ func parseStartupTimeoutTool(val any) *int {
 		return &intVal
 	}
 	return nil
+}
+
+// parseMCPServerConfig converts raw MCP server configuration to MCPServerConfig
+func parseMCPServerConfig(val any) MCPServerConfig {
+	config := MCPServerConfig{
+		CustomFields: make(map[string]any),
+	}
+
+	// If val is nil, return empty config
+	if val == nil {
+		return config
+	}
+
+	// If it's not a map, store it as a custom field
+	configMap, ok := val.(map[string]any)
+	if !ok {
+		config.CustomFields["value"] = val
+		return config
+	}
+
+	// Parse common MCP server fields
+	if command, ok := configMap["command"].(string); ok {
+		config.Command = command
+	}
+
+	if args, ok := configMap["args"].([]any); ok {
+		config.Args = make([]string, 0, len(args))
+		for _, arg := range args {
+			if str, ok := arg.(string); ok {
+				config.Args = append(config.Args, str)
+			}
+		}
+	}
+
+	if env, ok := configMap["env"].(map[string]any); ok {
+		config.Env = make(map[string]string)
+		for k, v := range env {
+			if str, ok := v.(string); ok {
+				config.Env[k] = str
+			}
+		}
+	}
+
+	if mode, ok := configMap["mode"].(string); ok {
+		config.Mode = mode
+	}
+
+	if mcpType, ok := configMap["type"].(string); ok {
+		config.Type = mcpType
+	}
+
+	if version, ok := configMap["version"].(string); ok {
+		config.Version = version
+	} else if versionNum, ok := configMap["version"].(float64); ok {
+		config.Version = fmt.Sprintf("%.0f", versionNum)
+	}
+
+	if toolsets, ok := configMap["toolsets"].([]any); ok {
+		config.Toolsets = make([]string, 0, len(toolsets))
+		for _, item := range toolsets {
+			if str, ok := item.(string); ok {
+				config.Toolsets = append(config.Toolsets, str)
+			}
+		}
+	}
+
+	// Parse HTTP-specific fields
+	if url, ok := configMap["url"].(string); ok {
+		config.URL = url
+	}
+
+	if headers, ok := configMap["headers"].(map[string]any); ok {
+		config.Headers = make(map[string]string)
+		for k, v := range headers {
+			if str, ok := v.(string); ok {
+				config.Headers[k] = str
+			}
+		}
+	}
+
+	// Parse container-specific fields
+	if container, ok := configMap["container"].(string); ok {
+		config.Container = container
+	}
+
+	if entrypointArgs, ok := configMap["entrypointArgs"].([]any); ok {
+		config.EntrypointArgs = make([]string, 0, len(entrypointArgs))
+		for _, arg := range entrypointArgs {
+			if str, ok := arg.(string); ok {
+				config.EntrypointArgs = append(config.EntrypointArgs, str)
+			}
+		}
+	}
+
+	// Store any unknown fields in CustomFields
+	knownFields := map[string]bool{
+		"command":        true,
+		"args":           true,
+		"env":            true,
+		"mode":           true,
+		"type":           true,
+		"version":        true,
+		"toolsets":       true,
+		"url":            true,
+		"headers":        true,
+		"container":      true,
+		"entrypointArgs": true,
+	}
+
+	for key, value := range configMap {
+		if !knownFields[key] {
+			config.CustomFields[key] = value
+		}
+	}
+
+	return config
 }

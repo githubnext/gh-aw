@@ -58,7 +58,7 @@ GitHub App tokens are minted on-demand, automatically revoked after job completi
 
 Central repository aggregates information from multiple component repositories:
 
-```
+```text
 Component Repo A ──┐
 Component Repo B ──┼──> Central Tracker
 Component Repo C ──┘
@@ -68,7 +68,7 @@ Component Repo C ──┘
 
 Main repository propagates changes to downstream repositories:
 
-```
+```text
 Main Repo ──> Sub-Repo Alpha
           ──> Sub-Repo Beta
           ──> Sub-Repo Gamma
@@ -78,7 +78,7 @@ Main Repo ──> Sub-Repo Alpha
 
 Single workflow creates issues across multiple repositories:
 
-```
+```text
 Control Workflow ──> Repo 1 (tracking issue)
                  ──> Repo 2 (tracking issue)
                  ──> Repo 3 (tracking issue)

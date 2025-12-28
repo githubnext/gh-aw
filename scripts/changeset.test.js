@@ -77,8 +77,9 @@ function runChangesetVersion() {
     execSync('git config user.email "test@example.com"', { cwd: TEST_DIR, stdio: 'ignore' });
     execSync('git config user.name "Test User"', { cwd: TEST_DIR, stdio: 'ignore' });
     
-    // Run version command
-    const output = execSync(`node "${CHANGESET_SCRIPT}" version`, {
+    // Run version command by requiring and calling main
+    // Need to set up process.argv properly: [node, scriptname, command, ...]
+    const output = execSync(`node -e "process.argv.splice(1, 0, 'changeset.js', 'version'); const {main} = require('${CHANGESET_SCRIPT}'); main().catch(console.error);"`, {
       cwd: TEST_DIR,
       encoding: 'utf8',
       env: { ...process.env, GH_AW_CURRENT_VERSION: 'v0.1.0' }

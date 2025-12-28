@@ -1,8 +1,9 @@
 package cli
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/sliceutil"
 )
 
 func TestCheckAndPrepareDockerImages_NoToolsRequested(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyDownloading(t *testing.T) {
 	// Error message should mention downloading and retry
 	if err != nil {
 		errMsg := err.Error()
-		if !containsAny(errMsg, "downloading", "retry") {
+		if !sliceutil.ContainsAny(errMsg, "downloading", "retry") {
 			t.Errorf("Expected error to mention downloading and retry, got: %s", errMsg)
 		}
 	}
@@ -105,7 +106,7 @@ func TestDockerImageConstants(t *testing.T) {
 	}
 
 	for name, image := range expectedImages {
-		if !containsAny(image, "/", ":") {
+		if !sliceutil.ContainsAny(image, "/", ":") {
 			t.Errorf("%s image %s does not look like a Docker image reference", name, image)
 		}
 	}
@@ -133,7 +134,7 @@ func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	// Error should mention downloading images
 	if err != nil {
 		errMsg := err.Error()
-		if !containsAny(errMsg, "downloading", "retry") {
+		if !sliceutil.ContainsAny(errMsg, "downloading", "retry") {
 			t.Errorf("Expected error to mention downloading and retry, got: %s", errMsg)
 		}
 	}
@@ -167,7 +168,7 @@ func TestCheckAndPrepareDockerImages_RetryMessageFormat(t *testing.T) {
 	}
 
 	for _, expected := range expectations {
-		if !containsAny(errMsg, expected) {
+		if !sliceutil.ContainsAny(errMsg, expected) {
 			t.Errorf("Expected error message to contain '%s', got: %s", expected, errMsg)
 		}
 	}
@@ -194,7 +195,7 @@ func TestCheckAndPrepareDockerImages_StartedDownloadingMessage(t *testing.T) {
 	errMsg := err.Error()
 
 	// Should contain zizmor since it's downloading
-	if !containsAny(errMsg, "zizmor") {
+	if !sliceutil.ContainsAny(errMsg, "zizmor") {
 		t.Errorf("Expected error message to mention zizmor, got: %s", errMsg)
 	}
 
@@ -259,14 +260,4 @@ func TestMockImageAvailability(t *testing.T) {
 
 	// Clean up
 	ResetDockerPullState()
-}
-
-// containsAny checks if s contains any of the substrings
-func containsAny(s string, substrings ...string) bool {
-	for _, sub := range substrings {
-		if strings.Contains(s, sub) {
-			return true
-		}
-	}
-	return false
 }

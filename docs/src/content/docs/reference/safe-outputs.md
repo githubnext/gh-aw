@@ -5,7 +5,7 @@ sidebar:
   order: 800
 ---
 
-The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
+The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) (validated GitHub operations) element of your workflow's [frontmatter](/gh-aw/reference/glossary/#frontmatter) declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
 ## Why Safe Outputs?
 
@@ -53,7 +53,7 @@ Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-ou
 
 ### Custom Safe Output Jobs (`jobs:`)
 
-Create custom post-processing jobs registered as MCP tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
+Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
 ### Issue Creation (`create-issue:`)
 

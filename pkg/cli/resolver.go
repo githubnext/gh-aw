@@ -45,7 +45,7 @@ func ResolveWorkflowPath(workflowFile string) (string, error) {
 	resolverLog.Printf("Workflow file not found: %s", workflowPath)
 
 	suggestions := []string{
-		fmt.Sprintf("Run '%s status' to see all available workflows", constants.CLIExtensionPrefix),
+		fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 		"Check for typos in the workflow name",
 		"Ensure the workflow file exists in .github/workflows/",
 	}

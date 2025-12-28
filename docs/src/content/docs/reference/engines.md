@@ -5,7 +5,7 @@ sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (AI model/provider) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 :::note[Experimental Engines]
 Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
@@ -13,7 +13,7 @@ Claude and Codex engines are available but marked as experimental. They are not 
 
 ### GitHub Copilot CLI
 
-GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
+GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) server support and is designed for conversational AI workflows.
 
 ```yaml wrap
 engine: copilot

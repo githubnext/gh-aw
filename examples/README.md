@@ -1,10 +1,23 @@
-# MCP Gateway Examples
+# Examples
 
-This directory contains example configuration files for the `mcp-gateway` command.
+This directory contains example workflows and configurations for GitHub Agentic Workflows.
+
+## Network Configuration Examples
+
+For examples of network configuration with package registries and CDNs:
+- [`network-python-project.md`](./network-python-project.md) - Python project with PyPI access
+- [`network-node-project.md`](./network-node-project.md) - Node.js project with npm access
+- [`network-multi-language.md`](./network-multi-language.md) - Multi-language project with multiple registries
+
+See the [Network Configuration Guide](../docs/src/content/docs/guides/network-configuration.md) for more information.
+
+## Model Context Protocol (MCP) Gateway Examples
+
+This directory also contains MCP Gateway configuration files for the `mcp-gateway` command.
 
 ## What is MCP Gateway?
 
-The MCP Gateway is a proxy server that connects to multiple MCP (Model Context Protocol) servers and exposes all their tools through a single HTTP endpoint. This allows clients to access tools from multiple MCP servers without managing individual connections.
+The MCP Gateway is a proxy server that connects to multiple Model Context Protocol (MCP) servers and exposes all their tools through a single HTTP endpoint. This allows clients to access tools from multiple MCP servers without managing individual connections.
 
 ## Example Configurations
 
@@ -22,7 +35,7 @@ A basic configuration with a single MCP server:
   },
   "port": 8088
 }
-```
+```text
 
 **Note:** The `port` field is optional in the configuration file. If not specified, the gateway will use port 8088 by default, or you can override it with the `--port` flag.
 
@@ -53,7 +66,7 @@ A more complex configuration demonstrating all three server types:
   },
   "port": 8088
 }
-```
+```text
 
 ### Multi-Config Example
 
@@ -76,7 +89,7 @@ Use multiple configuration files that are merged together:
     "port": 8088
   }
 }
-```
+```text
 
 **Override Configuration (`mcp-gateway-override.json`)** - Environment-specific overrides:
 ```json
@@ -99,12 +112,12 @@ Use multiple configuration files that are merged together:
     "apiKey": "optional-api-key"
   }
 }
-```
+```text
 
 **Usage:**
 ```bash
 awmg --config mcp-gateway-base.json --config mcp-gateway-override.json
-```
+```text
 
 **Result:** The merged configuration will have:
 - `gh-aw` server (from base)
@@ -126,7 +139,7 @@ Use the `command` field to specify a command-line MCP server:
     "ENV_VAR": "value"
   }
 }
-```
+```text
 
 ### HTTP Servers
 
@@ -136,7 +149,7 @@ Use the `url` field to connect to an HTTP MCP server:
 {
   "url": "http://localhost:3000"
 }
-```
+```text
 
 ### Docker Servers
 
@@ -150,7 +163,7 @@ Use the `container` field to run an MCP server in a Docker container:
     "ENV_VAR": "value"
   }
 }
-```
+```text
 
 ## Usage
 
@@ -165,7 +178,7 @@ awmg --config base-config.json --config override-config.json
 
 # Specify a custom port
 awmg --config mcp-gateway-config.json --port 9000
-```
+```text
 
 ### Multiple Configuration Files
 
@@ -177,7 +190,7 @@ awmg --config common-servers.json --config team-specific.json
 
 # Add environment-specific overrides
 awmg --config base.json --config staging.json
-```
+```text
 
 **Merge Behavior:**
 - **MCP Servers**: Later configurations override servers with the same name
@@ -188,19 +201,19 @@ awmg --config base.json --config staging.json
 
 ```bash
 awmg --config mcp-gateway-config.json --api-key secret123
-```
+```text
 
 When API key authentication is enabled, clients must include the API key in the `Authorization` header:
 
 ```bash
 curl -H "Authorization: Bearer secret123" http://localhost:8088/...
-```
+```text
 
 ### Write Debug Logs to File
 
 ```bash
 awmg --config mcp-gateway-config.json --log-dir /tmp/gateway-logs
-```
+```text
 
 This creates the specified directory and prepares it for logging output.
 
@@ -213,19 +226,19 @@ awmg \
   --port 9000 \
   --api-key mySecretKey \
   --log-dir /var/log/mcp-gateway
-```
+```text
 
 ### Enable Verbose Logging
 
 ```bash
 DEBUG=* awmg --config mcp-gateway-config.json
-```
+```text
 
 Or for specific modules:
 
 ```bash
 DEBUG=cli:mcp_gateway awmg --config mcp-gateway-config.json
-```
+```text
 
 ## How It Works
 
@@ -249,9 +262,9 @@ DEBUG=cli:mcp_gateway awmg --config mcp-gateway-config.json
 
 If a server fails to connect, the gateway will log the error and continue with other servers:
 
-```
+```text
 ✗ failed to connect to MCP servers: failed to connect to some servers: [server test: failed to connect: calling "initialize": EOF]
-```
+```text
 
 ### Port Already in Use
 
@@ -259,7 +272,7 @@ If the port is already in use, try a different port:
 
 ```bash
 gh aw mcp-gateway --port 8081 mcp-gateway-config.json
-```
+```text
 
 ### Tool Name Collisions
 

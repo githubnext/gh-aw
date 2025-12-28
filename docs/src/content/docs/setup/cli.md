@@ -18,7 +18,7 @@ Start here! These commands cover the essential workflow lifecycle from setup to 
 | Command | When to Use | Details |
 |---------|-------------|---------|
 | **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
-| **`gh aw add (workflow)`** | Add workflows from The Agentics collection | [→ Documentation](#add) |
+| **`gh aw add (workflow)`** | Add workflows from The Agentics collection or other repositories | [→ Documentation](#add) |
 | **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
 | **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
 | **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
@@ -165,14 +165,14 @@ gh auth login --hostname github.enterprise.com
 
 # Use gh aw commands normally
 gh aw status
-gh aw logs workflow-name
+gh aw logs workflow
 ```
 
 When using the `--repo` flag, you can specify the enterprise host:
 
 ```bash wrap
-gh aw logs workflow-name --repo github.enterprise.com/owner/repo
-gh aw run workflow-name --repo github.enterprise.com/owner/repo
+gh aw logs workflow --repo github.enterprise.com/owner/repo
+gh aw run workflow --repo github.enterprise.com/owner/repo
 ```
 
 ## Global Options
@@ -200,7 +200,7 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 Initialize your repository for agentic workflows.
 
 ```bash wrap
-gh aw init         # Configure .gitattributes, Copilot instructions (MCP enabled by default)
+gh aw init         # Configure .gitattributes, Copilot instructions (Model Context Protocol (MCP) enabled by default)
 gh aw init --no-mcp # Skip MCP server integration
 ```
 
@@ -208,7 +208,7 @@ Configures `.gitattributes` to mark `.lock.yml` files as generated, adds Copilot
 
 #### `add`
 
-Add workflows from The Agentics collection or other repositories. Displays the workflow description (from frontmatter `description` field) to provide context.
+Add workflows from The Agentics collection or other repositories to .github/workflows. Displays the workflow description (from frontmatter `description` field) to provide context.
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
@@ -221,13 +221,16 @@ gh aw add ci-doctor --create-pull-request        # Create PR instead of direct c
 
 #### `new`
 
-Create a new custom workflow from scratch.
+Create a new workflow Markdown file with example configuration.
 
 ```bash wrap
-gh aw new my-custom-workflow
+gh aw new                      # Interactive mode
+gh aw new my-custom-workflow   # Create template file
+gh aw new my-workflow.md       # Same as above (.md extension stripped)
+gh aw new my-workflow --force  # Overwrite if exists
 ```
 
-Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing.
+Creates a markdown workflow file in `.github/workflows/` with template frontmatter and automatically opens it for editing. The `.md` extension is optional and will be automatically normalized.
 
 #### `secrets`
 
@@ -252,7 +255,7 @@ When `--owner` and `--repo` are not specified, the command operates on the curre
 
 ##### `secrets bootstrap`
 
-Check and suggest setup for gh-aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
+Check and suggest setup for gh aw GitHub token secrets. This command is read-only and inspects repository secrets to identify missing tokens, then prints least-privilege setup instructions.
 
 ```bash wrap
 gh aw secrets bootstrap                    # Check tokens for current repository
@@ -351,7 +354,7 @@ gh aw trial ./workflow.md --repo owner/repo        # Run directly in repository
 Execute workflows immediately in GitHub Actions. After triggering, displays workflow URL and suggests using `gh aw audit` to analyze the run.
 
 ```bash wrap
-gh aw run workflow-name                     # Run workflow
+gh aw run workflow                          # Run workflow
 gh aw run workflow1 workflow2               # Run multiple workflows
 gh aw run workflow --repeat 3               # Repeat execution 3 times
 gh aw run workflow --use-local-secrets      # Use local API keys
@@ -402,11 +405,12 @@ gh aw status                                # Show all workflow status
 gh aw status --ref main                     # Show status with latest run info for main branch
 gh aw status --json --ref feature-branch    # JSON output with run status for specific branch
 gh aw status --label automation             # Filter workflows by label
+gh aw status --repo owner/other-repo        # Check status in different repository
 ```
 
 Lists all agentic workflows with their current state, enabled/disabled status, schedules, labels, and configurations. When `--ref` is specified, includes the latest run status and conclusion for each workflow on that branch or tag.
 
-**Options:** `--ref` (filter by branch or tag, shows latest run status and conclusion), `--label` (filter workflows by label, case-insensitive match), `--json` (output in JSON format)
+**Options:** `--ref` (filter by branch or tag, shows latest run status and conclusion), `--label` (filter workflows by label, case-insensitive match), `--json` (output in JSON format), `--repo owner/repo` (check workflow status in specific repository, defaults to current)
 
 #### `logs`
 
@@ -414,12 +418,12 @@ Download and analyze workflow execution logs. Downloads logs, analyzes tool usag
 
 ```bash wrap
 gh aw logs                                 # Download logs for all workflows
-gh aw logs workflow-name                   # Download logs for specific workflow
+gh aw logs workflow                        # Download logs for specific workflow
 gh aw logs -c 10 --start-date -1w         # Filter by count and date
 gh aw logs --ref main                      # Filter logs by branch or tag
 gh aw logs --ref v1.0.0 --parse --json    # Generate markdown + JSON output for specific tag
 gh aw logs --campaign                      # Filter to only campaign orchestrator workflows
-gh aw logs workflow-name --repo owner/repo # Download logs from specific repository
+gh aw logs workflow --repo owner/repo      # Download logs from specific repository
 ```
 
 **Options:** `-c, --count N` (limit number of runs), `-e, --engine` (filter by AI engine like `-e copilot`), `--campaign` (filter to only campaign orchestrator workflows), `--start-date` (filter runs from date like `--start-date -1w`), `--end-date` (filter runs until date like `--end-date -1d`), `--ref` (filter by branch or tag like `--ref main` or `--ref v1.0.0`), `--parse` (generate `log.md` and `firewall.md`), `--json` (output structured metrics), `--repo owner/repo` (download logs from specific repository)
@@ -438,7 +442,7 @@ gh aw audit 12345678 --parse                              # Parse logs to markdo
 
 #### `campaign`
 
-Inspect and validate first-class agentic campaign definitions declared as `.github/workflows/*.campaign.md` files.
+Inspect first-class agentic campaign definitions declared in .github/workflows/*.campaign.md
 
 For safe scaling and incremental discovery, campaign specs support:
 
@@ -474,7 +478,7 @@ Enable workflows for execution with pattern matching support for bulk operations
 gh aw enable                                # Enable all workflows
 gh aw enable prefix                         # Enable workflows matching prefix
 gh aw enable ci-*                          # Enable workflows with pattern
-gh aw enable workflow-name --repo owner/repo # Enable in specific repository
+gh aw enable workflow --repo owner/repo     # Enable in specific repository
 ```
 
 **Options:** `--repo owner/repo` (enable workflows in specific repository, defaults to current)
@@ -487,7 +491,7 @@ Disable workflows to prevent execution and cancel any currently running workflow
 gh aw disable                               # Disable all workflows
 gh aw disable prefix                        # Disable workflows matching prefix
 gh aw disable ci-*                         # Disable workflows with pattern
-gh aw disable workflow-name --repo owner/repo # Disable in specific repository
+gh aw disable workflow --repo owner/repo    # Disable in specific repository
 ```
 
 **Options:** `--repo owner/repo` (disable workflows in specific repository, defaults to current)
@@ -526,11 +530,11 @@ Manage MCP (Model Context Protocol) servers. Lists MCP servers configured in wor
 
 ```bash wrap
 gh aw mcp list                             # List all MCP servers
-gh aw mcp list workflow-name               # List servers for specific workflow
+gh aw mcp list workflow                    # List servers for specific workflow
 gh aw mcp list-tools <mcp-server>          # List tools for specific MCP server
 gh aw mcp list-tools <mcp-server> workflow # List tools in specific workflow
-gh aw mcp inspect workflow-name            # Inspect and test servers (auto-detects safe-inputs)
-gh aw mcp add                              # Add servers from registry
+gh aw mcp inspect workflow                 # Inspect and test servers (auto-detects safe-inputs)
+gh aw mcp add                              # Add an MCP tool to an agentic workflow
 ```
 
 The `mcp inspect` command automatically detects and inspects safe-inputs defined in workflows, including those imported from shared workflows. No additional flag is needed - safe-inputs are inspected alongside other MCP servers when present.

@@ -424,6 +424,223 @@
               }
             ]
           ]
+        },
+        "playwright": {
+          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Playwright tool with default settings (localhost access only for security)"
+            },
+            {
+              "type": "object",
+              "description": "Playwright tool configuration with custom version and domain restrictions",
+              "properties": {
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["v1.41.0", 1.41, 20]
+                },
+                "allowed_domains": {
+                  "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "description": "List of allowed domains or patterns (e.g., ['github.com', '*.example.com'])",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "description": "Single allowed domain (e.g., 'github.com')"
+                    }
+                  ]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "serena": {
+          "description": "Serena MCP server for AI-powered code intelligence with language service integration",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable Serena with default settings"
+            },
+            {
+              "type": "array",
+              "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"])",
+              "items": {
+                "type": "string",
+                "enum": ["go", "typescript", "python", "java", "rust", "csharp"]
+              }
+            },
+            {
+              "type": "object",
+              "description": "Serena configuration with custom version and language-specific settings",
+              "properties": {
+                "version": {
+                  "type": ["string", "number"],
+                  "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
+                  "examples": ["latest", "0.1.0", 1.0]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "languages": {
+                  "type": "object",
+                  "description": "Language-specific configuration for Serena language services",
+                  "properties": {
+                    "go": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Go language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Go version (e.g., \"1.21\", 1.21)"
+                            },
+                            "go-mod-file": {
+                              "type": "string",
+                              "description": "Path to go.mod file for Go version detection (e.g., \"go.mod\", \"backend/go.mod\")"
+                            },
+                            "gopls-version": {
+                              "type": "string",
+                              "description": "Version of gopls to install (e.g., \"latest\", \"v0.14.2\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "typescript": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable TypeScript language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "python": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Python language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Python version (e.g., \"3.12\", 3.12)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "java": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Java language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Java version (e.g., \"21\", 21)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "rust": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable Rust language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": "Rust version (e.g., \"stable\", \"1.75\")"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    "csharp": {
+                      "oneOf": [
+                        {
+                          "type": "null",
+                          "description": "Enable C# language service with default version"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": ["string", "number"],
+                              "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "agentic-workflows": {
+          "description": "GitHub Agentic Workflows MCP server for workflow introspection and analysis. Provides tools for checking status, compiling workflows, downloading logs, and auditing runs.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable agentic-workflows tool with default settings"
+            },
+            {
+              "type": "null",
+              "description": "Enable agentic-workflows tool with default settings (same as true)"
+            }
+          ],
+          "examples": [true, null]
         }
       },
       "additionalProperties": {
@@ -456,62 +673,7 @@
     },
     "engine": {
       "description": "AI engine configuration for included files",
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": ["claude", "codex", "copilot", "custom"],
-          "description": "Simple engine name (claude, codex, copilot, or custom)"
-        },
-        {
-          "type": "object",
-          "description": "Extended engine configuration object",
-          "properties": {
-            "id": {
-              "type": "string",
-              "enum": ["claude", "codex", "copilot", "custom"],
-              "description": "Agent CLI identifier (claude, codex, copilot, or custom)"
-            },
-            "version": {
-              "type": "string",
-              "description": "Optional version of the action"
-            },
-            "model": {
-              "type": "string",
-              "description": "Optional LLM model to use"
-            },
-            "max-turns": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "description": "Maximum number of chat iterations per run as an integer value"
-                },
-                {
-                  "type": "string",
-                  "description": "Maximum number of chat iterations per run as a string value"
-                }
-              ],
-              "description": "Maximum number of chat iterations per run"
-            },
-            "env": {
-              "type": "object",
-              "description": "Custom environment variables to pass to the agentic engine",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "steps": {
-              "type": "array",
-              "description": "Custom GitHub Actions steps (for custom engine)",
-              "items": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          },
-          "required": ["id"],
-          "additionalProperties": false
-        }
-      ]
+      "$ref": "#/$defs/engine_config"
     },
     "safe-outputs": {
       "type": "object",
@@ -685,6 +847,11 @@
     "permissions": {
       "description": "GitHub Actions permissions for the workflow (merged with main workflow permissions)",
       "oneOf": [
+        {
+          "type": "string",
+          "enum": ["read-all", "write-all", "read", "write"],
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
+        },
         {
           "type": "object",
           "description": "Permission scopes and levels",
@@ -1066,6 +1233,159 @@
       },
       "required": ["inputs"],
       "additionalProperties": false
+    },
+    "engine_config": {
+      "examples": [
+        "claude",
+        "copilot",
+        {
+          "id": "claude",
+          "model": "claude-3-5-sonnet-20241022",
+          "max-turns": 15
+        },
+        {
+          "id": "copilot",
+          "version": "beta"
+        },
+        {
+          "id": "claude",
+          "concurrency": {
+            "group": "gh-aw-claude",
+            "cancel-in-progress": false
+          }
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["claude", "codex", "copilot", "custom"],
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
+        },
+        {
+          "type": "object",
+          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps",
+          "properties": {
+            "id": {
+              "type": "string",
+              "enum": ["claude", "codex", "custom", "copilot"],
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
+            },
+            "version": {
+              "type": ["string", "number"],
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime.",
+              "examples": ["beta", "stable", 20, 3.11]
+            },
+            "model": {
+              "type": "string",
+              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
+            },
+            "max-turns": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "description": "Maximum number of chat iterations per run as an integer value"
+                },
+                {
+                  "type": "string",
+                  "description": "Maximum number of chat iterations per run as a string value"
+                }
+              ],
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
+            },
+            "concurrency": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Simple concurrency group name. Gets converted to GitHub Actions concurrency format with the specified group."
+                },
+                {
+                  "type": "object",
+                  "description": "GitHub Actions concurrency configuration for the agent job. Controls how many agentic workflow runs can run concurrently.",
+                  "properties": {
+                    "group": {
+                      "type": "string",
+                      "description": "Concurrency group identifier. Use GitHub Actions expressions like ${{ github.workflow }} or ${{ github.ref }}. Defaults to 'gh-aw-{engine-id}' if not specified."
+                    },
+                    "cancel-in-progress": {
+                      "type": "boolean",
+                      "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
+                    }
+                  },
+                  "required": ["group"],
+                  "additionalProperties": false
+                }
+              ],
+              "description": "Agent job concurrency configuration. Defaults to single job per engine across all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions concurrency syntax."
+            },
+            "user-agent": {
+              "type": "string",
+              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "error_patterns": {
+              "type": "array",
+              "description": "Custom error patterns for validating agent logs",
+              "items": {
+                "type": "object",
+                "description": "Error pattern definition",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for this error pattern"
+                  },
+                  "pattern": {
+                    "type": "string",
+                    "description": "Ecma script regular expression pattern to match log lines"
+                  },
+                  "level_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
+                  },
+                  "message_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what this pattern matches"
+                  }
+                },
+                "required": ["pattern"],
+                "additionalProperties": false
+              }
+            },
+            "config": {
+              "type": "string",
+              "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
+            }
+          },
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      ]
     }
   }
 }

@@ -195,7 +195,7 @@ SRT_WRAPPER_EOF
 node ./.srt-wrapper.js 2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 -r ls -td 2>/dev/null | head -1)"
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -printf '%%T@ %%p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   mkdir -p %s
@@ -242,15 +242,12 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		"        uses: " + GetActionPin("actions/github-script"),
 		"        with:",
 		"          script: |",
-	}
-
-	// Inline the JavaScript code with proper indentation
-	// FormatJavaScriptForYAML returns lines with trailing \n, but GitHubActionStep lines
-	// go through generateEngineExecutionSteps which adds \n to each line.
-	// Strip trailing \n to avoid double newlines in the output.
-	scriptLines := FormatJavaScriptForYAML(parserScript)
-	for _, line := range scriptLines {
-		stepLines = append(stepLines, strings.TrimSuffix(line, "\n"))
+		// Use the setup_globals helper to store GitHub Actions objects in global scope
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io);",
+		// Load firewall log parser script from external file using require()
+		"            const { main } = require('/tmp/gh-aw/actions/parse_firewall_logs.cjs');",
+		"            await main();",
 	}
 
 	return GitHubActionStep(stepLines)

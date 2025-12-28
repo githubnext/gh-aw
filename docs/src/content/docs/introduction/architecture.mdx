@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 
-GitHub Agentic Workflows implements a defense-in-depth security architecture that protects against prompt injection, rogue MCP servers, and malicious agents. This document provides visual diagrams of the key security mechanisms.
+GitHub Agentic Workflows implements a defense-in-depth security architecture that protects against prompt injection, rogue Model Context Protocol (MCP) servers, and malicious agents. This document provides visual diagrams of the key security mechanisms.
 
 ## Overview
 
@@ -311,7 +311,7 @@ flowchart TB
     end
 
     subgraph Scanners["Security Scanners"]
-        ACTIONLINT["actionlint<br/>Workflow linting<br/>Shell script checks"]
+        ACTIONLINT["actionlint<br/>Workflow linting<br/>(includes shellcheck & pyflakes)"]
         ZIZMOR["zizmor<br/>Security vulnerabilities<br/>Privilege escalation"]
         POUTINE["poutine<br/>Supply chain risks<br/>Third-party actions"]
     end

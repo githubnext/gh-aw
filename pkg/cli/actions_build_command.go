@@ -105,14 +105,32 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		indexPath := filepath.Join(actionsDir, actionName, "index.js")
-		if _, err := os.Stat(indexPath); err == nil {
-			if err := os.Remove(indexPath); err != nil {
-				return fmt.Errorf("failed to remove %s: %w", indexPath, err)
+		// Clean index.js for actions that use it (except setup-safe-outputs and setup)
+		if actionName != "setup-safe-outputs" && actionName != "setup" {
+			indexPath := filepath.Join(actionsDir, actionName, "index.js")
+			if _, err := os.Stat(indexPath); err == nil {
+				if err := os.Remove(indexPath); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", indexPath, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/index.js", actionName)))
+				cleanedCount++
 			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/index.js", actionName)))
-			cleanedCount++
 		}
+
+		// Clean js/ directory for setup-safe-outputs
+		if actionName == "setup-safe-outputs" {
+			jsDir := filepath.Join(actionsDir, actionName, "js")
+			if _, err := os.Stat(jsDir); err == nil {
+				if err := os.RemoveAll(jsDir); err != nil {
+					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
+				}
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
+				cleanedCount++
+			}
+		}
+
+		// For setup action, both js/ and sh/ directories are source of truth (NOT generated)
+		// Do not clean them
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✨ Cleanup complete (%d files removed)", cleanedCount)))
@@ -176,9 +194,12 @@ func validateActionYml(actionPath string) error {
 		}
 	}
 
-	// Check that it's a node20 action
-	if !strings.Contains(contentStr, "using: 'node20'") && !strings.Contains(contentStr, "using: \"node20\"") {
-		return fmt.Errorf("action must use 'node20' runtime")
+	// Check that it's either a node20 or composite action
+	isNode20 := strings.Contains(contentStr, "using: 'node20'") || strings.Contains(contentStr, "using: \"node20\"")
+	isComposite := strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\"")
+
+	if !isNode20 && !isComposite {
+		return fmt.Errorf("action must use either 'node20' or 'composite' runtime")
 	}
 
 	return nil
@@ -191,14 +212,25 @@ func buildAction(actionsDir, actionName string) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n📦 Building action: %s", actionName)))
 
 	actionPath := filepath.Join(actionsDir, actionName)
-	srcPath := filepath.Join(actionPath, "src", "index.js")
-	outputPath := filepath.Join(actionPath, "index.js")
 
 	// Validate action.yml
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
 	if err := validateActionYml(actionPath); err != nil {
 		return err
 	}
+
+	// Special handling for setup-safe-outputs: copy files instead of embedding
+	if actionName == "setup-safe-outputs" {
+		return buildSetupSafeOutputsAction(actionsDir, actionName)
+	}
+
+	// Special handling for setup: build shell script with embedded files
+	if actionName == "setup" {
+		return buildSetupAction(actionsDir, actionName)
+	}
+
+	srcPath := filepath.Join(actionPath, "src", "index.js")
+	outputPath := filepath.Join(actionPath, "index.js")
 
 	// Check if source file exists
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
@@ -255,9 +287,94 @@ func buildAction(actionsDir, actionName string) error {
 	return nil
 }
 
+// buildSetupSafeOutputsAction builds the setup-safe-outputs action by copying JavaScript files
+func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
+	actionPath := filepath.Join(actionsDir, actionName)
+	jsDir := filepath.Join(actionPath, "js")
+
+	// Get dependencies for this action
+	dependencies := getActionDependencies(actionName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+
+	// Get all JavaScript sources
+	sources := workflow.GetJavaScriptSources()
+
+	// Create js directory if it doesn't exist
+	if err := os.MkdirAll(jsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create js directory: %w", err)
+	}
+
+	// Copy each dependency file to the js directory
+	copiedCount := 0
+	for _, dep := range dependencies {
+		if content, ok := sources[dep]; ok {
+			destPath := filepath.Join(jsDir, dep)
+			if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
+				return fmt.Errorf("failed to write %s: %w", dep, err)
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
+			copiedCount++
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
+
+	return nil
+}
+
+// buildSetupAction builds the setup action by checking that source files exist.
+// Note: Both JavaScript and shell scripts are source of truth in actions/setup/js/ and actions/setup/sh/
+// They get synced to pkg/workflow/js/ and pkg/workflow/sh/ during the build process via Makefile targets.
+func buildSetupAction(actionsDir, actionName string) error {
+	actionPath := filepath.Join(actionsDir, actionName)
+	jsDir := filepath.Join(actionPath, "js")
+	shDir := filepath.Join(actionPath, "sh")
+
+	// JavaScript files in actions/setup/js/ are the source of truth
+	if _, err := os.Stat(jsDir); err == nil {
+		// Count JavaScript files
+		entries, err := os.ReadDir(jsDir)
+		if err == nil {
+			jsCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".cjs") {
+					jsCount++
+				}
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ JavaScript files in js/ (source of truth): %d", jsCount)))
+		}
+	}
+
+	// Shell scripts in actions/setup/sh/ are the source of truth
+	if _, err := os.Stat(shDir); err == nil {
+		// Count shell scripts
+		entries, err := os.ReadDir(shDir)
+		if err == nil {
+			shCount := 0
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sh") {
+					shCount++
+				}
+			}
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Shell scripts in sh/ (source of truth): %d", shCount)))
+		}
+	}
+
+	return nil
+}
+
 // getActionDependencies returns the list of JavaScript dependencies for an action
 // This mapping defines which files from pkg/workflow/js/ are needed for each action
 func getActionDependencies(actionName string) []string {
+	// For setup, use the dynamic script discovery
+	// This ensures all .cjs files are included automatically
+	if actionName == "setup" {
+		return workflow.GetAllScriptFilenames()
+	}
+
+	// Static dependencies for other actions
 	dependencyMap := map[string][]string{
 		"setup-safe-outputs": {
 			"safe_outputs_mcp_server.cjs",
@@ -265,7 +382,6 @@ func getActionDependencies(actionName string) []string {
 			"safe_outputs_tools_loader.cjs",
 			"safe_outputs_config.cjs",
 			"safe_outputs_handlers.cjs",
-			"safe_outputs_tools.json",
 			"mcp_server_core.cjs",
 			"mcp_logger.cjs",
 			"messages.cjs",

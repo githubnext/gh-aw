@@ -1,7 +1,7 @@
 ---
 description: Smoke Copilot Safe Inputs
 on: 
-  schedule: daily
+  schedule: every 12h
   workflow_dispatch:
   pull_request:
     types: [labeled]

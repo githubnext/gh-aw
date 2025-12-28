@@ -118,7 +118,7 @@ The `gh aw run` command provides a faster way to trigger workflows from the comm
 ### Basic Usage
 
 ```bash
-gh aw run workflow-name
+gh aw run workflow
 ```
 
 The command:
@@ -169,7 +169,7 @@ gh aw run research --ref feature-branch
 Execute workflows from other repositories:
 
 ```bash
-gh aw run workflow-name --repo owner/repository
+gh aw run workflow --repo owner/repository
 ```
 
 ### Verbose Output
@@ -316,7 +316,7 @@ The workflow runs with your branch's code and state. Safe outputs (issues, PRs, 
 
 ## Troubleshooting
 
-**Workflow not listed in GitHub UI:** Verify `workflow_dispatch:` exists in the `on:` section, compile the workflow (`gh aw compile workflow-name`), and push both `.md` and `.lock.yml` files. The Actions page may need a refresh.
+**Workflow not listed in GitHub UI:** Verify `workflow_dispatch:` exists in the `on:` section, compile the workflow (`gh aw compile workflow`), and push both `.md` and `.lock.yml` files. The Actions page may need a refresh.
 
 **"Workflow not found" error:** Use the filename without `.md` extension (`research` not `research.md`). Ensure the workflow exists in `.github/workflows/` and has been compiled.
 

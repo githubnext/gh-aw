@@ -41,7 +41,7 @@ tools:
   bash:
     - "find specs -name '*.md'"
     - "cat specs/*.md"
-    - "ls -la specs"
+    - "find specs -maxdepth 1 -ls"
     - "grep -r '*' specs"
     - "wc -l specs/*.md"
 
@@ -85,7 +85,7 @@ Use Serena's static analysis capabilities to:
 Check if there's previous consolidation data:
 
 ```bash
-ls -la /tmp/gh-aw/cache-memory/
+find /tmp/gh-aw/cache-memory/ -maxdepth 1 -ls
 ```
 
 If there's a previous run's data, load it to understand historical context:

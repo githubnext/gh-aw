@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -194,9 +195,9 @@ func TestTruncateString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := truncateString(tt.input, tt.maxLen)
+			got := stringutil.Truncate(tt.input, tt.maxLen)
 			if got != tt.expected {
-				t.Errorf("truncateString(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.expected)
+				t.Errorf("stringutil.Truncate(%q, %d) = %q, want %q", tt.input, tt.maxLen, got, tt.expected)
 			}
 		})
 	}

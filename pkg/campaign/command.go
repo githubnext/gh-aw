@@ -38,9 +38,9 @@ workflows, repo-memory paths, and risk level). This command provides a
 single place to see all campaigns configured for the repo.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` campaign             # List all campaigns
-  ` + constants.CLIExtensionPrefix + ` campaign security    # Filter campaigns by ID or name
-  ` + constants.CLIExtensionPrefix + ` campaign --json      # Output campaign definitions as JSON
+  ` + string(constants.CLIExtensionPrefix) + ` campaign             # List all campaigns
+  ` + string(constants.CLIExtensionPrefix) + ` campaign security    # Filter campaigns by ID or name
+  ` + string(constants.CLIExtensionPrefix) + ` campaign --json      # Output campaign definitions as JSON
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,9 +65,9 @@ are compiled and basic issue/PR counts derived from the campaign's
 tracker label.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` campaign status              # Status for all campaigns
-  ` + constants.CLIExtensionPrefix + ` campaign status security     # Filter by ID or name
-  ` + constants.CLIExtensionPrefix + ` campaign status --json       # JSON status output
+  ` + string(constants.CLIExtensionPrefix) + ` campaign status              # Status for all campaigns
+  ` + string(constants.CLIExtensionPrefix) + ` campaign status security     # Filter by ID or name
+  ` + string(constants.CLIExtensionPrefix) + ` campaign status --json       # JSON status output
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -97,8 +97,8 @@ update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` campaign new security-q1-2025
-  ` + constants.CLIExtensionPrefix + ` campaign new modernization-winter2025 --force`,
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -108,9 +108,9 @@ Examples:
 				b.WriteString("missing campaign id argument")
 				b.WriteString("\n\nSuggestions:\n")
 				suggestions := []string{
-					"Provide an ID: '" + constants.CLIExtensionPrefix + " campaign new security-q1-2025'",
-					"Use '" + constants.CLIExtensionPrefix + " campaign' to see existing campaigns",
-					"Run '" + constants.CLIExtensionPrefix + " help campaign new' for full usage",
+					"Provide an ID: '" + string(constants.CLIExtensionPrefix) + " campaign new security-q1-2025'",
+					"Use '" + string(constants.CLIExtensionPrefix) + " campaign' to see existing campaigns",
+					"Run '" + string(constants.CLIExtensionPrefix) + " help campaign new' for full usage",
 				}
 				for _, s := range suggestions {
 					b.WriteString("  • ")
@@ -156,10 +156,10 @@ other key fields). By default it exits with a non-zero status when
 problems are found.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` campaign validate              # Validate all campaigns
-  ` + constants.CLIExtensionPrefix + ` campaign validate security     # Filter by ID or name
-  ` + constants.CLIExtensionPrefix + ` campaign validate --json       # JSON validation report
-  ` + constants.CLIExtensionPrefix + ` campaign validate --no-strict  # Report problems without failing`,
+  ` + string(constants.CLIExtensionPrefix) + ` campaign validate              # Validate all campaigns
+  ` + string(constants.CLIExtensionPrefix) + ` campaign validate security     # Filter by ID or name
+  ` + string(constants.CLIExtensionPrefix) + ` campaign validate --json       # JSON validation report
+  ` + string(constants.CLIExtensionPrefix) + ` campaign validate --no-strict  # Report problems without failing`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var pattern string
