@@ -26,6 +26,7 @@ const path = require("path");
 const { ReadBuffer } = require("./read_buffer.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 
 const encoder = new TextEncoder();
 
@@ -553,7 +554,7 @@ async function handleRequest(server, request, defaultHandler) {
       if (missing.length) {
         throw {
           code: -32602,
-          message: `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`,
+          message: generateEnhancedErrorMessage(missing, name, tool.inputSchema),
         };
       }
 
@@ -666,7 +667,7 @@ async function handleMessage(server, req, defaultHandler) {
 
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
-        server.replyError(id, -32602, `Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+        server.replyError(id, -32602, generateEnhancedErrorMessage(missing, name, tool.inputSchema));
         return;
       }
 

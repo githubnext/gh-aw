@@ -112,6 +112,7 @@ SAFE_INPUTS_FILES=(
   "generate_safe_inputs_config.cjs"
   "setup_globals.cjs"
   "error_helpers.cjs"
+  "mcp_enhanced_errors.cjs"
 )
 
 SAFE_INPUTS_COUNT=0
@@ -160,6 +161,7 @@ SAFE_OUTPUTS_FILES=(
   "generate_compact_schema.cjs"
   "setup_globals.cjs"
   "error_helpers.cjs"
+  "mcp_enhanced_errors.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

@@ -129,7 +129,7 @@ describe("mcp_server_core.cjs", () => {
         description: "A test tool",
         inputSchema: {
           type: "object",
-          properties: { input: { type: "string" } },
+          properties: { input: { type: "string", description: "Input text to process" } },
           required: ["input"],
         },
         handler: args => ({
@@ -220,6 +220,9 @@ describe("mcp_server_core.cjs", () => {
       expect(results).toHaveLength(1);
       expect(results[0].error.code).toBe(-32602);
       expect(results[0].error.message).toContain("missing or empty");
+      // Verify enhanced error message includes guidance
+      expect(results[0].error.message).toContain("Required parameter");
+      expect(results[0].error.message).toContain("Example:");
     });
 
     it("should return error for unknown method", async () => {
