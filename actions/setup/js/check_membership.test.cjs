@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("check_membership.cjs", () => {
   let mockCore;
@@ -62,14 +62,27 @@ describe("check_membership.cjs", () => {
     const utilsPath = path.join(import.meta.dirname, "check_permissions_utils.cjs");
     const utilsContent = fs.readFileSync(utilsPath, "utf8");
 
+    // Load error helpers module
+    const errorHelpersPath = path.join(import.meta.dirname, "error_helpers.cjs");
+    const errorHelpersContent = fs.readFileSync(errorHelpersPath, "utf8");
+
     // Create a mock require function
     const mockRequire = modulePath => {
+      if (modulePath === "./error_helpers.cjs") {
+        // Execute the error helpers module and return its exports
+        const errorHelpersFunction = new Function("module", "exports", errorHelpersContent);
+        const errorHelpersModuleExports = {};
+        const errorHelpersMockModule = { exports: errorHelpersModuleExports };
+        errorHelpersFunction(errorHelpersMockModule, errorHelpersModuleExports);
+        return errorHelpersMockModule.exports;
+      }
       if (modulePath === "./check_permissions_utils.cjs") {
         // Execute the utility module and return its exports
-        const utilsFunction = new Function("core", "github", "context", "process", "module", "exports", utilsContent);
+        // Need to pass mockRequire to handle error_helpers require
+        const utilsFunction = new Function("core", "github", "context", "process", "module", "exports", "require", utilsContent);
         const moduleExports = {};
         const mockModule = { exports: moduleExports };
-        utilsFunction(mockCore, mockGithub, mockContext, process, mockModule, moduleExports);
+        utilsFunction(mockCore, mockGithub, mockContext, process, mockModule, moduleExports, mockRequire);
         return mockModule.exports;
       }
       throw new Error(`Module not found: ${modulePath}`);
