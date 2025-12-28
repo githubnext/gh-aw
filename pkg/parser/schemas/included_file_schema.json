@@ -686,6 +686,11 @@
       "description": "GitHub Actions permissions for the workflow (merged with main workflow permissions)",
       "oneOf": [
         {
+          "type": "string",
+          "enum": ["read-all", "write-all", "read", "write"],
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
+        },
+        {
           "type": "object",
           "description": "Permission scopes and levels",
           "properties": {
