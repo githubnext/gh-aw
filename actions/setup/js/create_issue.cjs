@@ -133,7 +133,7 @@ async function main() {
       } else {
         // It's a real issue number (may have # prefix)
         const parentStr = String(createIssueItem.parent).trim();
-        const parentWithoutHash = parentStr.startsWith('#') ? parentStr.substring(1) : parentStr;
+        const parentWithoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
         effectiveParentIssueNumber = parseInt(parentWithoutHash, 10);
         if (isNaN(effectiveParentIssueNumber)) {
           core.warning(`Invalid parent value: ${createIssueItem.parent}`);
