@@ -434,6 +434,43 @@ make minor-release  # Automated via GitHub Actions
 For investigating and resolving workflow issues:
 - **[Workflow Health Monitoring](.github/aw/runbooks/workflow-health.md)** - Comprehensive runbook for diagnosing missing-tool errors, authentication failures, MCP configuration issues, and safe-input/output problems. Includes step-by-step investigation procedures, resolution examples, and case studies from real incidents.
 
+## Security Best Practices
+
+GitHub Agentic Workflows follows strict security standards for GitHub Actions:
+
+**Workflow Security Requirements**:
+- All actions must be pinned to commit SHAs (not tags or branches)
+- Workflows use minimal permissions (principle of least privilege)
+- Template injection prevention via environment variables
+- Input validation for all untrusted data
+- Third-party actions reviewed before use
+
+**Security Documentation**:
+- [SECURITY.md](SECURITY.md#workflow-security-policy) - Security policy and vulnerability reporting
+- [Workflow Security Guidelines](CONTRIBUTING.md#workflow-security-guidelines) - Contributor guide
+- [Security Practices](docs/security-practices.md) - Comprehensive security guide
+- [GitHub Actions Security Best Practices](specs/github-actions-security-best-practices.md) - Technical reference
+- [Template Injection Prevention](specs/template-injection-prevention.md) - Injection attack prevention
+
+**Key Security Patterns**:
+
+```yaml
+# ✅ CORRECT: Pin actions to SHA
+- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+# ❌ WRONG: Mutable tag
+- uses: actions/checkout@v4
+
+# ✅ CORRECT: Minimal permissions
+permissions:
+  contents: read
+
+# ✅ CORRECT: Prevent template injection
+- env:
+    TITLE: ${{ github.event.issue.title }}
+  run: echo "Title: $TITLE"
+```
+
 ## Available Skills Reference
 
 Skills provide specialized, detailed knowledge on specific topics. **Use them only when needed** - don't load skills preemptively.

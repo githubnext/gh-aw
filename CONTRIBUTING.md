@@ -169,6 +169,88 @@ The agent places validation logic appropriately:
 
 See [Validation Architecture](specs/validation-architecture.md) for the complete decision tree.
 
+#### Workflow Security Guidelines
+
+When contributing workflows, the agent automatically enforces these security standards:
+
+**1. Always pin actions to commit SHA**
+
+Actions must be pinned to immutable SHA commits, never mutable tags or branches:
+
+```yaml
+# ✅ CORRECT: Pinned to SHA with version comment
+- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+- uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+
+# ❌ WRONG: Mutable references (tags can be changed)
+- uses: actions/checkout@v4
+- uses: actions/setup-node@main
+```
+
+**Why**: Tags and branches can be deleted and recreated with malicious code. SHA commits are immutable and protect against supply chain attacks.
+
+**2. Use minimal permissions**
+
+Workflows follow the principle of least privilege:
+
+```yaml
+# ✅ CORRECT: Minimal permissions
+permissions:
+  contents: read      # Default minimal access
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      deployments: write  # Only what's needed for this job
+
+# ❌ WRONG: Overly broad permissions
+permissions: write-all  # Gives unnecessary access
+```
+
+**3. Avoid dangerous triggers**
+
+Be cautious with triggers that can be exploited:
+
+```yaml
+# ✅ SAFE: Runs in fork context with limited permissions
+on:
+  pull_request:
+    types: [opened]
+
+# ⚠️ DANGEROUS: Runs with base repo permissions
+on:
+  pull_request_target:  # Use only when necessary
+    types: [opened]
+```
+
+**4. Prevent template injection**
+
+Never use untrusted input directly in expressions:
+
+```yaml
+# ❌ VULNERABLE: Direct interpolation
+- run: echo "Title: ${{ github.event.issue.title }}"
+
+# ✅ SECURE: Use environment variables
+- env:
+    TITLE: ${{ github.event.issue.title }}
+  run: echo "Title: $TITLE"
+```
+
+**5. Vet third-party actions**
+
+Before using third-party actions:
+- Review the action's source code
+- Check maintenance activity and user reviews
+- Verify the action is from a trusted source
+- Prefer GitHub-verified creators when possible
+
+For comprehensive security guidance, see:
+- [GitHub Actions Security Best Practices](specs/github-actions-security-best-practices.md) - Complete technical guide
+- [Template Injection Prevention](specs/template-injection-prevention.md) - Injection attack prevention
+- [Security Policy](SECURITY.md#workflow-security-policy) - Organizational security standards
+
 #### CLI Breaking Changes
 
 The agent evaluates whether changes are breaking:
