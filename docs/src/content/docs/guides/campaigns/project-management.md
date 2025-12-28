@@ -24,17 +24,7 @@ Once these fields exist, orchestrator workflows can automatically populate them 
 
 ### Automatic Timestamp Population
 
-**NEW**: Starting in this release, `update-project` automatically populates date fields from issue and pull request timestamps:
-
-- **Start Date** is automatically set from `createdAt` (when the issue/PR was created)
-- **End Date** is automatically set from `closedAt` (when the issue/PR was closed, if applicable)
-
-This happens automatically for campaign project boards and requires no additional configuration. The system will:
-
-1. Query the issue or PR to fetch `createdAt` and `closedAt` timestamps
-2. Convert timestamps to ISO date format (YYYY-MM-DD)
-3. Populate `Start Date` and `End Date` fields if they exist in the project and aren't already set
-4. Respect any manually provided date values in the `fields` parameter
+`update-project` automatically populates date fields from issue and pull request timestamps. If your project has `Start Date` and `End Date` fields, the system queries `createdAt` and `closedAt` timestamps, converts them to ISO format (YYYY-MM-DD), and populates the fields unless you provide explicit values.
 
 **Example:** When adding issue #123 (created on 2025-12-15, closed on 2025-12-18) to a project board with "Start Date" and "End Date" fields:
 
@@ -64,20 +54,7 @@ update-project:
 
 ### Orchestrator Configuration for Date Fields
 
-To have orchestrators set date fields automatically, modify the orchestrator's instructions or use the `fields` parameter in `update-project` outputs.
-
-**Example workflow instruction:**
-
-```markdown
-When adding issues to the project board, set these custom fields:
-- `Start Date`: Set to the issue's creation date
-- `End Date`: Set to estimated completion date based on issue size and priority
-  - Small issues: 3 days from start
-  - Medium issues: 1 week from start
-  - Large issues: 2 weeks from start
-```
-
-**Example agent output for update-project:**
+Configure orchestrators to set date fields by modifying instructions or using the `fields` parameter in `update-project` outputs. Calculate end dates based on issue size and priority (e.g., small: 3 days, medium: 1 week, large: 2 weeks).
 
 ```yaml
 update-project:
@@ -92,23 +69,9 @@ update-project:
 
 ### Best Practices for Campaign Date Fields
 
-**Recommended field names:**
-- `Start Date` or `start_date` - When work begins
-- `End Date` or `end_date` - Expected or actual completion date
-- `Target Date` - Optional milestone or deadline
+Use field names like `Start Date`, `End Date`, or `Target Date`. For new issues, set start date to creation date and calculate end date from estimated effort. Keep original start dates for in-progress work, updating only end dates as needed. For completed work, update end dates to actual completion.
 
-**Date assignment strategies:**
-
-- **For new issues**: Set `start_date` to current date, calculate `end_date` based on estimated effort
-- **For in-progress work**: Keep original `start_date`, adjust `end_date` if needed
-- **For completed work**: Update `end_date` to actual completion date
-
-**Roadmap view benefits:**
-
-- **Visual timeline**: See all campaign work laid out chronologically
-- **Dependency identification**: Spot overlapping or sequential work items
-- **Capacity planning**: Identify periods with too much concurrent work
-- **Progress tracking**: Compare planned vs actual completion dates
+Roadmap views help visualize timelines chronologically, identify overlapping work, plan capacity, and track progress against planned dates.
 
 ### Example: Campaign with Roadmap Tracking
 
@@ -122,31 +85,8 @@ workflows:
 tracker-label: "campaign:migration-q1"
 ```
 
-The orchestrator can set date fields when adding issues:
+The orchestrator queries issues with the tracker ID, adds them to the project board, sets status based on state, populates start/end dates from creation timestamps and size labels, and generates timeline reports.
 
-```markdown
-## Campaign Orchestrator
+### Limitations
 
-When adding discovered issues to the project board:
-
-1. Query issues with tracker-id: "migration-worker"
-2. For each issue:
-   - Add to project board
-   - Set `status` to "Todo" (or "Done" if closed)
-   - Set `start_date` to the issue creation date
-   - Set `end_date` based on labels:
-     - `size:small` → 3 days from start
-     - `size:medium` → 1 week from start  
-     - `size:large` → 2 weeks from start
-   - Set `priority` based on issue labels
-
-Generate a report showing timeline distribution of all work items.
-```
-
-### Limitations and Considerations
-
-- **Manual field creation**: Workflows cannot create custom fields; they must exist before workflows can update them
-- **Field name matching**: Custom field names are case-sensitive; use exact names as defined in the project
-- **Date format**: Use ISO 8601 format (YYYY-MM-DD) for date values
-- **No automatic recalculation**: Date fields don't auto-update; orchestrators must explicitly update them
-- **View configuration**: Roadmap views must be configured manually in the GitHub UI
+Custom fields must be created manually in the GitHub UI before workflows can update them. Field names are case-sensitive and dates must use ISO 8601 format (YYYY-MM-DD). Date fields don't auto-update; orchestrators must explicitly update them. Roadmap views require manual configuration.
