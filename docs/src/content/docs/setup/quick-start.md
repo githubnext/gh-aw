@@ -14,7 +14,7 @@ sidebar:
 
 Before installing, ensure you have:
 
-- ✅ **[GitHub CLI](https://cli.github.com/)** v2.0.0+ installed and authenticated (`gh auth login`)
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
 - ✅ **GitHub account** with admin or write access to a repository
 - ✅ **GitHub Actions** enabled in your repository
 - ✅ **Git** installed on your machine
