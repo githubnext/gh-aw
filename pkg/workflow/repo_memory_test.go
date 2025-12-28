@@ -216,18 +216,22 @@ func TestRepoMemoryStepsGeneration(t *testing.T) {
 		t.Error("Expected clone step for repo-memory")
 	}
 
-	// Check for git commands
-	if !strings.Contains(output, "git clone") {
-		t.Error("Expected git clone command")
+	// Check for script call
+	if !strings.Contains(output, "bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh") {
+		t.Error("Expected clone_repo_memory_branch.sh script call")
 	}
 
-	if !strings.Contains(output, "memory/default") {
-		t.Error("Expected memory/default branch reference")
+	// Check for environment variables
+	if !strings.Contains(output, "BRANCH_NAME: memory/default") {
+		t.Error("Expected BRANCH_NAME environment variable")
 	}
 
-	// Check for orphan branch creation
-	if !strings.Contains(output, "git checkout --orphan") {
-		t.Error("Expected orphan branch creation")
+	if !strings.Contains(output, "CREATE_ORPHAN: true") {
+		t.Error("Expected CREATE_ORPHAN environment variable")
+	}
+
+	if !strings.Contains(output, "MEMORY_DIR: /tmp/gh-aw/repo-memory/default") {
+		t.Error("Expected MEMORY_DIR environment variable")
 	}
 
 	// Check for memory directory creation

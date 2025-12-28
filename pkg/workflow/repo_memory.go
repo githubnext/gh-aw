@@ -451,40 +451,10 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		fmt.Fprintf(builder, "          BRANCH_NAME: %s\n", memory.BranchName)
-		builder.WriteString("        run: |\n")
-		builder.WriteString("          set +e  # Don't fail if branch doesn't exist\n")
-		fmt.Fprintf(builder, "          git clone --depth 1 --single-branch --branch \"%s\" \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>/dev/null\n",
-			memory.BranchName, targetRepo, memoryDir)
-		builder.WriteString("          CLONE_EXIT_CODE=$?\n")
-		builder.WriteString("          set -e\n")
-		builder.WriteString("          \n")
-		builder.WriteString("          if [ $CLONE_EXIT_CODE -ne 0 ]; then\n")
-
-		if memory.CreateOrphan {
-			fmt.Fprintf(builder, "            echo \"Branch %s does not exist, creating orphan branch\"\n", memory.BranchName)
-			fmt.Fprintf(builder, "            mkdir -p \"%s\"\n", memoryDir)
-			fmt.Fprintf(builder, "            cd \"%s\"\n", memoryDir)
-			builder.WriteString("            git init\n")
-			builder.WriteString("            git checkout --orphan \"$BRANCH_NAME\"\n")
-			builder.WriteString("            git config user.name \"github-actions[bot]\"\n")
-			builder.WriteString("            git config user.email \"github-actions[bot]@users.noreply.github.com\"\n")
-			fmt.Fprintf(builder, "            git remote add origin \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\"\n", targetRepo)
-		} else {
-			fmt.Fprintf(builder, "            echo \"Branch %s does not exist and create-orphan is false, skipping\"\n", memory.BranchName)
-			fmt.Fprintf(builder, "            mkdir -p \"%s\"\n", memoryDir)
-		}
-
-		builder.WriteString("          else\n")
-		fmt.Fprintf(builder, "            echo \"Successfully cloned %s branch\"\n", memory.BranchName)
-		fmt.Fprintf(builder, "            cd \"%s\"\n", memoryDir)
-		builder.WriteString("            git config user.name \"github-actions[bot]\"\n")
-		builder.WriteString("            git config user.email \"github-actions[bot]@users.noreply.github.com\"\n")
-		builder.WriteString("          fi\n")
-		builder.WriteString("          \n")
-
-		// Create the memory directory (no subdirectory structure)
-		fmt.Fprintf(builder, "          mkdir -p \"%s\"\n", memoryDir)
-		fmt.Fprintf(builder, "          echo \"Repo memory directory ready at %s\"\n", memoryDir)
+		fmt.Fprintf(builder, "          TARGET_REPO: %s\n", targetRepo)
+		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		fmt.Fprintf(builder, "          CREATE_ORPHAN: %t\n", memory.CreateOrphan)
+		builder.WriteString("        run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh\n")
 	}
 }
 
