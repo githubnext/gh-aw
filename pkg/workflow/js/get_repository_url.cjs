@@ -1,0 +1,29 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
+/**
+ * Get the repository URL for different purposes
+ * This helper handles trial mode where target repository URLs are different from execution context
+ * @returns {string} Repository URL
+ */
+function getRepositoryUrl() {
+  // For trial mode, use target repository for issue/PR URLs but execution context for action runs
+  const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+
+  if (targetRepoSlug) {
+    // Use target repository for issue/PR URLs in trial mode
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    return `${githubServer}/${targetRepoSlug}`;
+  } else if (context.payload.repository?.html_url) {
+    // Use execution context repository (default behavior)
+    return context.payload.repository.html_url;
+  } else {
+    // Final fallback for action runs when context repo is not available
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+  }
+}
+
+module.exports = {
+  getRepositoryUrl,
+};

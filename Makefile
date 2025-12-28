@@ -14,7 +14,7 @@ all: build build-awmg
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates sync-action-pins
+build: sync-shell-scripts sync-js-scripts sync-templates sync-action-pins
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build the awmg (MCP gateway) binary
@@ -444,6 +444,22 @@ build-slides:
 	@cd docs && npx @marp-team/marp-cli ../slides/index.md --html --allow-local-files -o public/slides/gh-aw.html
 	@echo "✓ Slides built to docs/public/slides/gh-aw.html"
 
+# Sync shell scripts from actions/setup/sh to pkg/workflow/sh
+.PHONY: sync-shell-scripts
+sync-shell-scripts:
+	@echo "Syncing shell scripts from actions/setup/sh to pkg/workflow/sh..."
+	@mkdir -p pkg/workflow/sh
+	@cp actions/setup/sh/*.sh pkg/workflow/sh/
+	@echo "✓ Shell scripts synced successfully"
+
+# Sync JavaScript files from actions/setup/js to pkg/workflow/js
+.PHONY: sync-js-scripts
+sync-js-scripts:
+	@echo "Syncing JavaScript files from actions/setup/js to pkg/workflow/js..."
+	@mkdir -p pkg/workflow/js
+	@cp actions/setup/js/*.cjs pkg/workflow/js/
+	@echo "✓ JavaScript files synced successfully"
+
 # Sync templates from .github to pkg/cli/templates
 .PHONY: sync-templates
 sync-templates:
@@ -470,7 +486,7 @@ sync-action-pins:
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: sync-templates build
+recompile: sync-shell-scripts sync-js-scripts sync-templates build
 	./$(BINARY_NAME) init --codespaces
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge
@@ -590,6 +606,8 @@ help:
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
+	@echo "  sync-shell-scripts - Sync shell scripts from actions/setup/sh to pkg/workflow/sh (runs automatically during build)"
+	@echo "  sync-js-scripts  - Sync JavaScript files from actions/setup/js to pkg/workflow/js (runs automatically during build)"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"

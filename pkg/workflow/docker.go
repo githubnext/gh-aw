@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	_ "embed"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,6 +10,9 @@ import (
 )
 
 var dockerLog = logger.New("workflow:docker")
+
+//go:embed sh/download_container_images.sh
+var downloadContainerImagesScript string
 
 // collectDockerImages collects all Docker images used in MCP configurations
 func collectDockerImages(tools map[string]any) []string {
@@ -81,33 +85,12 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 
 	yaml.WriteString("      - name: Downloading container images\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          set -e\n")
-	yaml.WriteString("          # Helper function to pull Docker images with retry logic\n")
-	yaml.WriteString("          docker_pull_with_retry() {\n")
-	yaml.WriteString("            local image=\"$1\"\n")
-	yaml.WriteString("            local max_attempts=3\n")
-	yaml.WriteString("            local attempt=1\n")
-	yaml.WriteString("            local wait_time=5\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            while [ $attempt -le $max_attempts ]; do\n")
-	yaml.WriteString("              echo \"Attempt $attempt of $max_attempts: Pulling $image...\"\n")
-	yaml.WriteString("              if docker pull --quiet \"$image\"; then\n")
-	yaml.WriteString("                echo \"Successfully pulled $image\"\n")
-	yaml.WriteString("                return 0\n")
-	yaml.WriteString("              fi\n")
-	yaml.WriteString("              \n")
-	yaml.WriteString("              if [ $attempt -lt $max_attempts ]; then\n")
-	yaml.WriteString("                echo \"Failed to pull $image. Retrying in ${wait_time}s...\"\n")
-	yaml.WriteString("                sleep $wait_time\n")
-	yaml.WriteString("                wait_time=$((wait_time * 2))  # Exponential backoff\n")
-	yaml.WriteString("              else\n")
-	yaml.WriteString("                echo \"Failed to pull $image after $max_attempts attempts\"\n")
-	yaml.WriteString("                return 1\n")
-	yaml.WriteString("              fi\n")
-	yaml.WriteString("              attempt=$((attempt + 1))\n")
-	yaml.WriteString("            done\n")
-	yaml.WriteString("          }\n")
+	
+	// Write the shell script content
+	WriteShellScriptToYAML(yaml, downloadContainerImagesScript, "          ")
+	
 	yaml.WriteString("          \n")
+	// Call the script with all images as arguments
 	for _, image := range dockerImages {
 		fmt.Fprintf(yaml, "          docker_pull_with_retry %s\n", image)
 	}

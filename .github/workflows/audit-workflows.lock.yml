@@ -265,6 +265,7 @@ jobs:
         run: npm install -g --silent @anthropic-ai/claude-code@2.0.76
       - name: Downloading container images
         run: |
+          #!/bin/bash
           set -e
           # Helper function to pull Docker images with retry logic
           docker_pull_with_retry() {
@@ -272,14 +273,12 @@ jobs:
             local max_attempts=3
             local attempt=1
             local wait_time=5
-            
             while [ $attempt -le $max_attempts ]; do
               echo "Attempt $attempt of $max_attempts: Pulling $image..."
               if docker pull --quiet "$image"; then
                 echo "Successfully pulled $image"
                 return 0
               fi
-              
               if [ $attempt -lt $max_attempts ]; then
                 echo "Failed to pull $image. Retrying in ${wait_time}s..."
                 sleep $wait_time
