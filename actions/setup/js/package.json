@@ -22,8 +22,8 @@
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
     "format:terser": "find . -name '*.cjs' -type f -not -path './node_modules/*' | while read file; do if ! grep -qE '^(await |/// <reference|// @ts-check)|await import' \"$file\"; then npx terser \"$file\" -b -c dead_code=true,unused=true,collapse_vars=true --ecma 2022 -o \"$file.tmp\" && mv \"$file.tmp\" \"$file\"; fi; done",
-    "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json'",
-    "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
+    "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../../../.prettierignore",
+    "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../../../.prettierignore",
     "format:schema": "npx prettier --write ../../../pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null",
     "format:pkg-json": "npx prettier --write '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' --ignore-path ../../../.prettierignore",
     "check:pkg-json": "npx prettier --check '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' --ignore-path ../../../.prettierignore"
