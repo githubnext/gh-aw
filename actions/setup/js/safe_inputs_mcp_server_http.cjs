@@ -22,6 +22,7 @@ const http = require("http");
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
 const { validateRequiredFields } = require("./safe_inputs_validation.cjs");
+const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapSafeInputsServer, cleanupConfigFile } = require("./safe_inputs_bootstrap.cjs");
 
@@ -84,7 +85,7 @@ function createMCPServer(configPath, options = {}) {
       // Validate required fields using helper
       const missing = validateRequiredFields(args, tool.inputSchema);
       if (missing.length) {
-        throw new Error(`Invalid arguments: missing or empty ${missing.map(m => `'${m}'`).join(", ")}`);
+        throw new Error(generateEnhancedErrorMessage(missing, tool.name, tool.inputSchema));
       }
 
       // Call the handler
