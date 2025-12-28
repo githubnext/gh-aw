@@ -511,7 +511,9 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	// Find an available port for the HTTP server
 	port := findAvailablePort(safeInputsStartPort, verbose)
 	if port == 0 {
-		os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
+		}
 		return nil, nil, "", fmt.Errorf("failed to find an available port for the HTTP server")
 	}
 
@@ -534,7 +536,9 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 		if serverCmd.Process != nil {
 			_ = serverCmd.Process.Kill()
 		}
-		os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil && verbose {
+			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
+		}
 		return nil, nil, "", fmt.Errorf("safe-inputs HTTP server failed to start within timeout")
 	}
 
