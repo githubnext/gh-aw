@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
-IssueOps transforms GitHub issues into powerful automation triggers that automatically analyze, categorize, and respond to issues as they're created. GitHub Agentic Workflows makes IssueOps natural through issue creation triggers and safe comment outputs that handle automated responses securely without requiring write permissions for the main AI job.
+IssueOps transforms GitHub issues into powerful automation triggers that automatically analyze, categorize, and respond to issues as they're created. GitHub Agentic Workflows makes IssueOps natural through issue creation triggers and [safe-outputs](/gh-aw/reference/safe-outputs/) (validated GitHub operations) that handle automated responses securely without requiring write permissions for the main AI job.
 
 ## When to Use IssueOps
 
