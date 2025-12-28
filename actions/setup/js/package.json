@@ -25,7 +25,7 @@
     "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json'",
     "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json'",
     "format:schema": "npx prettier --write ../../../pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null",
-    "format:pkg-json": "npx prettier --write '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' --ignore-path /dev/null",
-    "check:pkg-json": "npx prettier --check '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' --ignore-path /dev/null"
+    "format:pkg-json": "npx prettier --write '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' '!../../../**/package.json' '!../../../**/package-lock.json'",
+    "check:pkg-json": "npx prettier --check '../../../**/*.json' '!../../../pkg/workflow/js/**/*.json' '!../../../**/package.json' '!../../../**/package-lock.json'"
   }
 }
