@@ -86,7 +86,7 @@ async function main() {
     }
 
     // Validate against allowed list if configured
-    if (allowedMilestones?.length > 0) {
+    if (allowedMilestones && allowedMilestones.length > 0) {
       const milestone = allMilestones.find(m => m.number === milestoneNumber);
 
       if (!milestone) {
