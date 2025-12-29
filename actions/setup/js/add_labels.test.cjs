@@ -273,47 +273,47 @@ const mockCore = {
       }),
       describe("Output and logging", () => {
         (it("should log agent output content length", async () => {
-          ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
+          (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
             (process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement"),
             await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 64")));
+            expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 64"));
         }),
           it("should log allowed labels and max count", async () => {
-            ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug"] }] }),
+            (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug"] }] }),
               (process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature"),
               (process.env.GH_AW_LABELS_MAX_COUNT = "5"),
               await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
               expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement", "feature"])}`),
-              expect(mockCore.info).toHaveBeenCalledWith("Max count: 5")));
+              expect(mockCore.info).toHaveBeenCalledWith("Max count: 5"));
           }),
           it("should log requested labels", async () => {
-            ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement", "invalid"] }] }),
+            (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement", "invalid"] }] }),
               (process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement"),
               await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
-              expect(mockCore.info).toHaveBeenCalledWith(`Requested labels: ${JSON.stringify(["bug", "enhancement", "invalid"])}`)));
+              expect(mockCore.info).toHaveBeenCalledWith(`Requested labels: ${JSON.stringify(["bug", "enhancement", "invalid"])}`));
           }),
           it("should log final labels being added", async () => {
-            ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
+            (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
               (process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement"),
               (process.env.GH_AW_LABELS_MAX_COUNT = "10"),
               await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
-              expect(mockCore.info).toHaveBeenCalledWith(`Adding 2 labels to issue #123: ${JSON.stringify(["bug", "enhancement"])}`)));
+              expect(mockCore.info).toHaveBeenCalledWith(`Adding 2 labels to issue #123: ${JSON.stringify(["bug", "enhancement"])}`));
           }));
       }),
       describe("Edge cases", () => {
         (it("should handle whitespace in allowed labels", async () => {
-          ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
+          (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug", "enhancement"] }] }),
             (process.env.GH_AW_LABELS_ALLOWED = " bug , enhancement , feature "),
             (process.env.GH_AW_LABELS_MAX_COUNT = "10"),
             await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
             expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement", "feature"])}`),
-            expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, labels: ["bug", "enhancement"] })));
+            expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, labels: ["bug", "enhancement"] }));
         }),
           it("should handle empty entries in allowed labels", async () => {
-            ((setAgentOutput({ items: [{ type: "add_labels", labels: ["bug"] }] }),
+            (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug"] }] }),
               (process.env.GH_AW_LABELS_ALLOWED = "bug,,enhancement,"),
               await eval(`(async () => { ${addLabelsScript}; await main(); })()`),
-              expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement"])}`)));
+              expect(mockCore.info).toHaveBeenCalledWith(`Allowed label additions: ${JSON.stringify(["bug", "enhancement"])}`));
           }),
           it("should handle single label output", async () => {
             (setAgentOutput({ items: [{ type: "add_labels", labels: ["bug"] }] }),

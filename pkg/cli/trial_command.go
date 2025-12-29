@@ -571,11 +571,11 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	// Workflow information section
 	var workflowInfo strings.Builder
 	if len(parsedSpecs) == 1 {
-		workflowInfo.WriteString(fmt.Sprintf("Workflow:  %s (from %s)", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug))
+		fmt.Fprintf(&workflowInfo, "Workflow:  %s (from %s)", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
 	} else {
 		workflowInfo.WriteString("Workflows:")
 		for _, spec := range parsedSpecs {
-			workflowInfo.WriteString(fmt.Sprintf("\n  • %s (from %s)", spec.WorkflowName, spec.RepoSlug))
+			fmt.Fprintf(&workflowInfo, "\n  • %s (from %s)", spec.WorkflowName, spec.RepoSlug)
 		}
 	}
 
@@ -600,15 +600,15 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	var modeInfo strings.Builder
 	if cloneRepoSlug != "" {
 		// Clone-repo mode
-		modeInfo.WriteString(fmt.Sprintf("Source:    %s (will be cloned)\n", cloneRepoSlug))
+		fmt.Fprintf(&modeInfo, "Source:    %s (will be cloned)\n", cloneRepoSlug)
 		modeInfo.WriteString("Mode:      Clone repository contents into host repository")
 	} else if directTrialMode {
 		// Direct trial mode
-		modeInfo.WriteString(fmt.Sprintf("Target:    %s (direct)\n", hostRepoSlug))
+		fmt.Fprintf(&modeInfo, "Target:    %s (direct)\n", hostRepoSlug)
 		modeInfo.WriteString("Mode:      Run workflows directly in repository (no simulation)")
 	} else {
 		// Logical-repo mode
-		modeInfo.WriteString(fmt.Sprintf("Target:    %s (simulated)\n", logicalRepoSlug))
+		fmt.Fprintf(&modeInfo, "Target:    %s (simulated)\n", logicalRepoSlug)
 		modeInfo.WriteString("Mode:      Simulate execution against target repository")
 	}
 
@@ -631,8 +631,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Host repository info
 	var hostInfo strings.Builder
-	hostInfo.WriteString(fmt.Sprintf("Host Repo:  %s\n", hostRepoSlug))
-	hostInfo.WriteString(fmt.Sprintf("            %s", hostRepoSlugURL))
+	fmt.Fprintf(&hostInfo, "Host Repo:  %s\n", hostRepoSlug)
+	fmt.Fprintf(&hostInfo, "            %s", hostRepoSlugURL)
 
 	if tty.IsStderrTerminal() {
 		hostSection := lipgloss.NewStyle().
