@@ -1,0 +1,210 @@
+// @ts-check
+
+const { describe, it, expect, beforeEach, afterEach } = require("@jest/globals");
+const { loadConfig, loadHandlers, groupMessagesByType, processMessages } = require("./safe_output_handler_manager.cjs");
+const fs = require("fs");
+const path = require("path");
+
+describe("Safe Output Handler Manager", () => {
+  const testConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
+  
+  beforeEach(() => {
+    // Ensure test directory exists
+    const dir = path.dirname(testConfigPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // Set environment variable for config path
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = testConfigPath;
+  });
+  
+  afterEach(() => {
+    // Clean up test config file
+    if (fs.existsSync(testConfigPath)) {
+      fs.unlinkSync(testConfigPath);
+    }
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+  });
+  
+  describe("loadConfig", () => {
+    it("should load config from file and normalize keys", () => {
+      const config = {
+        "create-issue": { enabled: true, max: 5 },
+        "add-comment": { enabled: true },
+      };
+      
+      fs.writeFileSync(testConfigPath, JSON.stringify(config));
+      
+      const result = loadConfig();
+      
+      expect(result).toHaveProperty("create_issue");
+      expect(result).toHaveProperty("add_comment");
+      expect(result.create_issue).toEqual({ enabled: true, max: 5 });
+      expect(result.add_comment).toEqual({ enabled: true });
+    });
+    
+    it("should return empty object if config file does not exist", () => {
+      const result = loadConfig();
+      expect(result).toEqual({});
+    });
+    
+    it("should return empty object if config file is invalid JSON", () => {
+      fs.writeFileSync(testConfigPath, "not json");
+      const result = loadConfig();
+      expect(result).toEqual({});
+    });
+  });
+  
+  describe("loadHandlers", () => {
+    it("should load handlers for enabled safe output types", () => {
+      const config = {
+        create_issue: { enabled: true },
+        add_comment: { enabled: true },
+      };
+      
+      // Mock core.info, core.debug, core.warning
+      global.core = {
+        info: jest.fn(),
+        debug: jest.fn(),
+        warning: jest.fn(),
+      };
+      
+      const handlers = loadHandlers(config);
+      
+      expect(handlers.size).toBeGreaterThan(0);
+      expect(handlers.has("create_issue")).toBe(true);
+      expect(handlers.has("add_comment")).toBe(true);
+    });
+    
+    it("should not load handlers for disabled safe output types", () => {
+      const config = {
+        create_issue: { enabled: false },
+      };
+      
+      global.core = {
+        info: jest.fn(),
+        debug: jest.fn(),
+        warning: jest.fn(),
+      };
+      
+      const handlers = loadHandlers(config);
+      
+      expect(handlers.has("create_issue")).toBe(false);
+    });
+    
+    it("should handle missing handlers gracefully", () => {
+      const config = {
+        nonexistent_handler: { enabled: true },
+      };
+      
+      global.core = {
+        info: jest.fn(),
+        debug: jest.fn(),
+        warning: jest.fn(),
+      };
+      
+      const handlers = loadHandlers(config);
+      
+      expect(handlers.size).toBe(0);
+    });
+  });
+  
+  describe("groupMessagesByType", () => {
+    it("should group messages by type", () => {
+      const messages = [
+        { type: "create_issue", title: "Issue 1" },
+        { type: "add_comment", body: "Comment 1" },
+        { type: "create_issue", title: "Issue 2" },
+        { type: "add_comment", body: "Comment 2" },
+        { type: "create_discussion", title: "Discussion 1" },
+      ];
+      
+      global.core = {
+        warning: jest.fn(),
+      };
+      
+      const grouped = groupMessagesByType(messages);
+      
+      expect(grouped.size).toBe(3);
+      expect(grouped.get("create_issue")).toHaveLength(2);
+      expect(grouped.get("add_comment")).toHaveLength(2);
+      expect(grouped.get("create_discussion")).toHaveLength(1);
+    });
+    
+    it("should skip messages without type", () => {
+      const messages = [
+        { type: "create_issue", title: "Issue 1" },
+        { title: "No type" },
+      ];
+      
+      global.core = {
+        warning: jest.fn(),
+      };
+      
+      const grouped = groupMessagesByType(messages);
+      
+      expect(grouped.size).toBe(1);
+      expect(grouped.get("create_issue")).toHaveLength(1);
+      expect(core.warning).toHaveBeenCalledWith("Skipping message without type");
+    });
+  });
+  
+  describe("processMessages", () => {
+    it("should process messages in correct order", async () => {
+      const messages = [
+        { type: "add_comment", body: "Comment" },
+        { type: "create_issue", title: "Issue" },
+      ];
+      
+      const mockHandler = {
+        main: jest.fn().mockResolvedValue({ success: true }),
+      };
+      
+      const handlers = new Map([
+        ["create_issue", mockHandler],
+        ["add_comment", mockHandler],
+      ]);
+      
+      global.core = {
+        info: jest.fn(),
+        error: jest.fn(),
+        setOutput: jest.fn(),
+      };
+      
+      const result = await processMessages(handlers, messages);
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+      
+      // Verify create_issue was processed before add_comment
+      expect(result.results[0].type).toBe("create_issue");
+      expect(result.results[1].type).toBe("add_comment");
+    });
+    
+    it("should handle handler errors gracefully", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+      ];
+      
+      const errorHandler = {
+        main: jest.fn().mockRejectedValue(new Error("Handler failed")),
+      };
+      
+      const handlers = new Map([["create_issue", errorHandler]]);
+      
+      global.core = {
+        info: jest.fn(),
+        error: jest.fn(),
+        setOutput: jest.fn(),
+      };
+      
+      const result = await processMessages(handlers, messages);
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].success).toBe(false);
+      expect(result.results[0].error).toBe("Handler failed");
+    });
+  });
+});

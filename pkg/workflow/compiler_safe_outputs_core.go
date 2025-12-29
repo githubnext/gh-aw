@@ -679,3 +679,77 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 	consolidatedSafeOutputsLog.Printf("Added shared checkout with condition: %s", condition.Render())
 	return steps
 }
+
+// buildHandlerManagerStep builds a single step that uses the safe output handler manager
+// to dispatch messages to appropriate handlers. This replaces multiple individual steps
+// with a single dispatcher step.
+func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
+	consolidatedSafeOutputsLog.Print("Building handler manager step")
+	
+	var steps []string
+	
+	// Step name and metadata
+	steps = append(steps, "      - name: Process Safe Outputs\n")
+	steps = append(steps, "        id: process_safe_outputs\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	
+	// Environment variables
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	
+	// Add custom safe output env vars
+	c.addCustomSafeOutputEnvVars(&steps, data)
+	
+	// Add all safe output configuration env vars
+	c.addAllSafeOutputConfigEnvVars(&steps, data)
+	
+	// With section for github-token
+	steps = append(steps, "        with:\n")
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
+	
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+	steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
+	steps = append(steps, "            await main();\n")
+	
+	return steps
+}
+
+// addAllSafeOutputConfigEnvVars adds environment variables for all enabled safe output types
+// These are needed by individual handlers when called by the handler manager
+func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+	
+	// Create Issue env vars
+	if data.SafeOutputs.CreateIssues != nil {
+		cfg := data.SafeOutputs.CreateIssues
+		*steps = append(*steps, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", cfg.TitlePrefix)...)
+		*steps = append(*steps, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", cfg.Labels)...)
+		*steps = append(*steps, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", cfg.AllowedLabels)...)
+		*steps = append(*steps, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
+		if cfg.Expires > 0 {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", cfg.Expires))
+		}
+		*steps = append(*steps, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+	}
+	
+	// Add Comment env vars
+	if data.SafeOutputs.AddComments != nil {
+		cfg := data.SafeOutputs.AddComments
+		if cfg.Target != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", cfg.Target))
+		}
+		if cfg.Discussion != nil && *cfg.Discussion {
+			*steps = append(*steps, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
+		}
+		if cfg.HideOlderComments {
+			*steps = append(*steps, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
+		}
+	}
+	
+	// Add other safe output type env vars as needed
+	// Note: Most handlers read from the config.json file, so we may not need all env vars here
+}
