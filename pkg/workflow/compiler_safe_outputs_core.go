@@ -106,7 +106,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
 		data.SafeOutputs.CloseIssues != nil ||
-		data.SafeOutputs.CloseDiscussions != nil
+		data.SafeOutputs.CloseDiscussions != nil ||
+		data.SafeOutputs.AddLabels != nil ||
+		data.SafeOutputs.UpdateIssues != nil ||
+		data.SafeOutputs.UpdateDiscussions != nil
 	
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -140,19 +143,15 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CloseDiscussions != nil {
 			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
 		}
-	}
-
-	// Update Discussion step (not handled by handler manager yet)
-	if data.SafeOutputs.UpdateDiscussions != nil {
-		stepConfig := c.buildUpdateDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["update_discussion_discussion_number"] = "${{ steps.update_discussion.outputs.discussion_number }}"
-		outputs["update_discussion_discussion_url"] = "${{ steps.update_discussion.outputs.discussion_url }}"
-
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		if data.SafeOutputs.AddLabels != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
+		if data.SafeOutputs.UpdateDiscussions != nil {
+			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		}
 	}
 
 	// Create Pull Request step (not handled by handler manager)
@@ -206,18 +205,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
 	}
 
-	// 10. Add Labels step
-	if data.SafeOutputs.AddLabels != nil {
-		stepConfig := c.buildAddLabelsStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["add_labels_labels_added"] = "${{ steps.add_labels.outputs.labels_added }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
-	}
-
 	// 11. Add Reviewer step
 	if data.SafeOutputs.AddReviewer != nil {
 		stepConfig := c.buildAddReviewerStepConfig(data, mainJobName, threatDetectionEnabled)
@@ -264,16 +251,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		outputs["assign_to_user_assigned"] = "${{ steps.assign_to_user.outputs.assigned }}"
 
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
-	}
-
-	// 15. Update Issue step
-	if data.SafeOutputs.UpdateIssues != nil {
-		stepConfig := c.buildUpdateIssueStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 
 	// 16. Update Pull Request step
@@ -699,6 +676,9 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		return
 	}
 	
+	// Track if we've already added staged flag to avoid duplicates
+	stagedFlagAdded := false
+	
 	// Create Issue env vars
 	if data.SafeOutputs.CreateIssues != nil {
 		cfg := data.SafeOutputs.CreateIssues
@@ -709,7 +689,13 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		if cfg.Expires > 0 {
 			*steps = append(*steps, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", cfg.Expires))
 		}
-		*steps = append(*steps, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+		// Add target repo slug if specified
+		if cfg.TargetRepoSlug != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
+		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
 	}
 	
 	// Add Comment env vars
@@ -726,6 +712,57 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		}
 	}
 	
-	// Add other safe output type env vars as needed
+	// Add Labels env vars
+	if data.SafeOutputs.AddLabels != nil {
+		cfg := data.SafeOutputs.AddLabels
+		*steps = append(*steps, buildLabelsEnvVar("GH_AW_LABELS_ALLOWED", cfg.Allowed)...)
+		if cfg.Max > 0 {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_LABELS_MAX_COUNT: %d\n", cfg.Max))
+		}
+		if cfg.Target != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", cfg.Target))
+		}
+		// Add target repo slug if specified
+		if cfg.TargetRepoSlug != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
+		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+	}
+	
+	// Update Issue env vars
+	if data.SafeOutputs.UpdateIssues != nil {
+		cfg := data.SafeOutputs.UpdateIssues
+		// Add target repo slug if specified
+		if cfg.TargetRepoSlug != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
+		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+	}
+	
+	// Update Discussion env vars
+	if data.SafeOutputs.UpdateDiscussions != nil {
+		cfg := data.SafeOutputs.UpdateDiscussions
+		// Add target repo slug if specified
+		if cfg.TargetRepoSlug != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
+		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+		if cfg.Target != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", cfg.Target))
+		}
+		if cfg.Title != nil {
+			*steps = append(*steps, "          GH_AW_UPDATE_TITLE: \"true\"\n")
+		}
+		if cfg.Body != nil {
+			*steps = append(*steps, "          GH_AW_UPDATE_BODY: \"true\"\n")
+		}
+	}
+	
 	// Note: Most handlers read from the config.json file, so we may not need all env vars here
 }

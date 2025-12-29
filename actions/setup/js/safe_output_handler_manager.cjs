@@ -24,6 +24,9 @@ const HANDLER_MAP = {
   create_discussion: "./create_discussion.cjs",
   close_issue: "./close_issue.cjs",
   close_discussion: "./close_discussion.cjs",
+  add_labels: "./add_labels.cjs",
+  update_issue: "./update_issue.cjs",
+  update_discussion: "./update_discussion.cjs",
 };
 
 /**
