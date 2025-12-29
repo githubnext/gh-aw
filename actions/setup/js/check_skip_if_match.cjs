@@ -6,7 +6,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 async function main() {
   const skipQuery = process.env.GH_AW_SKIP_QUERY;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME;
-  const maxMatchesStr = process.env.GH_AW_SKIP_MAX_MATCHES || "1";
+  const maxMatchesStr = process.env.GH_AW_SKIP_MAX_MATCHES ?? "1";
 
   if (!skipQuery) {
     core.setFailed("Configuration error: GH_AW_SKIP_QUERY not specified.");
@@ -27,20 +27,15 @@ async function main() {
   core.info(`Checking skip-if-match query: ${skipQuery}`);
   core.info(`Maximum matches threshold: ${maxMatches}`);
 
-  // Get repository information from context
   const { owner, repo } = context.repo;
-
-  // Scope the query to the current repository
   const scopedQuery = `${skipQuery} repo:${owner}/${repo}`;
 
   core.info(`Scoped query: ${scopedQuery}`);
 
   try {
-    // Search for issues and pull requests using the GitHub API
-    // We only need to know if the count reaches the threshold
     const response = await github.rest.search.issuesAndPullRequests({
       q: scopedQuery,
-      per_page: 1, // We only need the count, not the items
+      per_page: 1,
     });
 
     const totalCount = response.data.total_count;
@@ -56,7 +51,6 @@ async function main() {
     core.setOutput("skip_check_ok", "true");
   } catch (error) {
     core.setFailed(`Failed to execute search query: ${getErrorMessage(error)}`);
-    return;
   }
 }
 
