@@ -440,8 +440,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	gatewayLog.Printf("Writing %d bytes to config file", len(data))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file", len(data))))
 
-	// Write back to file
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	// Write back to file with restricted permissions (0600) since it contains sensitive API keys
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
 		gatewayLog.Printf("Failed to write rewritten config: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
 		return fmt.Errorf("failed to write rewritten config: %w", err)
