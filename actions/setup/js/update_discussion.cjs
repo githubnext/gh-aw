@@ -140,31 +140,46 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 
   // Update labels if provided and enabled
   if (shouldUpdateLabels && Array.isArray(labels)) {
-    // Get the repository ID to look up label IDs
-    const repoQuery = `
-      query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          id
-          labels(first: 100) {
-            nodes {
-              id
-              name
+    // Get all repository labels using pagination
+    const repoLabels = [];
+    let hasNextPage = true;
+    let cursor = null;
+
+    while (hasNextPage) {
+      const repoQuery = `
+        query($owner: String!, $repo: String!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            id
+            labels(first: 100, after: $cursor) {
+              nodes {
+                id
+                name
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
             }
           }
         }
+      `;
+
+      const repoResult = await github.graphql(repoQuery, {
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        cursor: cursor,
+      });
+
+      if (!repoResult?.repository) {
+        throw new Error(`Repository ${context.repo.owner}/${context.repo.repo} not found`);
       }
-    `;
 
-    const repoResult = await github.graphql(repoQuery, {
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-    });
+      const labels = repoResult.repository.labels?.nodes || [];
+      repoLabels.push(...labels);
 
-    if (!repoResult?.repository) {
-      throw new Error(`Repository ${context.repo.owner}/${context.repo.repo} not found`);
+      hasNextPage = repoResult.repository.labels?.pageInfo?.hasNextPage || false;
+      cursor = repoResult.repository.labels?.pageInfo?.endCursor || null;
     }
-
-    const repoLabels = repoResult.repository.labels?.nodes || [];
 
     // Map label names to IDs
     const labelIds = labels.map(labelName => {
