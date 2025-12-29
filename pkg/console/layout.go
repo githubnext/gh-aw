@@ -49,7 +49,6 @@
 //   - LayoutInfoSection takes separate label and value parameters
 //   - LayoutEmphasisBox provides custom color support with thick borders
 //   - Layout helpers are designed for inline composition and chaining
-//
 package console
 
 import (
