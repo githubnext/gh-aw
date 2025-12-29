@@ -48,8 +48,8 @@ on:
 				return err
 			},
 			internalErrors: []any{
-				&yaml.TypeError{},       // YAML parsing error should be wrapped
-				&yaml.SyntaxError{},     // YAML syntax error should be wrapped
+				&yaml.TypeError{},   // YAML parsing error should be wrapped
+				&yaml.SyntaxError{}, // YAML syntax error should be wrapped
 			},
 		},
 		{
@@ -61,8 +61,8 @@ on:
 				return err
 			},
 			internalErrors: []any{
-				&os.PathError{},         // File system errors should be wrapped
-				&os.LinkError{},         // Symlink errors should be wrapped
+				&os.PathError{}, // File system errors should be wrapped
+				&os.LinkError{}, // Symlink errors should be wrapped
 			},
 		},
 		{
@@ -89,8 +89,8 @@ on:
 				return err
 			},
 			internalErrors: []any{
-				&parser.ImportError{},   // Import errors are internal implementation details
-				&os.PathError{},         // Underlying file errors should be wrapped
+				&parser.ImportError{}, // Import errors are internal implementation details
+				&os.PathError{},       // Underlying file errors should be wrapped
 			},
 		},
 	}
@@ -151,7 +151,7 @@ func TestErrorMessagesPreserveContext(t *testing.T) {
 				tmpDir := t.TempDir()
 				testFile := filepath.Join(tmpDir, "my-workflow.md")
 				// Don't create the file - let it fail
-				
+
 				compiler := NewCompiler(false, "", "1.0.0")
 				err := compiler.CompileWorkflow(testFile)
 				return err
@@ -193,7 +193,7 @@ on: 123456
 			// Verify internal error types are not in the chain
 			var pathErr *os.PathError
 			assert.NotErrorAs(t, err, &pathErr, "os.PathError should not be in error chain")
-			
+
 			var typeErr *yaml.TypeError
 			assert.NotErrorAs(t, err, &typeErr, "yaml.TypeError should not be in error chain")
 		})
@@ -204,9 +204,9 @@ on: 123456
 // error types don't leak through our error handling.
 func TestStandardLibraryErrorsNotExposed(t *testing.T) {
 	tests := []struct {
-		name          string
-		operation     func() error
-		notInChain    []any
+		name       string
+		operation  func() error
+		notInChain []any
 	}{
 		{
 			name: "path errors from file operations",
@@ -281,18 +281,18 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 		// Example: if we had HTTP errors from MCP server communication,
 		// they should be wrapped like this:
 		httpErr := &http.ProtocolError{ErrorString: "simulated"}
-		
+
 		// WRONG: Don't use %w which exposes the internal error
 		// wrongErr := fmt.Errorf("MCP server error: %w", httpErr)
-		
+
 		// RIGHT: Format it and create a new error
 		userErr := fmt.Errorf("failed to connect to MCP server: %s", httpErr.Error())
-		
+
 		// Verify the internal error is not in the chain
 		var target *http.ProtocolError
 		assert.NotErrorAs(t, userErr, &target,
 			"HTTP internal errors should not be in the error chain")
-		
+
 		// But the message should still be informative
 		assert.Contains(t, userErr.Error(), "MCP server")
 	})
@@ -300,16 +300,15 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 	t.Run("IO errors should be wrapped with context", func(t *testing.T) {
 		// Example: IO errors should not leak as-is
 		ioErr := io.ErrUnexpectedEOF
-		
+
 		// WRONG: Don't wrap with %w for internal errors
 		// wrongErr := fmt.Errorf("read failed: %w", ioErr)
-		
+
 		// RIGHT: Create a new error with context
 		userErr := fmt.Errorf("failed to read workflow file: unexpected end of file")
-		
+
 		// Verify sentinel error is not exposed
 		assert.NotErrorIs(t, userErr, ioErr,
 			"sentinel IO errors should not be exposed")
 	})
 }
-
