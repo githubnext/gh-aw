@@ -16,7 +16,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/repoutil"
-	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -549,14 +548,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Title box with double border
 	titleText := "Trial Execution Plan"
-	title := console.RenderTitleBox(titleText, 80)
-	if tty.IsStderrTerminal() {
-		sections = append(sections, title)
-	} else {
-		// For non-TTY, split the multi-line output into separate sections
-		titleLines := strings.Split(title, "\n")
-		sections = append(sections, titleLines...)
-	}
+	sections = append(sections, console.RenderTitleBox(titleText, 80)...)
 
 	sections = append(sections, "")
 
@@ -571,20 +563,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		}
 	}
 
-	if tty.IsStderrTerminal() {
-		workflowSection := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, false, true).
-			BorderForeground(styles.ColorInfo).
-			PaddingLeft(2).
-			Render(workflowInfo.String())
-		sections = append(sections, workflowSection)
-	} else {
-		// Non-TTY: add manual indentation
-		lines := strings.Split(workflowInfo.String(), "\n")
-		for _, line := range lines {
-			sections = append(sections, "  "+line)
-		}
-	}
+	sections = append(sections, console.RenderInfoSection(workflowInfo.String())...)
 
 	sections = append(sections, "")
 
@@ -604,20 +583,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		modeInfo.WriteString("Mode:      Simulate execution against target repository")
 	}
 
-	if tty.IsStderrTerminal() {
-		modeSection := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, false, true).
-			BorderForeground(styles.ColorInfo).
-			PaddingLeft(2).
-			Render(modeInfo.String())
-		sections = append(sections, modeSection)
-	} else {
-		// Non-TTY: add manual indentation
-		lines := strings.Split(modeInfo.String(), "\n")
-		for _, line := range lines {
-			sections = append(sections, "  "+line)
-		}
-	}
+	sections = append(sections, console.RenderInfoSection(modeInfo.String())...)
 
 	sections = append(sections, "")
 
@@ -626,20 +592,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	fmt.Fprintf(&hostInfo, "Host Repo:  %s\n", hostRepoSlug)
 	fmt.Fprintf(&hostInfo, "            %s", hostRepoSlugURL)
 
-	if tty.IsStderrTerminal() {
-		hostSection := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, false, true).
-			BorderForeground(styles.ColorInfo).
-			PaddingLeft(2).
-			Render(hostInfo.String())
-		sections = append(sections, hostSection)
-	} else {
-		// Non-TTY: add manual indentation
-		lines := strings.Split(hostInfo.String(), "\n")
-		for _, line := range lines {
-			sections = append(sections, "  "+line)
-		}
-	}
+	sections = append(sections, console.RenderInfoSection(hostInfo.String())...)
 
 	sections = append(sections, "")
 
@@ -669,20 +622,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		configInfo.WriteString("\nAuto-merge: Pull requests will be automatically merged")
 	}
 
-	if tty.IsStderrTerminal() {
-		configSection := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, false, true).
-			BorderForeground(styles.ColorInfo).
-			PaddingLeft(2).
-			Render(configInfo.String())
-		sections = append(sections, configSection)
-	} else {
-		// Non-TTY: add manual indentation
-		lines := strings.Split(configInfo.String(), "\n")
-		for _, line := range lines {
-			sections = append(sections, "  "+line)
-		}
-	}
+	sections = append(sections, console.RenderInfoSection(configInfo.String())...)
 
 	sections = append(sections, "")
 

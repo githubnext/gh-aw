@@ -647,16 +647,66 @@ func TestRenderTitleBox(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := RenderTitleBox(tt.title, tt.width)
 
-			// Check that title appears in output
-			for _, expected := range tt.expected {
-				if !strings.Contains(output, expected) {
-					t.Errorf("RenderTitleBox() output missing expected string '%s'\nGot:\n%s", expected, output)
-				}
+			// Check that output is not empty
+			if len(output) == 0 {
+				t.Error("RenderTitleBox() returned empty slice")
 			}
 
+			// Join output for checking
+			fullOutput := strings.Join(output, "\n")
+
+			// Check that title appears in output
+			for _, expected := range tt.expected {
+				if !strings.Contains(fullOutput, expected) {
+					t.Errorf("RenderTitleBox() output missing expected string '%s'\nGot:\n%s", expected, fullOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestRenderInfoSection(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name:    "single line",
+			content: "Workflow: test-workflow",
+			expected: []string{
+				"Workflow",
+				"test-workflow",
+			},
+		},
+		{
+			name:    "multiple lines",
+			content: "Line 1\nLine 2\nLine 3",
+			expected: []string{
+				"Line 1",
+				"Line 2",
+				"Line 3",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderInfoSection(tt.content)
+
 			// Check that output is not empty
-			if output == "" {
-				t.Error("RenderTitleBox() returned empty string")
+			if len(output) == 0 {
+				t.Error("RenderInfoSection() returned empty slice")
+			}
+
+			// Join output for checking
+			fullOutput := strings.Join(output, "\n")
+
+			// Check that expected strings appear in output
+			for _, expected := range tt.expected {
+				if !strings.Contains(fullOutput, expected) {
+					t.Errorf("RenderInfoSection() output missing expected string '%s'\nGot:\n%s", expected, fullOutput)
+				}
 			}
 		})
 	}

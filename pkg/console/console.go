@@ -341,10 +341,11 @@ func FormatErrorWithSuggestions(message string, suggestions []string) string {
 // RenderTitleBox renders a title with a double border box in TTY mode,
 // or plain text with separator lines in non-TTY mode.
 // The box will be centered and styled with the Info color scheme.
-func RenderTitleBox(title string, width int) string {
+// Returns a slice of strings ready to be added to sections.
+func RenderTitleBox(title string, width int) []string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled box
-		return lipgloss.NewStyle().
+		// TTY mode: Use Lipgloss styled box - returns as single string
+		box := lipgloss.NewStyle().
 			Bold(true).
 			Foreground(styles.ColorInfo).
 			Border(lipgloss.DoubleBorder(), true, false).
@@ -352,11 +353,35 @@ func RenderTitleBox(title string, width int) string {
 			Width(width).
 			Align(lipgloss.Center).
 			Render(title)
+		return []string{box}
 	}
 
-	// Non-TTY mode: Plain text with separators
+	// Non-TTY mode: Plain text with separators - returns as separate lines
 	separator := strings.Repeat("━", width)
-	return fmt.Sprintf("%s\n  %s\n%s", separator, title, separator)
+	return []string{separator, "  " + title, separator}
+}
+
+// RenderInfoSection renders an info section with left border emphasis in TTY mode,
+// or plain text with manual indentation in non-TTY mode.
+// Returns a slice of strings ready to be added to sections.
+func RenderInfoSection(content string) []string {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss styled section with left border
+		section := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(content)
+		return []string{section}
+	}
+
+	// Non-TTY mode: Add manual indentation
+	lines := strings.Split(content, "\n")
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		result[i] = "  " + line
+	}
+	return result
 }
 
 
