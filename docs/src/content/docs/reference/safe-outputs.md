@@ -39,6 +39,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 | [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment:` | Create review comments on code lines | 10 | ✅ |
 | [**Create Discussion**](#discussion-creation-create-discussion) | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
 | [**Close Discussion**](#close-discussion-close-discussion) | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
+| [**Update Discussion**](#discussion-updates-update-discussion) | `update-discussion:` | Update discussion title, body, or labels | 1 | ✅ |
 | [**Create Agent Task**](#agent-task-creation-create-agent-task) | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
 | [**Assign to Agent**](#assign-to-agent-assign-to-agent) | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
 | [**Assign to User**](#assign-to-user-assign-to-user) | `assign-to-user:` | Assign users to issues | 1 | ✅ |
@@ -396,6 +397,26 @@ safe-outputs:
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
 
 **Resolution Reasons**: `RESOLVED`, `DUPLICATE`, `OUTDATED`, `ANSWERED`.
+
+### Discussion Updates (`update-discussion:`)
+
+Updates discussion title, body, or labels. Only explicitly enabled fields can be updated.
+
+```yaml wrap
+safe-outputs:
+  update-discussion:
+    title:                    # enable title updates
+    body:                     # enable body updates
+    labels:                   # enable label updates
+    allowed-labels: [bug, idea] # restrict to specific labels
+    max: 1                    # max updates (default: 1)
+    target: "*"               # "triggering" (default), "*", or number
+    target-repo: "owner/repo" # cross-repository
+```
+
+**Field Enablement**: Include `title:`, `body:`, or `labels:` keys to enable updates for those fields. Without these keys, the field cannot be updated. Setting `allowed-labels` implicitly enables label updates.
+
+**Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
 
 ### Agent Task Creation (`create-agent-task:`)
 
