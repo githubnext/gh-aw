@@ -29,6 +29,12 @@ This directory contains design specifications and implementation documentation f
 |----------|------|--------|
 | [Template Injection Security Review](./SECURITY_REVIEW_TEMPLATE_INJECTION.md) | 2025-11-11 | ✅ No vulnerabilities found |
 
+## Comparative Analysis
+
+| Document | Status | Description |
+|----------|--------|-------------|
+| [mdflow Syntax Comparison](./mdflow-comparison.md) | ✅ Documented | Comprehensive comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, execution patterns, and more |
+
 ## Related Documentation
 
 For user-facing documentation, see [docs/](../docs/).
@@ -45,4 +51,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2025-12-29
