@@ -33,13 +33,11 @@ This directory contains design specifications and implementation documentation f
 
 | Document | Status | Description |
 |----------|--------|-------------|
-| [mdflow Syntax Comparison](./mdflow-comparison.md) | ✅ Documented | Comparison of mdflow and gh-aw syntax, design philosophies, and use cases |
+| [mdflow Syntax Comparison](./mdflow-comparison.md) | ✅ Documented | Comprehensive comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, execution patterns, and more |
 
 ## Related Documentation
 
 For user-facing documentation, see [docs/](../docs/).
-
-For the comprehensive mdflow comparison with detailed examples, see [docs/MDFLOW_SYNTAX_COMPARISON.md](../docs/MDFLOW_SYNTAX_COMPARISON.md).
 
 ## Contributing
 
