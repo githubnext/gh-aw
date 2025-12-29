@@ -143,7 +143,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.26.3"
 const DefaultFirewallVersion Version = "v0.7.0"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.53"
+const DefaultPlaywrightMCPVersion Version = "0.0.54"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.57.0"
