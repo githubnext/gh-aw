@@ -338,6 +338,28 @@ func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	return output.String()
 }
 
+// RenderTitleBox renders a title with a double border box in TTY mode,
+// or plain text with separator lines in non-TTY mode.
+// The box will be centered and styled with the Info color scheme.
+func RenderTitleBox(title string, width int) string {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss styled box
+		return lipgloss.NewStyle().
+			Bold(true).
+			Foreground(styles.ColorInfo).
+			Border(lipgloss.DoubleBorder(), true, false).
+			Padding(0, 2).
+			Width(width).
+			Align(lipgloss.Center).
+			Render(title)
+	}
+
+	// Non-TTY mode: Plain text with separators
+	separator := strings.Repeat("━", width)
+	return fmt.Sprintf("%s\n  %s\n%s", separator, title, separator)
+}
+
+
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects
 func RenderTableAsJSON(config TableConfig) (string, error) {

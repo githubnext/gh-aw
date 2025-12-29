@@ -549,21 +549,13 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Title box with double border
 	titleText := "Trial Execution Plan"
+	title := console.RenderTitleBox(titleText, 80)
 	if tty.IsStderrTerminal() {
-		title := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(styles.ColorInfo).
-			Border(lipgloss.DoubleBorder(), true, false).
-			Padding(0, 2).
-			Width(80).
-			Align(lipgloss.Center).
-			Render(titleText)
 		sections = append(sections, title)
 	} else {
-		// Non-TTY: simple header with separators
-		sections = append(sections, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		sections = append(sections, "  "+titleText)
-		sections = append(sections, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		// For non-TTY, split the multi-line output into separate sections
+		titleLines := strings.Split(title, "\n")
+		sections = append(sections, titleLines...)
 	}
 
 	sections = append(sections, "")

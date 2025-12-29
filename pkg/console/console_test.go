@@ -617,3 +617,47 @@ func TestRenderTreeSimple(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderTitleBox(t *testing.T) {
+	tests := []struct {
+		name     string
+		title    string
+		width    int
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name:  "basic title",
+			title: "Test Title",
+			width: 40,
+			expected: []string{
+				"Test Title",
+			},
+		},
+		{
+			name:  "longer title",
+			title: "Trial Execution Plan",
+			width: 80,
+			expected: []string{
+				"Trial Execution Plan",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderTitleBox(tt.title, tt.width)
+
+			// Check that title appears in output
+			for _, expected := range tt.expected {
+				if !strings.Contains(output, expected) {
+					t.Errorf("RenderTitleBox() output missing expected string '%s'\nGot:\n%s", expected, output)
+				}
+			}
+
+			// Check that output is not empty
+			if output == "" {
+				t.Error("RenderTitleBox() returned empty string")
+			}
+		})
+	}
+}
