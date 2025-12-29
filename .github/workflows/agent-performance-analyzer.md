@@ -11,7 +11,7 @@ engine: copilot
 tools:
   agentic-workflows:
   github:
-    toolsets: [default, actions]
+    toolsets: [default, actions, repos]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**/*"
