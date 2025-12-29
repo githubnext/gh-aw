@@ -72,6 +72,10 @@ We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
 
 For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+### Development
+
+- **[Local Testing Guide](https://githubnext.github.io/gh-aw/guides/local-testing/)** - Test workflows locally without GitHub Actions for instant feedback
+
 ## Share Feedback
 
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
