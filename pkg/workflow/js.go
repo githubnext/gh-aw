@@ -39,8 +39,6 @@ func getLinkSubIssueScript() string            { return "" }
 func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
 func getPushToPullRequestBranchScript() string { return "" }
-func getUpdateDiscussionScript() string        { return "" }
-func getUpdateIssueScript() string             { return "" }
 func getUpdateProjectScript() string           { return "" }
 func getUpdatePullRequestScript() string       { return "" }
 func getUpdateReleaseScript() string           { return "" }

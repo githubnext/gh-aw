@@ -100,7 +100,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	}
 
 	// === Build safe output steps ===
-	
+
 	// Check if any handler-manager-supported types are enabled
 	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
@@ -110,23 +110,23 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AddLabels != nil ||
 		data.SafeOutputs.UpdateIssues != nil ||
 		data.SafeOutputs.UpdateDiscussions != nil
-	
+
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
 		consolidatedSafeOutputsLog.Print("Using handler manager for safe outputs")
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
 		steps = append(steps, handlerManagerSteps...)
 		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
-		
+
 		// Track enabled types for other steps
 		if data.SafeOutputs.CreateIssues != nil {
 			createIssueEnabled = true
 		}
-		
+
 		// Add outputs from handler manager
 		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
 		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
-		
+
 		// Merge permissions for all handler-managed types
 		if data.SafeOutputs.CreateIssues != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
@@ -638,34 +638,34 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 // with a single dispatcher step.
 func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	consolidatedSafeOutputsLog.Print("Building handler manager step")
-	
+
 	var steps []string
-	
+
 	// Step name and metadata
 	steps = append(steps, "      - name: Process Safe Outputs\n")
 	steps = append(steps, "        id: process_safe_outputs\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	
+
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	
+
 	// Add custom safe output env vars
 	c.addCustomSafeOutputEnvVars(&steps, data)
-	
+
 	// Add all safe output configuration env vars
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
-	
+
 	// With section for github-token
 	steps = append(steps, "        with:\n")
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
-	
+
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
 	steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
 	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
 	steps = append(steps, "            await main();\n")
-	
+
 	return steps
 }
 
@@ -675,10 +675,10 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	if data.SafeOutputs == nil {
 		return
 	}
-	
+
 	// Track if we've already added staged flag to avoid duplicates
 	stagedFlagAdded := false
-	
+
 	// Create Issue env vars
 	if data.SafeOutputs.CreateIssues != nil {
 		cfg := data.SafeOutputs.CreateIssues
@@ -697,7 +697,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			stagedFlagAdded = true
 		}
 	}
-	
+
 	// Add Comment env vars
 	if data.SafeOutputs.AddComments != nil {
 		cfg := data.SafeOutputs.AddComments
@@ -711,7 +711,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			*steps = append(*steps, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
 		}
 	}
-	
+
 	// Add Labels env vars
 	if data.SafeOutputs.AddLabels != nil {
 		cfg := data.SafeOutputs.AddLabels
@@ -730,7 +730,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			stagedFlagAdded = true
 		}
 	}
-	
+
 	// Update Issue env vars
 	if data.SafeOutputs.UpdateIssues != nil {
 		cfg := data.SafeOutputs.UpdateIssues
@@ -742,7 +742,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			stagedFlagAdded = true
 		}
 	}
-	
+
 	// Update Discussion env vars
 	if data.SafeOutputs.UpdateDiscussions != nil {
 		cfg := data.SafeOutputs.UpdateDiscussions
@@ -752,6 +752,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
+			_ = stagedFlagAdded // Mark as used for linter
 		}
 		if cfg.Target != "" {
 			*steps = append(*steps, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", cfg.Target))
@@ -763,6 +764,6 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			*steps = append(*steps, "          GH_AW_UPDATE_BODY: \"true\"\n")
 		}
 	}
-	
+
 	// Note: Most handlers read from the config.json file, so we may not need all env vars here
 }

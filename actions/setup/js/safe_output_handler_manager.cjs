@@ -3,7 +3,7 @@
 
 /**
  * Safe Output Handler Manager
- * 
+ *
  * This module manages the dispatch of safe output messages to dedicated handlers.
  * It reads configuration, loads the appropriate handlers for enabled safe output types,
  * and processes messages from the agent output file while maintaining a shared temporary ID map.
@@ -35,21 +35,19 @@ const HANDLER_MAP = {
  */
 function loadConfig() {
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
-  
+
   try {
     if (fs.existsSync(configPath)) {
       const configContent = fs.readFileSync(configPath, "utf8");
       const config = JSON.parse(configContent);
-      
+
       // Normalize config keys: convert hyphens to underscores
-      return Object.fromEntries(
-        Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v])
-      );
+      return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
     }
   } catch (error) {
     core.debug(`Failed to load config: ${getErrorMessage(error)}`);
   }
-  
+
   return {};
 }
 
@@ -60,14 +58,14 @@ function loadConfig() {
  */
 function loadHandlers(config) {
   const handlers = new Map();
-  
+
   core.info("Loading safe output handlers based on configuration...");
-  
+
   for (const [type, handlerPath] of Object.entries(HANDLER_MAP)) {
     // Check if this safe output type is enabled in the config
     // Config keys use underscores (e.g., create_issue)
     const configKey = type;
-    
+
     // Check if handler is enabled (config entry exists and is not false)
     if (config[configKey] && config[configKey].enabled !== false) {
       try {
@@ -85,7 +83,7 @@ function loadHandlers(config) {
       core.debug(`Handler not enabled: ${type}`);
     }
   }
-  
+
   core.info(`Loaded ${handlers.size} handler(s)`);
   return handlers;
 }
@@ -93,53 +91,53 @@ function loadHandlers(config) {
 /**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
- * 
+ *
  * @param {Map<string, {main: Function}>} handlers - Map of loaded handlers
  * @param {Array<Object>} messages - Array of safe output messages
  * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object}>}
  */
 async function processMessages(handlers, messages) {
   const results = [];
-  
+
   // Initialize shared temporary ID map
   // This will be populated by handlers as they create entities with temporary IDs
   /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
-  
+
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
-  
+
   // Process messages in order of appearance
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i];
     const messageType = message.type;
-    
+
     if (!messageType) {
       core.warning(`Skipping message ${i + 1} without type`);
       continue;
     }
-    
+
     const handler = handlers.get(messageType);
-    
+
     if (!handler) {
       core.debug(`No handler for type: ${messageType} (message ${i + 1})`);
       continue;
     }
-    
+
     try {
       core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
-      
+
       // Call the handler's main function
       // The handler will access agent output internally via loadAgentOutput()
       // and will populate/use the temporaryIdMap as needed
       const result = await handler.main();
-      
+
       results.push({
         type: messageType,
         messageIndex: i,
         success: true,
         result,
       });
-      
+
       core.info(`✓ Message ${i + 1} (${messageType}) completed successfully`);
     } catch (error) {
       core.error(`✗ Message ${i + 1} (${messageType}) failed: ${getErrorMessage(error)}`);
@@ -151,10 +149,10 @@ async function processMessages(handlers, messages) {
       });
     }
   }
-  
+
   // Convert temporaryIdMap to plain object for serialization
   const temporaryIdMapObj = Object.fromEntries(temporaryIdMap);
-  
+
   return {
     success: true,
     results,
@@ -165,47 +163,47 @@ async function processMessages(handlers, messages) {
 /**
  * Main entry point for the handler manager
  * This is called by the consolidated safe output step
- * 
+ *
  * @returns {Promise<void>}
  */
 async function main() {
   try {
     core.info("Safe Output Handler Manager starting...");
-    
+
     // Load configuration
     const config = loadConfig();
     core.debug(`Configuration: ${JSON.stringify(Object.keys(config))}`);
-    
+
     // Load agent output
     const agentOutput = loadAgentOutput();
     if (!agentOutput.success) {
       core.info("No agent output available - nothing to process");
       return;
     }
-    
+
     core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
-    
+
     // Load handlers based on configuration
     const handlers = loadHandlers(config);
-    
+
     if (handlers.size === 0) {
       core.info("No handlers enabled in configuration");
       return;
     }
-    
+
     // Process all messages with loaded handlers
     const result = await processMessages(handlers, agentOutput.items);
-    
+
     // Log summary
     core.info("=== Processing Summary ===");
     core.info(`Total handlers invoked: ${result.results.length}`);
     core.info(`Successful: ${result.results.filter(r => r.success).length}`);
     core.info(`Failed: ${result.results.filter(r => !r.success).length}`);
-    
+
     // Set outputs for downstream steps
     core.setOutput("temporary_id_map", JSON.stringify(result.temporaryIdMap));
     core.setOutput("processed_count", result.results.length);
-    
+
     core.info("Safe Output Handler Manager completed successfully");
   } catch (error) {
     const errorMsg = getErrorMessage(error);
