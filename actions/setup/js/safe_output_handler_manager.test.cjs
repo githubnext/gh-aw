@@ -2,22 +2,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { loadConfig, loadHandlers, processMessages } from "./safe_output_handler_manager.cjs";
-import fs from "fs";
-import path from "path";
 
 describe("Safe Output Handler Manager", () => {
-  const testConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-
   beforeEach(() => {
-    // Ensure test directory exists
-    const dir = path.dirname(testConfigPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    // Set environment variable for config path
-    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = testConfigPath;
-
     // Mock global core
     global.core = {
       info: vi.fn(),
@@ -30,21 +17,18 @@ describe("Safe Output Handler Manager", () => {
   });
 
   afterEach(() => {
-    // Clean up test config file
-    if (fs.existsSync(testConfigPath)) {
-      fs.unlinkSync(testConfigPath);
-    }
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+    // Clean up environment variables
+    delete process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
   });
 
   describe("loadConfig", () => {
-    it("should load config from file and normalize keys", () => {
+    it("should load config from environment variable and normalize keys", () => {
       const config = {
         "create-issue": { max: 5 },
         "add-comment": { max: 1 },
       };
 
-      fs.writeFileSync(testConfigPath, JSON.stringify(config));
+      process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify(config);
 
       const result = loadConfig();
 
@@ -54,15 +38,13 @@ describe("Safe Output Handler Manager", () => {
       expect(result.add_comment).toEqual({ max: 1 });
     });
 
-    it("should return empty object if config file does not exist", () => {
-      const result = loadConfig();
-      expect(result).toEqual({});
+    it("should throw error if environment variable is not set", () => {
+      expect(() => loadConfig()).toThrow("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set");
     });
 
-    it("should return empty object if config file is invalid JSON", () => {
-      fs.writeFileSync(testConfigPath, "not json");
-      const result = loadConfig();
-      expect(result).toEqual({});
+    it("should throw error if environment variable contains invalid JSON", () => {
+      process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = "not json";
+      expect(() => loadConfig()).toThrow("Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG");
     });
   });
 

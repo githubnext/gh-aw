@@ -11,8 +11,6 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const fs = require("fs");
-const path = require("path");
 
 /**
  * Handler map configuration
@@ -31,84 +29,22 @@ const HANDLER_MAP = {
 
 /**
  * Load configuration for safe outputs
- * Tries multiple sources in order: env var JSON, config file, then fallback to inferring
+ * Reads configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
  * @returns {Object} Safe outputs configuration
  */
 function loadConfig() {
-  // First, try to load from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
-  if (process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) {
-    try {
-      const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
-      core.debug(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(config)}`);
-      // Normalize config keys: convert hyphens to underscores
-      return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-    } catch (error) {
-      core.warning(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
-    }
+  if (!process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) {
+    throw new Error("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable is required but not set");
   }
 
-  // Second, try to load from config file (for MCP server context)
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
   try {
-    if (fs.existsSync(configPath)) {
-      const configContent = fs.readFileSync(configPath, "utf8");
-      const config = JSON.parse(configContent);
-      core.debug(`Loaded config from file: ${configPath}`);
-      // Normalize config keys: convert hyphens to underscores
-      return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-    }
+    const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
+    core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(config)}`);
+    // Normalize config keys: convert hyphens to underscores
+    return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
   } catch (error) {
-    core.debug(`Failed to load config from file: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
   }
-
-  // Fallback: infer config from environment variables (legacy compatibility)
-  // When running in the safe_outputs job without the config env var,
-  // individual handler env vars are present (e.g., GH_AW_ISSUE_EXPIRES, GH_AW_HIDE_OLDER_COMMENTS)
-  core.debug("Config not found in env var or file, inferring configuration from environment variables");
-  const config = {};
-
-  // Check for create_issue indicators
-  if (process.env.GH_AW_ISSUE_EXPIRES || process.env.GH_AW_ISSUE_TITLE_PREFIX || process.env.GH_AW_ISSUE_LABELS || process.env.GH_AW_ISSUE_ALLOWED_LABELS) {
-    config.create_issue = { enabled: true };
-  }
-
-  // Check for add_comment indicators
-  if (process.env.GH_AW_COMMENT_TARGET || process.env.GH_AW_HIDE_OLDER_COMMENTS || process.env.GITHUB_AW_COMMENT_DISCUSSION) {
-    config.add_comment = { enabled: true };
-  }
-
-  // Check for create_discussion indicators (always enable if other safe outputs are present, as it's common)
-  if (Object.keys(config).length > 0) {
-    config.create_discussion = { enabled: true };
-  }
-
-  // Check for close_issue indicators (always enable if create_issue is present)
-  if (config.create_issue) {
-    config.close_issue = { enabled: true };
-  }
-
-  // Check for close_discussion indicators (always enable if create_discussion is present)
-  if (config.create_discussion) {
-    config.close_discussion = { enabled: true };
-  }
-
-  // Check for add_labels indicators
-  if (process.env.GH_AW_LABELS_ALLOWED || process.env.GH_AW_LABELS_MAX_COUNT) {
-    config.add_labels = { enabled: true };
-  }
-
-  // Check for update_issue indicators (always enable if create_issue is present)
-  if (config.create_issue) {
-    config.update_issue = { enabled: true };
-  }
-
-  // Check for update_discussion indicators (always enable if create_discussion is present)
-  if (config.create_discussion) {
-    config.update_discussion = { enabled: true };
-  }
-
-  core.debug(`Inferred config: ${JSON.stringify(config)}`);
-  return config;
 }
 
 /**
