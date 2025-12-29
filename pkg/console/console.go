@@ -362,7 +362,7 @@ func RenderTitleBox(title string, width int) []string {
 }
 
 // RenderErrorBox renders an error/warning message with a thick border box in TTY mode,
-// or plain text with separator lines in non-TTY mode.
+// or plain text in non-TTY mode.
 // The box will be styled with the Error color scheme for critical messages.
 // Returns a slice of strings ready to be added to sections or printed directly.
 func RenderErrorBox(title string) []string {
@@ -380,7 +380,6 @@ func RenderErrorBox(title string) []string {
 	// Non-TTY mode: Plain text with error formatting
 	return []string{
 		FormatErrorMessage(title),
-		FormatErrorMessage(strings.Repeat("=", len(title))),
 	}
 }
 
