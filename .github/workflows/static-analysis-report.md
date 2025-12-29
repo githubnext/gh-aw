@@ -26,6 +26,21 @@ strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
+steps:
+  - name: Pull static analysis Docker images
+    run: |
+      set -e
+      echo "Pulling Docker images for static analysis tools..."
+      
+      # Pull zizmor Docker image
+      echo "Pulling zizmor image..."
+      docker pull ghcr.io/zizmorcore/zizmor:latest
+      
+      # Pull poutine Docker image
+      echo "Pulling poutine image..."
+      docker pull ghcr.io/boostsecurityio/poutine:latest
+      
+      echo "All static analysis Docker images pulled successfully"
 ---
 
 # Static Analysis Report

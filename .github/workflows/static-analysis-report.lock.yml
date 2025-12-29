@@ -122,6 +122,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Start MCP server
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
+      - name: Pull static analysis Docker images
+        run: "set -e\necho \"Pulling Docker images for static analysis tools...\"\n\n# Pull zizmor Docker image\necho \"Pulling zizmor image...\"\ndocker pull ghcr.io/zizmorcore/zizmor:latest\n\n# Pull poutine Docker image\necho \"Pulling poutine image...\"\ndocker pull ghcr.io/boostsecurityio/poutine:latest\n\necho \"All static analysis Docker images pulled successfully\""
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
