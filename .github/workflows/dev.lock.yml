@@ -1156,6 +1156,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_SAFE_OUTPUTS_STAGED: "true"
       GH_AW_WORKFLOW_ID: "dev"
       GH_AW_WORKFLOW_NAME: "Dev"

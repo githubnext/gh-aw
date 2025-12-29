@@ -1199,6 +1199,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"update_project\":{\"max\":10}}"
       GH_AW_WORKFLOW_ID: "playground-org-project-update-issue"
       GH_AW_WORKFLOW_NAME: "Playground: Org project update issue"
     steps:

@@ -1349,6 +1349,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"assign_to_agent\":{},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"update_issue\":{\"max\":1}}"
       GH_AW_WORKFLOW_ID: "workflow-generator"
       GH_AW_WORKFLOW_NAME: "Workflow Generator"
     outputs:

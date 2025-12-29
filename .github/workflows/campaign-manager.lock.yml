@@ -1795,6 +1795,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"create_discussion\":{\"max\":3},\"create_issue\":{\"max\":5},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"update_project\":{\"max\":20}}"
       GH_AW_WORKFLOW_ID: "campaign-manager"
       GH_AW_WORKFLOW_NAME: "Campaign Manager - Meta-Orchestrator"
     outputs:

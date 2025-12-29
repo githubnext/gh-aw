@@ -1504,6 +1504,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_WORKFLOW_ID: "security-fix-pr"
       GH_AW_WORKFLOW_NAME: "Security Fix PR"
     outputs:
@@ -1563,11 +1564,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[security-fix] "
-          GH_AW_PR_LABELS: "security,automated-fix"
-          GH_AW_PR_DRAFT: "true"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

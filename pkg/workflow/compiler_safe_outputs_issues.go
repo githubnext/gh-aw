@@ -1,7 +1,5 @@
 package workflow
 
-import "fmt"
-
 // buildCreateIssueStepConfig builds the configuration for creating an issue
 func (c *Compiler) buildCreateIssueStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateIssues

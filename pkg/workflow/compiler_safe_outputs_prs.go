@@ -94,19 +94,6 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	}
 }
 
-	condition := BuildSafeOutputType("close_pull_request")
-
-	return SafeOutputStepConfig{
-		StepName:      "Close Pull Request",
-		StepID:        "close_pull_request",
-		ScriptName:    "close_pull_request",
-		Script:        getClosePullRequestScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
 // buildCreatePRReviewCommentStepConfig builds the configuration for creating a PR review comment
 func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreatePullRequestReviewComments

@@ -2064,6 +2064,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"default\":null,\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"},\"post-to-slack-channel\":{\"description\":\"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \\u003equote, and links \\u003curl|text\\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.\",\"inputs\":{\"message\":{\"default\":null,\"description\":\"The message to post (max 200 characters, supports Slack markdown)\",\"required\":true,\"type\":\"string\"}},\"output\":\"Message posted to Slack successfully!\"}}"
       GH_AW_WORKFLOW_ID: "mcp-inspector"
       GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
     outputs:

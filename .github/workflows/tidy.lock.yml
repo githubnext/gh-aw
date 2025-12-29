@@ -1447,6 +1447,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"push_to_pull_request_branch\":{\"max\":0}}"
       GH_AW_WORKFLOW_ID: "tidy"
       GH_AW_WORKFLOW_NAME: "Tidy"
     outputs:
@@ -1507,11 +1508,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[tidy] "
-          GH_AW_PR_LABELS: "automation,maintenance"
-          GH_AW_PR_DRAFT: "false"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_PR_ALLOW_EMPTY: "false"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}

@@ -1653,6 +1653,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_WORKFLOW_ID: "static-analysis-report"
       GH_AW_WORKFLOW_NAME: "Static Analysis Report"
     outputs:

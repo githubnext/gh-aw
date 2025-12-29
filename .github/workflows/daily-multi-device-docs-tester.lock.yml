@@ -1477,6 +1477,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"upload_asset\":{\"max\":0}}"
       GH_AW_TRACKER_ID: "daily-multi-device-docs-tester"
       GH_AW_WORKFLOW_ID: "daily-multi-device-docs-tester"
       GH_AW_WORKFLOW_NAME: "Multi-Device Docs Tester"

@@ -1346,6 +1346,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "codex"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"add_labels\":{\"allowed\":[\"smoke-codex-firewall\"],\"max\":3},\"create_issue\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔥 *Firewall tested by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔒 Initiating firewall smoke test... [{workflow_name}]({run_url}) is validating network sandboxing for {event_type}...\",\"runSuccess\":\"✅ Firewall validation complete... [{workflow_name}]({run_url}) confirmed network sandboxing is operational. 🛡️\",\"runFailure\":\"❌ Firewall validation failed... [{workflow_name}]({run_url}) {status}. Network sandboxing may not be working correctly.\"}"
       GH_AW_WORKFLOW_ID: "smoke-codex-firewall"
       GH_AW_WORKFLOW_NAME: "Smoke Codex Firewall"
@@ -1384,7 +1385,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_EXPIRES: "1"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1415,7 +1415,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_LABELS_ALLOWED: "smoke-codex-firewall"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

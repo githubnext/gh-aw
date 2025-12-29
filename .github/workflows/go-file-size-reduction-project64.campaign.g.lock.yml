@@ -1515,6 +1515,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"update_project\":{\"max\":10}}"
       GH_AW_WORKFLOW_ID: "go-file-size-reduction-project64.campaign.g"
       GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
     outputs:

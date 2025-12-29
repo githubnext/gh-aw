@@ -1517,6 +1517,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📊 *Diagram rendered by [{workflow_name}]({run_url})*\",\"runStarted\":\"📐 Archie here! [{workflow_name}]({run_url}) is sketching the architecture on this {event_type}...\",\"runSuccess\":\"🎨 Blueprint complete! [{workflow_name}]({run_url}) has visualized the connections. The architecture speaks for itself! ✅\",\"runFailure\":\"📐 Drafting interrupted! [{workflow_name}]({run_url}) {status}. The diagram remains incomplete...\"}"
       GH_AW_WORKFLOW_ID: "archie"
       GH_AW_WORKFLOW_NAME: "Archie"

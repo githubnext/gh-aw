@@ -1755,6 +1755,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"upload_asset\":{\"max\":0}}"
       GH_AW_TRACKER_ID: "audit-workflows-daily"
       GH_AW_WORKFLOW_ID: "audit-workflows"
       GH_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"

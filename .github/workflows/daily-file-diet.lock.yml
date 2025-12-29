@@ -2267,6 +2267,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"upload_asset\":{\"max\":0}}"
       GH_AW_TRACKER_ID: "daily-file-diet"
       GH_AW_WORKFLOW_ID: "daily-file-diet"
       GH_AW_WORKFLOW_NAME: "Daily File Diet"
@@ -2313,8 +2314,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ISSUE_TITLE_PREFIX: "[file-diet] "
-          GH_AW_ISSUE_LABELS: "refactoring,code-health,automated-analysis"
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |

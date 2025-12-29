@@ -1382,6 +1382,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "codex"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":100},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_WORKFLOW_ID: "close-old-discussions"
       GH_AW_WORKFLOW_NAME: "Close Outdated Discussions"
     steps:

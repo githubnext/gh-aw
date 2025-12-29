@@ -1492,6 +1492,7 @@ jobs:
     env:
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5-mini"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1},\"push_to_pull_request_branch\":{\"max\":0},\"update_pull_request\":{\"max\":1}}"
       GH_AW_WORKFLOW_ID: "changeset"
       GH_AW_WORKFLOW_NAME: "Changeset Generator"
     outputs:

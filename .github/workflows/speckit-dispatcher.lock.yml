@@ -1786,6 +1786,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":5},\"create_issue\":{\"max\":5},\"link_sub_issue\":{\"max\":5},\"missing_tool\":{\"max\":0},\"noop\":{\"max\":1}}"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🎯 *Spec-Kit dispatcher by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Analyzing your spec-kit request via [{workflow_name}]({run_url})...\",\"runSuccess\":\"✅ Guidance provided! [{workflow_name}]({run_url}) has determined the next steps.\",\"runFailure\":\"❌ Analysis incomplete. [{workflow_name}]({run_url}) {status}.\"}"
       GH_AW_WORKFLOW_ID: "speckit-dispatcher"
       GH_AW_WORKFLOW_NAME: "Spec-Kit Command Dispatcher"
