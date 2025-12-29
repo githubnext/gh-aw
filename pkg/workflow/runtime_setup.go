@@ -801,6 +801,24 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 
 	log.Printf("Deduplicating runtime setup steps from custom steps (%d runtimes)", len(runtimeRequirements))
 
+	// Extract version comments from uses lines before unmarshaling
+	// This is necessary because YAML treats "# comment" as a comment, not part of the value
+	// Format: "uses: action@sha # v1.0.0" -> after unmarshal, only "action@sha" remains
+	versionComments := make(map[string]string) // key: action@sha, value: # v1.0.0
+	lines := strings.Split(customSteps, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "uses:") && strings.Contains(trimmed, " # ") {
+			// Extract the uses value and version comment
+			parts := strings.SplitN(trimmed, " # ", 2)
+			if len(parts) == 2 {
+				usesValue := strings.TrimSpace(strings.TrimPrefix(parts[0], "uses:"))
+				versionComment := " # " + parts[1]
+				versionComments[usesValue] = versionComment
+			}
+		}
+	}
+
 	// Parse custom steps YAML
 	var stepsWrapper map[string]any
 	if err := yaml.Unmarshal([]byte(customSteps), &stepsWrapper); err != nil {
@@ -965,10 +983,32 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 
 	// Convert back to YAML
 	stepsWrapper["steps"] = filteredSteps
+	
+	// Restore version comments to steps that have them
+	// This must be done before marshaling
+	for i, step := range filteredSteps {
+		if stepMap, ok := step.(map[string]any); ok {
+			if usesVal, hasUses := stepMap["uses"]; hasUses {
+				if usesStr, ok := usesVal.(string); ok {
+					if versionComment, hasComment := versionComments[usesStr]; hasComment {
+						// Add the version comment back
+						stepMap["uses"] = usesStr + versionComment
+						filteredSteps[i] = stepMap
+					}
+				}
+			}
+		}
+	}
+	
 	deduplicatedYAML, err := yaml.Marshal(stepsWrapper)
 	if err != nil {
 		return customSteps, runtimeRequirements, fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", err)
 	}
 
-	return string(deduplicatedYAML), filteredRequirements, nil
+	// Remove quotes from uses values with version comments
+	// The YAML marshaller quotes strings containing # (for inline version comments)
+	// but GitHub Actions expects unquoted uses values
+	deduplicatedStr := unquoteUsesWithComments(string(deduplicatedYAML))
+
+	return deduplicatedStr, filteredRequirements, nil
 }
