@@ -1,9 +1,9 @@
 // @ts-check
 
-const { describe, it, expect, beforeEach, afterEach } = require("@jest/globals");
-const { loadConfig, loadHandlers, groupMessagesByType, processMessages } = require("./safe_output_handler_manager.cjs");
-const fs = require("fs");
-const path = require("path");
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { loadConfig, loadHandlers, groupMessagesByType, processMessages } from "./safe_output_handler_manager.cjs";
+import fs from "fs";
+import path from "path";
 
 describe("Safe Output Handler Manager", () => {
   const testConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
@@ -17,6 +17,16 @@ describe("Safe Output Handler Manager", () => {
     
     // Set environment variable for config path
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = testConfigPath;
+    
+    // Mock global core
+    global.core = {
+      info: vi.fn(),
+      debug: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      setOutput: vi.fn(),
+      setFailed: vi.fn(),
+    };
   });
   
   afterEach(() => {
@@ -63,13 +73,6 @@ describe("Safe Output Handler Manager", () => {
         add_comment: { enabled: true },
       };
       
-      // Mock core.info, core.debug, core.warning
-      global.core = {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warning: jest.fn(),
-      };
-      
       const handlers = loadHandlers(config);
       
       expect(handlers.size).toBeGreaterThan(0);
@@ -82,12 +85,6 @@ describe("Safe Output Handler Manager", () => {
         create_issue: { enabled: false },
       };
       
-      global.core = {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warning: jest.fn(),
-      };
-      
       const handlers = loadHandlers(config);
       
       expect(handlers.has("create_issue")).toBe(false);
@@ -96,12 +93,6 @@ describe("Safe Output Handler Manager", () => {
     it("should handle missing handlers gracefully", () => {
       const config = {
         nonexistent_handler: { enabled: true },
-      };
-      
-      global.core = {
-        info: jest.fn(),
-        debug: jest.fn(),
-        warning: jest.fn(),
       };
       
       const handlers = loadHandlers(config);
@@ -120,10 +111,6 @@ describe("Safe Output Handler Manager", () => {
         { type: "create_discussion", title: "Discussion 1" },
       ];
       
-      global.core = {
-        warning: jest.fn(),
-      };
-      
       const grouped = groupMessagesByType(messages);
       
       expect(grouped.size).toBe(3);
@@ -137,10 +124,6 @@ describe("Safe Output Handler Manager", () => {
         { type: "create_issue", title: "Issue 1" },
         { title: "No type" },
       ];
-      
-      global.core = {
-        warning: jest.fn(),
-      };
       
       const grouped = groupMessagesByType(messages);
       
@@ -158,19 +141,13 @@ describe("Safe Output Handler Manager", () => {
       ];
       
       const mockHandler = {
-        main: jest.fn().mockResolvedValue({ success: true }),
+        main: vi.fn().mockResolvedValue({ success: true }),
       };
       
       const handlers = new Map([
         ["create_issue", mockHandler],
         ["add_comment", mockHandler],
       ]);
-      
-      global.core = {
-        info: jest.fn(),
-        error: jest.fn(),
-        setOutput: jest.fn(),
-      };
       
       const result = await processMessages(handlers, messages);
       
@@ -188,16 +165,10 @@ describe("Safe Output Handler Manager", () => {
       ];
       
       const errorHandler = {
-        main: jest.fn().mockRejectedValue(new Error("Handler failed")),
+        main: vi.fn().mockRejectedValue(new Error("Handler failed")),
       };
       
       const handlers = new Map([["create_issue", errorHandler]]);
-      
-      global.core = {
-        info: jest.fn(),
-        error: jest.fn(),
-        setOutput: jest.fn(),
-      };
       
       const result = await processMessages(handlers, messages);
       
@@ -208,3 +179,4 @@ describe("Safe Output Handler Manager", () => {
     });
   });
 });
+
