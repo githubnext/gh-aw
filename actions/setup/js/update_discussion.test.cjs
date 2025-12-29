@@ -547,4 +547,100 @@ describe("update_discussion.cjs", () => {
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
   });
+
+  it("should handle repository with more than 100 labels using pagination", async () => {
+    setAgentOutput({
+      items: [{ type: "update_discussion", labels: ["label-150"] }],
+    });
+    process.env.GH_AW_UPDATE_LABELS = "true";
+    global.context.eventName = "discussion";
+
+    const mockDiscussion = {
+      id: "D_kwDOABCD123",
+      number: 123,
+      title: "Test Discussion",
+      body: "Test body",
+      url: "https://github.com/testowner/testrepo/discussions/123",
+      labels: {
+        nodes: [],
+      },
+    };
+
+    // Create 150 mock labels
+    const firstPageLabels = Array.from({ length: 100 }, (_, i) => ({
+      id: `L_kwDOABCD${String(i + 1).padStart(3, "0")}`,
+      name: `label-${i + 1}`,
+    }));
+
+    const secondPageLabels = Array.from({ length: 50 }, (_, i) => ({
+      id: `L_kwDOABCD${String(i + 101).padStart(3, "0")}`,
+      name: `label-${i + 101}`,
+    }));
+
+    // Mock the first query to get discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: mockDiscussion,
+      },
+    });
+
+    // Mock the repository labels query - first page
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "R_kwDOABCD",
+        labels: {
+          nodes: firstPageLabels,
+          pageInfo: {
+            hasNextPage: true,
+            endCursor: "cursor-100",
+          },
+        },
+      },
+    });
+
+    // Mock the repository labels query - second page
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "R_kwDOABCD",
+        labels: {
+          nodes: secondPageLabels,
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: null,
+          },
+        },
+      },
+    });
+
+    // Mock add labels mutation
+    mockGithub.graphql.mockResolvedValueOnce({
+      addLabelsToLabelable: {
+        clientMutationId: null,
+      },
+    });
+
+    // Mock the final query to get updated discussion
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        discussion: {
+          ...mockDiscussion,
+          labels: {
+            nodes: [{ id: "L_kwDOABCD150", name: "label-150" }],
+          },
+        },
+      },
+    });
+
+    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+
+    // Verify pagination occurred: 1 (get discussion) + 2 (label pages) + 1 (add labels) + 1 (final query) = 5
+    expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
+
+    // Verify the second labels query included the cursor
+    const secondLabelsCall = mockGithub.graphql.mock.calls[2];
+    expect(secondLabelsCall[1]).toHaveProperty("cursor", "cursor-100");
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
+    expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", mockDiscussion.url);
+  });
 });
