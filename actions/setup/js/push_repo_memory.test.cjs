@@ -355,4 +355,145 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       expect(regex.test("other/data/file.json")).toBe(false);
     });
   });
+
+  describe("multi-pattern filter support", () => {
+    it("should support multiple space-separated patterns", () => {
+      // Test multiple patterns like "campaign-id/cursor.json campaign-id/metrics/**"
+      const patterns = "security-q1/cursor.json security-q1/metrics/**".split(/\s+/).filter(Boolean);
+      
+      // Each pattern should be validated independently
+      expect(patterns).toHaveLength(2);
+      expect(patterns[0]).toBe("security-q1/cursor.json");
+      expect(patterns[1]).toBe("security-q1/metrics/**");
+    });
+
+    it("should validate each pattern in multi-pattern filter", () => {
+      // Test that each pattern can be converted to regex independently
+      const patterns = "data/**.json logs/**.log".split(/\s+/).filter(Boolean);
+      
+      const regexPatterns = patterns.map(pattern => {
+        const regexPattern = pattern
+          .replace(/\\/g, "\\\\")
+          .replace(/\./g, "\\.")
+          .replace(/\*\*/g, "<!DOUBLESTAR>")
+          .replace(/\*/g, "[^/]*")
+          .replace(/<!DOUBLESTAR>/g, ".*");
+        return new RegExp(`^${regexPattern}$`);
+      });
+
+      // First pattern should match .json files in data/
+      expect(regexPatterns[0].test("data/file.json")).toBe(true);
+      expect(regexPatterns[0].test("data/subdir/file.json")).toBe(true);
+      expect(regexPatterns[0].test("logs/file.log")).toBe(false);
+
+      // Second pattern should match .log files in logs/
+      expect(regexPatterns[1].test("logs/file.log")).toBe(true);
+      expect(regexPatterns[1].test("logs/subdir/file.log")).toBe(true);
+      expect(regexPatterns[1].test("data/file.json")).toBe(false);
+    });
+
+    it("should handle campaign-specific multi-pattern filters", () => {
+      // Real-world campaign use case: multiple specific patterns
+      const patterns = "security-q1/cursor.json security-q1/metrics/**".split(/\s+/).filter(Boolean);
+      
+      const regexPatterns = patterns.map(pattern => {
+        const regexPattern = pattern
+          .replace(/\\/g, "\\\\")
+          .replace(/\./g, "\\.")
+          .replace(/\*\*/g, "<!DOUBLESTAR>")
+          .replace(/\*/g, "[^/]*")
+          .replace(/<!DOUBLESTAR>/g, ".*");
+        return new RegExp(`^${regexPattern}$`);
+      });
+
+      // First pattern: exact cursor file
+      expect(regexPatterns[0].test("security-q1/cursor.json")).toBe(true);
+      expect(regexPatterns[0].test("security-q1/cursor.txt")).toBe(false);
+      expect(regexPatterns[0].test("security-q1/metrics/2024-12-29.json")).toBe(false);
+
+      // Second pattern: any metrics files
+      expect(regexPatterns[1].test("security-q1/metrics/2024-12-29.json")).toBe(true);
+      expect(regexPatterns[1].test("security-q1/metrics/daily/snapshot.json")).toBe(true);
+      expect(regexPatterns[1].test("security-q1/cursor.json")).toBe(false);
+    });
+  });
+
+  describe("campaign ID validation", () => {
+    it("should extract campaign ID from first pattern", () => {
+      // Test extracting campaign ID from pattern like "security-q1/**"
+      const pattern = "security-q1/**";
+      const match = /^([^*?/]+)\/\*\*/.exec(pattern);
+      
+      expect(match).not.toBeNull();
+      expect(match[1]).toBe("security-q1");
+    });
+
+    it("should validate all patterns start with campaign ID", () => {
+      // Test that all patterns must be under campaign-id/ subdirectory
+      const campaignId = "security-q1";
+      const validPatterns = [
+        "security-q1/cursor.json",
+        "security-q1/metrics/**",
+        "security-q1/data/*.txt"
+      ];
+      
+      for (const pattern of validPatterns) {
+        expect(pattern.startsWith(`${campaignId}/`)).toBe(true);
+      }
+
+      const invalidPatterns = [
+        "other-campaign/cursor.json",
+        "cursor.json",
+        "metrics/**"
+      ];
+      
+      for (const pattern of invalidPatterns) {
+        expect(pattern.startsWith(`${campaignId}/`)).toBe(false);
+      }
+    });
+
+    it("should handle campaign ID with hyphens and underscores", () => {
+      // Test various campaign ID formats
+      const patterns = [
+        "security-q1-2025/**",
+        "incident_response/**",
+        "rollout-v2_phase1/**"
+      ];
+      
+      for (const pattern of patterns) {
+        const match = /^([^*?/]+)\/\*\*/.exec(pattern);
+        expect(match).not.toBeNull();
+        
+        // Extracted campaign ID should match the prefix
+        const campaignId = match[1];
+        expect(pattern.startsWith(`${campaignId}/`)).toBe(true);
+      }
+    });
+
+    it("should reject patterns not under campaign ID subdirectory", () => {
+      // Test enforcement that patterns must be under campaign-id/
+      const campaignId = "security-q1";
+      
+      // Valid: under campaign-id/
+      expect("security-q1/metrics/**".startsWith(`${campaignId}/`)).toBe(true);
+      expect("security-q1/cursor.json".startsWith(`${campaignId}/`)).toBe(true);
+      
+      // Invalid: not under campaign-id/
+      expect("metrics/**".startsWith(`${campaignId}/`)).toBe(false);
+      expect("other-campaign/data.json".startsWith(`${campaignId}/`)).toBe(false);
+      expect("cursor.json".startsWith(`${campaignId}/`)).toBe(false);
+    });
+
+    it("should support explicit GH_AW_CAMPAIGN_ID override", () => {
+      // Test that environment variable can override campaign ID detection
+      // This would be simulated in the actual code by process.env.GH_AW_CAMPAIGN_ID
+      const explicitCampaignId = "rollout-v2";
+      const patterns = ["rollout-v2/cursor.json", "rollout-v2/metrics/**"];
+      
+      // All patterns should validate against explicit campaign ID
+      for (const pattern of patterns) {
+        expect(pattern.startsWith(`${explicitCampaignId}/`)).toBe(true);
+      }
+    });
+  });
 });

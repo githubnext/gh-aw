@@ -15,8 +15,10 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
  *   MAX_FILE_COUNT: Maximum number of files per commit
- *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/ ** /*")
+ *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/** data/**")
  *                     Supports * (matches any chars except /) and ** (matches any chars including /)
+ *   GH_AW_CAMPAIGN_ID: Optional campaign ID override. When set with MEMORY_ID=campaigns,
+ *                      enforces all FILE_GLOB_FILTER patterns are under <campaign-id>/...
  *   GH_TOKEN: GitHub token for authentication
  *   GITHUB_RUN_ID: Workflow run ID for commit messages
  */
@@ -145,20 +147,47 @@ async function main() {
   // ============================================================================
   // Campaign Workflows use a convention-based pattern in repo-memory:
   //   - memoryId: "campaigns"
-  //   - file-glob: "<campaign-id>/**"
+  //   - file-glob: one or more patterns like "<campaign-id>/**" or "<campaign-id>/metrics/**"
+  //   - Optional: GH_AW_CAMPAIGN_ID environment variable to explicitly set campaign ID
   //
   // When this pattern is detected, we enforce campaign-specific validation:
-  //   1. cursor.json must exist and follow the cursor schema
-  //   2. At least one metrics/*.json file must exist and follow the metrics schema
+  //   1. All patterns must be under "<campaign-id>/..." subdirectory
+  //   2. cursor.json must exist and follow the cursor schema
+  //   3. At least one metrics/*.json file must exist and follow the metrics schema
   //
   // This ensures campaigns maintain durable state consistency across workflow runs.
   // Non-campaign repo-memory configurations bypass this validation entirely.
   // ============================================================================
-  const singlePattern = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
-  const campaignPattern = singlePattern.length === 1 ? singlePattern[0] : "";
-  const campaignMatch = memoryId === "campaigns" ? /^([^*?]+)\/\*\*$/.exec(campaignPattern) : null;
-  const campaignId = campaignMatch ? campaignMatch[1].replace(/\/$/, "") : "";
+  
+  // Allow explicit campaign ID override via environment variable
+  const explicitCampaignId = process.env.GH_AW_CAMPAIGN_ID || "";
+  
+  // Parse file glob patterns (can be space-separated)
+  const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+  
+  // Determine campaign ID from patterns or explicit override
+  let campaignId = explicitCampaignId;
+  
+  // If no explicit campaign ID, try to extract from patterns when memoryId is "campaigns"
+  if (!campaignId && memoryId === "campaigns" && patterns.length > 0) {
+    // Try to extract campaign ID from first pattern matching "<campaign-id>/**"
+    const campaignMatch = /^([^*?/]+)\/\*\*/.exec(patterns[0]);
+    if (campaignMatch) {
+      campaignId = campaignMatch[1];
+    }
+  }
+  
   const isCampaignMode = Boolean(campaignId);
+  
+  // Validate all patterns are under campaign-id when in campaign mode
+  if (isCampaignMode && patterns.length > 0) {
+    for (const pattern of patterns) {
+      if (!pattern.startsWith(`${campaignId}/`)) {
+        core.setFailed(`Campaign mode requires all file patterns to be under '${campaignId}/' subdirectory. Invalid pattern: ${pattern}`);
+        return;
+      }
+    }
+  }
 
   // Check if artifact memory directory exists
   if (!fs.existsSync(sourceMemoryPath)) {
