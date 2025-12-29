@@ -744,26 +744,26 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 // - GitHub tool is enabled AND
 // - lockdown field is not explicitly specified in the workflow configuration
 func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
-// Check if GitHub tool is present
-githubTool, hasGitHub := data.Tools["github"]
-if !hasGitHub || githubTool == false {
-return
-}
+	// Check if GitHub tool is present
+	githubTool, hasGitHub := data.Tools["github"]
+	if !hasGitHub || githubTool == false {
+		return
+	}
 
-// Check if lockdown is already explicitly set
-if hasGitHubLockdownExplicitlySet(githubTool) {
-mcpServersLog.Print("Lockdown explicitly set in workflow, skipping auto-detection")
-return
-}
+	// Check if lockdown is already explicitly set
+	if hasGitHubLockdownExplicitlySet(githubTool) {
+		mcpServersLog.Print("Lockdown explicitly set in workflow, skipping auto-detection")
+		return
+	}
 
-mcpServersLog.Print("Generating GitHub MCP lockdown auto-detection step")
+	mcpServersLog.Print("Generating GitHub MCP lockdown auto-detection step")
 
-// Generate the step using the detect_repo_visibility.cjs action
-yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
-yaml.WriteString("        id: detect-repo-visibility\n")
-yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
-yaml.WriteString("        with:\n")
-yaml.WriteString("          script: |\n")
-yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
-yaml.WriteString("            await detectRepoVisibility(github, context, core);\n")
+	// Generate the step using the detect_repo_visibility.cjs action
+	yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
+	yaml.WriteString("        id: detect-repo-visibility\n")
+	yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
+	yaml.WriteString("            await detectRepoVisibility(github, context, core);\n")
 }

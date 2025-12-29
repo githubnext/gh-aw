@@ -183,6 +183,13 @@ jobs:
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
         run: npm install --silent @github/copilot@0.0.372
+      - name: Detect repository visibility for GitHub MCP lockdown
+        id: detect-repo-visibility
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');
+            await detectRepoVisibility(github, context, core);
       - name: Downloading container images
         run: |
           set -e
@@ -325,6 +332,8 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
                   "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
                   "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
                   "ghcr.io/github/github-mcp-server:v0.26.3"

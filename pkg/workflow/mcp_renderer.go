@@ -42,7 +42,7 @@ func NewMCPConfigRenderer(opts MCPRendererOptions) *MCPConfigRendererUnified {
 func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
-	
+
 	// Get lockdown value - use detected value if lockdown wasn't explicitly set
 	lockdown := getGitHubLockdown(githubTool)
 	if !hasGitHubLockdownExplicitlySet(githubTool) {
@@ -50,7 +50,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		// This will be evaluated at runtime based on repository visibility
 		lockdown = true // This is a placeholder - actual value comes from step output
 	}
-	
+
 	toolsets := getGitHubToolsets(githubTool)
 
 	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t), toolsets=%v, format=%s",
