@@ -10,11 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/repoutil"
+	"github.com/githubnext/gh-aw/pkg/styles"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -542,68 +545,171 @@ func getCurrentGitHubUsername() (string, error) {
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int, directTrialMode bool) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Trial Execution Plan"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, "")
+	var sections []string
 
-	// Workflow information
-	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Workflow:  %s (from %s)\n"), parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
+	// Title box with double border
+	titleText := "Trial Execution Plan"
+	if tty.IsStderrTerminal() {
+		title := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(styles.ColorInfo).
+			Border(lipgloss.DoubleBorder(), true, false).
+			Padding(0, 2).
+			Width(80).
+			Align(lipgloss.Center).
+			Render(titleText)
+		sections = append(sections, title)
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Workflows:"))
+		// Non-TTY: simple header with separators
+		sections = append(sections, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		sections = append(sections, "  "+titleText)
+		sections = append(sections, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	}
+
+	sections = append(sections, "")
+
+	// Workflow information section
+	var workflowInfo strings.Builder
+	if len(parsedSpecs) == 1 {
+		workflowInfo.WriteString(fmt.Sprintf("Workflow:  %s (from %s)", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug))
+	} else {
+		workflowInfo.WriteString("Workflows:")
 		for _, spec := range parsedSpecs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("    • %s (from %s)\n"), spec.WorkflowName, spec.RepoSlug)
+			workflowInfo.WriteString(fmt.Sprintf("\n  • %s (from %s)", spec.WorkflowName, spec.RepoSlug))
 		}
 	}
-	fmt.Fprintln(os.Stderr, "")
+
+	if tty.IsStderrTerminal() {
+		workflowSection := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(workflowInfo.String())
+		sections = append(sections, workflowSection)
+	} else {
+		// Non-TTY: add manual indentation
+		lines := strings.Split(workflowInfo.String(), "\n")
+		for _, line := range lines {
+			sections = append(sections, "  "+line)
+		}
+	}
+
+	sections = append(sections, "")
 
 	// Display target repository info based on mode
+	var modeInfo strings.Builder
 	if cloneRepoSlug != "" {
 		// Clone-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Source:    %s (will be cloned)\n"), cloneRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Clone repository contents into host repository"))
+		modeInfo.WriteString(fmt.Sprintf("Source:    %s (will be cloned)\n", cloneRepoSlug))
+		modeInfo.WriteString("Mode:      Clone repository contents into host repository")
 	} else if directTrialMode {
 		// Direct trial mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (direct)\n"), hostRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Run workflows directly in repository (no simulation)"))
+		modeInfo.WriteString(fmt.Sprintf("Target:    %s (direct)\n", hostRepoSlug))
+		modeInfo.WriteString("Mode:      Run workflows directly in repository (no simulation)")
 	} else {
 		// Logical-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (simulated)\n"), logicalRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Simulate execution against target repository"))
+		modeInfo.WriteString(fmt.Sprintf("Target:    %s (simulated)\n", logicalRepoSlug))
+		modeInfo.WriteString("Mode:      Simulate execution against target repository")
 	}
-	fmt.Fprintln(os.Stderr, "")
 
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Host Repo:  %s\n"), hostRepoSlug)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("              %s\n"), hostRepoSlugURL)
-	fmt.Fprintln(os.Stderr, "")
+	if tty.IsStderrTerminal() {
+		modeSection := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(modeInfo.String())
+		sections = append(sections, modeSection)
+	} else {
+		// Non-TTY: add manual indentation
+		lines := strings.Split(modeInfo.String(), "\n")
+		for _, line := range lines {
+			sections = append(sections, "  "+line)
+		}
+	}
+
+	sections = append(sections, "")
+
+	// Host repository info
+	var hostInfo strings.Builder
+	hostInfo.WriteString(fmt.Sprintf("Host Repo:  %s\n", hostRepoSlug))
+	hostInfo.WriteString(fmt.Sprintf("            %s", hostRepoSlugURL))
+
+	if tty.IsStderrTerminal() {
+		hostSection := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(hostInfo.String())
+		sections = append(sections, hostSection)
+	} else {
+		// Non-TTY: add manual indentation
+		lines := strings.Split(hostInfo.String(), "\n")
+		for _, line := range lines {
+			sections = append(sections, "  "+line)
+		}
+	}
+
+	sections = append(sections, "")
 
 	// Configuration settings
+	var configInfo strings.Builder
 	if deleteHostRepo {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be deleted after completion"))
+		configInfo.WriteString("Cleanup:   Host repository will be deleted after completion")
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be preserved"))
+		configInfo.WriteString("Cleanup:   Host repository will be preserved")
 	}
 
 	// Display secret usage information
+	configInfo.WriteString("\n")
 	if pushSecrets {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Local API keys will be pushed and cleaned up after execution"))
+		configInfo.WriteString("Secrets:   Local API keys will be pushed and cleaned up after execution")
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Workflows must use pre-configured repository secrets"))
+		configInfo.WriteString("Secrets:   Workflows must use pre-configured repository secrets")
 	}
 
 	// Display repeat count if set
 	if repeatCount > 0 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Repeat:    Will run %d times (total executions: %d)\n"), repeatCount, repeatCount+1)
+		configInfo.WriteString(fmt.Sprintf("\nRepeat:    Will run %d times (total executions: %d)", repeatCount, repeatCount+1))
 	}
 
 	// Display auto-merge setting if enabled
 	if autoMergePRs {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Auto-merge: Pull requests will be automatically merged"))
+		configInfo.WriteString("\nAuto-merge: Pull requests will be automatically merged")
 	}
 
-	fmt.Fprintln(os.Stderr, "")
+	if tty.IsStderrTerminal() {
+		configSection := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(configInfo.String())
+		sections = append(sections, configSection)
+	} else {
+		// Non-TTY: add manual indentation
+		lines := strings.Split(configInfo.String(), "\n")
+		for _, line := range lines {
+			sections = append(sections, "  "+line)
+		}
+	}
+
+	sections = append(sections, "")
+
+	// Compose all sections
+	if tty.IsStderrTerminal() {
+		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, plan)
+		fmt.Fprintln(os.Stderr, "")
+	} else {
+		// Non-TTY: output sections directly
+		fmt.Fprintln(os.Stderr, "")
+		for _, section := range sections {
+			fmt.Fprintln(os.Stderr, section)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Add "Execution Steps" section separator
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Execution Steps"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
