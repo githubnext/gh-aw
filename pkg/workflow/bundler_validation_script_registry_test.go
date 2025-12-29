@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateNoExecSync_GitHubScriptMode(t *testing.T) {
@@ -81,7 +82,7 @@ const output = execSync("git diff");
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateNoExecSync(tt.scriptName, tt.content, tt.mode)
 			if tt.expectError {
-				assert.Error(t, err, "Expected validation to fail")
+				require.Error(t, err, "Expected validation to fail")
 				assert.Contains(t, err.Error(), "execSync", "Error should mention execSync")
 			} else {
 				assert.NoError(t, err, "Expected validation to pass")
