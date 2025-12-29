@@ -578,6 +578,7 @@
     "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
     "inputSchema": {
       "type": "object",
+      "required": ["project", "content_type"],
       "properties": {
         "project": {
           "type": "string",
@@ -614,20 +615,6 @@
           "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true."
         }
       },
-      "oneOf": [
-        {
-          "required": ["project", "content_type", "content_number"],
-          "properties": {
-            "content_type": { "enum": ["issue", "pull_request"] }
-          }
-        },
-        {
-          "required": ["project", "content_type", "draft_title"],
-          "properties": {
-            "content_type": { "const": "draft_issue" }
-          }
-        }
-      ],
       "additionalProperties": false
     }
   }
