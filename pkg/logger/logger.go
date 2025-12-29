@@ -80,7 +80,11 @@ func selectColor(namespace string) string {
 
 	// Use FNV-1a hash for consistent color assignment
 	h := fnv.New32a()
-	h.Write([]byte(namespace))
+	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
+	if _, err := h.Write([]byte(namespace)); err != nil {
+		// Return empty string (no color) if write somehow fails
+		return ""
+	}
 	hash := h.Sum32()
 
 	// Select color from palette based on hash
