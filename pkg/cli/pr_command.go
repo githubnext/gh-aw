@@ -633,7 +633,10 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 
 					cloneCmd := workflow.ExecGH("repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
 					if err := cloneCmd.Run(); err != nil {
-						os.RemoveAll(tempDir)
+						// Clean up temporary directory on error
+						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
+							fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+						}
 						return fmt.Errorf("failed to clone target repository: %w", err)
 					}
 
@@ -642,7 +645,10 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 
 					// Change to the cloned repository directory
 					if err := os.Chdir(tempDir); err != nil {
-						os.RemoveAll(tempDir)
+						// Clean up temporary directory on error
+						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
+							fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+						}
 						return fmt.Errorf("failed to change to cloned repository directory: %w", err)
 					}
 				}
