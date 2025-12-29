@@ -66,8 +66,9 @@ function loadHandlers(config) {
     // Config keys use underscores (e.g., create_issue)
     const configKey = type;
 
-    // Check if handler is enabled (config entry exists and is not false)
-    if (config[configKey] && config[configKey].enabled !== false) {
+    // Check if handler is enabled (config entry exists)
+    // The presence of the config key indicates the handler should be loaded
+    if (config[configKey]) {
       try {
         const handler = require(handlerPath);
         if (handler && typeof handler.main === "function") {

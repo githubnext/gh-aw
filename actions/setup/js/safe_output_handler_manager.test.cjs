@@ -40,8 +40,8 @@ describe("Safe Output Handler Manager", () => {
   describe("loadConfig", () => {
     it("should load config from file and normalize keys", () => {
       const config = {
-        "create-issue": { enabled: true, max: 5 },
-        "add-comment": { enabled: true },
+        "create-issue": { max: 5 },
+        "add-comment": { max: 1 },
       };
 
       fs.writeFileSync(testConfigPath, JSON.stringify(config));
@@ -50,8 +50,8 @@ describe("Safe Output Handler Manager", () => {
 
       expect(result).toHaveProperty("create_issue");
       expect(result).toHaveProperty("add_comment");
-      expect(result.create_issue).toEqual({ enabled: true, max: 5 });
-      expect(result.add_comment).toEqual({ enabled: true });
+      expect(result.create_issue).toEqual({ max: 5 });
+      expect(result.add_comment).toEqual({ max: 1 });
     });
 
     it("should return empty object if config file does not exist", () => {
@@ -69,8 +69,8 @@ describe("Safe Output Handler Manager", () => {
   describe("loadHandlers", () => {
     it("should load handlers for enabled safe output types", () => {
       const config = {
-        create_issue: { enabled: true },
-        add_comment: { enabled: true },
+        create_issue: { max: 1 },
+        add_comment: { max: 1 },
       };
 
       const handlers = loadHandlers(config);
@@ -80,19 +80,21 @@ describe("Safe Output Handler Manager", () => {
       expect(handlers.has("add_comment")).toBe(true);
     });
 
-    it("should not load handlers for disabled safe output types", () => {
+    it("should not load handlers when config entry is missing", () => {
       const config = {
-        create_issue: { enabled: false },
+        create_issue: { max: 1 },
+        // add_comment is not in config
       };
 
       const handlers = loadHandlers(config);
 
-      expect(handlers.has("create_issue")).toBe(false);
+      expect(handlers.has("create_issue")).toBe(true);
+      expect(handlers.has("add_comment")).toBe(false);
     });
 
     it("should handle missing handlers gracefully", () => {
       const config = {
-        nonexistent_handler: { enabled: true },
+        nonexistent_handler: { max: 1 },
       };
 
       const handlers = loadHandlers(config);
