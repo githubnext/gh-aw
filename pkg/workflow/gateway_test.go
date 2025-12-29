@@ -608,11 +608,11 @@ func TestValidateAndNormalizePort(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := validateAndNormalizePort(tt.port)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "port must be between 1 and 65535")
 				assert.Contains(t, err.Error(), fmt.Sprintf("%d", tt.port))
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
 		})

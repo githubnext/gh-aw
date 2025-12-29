@@ -10,6 +10,7 @@ linters:
     - gosec          # Security-focused
     # godot linter disabled - too pedantic about comment punctuation
     - unconvert      # Remove unnecessary conversions
+    - testifylint    # Enforce testify best practices
   settings:
     errcheck:
       exclude-functions:
@@ -41,6 +42,8 @@ linters:
       config:
         G204: "0644" # Allow common file permissions in tests
         G306: "0644" # Allow common file permissions
+    testifylint:
+      enable-all: true
   exclusions:
     generated: lax
     presets:
