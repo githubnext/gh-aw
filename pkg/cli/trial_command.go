@@ -669,7 +669,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	// Display repeat count if set
 	if repeatCount > 0 {
-		configInfo.WriteString(fmt.Sprintf("\nRepeat:    Will run %d times (total executions: %d)", repeatCount, repeatCount+1))
+		fmt.Fprintf(&configInfo, "\nRepeat:    Will run %d times (total executions: %d)", repeatCount, repeatCount+1)
 	}
 
 	// Display auto-merge setting if enabled
