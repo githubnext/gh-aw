@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -653,7 +654,10 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Add custom safe output env vars
 	c.addCustomSafeOutputEnvVars(&steps, data)
 
-	// Add all safe output configuration env vars
+	// Add handler manager config as JSON
+	c.addHandlerManagerConfigEnvVar(&steps, data)
+
+	// Add all safe output configuration env vars (still needed by individual handlers)
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
 	// With section for github-token
@@ -667,6 +671,61 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	steps = append(steps, "            await main();\n")
 
 	return steps
+}
+
+// addHandlerManagerConfigEnvVar adds a JSON config environment variable for the handler manager
+// This config indicates which handlers should be loaded and their basic settings
+func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+
+	config := make(map[string]map[string]any)
+
+	// Add config for each enabled safe output type
+	if data.SafeOutputs.CreateIssues != nil {
+		config["create_issue"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.AddComments != nil {
+		config["add_comment"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.CreateDiscussions != nil {
+		config["create_discussion"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.CloseIssues != nil {
+		config["close_issue"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.CloseDiscussions != nil {
+		config["close_discussion"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.AddLabels != nil {
+		config["add_labels"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.UpdateIssues != nil {
+		config["update_issue"] = map[string]any{"enabled": true}
+	}
+
+	if data.SafeOutputs.UpdateDiscussions != nil {
+		config["update_discussion"] = map[string]any{"enabled": true}
+	}
+
+	// Only add the env var if there are handlers to configure
+	if len(config) > 0 {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			consolidatedSafeOutputsLog.Printf("Failed to marshal handler config: %v", err)
+			return
+		}
+		// Escape the JSON for YAML (handle quotes and special chars)
+		configStr := string(configJSON)
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
+	}
 }
 
 // addAllSafeOutputConfigEnvVars adds environment variables for all enabled safe output types

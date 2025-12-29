@@ -31,18 +31,29 @@ const HANDLER_MAP = {
 
 /**
  * Load configuration for safe outputs
- * Tries to load from config file first, then falls back to inferring from environment variables
+ * Tries multiple sources in order: env var JSON, config file, then fallback to inferring
  * @returns {Object} Safe outputs configuration
  */
 function loadConfig() {
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  // First, try to load from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
+  if (process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG) {
+    try {
+      const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
+      core.debug(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(config)}`);
+      // Normalize config keys: convert hyphens to underscores
+      return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+    } catch (error) {
+      core.warning(`Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`);
+    }
+  }
 
-  // Try to load from config file first
+  // Second, try to load from config file (for MCP server context)
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
   try {
     if (fs.existsSync(configPath)) {
       const configContent = fs.readFileSync(configPath, "utf8");
       const config = JSON.parse(configContent);
-
+      core.debug(`Loaded config from file: ${configPath}`);
       // Normalize config keys: convert hyphens to underscores
       return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
     }
@@ -50,10 +61,10 @@ function loadConfig() {
     core.debug(`Failed to load config from file: ${getErrorMessage(error)}`);
   }
 
-  // Fallback: infer config from environment variables
-  // When running in the safe_outputs job, the config file doesn't exist,
-  // but individual handler env vars are present (e.g., GH_AW_ISSUE_EXPIRES, GH_AW_HIDE_OLDER_COMMENTS)
-  core.debug("Config file not found, inferring configuration from environment variables");
+  // Fallback: infer config from environment variables (legacy compatibility)
+  // When running in the safe_outputs job without the config env var,
+  // individual handler env vars are present (e.g., GH_AW_ISSUE_EXPIRES, GH_AW_HIDE_OLDER_COMMENTS)
+  core.debug("Config not found in env var or file, inferring configuration from environment variables");
   const config = {};
 
   // Check for create_issue indicators
