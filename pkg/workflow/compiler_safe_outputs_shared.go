@@ -7,6 +7,8 @@ import "fmt"
 func (c *Compiler) buildAddCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool, createIssueEnabled, createDiscussionEnabled, createPullRequestEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AddComments
 
+	// Handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Keep target and discussion flags, and step dependencies
 	var customEnvVars []string
 	if cfg.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", cfg.Target))
@@ -51,11 +53,9 @@ func (c *Compiler) buildAddCommentStepConfig(data *WorkflowData, mainJobName str
 func (c *Compiler) buildAddLabelsStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AddLabels
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Keep target for runtime behavior
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_LABELS_ALLOWED", cfg.Allowed)...)
-	if cfg.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_MAX_COUNT: %d\n", cfg.Max))
-	}
 	if cfg.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", cfg.Target))
 	}
@@ -78,6 +78,7 @@ func (c *Compiler) buildAddLabelsStepConfig(data *WorkflowData, mainJobName stri
 func (c *Compiler) buildHideCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.HideComment
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 

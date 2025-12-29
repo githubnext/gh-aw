@@ -597,6 +597,14 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		}
 	}
 
+	// Generate consolidated handler configuration JSON
+	// This replaces 30+ individual environment variables with a single JSON configuration
+	handlerConfigJSON := generateSafeOutputsConfig(data)
+	if handlerConfigJSON != "" {
+		envVars["GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG"] = fmt.Sprintf("%q", handlerConfigJSON)
+		consolidatedSafeOutputsLog.Print("Added GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG to job-level environment variables")
+	}
+
 	// Note: Asset upload configuration is not needed here because upload_assets
 	// is now handled as a separate job (see buildUploadAssetsJob)
 

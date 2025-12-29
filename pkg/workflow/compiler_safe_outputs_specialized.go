@@ -6,6 +6,7 @@ import "fmt"
 func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool, workflowFilename string) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateCodeScanningAlerts
 
+	// Keep workflow filename for runtime behavior
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %q\n", workflowFilename))
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
@@ -27,6 +28,7 @@ func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, ma
 func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignMilestone
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -47,13 +49,9 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToAgent
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	// Add max count environment variable for JavaScript to validate against
-	if cfg.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_MAX_COUNT: %d\n", cfg.Max))
-	}
 
 	condition := BuildSafeOutputType("assign_to_agent")
 
@@ -73,6 +71,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToUser
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -93,6 +92,7 @@ func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName s
 func (c *Compiler) buildUpdateReleaseStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdateRelease
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -113,6 +113,7 @@ func (c *Compiler) buildUpdateReleaseStepConfig(data *WorkflowData, mainJobName 
 func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateAgentTasks
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -133,6 +134,7 @@ func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobNam
 func (c *Compiler) buildUpdateProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdateProjects
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 

@@ -15,27 +15,12 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	prSafeOutputsLog.Printf("Building create pull request step config: draft=%v, if_no_changes=%s",
 		cfg.Draft != nil && *cfg.Draft, cfg.IfNoChanges)
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Keep base branch, max patch size, activation comment info, and step-level overrides
 	var customEnvVars []string
 	// Pass the base branch from GitHub context (required by create_pull_request.cjs)
 	// Note: GH_AW_WORKFLOW_ID is now set at the job level and inherited by all steps
 	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", cfg.AllowedLabels)...)
-	// Add draft setting - always set with default to true for backwards compatibility
-	draftValue := true // Default value
-	if cfg.Draft != nil {
-		draftValue = *cfg.Draft
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
-	// Add if-no-changes setting - always set with default to "warn"
-	ifNoChanges := cfg.IfNoChanges
-	if ifNoChanges == "" {
-		ifNoChanges = "warn" // Default value
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
-	// Add allow-empty setting
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %q\n", fmt.Sprintf("%t", cfg.AllowEmpty)))
 	// Add max patch size setting
 	maxPatchSize := 1024 // default 1024 KB
 	if data.SafeOutputs.MaximumPatchSize > 0 {
@@ -46,10 +31,6 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	if data.AIReaction != "" && data.AIReaction != "none" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
-	}
-	// Add expires value if set (only for same-repo PRs - when target-repo is not set)
-	if cfg.Expires > 0 && cfg.TargetRepoSlug == "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", cfg.Expires))
 	}
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
@@ -75,6 +56,7 @@ func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobN
 	cfg := data.SafeOutputs.UpdatePullRequests
 	prSafeOutputsLog.Print("Building update pull request step config")
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
@@ -95,8 +77,22 @@ func (c *Compiler) buildUpdatePullRequestStepConfig(data *WorkflowData, mainJobN
 func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.ClosePullRequests
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	condition := BuildSafeOutputType("close_pull_request")
+
+	return SafeOutputStepConfig{
+		StepName:      "Close Pull Request",
+		StepID:        "close_pull_request",
+		ScriptName:    "close_pull_request",
+		Script:        getClosePullRequestScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
 
 	condition := BuildSafeOutputType("close_pull_request")
 
@@ -115,6 +111,8 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreatePullRequestReviewComments
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Keep side and target for runtime behavior
 	var customEnvVars []string
 	// Add side configuration
 	if cfg.Side != "" {
@@ -143,6 +141,8 @@ func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, main
 func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.PushToPullRequestBranch
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Keep target, if-no-changes, commit title suffix, and max patch size for runtime behavior
 	var customEnvVars []string
 	// Add target config if set
 	if cfg.Target != "" {
@@ -152,10 +152,6 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 	if cfg.IfNoChanges != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", cfg.IfNoChanges))
 	}
-	// Add title prefix if set (using same env var as create-pull-request)
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", cfg.TitlePrefix)...)
-	// Add labels if set
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", cfg.Labels)...)
 	// Add commit title suffix if set
 	if cfg.CommitTitleSuffix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", cfg.CommitTitleSuffix))
@@ -189,6 +185,7 @@ func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, ma
 func (c *Compiler) buildAddReviewerStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AddReviewer
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 

@@ -6,14 +6,9 @@ import "fmt"
 func (c *Compiler) buildCreateIssueStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateIssues
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Only step-level overrides (like target-repo) are kept
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", cfg.TitlePrefix)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", cfg.Labels)...)
-	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", cfg.AllowedLabels)...)
-	customEnvVars = append(customEnvVars, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
-	if cfg.Expires > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", cfg.Expires))
-	}
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("create_issue")
@@ -33,6 +28,7 @@ func (c *Compiler) buildCreateIssueStepConfig(data *WorkflowData, mainJobName st
 func (c *Compiler) buildCloseIssueStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CloseIssues
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -53,6 +49,8 @@ func (c *Compiler) buildCloseIssueStepConfig(data *WorkflowData, mainJobName str
 func (c *Compiler) buildUpdateIssueStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdateIssues
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Only step-level overrides (like target-repo) are kept
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
@@ -73,6 +71,7 @@ func (c *Compiler) buildUpdateIssueStepConfig(data *WorkflowData, mainJobName st
 func (c *Compiler) buildLinkSubIssueStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool, createIssueEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.LinkSubIssue
 
+	// Reference outputs from earlier steps in the same job
 	var customEnvVars []string
 	if createIssueEnabled {
 		customEnvVars = append(customEnvVars, "          GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")

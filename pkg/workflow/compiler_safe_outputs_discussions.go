@@ -6,6 +6,7 @@ import "fmt"
 func (c *Compiler) buildCreateDiscussionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateDiscussions
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -26,6 +27,7 @@ func (c *Compiler) buildCreateDiscussionStepConfig(data *WorkflowData, mainJobNa
 func (c *Compiler) buildCloseDiscussionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CloseDiscussions
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
@@ -46,6 +48,8 @@ func (c *Compiler) buildCloseDiscussionStepConfig(data *WorkflowData, mainJobNam
 func (c *Compiler) buildUpdateDiscussionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.UpdateDiscussions
 
+	// All handler configuration is now in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON
+	// Only step-level overrides (like target-repo) and field update flags are kept
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
