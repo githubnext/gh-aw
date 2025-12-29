@@ -661,7 +661,7 @@ jobs:
                   "get_doc"
                 ],
                 "args": [
-                  "@sentry/mcp-server@0.24.0"
+                  "@sentry/mcp-server@0.26.0"
                 ],
                 "env": {
                   "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",
