@@ -57,6 +57,207 @@ make install
 gh aw --help
 ```
 
+## Common Development Tasks
+
+This section provides quick answers to common development scenarios. The repository has 75+ Makefile targets - this guide helps you find the right command quickly.
+
+### I want to...
+
+#### Test my code changes quickly
+```bash
+make test-unit  # Fast unit tests (~25s, recommended for development)
+```
+**When to use**: During active development for rapid feedback on your changes.
+
+#### Run all tests before committing
+```bash
+make test  # All tests including integration (~30s)
+```
+**When to use**: Before creating a PR to ensure comprehensive validation.
+
+#### Build the gh-aw binary
+```bash
+make build  # Includes sync-templates and sync-action-pins (~1.5s)
+```
+**When to use**: After making code changes to compile the binary.
+
+**Note**: The build automatically syncs:
+- Templates from `.github/` to `pkg/cli/templates/`
+- Action pins from `.github/aw/actions-lock.json` to `pkg/workflow/data/action_pins.json`
+
+#### Validate everything before committing
+```bash
+make agent-finish  # Complete validation (~10-15s)
+```
+**What it does**: Runs deps-dev, fmt, lint, build, test-all, fix, recompile, dependabot, generate-schema-docs, generate-labs, and security-scan.
+
+**When to use**: Before committing to ensure everything passes CI checks.
+
+#### Format my code
+```bash
+make fmt  # Format Go, JavaScript, and JSON files
+```
+**When to use**: Before committing or when linter reports formatting issues.
+
+#### Run the linter
+```bash
+make lint  # Full linting (includes format check) (~5.5s)
+```
+**When to use**: To catch code quality issues before committing.
+
+#### Run linter on only changed files (faster)
+```bash
+make golint-incremental BASE_REF=origin/main  # 50-75% faster on PRs
+```
+**When to use**: During development to get quick feedback on your changes.
+
+#### Compile a specific workflow
+```bash
+./gh-aw compile .github/workflows/my-workflow.md
+```
+**When to use**: Testing individual workflow compilation.
+
+#### Watch and auto-compile workflows on changes
+```bash
+make watch  # Or: ./gh-aw compile --watch
+```
+**When to use**: Developing workflows with live reload.
+
+#### Recompile all workflows after code changes
+```bash
+make recompile  # Recompile all .md workflows to .lock.yml
+```
+**When to use**: After modifying compiler code or workflow templates.
+
+**Critical**: Always run this after changing workflow compilation logic.
+
+#### Install dependencies for the first time
+```bash
+make deps      # Install Go and npm dependencies (~1.5min first run)
+make deps-dev  # Add development tools like linter (~5-8min)
+```
+**When to use**: Fresh clone setup or after dependency changes.
+
+#### Clean build artifacts
+```bash
+make clean  # Remove binaries, coverage files, security reports, etc.
+```
+**When to use**: To start fresh or troubleshoot build issues.
+
+#### Run security scans
+```bash
+make security-scan  # Run gosec, govulncheck, and trivy
+```
+**When to use**: Before releases or when checking for vulnerabilities.
+
+#### Check for slow tests
+```bash
+make test-perf  # Shows 10 slowest tests with timing
+```
+**When to use**: Optimizing test suite performance.
+
+#### Validate workflows with actionlint
+```bash
+make actionlint  # Depends on build
+```
+**When to use**: Ensure compiled workflows are valid GitHub Actions.
+
+#### Update GitHub Actions to latest versions
+```bash
+make update  # Update actions, sync pins, rebuild
+```
+**When to use**: Updating action versions in workflows.
+
+### The Golden Path
+
+For most development work, follow this sequence:
+
+```bash
+# 1. First time only - install dependencies
+make deps deps-dev  # ~6-10min first time
+
+# 2. After making code changes - build
+make build  # ~1.5s
+
+# 3. During development - fast feedback
+make test-unit  # ~25s
+
+# 4. Before committing - comprehensive validation
+make agent-finish  # ~10-15s
+```
+
+### When to Use Each Test Target
+
+The project has several test targets optimized for different scenarios:
+
+| Target | Speed | What It Tests | Use When |
+|--------|-------|---------------|----------|
+| `test-unit` | ~25s | Unit tests only (excludes integration) | **Recommended** for rapid iteration during development |
+| `test` | ~30s | Unit + all integration tests | Before committing, comprehensive validation |
+| `test-integration-compile` | Varies | Workflow compilation integration tests | Testing compiler changes specifically |
+| `test-integration-mcp-playwright` | Varies | MCP Playwright integration | Testing Playwright MCP functionality |
+| `test-integration-mcp-other` | Varies | Other MCP integration tests | Testing GitHub/Config MCP features |
+| `test-integration-logs` | Varies | Log parsing and analysis | Testing log-related functionality |
+| `test-integration-workflow` | Varies | Workflow package integration | Testing workflow compilation end-to-end |
+| `test-all` | ~30s | Go + JavaScript tests | Complete test coverage |
+| `test-js` | Varies | JavaScript-only tests | Testing JS action code |
+| `test-security` | Varies | Security regression tests | Validating security fixes |
+| `test-coverage` | Varies | Tests with coverage report | Analyzing test coverage |
+| `test-perf` | Varies | All tests + timing analysis | Finding slow tests |
+
+**Quick decision guide**:
+- **Developing a feature?** → `make test-unit`
+- **Ready to commit?** → `make test` or `make agent-finish`
+- **Changed compiler code?** → `make test-integration-compile`
+- **Working on JavaScript?** → `make test-js`
+- **Security-sensitive change?** → `make test-security`
+
+### Expected Output and Timing
+
+| Command | Approximate Time | Expected Output |
+|---------|-----------------|-----------------|
+| `make build` | ~1.5s | Binary created: `./gh-aw` |
+| `make test-unit` | ~25s | All unit tests pass |
+| `make test` | ~30s | All tests pass (unit + integration) |
+| `make lint` | ~5.5s | Code quality checks pass |
+| `make fmt` | ~2s | Code formatted successfully |
+| `make deps` | ~1.5min (first run) | Dependencies installed |
+| `make deps-dev` | ~5-8min (first run) | Dev tools installed |
+| `make agent-finish` | ~10-15s | Complete validation passes |
+| `make recompile` | Varies | All workflows compiled |
+| `make clean` | ~5s | Build artifacts removed |
+
+### Common Error Scenarios
+
+#### "golangci-lint is not installed"
+**Solution**: Run `make deps-dev` to install development dependencies.
+
+#### "Node.js version X is not supported"
+**Solution**: Install Node.js 20+ (see [CONTRIBUTING.md](CONTRIBUTING.md#prerequisites)).
+
+#### Test failures after `git pull`
+**Solution**: Rebuild dependencies and binary:
+```bash
+make deps
+make build
+make test
+```
+
+#### Workflows fail to compile
+**Solution**: Ensure you've built the latest binary and synced templates:
+```bash
+make build
+make recompile
+```
+
+#### "cannot find package" errors
+**Solution**: Clean and reinstall dependencies:
+```bash
+make clean
+make deps
+make build
+```
+
 ## Build Tools
 
 This project uses `tools.go` to track build-time tool dependencies. This ensures everyone uses the same tool versions.
