@@ -253,6 +253,8 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
+	assert := assert.New(t)
+	
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
@@ -260,25 +262,25 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
-	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
-	assert.Contains(t, stepStr, "http://localhost:8080")
-	assert.Contains(t, stepStr, "/health")
-	assert.Contains(t, stepStr, "max_retries")
+	assert.Contains(stepStr, "Verify MCP Gateway Health")
+	assert.Contains(stepStr, "http://localhost:8080")
+	assert.Contains(stepStr, "/health")
+	assert.Contains(stepStr, "max_retries")
 	// Verify MCP config file content is displayed
-	assert.Contains(t, stepStr, "MCP Configuration:")
-	assert.Contains(t, stepStr, "cat /home/runner/.copilot/mcp-config.json")
+	assert.Contains(stepStr, "MCP Configuration:")
+	assert.Contains(stepStr, "cat /home/runner/.copilot/mcp-config.json")
 	// Verify safeinputs and safeoutputs presence is checked
-	assert.Contains(t, stepStr, "grep -q '\"safeinputs\"'")
-	assert.Contains(t, stepStr, "grep -q '\"safeoutputs\"'")
-	assert.Contains(t, stepStr, "Verified: safeinputs and safeoutputs are present in configuration")
+	assert.Contains(stepStr, "grep -q '\"safeinputs\"'")
+	assert.Contains(stepStr, "grep -q '\"safeoutputs\"'")
+	assert.Contains(stepStr, "Verified: safeinputs and safeoutputs are present in configuration")
 	// Verify MCP server connectivity test is included
-	assert.Contains(t, stepStr, "Testing MCP server connectivity...")
-	assert.Contains(t, stepStr, "jq -r '.mcpServers | to_entries[]")
-	assert.Contains(t, stepStr, "select(.key != \"safeinputs\" and .key != \"safeoutputs\")")
-	assert.Contains(t, stepStr, "mcp_url=\"${gateway_url}/mcp/${mcp_server}\"")
-	assert.Contains(t, stepStr, "curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\"")
-	assert.Contains(t, stepStr, "\"method\":\"initialize\"")
-	assert.Contains(t, stepStr, "✓ MCP server connectivity test passed")
+	assert.Contains(stepStr, "Testing MCP server connectivity...")
+	assert.Contains(stepStr, "jq -r '.mcpServers | to_entries[]")
+	assert.Contains(stepStr, "select(.key != \"safeinputs\" and .key != \"safeoutputs\")")
+	assert.Contains(stepStr, "mcp_url=\"${gateway_url}/mcp/${mcp_server}\"")
+	assert.Contains(stepStr, "curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\"")
+	assert.Contains(stepStr, "\"method\":\"initialize\"")
+	assert.Contains(stepStr, "✓ MCP server connectivity test passed")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
@@ -395,6 +397,8 @@ func TestSandboxConfigWithMCP(t *testing.T) {
 }
 
 func TestGenerateContainerStartCommands(t *testing.T) {
+	assert := assert.New(t)
+	
 	config := &MCPGatewayRuntimeConfig{
 		Container:      "ghcr.io/githubnext/gh-aw-mcpg:latest",
 		Args:           []string{"--rm", "-i", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-p", "8000:8000", "--entrypoint", "/app/flowguard-go"},
@@ -410,32 +414,32 @@ func TestGenerateContainerStartCommands(t *testing.T) {
 	output := strings.Join(lines, "\n")
 
 	// Verify container mode is indicated
-	assert.Contains(t, output, "Start MCP gateway using Docker container")
-	assert.Contains(t, output, "ghcr.io/githubnext/gh-aw-mcpg:latest")
+	assert.Contains(output, "Start MCP gateway using Docker container")
+	assert.Contains(output, "ghcr.io/githubnext/gh-aw-mcpg:latest")
 
 	// Verify docker run command is constructed correctly
-	assert.Contains(t, output, "docker run")
-	assert.Contains(t, output, "--rm")
-	assert.Contains(t, output, "-i")
-	assert.Contains(t, output, "-v")
-	assert.Contains(t, output, "/var/run/docker.sock:/var/run/docker.sock")
-	assert.Contains(t, output, "-p")
-	assert.Contains(t, output, "8000:8000")
-	assert.Contains(t, output, "--entrypoint")
-	assert.Contains(t, output, "/app/flowguard-go")
+	assert.Contains(output, "docker run")
+	assert.Contains(output, "--rm")
+	assert.Contains(output, "-i")
+	assert.Contains(output, "-v")
+	assert.Contains(output, "/var/run/docker.sock:/var/run/docker.sock")
+	assert.Contains(output, "-p")
+	assert.Contains(output, "8000:8000")
+	assert.Contains(output, "--entrypoint")
+	assert.Contains(output, "/app/flowguard-go")
 
 	// Verify environment variables are set
-	assert.Contains(t, output, "-e DOCKER_API_VERSION=\"1.44\"")
+	assert.Contains(output, "-e DOCKER_API_VERSION=\"1.44\"")
 
 	// Verify entrypoint args
-	assert.Contains(t, output, "--routed")
-	assert.Contains(t, output, "--listen")
-	assert.Contains(t, output, "0.0.0.0:8000")
-	assert.Contains(t, output, "--config-stdin")
+	assert.Contains(output, "--routed")
+	assert.Contains(output, "--listen")
+	assert.Contains(output, "0.0.0.0:8000")
+	assert.Contains(output, "--config-stdin")
 
 	// Verify config is piped via stdin
-	assert.Contains(t, output, "cat /home/runner/.copilot/mcp-config.json |")
-	assert.Contains(t, output, MCPGatewayLogsFolder)
+	assert.Contains(output, "cat /home/runner/.copilot/mcp-config.json |")
+	assert.Contains(output, MCPGatewayLogsFolder)
 }
 
 func TestGenerateCommandStartCommands(t *testing.T) {

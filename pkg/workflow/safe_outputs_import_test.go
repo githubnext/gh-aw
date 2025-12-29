@@ -619,13 +619,16 @@ func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 
 // TestSafeOutputsImportMetaFields tests that safe-output meta fields can be imported from shared workflows
 func TestSafeOutputsImportMetaFields(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	
 	compiler := NewCompiler(false, "", "1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	err := os.MkdirAll(workflowsDir, 0755)
-	require.NoError(t, err, "Failed to create workflows directory")
+	require.NoError(err, "Failed to create workflows directory")
 
 	// Create a shared workflow with meta fields
 	sharedWorkflow := `---
@@ -648,7 +651,7 @@ This shared workflow provides meta configuration fields.
 
 	sharedFile := filepath.Join(workflowsDir, "shared-meta.md")
 	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
-	require.NoError(t, err, "Failed to write shared file")
+	require.NoError(err, "Failed to write shared file")
 
 	// Create main workflow that imports the meta configuration
 	mainWorkflow := `---
@@ -669,33 +672,33 @@ This workflow uses the imported meta configuration.
 
 	mainFile := filepath.Join(workflowsDir, "main.md")
 	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
-	require.NoError(t, err, "Failed to write main file")
+	require.NoError(err, "Failed to write main file")
 
 	// Change to the workflows directory for relative path resolution
 	oldDir, err := os.Getwd()
-	require.NoError(t, err, "Failed to get current directory")
+	require.NoError(err, "Failed to get current directory")
 	err = os.Chdir(workflowsDir)
-	require.NoError(t, err, "Failed to change directory")
+	require.NoError(err, "Failed to change directory")
 	defer func() { _ = os.Chdir(oldDir) }()
 
 	// Parse the main workflow
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
-	require.NoError(t, err, "Failed to parse workflow")
-	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NoError(err, "Failed to parse workflow")
+	require.NotNil(workflowData.SafeOutputs, "SafeOutputs should not be nil")
 
 	// Verify create-issue from main workflow
-	require.NotNil(t, workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present from main")
-	assert.Equal(t, "[test] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
+	require.NotNil(workflowData.SafeOutputs.CreateIssues, "CreateIssues should be present from main")
+	assert.Equal("[test] ", workflowData.SafeOutputs.CreateIssues.TitlePrefix)
 
 	// Verify imported meta fields
-	assert.Equal(t, []string{"example.com", "api.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
-	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported and true")
-	assert.Equal(t, map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
-	assert.Equal(t, "${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
+	assert.Equal([]string{"example.com", "api.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
+	assert.True(workflowData.SafeOutputs.Staged, "Staged should be imported and true")
+	assert.Equal(map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
+	assert.Equal("${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
 	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (1024)
 	// before merge happens, so imported value is not used. User should specify max-patch-size in main workflow.
-	assert.Equal(t, 1024, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 1024 when main has safe-outputs")
-	assert.Equal(t, "ubuntu-latest", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
+	assert.Equal(1024, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize defaults to 1024 when main has safe-outputs")
+	assert.Equal("ubuntu-latest", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
 }
 
 // TestSafeOutputsImportMetaFieldsMainTakesPrecedence tests that main workflow meta fields take precedence over imports
@@ -1065,13 +1068,16 @@ safe-outputs:
 
 // TestSafeOutputsImportMessagesFromSharedWorkflow tests that safe-outputs.messages can be imported from shared workflows
 func TestSafeOutputsImportMessagesFromSharedWorkflow(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	
 	compiler := NewCompiler(false, "", "1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	err := os.MkdirAll(workflowsDir, 0755)
-	require.NoError(t, err, "Failed to create workflows directory")
+	require.NoError(err, "Failed to create workflows directory")
 
 	// Create a shared workflow with messages configuration
 	sharedWorkflow := `---
@@ -1093,7 +1099,7 @@ This shared workflow provides custom messages templates.
 
 	sharedFile := filepath.Join(workflowsDir, "shared-messages.md")
 	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
-	require.NoError(t, err, "Failed to write shared file")
+	require.NoError(err, "Failed to write shared file")
 
 	// Create main workflow that imports the messages configuration
 	mainWorkflow := `---
@@ -1114,40 +1120,43 @@ This workflow imports messages from a shared workflow.
 
 	mainFile := filepath.Join(workflowsDir, "main.md")
 	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
-	require.NoError(t, err, "Failed to write main file")
+	require.NoError(err, "Failed to write main file")
 
 	// Change to the workflows directory for relative path resolution
 	oldDir, err := os.Getwd()
-	require.NoError(t, err, "Failed to get current directory")
+	require.NoError(err, "Failed to get current directory")
 	err = os.Chdir(workflowsDir)
-	require.NoError(t, err, "Failed to change directory")
+	require.NoError(err, "Failed to change directory")
 	defer func() { _ = os.Chdir(oldDir) }()
 
 	// Parse the main workflow
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
-	require.NoError(t, err, "Failed to parse workflow")
-	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NoError(err, "Failed to parse workflow")
+	require.NotNil(workflowData.SafeOutputs, "SafeOutputs should not be nil")
 
 	// Verify messages were imported
-	require.NotNil(t, workflowData.SafeOutputs.Messages, "Messages should be imported")
-	assert.Equal(t, "> Custom footer from [{workflow_name}]({run_url})", workflowData.SafeOutputs.Messages.Footer, "Footer should be imported")
-	assert.Equal(t, "> Install: `gh aw add {workflow_source}`", workflowData.SafeOutputs.Messages.FooterInstall, "FooterInstall should be imported")
-	assert.Equal(t, "## 🔍 Preview: {operation}", workflowData.SafeOutputs.Messages.StagedTitle, "StagedTitle should be imported")
-	assert.Equal(t, "Preview of {operation}:", workflowData.SafeOutputs.Messages.StagedDescription, "StagedDescription should be imported")
-	assert.Equal(t, "🚀 Workflow started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should be imported")
-	assert.Equal(t, "✅ Workflow completed successfully", workflowData.SafeOutputs.Messages.RunSuccess, "RunSuccess should be imported")
-	assert.Equal(t, "❌ Workflow failed", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should be imported")
+	require.NotNil(workflowData.SafeOutputs.Messages, "Messages should be imported")
+	assert.Equal("> Custom footer from [{workflow_name}]({run_url})", workflowData.SafeOutputs.Messages.Footer, "Footer should be imported")
+	assert.Equal("> Install: `gh aw add {workflow_source}`", workflowData.SafeOutputs.Messages.FooterInstall, "FooterInstall should be imported")
+	assert.Equal("## 🔍 Preview: {operation}", workflowData.SafeOutputs.Messages.StagedTitle, "StagedTitle should be imported")
+	assert.Equal("Preview of {operation}:", workflowData.SafeOutputs.Messages.StagedDescription, "StagedDescription should be imported")
+	assert.Equal("🚀 Workflow started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should be imported")
+	assert.Equal("✅ Workflow completed successfully", workflowData.SafeOutputs.Messages.RunSuccess, "RunSuccess should be imported")
+	assert.Equal("❌ Workflow failed", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should be imported")
 }
 
 // TestSafeOutputsImportMessagesMainOverrides tests that main workflow messages take precedence over imports
 func TestSafeOutputsImportMessagesMainOverrides(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+	
 	compiler := NewCompiler(false, "", "1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	err := os.MkdirAll(workflowsDir, 0755)
-	require.NoError(t, err, "Failed to create workflows directory")
+	require.NoError(err, "Failed to create workflows directory")
 
 	// Create a shared workflow with messages configuration
 	sharedWorkflow := `---
@@ -1167,7 +1176,7 @@ safe-outputs:
 
 	sharedFile := filepath.Join(workflowsDir, "shared-messages.md")
 	err = os.WriteFile(sharedFile, []byte(sharedWorkflow), 0644)
-	require.NoError(t, err, "Failed to write shared file")
+	require.NoError(err, "Failed to write shared file")
 
 	// Create main workflow with partial messages configuration (some fields only)
 	mainWorkflow := `---
@@ -1191,33 +1200,33 @@ Main workflow defines some messages that should take precedence.
 
 	mainFile := filepath.Join(workflowsDir, "main.md")
 	err = os.WriteFile(mainFile, []byte(mainWorkflow), 0644)
-	require.NoError(t, err, "Failed to write main file")
+	require.NoError(err, "Failed to write main file")
 
 	// Change to the workflows directory for relative path resolution
 	oldDir, err := os.Getwd()
-	require.NoError(t, err, "Failed to get current directory")
+	require.NoError(err, "Failed to get current directory")
 	err = os.Chdir(workflowsDir)
-	require.NoError(t, err, "Failed to change directory")
+	require.NoError(err, "Failed to change directory")
 	defer func() { _ = os.Chdir(oldDir) }()
 
 	// Parse the main workflow
 	workflowData, err := compiler.ParseWorkflowFile("main.md")
-	require.NoError(t, err, "Failed to parse workflow")
-	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NoError(err, "Failed to parse workflow")
+	require.NotNil(workflowData.SafeOutputs, "SafeOutputs should not be nil")
 
 	// Verify messages merge: main overrides some, shared provides others
-	require.NotNil(t, workflowData.SafeOutputs.Messages, "Messages should not be nil")
+	require.NotNil(workflowData.SafeOutputs.Messages, "Messages should not be nil")
 
 	// Main workflow fields take precedence
-	assert.Equal(t, "> Main footer (takes precedence)", workflowData.SafeOutputs.Messages.Footer, "Footer from main should take precedence")
-	assert.Equal(t, "Main success (takes precedence)", workflowData.SafeOutputs.Messages.RunSuccess, "RunSuccess from main should take precedence")
+	assert.Equal("> Main footer (takes precedence)", workflowData.SafeOutputs.Messages.Footer, "Footer from main should take precedence")
+	assert.Equal("Main success (takes precedence)", workflowData.SafeOutputs.Messages.RunSuccess, "RunSuccess from main should take precedence")
 
 	// Shared workflow fields fill in the gaps
-	assert.Equal(t, "> Shared install instructions", workflowData.SafeOutputs.Messages.FooterInstall, "FooterInstall should come from shared")
-	assert.Equal(t, "## Shared Preview", workflowData.SafeOutputs.Messages.StagedTitle, "StagedTitle should come from shared")
-	assert.Equal(t, "Shared preview description", workflowData.SafeOutputs.Messages.StagedDescription, "StagedDescription should come from shared")
-	assert.Equal(t, "Shared started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should come from shared")
-	assert.Equal(t, "Shared failure", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should come from shared")
+	assert.Equal("> Shared install instructions", workflowData.SafeOutputs.Messages.FooterInstall, "FooterInstall should come from shared")
+	assert.Equal("## Shared Preview", workflowData.SafeOutputs.Messages.StagedTitle, "StagedTitle should come from shared")
+	assert.Equal("Shared preview description", workflowData.SafeOutputs.Messages.StagedDescription, "StagedDescription should come from shared")
+	assert.Equal("Shared started", workflowData.SafeOutputs.Messages.RunStarted, "RunStarted should come from shared")
+	assert.Equal("Shared failure", workflowData.SafeOutputs.Messages.RunFailure, "RunFailure should come from shared")
 }
 
 // TestSafeOutputsImportMessagesWithNoMainSafeOutputs tests messages import when main has no safe-outputs section
