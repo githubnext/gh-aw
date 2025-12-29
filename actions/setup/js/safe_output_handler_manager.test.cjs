@@ -1,7 +1,7 @@
 // @ts-check
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { loadConfig, loadHandlers, groupMessagesByType, processMessages } from "./safe_output_handler_manager.cjs";
+import { loadConfig, loadHandlers, processMessages } from "./safe_output_handler_manager.cjs";
 import fs from "fs";
 import path from "path";
 
@@ -101,40 +101,8 @@ describe("Safe Output Handler Manager", () => {
     });
   });
   
-  describe("groupMessagesByType", () => {
-    it("should group messages by type", () => {
-      const messages = [
-        { type: "create_issue", title: "Issue 1" },
-        { type: "add_comment", body: "Comment 1" },
-        { type: "create_issue", title: "Issue 2" },
-        { type: "add_comment", body: "Comment 2" },
-        { type: "create_discussion", title: "Discussion 1" },
-      ];
-      
-      const grouped = groupMessagesByType(messages);
-      
-      expect(grouped.size).toBe(3);
-      expect(grouped.get("create_issue")).toHaveLength(2);
-      expect(grouped.get("add_comment")).toHaveLength(2);
-      expect(grouped.get("create_discussion")).toHaveLength(1);
-    });
-    
-    it("should skip messages without type", () => {
-      const messages = [
-        { type: "create_issue", title: "Issue 1" },
-        { title: "No type" },
-      ];
-      
-      const grouped = groupMessagesByType(messages);
-      
-      expect(grouped.size).toBe(1);
-      expect(grouped.get("create_issue")).toHaveLength(1);
-      expect(core.warning).toHaveBeenCalledWith("Skipping message without type");
-    });
-  });
-  
   describe("processMessages", () => {
-    it("should process messages in correct order", async () => {
+    it("should process messages in order of appearance", async () => {
       const messages = [
         { type: "add_comment", body: "Comment" },
         { type: "create_issue", title: "Issue" },
@@ -154,9 +122,34 @@ describe("Safe Output Handler Manager", () => {
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(2);
       
-      // Verify create_issue was processed before add_comment
-      expect(result.results[0].type).toBe("create_issue");
-      expect(result.results[1].type).toBe("add_comment");
+      // Verify messages were processed in order of appearance (add_comment first, then create_issue)
+      expect(result.results[0].type).toBe("add_comment");
+      expect(result.results[0].messageIndex).toBe(0);
+      expect(result.results[1].type).toBe("create_issue");
+      expect(result.results[1].messageIndex).toBe(1);
+    });
+    
+    it("should skip messages without type", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { title: "No type" },
+        { type: "add_comment", body: "Comment" },
+      ];
+      
+      const mockHandler = {
+        main: vi.fn().mockResolvedValue({ success: true }),
+      };
+      
+      const handlers = new Map([
+        ["create_issue", mockHandler],
+        ["add_comment", mockHandler],
+      ]);
+      
+      const result = await processMessages(handlers, messages);
+      
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+      expect(core.warning).toHaveBeenCalledWith("Skipping message 2 without type");
     });
     
     it("should handle handler errors gracefully", async () => {

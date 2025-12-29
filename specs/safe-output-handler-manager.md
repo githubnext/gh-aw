@@ -85,23 +85,13 @@ The handler manager is responsible for:
 3. **Message Processing**:
    ```javascript
    function processMessages(handlers, messages) {
-     // Group messages by type
-     const grouped = groupMessagesByType(messages);
-     
-     // Process in dependency order
-     const order = [
-       "create_issue",
-       "create_discussion", 
-       "create_pull_request",
-       "add_comment",  // Must be after creates
-       "close_issue",
-       "close_discussion",
-     ];
-     
-     // Dispatch to each handler
-     for (const type of order) {
-       if (handlers.has(type) && grouped.has(type)) {
-         await handlers.get(type).main();
+     // Process messages in order of appearance
+     for (let i = 0; i < messages.length; i++) {
+       const message = messages[i];
+       const handler = handlers.get(message.type);
+       
+       if (handler) {
+         await handler.main();
        }
      }
    }
@@ -173,10 +163,10 @@ All existing handlers are compatible without modification because they:
 - Consistent ID resolution for cross-references
 - Simpler debugging of ID-related issues
 
-### 3. Enforced Processing Order
-- Manager ensures correct dependency order
-- Prevents issues like add_comment running before create_issue
-- Centralized ordering logic
+### 3. Sequential Processing in Order of Appearance
+- Messages are processed in the order they appear in the agent output file
+- Preserves the natural flow and dependencies as written by the agent
+- Simpler logic without complex ordering rules
 
 ### 4. Easier Extensibility
 - Add new handlers by updating `HANDLER_MAP`
@@ -195,8 +185,7 @@ All existing handlers are compatible without modification because they:
 Tests cover:
 - Configuration loading and normalization
 - Handler registration based on configuration
-- Message grouping by type
-- Processing order enforcement
+- Sequential message processing in order of appearance
 - Error handling and recovery
 
 ### Integration Testing
@@ -258,18 +247,18 @@ To test the handler manager:
 With this configuration, the handler manager will:
 1. Load handlers for create_issue, add_comment, and create_discussion
 2. Skip close_issue (disabled)
-3. Process messages in order: create_issue → add_comment → create_discussion
+3. Process messages in the order they appear in the agent output file
 
 ## Performance Considerations
 
 - **Handler Loading**: Handlers are loaded once at startup, not per message
-- **Message Grouping**: O(n) operation to group messages by type
-- **Processing**: Each handler processes all its messages in one call
+- **Sequential Processing**: O(n) operation to process messages in order
+- **Processing**: Each message is processed individually by its handler
 - **Memory**: Temporary ID map is maintained in memory for the duration of the step
 
 ## Future Enhancements
 
-1. **Parallel Processing**: Some handlers could run in parallel
+1. **Batching**: Group consecutive messages of same type for batch processing
 2. **Retry Logic**: Add retry for transient failures
 3. **Metrics**: Collect processing metrics per handler
 4. **Dynamic Loading**: Load handlers on-demand rather than upfront

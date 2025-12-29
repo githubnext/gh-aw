@@ -88,32 +88,8 @@ function loadHandlers(config) {
 }
 
 /**
- * Group messages by type for batch processing
- * @param {Array<Object>} messages - All messages from agent output
- * @returns {Map<string, Array<Object>>} Messages grouped by type
- */
-function groupMessagesByType(messages) {
-  const grouped = new Map();
-  
-  for (const message of messages) {
-    const type = message.type;
-    if (!type) {
-      core.warning("Skipping message without type");
-      continue;
-    }
-    
-    if (!grouped.has(type)) {
-      grouped.set(type, []);
-    }
-    grouped.get(type).push(message);
-  }
-  
-  return grouped;
-}
-
-/**
- * Process all messages from agent output
- * Dispatches messages to appropriate handlers while maintaining shared state (temporary ID map)
+ * Process all messages from agent output in the order they appear
+ * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  * 
  * @param {Map<string, {main: Function}>} handlers - Map of loaded handlers
  * @param {Array<Object>} messages - Array of safe output messages
@@ -127,33 +103,27 @@ async function processMessages(handlers, messages) {
   /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
   
-  core.info(`Processing ${messages.length} message(s) across ${handlers.size} handler type(s)...`);
+  core.info(`Processing ${messages.length} message(s) in order of appearance...`);
   
-  // Group messages by type for efficient processing
-  const messagesByType = groupMessagesByType(messages);
-  
-  // Define processing order to ensure dependencies are handled correctly
-  // e.g., create_issue must run before add_comment that references the created issue
-  const processingOrder = [
-    "create_issue",
-    "create_discussion",
-    "create_pull_request",
-    "add_comment",
-    "close_issue",
-    "close_discussion",
-  ];
-  
-  // Process messages in order
-  for (const messageType of processingOrder) {
-    const handler = handlers.get(messageType);
-    const typeMessages = messagesByType.get(messageType);
+  // Process messages in order of appearance
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    const messageType = message.type;
     
-    if (!handler || !typeMessages || typeMessages.length === 0) {
+    if (!messageType) {
+      core.warning(`Skipping message ${i + 1} without type`);
+      continue;
+    }
+    
+    const handler = handlers.get(messageType);
+    
+    if (!handler) {
+      core.debug(`No handler for type: ${messageType} (message ${i + 1})`);
       continue;
     }
     
     try {
-      core.info(`Dispatching ${typeMessages.length} message(s) to ${messageType} handler`);
+      core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
       
       // Call the handler's main function
       // The handler will access agent output internally via loadAgentOutput()
@@ -162,17 +132,17 @@ async function processMessages(handlers, messages) {
       
       results.push({
         type: messageType,
-        count: typeMessages.length,
+        messageIndex: i,
         success: true,
         result,
       });
       
-      core.info(`✓ Handler ${messageType} completed successfully`);
+      core.info(`✓ Message ${i + 1} (${messageType}) completed successfully`);
     } catch (error) {
-      core.error(`✗ Handler ${messageType} failed: ${getErrorMessage(error)}`);
+      core.error(`✗ Message ${i + 1} (${messageType}) failed: ${getErrorMessage(error)}`);
       results.push({
         type: messageType,
-        count: typeMessages.length,
+        messageIndex: i,
         success: false,
         error: getErrorMessage(error),
       });
@@ -231,7 +201,7 @@ async function main() {
     
     // Set outputs for downstream steps
     core.setOutput("temporary_id_map", JSON.stringify(result.temporaryIdMap));
-    core.setOutput("processed_count", result.results.reduce((sum, r) => sum + r.count, 0));
+    core.setOutput("processed_count", result.results.length);
     
     core.info("Safe Output Handler Manager completed successfully");
   } catch (error) {
@@ -245,6 +215,5 @@ module.exports = {
   main,
   loadConfig,
   loadHandlers,
-  groupMessagesByType,
   processMessages,
 };
