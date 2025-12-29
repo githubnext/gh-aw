@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Runs comprehensive code quality checks using Super Linter and creates issues for violations
+# Runs Markdown quality checks using Super Linter and creates issues for violations
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -1170,7 +1170,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Super Linter Report"
-          WORKFLOW_DESCRIPTION: "Runs comprehensive code quality checks using Super Linter and creates issues for violations"
+          WORKFLOW_DESCRIPTION: "Runs Markdown quality checks using Super Linter and creates issues for violations"
         with:
           script: |
             const fs = require('fs');
@@ -1470,6 +1470,8 @@ jobs:
           ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOG_FILE: super-linter.log
+          VALIDATE_ALL_CODEBASE: "false"
+          VALIDATE_MARKDOWN: "true"
       - name: Check for linting issues
         id: check-results
         run: |
