@@ -674,7 +674,8 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 }
 
 // addHandlerManagerConfigEnvVar adds a JSON config environment variable for the handler manager
-// This config indicates which handlers should be loaded and their basic settings
+// This config indicates which handlers should be loaded and includes their type-specific options
+// The presence of a config key indicates that handler is enabled (no explicit "enabled" field needed)
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
 		return
@@ -682,37 +683,161 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 
 	config := make(map[string]map[string]any)
 
-	// Add config for each enabled safe output type
+	// Add config for each enabled safe output type with their options
+	// Presence in config = enabled, so no need for "enabled": true field
 	if data.SafeOutputs.CreateIssues != nil {
-		config["create_issue"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.CreateIssues
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.AllowedLabels) > 0 {
+			handlerConfig["allowed_labels"] = cfg.AllowedLabels
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
+		if cfg.Expires > 0 {
+			handlerConfig["expires"] = cfg.Expires
+		}
+		config["create_issue"] = handlerConfig
 	}
 
 	if data.SafeOutputs.AddComments != nil {
-		config["add_comment"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.AddComments
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.HideOlderComments {
+			handlerConfig["hide_older_comments"] = true
+		}
+		config["add_comment"] = handlerConfig
 	}
 
 	if data.SafeOutputs.CreateDiscussions != nil {
-		config["create_discussion"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.CreateDiscussions
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Category != "" {
+			handlerConfig["category"] = cfg.Category
+		}
+		if len(cfg.AllowedLabels) > 0 {
+			handlerConfig["allowed_labels"] = cfg.AllowedLabels
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
+		if cfg.Expires > 0 {
+			handlerConfig["expires"] = cfg.Expires
+		}
+		config["create_discussion"] = handlerConfig
 	}
 
 	if data.SafeOutputs.CloseIssues != nil {
-		config["close_issue"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.CloseIssues
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if len(cfg.RequiredLabels) > 0 {
+			handlerConfig["required_labels"] = cfg.RequiredLabels
+		}
+		if cfg.RequiredTitlePrefix != "" {
+			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
+		}
+		config["close_issue"] = handlerConfig
 	}
 
 	if data.SafeOutputs.CloseDiscussions != nil {
-		config["close_discussion"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.CloseDiscussions
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if len(cfg.RequiredLabels) > 0 {
+			handlerConfig["required_labels"] = cfg.RequiredLabels
+		}
+		if cfg.RequiredTitlePrefix != "" {
+			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
+		}
+		if cfg.RequiredCategory != "" {
+			handlerConfig["required_category"] = cfg.RequiredCategory
+		}
+		config["close_discussion"] = handlerConfig
 	}
 
 	if data.SafeOutputs.AddLabels != nil {
-		config["add_labels"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.AddLabels
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.Allowed) > 0 {
+			handlerConfig["allowed"] = cfg.Allowed
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		config["add_labels"] = handlerConfig
 	}
 
 	if data.SafeOutputs.UpdateIssues != nil {
-		config["update_issue"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.UpdateIssues
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		// Boolean pointer fields indicate which fields can be updated
+		if cfg.Status != nil {
+			handlerConfig["allow_status"] = true
+		}
+		if cfg.Title != nil {
+			handlerConfig["allow_title"] = true
+		}
+		if cfg.Body != nil {
+			handlerConfig["allow_body"] = true
+		}
+		config["update_issue"] = handlerConfig
 	}
 
 	if data.SafeOutputs.UpdateDiscussions != nil {
-		config["update_discussion"] = map[string]any{"enabled": true}
+		cfg := data.SafeOutputs.UpdateDiscussions
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		// Boolean pointer fields indicate which fields can be updated
+		if cfg.Title != nil {
+			handlerConfig["allow_title"] = true
+		}
+		if cfg.Body != nil {
+			handlerConfig["allow_body"] = true
+		}
+		if cfg.Labels != nil {
+			handlerConfig["allow_labels"] = true
+		}
+		if len(cfg.AllowedLabels) > 0 {
+			handlerConfig["allowed_labels"] = cfg.AllowedLabels
+		}
+		config["update_discussion"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

@@ -1570,7 +1570,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"enabled\":true},\"create_issue\":{\"enabled\":true}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":1,\"required_category\":\"Ideas\"},\"create_issue\":{\"max\":6}}"
           GH_AW_ISSUE_TITLE_PREFIX: "[plan] "
           GH_AW_ISSUE_LABELS: "plan,ai-generated"
         with:
