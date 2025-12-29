@@ -2,11 +2,9 @@
 "gh-aw": patch
 ---
 
-Add the safe output handler manager implementation and related refactorings.
+Refactor safe output handler manager to use a factory pattern (WIP).
 
-This patch documents the internal refactor that centralizes safe-output message
-dispatch into a single JavaScript handler manager and accompanying Go compiler
-changes. The change simplifies workflows (multiple conditional steps → one
-handler manager step), improves error handling, and keeps backward
-compatibility with existing handlers. Includes tests and documentation.
+This changeset documents an internal refactor that restructures the
+safe outputs handler manager and converts handlers to a factory-style
+interface. The work is ongoing in PR #8019.
 
