@@ -105,26 +105,14 @@ func ActionsCleanCommand() error {
 
 	cleanedCount := 0
 	for _, actionName := range actionDirs {
-		// Clean index.js for actions that use it (except setup-safe-outputs and setup)
-		if actionName != "setup-safe-outputs" && actionName != "setup" {
+		// Clean index.js for actions that use it (except setup)
+		if actionName != "setup" {
 			indexPath := filepath.Join(actionsDir, actionName, "index.js")
 			if _, err := os.Stat(indexPath); err == nil {
 				if err := os.Remove(indexPath); err != nil {
 					return fmt.Errorf("failed to remove %s: %w", indexPath, err)
 				}
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/index.js", actionName)))
-				cleanedCount++
-			}
-		}
-
-		// Clean js/ directory for setup-safe-outputs
-		if actionName == "setup-safe-outputs" {
-			jsDir := filepath.Join(actionsDir, actionName, "js")
-			if _, err := os.Stat(jsDir); err == nil {
-				if err := os.RemoveAll(jsDir); err != nil {
-					return fmt.Errorf("failed to remove %s: %w", jsDir, err)
-				}
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Removed %s/js/", actionName)))
 				cleanedCount++
 			}
 		}
@@ -219,11 +207,6 @@ func buildAction(actionsDir, actionName string) error {
 		return err
 	}
 
-	// Special handling for setup-safe-outputs: copy files instead of embedding
-	if actionName == "setup-safe-outputs" {
-		return buildSetupSafeOutputsAction(actionsDir, actionName)
-	}
-
 	// Special handling for setup: build shell script with embedded files
 	if actionName == "setup" {
 		return buildSetupAction(actionsDir, actionName)
@@ -287,43 +270,6 @@ func buildAction(actionsDir, actionName string) error {
 	return nil
 }
 
-// buildSetupSafeOutputsAction builds the setup-safe-outputs action by copying JavaScript files
-func buildSetupSafeOutputsAction(actionsDir, actionName string) error {
-	actionPath := filepath.Join(actionsDir, actionName)
-	jsDir := filepath.Join(actionPath, "js")
-
-	// Get dependencies for this action
-	dependencies := getActionDependencies(actionName)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
-
-	// Get all JavaScript sources
-	sources := workflow.GetJavaScriptSources()
-
-	// Create js directory if it doesn't exist
-	if err := os.MkdirAll(jsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create js directory: %w", err)
-	}
-
-	// Copy each dependency file to the js directory
-	copiedCount := 0
-	for _, dep := range dependencies {
-		if content, ok := sources[dep]; ok {
-			destPath := filepath.Join(jsDir, dep)
-			if err := os.WriteFile(destPath, []byte(content), 0644); err != nil {
-				return fmt.Errorf("failed to write %s: %w", dep, err)
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    - %s", dep)))
-			copiedCount++
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ⚠ Warning: Could not find %s", dep)))
-		}
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Copied %d files to js/", copiedCount)))
-
-	return nil
-}
-
 // buildSetupAction builds the setup action by checking that source files exist.
 // Note: Both JavaScript and shell scripts are source of truth in actions/setup/js/ and actions/setup/sh/
 // They get synced to pkg/workflow/js/ and pkg/workflow/sh/ during the build process via Makefile targets.
@@ -374,49 +320,5 @@ func getActionDependencies(actionName string) []string {
 		return workflow.GetAllScriptFilenames()
 	}
 
-	// Static dependencies for other actions
-	dependencyMap := map[string][]string{
-		"setup-safe-outputs": {
-			"safe_outputs_mcp_server.cjs",
-			"safe_outputs_bootstrap.cjs",
-			"safe_outputs_tools_loader.cjs",
-			"safe_outputs_config.cjs",
-			"safe_outputs_handlers.cjs",
-			"mcp_server_core.cjs",
-			"mcp_logger.cjs",
-			"messages.cjs",
-		},
-		"setup-safe-inputs": {
-			"safe_inputs_mcp_server.cjs",
-			"safe_inputs_bootstrap.cjs",
-			"safe_inputs_config_loader.cjs",
-			"safe_inputs_tool_factory.cjs",
-			"safe_inputs_validation.cjs",
-			"mcp_server_core.cjs",
-			"mcp_logger.cjs",
-		},
-		"noop": {
-			"load_agent_output.cjs",
-		},
-		"minimize_comment": {
-			"load_agent_output.cjs",
-		},
-		"close_issue": {
-			"close_entity_helpers.cjs",
-		},
-		"close_pull_request": {
-			"close_entity_helpers.cjs",
-		},
-		"close_discussion": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-		},
-	}
-
-	if deps, ok := dependencyMap[actionName]; ok {
-		return deps
-	}
 	return []string{}
 }

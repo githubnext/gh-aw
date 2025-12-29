@@ -280,6 +280,15 @@ The project includes automated license compliance checking:
 
 All dependencies are automatically scanned using Google's `go-licenses` tool in CI, which classifies licenses by type and identifies potential compliance issues. Note that `go-licenses` is not actively maintained, so we install it on-demand rather than as a regular build dependency.
 
+## 🧪 Testing
+
+For comprehensive testing guidelines including assert vs require usage, table-driven test patterns, and best practices, see **[specs/testing.md](specs/testing.md)**.
+
+Quick reference:
+- `make test-unit` - Fast unit tests (~25s)
+- `make test` - Full test suite (~30s)
+- `make agent-finish` - Complete validation before committing
+
 ## 🤝 Community
 
 - Join the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)

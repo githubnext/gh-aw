@@ -542,72 +542,94 @@ func getCurrentGitHubUsername() (string, error) {
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int, directTrialMode bool) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Trial Execution Plan"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, "")
+	var sections []string
 
-	// Workflow information
+	// Title box with double border
+	titleText := "Trial Execution Plan"
+	sections = append(sections, console.RenderTitleBox(titleText, 80)...)
+
+	sections = append(sections, "")
+
+	// Workflow information section
+	var workflowInfo strings.Builder
 	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Workflow:  %s (from %s)\n"), parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
+		fmt.Fprintf(&workflowInfo, "Workflow:  %s (from %s)", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Workflows:"))
+		workflowInfo.WriteString("Workflows:")
 		for _, spec := range parsedSpecs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("    • %s (from %s)\n"), spec.WorkflowName, spec.RepoSlug)
+			fmt.Fprintf(&workflowInfo, "\n  • %s (from %s)", spec.WorkflowName, spec.RepoSlug)
 		}
 	}
-	fmt.Fprintln(os.Stderr, "")
+
+	sections = append(sections, console.RenderInfoSection(workflowInfo.String())...)
+
+	sections = append(sections, "")
 
 	// Display target repository info based on mode
+	var modeInfo strings.Builder
 	if cloneRepoSlug != "" {
 		// Clone-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Source:    %s (will be cloned)\n"), cloneRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Clone repository contents into host repository"))
+		fmt.Fprintf(&modeInfo, "Source:    %s (will be cloned)\n", cloneRepoSlug)
+		modeInfo.WriteString("Mode:      Clone repository contents into host repository")
 	} else if directTrialMode {
 		// Direct trial mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (direct)\n"), hostRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Run workflows directly in repository (no simulation)"))
+		fmt.Fprintf(&modeInfo, "Target:    %s (direct)\n", hostRepoSlug)
+		modeInfo.WriteString("Mode:      Run workflows directly in repository (no simulation)")
 	} else {
 		// Logical-repo mode
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Target:    %s (simulated)\n"), logicalRepoSlug)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Mode:      Simulate execution against target repository"))
+		fmt.Fprintf(&modeInfo, "Target:    %s (simulated)\n", logicalRepoSlug)
+		modeInfo.WriteString("Mode:      Simulate execution against target repository")
 	}
-	fmt.Fprintln(os.Stderr, "")
 
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Host Repo:  %s\n"), hostRepoSlug)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("              %s\n"), hostRepoSlugURL)
-	fmt.Fprintln(os.Stderr, "")
+	sections = append(sections, console.RenderInfoSection(modeInfo.String())...)
+
+	sections = append(sections, "")
+
+	// Host repository info
+	var hostInfo strings.Builder
+	fmt.Fprintf(&hostInfo, "Host Repo:  %s\n", hostRepoSlug)
+	fmt.Fprintf(&hostInfo, "            %s", hostRepoSlugURL)
+
+	sections = append(sections, console.RenderInfoSection(hostInfo.String())...)
+
+	sections = append(sections, "")
 
 	// Configuration settings
+	var configInfo strings.Builder
 	if deleteHostRepo {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be deleted after completion"))
+		configInfo.WriteString("Cleanup:   Host repository will be deleted after completion")
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Cleanup:   Host repository will be preserved"))
+		configInfo.WriteString("Cleanup:   Host repository will be preserved")
 	}
 
 	// Display secret usage information
+	configInfo.WriteString("\n")
 	if pushSecrets {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Local API keys will be pushed and cleaned up after execution"))
+		configInfo.WriteString("Secrets:   Local API keys will be pushed and cleaned up after execution")
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Secrets:   Workflows must use pre-configured repository secrets"))
+		configInfo.WriteString("Secrets:   Workflows must use pre-configured repository secrets")
 	}
 
 	// Display repeat count if set
 	if repeatCount > 0 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  Repeat:    Will run %d times (total executions: %d)\n"), repeatCount, repeatCount+1)
+		fmt.Fprintf(&configInfo, "\nRepeat:    Will run %d times (total executions: %d)", repeatCount, repeatCount+1)
 	}
 
 	// Display auto-merge setting if enabled
 	if autoMergePRs {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Auto-merge: Pull requests will be automatically merged"))
+		configInfo.WriteString("\nAuto-merge: Pull requests will be automatically merged")
 	}
 
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Execution Steps"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, "")
+	sections = append(sections, console.RenderInfoSection(configInfo.String())...)
+
+	sections = append(sections, "")
+
+	// Compose and output all sections
+	console.RenderComposedSections(sections)
+
+	// Add "Execution Steps" section separator
+	executionStepsSections := console.RenderTitleBox("Execution Steps", 80)
+	console.RenderComposedSections(executionStepsSections)
 
 	// Check if host repository already exists to update messaging
 	hostRepoExists := false

@@ -12,6 +12,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    lockdown: true
     toolsets:
       - repos
       - issues

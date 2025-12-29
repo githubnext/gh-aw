@@ -779,7 +779,7 @@ jobs:
           
           ## Shared Memory Integration
           
-          **Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+          **Access shared repo memory at `/tmp/gh-aw/repo-memory/default/`**
           
           This workflow shares memory with other meta-orchestrators (Campaign Manager and Workflow Health Manager) to coordinate insights and avoid duplicate work.
           
@@ -787,12 +787,12 @@ jobs:
           
           The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
           
-          1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+          1. **Latest Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
              - Most recent daily metrics snapshot
              - Quick access without date calculations
              - Contains all workflow metrics, engagement data, and quality indicators
           
-          2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
+          2. **Historical Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/daily/YYYY-MM-DD.json`
              - Daily metrics for the last 30 days
              - Enables trend analysis and historical comparisons
              - Calculate week-over-week and month-over-month changes
@@ -841,8 +841,8 @@ jobs:
           ### Phase 1: Data Collection (10 minutes)
           
           1. **Load historical metrics from shared storage:**
-             - Read latest metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
-             - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
+             - Read latest metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
+             - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory/default/metrics/daily/`
              - Extract per-workflow metrics:
                - Safe output counts (issues, PRs, comments, discussions)
                - Workflow run statistics (total, successful, failed, success_rate)
@@ -1109,14 +1109,14 @@ jobs:
           ## Trends
           
           - Overall agent quality: XX/100 (↑ +5 from last week)
+          - Average effectiveness: XX/100 (→ stable)
+          - Output volume: XXX outputs (↑ +10% from last week)
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          - Average effectiveness: XX/100 (→ stable)
-          - Output volume: XXX outputs (↑ +10% from last week)
           - PR merge rate: XX% (↑ +3% from last week)
           - Resource efficiency: XX min average (↓ -2 min from last week)
           

@@ -36,7 +36,6 @@ async function main() {
     return;
   }
 
-  // @ts-ignore - TypeScript doesn't narrow properly after success check
   const { items: milestoneItems, config } = result;
   if (!config || !milestoneItems) {
     core.setFailed("Internal error: config or milestoneItems is undefined");
@@ -73,8 +72,8 @@ async function main() {
   // Process each milestone assignment
   const results = [];
   for (const item of itemsToProcess) {
-    const issueNumber = typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10);
-    const milestoneNumber = typeof item.milestone_number === "number" ? item.milestone_number : parseInt(String(item.milestone_number), 10);
+    const issueNumber = Number(item.issue_number);
+    const milestoneNumber = Number(item.milestone_number);
 
     if (isNaN(issueNumber) || issueNumber <= 0) {
       core.error(`Invalid issue_number: ${item.issue_number}`);
@@ -95,7 +94,6 @@ async function main() {
         continue;
       }
 
-      // Check if milestone title or number (as string) is in allowed list
       const isAllowed = allowedMilestones.includes(milestone.title) || allowedMilestones.includes(String(milestoneNumber));
 
       if (!isAllowed) {
@@ -132,40 +130,31 @@ async function main() {
   }
 
   // Generate step summary
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.length - successCount;
+  const successResults = results.filter(r => r.success);
+  const failureResults = results.filter(r => !r.success);
 
-  let summaryContent = "## Milestone Assignment\n\n";
+  const summaryParts = ["## Milestone Assignment\n"];
 
-  if (successCount > 0) {
-    summaryContent += `✅ Successfully assigned ${successCount} milestone(s):\n\n`;
-    summaryContent += results
-      .filter(r => r.success)
-      .map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}`)
-      .join("\n");
-    summaryContent += "\n\n";
+  if (successResults.length > 0) {
+    summaryParts.push(`✅ Successfully assigned ${successResults.length} milestone(s):\n`);
+    summaryParts.push(successResults.map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}`).join("\n"));
+    summaryParts.push("\n");
   }
 
-  if (failureCount > 0) {
-    summaryContent += `❌ Failed to assign ${failureCount} milestone(s):\n\n`;
-    summaryContent += results
-      .filter(r => !r.success)
-      .map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}: ${r.error}`)
-      .join("\n");
+  if (failureResults.length > 0) {
+    summaryParts.push(`❌ Failed to assign ${failureResults.length} milestone(s):\n`);
+    summaryParts.push(failureResults.map(r => `- Issue #${r.issue_number} → Milestone #${r.milestone_number}: ${r.error}`).join("\n"));
   }
+
+  const summaryContent = summaryParts.join("\n");
 
   await core.summary.addRaw(summaryContent).write();
 
-  // Set outputs
-  const assignedMilestones = results
-    .filter(r => r.success)
-    .map(r => `${r.issue_number}:${r.milestone_number}`)
-    .join("\n");
+  const assignedMilestones = successResults.map(r => `${r.issue_number}:${r.milestone_number}`).join("\n");
   core.setOutput("assigned_milestones", assignedMilestones);
 
-  // Fail if any assignments failed
-  if (failureCount > 0) {
-    core.setFailed(`Failed to assign ${failureCount} milestone(s)`);
+  if (failureResults.length > 0) {
+    core.setFailed(`Failed to assign ${failureResults.length} milestone(s)`);
   }
 }
 

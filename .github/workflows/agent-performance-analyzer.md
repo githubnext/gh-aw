@@ -11,7 +11,7 @@ engine: copilot
 tools:
   agentic-workflows:
   github:
-    toolsets: [default, actions]
+    toolsets: [default, actions, repos]
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "**/*"
@@ -166,7 +166,7 @@ Execute these phases each run:
 
 ## Shared Memory Integration
 
-**Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/`**
+**Access shared repo memory at `/tmp/gh-aw/repo-memory/default/`**
 
 This workflow shares memory with other meta-orchestrators (Campaign Manager and Workflow Health Manager) to coordinate insights and avoid duplicate work.
 
@@ -174,12 +174,12 @@ This workflow shares memory with other meta-orchestrators (Campaign Manager and 
 
 The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
 
-1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
+1. **Latest Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
    - Most recent daily metrics snapshot
    - Quick access without date calculations
    - Contains all workflow metrics, engagement data, and quality indicators
 
-2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
+2. **Historical Metrics**: `/tmp/gh-aw/repo-memory/default/metrics/daily/YYYY-MM-DD.json`
    - Daily metrics for the last 30 days
    - Enables trend analysis and historical comparisons
    - Calculate week-over-week and month-over-month changes
@@ -228,8 +228,8 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
 ### Phase 1: Data Collection (10 minutes)
 
 1. **Load historical metrics from shared storage:**
-   - Read latest metrics from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
-   - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
+   - Read latest metrics from: `/tmp/gh-aw/repo-memory/default/metrics/latest.json`
+   - Load daily metrics for trend analysis from: `/tmp/gh-aw/repo-memory/default/metrics/daily/`
    - Extract per-workflow metrics:
      - Safe output counts (issues, PRs, comments, discussions)
      - Workflow run statistics (total, successful, failed, success_rate)

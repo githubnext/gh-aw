@@ -26,6 +26,35 @@ strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
+steps:
+  - name: Pull static analysis Docker images
+    run: |
+      set -e
+      echo "Pulling Docker images for static analysis tools..."
+      
+      # Pull zizmor Docker image
+      echo "Pulling zizmor image..."
+      docker pull ghcr.io/zizmorcore/zizmor:latest
+      
+      # Pull poutine Docker image
+      echo "Pulling poutine image..."
+      docker pull ghcr.io/boostsecurityio/poutine:latest
+      
+      echo "All static analysis Docker images pulled successfully"
+  - name: Verify static analysis tools
+    run: |
+      set -e
+      echo "Verifying static analysis tools are available..."
+      
+      # Verify zizmor
+      echo "Testing zizmor..."
+      docker run --rm ghcr.io/zizmorcore/zizmor:latest --version || echo "Warning: zizmor version check failed"
+      
+      # Verify poutine
+      echo "Testing poutine..."
+      docker run --rm ghcr.io/boostsecurityio/poutine:latest --version || echo "Warning: poutine version check failed"
+      
+      echo "Static analysis tools verification complete"
 ---
 
 # Static Analysis Report

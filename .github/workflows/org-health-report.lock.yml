@@ -441,6 +441,8 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
+                  "GITHUB_LOCKDOWN_MODE=1",
+                  "-e",
                   "GITHUB_TOOLSETS=repos,issues,pull_requests,orgs",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
