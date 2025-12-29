@@ -335,11 +335,12 @@ golint-incremental:
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF)
 
-# Validate compiled workflow lock files (models: read not supported yet)
+# Validate compiled workflow lock files using Docker-based actionlint
+# Uses the same Docker integration as 'make actionlint'
 .PHONY: validate-workflows
-validate-workflows:
+validate-workflows: build
 	@echo "Validating compiled workflow lock files..."
-	actionlint .github/workflows/*.lock.yml; \
+	./$(BINARY_NAME) compile --actionlint
 
 # Run actionlint on all workflow files
 .PHONY: actionlint
@@ -592,8 +593,7 @@ help:
 	@echo "  security-govulncheck - Run govulncheck for known vulnerabilities"
 	@echo "  security-trivy   - Run trivy filesystem scanner"
 	@echo "  actionlint       - Validate workflows with actionlint (depends on build)"
-	@echo "  validate-workflows - Validate compiled workflow lock files"
-	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
+	@echo "  validate-workflows - Validate compiled workflow lock files (depends on build)"
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
