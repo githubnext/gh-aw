@@ -17,6 +17,7 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 - [Quick Start](#quick-start)
 - [Overview](#overview)
 - [How It Works](#how-it-works)
+- [Workflow Patterns](#workflow-patterns)
 - [Safe Agentic Workflows](#safe-agentic-workflows)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -52,6 +53,23 @@ with metrics, trends, and key insights.
 The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
 
 The AI agent reads your repository context, analyzes issues, generates visualizations, and creates reports - all defined in natural language rather than complex code.
+
+## Workflow Patterns
+
+New to agentic workflows? Start with our curated **[Workflow Patterns Library](examples/patterns/)** featuring the 10 most common workflow patterns:
+
+- 🏷️ **[Auto-Labeler](examples/patterns/auto-labeler.md)** - Automatically label issues and PRs (Beginner)
+- 💬 **[Issue Responder](examples/patterns/issue-responder.md)** - Automated issue triage and response (Beginner)
+- 📊 **[Discussion Bot](examples/patterns/discussion-bot.md)** - Create and manage discussions (Beginner)
+- 📈 **[Daily Report](examples/patterns/daily-report.md)** - Scheduled analysis with visualizations (Intermediate)
+- 🔍 **[PR Reviewer](examples/patterns/pr-reviewer.md)** - Automated code review feedback (Intermediate)
+- 🚨 **[CI Monitor](examples/patterns/ci-monitor.md)** - CI/CD monitoring and alerts (Intermediate)
+- 🔎 **[Code Scanner](examples/patterns/code-scanner.md)** - Security and quality scanning (Advanced)
+- ⚙️ **[Workflow Manager](examples/patterns/workflow-manager.md)** - Generate/update workflows (Advanced)
+- 📚 **[Documentation Bot](examples/patterns/documentation-bot.md)** - Auto-generate docs (Intermediate)
+- 🔗 **[Integration Bot](examples/patterns/integration-bot.md)** - External tool integration (Intermediate)
+
+Each pattern includes inline documentation, customization points, complexity ratings, and links to production examples. See the [Pattern Library README](examples/patterns/README.md) for a complete guide on choosing and using patterns.
 
 ## Safe Agentic Workflows
 
