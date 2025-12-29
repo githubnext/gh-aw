@@ -364,11 +364,28 @@ The custom actions build system is **entirely implemented in Go** in `pkg/cli/ac
 **Directory Structure**:
 ```
 actions/
-├── setup-safe-inputs/
+├── setup/
+│   ├── action.yml
+│   ├── setup.sh
+│   ├── js/
+│   └── sh/
+├── noop/
 │   ├── action.yml
 │   ├── index.js
 │   └── src/
-├── setup-safe-outputs/
+├── minimize_comment/
+│   ├── action.yml
+│   ├── index.js
+│   └── src/
+├── close_issue/
+│   ├── action.yml
+│   ├── index.js
+│   └── src/
+├── close_pull_request/
+│   ├── action.yml
+│   ├── index.js
+│   └── src/
+├── close_discussion/
 │   ├── action.yml
 │   ├── index.js
 │   └── src/
