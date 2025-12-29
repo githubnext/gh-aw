@@ -11,16 +11,17 @@ import (
 // have both Light and Dark variants defined
 func TestAdaptiveColorsHaveBothVariants(t *testing.T) {
 	colors := map[string]lipgloss.AdaptiveColor{
-		"ColorError":      ColorError,
-		"ColorWarning":    ColorWarning,
-		"ColorSuccess":    ColorSuccess,
-		"ColorInfo":       ColorInfo,
-		"ColorPurple":     ColorPurple,
-		"ColorYellow":     ColorYellow,
-		"ColorComment":    ColorComment,
-		"ColorForeground": ColorForeground,
-		"ColorBackground": ColorBackground,
-		"ColorBorder":     ColorBorder,
+		"ColorError":        ColorError,
+		"ColorWarning":      ColorWarning,
+		"ColorSuccess":      ColorSuccess,
+		"ColorInfo":         ColorInfo,
+		"ColorPurple":       ColorPurple,
+		"ColorYellow":       ColorYellow,
+		"ColorComment":      ColorComment,
+		"ColorForeground":   ColorForeground,
+		"ColorBackground":   ColorBackground,
+		"ColorBorder":       ColorBorder,
+		"ColorTableAltRow":  ColorTableAltRow,
 	}
 
 	for name, color := range colors {
@@ -42,16 +43,17 @@ func TestAdaptiveColorsHaveBothVariants(t *testing.T) {
 // TestColorFormats verifies all color values are valid hex colors
 func TestColorFormats(t *testing.T) {
 	colors := map[string]lipgloss.AdaptiveColor{
-		"ColorError":      ColorError,
-		"ColorWarning":    ColorWarning,
-		"ColorSuccess":    ColorSuccess,
-		"ColorInfo":       ColorInfo,
-		"ColorPurple":     ColorPurple,
-		"ColorYellow":     ColorYellow,
-		"ColorComment":    ColorComment,
-		"ColorForeground": ColorForeground,
-		"ColorBackground": ColorBackground,
-		"ColorBorder":     ColorBorder,
+		"ColorError":        ColorError,
+		"ColorWarning":      ColorWarning,
+		"ColorSuccess":      ColorSuccess,
+		"ColorInfo":         ColorInfo,
+		"ColorPurple":       ColorPurple,
+		"ColorYellow":       ColorYellow,
+		"ColorComment":      ColorComment,
+		"ColorForeground":   ColorForeground,
+		"ColorBackground":   ColorBackground,
+		"ColorBorder":       ColorBorder,
+		"ColorTableAltRow":  ColorTableAltRow,
 	}
 
 	isValidHex := func(s string) bool {
