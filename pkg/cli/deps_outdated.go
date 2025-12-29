@@ -106,15 +106,26 @@ func DisplayOutdatedDependencies(outdated []OutdatedDependency, totalDeps int) {
 	})
 
 	// Display table
-	fmt.Fprintf(os.Stderr, "%-50s %-12s %-12s %-10s %s\n", "Module", "Current", "Latest", "Age", "Status")
-	fmt.Fprintln(os.Stderr, strings.Repeat("-", 100))
+	headers := []string{"Module", "Current", "Latest", "Age", "Status"}
+	rows := make([][]string, 0, len(outdated))
 
 	for _, dep := range outdated {
 		age := formatAge(dep.Age)
 		status := getUpdateStatus(dep)
-		fmt.Fprintf(os.Stderr, "%-50s %-12s %-12s %-10s %s\n",
-			stringutil.Truncate(dep.Module, 50), dep.Current, dep.Latest, age, status)
+		rows = append(rows, []string{
+			stringutil.Truncate(dep.Module, 50),
+			dep.Current,
+			dep.Latest,
+			age,
+			status,
+		})
 	}
+
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
 	fmt.Fprintln(os.Stderr, "")
 
