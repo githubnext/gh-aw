@@ -360,7 +360,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should support multiple space-separated patterns", () => {
       // Test multiple patterns like "campaign-id/cursor.json campaign-id/metrics/**"
       const patterns = "security-q1/cursor.json security-q1/metrics/**".split(/\s+/).filter(Boolean);
-      
+
       // Each pattern should be validated independently
       expect(patterns).toHaveLength(2);
       expect(patterns[0]).toBe("security-q1/cursor.json");
@@ -370,7 +370,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should validate each pattern in multi-pattern filter", () => {
       // Test that each pattern can be converted to regex independently
       const patterns = "data/**.json logs/**.log".split(/\s+/).filter(Boolean);
-      
+
       const regexPatterns = patterns.map(pattern => {
         const regexPattern = pattern
           .replace(/\\/g, "\\\\")
@@ -395,7 +395,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should handle campaign-specific multi-pattern filters", () => {
       // Real-world campaign use case: multiple specific patterns
       const patterns = "security-q1/cursor.json security-q1/metrics/**".split(/\s+/).filter(Boolean);
-      
+
       const regexPatterns = patterns.map(pattern => {
         const regexPattern = pattern
           .replace(/\\/g, "\\\\")
@@ -423,7 +423,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test extracting campaign ID from pattern like "security-q1/**"
       const pattern = "security-q1/**";
       const match = /^([^*?/]+)\/\*\*/.exec(pattern);
-      
+
       expect(match).not.toBeNull();
       expect(match[1]).toBe("security-q1");
     });
@@ -431,22 +431,14 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should validate all patterns start with campaign ID", () => {
       // Test that all patterns must be under campaign-id/ subdirectory
       const campaignId = "security-q1";
-      const validPatterns = [
-        "security-q1/cursor.json",
-        "security-q1/metrics/**",
-        "security-q1/data/*.txt"
-      ];
-      
+      const validPatterns = ["security-q1/cursor.json", "security-q1/metrics/**", "security-q1/data/*.txt"];
+
       for (const pattern of validPatterns) {
         expect(pattern.startsWith(`${campaignId}/`)).toBe(true);
       }
 
-      const invalidPatterns = [
-        "other-campaign/cursor.json",
-        "cursor.json",
-        "metrics/**"
-      ];
-      
+      const invalidPatterns = ["other-campaign/cursor.json", "cursor.json", "metrics/**"];
+
       for (const pattern of invalidPatterns) {
         expect(pattern.startsWith(`${campaignId}/`)).toBe(false);
       }
@@ -454,16 +446,12 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
 
     it("should handle campaign ID with hyphens and underscores", () => {
       // Test various campaign ID formats
-      const patterns = [
-        "security-q1-2025/**",
-        "incident_response/**",
-        "rollout-v2_phase1/**"
-      ];
-      
+      const patterns = ["security-q1-2025/**", "incident_response/**", "rollout-v2_phase1/**"];
+
       for (const pattern of patterns) {
         const match = /^([^*?/]+)\/\*\*/.exec(pattern);
         expect(match).not.toBeNull();
-        
+
         // Extracted campaign ID should match the prefix
         const campaignId = match[1];
         expect(pattern.startsWith(`${campaignId}/`)).toBe(true);
@@ -473,11 +461,11 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should reject patterns not under campaign ID subdirectory", () => {
       // Test enforcement that patterns must be under campaign-id/
       const campaignId = "security-q1";
-      
+
       // Valid: under campaign-id/
       expect("security-q1/metrics/**".startsWith(`${campaignId}/`)).toBe(true);
       expect("security-q1/cursor.json".startsWith(`${campaignId}/`)).toBe(true);
-      
+
       // Invalid: not under campaign-id/
       expect("metrics/**".startsWith(`${campaignId}/`)).toBe(false);
       expect("other-campaign/data.json".startsWith(`${campaignId}/`)).toBe(false);
@@ -489,7 +477,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // This would be simulated in the actual code by process.env.GH_AW_CAMPAIGN_ID
       const explicitCampaignId = "rollout-v2";
       const patterns = ["rollout-v2/cursor.json", "rollout-v2/metrics/**"];
-      
+
       // All patterns should validate against explicit campaign ID
       for (const pattern of patterns) {
         expect(pattern.startsWith(`${explicitCampaignId}/`)).toBe(true);

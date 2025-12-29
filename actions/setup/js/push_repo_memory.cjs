@@ -158,16 +158,16 @@ async function main() {
   // This ensures campaigns maintain durable state consistency across workflow runs.
   // Non-campaign repo-memory configurations bypass this validation entirely.
   // ============================================================================
-  
+
   // Allow explicit campaign ID override via environment variable
   const explicitCampaignId = process.env.GH_AW_CAMPAIGN_ID || "";
-  
+
   // Parse file glob patterns (can be space-separated)
   const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
-  
+
   // Determine campaign ID from patterns or explicit override
   let campaignId = explicitCampaignId;
-  
+
   // If no explicit campaign ID, try to extract from patterns when memoryId is "campaigns"
   if (!campaignId && memoryId === "campaigns" && patterns.length > 0) {
     // Try to extract campaign ID from first pattern matching "<campaign-id>/**"
@@ -176,9 +176,9 @@ async function main() {
       campaignId = campaignMatch[1];
     }
   }
-  
+
   const isCampaignMode = Boolean(campaignId);
-  
+
   // Validate all patterns are under campaign-id when in campaign mode
   if (isCampaignMode && patterns.length > 0) {
     for (const pattern of patterns) {
