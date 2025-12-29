@@ -352,3 +352,30 @@ func TestLayoutNonTTYOutput(t *testing.T) {
 		}
 	})
 }
+
+// Example demonstrates how to compose a styled CLI output
+// using the layout helper functions.
+func Example() {
+	// Create layout elements
+	title := LayoutTitleBox("Trial Execution Plan", 60)
+	info1 := LayoutInfoSection("Workflow", "test-workflow")
+	info2 := LayoutInfoSection("Status", "Ready")
+	warning := LayoutEmphasisBox("⚠️ WARNING: Large workflow file", styles.ColorWarning)
+
+	// Compose sections vertically with spacing
+	output := LayoutJoinVertical(title, "", info1, info2, "", warning)
+
+	// In a real application, you would output to stderr:
+	// fmt.Fprintln(os.Stderr, output)
+
+	// For test purposes, just verify the output contains expected content
+	if !strings.Contains(output, "Trial Execution Plan") {
+		panic("missing title")
+	}
+	if !strings.Contains(output, "test-workflow") {
+		panic("missing workflow name")
+	}
+	if !strings.Contains(output, "WARNING") {
+		panic("missing warning")
+	}
+}

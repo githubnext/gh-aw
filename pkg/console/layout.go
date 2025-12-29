@@ -1,3 +1,55 @@
+// Package console provides layout composition helpers for creating styled CLI output with Lipgloss.
+//
+// # Layout Composition Helpers
+//
+// The layout package provides reusable helper functions for common Lipgloss layout patterns.
+// These helpers automatically respect TTY detection and provide both styled (TTY) and plain text
+// (non-TTY) output modes.
+//
+// # Usage Example
+//
+// Here's a complete example showing how to compose a styled CLI output:
+//
+//	import (
+//		"fmt"
+//		"os"
+//		"github.com/githubnext/gh-aw/pkg/console"
+//		"github.com/githubnext/gh-aw/pkg/styles"
+//	)
+//
+//	// Create layout elements
+//	title := console.LayoutTitleBox("Trial Execution Plan", 60)
+//	info1 := console.LayoutInfoSection("Workflow", "test-workflow")
+//	info2 := console.LayoutInfoSection("Status", "Ready")
+//	warning := console.LayoutEmphasisBox("⚠️ WARNING: Large workflow file", styles.ColorWarning)
+//
+//	// Compose sections vertically with spacing
+//	output := console.LayoutJoinVertical(title, "", info1, info2, "", warning)
+//	fmt.Fprintln(os.Stderr, output)
+//
+// # TTY Detection
+//
+// All layout helpers automatically detect whether output is going to a terminal (TTY) or being
+// piped/redirected. In TTY mode, they use Lipgloss styling with colors and borders. In non-TTY
+// mode, they output plain text suitable for parsing or logging.
+//
+// # Available Helpers
+//
+//   - LayoutTitleBox: Centered title with double border
+//   - LayoutInfoSection: Info section with left border emphasis
+//   - LayoutEmphasisBox: Thick-bordered box with custom color
+//   - LayoutJoinVertical: Composes sections with automatic spacing
+//
+// # Comparison with Existing Functions
+//
+// These helpers complement the existing RenderTitleBox, RenderInfoSection, and
+// RenderComposedSections functions in console.go. The key differences:
+//
+//   - Layout helpers return strings instead of []string for simpler composition
+//   - LayoutInfoSection takes separate label and value parameters
+//   - LayoutEmphasisBox provides custom color support with thick borders
+//   - Layout helpers are designed for inline composition and chaining
+//
 package console
 
 import (
