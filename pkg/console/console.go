@@ -405,7 +405,6 @@ func RenderComposedSections(sections []string) {
 	}
 }
 
-
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects
 func RenderTableAsJSON(config TableConfig) (string, error) {

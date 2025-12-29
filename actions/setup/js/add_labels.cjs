@@ -94,26 +94,32 @@ No labels were added (no valid labels found in agent output).
     return;
   }
   core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
-  await github.rest.issues.addLabels({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: itemNumber,
-    labels: uniqueLabels,
-  });
-  core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-  core.setOutput("labels_added", uniqueLabels.join("\n"));
-  const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-  await core.summary
-    .addRaw(
-      `
+  try {
+    await github.rest.issues.addLabels({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: itemNumber,
+      labels: uniqueLabels,
+    });
+    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+    core.setOutput("labels_added", uniqueLabels.join("\n"));
+    const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
 
 ${labelsListMarkdown}
 `
-    )
-    .write();
+      )
+      .write();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Failed to add labels: ${errorMessage}`);
+    core.setFailed(`Failed to add labels: ${errorMessage}`);
+  }
 }
 
 module.exports = { main };
