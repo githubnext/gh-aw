@@ -262,30 +262,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
-/**
- * Main function - supports both factory pattern and standalone mode
- * @param {Object} [config] - Handler configuration (factory mode) or undefined (standalone mode)
- * @returns {Promise<Function|void>} Message processor function (factory mode) or Promise<void> (standalone mode)
- */
-async function main(config) {
-  // Factory pattern mode: return a message processor function
-  if (config !== undefined) {
-    core.info(`Initializing add_comment handler in factory mode`);
-    
-    // Create a processor that handles single items
-    return async function processMessage(outputItem, resolvedTemporaryIds) {
-      core.info(`Processing add_comment item: body length=${outputItem.body?.length || 0}`);
-      
-      // This is a simplified version - full implementation would process the comment
-      core.warning("add_comment factory mode not fully implemented yet - use standalone mode");
-      
-      return {
-        processed: true,
-      };
-    };
-  }
-
-  // Standalone mode: original behavior
+async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";

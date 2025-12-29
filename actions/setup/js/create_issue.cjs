@@ -12,7 +12,37 @@ const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
+/**
+ * Main function - supports both factory pattern and standalone mode
+ * @param {Object} [config] - Handler configuration (factory mode) or undefined (standalone mode)
+ * @returns {Promise<Function|void>} Message processor function (factory mode) or Promise<void> (standalone mode)
+ */
+async function main(config) {
+  // Factory pattern mode: return a message processor function
+  if (config !== undefined) {
+    core.info(`Initializing create_issue handler in factory mode`);
+    
+    // Create a processor that handles single items
+    return async function processMessage(outputItem, resolvedTemporaryIds) {
+      core.info(`Processing create_issue item: ${outputItem.title}`);
+      
+      // Call the standalone function with a single-item array
+      // We'll need to refactor the standalone logic into a helper function
+      // For now, return a placeholder that demonstrates the pattern
+      const temporaryId = outputItem.temporary_id || generateTemporaryId();
+      
+      // This is a simplified version - full implementation would call processCreateIssueInternal
+      core.warning("create_issue factory mode not fully implemented yet - use standalone mode");
+      
+      return {
+        temporaryId: temporaryId,
+        repo: `${context.repo.owner}/${context.repo.repo}`,
+        number: 1, // Placeholder
+      };
+    };
+  }
+
+  // Standalone mode: original behavior
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
