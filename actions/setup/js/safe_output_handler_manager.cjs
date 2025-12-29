@@ -48,28 +48,34 @@ function loadConfig() {
 }
 
 /**
- * Load handlers for enabled safe output types
+ * Load and initialize handlers for enabled safe output types
+ * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
- * @returns {Map<string, {main: Function}>} Map of type to handler module
+ * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-function loadHandlers(config) {
-  const handlers = new Map();
+async function loadHandlers(config) {
+  const messageHandlers = new Map();
 
-  core.info("Loading safe output handlers based on configuration...");
+  core.info("Loading and initializing safe output handlers based on configuration...");
 
   for (const [type, handlerPath] of Object.entries(HANDLER_MAP)) {
     // Check if this safe output type is enabled in the config
-    // Config keys use underscores (e.g., create_issue)
-    const configKey = type;
-
-    // Check if handler is enabled (config entry exists)
     // The presence of the config key indicates the handler should be loaded
-    if (config[configKey]) {
+    if (config[type]) {
       try {
-        const handler = require(handlerPath);
-        if (handler && typeof handler.main === "function") {
-          handlers.set(type, handler);
-          core.info(`✓ Loaded handler for: ${type}`);
+        const handlerModule = require(handlerPath);
+        if (handlerModule && typeof handlerModule.main === "function") {
+          // Call the factory function with config to get the message handler
+          const handlerConfig = config[type] || {};
+          const messageHandler = await handlerModule.main(handlerConfig);
+          
+          if (typeof messageHandler !== "function") {
+            core.warning(`Handler ${type} main() did not return a function`);
+            continue;
+          }
+          
+          messageHandlers.set(type, messageHandler);
+          core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
           core.warning(`Handler module ${type} does not export a main function`);
         }
@@ -81,20 +87,19 @@ function loadHandlers(config) {
     }
   }
 
-  core.info(`Loaded ${handlers.size} handler(s)`);
-  return handlers;
+  core.info(`Loaded ${messageHandlers.size} handler(s)`);
+  return messageHandlers;
 }
 
 /**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  *
- * @param {Map<string, {main: Function}>} handlers - Map of loaded handlers
- * @param {Object} config - Safe outputs configuration
+ * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map}>}
  */
-async function processMessages(handlers, config, messages) {
+async function processMessages(messageHandlers, messages) {
   const results = [];
 
   // Initialize shared temporary ID map
@@ -114,9 +119,9 @@ async function processMessages(handlers, config, messages) {
       continue;
     }
 
-    const handler = handlers.get(messageType);
+    const messageHandler = messageHandlers.get(messageType);
 
-    if (!handler) {
+    if (!messageHandler) {
       core.debug(`No handler for type: ${messageType} (message ${i + 1})`);
       continue;
     }
@@ -124,14 +129,20 @@ async function processMessages(handlers, config, messages) {
     try {
       core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
 
-      // Get handler-specific config
-      const handlerConfig = config[messageType] || {};
-      core.debug(`Config for ${messageType}: ${JSON.stringify(handlerConfig)}`);
+      // Convert Map to plain object for handler
+      const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
 
-      // Call the handler's main function with its configuration
-      // The handler will access agent output internally via loadAgentOutput()
-      // and will populate/use the temporaryIdMap as needed
-      const result = await handler.main(handlerConfig);
+      // Call the message handler with the individual message and resolved temp IDs
+      const result = await messageHandler(message, resolvedTemporaryIds);
+
+      // If handler returned a temp ID mapping, add it to our map
+      if (result && result.temporaryId && result.repo && result.number) {
+        temporaryIdMap.set(result.temporaryId, {
+          repo: result.repo,
+          number: result.number,
+        });
+        core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
+      }
 
       results.push({
         type: messageType,
@@ -185,38 +196,35 @@ async function main() {
 
     core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
 
-    // Load handlers based on configuration
-    const handlers = loadHandlers(config);
+    // Load and initialize handlers based on configuration (factory pattern)
+    const messageHandlers = await loadHandlers(config);
 
-    if (handlers.size === 0) {
-      core.info("No handlers enabled in configuration");
+    if (messageHandlers.size === 0) {
+      core.info("No handlers loaded - nothing to process");
       return;
     }
 
-    // Process all messages with loaded handlers
-    const result = await processMessages(handlers, config, agentOutput.items);
+    // Process all messages in order of appearance
+    const processingResult = await processMessages(messageHandlers, agentOutput.items);
 
     // Log summary
-    core.info("=== Processing Summary ===");
-    core.info(`Total handlers invoked: ${result.results.length}`);
-    core.info(`Successful: ${result.results.filter(r => r.success).length}`);
-    core.info(`Failed: ${result.results.filter(r => !r.success).length}`);
+    const successCount = processingResult.results.filter((r) => r.success).length;
+    const failureCount = processingResult.results.filter((r) => !r.success).length;
 
-    // Set outputs for downstream steps
-    core.setOutput("temporary_id_map", JSON.stringify(result.temporaryIdMap));
-    core.setOutput("processed_count", result.results.length);
+    core.info(`\n=== Processing Summary ===`);
+    core.info(`Total messages: ${processingResult.results.length}`);
+    core.info(`Successful: ${successCount}`);
+    core.info(`Failed: ${failureCount}`);
+    core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
 
-    core.info("Safe Output Handler Manager completed successfully");
+    if (failureCount > 0) {
+      core.warning(`${failureCount} message(s) failed to process`);
+    }
+
+    core.info("Safe Output Handler Manager completed");
   } catch (error) {
-    const errorMsg = getErrorMessage(error);
-    core.error(`Handler manager failed: ${errorMsg}`);
-    core.setFailed(errorMsg);
+    core.setFailed(`Handler manager failed: ${getErrorMessage(error)}`);
   }
 }
 
-module.exports = {
-  main,
-  loadConfig,
-  loadHandlers,
-  processMessages,
-};
+module.exports = { main };
