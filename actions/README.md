@@ -23,18 +23,6 @@ Copies workflow script files to the agent environment. This action embeds all ne
 
 [Documentation](./setup/README.md)
 
-### setup-safe-outputs
-
-Copies safe-outputs MCP server files to the agent environment. This action embeds all necessary JavaScript files for the safe-outputs MCP server and copies them to a specified destination directory.
-
-[Documentation](./setup-safe-outputs/README.md)
-
-### setup-safe-inputs
-
-Copies safe-inputs MCP server files to the agent environment. This action embeds all necessary JavaScript files for the safe-inputs MCP server and copies them to a specified destination directory.
-
-[Documentation](./setup-safe-inputs/README.md)
-
 ### noop
 
 Processes noop safe output - a fallback output type that logs messages for transparency without taking any GitHub API actions.
@@ -264,7 +252,7 @@ Test actions locally by:
 1. Creating a test workflow in `.github/workflows/`
 2. Using the action with a local path:
    ```yaml
-   - uses: ./actions/setup-safe-outputs
+   - uses: ./actions/setup
      with:
        destination: /tmp/test
    ```
