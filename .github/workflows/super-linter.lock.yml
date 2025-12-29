@@ -1470,6 +1470,8 @@ jobs:
           ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOG_FILE: super-linter.log
+          VALIDATE_ALL_CODEBASE: "false"
+          VALIDATE_MARKDOWN: "true"
       - name: Check for linting issues
         id: check-results
         run: |

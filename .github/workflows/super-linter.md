@@ -44,6 +44,10 @@ jobs:
           LOG_FILE: super-linter.log
           DEFAULT_BRANCH: main
           ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
+          # Only validate Markdown - other linters (Go, JS, YAML, Shell) run in CI
+          VALIDATE_MARKDOWN: "true"
+          # Disable all other linters to improve performance
+          VALIDATE_ALL_CODEBASE: "false"
       
       - name: Check for linting issues
         id: check-results
