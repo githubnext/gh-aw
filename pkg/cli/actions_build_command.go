@@ -320,30 +320,5 @@ func getActionDependencies(actionName string) []string {
 		return workflow.GetAllScriptFilenames()
 	}
 
-	// Static dependencies for other actions
-	dependencyMap := map[string][]string{
-		"noop": {
-			"load_agent_output.cjs",
-		},
-		"minimize_comment": {
-			"load_agent_output.cjs",
-		},
-		"close_issue": {
-			"close_entity_helpers.cjs",
-		},
-		"close_pull_request": {
-			"close_entity_helpers.cjs",
-		},
-		"close_discussion": {
-			"generate_footer.cjs",
-			"get_repository_url.cjs",
-			"get_tracker_id.cjs",
-			"load_agent_output.cjs",
-		},
-	}
-
-	if deps, ok := dependencyMap[actionName]; ok {
-		return deps
-	}
 	return []string{}
 }
