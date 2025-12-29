@@ -983,7 +983,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 
 	// Convert back to YAML
 	stepsWrapper["steps"] = filteredSteps
-	
+
 	// Restore version comments to steps that have them
 	// This must be done before marshaling
 	for i, step := range filteredSteps {
@@ -999,7 +999,7 @@ func DeduplicateRuntimeSetupStepsFromCustomSteps(customSteps string, runtimeRequ
 			}
 		}
 	}
-	
+
 	deduplicatedYAML, err := yaml.Marshal(stepsWrapper)
 	if err != nil {
 		return customSteps, runtimeRequirements, fmt.Errorf("failed to marshal deduplicated workflow steps to YAML. Step deduplication removes duplicate runtime setup actions (like actions/setup-node) from custom steps to avoid conflicts when automatic runtime detection adds them. This optimization ensures runtime setup steps appear before custom steps. Error: %w", err)

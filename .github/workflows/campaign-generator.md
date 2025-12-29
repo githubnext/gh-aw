@@ -12,7 +12,7 @@ engine: copilot
 tools:
   github:
     toolsets: [default]
-if: startsWith(github.event.issue.title, '[Campaign]')
+if: startsWith(github.event.issue.title, '[Campaign]') || startsWith(github.event.issue.title, '[Agentic Campaign]')
 safe-outputs:
   update-issue:
     status:
