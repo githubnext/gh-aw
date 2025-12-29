@@ -94,12 +94,14 @@ Create a custom actions system that:
 ┌─────────────────────────────────────────────────────────┐
 │                    actions/ Directory                    │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │  setup-safe-inputs/    setup-safe-outputs/         │ │
-│  │  ├── action.yml        ├── action.yml              │ │
-│  │  ├── index.js          ├── index.js                │ │
-│  │  ├── src/              ├── src/                    │ │
-│  │  │   └── index.js      │   └── index.js            │ │
-│  │  └── README.md         └── README.md               │ │
+│  │  setup/                                            │ │
+│  │  ├── action.yml                                    │ │
+│  │  ├── setup.sh                                      │ │
+│  │  ├── js/                                           │ │
+│  │  │   └── *.cjs (copied from pkg/workflow/js/)    │ │
+│  │  ├── sh/                                           │ │
+│  │  │   └── *.sh (source of truth)                   │ │
+│  │  └── README.md                                     │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```text
@@ -149,18 +151,36 @@ gh-aw/
 │   │   ├── sh/                      # Shell scripts (SOURCE OF TRUTH)
 │   │   │   └── *.sh                 # Manually edited shell scripts
 │   │   └── README.md                # Action-specific docs
-│   ├── setup-safe-inputs/           # Safe inputs MCP server setup
+│   ├── noop/                         # Noop safe output action
 │   │   ├── action.yml               # Action metadata
 │   │   ├── index.js                 # Bundled output (committed)
 │   │   ├── src/                     # Source files
 │   │   │   └── index.js             # Source that references FILES constant
 │   │   └── README.md                # Action-specific docs
-│   └── setup-safe-outputs/          # Safe outputs MCP server setup
-│       ├── action.yml               # Action metadata
-│       ├── index.js                 # Bundled output (committed)
-│       ├── src/                     # Source files
-│       │   └── index.js             # Source that references FILES constant
-│       └── README.md                # Action-specific docs
+│   ├── minimize_comment/             # Minimize comment action
+│   │   ├── action.yml               # Action metadata
+│   │   ├── index.js                 # Bundled output (committed)
+│   │   ├── src/                     # Source files
+│   │   │   └── index.js             # Source that references FILES constant
+│   │   └── README.md                # Action-specific docs
+│   ├── close_issue/                  # Close issue action
+│   │   ├── action.yml               # Action metadata
+│   │   ├── index.js                 # Bundled output (committed)
+│   │   ├── src/                     # Source files
+│   │   │   └── index.js             # Source that references FILES constant
+│   │   └── README.md                # Action-specific docs
+│   ├── close_pull_request/           # Close pull request action
+│   │   ├── action.yml               # Action metadata
+│   │   ├── index.js                 # Bundled output (committed)
+│   │   ├── src/                     # Source files
+│   │   │   └── index.js             # Source that references FILES constant
+│   │   └── README.md                # Action-specific docs
+│   ├── close_discussion/             # Close discussion action
+│   │   ├── action.yml               # Action metadata
+│   │   ├── index.js                 # Bundled output (committed)
+│   │   ├── src/                     # Source files
+│   │   │   └── index.js             # Source that references FILES constant
+│   │   └── README.md                # Action-specific docs
 ├── pkg/
 │   ├── cli/
 │   │   └── actions_build_command.go # Build system implementation
@@ -319,25 +339,31 @@ Currently uses manual mapping in `getActionDependencies()`:
 
 ```go
 func getActionDependencies(actionName string) []string {
+    // For setup, use the dynamic script discovery
+    // This ensures all .cjs files are included automatically
+    if actionName == "setup" {
+        return workflow.GetAllScriptFilenames()
+    }
+
+    // Static dependencies for other actions
     dependencyMap := map[string][]string{
-        "setup-safe-outputs": {
-            "safe_outputs_mcp_server.cjs",
-            "safe_outputs_bootstrap.cjs",
-            "safe_outputs_tools_loader.cjs",
-            "safe_outputs_config.cjs",
-            "safe_outputs_handlers.cjs",
-            "mcp_server_core.cjs",
-            "mcp_logger.cjs",
-            "messages.cjs",
+        "noop": {
+            "load_agent_output.cjs",
         },
-        "setup-safe-inputs": {
-            "safe_inputs_mcp_server.cjs",
-            "safe_inputs_bootstrap.cjs",
-            "safe_inputs_config_loader.cjs",
-            "safe_inputs_tool_factory.cjs",
-            "safe_inputs_validation.cjs",
-            "mcp_server_core.cjs",
-            "mcp_logger.cjs",
+        "minimize_comment": {
+            "load_agent_output.cjs",
+        },
+        "close_issue": {
+            "close_entity_helpers.cjs",
+        },
+        "close_pull_request": {
+            "close_entity_helpers.cjs",
+        },
+        "close_discussion": {
+            "generate_footer.cjs",
+            "get_repository_url.cjs",
+            "get_tracker_id.cjs",
+            "load_agent_output.cjs",
         },
     }
     
@@ -449,15 +475,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Safe Inputs
-        uses: ./actions/setup-safe-inputs
+      - name: Setup Workflow Scripts
+        uses: ./actions/setup
         with:
-          destination: /tmp/safe-inputs
-      
-      - name: Setup Safe Outputs
-        uses: ./actions/setup-safe-outputs
-        with:
-          destination: /tmp/safe-outputs
+          destination: /tmp/scripts
 ```text
 
 ### Creating a New Action
@@ -727,7 +748,7 @@ The custom GitHub Actions build system provides a foundation for migrating from 
 ✅ **Go-based build system** reusing workflow bundler infrastructure  
 ✅ **Makefile integration** for action management
 ✅ **CI validation** ensuring actions stay buildable
-✅ **Two initial actions** (setup-safe-inputs, setup-safe-outputs)
+✅ **Multiple custom actions** (setup, noop, minimize_comment, close_issue, close_pull_request, close_discussion)
 ✅ **Comprehensive documentation** for future development
 
 The system is production-ready and extensible, with clear paths for enhancement and migration of existing inline scripts.
