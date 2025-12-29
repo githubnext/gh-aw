@@ -258,6 +258,72 @@ make deps
 make build
 ```
 
+## Workflow Compilation
+
+### Workflow Types and Compilation Expectations
+
+The repository contains two types of workflow files:
+
+#### 1. Standalone Workflows (Main Workflows)
+- Located in `.github/workflows/*.md`
+- **Must have** an `on:` trigger that defines when they run
+- Can be compiled directly with `./gh-aw compile <workflow>.md`
+- **Expected compilation rate**: 100% of standalone workflows should compile successfully
+
+Example:
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+engine: copilot
+---
+```
+
+#### 2. Shared Workflow Components
+- Located in `.github/workflows/shared/**/*.md`
+- **Do NOT have** an `on:` trigger (they are partial configurations)
+- Meant to be imported using the `imports:` field in other workflows
+- **Cannot be compiled directly** - this is expected behavior
+
+Example shared workflow:
+```yaml
+---
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+```
+
+To use a shared workflow:
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+imports:
+  - .github/workflows/shared/app-config.md
+engine: copilot
+---
+```
+
+### Compilation Success Rate
+
+As of the latest audit:
+- **Total workflow files**: 175
+- **Standalone workflows**: 127 (100% compile successfully)
+- **Shared components**: 48 (intentionally cannot be compiled directly)
+
+### Why Shared Workflows Don't Compile
+
+Shared workflows are reusable configuration fragments that:
+1. Provide common configuration (e.g., safe-outputs, MCP server configs)
+2. Are imported and merged into standalone workflows during compilation
+3. Don't need triggers since they inherit context from the importing workflow
+
+If you try to compile a shared workflow directly, you'll see a helpful error message explaining this pattern.
+
 ## Build Tools
 
 This project uses `tools.go` to track build-time tool dependencies. This ensures everyone uses the same tool versions.

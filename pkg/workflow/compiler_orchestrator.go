@@ -60,6 +60,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Validate main workflow frontmatter contains only expected entries
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		// Check if this is a shared workflow component (missing 'on' trigger)
+		// Provide a more helpful error message for this common case
+		if strings.Contains(err.Error(), "missing property 'on'") {
+			isSharedWorkflow := strings.Contains(cleanPath, "/shared/")
+
+			if isSharedWorkflow {
+				return nil, fmt.Errorf("%w\n\nℹ️  This appears to be a shared workflow component in the 'shared/' directory.\nShared workflows are reusable components meant to be imported by other workflows using the 'imports:' field.\nThey should not be compiled directly.\n\nTo use this shared workflow:\n1. Import it in another workflow with: imports: [%s]\n2. Compile the workflow that imports it instead", err, cleanPath)
+			}
+
+			// Not in shared/ directory but still missing 'on'
+			return nil, fmt.Errorf("%w\n\nℹ️  Main workflows require an 'on:' trigger to define when they should run.\n\nExample:\n  on:\n    issues:\n      types: [opened]\n\nIf this is a reusable component, consider moving it to a 'shared/' directory and importing it in other workflows.", err)
+		}
 		return nil, err
 	}
 
