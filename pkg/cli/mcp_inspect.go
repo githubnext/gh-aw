@@ -534,7 +534,10 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	// Wait for the server to start up
 	if !waitForServerReady(port, 5*time.Second, verbose) {
 		if serverCmd.Process != nil {
-			_ = serverCmd.Process.Kill()
+			// Kill the process and log warning if it fails
+			if err := serverCmd.Process.Kill(); err != nil && verbose {
+				mcpInspectLog.Printf("Warning: failed to kill server process %d: %v", serverCmd.Process.Pid, err)
+			}
 		}
 		if err := os.RemoveAll(tmpDir); err != nil && verbose {
 			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
