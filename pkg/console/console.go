@@ -338,6 +338,74 @@ func FormatErrorWithSuggestions(message string, suggestions []string) string {
 	return output.String()
 }
 
+// RenderTitleBox renders a title with a double border box in TTY mode,
+// or plain text with separator lines in non-TTY mode.
+// The box will be centered and styled with the Info color scheme.
+// Returns a slice of strings ready to be added to sections.
+func RenderTitleBox(title string, width int) []string {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss styled box - returns as single string
+		box := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(styles.ColorInfo).
+			Border(lipgloss.DoubleBorder(), true, false).
+			Padding(0, 2).
+			Width(width).
+			Align(lipgloss.Center).
+			Render(title)
+		return []string{box}
+	}
+
+	// Non-TTY mode: Plain text with separators - returns as separate lines
+	separator := strings.Repeat("━", width)
+	return []string{separator, "  " + title, separator}
+}
+
+// RenderInfoSection renders an info section with left border emphasis in TTY mode,
+// or plain text with manual indentation in non-TTY mode.
+// Returns a slice of strings ready to be added to sections.
+func RenderInfoSection(content string) []string {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss styled section with left border
+		section := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, true).
+			BorderForeground(styles.ColorInfo).
+			PaddingLeft(2).
+			Render(content)
+		return []string{section}
+	}
+
+	// Non-TTY mode: Add manual indentation
+	lines := strings.Split(content, "\n")
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		result[i] = "  " + line
+	}
+	return result
+}
+
+// RenderComposedSections composes and outputs a slice of sections to stderr.
+// In TTY mode, uses lipgloss.JoinVertical for proper composition.
+// In non-TTY mode, outputs each section as a separate line.
+// Adds blank lines before and after the output.
+func RenderComposedSections(sections []string) {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss to compose sections vertically
+		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, plan)
+		fmt.Fprintln(os.Stderr, "")
+	} else {
+		// Non-TTY mode: Output sections directly
+		fmt.Fprintln(os.Stderr, "")
+		for _, section := range sections {
+			fmt.Fprintln(os.Stderr, section)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+}
+
+
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects
 func RenderTableAsJSON(config TableConfig) (string, error) {
