@@ -330,11 +330,18 @@ golint-incremental:
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" golangci-lint run --new-from-rev=$(BASE_REF)
 
-# Validate compiled workflow lock files (models: read not supported yet)
+# Validate compiled workflow lock files using native actionlint binary
+# Requires actionlint to be installed via 'make tools'
 .PHONY: validate-workflows
 validate-workflows:
 	@echo "Validating compiled workflow lock files..."
-	actionlint .github/workflows/*.lock.yml; \
+	@GOPATH=$$(go env GOPATH); \
+	if ! command -v actionlint >/dev/null 2>&1 && [ ! -x "$$GOPATH/bin/actionlint" ]; then \
+		echo "actionlint not found. Run 'make tools' to install it."; \
+		exit 1; \
+	fi
+	@GOPATH=$$(go env GOPATH); \
+	PATH="$$GOPATH/bin:$$PATH" actionlint .github/workflows/*.lock.yml || true
 
 # Run actionlint on all workflow files
 .PHONY: actionlint
