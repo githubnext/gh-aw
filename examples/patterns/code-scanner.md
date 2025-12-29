@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -31,7 +31,6 @@ safe-outputs:
   create-issue:
     max: 5
   create-pull-request:
-    max: 1
 timeout-minutes: 30
 strict: true
 ---

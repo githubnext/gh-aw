@@ -9,14 +9,14 @@ on:
     types: [opened]
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
 tools:
   github:
     mode: remote
     toolsets: [issues]
 safe-outputs:
-  create-comment:
+  add-comment:
     # TODO: Customize max comments if needed
     max: 1
   add-labels:
@@ -147,10 +147,10 @@ Here are some resources that might help:
 1. **Get issue details**:
    ```markdown
    Use `issue_read` with method `get` to retrieve:
-   - Issue number: ${{ github.event.issue.number }}
-   - Issue title: ${{ github.event.issue.title }}
-   - Issue body: ${{ github.event.issue.body }}
-   - Author: ${{ github.event.issue.user.login }}
+   - Issue number
+   - Issue title
+   - Issue body
+   - Author username
    ```
 
 2. **Check contributor status**:

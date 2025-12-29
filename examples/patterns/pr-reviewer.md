@@ -9,7 +9,7 @@ on:
     types: [opened, synchronize, reopened]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 engine: copilot
 tools:
   github:

@@ -11,8 +11,8 @@ on:
     types: [opened, edited, synchronize]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

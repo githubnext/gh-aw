@@ -8,7 +8,7 @@ on:
   issues:
     types: [opened, closed]
   pull_request:
-    types: [opened, merged]
+    types: [opened, closed]
   discussion:
     types: [created]
   # TODO: Add other triggers as needed
@@ -31,9 +31,8 @@ tools:
   bash:
     - "curl *"
     - "jq *"
-safe-outputs:
-  # Usually no GitHub safe-outputs needed for integrations
-  # Integration happens via external APIs
+# Note: Integration bots typically don't use GitHub safe-outputs
+# as they integrate with external APIs via network calls
 timeout-minutes: 10
 strict: true
 ---
@@ -140,23 +139,24 @@ Call custom webhook endpoints:
 
 ```bash
 # Extract relevant data from GitHub event
-EVENT_TYPE="${{ github.event_name }}"
-REPOSITORY="${{ github.repository }}"
+# Use GitHub tools to get event details
+EVENT_TYPE="(issues, pull_request, etc.)"
+REPOSITORY="(repository name)"
 
 # TODO: Extract data based on event type
 if [ "$EVENT_TYPE" = "issues" ]; then
-  ISSUE_NUMBER="${{ github.event.issue.number }}"
-  ISSUE_TITLE="${{ github.event.issue.title }}"
-  ISSUE_URL="${{ github.event.issue.html_url }}"
-  ISSUE_STATE="${{ github.event.issue.state }}"
-  AUTHOR="${{ github.event.issue.user.login }}"
+  ISSUE_NUMBER="(issue number)"
+  ISSUE_TITLE="(issue title)"
+  ISSUE_URL="(issue URL)"
+  ISSUE_STATE="(open/closed)"
+  AUTHOR="(author username)"
   
 elif [ "$EVENT_TYPE" = "pull_request" ]; then
-  PR_NUMBER="${{ github.event.pull_request.number }}"
-  PR_TITLE="${{ github.event.pull_request.title }}"
-  PR_URL="${{ github.event.pull_request.html_url }}"
-  PR_STATE="${{ github.event.pull_request.state }}"
-  AUTHOR="${{ github.event.pull_request.user.login }}"
+  PR_NUMBER="(PR number)"
+  PR_TITLE="(PR title)"
+  PR_URL="(PR URL)"
+  PR_STATE="(open/closed)"
+  AUTHOR="(author username)"
 fi
 ```
 
@@ -444,7 +444,7 @@ network:
 # - API_KEY
 
 # Access in workflow:
-SLACK_WEBHOOK="${{ secrets.SLACK_WEBHOOK_URL }}"
+SLACK_WEBHOOK="(from secrets)"
 ```
 
 ### Add Rate Limiting

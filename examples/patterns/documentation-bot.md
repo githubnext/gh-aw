@@ -18,8 +18,8 @@ on:
       - "cmd/**"
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -31,7 +31,6 @@ tools:
     - "find *"
 safe-outputs:
   create-pull-request:
-    max: 1
 timeout-minutes: 30
 strict: true
 ---

@@ -16,8 +16,8 @@ on:
 permissions:
   contents: read
   actions: read
-  pull-requests: write
-  issues: write
+  pull-requests: read
+  issues: read
 engine: copilot
 tools:
   agentic-workflows:
@@ -98,11 +98,10 @@ Generate periodic reports on CI health:
 
 ```bash
 # Get the completed workflow run details
-WORKFLOW_RUN_ID=${{ github.event.workflow_run.id }}
-CONCLUSION=${{ github.event.workflow_run.conclusion }}
+# Use workflow run ID and conclusion from GitHub MCP tools
 
 # Fetch detailed run information
-gh run view $WORKFLOW_RUN_ID --json jobs,conclusion,url,headSha,createdAt
+gh run view WORKFLOW_RUN_ID --json jobs,conclusion,url,headSha,createdAt
 ```
 
 ### Step 2: Analyze Failure (if failed)
@@ -129,11 +128,11 @@ fi
 
 ```bash
 # Find related PR for the commit
-HEAD_SHA=${{ github.event.workflow_run.head_sha }}
+# Get HEAD_SHA from workflow run details
 
 # Search for PR
-gh pr list --repo ${{ github.repository }} \
-  --search "sha:$HEAD_SHA" \
+gh pr list --repo REPOSITORY \
+  --search "sha:HEAD_SHA" \
   --json number,title,url
 
 # If PR found, analyze the changes
@@ -217,13 +216,13 @@ with open('/tmp/root-cause.json', 'w') as f:
 
 ## 🔴 CI Failure Alert
 
-Workflow **[${{ github.event.workflow_run.name }}](${{ github.event.workflow_run.html_url }})** failed.
+Workflow failed.
 
 ### Details
-- **Run**: #${{ github.event.workflow_run.run_number }}
-- **Commit**: ${{ github.event.workflow_run.head_sha }}
-- **Branch**: ${{ github.event.workflow_run.head_branch }}
-- **Conclusion**: ${{ github.event.workflow_run.conclusion }}
+- **Run**: (run number)
+- **Commit**: (commit SHA)
+- **Branch**: (branch name)
+- **Conclusion**: (failure/cancelled/timed_out)
 - **Duration**: [duration]
 
 ### Root Cause Analysis
@@ -266,10 +265,10 @@ The failure appears to be caused by changes in [specific file/function].
 [commands to reproduce the failure]
 
 # View full logs
-gh run view ${{ github.event.workflow_run.id }} --log
+gh run view WORKFLOW_RUN_ID --log
 
 # Re-run the workflow
-gh run rerun ${{ github.event.workflow_run.id }}
+gh run rerun WORKFLOW_RUN_ID
 ```
 
 ---
@@ -449,7 +448,7 @@ The error is in line 42 of the recently modified file. The new `CreateUser` func
 ### Reproduce Locally
 
 ```bash
-git checkout ${{ github.event.workflow_run.head_branch }}
+git checkout BRANCH_NAME
 go build ./...
 ```
 
