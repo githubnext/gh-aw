@@ -153,8 +153,13 @@ security-trivy:
 test-js: build-js
 	cd actions/setup/js && npm run test:js -- --no-file-parallelism
 
+# Install JavaScript dependencies
+.PHONY: deps-js
+deps-js: check-node-version
+	cd actions/setup/js && npm ci
+
 .PHONY: build-js
-build-js:
+build-js: deps-js
 	cd actions/setup/js && npm run typecheck
 
 # Bundle JavaScript files with local requires
