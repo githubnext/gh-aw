@@ -384,6 +384,27 @@ func RenderInfoSection(content string) []string {
 	return result
 }
 
+// RenderComposedSections composes and outputs a slice of sections to stderr.
+// In TTY mode, uses lipgloss.JoinVertical for proper composition.
+// In non-TTY mode, outputs each section as a separate line.
+// Adds blank lines before and after the output.
+func RenderComposedSections(sections []string) {
+	if tty.IsStderrTerminal() {
+		// TTY mode: Use Lipgloss to compose sections vertically
+		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, plan)
+		fmt.Fprintln(os.Stderr, "")
+	} else {
+		// Non-TTY mode: Output sections directly
+		fmt.Fprintln(os.Stderr, "")
+		for _, section := range sections {
+			fmt.Fprintln(os.Stderr, section)
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+}
+
 
 // RenderTableAsJSON renders a table configuration as JSON
 // This converts the table structure to a JSON array of objects

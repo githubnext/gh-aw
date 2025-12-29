@@ -10,13 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/repoutil"
-	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -626,20 +624,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 
 	sections = append(sections, "")
 
-	// Compose all sections
-	if tty.IsStderrTerminal() {
-		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, plan)
-		fmt.Fprintln(os.Stderr, "")
-	} else {
-		// Non-TTY: output sections directly
-		fmt.Fprintln(os.Stderr, "")
-		for _, section := range sections {
-			fmt.Fprintln(os.Stderr, section)
-		}
-		fmt.Fprintln(os.Stderr, "")
-	}
+	// Compose and output all sections
+	console.RenderComposedSections(sections)
 
 	// Add "Execution Steps" section separator
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
