@@ -13,8 +13,8 @@ func TestScriptRegistry_Register(t *testing.T) {
 
 	registry.Register("test_script", "console.log('hello');")
 
-	assert.True(t, registry.Has("test_script"))
-	assert.False(t, registry.Has("nonexistent"))
+	assert.True(t, registry.Has("test_script"), "registry should have test_script after registration")
+	assert.False(t, registry.Has("nonexistent"), "registry should not have nonexistent script")
 }
 
 func TestScriptRegistry_Get_NotFound(t *testing.T) {
@@ -150,12 +150,12 @@ func TestDefaultScriptRegistry_GetScript(t *testing.T) {
 func TestScriptRegistry_Has(t *testing.T) {
 	registry := NewScriptRegistry()
 
-	assert.False(t, registry.Has("missing"))
+	assert.False(t, registry.Has("missing"), "registry should not have missing script")
 
 	registry.Register("present", "code")
 
-	assert.True(t, registry.Has("present"))
-	assert.False(t, registry.Has("still_missing"))
+	assert.True(t, registry.Has("present"), "registry should have present script after registration")
+	assert.False(t, registry.Has("still_missing"), "registry should not have still_missing script")
 }
 
 func TestScriptRegistry_RegisterWithMode(t *testing.T) {

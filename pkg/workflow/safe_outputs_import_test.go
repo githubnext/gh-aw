@@ -689,7 +689,7 @@ This workflow uses the imported meta configuration.
 
 	// Verify imported meta fields
 	assert.Equal(t, []string{"example.com", "api.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
-	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported and true")
+	assert.Equal(t, true, workflowData.SafeOutputs.Staged, "Staged should be imported and set to true")
 	assert.Equal(t, map[string]string{"TEST_VAR": "test_value"}, workflowData.SafeOutputs.Env, "Env should be imported")
 	assert.Equal(t, "${{ secrets.CUSTOM_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
 	// Note: When main workflow has safe-outputs section, extractSafeOutputsConfig sets MaximumPatchSize default (1024)
@@ -835,7 +835,7 @@ This workflow uses only imported safe-outputs configuration.
 	assert.Equal(t, []string{"import.example.com"}, workflowData.SafeOutputs.AllowedDomains, "AllowedDomains should be imported")
 	assert.Equal(t, "${{ secrets.IMPORT_TOKEN }}", workflowData.SafeOutputs.GitHubToken, "GitHubToken should be imported")
 	assert.Equal(t, 4096, workflowData.SafeOutputs.MaximumPatchSize, "MaximumPatchSize should be imported")
-	assert.True(t, workflowData.SafeOutputs.Staged, "Staged should be imported")
+	assert.Equal(t, true, workflowData.SafeOutputs.Staged, "Staged should be imported and set to true")
 	assert.Equal(t, "ubuntu-22.04", workflowData.SafeOutputs.RunsOn, "RunsOn should be imported")
 }
 
