@@ -44,7 +44,17 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
           (process.env.GITHUB_SERVER_URL = "https://github.com"),
           mockGithub.graphql
-            .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }, url: "https://github.com/testowner/testrepo/discussions/42" } } })
+            .mockResolvedValueOnce({
+              repository: {
+                discussion: {
+                  id: "D_kwDOABCDEF01",
+                  title: "Test Discussion",
+                  category: { name: "General" },
+                  labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+                  url: "https://github.com/testowner/testrepo/discussions/42",
+                },
+              },
+            })
             .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABCDEF02", url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-123" } } })
             .mockResolvedValueOnce({ closeDiscussion: { discussion: { id: "D_kwDOABCDEF01", url: "https://github.com/testowner/testrepo/discussions/42" } } }),
           await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
@@ -72,7 +82,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS = "resolved,completed"),
           mockGithub.graphql.mockResolvedValueOnce({
-            repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [{ name: "question" }], pageInfo: { hasNextPage: false, endCursor: null } }, url: "https://github.com/testowner/testrepo/discussions/42" } },
+            repository: {
+              discussion: {
+                id: "D_kwDOABCDEF01",
+                title: "Test Discussion",
+                category: { name: "General" },
+                labels: { nodes: [{ name: "question" }], pageInfo: { hasNextPage: false, endCursor: null } },
+                url: "https://github.com/testowner/testrepo/discussions/42",
+              },
+            },
           }),
           await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 does not have required labels: resolved, completed"),
@@ -83,7 +101,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX = "[task]"),
           mockGithub.graphql.mockResolvedValueOnce({
-            repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }, url: "https://github.com/testowner/testrepo/discussions/42" } },
+            repository: {
+              discussion: {
+                id: "D_kwDOABCDEF01",
+                title: "Test Discussion",
+                category: { name: "General" },
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+                url: "https://github.com/testowner/testrepo/discussions/42",
+              },
+            },
           }),
           await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 does not have required title prefix: [task]"),
@@ -94,7 +120,15 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (setAgentOutput(validatedOutput),
           (process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY = "Announcements"),
           mockGithub.graphql.mockResolvedValueOnce({
-            repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }, url: "https://github.com/testowner/testrepo/discussions/42" } },
+            repository: {
+              discussion: {
+                id: "D_kwDOABCDEF01",
+                title: "Test Discussion",
+                category: { name: "General" },
+                labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+                url: "https://github.com/testowner/testrepo/discussions/42",
+              },
+            },
           }),
           await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Discussion #42 is not in required category: Announcements"),
@@ -106,7 +140,17 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           (process.env.GH_AW_CLOSE_DISCUSSION_TARGET = "*"),
           (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"),
           mockGithub.graphql
-            .mockResolvedValueOnce({ repository: { discussion: { id: "D_kwDOABCDEF01", title: "Test Discussion", category: { name: "General" }, labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }, url: "https://github.com/testowner/testrepo/discussions/99" } } })
+            .mockResolvedValueOnce({
+              repository: {
+                discussion: {
+                  id: "D_kwDOABCDEF01",
+                  title: "Test Discussion",
+                  category: { name: "General" },
+                  labels: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+                  url: "https://github.com/testowner/testrepo/discussions/99",
+                },
+              },
+            })
             .mockResolvedValueOnce({ addDiscussionComment: { comment: { id: "DC_kwDOABCDEF02", url: "https://github.com/testowner/testrepo/discussions/99#discussioncomment-123" } } })
             .mockResolvedValueOnce({ closeDiscussion: { discussion: { id: "D_kwDOABCDEF01", url: "https://github.com/testowner/testrepo/discussions/99" } } }),
           await eval(`(async () => { ${closeDiscussionScript}; await main(); })()`),
