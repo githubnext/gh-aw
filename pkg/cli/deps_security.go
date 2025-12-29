@@ -10,11 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/styles"
-	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var depsSecurityLog = logger.New("cli:deps_security")
@@ -94,18 +91,10 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 		return
 	}
 
-	// Display header with bordered box in TTY mode, plain text otherwise
-	if tty.IsStderrTerminal() {
-		advisoryBox := lipgloss.NewStyle().
-			Border(lipgloss.ThickBorder()).
-			BorderForeground(styles.ColorError).
-			Padding(1, 2).
-			Bold(true).
-			Render("🔴 SECURITY ADVISORIES")
-		fmt.Fprintln(os.Stderr, advisoryBox)
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security Advisories"))
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("==================="))
+	// Display header with bordered box using console helper
+	errorBox := console.RenderErrorBox("🔴 SECURITY ADVISORIES")
+	for _, line := range errorBox {
+		fmt.Fprintln(os.Stderr, line)
 	}
 	fmt.Fprintln(os.Stderr, "")
 
