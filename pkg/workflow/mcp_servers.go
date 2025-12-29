@@ -511,6 +511,15 @@ func getGitHubLockdown(githubTool any) bool {
 	return false // default to lockdown disabled
 }
 
+// hasGitHubLockdownExplicitlySet checks if lockdown field is explicitly set in GitHub tool config
+func hasGitHubLockdownExplicitlySet(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		_, exists := toolConfig["lockdown"]
+		return exists
+	}
+	return false
+}
+
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
 // Expands "default" to individual toolsets for action-friendly compatibility
 func getGitHubToolsets(githubTool any) string {
@@ -728,4 +737,33 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 
 	// Split back into individual arguments
 	return strings.Split(replaced, "\n")
+}
+
+// generateGitHubMCPLockdownDetectionStep generates a step to detect repository visibility
+// and set the lockdown mode accordingly. This step is only added when:
+// - GitHub tool is enabled AND
+// - lockdown field is not explicitly specified in the workflow configuration
+func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder, data *WorkflowData) {
+// Check if GitHub tool is present
+githubTool, hasGitHub := data.Tools["github"]
+if !hasGitHub || githubTool == false {
+return
+}
+
+// Check if lockdown is already explicitly set
+if hasGitHubLockdownExplicitlySet(githubTool) {
+mcpServersLog.Print("Lockdown explicitly set in workflow, skipping auto-detection")
+return
+}
+
+mcpServersLog.Print("Generating GitHub MCP lockdown auto-detection step")
+
+// Generate the step using the detect_repo_visibility.cjs action
+yaml.WriteString("      - name: Detect repository visibility for GitHub MCP lockdown\n")
+yaml.WriteString("        id: detect-repo-visibility\n")
+yaml.WriteString("        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1\n")
+yaml.WriteString("        with:\n")
+yaml.WriteString("          script: |\n")
+yaml.WriteString("            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');\n")
+yaml.WriteString("            await detectRepoVisibility(github, context, core);\n")
 }
