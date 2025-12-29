@@ -41,6 +41,20 @@ steps:
       docker pull ghcr.io/boostsecurityio/poutine:latest
       
       echo "All static analysis Docker images pulled successfully"
+  - name: Verify static analysis tools
+    run: |
+      set -e
+      echo "Verifying static analysis tools are available..."
+      
+      # Verify zizmor
+      echo "Testing zizmor..."
+      docker run --rm ghcr.io/zizmorcore/zizmor:latest --version || echo "Warning: zizmor version check failed"
+      
+      # Verify poutine
+      echo "Testing poutine..."
+      docker run --rm ghcr.io/boostsecurityio/poutine:latest --version || echo "Warning: poutine version check failed"
+      
+      echo "Static analysis tools verification complete"
 ---
 
 # Static Analysis Report
