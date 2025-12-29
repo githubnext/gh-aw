@@ -71,6 +71,7 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       discussions: read
       issues: read
@@ -564,7 +565,7 @@ jobs:
                 "headers": {
                   "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
                   "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "context,repos,issues,pull_requests"
+                  "X-MCP-Toolsets": "context,repos,issues,pull_requests,actions,projects"
                 },
                 "tools": ["*"],
                 "env": {
