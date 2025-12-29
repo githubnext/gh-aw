@@ -31,11 +31,13 @@ const HANDLER_MAP = {
 
 /**
  * Load configuration for safe outputs
+ * Tries to load from config file first, then falls back to inferring from environment variables
  * @returns {Object} Safe outputs configuration
  */
 function loadConfig() {
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
 
+  // Try to load from config file first
   try {
     if (fs.existsSync(configPath)) {
       const configContent = fs.readFileSync(configPath, "utf8");
@@ -45,10 +47,57 @@ function loadConfig() {
       return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
     }
   } catch (error) {
-    core.debug(`Failed to load config: ${getErrorMessage(error)}`);
+    core.debug(`Failed to load config from file: ${getErrorMessage(error)}`);
   }
 
-  return {};
+  // Fallback: infer config from environment variables
+  // When running in the safe_outputs job, the config file doesn't exist,
+  // but individual handler env vars are present (e.g., GH_AW_ISSUE_EXPIRES, GH_AW_HIDE_OLDER_COMMENTS)
+  core.debug("Config file not found, inferring configuration from environment variables");
+  const config = {};
+
+  // Check for create_issue indicators
+  if (process.env.GH_AW_ISSUE_EXPIRES || process.env.GH_AW_ISSUE_TITLE_PREFIX || process.env.GH_AW_ISSUE_LABELS || process.env.GH_AW_ISSUE_ALLOWED_LABELS) {
+    config.create_issue = { enabled: true };
+  }
+
+  // Check for add_comment indicators
+  if (process.env.GH_AW_COMMENT_TARGET || process.env.GH_AW_HIDE_OLDER_COMMENTS || process.env.GITHUB_AW_COMMENT_DISCUSSION) {
+    config.add_comment = { enabled: true };
+  }
+
+  // Check for create_discussion indicators (always enable if other safe outputs are present, as it's common)
+  if (Object.keys(config).length > 0) {
+    config.create_discussion = { enabled: true };
+  }
+
+  // Check for close_issue indicators (always enable if create_issue is present)
+  if (config.create_issue) {
+    config.close_issue = { enabled: true };
+  }
+
+  // Check for close_discussion indicators (always enable if create_discussion is present)
+  if (config.create_discussion) {
+    config.close_discussion = { enabled: true };
+  }
+
+  // Check for add_labels indicators
+  if (process.env.GH_AW_LABELS_ALLOWED || process.env.GH_AW_LABELS_MAX_COUNT) {
+    config.add_labels = { enabled: true };
+  }
+
+  // Check for update_issue indicators (always enable if create_issue is present)
+  if (config.create_issue) {
+    config.update_issue = { enabled: true };
+  }
+
+  // Check for update_discussion indicators (always enable if create_discussion is present)
+  if (config.create_discussion) {
+    config.update_discussion = { enabled: true };
+  }
+
+  core.debug(`Inferred config: ${JSON.stringify(config)}`);
+  return config;
 }
 
 /**
