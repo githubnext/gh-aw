@@ -151,36 +151,6 @@ gh-aw/
 │   │   ├── sh/                      # Shell scripts (SOURCE OF TRUTH)
 │   │   │   └── *.sh                 # Manually edited shell scripts
 │   │   └── README.md                # Action-specific docs
-│   ├── noop/                         # Noop safe output action
-│   │   ├── action.yml               # Action metadata
-│   │   ├── index.js                 # Bundled output (committed)
-│   │   ├── src/                     # Source files
-│   │   │   └── index.js             # Source that references FILES constant
-│   │   └── README.md                # Action-specific docs
-│   ├── minimize_comment/             # Minimize comment action
-│   │   ├── action.yml               # Action metadata
-│   │   ├── index.js                 # Bundled output (committed)
-│   │   ├── src/                     # Source files
-│   │   │   └── index.js             # Source that references FILES constant
-│   │   └── README.md                # Action-specific docs
-│   ├── close_issue/                  # Close issue action
-│   │   ├── action.yml               # Action metadata
-│   │   ├── index.js                 # Bundled output (committed)
-│   │   ├── src/                     # Source files
-│   │   │   └── index.js             # Source that references FILES constant
-│   │   └── README.md                # Action-specific docs
-│   ├── close_pull_request/           # Close pull request action
-│   │   ├── action.yml               # Action metadata
-│   │   ├── index.js                 # Bundled output (committed)
-│   │   ├── src/                     # Source files
-│   │   │   └── index.js             # Source that references FILES constant
-│   │   └── README.md                # Action-specific docs
-│   ├── close_discussion/             # Close discussion action
-│   │   ├── action.yml               # Action metadata
-│   │   ├── index.js                 # Bundled output (committed)
-│   │   ├── src/                     # Source files
-│   │   │   └── index.js             # Source that references FILES constant
-│   │   └── README.md                # Action-specific docs
 ├── pkg/
 │   ├── cli/
 │   │   └── actions_build_command.go # Build system implementation
@@ -345,31 +315,6 @@ func getActionDependencies(actionName string) []string {
         return workflow.GetAllScriptFilenames()
     }
 
-    // Static dependencies for other actions
-    dependencyMap := map[string][]string{
-        "noop": {
-            "load_agent_output.cjs",
-        },
-        "minimize_comment": {
-            "load_agent_output.cjs",
-        },
-        "close_issue": {
-            "close_entity_helpers.cjs",
-        },
-        "close_pull_request": {
-            "close_entity_helpers.cjs",
-        },
-        "close_discussion": {
-            "generate_footer.cjs",
-            "get_repository_url.cjs",
-            "get_tracker_id.cjs",
-            "load_agent_output.cjs",
-        },
-    }
-    
-    if deps, ok := dependencyMap[actionName]; ok {
-        return deps
-    }
     return []string{}
 }
 ```text
@@ -748,7 +693,7 @@ The custom GitHub Actions build system provides a foundation for migrating from 
 ✅ **Go-based build system** reusing workflow bundler infrastructure  
 ✅ **Makefile integration** for action management
 ✅ **CI validation** ensuring actions stay buildable
-✅ **Multiple custom actions** (setup, noop, minimize_comment, close_issue, close_pull_request, close_discussion)
+✅ **Setup action** for workflow script management
 ✅ **Comprehensive documentation** for future development
 
 The system is production-ready and extensible, with clear paths for enhancement and migration of existing inline scripts.
