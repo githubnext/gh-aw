@@ -261,7 +261,14 @@ func RenderTable(config TableConfig) string {
 		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
 			return styles.TableTotal
 		}
-		return styles.TableCell
+		// Zebra striping: alternate row colors
+		if row%2 == 0 {
+			return styles.TableCell
+		}
+		// Odd rows with subtle background
+		return lipgloss.NewStyle().
+			Foreground(styles.ColorForeground).
+			Background(styles.ColorTableAltRow)
 	}
 
 	// Create table with lipgloss/table package

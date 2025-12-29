@@ -109,6 +109,12 @@ var (
 		Light: "#BDC3C7", // Light gray border for light backgrounds
 		Dark:  "#44475A", // Dark purple border for dark backgrounds (Dracula)
 	}
+
+	// ColorTableAltRow is used for alternating row backgrounds in tables (zebra striping)
+	ColorTableAltRow = lipgloss.AdaptiveColor{
+		Light: "#F5F5F5", // Subtle light gray for light backgrounds
+		Dark:  "#1A1A1A", // Subtle darker background for dark backgrounds
+	}
 )
 
 // Border definitions for consistent styling across CLI output.
