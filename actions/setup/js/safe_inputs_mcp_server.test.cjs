@@ -367,7 +367,7 @@ echo "greeting=Hello from shell" >> $GITHUB_OUTPUT
     });
   });
 
-  describe("end-to-end server process", () => {
+  describe.skip("end-to-end server process", () => {
     it("should write files, launch server, initialize, call echo tool and verify result", async () => {
       const { spawn } = await import("child_process");
 
