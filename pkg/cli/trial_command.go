@@ -628,10 +628,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	console.RenderComposedSections(sections)
 
 	// Add "Execution Steps" section separator
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Execution Steps"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
-	fmt.Fprintln(os.Stderr, "")
+	executionStepsSections := console.RenderTitleBox("Execution Steps", 80)
+	console.RenderComposedSections(executionStepsSections)
 
 	// Check if host repository already exists to update messaging
 	hostRepoExists := false
