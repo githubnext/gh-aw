@@ -1507,6 +1507,29 @@ function wrapLogParser(parseFunction, parserName, logContent) {
   }
 }
 
+/**
+ * Factory helper to create a standardized engine log parser entry point.
+ * Encapsulates the common scaffolding pattern used across all engine parsers.
+ *
+ * @param {Object} options - Parser configuration options
+ * @param {string} options.parserName - Name of the engine (e.g., "Claude", "Copilot", "Codex")
+ * @param {function(string): string|{markdown: string, mcpFailures?: string[], maxTurnsHit?: boolean, logEntries?: Array}} options.parseFunction - Engine-specific parser function
+ * @param {boolean} [options.supportsDirectories=false] - Whether the parser supports reading from directories
+ * @returns {function(): Promise<void>} Main function that runs the log parser
+ */
+function createEngineLogParser(options) {
+  const { runLogParser } = require("./log_parser_bootstrap.cjs");
+  const { parserName, parseFunction, supportsDirectories = false } = options;
+
+  return async function main() {
+    runLogParser({
+      parseLog: logContent => wrapLogParser(parseFunction, parserName, logContent),
+      parserName,
+      supportsDirectories,
+    });
+  };
+}
+
 // Export functions and constants
 module.exports = {
   // Constants
@@ -1532,4 +1555,5 @@ module.exports = {
   generateCopilotCliStyleSummary,
   formatSafeOutputsPreview,
   wrapLogParser,
+  createEngineLogParser,
 };

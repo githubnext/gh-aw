@@ -1,16 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { truncateString, estimateTokens, formatToolCallAsDetails, wrapLogParser } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, truncateString, estimateTokens, formatToolCallAsDetails } = require("./log_parser_shared.cjs");
 
-async function main() {
-  runLogParser({
-    parseLog: logContent => wrapLogParser(parseCodexLog, "Codex", logContent),
-    parserName: "Codex",
-    supportsDirectories: false,
-  });
-}
+const main = createEngineLogParser({
+  parserName: "Codex",
+  parseFunction: parseCodexLog,
+  supportsDirectories: false,
+});
 
 /**
  * Extract MCP server initialization information from Codex logs
