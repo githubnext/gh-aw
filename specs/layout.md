@@ -312,7 +312,7 @@ Patterns found in Go source code (`pkg/constants/constants.go`):
 | DefaultCodexVersion | Version | 0.77.0 | OpenAI Codex CLI version |
 | DefaultGitHubMCPServerVersion | Version | v0.26.3 | GitHub MCP server Docker image |
 | DefaultFirewallVersion | Version | v0.7.0 | gh-aw-firewall (AWF) binary |
-| DefaultPlaywrightMCPVersion | Version | 0.0.53 | @playwright/mcp package |
+| DefaultPlaywrightMCPVersion | Version | 0.0.54 | @playwright/mcp package |
 | DefaultPlaywrightBrowserVersion | Version | v1.57.0 | Playwright browser Docker image |
 | DefaultMCPSDKVersion | Version | 1.24.0 | @modelcontextprotocol/sdk package |
 | DefaultGitHubScriptVersion | Version | v8 | actions/github-script action |
