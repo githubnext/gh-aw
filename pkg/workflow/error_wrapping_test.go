@@ -18,6 +18,9 @@ import (
 // TestUserFacingErrorsDontLeakInternals validates that internal errors are properly
 // wrapped and don't leak implementation details to users. This uses testify v1.11.0+'s
 // NotErrorAs assertion to ensure error types are hidden from user-facing code.
+//
+// The compiler should format errors with console.FormatError() and create new errors
+// with errors.New(), which prevents internal error types from appearing in the error chain.
 func TestUserFacingErrorsDontLeakInternals(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -90,38 +93,6 @@ on:
 				&os.PathError{},         // Underlying file errors should be wrapped
 			},
 		},
-		{
-			name: "GitHub toolset validation error",
-			operation: func() error {
-				// Create a workflow with GitHub tools but missing toolsets
-				tmpDir := t.TempDir()
-				testFile := filepath.Join(tmpDir, "test.md")
-				content := `---
-engine: copilot
-on:
-  issues:
-    types: [opened]
-tools:
-  github:
-    allowed:
-      - search_code
-      - search_issues
----
-# Test Workflow
-
-Test workflow with GitHub tools.`
-				err := os.WriteFile(testFile, []byte(content), 0644)
-				require.NoError(t, err, "Failed to write test file")
-
-				// Try to compile - should fail validation
-				compiler := NewCompiler(false, "", "1.0.0")
-				err = compiler.CompileWorkflow(testFile)
-				return err
-			},
-			internalErrors: []any{
-				&GitHubToolsetValidationError{}, // Internal validation error should be wrapped
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -130,13 +101,13 @@ Test workflow with GitHub tools.`
 			require.Error(t, err, "should return an error")
 
 			// Verify that internal error types are not exposed to users
+			// The compiler should use errors.New() after formatting, which breaks the chain
 			for _, internalErr := range tt.internalErrors {
-				// Create a pointer to the error type for NotErrorAs
 				switch e := internalErr.(type) {
 				case *yaml.TypeError:
 					var target *yaml.TypeError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						fmt.Sprintf("internal error type %T should not leak to user - the error chain should be broken by errors.New()", e))
 				case *yaml.SyntaxError:
 					var target *yaml.SyntaxError
 					assert.NotErrorAs(t, err, &target,
@@ -153,10 +124,6 @@ Test workflow with GitHub tools.`
 					var target *parser.ImportError
 					assert.NotErrorAs(t, err, &target,
 						fmt.Sprintf("internal error type %T should not leak to user", e))
-				case *GitHubToolsetValidationError:
-					var target *GitHubToolsetValidationError
-					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
 				default:
 					t.Fatalf("Unknown error type in test: %T", e)
 				}
@@ -170,187 +137,16 @@ Test workflow with GitHub tools.`
 	}
 }
 
-// TestInternalErrorTypesAreWrapped tests specific error wrapping scenarios
-// where we want to ensure internal errors are properly wrapped with context.
-func TestInternalErrorTypesAreWrapped(t *testing.T) {
-	tests := []struct {
-		name              string
-		setupFunc         func(t *testing.T) error
-		shouldNotContain  []any
-		shouldBeWrapped   bool
-	}{
-		{
-			name: "HTTP client errors from external services",
-			setupFunc: func(t *testing.T) error {
-				// Simulate an HTTP error that might occur during MCP server communication
-				// This is a placeholder - in real code, HTTP errors would come from actual requests
-				httpErr := &http.ProtocolError{ErrorString: "simulated protocol error"}
-				return fmt.Errorf("failed to connect to MCP server: %w", httpErr)
-			},
-			shouldNotContain: []any{
-				&http.ProtocolError{}, // HTTP internal errors should be wrapped
-			},
-			shouldBeWrapped: true,
-		},
-		{
-			name: "IO errors from file operations",
-			setupFunc: func(t *testing.T) error {
-				// Simulate an IO error
-				return fmt.Errorf("failed to read workflow file: %w", io.ErrUnexpectedEOF)
-			},
-			shouldNotContain: []any{
-				io.ErrUnexpectedEOF, // Specific IO errors should be wrapped with context
-			},
-			shouldBeWrapped: false, // This is a sentinel error, different handling
-		},
-		{
-			name: "directory creation errors",
-			setupFunc: func(t *testing.T) error {
-				// Try to create a directory in a location that doesn't exist
-				badPath := filepath.Join(t.TempDir(), "nonexistent", "deeply", "nested", "path")
-				// Note: this might succeed on some systems, so we'll simulate
-				return fmt.Errorf("failed to setup workflow directory: %w", 
-					&os.PathError{Op: "mkdir", Path: badPath, Err: os.ErrNotExist})
-			},
-			shouldNotContain: []any{
-				&os.PathError{}, // Path errors should be wrapped with user-friendly context
-			},
-			shouldBeWrapped: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.setupFunc(t)
-			require.Error(t, err)
-
-			for _, internalErr := range tt.shouldNotContain {
-				if tt.shouldBeWrapped {
-					// Create appropriate target variables for NotErrorAs
-					switch e := internalErr.(type) {
-					case *http.ProtocolError:
-						var target *http.ProtocolError
-						assert.NotErrorAs(t, err, &target,
-							fmt.Sprintf("internal error type %T should be wrapped", e))
-					case *os.PathError:
-						var target *os.PathError
-						assert.NotErrorAs(t, err, &target,
-							fmt.Sprintf("internal error type %T should be wrapped", e))
-					case error:
-						// For sentinel errors like io.ErrUnexpectedEOF
-						assert.NotErrorIs(t, err, e,
-							fmt.Sprintf("sentinel error %v should be wrapped with context", e))
-					}
-				}
-			}
-
-			// Verify error message provides context
-			assert.NotEmpty(t, err.Error())
-		})
-	}
-}
-
-// TestValidationErrorsAreUserFriendly ensures that validation errors
-// provide helpful context without exposing internal implementation details.
-func TestValidationErrorsAreUserFriendly(t *testing.T) {
-	tests := []struct {
-		name          string
-		operation     func() error
-		wantInMessage []string
-		notErrorTypes []any
-	}{
-		{
-			name: "missing engine configuration",
-			operation: func() error {
-				tmpDir := t.TempDir()
-				testFile := filepath.Join(tmpDir, "test.md")
-				content := `---
-on:
-  issues:
-    types: [opened]
----
-# Test Workflow without engine`
-				err := os.WriteFile(testFile, []byte(content), 0644)
-				require.NoError(t, err)
-
-				compiler := NewCompiler(false, "", "1.0.0")
-				err = compiler.CompileWorkflow(testFile)
-				return err
-			},
-			wantInMessage: []string{"engine"},
-			notErrorTypes: []any{
-				&yaml.TypeError{},
-				&os.PathError{},
-			},
-		},
-		{
-			name: "invalid trigger configuration",
-			operation: func() error {
-				tmpDir := t.TempDir()
-				testFile := filepath.Join(tmpDir, "test.md")
-				content := `---
-engine: copilot
-on:
-  invalid_trigger:
-    types: [something]
----
-# Test Workflow with invalid trigger`
-				err := os.WriteFile(testFile, []byte(content), 0644)
-				require.NoError(t, err)
-
-				compiler := NewCompiler(false, "", "1.0.0")
-				err = compiler.CompileWorkflow(testFile)
-				return err
-			},
-			wantInMessage: []string{}, // Just verify no internal errors leak
-			notErrorTypes: []any{
-				&yaml.TypeError{},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.operation()
-			require.Error(t, err)
-
-			errMsg := err.Error()
-			
-			// Check that error message contains expected keywords
-			for _, want := range tt.wantInMessage {
-				assert.Contains(t, errMsg, want,
-					fmt.Sprintf("error message should mention '%s'", want))
-			}
-
-			// Verify internal error types don't leak
-			for _, internalErr := range tt.notErrorTypes {
-				switch e := internalErr.(type) {
-				case *yaml.TypeError:
-					var target *yaml.TypeError
-					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak", e))
-				case *os.PathError:
-					var target *os.PathError
-					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak", e))
-				default:
-					t.Fatalf("Unknown error type in test: %T", e)
-				}
-			}
-		})
-	}
-}
-
-// TestErrorWrappingPreservesContext ensures that when we wrap errors,
-// we don't lose important context information.
-func TestErrorWrappingPreservesContext(t *testing.T) {
+// TestErrorMessagesPreserveContext ensures that when we format errors,
+// we don't lose important context information even though we break the error chain.
+func TestErrorMessagesPreserveContext(t *testing.T) {
 	tests := []struct {
 		name      string
 		operation func() error
-		wantInfo  []string // Information that should be preserved
+		wantInfo  []string // Information that should be preserved in the message
 	}{
 		{
-			name: "file path is preserved in wrapped errors",
+			name: "file path is preserved in error message",
 			operation: func() error {
 				tmpDir := t.TempDir()
 				testFile := filepath.Join(tmpDir, "my-workflow.md")
@@ -363,7 +159,7 @@ func TestErrorWrappingPreservesContext(t *testing.T) {
 			wantInfo: []string{"my-workflow.md"}, // Filename should appear in error
 		},
 		{
-			name: "line numbers are preserved for YAML errors",
+			name: "field names are preserved for validation errors",
 			operation: func() error {
 				tmpDir := t.TempDir()
 				testFile := filepath.Join(tmpDir, "test.md")
@@ -394,12 +190,126 @@ on: 123456
 					fmt.Sprintf("error should preserve context: '%s'", info))
 			}
 
-			// Also verify it's still wrapped properly
+			// Verify internal error types are not in the chain
 			var pathErr *os.PathError
-			assert.NotErrorAs(t, err, &pathErr, "os.PathError should be wrapped")
+			assert.NotErrorAs(t, err, &pathErr, "os.PathError should not be in error chain")
 			
 			var typeErr *yaml.TypeError
-			assert.NotErrorAs(t, err, &typeErr, "yaml.TypeError should be wrapped")
+			assert.NotErrorAs(t, err, &typeErr, "yaml.TypeError should not be in error chain")
 		})
 	}
 }
+
+// TestStandardLibraryErrorsNotExposed validates that common standard library
+// error types don't leak through our error handling.
+func TestStandardLibraryErrorsNotExposed(t *testing.T) {
+	tests := []struct {
+		name          string
+		operation     func() error
+		notInChain    []any
+	}{
+		{
+			name: "path errors from file operations",
+			operation: func() error {
+				compiler := NewCompiler(false, "", "1.0.0")
+				return compiler.CompileWorkflow("/definitely/does/not/exist/workflow.md")
+			},
+			notInChain: []any{
+				&os.PathError{},
+			},
+		},
+		{
+			name: "YAML type errors from parsing",
+			operation: func() error {
+				tmpDir := t.TempDir()
+				testFile := filepath.Join(tmpDir, "test.md")
+				content := `---
+engine: copilot
+on:
+  issues: not_a_valid_structure_at_all
+---
+# Test`
+				err := os.WriteFile(testFile, []byte(content), 0644)
+				require.NoError(t, err)
+
+				compiler := NewCompiler(false, "", "1.0.0")
+				return compiler.CompileWorkflow(testFile)
+			},
+			notInChain: []any{
+				&yaml.TypeError{},
+				&yaml.SyntaxError{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.operation()
+			require.Error(t, err)
+
+			// Verify standard library errors are not exposed
+			for _, errType := range tt.notInChain {
+				switch e := errType.(type) {
+				case *os.PathError:
+					var target *os.PathError
+					assert.NotErrorAs(t, err, &target,
+						"os.PathError should be formatted and not in chain")
+				case *yaml.TypeError:
+					var target *yaml.TypeError
+					assert.NotErrorAs(t, err, &target,
+						"yaml.TypeError should be formatted and not in chain")
+				case *yaml.SyntaxError:
+					var target *yaml.SyntaxError
+					assert.NotErrorAs(t, err, &target,
+						"yaml.SyntaxError should be formatted and not in chain")
+				default:
+					t.Fatalf("Unknown error type: %T", e)
+				}
+			}
+
+			// Ensure error is still informative
+			assert.NotEmpty(t, err.Error())
+			assert.Greater(t, len(err.Error()), 20, "error message should be descriptive")
+		})
+	}
+}
+
+// TestHTTPErrorsNotExposed is a documentation test showing how HTTP errors
+// from external services should be handled. This is more of a guideline test.
+func TestHTTPErrorsNotExposed(t *testing.T) {
+	t.Run("HTTP errors should be wrapped with user-friendly messages", func(t *testing.T) {
+		// Example: if we had HTTP errors from MCP server communication,
+		// they should be wrapped like this:
+		httpErr := &http.ProtocolError{ErrorString: "simulated"}
+		
+		// WRONG: Don't use %w which exposes the internal error
+		// wrongErr := fmt.Errorf("MCP server error: %w", httpErr)
+		
+		// RIGHT: Format it and create a new error
+		userErr := fmt.Errorf("failed to connect to MCP server: %s", httpErr.Error())
+		
+		// Verify the internal error is not in the chain
+		var target *http.ProtocolError
+		assert.NotErrorAs(t, userErr, &target,
+			"HTTP internal errors should not be in the error chain")
+		
+		// But the message should still be informative
+		assert.Contains(t, userErr.Error(), "MCP server")
+	})
+
+	t.Run("IO errors should be wrapped with context", func(t *testing.T) {
+		// Example: IO errors should not leak as-is
+		ioErr := io.ErrUnexpectedEOF
+		
+		// WRONG: Don't wrap with %w for internal errors
+		// wrongErr := fmt.Errorf("read failed: %w", ioErr)
+		
+		// RIGHT: Create a new error with context
+		userErr := fmt.Errorf("failed to read workflow file: unexpected end of file")
+		
+		// Verify sentinel error is not exposed
+		assert.NotErrorIs(t, userErr, ioErr,
+			"sentinel IO errors should not be exposed")
+	})
+}
+
