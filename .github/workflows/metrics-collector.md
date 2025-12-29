@@ -38,7 +38,7 @@ As an infrastructure agent, you collect and persist performance data that enable
 - **Repository**: ${{ github.repository }}
 - **Collection Date**: $(date +%Y-%m-%d)
 - **Collection Time**: $(date +%H:%M:%S) UTC
-- **Storage Path**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/`
+- **Storage Path**: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/`
 
 ## Metrics Collection Process
 
@@ -131,15 +131,15 @@ Create a JSON object following this schema:
 ### 3. Store Metrics in Repo Memory
 
 **Daily Storage**:
-- Write metrics to: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/YYYY-MM-DD.json`
+- Write metrics to: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/YYYY-MM-DD.json`
 - Use today's date for the filename (e.g., `2024-12-24.json`)
 
 **Latest Snapshot**:
-- Copy current metrics to: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
+- Copy current metrics to: `/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json`
 - This provides quick access to most recent data without date calculations
 
 **Create Directory Structure**:
-- Ensure the directory exists: `mkdir -p /tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/`
+- Ensure the directory exists: `mkdir -p /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/`
 
 ### 4. Cleanup Old Data
 
@@ -150,7 +150,7 @@ Create a JSON object following this schema:
 
 **Cleanup Command**:
 ```bash
-find /tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/ -name "*.json" -mtime +30 -delete
+find /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/ -name "*.json" -mtime +30 -delete
 ```
 
 ### 5. Calculate Ecosystem Aggregates
@@ -222,7 +222,7 @@ At the end of collection:
    - Active workflows: 85
    - Total safe outputs: 45
    - Overall success rate: 89.2%
-   - Storage: /tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/2024-12-24.json
+   - Storage: /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/2024-12-24.json
    
    ⏱️  Collection took: 45 seconds
    ```
