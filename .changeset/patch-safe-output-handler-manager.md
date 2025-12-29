@@ -2,9 +2,9 @@
 "gh-aw": patch
 ---
 
-Refactor safe output handler manager to use a factory pattern (WIP).
-
-This changeset documents an internal refactor that restructures the
-safe outputs handler manager and converts handlers to a factory-style
-interface. The work is ongoing in PR #8019.
+Refactor safe outputs into a centralized handler manager using a
+factory pattern. Introduces a safe output handler manager and begins
+refactoring individual handlers to the factory-based interface. This is
+an internal refactor (WIP) that reorganizes handler initialization and
+message dispatching; tests and workflow recompilation are still pending.
 
