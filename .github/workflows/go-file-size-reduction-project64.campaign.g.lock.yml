@@ -278,35 +278,6 @@ jobs:
               "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
               "inputSchema": {
                 "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "properties": {
-                      "content_type": {
-                        "enum": [
-                          "issue",
-                          "pull_request"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "project",
-                      "content_type",
-                      "content_number"
-                    ]
-                  },
-                  {
-                    "properties": {
-                      "content_type": {
-                        "const": "draft_issue"
-                      }
-                    },
-                    "required": [
-                      "project",
-                      "content_type",
-                      "draft_title"
-                    ]
-                  }
-                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
@@ -347,6 +318,10 @@ jobs:
                     "type": "string"
                   }
                 },
+                "required": [
+                  "project",
+                  "content_type"
+                ],
                 "type": "object"
               },
               "name": "update_project"
