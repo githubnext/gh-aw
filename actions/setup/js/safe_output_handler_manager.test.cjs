@@ -101,10 +101,19 @@ describe("Safe Output Handler Manager", () => {
         ["add_comment", mockHandler],
       ]);
 
-      const result = await processMessages(handlers, messages);
+      const config = {
+        create_issue: { max: 5 },
+        add_comment: { max: 1 },
+      };
+
+      const result = await processMessages(handlers, config, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(2);
+
+      // Verify handlers were called with their specific config
+      expect(mockHandler.main).toHaveBeenCalledWith({ max: 1 }); // add_comment config
+      expect(mockHandler.main).toHaveBeenCalledWith({ max: 5 }); // create_issue config
 
       // Verify messages were processed in order of appearance (add_comment first, then create_issue)
       expect(result.results[0].type).toBe("add_comment");
@@ -125,7 +134,12 @@ describe("Safe Output Handler Manager", () => {
         ["add_comment", mockHandler],
       ]);
 
-      const result = await processMessages(handlers, messages);
+      const config = {
+        create_issue: { max: 5 },
+        add_comment: { max: 1 },
+      };
+
+      const result = await processMessages(handlers, config, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(2);
@@ -141,7 +155,11 @@ describe("Safe Output Handler Manager", () => {
 
       const handlers = new Map([["create_issue", errorHandler]]);
 
-      const result = await processMessages(handlers, messages);
+      const config = {
+        create_issue: { max: 5 },
+      };
+
+      const result = await processMessages(handlers, config, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(1);

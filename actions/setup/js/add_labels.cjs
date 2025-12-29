@@ -4,7 +4,7 @@
 const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 
-async function main() {
+async function main(config = {}) {
   // Use shared processor for common steps
   const result = await processSafeOutput(
     {
@@ -35,7 +35,8 @@ async function main() {
         }
         return content;
       },
-    }
+    },
+    config // Pass handler config as third parameter
   );
 
   if (!result.success) {

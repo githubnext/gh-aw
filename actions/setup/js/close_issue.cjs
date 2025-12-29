@@ -64,7 +64,7 @@ async function closeIssue(github, owner, repo, issueNumber) {
   return issue;
 }
 
-async function main() {
+async function main(config = {}) {
   return processCloseEntityItems(ISSUE_CONFIG, {
     getDetails: getIssueDetails,
     addComment: addIssueComment,

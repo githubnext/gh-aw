@@ -46,7 +46,7 @@ const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validat
  * 1. Load agent output
  * 2. Find matching item(s)
  * 3. Handle staged mode
- * 4. Parse configuration
+ * 4. Parse configuration (from passed config or fallback to env vars)
  * 5. Resolve target (for single-item processors)
  *
  * @param {ProcessorConfig} config - Processor configuration
@@ -54,9 +54,10 @@ const { getSafeOutputConfig, validateMaxCount } = require("./safe_output_validat
  * @param {string} stagedPreviewOptions.title - Title for staged preview
  * @param {string} stagedPreviewOptions.description - Description for staged preview
  * @param {(item: any, index: number) => string} stagedPreviewOptions.renderItem - Function to render item in preview
+ * @param {Object} [handlerConfig] - Handler-specific configuration passed from handler manager
  * @returns {Promise<ProcessorResult>} Processing result
  */
-async function processSafeOutput(config, stagedPreviewOptions) {
+async function processSafeOutput(config, stagedPreviewOptions, handlerConfig = null) {
   const { itemType, configKey, displayName, itemTypeName, supportsPR = false, supportsIssue = false, findMultiple = false, envVars } = config;
 
   // Step 1: Load agent output
@@ -100,30 +101,58 @@ async function processSafeOutput(config, stagedPreviewOptions) {
   }
 
   // Step 4: Parse configuration
-  const safeOutputConfig = getSafeOutputConfig(configKey);
+  // If handlerConfig is provided (from handler manager), use it; otherwise fall back to file config + env vars
+  let allowed, maxCount, target;
 
-  // Parse allowed items (from env or config)
-  const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
-  const allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
-  if (allowed) {
-    core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+  if (handlerConfig) {
+    // Use config passed from handler manager
+    core.debug(`Using handler config: ${JSON.stringify(handlerConfig)}`);
+
+    // Parse allowed items from handlerConfig
+    allowed = handlerConfig.allowed || handlerConfig.allowed_labels || handlerConfig.allowed_repos;
+    if (Array.isArray(allowed)) {
+      core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+    } else if (typeof allowed === "string") {
+      allowed = parseAllowedItems(allowed);
+      core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+    } else {
+      core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+    }
+
+    // Get max count from handlerConfig
+    maxCount = handlerConfig.max || 3;
+    core.info(`Max count: ${maxCount}`);
+
+    // Get target from handlerConfig
+    target = handlerConfig.target || "triggering";
+    core.info(`${displayName} target configuration: ${target}`);
   } else {
-    core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
-  }
+    // Fall back to reading from config file + env vars (backward compatibility)
+    const safeOutputConfig = getSafeOutputConfig(configKey);
 
-  // Parse max count (env takes priority, then config)
-  const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
-  const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
-  if (!maxCountResult.valid) {
-    core.setFailed(maxCountResult.error);
-    return { success: false, reason: "Invalid max count configuration" };
-  }
-  const maxCount = maxCountResult.value;
-  core.info(`Max count: ${maxCount}`);
+    // Parse allowed items (from env or config)
+    const allowedEnvValue = envVars.allowed ? process.env[envVars.allowed] : undefined;
+    allowed = parseAllowedItems(allowedEnvValue) || safeOutputConfig.allowed;
+    if (allowed) {
+      core.info(`Allowed ${itemTypeName}s: ${JSON.stringify(allowed)}`);
+    } else {
+      core.info(`No ${itemTypeName} restrictions - any ${itemTypeName}s are allowed`);
+    }
 
-  // Get target configuration
-  const target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
-  core.info(`${displayName} target configuration: ${target}`);
+    // Parse max count (env takes priority, then config)
+    const maxCountEnvValue = envVars.maxCount ? process.env[envVars.maxCount] : undefined;
+    const maxCountResult = validateMaxCount(maxCountEnvValue, safeOutputConfig.max);
+    if (!maxCountResult.valid) {
+      core.setFailed(maxCountResult.error);
+      return { success: false, reason: "Invalid max count configuration" };
+    }
+    maxCount = maxCountResult.value;
+    core.info(`Max count: ${maxCount}`);
+
+    // Get target configuration
+    target = envVars.target ? process.env[envVars.target] || "triggering" : "triggering";
+    core.info(`${displayName} target configuration: ${target}`);
+  }
 
   // For multiple items, return early without target resolution
   if (findMultiple) {

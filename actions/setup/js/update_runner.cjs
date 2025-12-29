@@ -399,7 +399,7 @@ function createUpdateHandler(config) {
   });
 
   // Return the main handler function
-  return async function main() {
+  return async function main(handlerConfig = {}) {
     return await runUpdateWorkflow({
       itemType: config.itemType,
       displayName: config.displayName,
@@ -414,6 +414,7 @@ function createUpdateHandler(config) {
       renderStagedItem,
       executeUpdate: config.executeUpdate,
       getSummaryLine,
+      handlerConfig, // Pass handler config to the runner
     });
   };
 }

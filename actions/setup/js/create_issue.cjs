@@ -12,7 +12,7 @@ const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
+async function main(config = {}) {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");

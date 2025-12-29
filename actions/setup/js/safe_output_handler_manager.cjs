@@ -90,10 +90,11 @@ function loadHandlers(config) {
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
  *
  * @param {Map<string, {main: Function}>} handlers - Map of loaded handlers
+ * @param {Object} config - Safe outputs configuration
  * @param {Array<Object>} messages - Array of safe output messages
  * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object}>}
  */
-async function processMessages(handlers, messages) {
+async function processMessages(handlers, config, messages) {
   const results = [];
 
   // Initialize shared temporary ID map
@@ -123,10 +124,14 @@ async function processMessages(handlers, messages) {
     try {
       core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
 
-      // Call the handler's main function
+      // Get handler-specific config
+      const handlerConfig = config[messageType] || {};
+      core.debug(`Config for ${messageType}: ${JSON.stringify(handlerConfig)}`);
+
+      // Call the handler's main function with its configuration
       // The handler will access agent output internally via loadAgentOutput()
       // and will populate/use the temporaryIdMap as needed
-      const result = await handler.main();
+      const result = await handler.main(handlerConfig);
 
       results.push({
         type: messageType,
@@ -189,7 +194,7 @@ async function main() {
     }
 
     // Process all messages with loaded handlers
-    const result = await processMessages(handlers, agentOutput.items);
+    const result = await processMessages(handlers, config, agentOutput.items);
 
     // Log summary
     core.info("=== Processing Summary ===");
