@@ -187,13 +187,21 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	}
 
 	if _, err := tempFile.Write(content); err != nil {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
+		// Close the temp file and clean up, logging any errors
+		if closeErr := tempFile.Close(); closeErr != nil {
+			remoteLog.Printf("Warning: failed to close temp file during cleanup: %v", closeErr)
+		}
+		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
+			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
+		}
 		return "", fmt.Errorf("failed to write temp file: %w", err)
 	}
 
 	if err := tempFile.Close(); err != nil {
-		os.Remove(tempFile.Name())
+		// Clean up temp file if close fails
+		if rmErr := os.Remove(tempFile.Name()); rmErr != nil {
+			remoteLog.Printf("Warning: failed to remove temp file %s: %v", tempFile.Name(), rmErr)
+		}
 		return "", fmt.Errorf("failed to close temp file: %w", err)
 	}
 
