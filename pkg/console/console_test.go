@@ -736,7 +736,7 @@ func TestRenderComposedSections(t *testing.T) {
 			// RenderComposedSections writes to stderr, so we can't easily capture output
 			// This test validates that the function doesn't panic
 			// Visual validation requires manual testing
-			
+
 			// Note: We skip the actual call since it writes to stderr
 			// Instead, we validate the test structure
 			t.Logf("Test case: %s", tt.name)
