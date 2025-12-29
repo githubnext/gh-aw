@@ -120,7 +120,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make
       - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           cache: true
           go-version-file: go.mod
