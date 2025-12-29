@@ -186,6 +186,25 @@ make agent-finish # Complete validation
 ./gh-aw audit 123456  # Audit a specific workflow run
 ```
 
+## Testing
+
+For comprehensive testing guidelines, patterns, and conventions, see **[specs/testing.md](specs/testing.md)**.
+
+**Key testing principles:**
+- Use `require.*` for critical setup (stops test on failure)
+- Use `assert.*` for test validations (continues checking)
+- Write table-driven tests with `t.Run()` and descriptive names
+- No mocks or test suites - test real component interactions
+- Always include helpful assertion messages
+
+**Quick reference:**
+```bash
+make test-unit       # Fast unit tests (~25s)
+make test            # Full test suite (~30s)
+make test-security   # Security regression tests
+make agent-finish    # Complete validation before committing
+```
+
 ## Repository Structure
 
 ```text
