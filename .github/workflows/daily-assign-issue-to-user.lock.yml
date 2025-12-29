@@ -1213,9 +1213,9 @@ jobs:
       GH_AW_WORKFLOW_ID: "daily-assign-issue-to-user"
       GH_AW_WORKFLOW_NAME: "Auto-Assign Issue"
     outputs:
-      add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
       assign_to_user_assigned: ${{ steps.assign_to_user.outputs.assigned }}
+      process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
+      process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1238,9 +1238,8 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Add Comment
-        id: add_comment
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+      - name: Process Safe Outputs
+        id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
@@ -1250,7 +1249,7 @@ jobs:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/add_comment.cjs');
+            const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Assign To User
         id: assign_to_user

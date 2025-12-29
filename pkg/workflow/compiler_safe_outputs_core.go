@@ -52,7 +52,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// Track which outputs are created for dependency tracking
 	var createIssueEnabled bool
-	var createDiscussionEnabled bool
 	var createPullRequestEnabled bool
 
 	// Add GitHub App token minting step if app is configured
@@ -100,40 +99,50 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		prCheckoutStepsAdded = true
 	}
 
-	// === Build individual safe output steps ===
-
-	// 1. Create Issue step
-	if data.SafeOutputs.CreateIssues != nil {
-		createIssueEnabled = true
-		stepConfig := c.buildCreateIssueStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		// Add outputs
-		outputs["create_issue_issue_number"] = "${{ steps.create_issue.outputs.issue_number }}"
-		outputs["create_issue_issue_url"] = "${{ steps.create_issue.outputs.issue_url }}"
-		outputs["create_issue_temporary_id_map"] = "${{ steps.create_issue.outputs.temporary_id_map }}"
-
-		// Merge permissions
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+	// === Build safe output steps ===
+	
+	// Check if any handler-manager-supported types are enabled
+	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
+		data.SafeOutputs.AddComments != nil ||
+		data.SafeOutputs.CreateDiscussions != nil ||
+		data.SafeOutputs.CloseIssues != nil ||
+		data.SafeOutputs.CloseDiscussions != nil
+	
+	// If we have handler manager types, use the handler manager step
+	if hasHandlerManagerTypes {
+		consolidatedSafeOutputsLog.Print("Using handler manager for safe outputs")
+		handlerManagerSteps := c.buildHandlerManagerStep(data)
+		steps = append(steps, handlerManagerSteps...)
+		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
+		
+		// Track enabled types for other steps
+		if data.SafeOutputs.CreateIssues != nil {
+			createIssueEnabled = true
+		}
+		
+		// Add outputs from handler manager
+		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
+		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
+		
+		// Merge permissions for all handler-managed types
+		if data.SafeOutputs.CreateIssues != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
+		if data.SafeOutputs.CreateDiscussions != nil {
+			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		}
+		if data.SafeOutputs.AddComments != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
+		if data.SafeOutputs.CloseIssues != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
+		if data.SafeOutputs.CloseDiscussions != nil {
+			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		}
 	}
 
-	// 2. Create Discussion step
-	if data.SafeOutputs.CreateDiscussions != nil {
-		createDiscussionEnabled = true
-		stepConfig := c.buildCreateDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_discussion_discussion_number"] = "${{ steps.create_discussion.outputs.discussion_number }}"
-		outputs["create_discussion_discussion_url"] = "${{ steps.create_discussion.outputs.discussion_url }}"
-
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
-	}
-
-	// 2a. Update Discussion step
+	// Update Discussion step (not handled by handler manager yet)
 	if data.SafeOutputs.UpdateDiscussions != nil {
 		stepConfig := c.buildUpdateDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
@@ -146,9 +155,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
 	}
 
-	// 3. Create Pull Request step
+	// Create Pull Request step (not handled by handler manager)
 	if data.SafeOutputs.CreatePullRequests != nil {
 		createPullRequestEnabled = true
+		_ = createPullRequestEnabled // Track for potential future use
 		stepConfig := c.buildCreatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
 		// Skip pre-steps if we've already added the shared checkout steps
 		if !prCheckoutStepsAdded {
@@ -165,41 +175,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 	}
 
-	// 4. Add Comment step (needs to come after create_issue, create_discussion, create_pull_request)
-	if data.SafeOutputs.AddComments != nil {
-		stepConfig := c.buildAddCommentStepConfig(data, mainJobName, threatDetectionEnabled,
-			createIssueEnabled, createDiscussionEnabled, createPullRequestEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["add_comment_comment_id"] = "${{ steps.add_comment.outputs.comment_id }}"
-		outputs["add_comment_comment_url"] = "${{ steps.add_comment.outputs.comment_url }}"
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
-	}
-
-	// 5. Close Discussion step
-	if data.SafeOutputs.CloseDiscussions != nil {
-		stepConfig := c.buildCloseDiscussionStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
-	}
-
-	// 6. Close Issue step
-	if data.SafeOutputs.CloseIssues != nil {
-		stepConfig := c.buildCloseIssueStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
-
-	// 7. Close Pull Request step
+	// Close Pull Request step (not handled by handler manager)
 	if data.SafeOutputs.ClosePullRequests != nil {
 		stepConfig := c.buildClosePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
@@ -209,7 +185,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
-	// 8. Create PR Review Comment step
+	// Create PR Review Comment step
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		stepConfig := c.buildCreatePRReviewCommentStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
