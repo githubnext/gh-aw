@@ -734,11 +734,20 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Category != "" {
 			handlerConfig["category"] = cfg.Category
 		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
 		if len(cfg.AllowedLabels) > 0 {
 			handlerConfig["allowed_labels"] = cfg.AllowedLabels
 		}
 		if len(cfg.AllowedRepos) > 0 {
 			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
+		if cfg.CloseOlderDiscussions {
+			handlerConfig["close_older_discussions"] = true
 		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
