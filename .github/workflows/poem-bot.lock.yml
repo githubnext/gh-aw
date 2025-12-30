@@ -211,7 +211,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.373 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -993,7 +993,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5",
               version: "",
-              agent_version: "0.0.372",
+              agent_version: "0.0.373",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1818,7 +1818,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.372 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.373 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
