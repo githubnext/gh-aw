@@ -1,80 +1,22 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
-const { loadTemporaryIdMap, resolveIssueNumber } = require("./temporary_id.cjs");
+const { resolveIssueNumber } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const linkItems = result.items.filter(item => item.type === "link_sub_issue");
-  if (linkItems.length === 0) {
-    core.info("No link_sub_issue items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${linkItems.length} link_sub_issue item(s)`);
-
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  // Check if we're in staged mode
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
-      title: "Link Sub-Issue",
-      description: "The following sub-issue links would be created if staged mode was disabled:",
-      items: linkItems,
-      renderItem: item => {
-        // Resolve temporary IDs for display
-        const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
-        const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
-
-        let parentDisplay = parentResolved.resolved ? `${parentResolved.resolved.repo}#${parentResolved.resolved.number}` : `${item.parent_issue_number} (unresolved)`;
-        let subDisplay = subResolved.resolved ? `${subResolved.resolved.repo}#${subResolved.resolved.number}` : `${item.sub_issue_number} (unresolved)`;
-
-        if (parentResolved.wasTemporaryId && parentResolved.resolved) {
-          parentDisplay += ` (from ${item.parent_issue_number})`;
-        }
-        if (subResolved.wasTemporaryId && subResolved.resolved) {
-          subDisplay += ` (from ${item.sub_issue_number})`;
-        }
-
-        let content = `**Parent Issue:** ${parentDisplay}\n`;
-        content += `**Sub-Issue:** ${subDisplay}\n\n`;
-        return content;
-      },
-    });
-    return;
-  }
-
-  // Get filter configurations
-  const parentRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS?.trim();
-  const parentRequiredLabels = parentRequiredLabelsEnv
-    ? parentRequiredLabelsEnv
-        .split(",")
-        .map(l => l.trim())
-        .filter(l => l)
-    : [];
-
-  const parentTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX?.trim() || "";
-
-  const subRequiredLabelsEnv = process.env.GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS?.trim();
-  const subRequiredLabels = subRequiredLabelsEnv
-    ? subRequiredLabelsEnv
-        .split(",")
-        .map(l => l.trim())
-        .filter(l => l)
-    : [];
-
-  const subTitlePrefix = process.env.GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX?.trim() || "";
+/**
+ * Main handler factory for link_sub_issue
+ * Returns a message handler function that processes individual link_sub_issue messages
+ * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+ * @returns {Function} Message handler function (message, resolvedTemporaryIds) => result
+ */
+async function main(config = {}) {
+  // Extract configuration from config object
+  const parentRequiredLabels = config.parent_required_labels || [];
+  const parentTitlePrefix = config.parent_title_prefix || "";
+  const subRequiredLabels = config.sub_required_labels || [];
+  const subTitlePrefix = config.sub_title_prefix || "";
+  const maxCount = config.max || 5;
 
   if (parentRequiredLabels.length > 0) {
     core.info(`Parent required labels: ${JSON.stringify(parentRequiredLabels)}`);
@@ -88,25 +30,34 @@ async function main() {
   if (subTitlePrefix) {
     core.info(`Sub-issue title prefix: ${subTitlePrefix}`);
   }
-
-  // Get max count configuration
-  const maxCountEnv = process.env.GH_AW_LINK_SUB_ISSUE_MAX_COUNT;
-  const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 5;
-  if (isNaN(maxCount) || maxCount < 1) {
-    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-    return;
-  }
   core.info(`Max count: ${maxCount}`);
 
-  // Limit items to max count
-  const itemsToProcess = linkItems.slice(0, maxCount);
-  if (linkItems.length > maxCount) {
-    core.warning(`Found ${linkItems.length} link_sub_issue items, but max is ${maxCount}. Processing first ${maxCount}.`);
-  }
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
 
-  // Process each link request
-  const results = [];
-  for (const item of itemsToProcess) {
+  /**
+   * Message handler function that processes a single link_sub_issue message
+   * @param {Object} message - The link_sub_issue message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleLinkSubIssue(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping link_sub_issue: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    processedCount++;
+
+    const item = message;
+    
+    // Convert resolvedTemporaryIds object to Map for resolveIssueNumber
+    const temporaryIdMap = new Map(Object.entries(resolvedTemporaryIds || {}));
+
     // Resolve issue numbers, supporting temporary IDs from create_issue job
     const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
     const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
@@ -114,24 +65,22 @@ async function main() {
     // Check for resolution errors
     if (parentResolved.errorMessage) {
       core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
-      results.push({
+      return {
         parent_issue_number: item.parent_issue_number,
         sub_issue_number: item.sub_issue_number,
         success: false,
         error: parentResolved.errorMessage,
-      });
-      continue;
+      };
     }
 
     if (subResolved.errorMessage) {
       core.warning(`Failed to resolve sub-issue: ${subResolved.errorMessage}`);
-      results.push({
+      return {
         parent_issue_number: item.parent_issue_number,
         sub_issue_number: item.sub_issue_number,
         success: false,
         error: subResolved.errorMessage,
-      });
-      continue;
+      };
     }
 
     const parentIssueNumber = parentResolved.resolved?.number;
@@ -139,13 +88,12 @@ async function main() {
 
     if (!parentIssueNumber || !subIssueNumber) {
       core.error("Internal error: Issue numbers are undefined after successful resolution");
-      results.push({
+      return {
         parent_issue_number: item.parent_issue_number,
         sub_issue_number: item.sub_issue_number,
         success: false,
         error: "Issue numbers undefined",
-      });
-      continue;
+      };
     }
 
     if (parentResolved.wasTemporaryId && parentResolved.resolved) {
@@ -167,13 +115,12 @@ async function main() {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Failed to fetch parent issue #${parentIssueNumber}: ${errorMessage}`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: false,
         error: `Failed to fetch parent issue: ${errorMessage}`,
-      });
-      continue;
+      };
     }
 
     // Validate parent issue filters
@@ -182,25 +129,23 @@ async function main() {
       const missingLabels = parentRequiredLabels.filter(required => !parentLabels.includes(required));
       if (missingLabels.length > 0) {
         core.warning(`Parent issue #${parentIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
-        results.push({
+        return {
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,
           success: false,
           error: `Parent issue missing required labels: ${missingLabels.join(", ")}`,
-        });
-        continue;
+        };
       }
     }
 
     if (parentTitlePrefix && !parentIssue.title.startsWith(parentTitlePrefix)) {
       core.warning(`Parent issue #${parentIssueNumber} title does not start with "${parentTitlePrefix}". Skipping.`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: false,
         error: `Parent issue title does not start with "${parentTitlePrefix}"`,
-      });
-      continue;
+      };
     }
 
     // Fetch sub-issue to validate filters
@@ -215,13 +160,12 @@ async function main() {
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to fetch sub-issue #${subIssueNumber}: ${errorMessage}`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: false,
         error: `Failed to fetch sub-issue: ${errorMessage}`,
-      });
-      continue;
+      };
     }
 
     // Check if the sub-issue already has a parent using GraphQL
@@ -247,13 +191,12 @@ async function main() {
       const existingParent = parentCheckResult?.repository?.issue?.parent;
       if (existingParent) {
         core.warning(`Sub-issue #${subIssueNumber} is already a sub-issue of #${existingParent.number} ("${existingParent.title}"). Skipping.`);
-        results.push({
+        return {
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,
           success: false,
           error: `Sub-issue is already a sub-issue of #${existingParent.number}`,
-        });
-        continue;
+        };
       }
     } catch (error) {
       // If the GraphQL query fails (e.g., parent field not available), log warning but continue
@@ -267,25 +210,23 @@ async function main() {
       const missingLabels = subRequiredLabels.filter(required => !subLabels.includes(required));
       if (missingLabels.length > 0) {
         core.warning(`Sub-issue #${subIssueNumber} is missing required labels: ${missingLabels.join(", ")}. Skipping.`);
-        results.push({
+        return {
           parent_issue_number: parentIssueNumber,
           sub_issue_number: subIssueNumber,
           success: false,
           error: `Sub-issue missing required labels: ${missingLabels.join(", ")}`,
-        });
-        continue;
+        };
       }
     }
 
     if (subTitlePrefix && !subIssue.title.startsWith(subTitlePrefix)) {
       core.warning(`Sub-issue #${subIssueNumber} title does not start with "${subTitlePrefix}". Skipping.`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: false,
         error: `Sub-issue title does not start with "${subTitlePrefix}"`,
-      });
-      continue;
+      };
     }
 
     // Link the sub-issue using GraphQL mutation
@@ -317,57 +258,22 @@ async function main() {
       );
 
       core.info(`Successfully linked issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: true,
-      });
+      };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Failed to link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}: ${errorMessage}`);
-      results.push({
+      return {
         parent_issue_number: parentIssueNumber,
         sub_issue_number: subIssueNumber,
         success: false,
         error: errorMessage,
-      });
+      };
     }
-  }
-
-  // Generate step summary
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
-
-  let summaryContent = "## Link Sub-Issue\n\n";
-
-  if (successCount > 0) {
-    summaryContent += `✅ Successfully linked ${successCount} sub-issue(s):\n\n`;
-    for (const result of results.filter(r => r.success)) {
-      summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}\n`;
-    }
-    summaryContent += "\n";
-  }
-
-  if (failureCount > 0) {
-    summaryContent += `⚠️ Failed to link ${failureCount} sub-issue(s):\n\n`;
-    for (const result of results.filter(r => !r.success)) {
-      summaryContent += `- Issue #${result.sub_issue_number} → Parent #${result.parent_issue_number}: ${result.error}\n`;
-    }
-  }
-
-  await core.summary.addRaw(summaryContent).write();
-
-  // Set outputs
-  const linkedIssues = results
-    .filter(r => r.success)
-    .map(r => `${r.parent_issue_number}:${r.sub_issue_number}`)
-    .join("\n");
-  core.setOutput("linked_issues", linkedIssues);
-
-  // Warn if any linking failed (do not fail the job)
-  if (failureCount > 0) {
-    core.warning(`Failed to link ${failureCount} sub-issue(s). See step summary for details.`);
-  }
+  };
 }
 
 module.exports = { main };

@@ -856,6 +856,27 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["update_discussion"] = handlerConfig
 	}
 
+	if data.SafeOutputs.LinkSubIssue != nil {
+		cfg := data.SafeOutputs.LinkSubIssue
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.ParentRequiredLabels) > 0 {
+			handlerConfig["parent_required_labels"] = cfg.ParentRequiredLabels
+		}
+		if cfg.ParentTitlePrefix != "" {
+			handlerConfig["parent_title_prefix"] = cfg.ParentTitlePrefix
+		}
+		if len(cfg.SubRequiredLabels) > 0 {
+			handlerConfig["sub_required_labels"] = cfg.SubRequiredLabels
+		}
+		if cfg.SubTitlePrefix != "" {
+			handlerConfig["sub_title_prefix"] = cfg.SubTitlePrefix
+		}
+		config["link_sub_issue"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
