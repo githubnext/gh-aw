@@ -5,11 +5,47 @@
   "description": "JSON Schema for validating Model Context Protocol server configuration",
   "version": "1.0.0",
   "type": "object",
+  "examples": [
+    {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+    },
+    {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["run", "-i", "my-mcp-server"]
+    },
+    {
+      "type": "http",
+      "url": "http://localhost:8765"
+    },
+    {
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${{ secrets.API_TOKEN }}"
+      }
+    },
+    {
+      "container": "docker.io/mcp/brave-search",
+      "env": {
+        "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
+      },
+      "allowed": ["*"]
+    },
+    {
+      "container": "mcp/memory",
+      "entrypointArgs": ["-v", "/tmp/gh-aw/cache-memory:/app/dist"],
+      "allowed": ["store_memory", "retrieve_memory", "list_memories"]
+    }
+  ],
   "properties": {
     "type": {
       "type": "string",
       "enum": ["stdio", "http", "local"],
-      "description": "MCP connection type (local is an alias for stdio)"
+      "description": "MCP connection type (local is an alias for stdio)",
+      "examples": ["stdio", "http"]
     },
     "registry": {
       "type": "string",
@@ -18,31 +54,43 @@
     "url": {
       "type": "string",
       "minLength": 1,
-      "description": "URL for HTTP MCP connections"
+      "description": "URL for HTTP MCP connections",
+      "examples": ["http://localhost:8765", "https://api.example.com/mcp"]
     },
     "command": {
       "type": "string",
       "minLength": 1,
-      "description": "Command for stdio MCP connections"
+      "description": "Command for stdio MCP connections",
+      "examples": ["npx", "docker", "python", "node"]
     },
     "container": {
       "type": "string",
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-      "description": "Container image for stdio MCP connections (alternative to command)"
+      "description": "Container image for stdio MCP connections (alternative to command)",
+      "examples": ["docker.io/mcp/brave-search", "mcp/memory", "ghcr.io/github/github-mcp-server:latest"]
     },
     "args": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Arguments for command or container execution"
+      "description": "Arguments for command or container execution",
+      "examples": [
+        ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+        ["-y", "@modelcontextprotocol/server-github"],
+        ["run", "-i", "my-mcp-server"]
+      ]
     },
     "entrypointArgs": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Arguments to add after the container image (container entrypoint arguments)"
+      "description": "Arguments to add after the container image (container entrypoint arguments)",
+      "examples": [
+        ["-v", "/tmp/gh-aw/cache-memory:/app/dist"],
+        ["--port", "8080", "--debug"]
+      ]
     },
     "env": {
       "type": "object",
@@ -52,7 +100,19 @@
         }
       },
       "additionalProperties": false,
-      "description": "Environment variables for MCP server"
+      "description": "Environment variables for MCP server",
+      "examples": [
+        {
+          "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+        },
+        {
+          "API_KEY": "${{ secrets.CUSTOM_API_KEY }}",
+          "LOG_LEVEL": "debug"
+        },
+        {
+          "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
+        }
+      ]
     },
     "headers": {
       "type": "object",
@@ -62,7 +122,16 @@
         }
       },
       "additionalProperties": false,
-      "description": "HTTP headers for HTTP MCP connections"
+      "description": "HTTP headers for HTTP MCP connections",
+      "examples": [
+        {
+          "Authorization": "Bearer ${{ secrets.API_TOKEN }}"
+        },
+        {
+          "X-API-Key": "${{ secrets.API_KEY }}",
+          "Content-Type": "application/json"
+        }
+      ]
     },
     "network": {
       "type": "object",
@@ -76,29 +145,52 @@
           },
           "minItems": 1,
           "uniqueItems": true,
-          "description": "List of allowed domain names for network access"
+          "description": "List of allowed domain names for network access",
+          "examples": [
+            ["github.com", "api.github.com"],
+            ["example.com", "api.example.com", "cdn.example.com"]
+          ]
         },
         "proxy-args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Custom proxy arguments for container-based MCP servers"
+          "description": "Custom proxy arguments for container-based MCP servers",
+          "examples": [
+            ["--proxy", "http://proxy.example.com:8080"],
+            ["--proxy-auth", "user:pass"]
+          ]
         }
       },
       "additionalProperties": false,
-      "description": "Network configuration for container-based MCP servers"
+      "description": "Network configuration for container-based MCP servers",
+      "examples": [
+        {
+          "allowed": ["github.com", "api.github.com"]
+        },
+        {
+          "allowed": ["example.com"],
+          "proxy-args": ["--proxy", "http://proxy.example.com:8080"]
+        }
+      ]
     },
     "allowed": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "List of allowed tool names for this MCP server"
+      "description": "List of allowed tool names for this MCP server",
+      "examples": [
+        ["*"],
+        ["store_memory", "retrieve_memory", "list_memories"],
+        ["brave_web_search", "brave_local_search"]
+      ]
     },
     "version": {
       "type": "string",
-      "description": "Version or tag for container images"
+      "description": "Version or tag for container images",
+      "examples": ["latest", "v1.0.0", "stable"]
     }
   },
   "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
