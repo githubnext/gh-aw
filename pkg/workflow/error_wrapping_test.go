@@ -1,9 +1,9 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,23 +107,23 @@ on:
 				case *yaml.TypeError:
 					var target *yaml.TypeError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user - the error chain should be broken by errors.New()", e))
+						"internal error type *yaml.TypeError should not leak to user - the error chain should be broken by errors.New()")
 				case *yaml.SyntaxError:
 					var target *yaml.SyntaxError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type *yaml.SyntaxError should not leak to user")
 				case *os.PathError:
 					var target *os.PathError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type *os.PathError should not leak to user")
 				case *os.LinkError:
 					var target *os.LinkError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type *os.LinkError should not leak to user")
 				case *parser.ImportError:
 					var target *parser.ImportError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type *parser.ImportError should not leak to user")
 				default:
 					t.Fatalf("Unknown error type in test: %T", e)
 				}
@@ -187,7 +187,7 @@ on: 123456
 			errMsg := err.Error()
 			for _, info := range tt.wantInfo {
 				assert.Contains(t, errMsg, info,
-					fmt.Sprintf("error should preserve context: '%s'", info))
+					"error should preserve context: '%s'", info)
 			}
 
 			// Verify internal error types are not in the chain
@@ -280,7 +280,8 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 	t.Run("HTTP errors should be wrapped with user-friendly messages", func(t *testing.T) {
 		// Example: if we had HTTP errors from MCP server communication,
 		// they should be wrapped like this:
-		httpErr := &http.ProtocolError{ErrorString: "simulated"}
+		// Using a generic error to simulate HTTP protocol error
+		httpErr := errors.New("malformed HTTP response")
 
 		// WRONG: Don't use %w which exposes the internal error
 		// wrongErr := fmt.Errorf("MCP server error: %w", httpErr)
@@ -288,9 +289,8 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 		// RIGHT: Format it and create a new error
 		userErr := fmt.Errorf("failed to connect to MCP server: %s", httpErr.Error())
 
-		// Verify the internal error is not in the chain
-		var target *http.ProtocolError
-		assert.NotErrorAs(t, userErr, &target,
+		// Verify the original error is not in the chain (we broke it)
+		assert.NotEqual(t, httpErr, errors.Unwrap(userErr),
 			"HTTP internal errors should not be in the error chain")
 
 		// But the message should still be informative

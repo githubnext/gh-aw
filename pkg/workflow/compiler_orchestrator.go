@@ -70,7 +70,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 
 			// Not in shared/ directory but still missing 'on'
-			return nil, fmt.Errorf("%w\n\nℹ️  Main workflows require an 'on:' trigger to define when they should run.\n\nExample:\n  on:\n    issues:\n      types: [opened]\n\nIf this is a reusable component, consider moving it to a 'shared/' directory and importing it in other workflows.", err)
+			return nil, fmt.Errorf("%w\n\nℹ️  main workflows require an 'on:' trigger to define when they should run\n\nExample:\n  on:\n    issues:\n      types: [opened]\n\nIf this is a reusable component, consider moving it to a 'shared/' directory and importing it in other workflows", err)
 		}
 		return nil, err
 	}
