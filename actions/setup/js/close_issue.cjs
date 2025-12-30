@@ -89,14 +89,7 @@ async function main(config = {}) {
     });
   }
 
-  const {
-    requiredLabels = [],
-    requiredTitlePrefix = "",
-    target = "triggering",
-    workflowName = "Workflow",
-    workflowSource = "",
-    workflowSourceURL = "",
-  } = config;
+  const { requiredLabels = [], requiredTitlePrefix = "", target = "triggering", workflowName = "Workflow", workflowSource = "", workflowSourceURL = "" } = config;
 
   /**
    * Process a single close_issue message
@@ -172,24 +165,14 @@ async function main(config = {}) {
       // Build comment body
       const runId = context.runId;
       const githubServer = "https://github.com";
-      const runUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-        : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
       const triggeringIssueNumber = context.payload?.issue?.number;
       const triggeringPRNumber = context.payload?.pull_request?.number;
 
       let commentBody = outputItem.body.trim();
       commentBody += getTrackerID("markdown");
-      commentBody += generateFooter(
-        workflowName,
-        runUrl,
-        workflowSource,
-        workflowSourceURL,
-        triggeringIssueNumber,
-        triggeringPRNumber,
-        undefined
-      );
+      commentBody += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 
       // Add comment before closing
       const comment = await addIssueComment(github, context.repo.owner, context.repo.repo, issueNumber, commentBody);

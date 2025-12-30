@@ -98,12 +98,8 @@ No labels were added (no valid labels found in agent output).
       }
     } else {
       // Use triggering issue/PR
-      const isPRContext =
-        context.eventName === "pull_request" ||
-        context.eventName === "pull_request_review" ||
-        context.eventName === "pull_request_review_comment";
-      const isIssueContext =
-        context.eventName === "issues" || context.eventName === "issue_comment";
+      const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
+      const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
 
       if (isPRContext) {
         itemNumber = context.payload.pull_request?.number;

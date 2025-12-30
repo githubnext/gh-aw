@@ -11,6 +11,10 @@ This document provides a comprehensive reference for all available frontmatter c
 This documentation is automatically generated from the JSON Schema. For a more user-friendly guide, see [Frontmatter](/gh-aw/reference/frontmatter/).
 :::
 
+## Schema Description
+
+JSON Schema for validating agentic workflow frontmatter configuration
+
 ## Complete Frontmatter Reference
 
 ```yaml wrap
