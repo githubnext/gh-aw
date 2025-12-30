@@ -170,21 +170,23 @@ gh-aw/
     └── ci.yml                       # CI pipeline with actions-build job
 ```text
 
-**Shell Script Sync Flow:**
-1. **Source of Truth**: `actions/setup/sh/*.sh` (manually edited)
-2. **Sync Step**: `make sync-shell-scripts` copies to `pkg/workflow/sh/` 
-3. **Build Step**: `make build` embeds `pkg/workflow/sh/*.sh` via `//go:embed`
-4. **Actions Build**: `make actions-build` does NOT copy shell scripts (they already exist in actions/setup/sh/)
+**Runtime File Copy Flow (Current Architecture):**
 
-**JavaScript File Sync Flow:**
-1. **Source of Truth**: `actions/setup/js/*.cjs` (manually edited, production files only)
-2. **Sync Step**: `make sync-js-scripts` copies to `pkg/workflow/js/`
-3. **Build Step**: `make build` embeds `pkg/workflow/js/*.cjs` via `//go:embed`
-4. **Test Files**: `pkg/workflow/js/*.test.cjs` remain only in pkg/workflow/js/ (not synced)
+JavaScript and shell script files are NOT embedded in the binary. Instead, they are copied at runtime:
 
-Both follow the same pattern now:
-- Shell: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
-- JavaScript: `actions/setup/js/` (source) → `pkg/workflow/js/` (generated)
+1. **Source of Truth**: `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh` (manually edited, committed to git)
+2. **Runtime Copy**: The `actions/setup` action runs setup.sh which copies files from `actions/setup/js/` and `actions/setup/sh/` to `/tmp/gh-aw/actions`
+3. **Usage**: Workflow jobs access files directly from `/tmp/gh-aw/actions` via `require()` for JavaScript or direct execution for shell scripts
+4. **No Embedding**: Files are NOT embedded via `//go:embed` - the `pkg/workflow/js.go` file explicitly states "Embedded scripts have been removed"
+
+**Key Directories:**
+- `actions/setup/js/*.cjs` - Source of truth (manually edited, committed, ~252 files)
+- `actions/setup/sh/*.sh` - Source of truth (manually edited, committed, ~6 files)
+- `pkg/workflow/js/` - Contains only `safe_outputs_tools.json` (NOT synced .cjs files)
+- `pkg/workflow/sh/` - NOT used for runtime shell scripts
+- `/tmp/gh-aw/actions` - Runtime destination where files are copied for workflow execution
+
+**Note:** The Makefile targets `make sync-js-scripts` and `make sync-shell-scripts` do NOT exist and are not needed in the current architecture.
 
 ### Action Structure
 
