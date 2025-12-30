@@ -62,7 +62,32 @@ async function main(config = {}) {
     const parentResolved = resolveIssueNumber(item.parent_issue_number, temporaryIdMap);
     const subResolved = resolveIssueNumber(item.sub_issue_number, temporaryIdMap);
 
-    // Check for resolution errors
+    // Check if either parent or sub issue is an unresolved temporary ID
+    // If so, defer the operation to allow for resolution later
+    const hasUnresolvedParent = parentResolved.wasTemporaryId && !parentResolved.resolved;
+    const hasUnresolvedSub = subResolved.wasTemporaryId && !subResolved.resolved;
+    
+    if (hasUnresolvedParent || hasUnresolvedSub) {
+      const unresolvedIds = [];
+      if (hasUnresolvedParent) {
+        unresolvedIds.push(`parent: ${item.parent_issue_number}`);
+      }
+      if (hasUnresolvedSub) {
+        unresolvedIds.push(`sub: ${item.sub_issue_number}`);
+      }
+      core.info(`Deferring link_sub_issue: unresolved temporary IDs (${unresolvedIds.join(", ")})`);
+      
+      // Return a deferred status to indicate this should be retried later
+      return {
+        parent_issue_number: item.parent_issue_number,
+        sub_issue_number: item.sub_issue_number,
+        success: false,
+        deferred: true,
+        error: `Unresolved temporary IDs: ${unresolvedIds.join(", ")}`,
+      };
+    }
+
+    // Check for other resolution errors (non-temporary ID issues)
     if (parentResolved.errorMessage) {
       core.warning(`Failed to resolve parent issue: ${parentResolved.errorMessage}`);
       return {
