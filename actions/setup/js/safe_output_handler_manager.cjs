@@ -157,7 +157,31 @@ async function processMessages(messageHandlers, messages) {
 
       // Check if this output was created with unresolved temporary IDs
       // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
-      if (result && result.number && result.repo) {
+      
+      // Handle add_comment which returns an array of comments
+      if (messageType === "add_comment" && Array.isArray(result)) {
+        const contentToCheck = getContentToCheck(messageType, message);
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+          // Track each comment that was created with unresolved temp IDs
+          for (const comment of result) {
+            if (comment._tracking) {
+              core.info(`Comment ${comment._tracking.commentId} on ${comment._tracking.repo}#${comment._tracking.itemNumber} was created with unresolved temporary IDs - tracking for update`);
+              outputsWithUnresolvedIds.push({
+                type: messageType,
+                message: message,
+                result: {
+                  commentId: comment._tracking.commentId,
+                  itemNumber: comment._tracking.itemNumber,
+                  repo: comment._tracking.repo,
+                  isDiscussion: comment._tracking.isDiscussion,
+                },
+                originalTempIdMapSize: tempIdMapSizeBefore,
+              });
+            }
+          }
+        }
+      } else if (result && result.number && result.repo) {
+        // Handle create_issue, create_discussion
         const contentToCheck = getContentToCheck(messageType, message);
         if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
           core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
@@ -368,7 +392,10 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
       
       if (!stillHasUnresolved) {
         // All temporary IDs are now resolved - update the body directly
-        core.info(`Updating ${tracked.type} ${tracked.result.repo}#${tracked.result.number} (${resolvedCount} temp ID(s) resolved)`);
+        let logInfo = tracked.result.commentId 
+          ? `comment ${tracked.result.commentId} on ${tracked.result.repo}#${tracked.result.itemNumber}`
+          : `${tracked.result.repo}#${tracked.result.number}`;
+        core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
         
         try {
           // Replace temporary ID references with resolved values
@@ -385,8 +412,13 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
               updateCount++;
               break;
             case "add_comment":
-              // For comments, we would need the comment ID which we don't currently track
-              core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
+              // Update comment using the tracked comment ID
+              if (tracked.result.commentId) {
+                await updateCommentBody(github, context, tracked.result.repo, tracked.result.commentId, updatedContent, tracked.result.isDiscussion);
+                updateCount++;
+              } else {
+                core.debug(`Skipping synthetic update for comment - comment ID not tracked`);
+              }
               break;
             default:
               core.debug(`Unknown output type: ${tracked.type}`);
