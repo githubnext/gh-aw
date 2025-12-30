@@ -121,22 +121,10 @@ function updateBody(params) {
   return currentBody + appendSection;
 }
 
-/**
- * Update PR body with the specified operation
- * Backward compatibility wrapper for updateBody
- * @deprecated Use updateBody instead for new code
- * @param {Object} params - Update parameters
- * @returns {string} Updated body content
- */
-function updatePRBody(params) {
-  return updateBody(params);
-}
-
 module.exports = {
   buildAIFooter,
   buildIslandStartMarker,
   buildIslandEndMarker,
   findIsland,
   updateBody,
-  updatePRBody,
 };

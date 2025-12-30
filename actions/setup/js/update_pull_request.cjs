@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createUpdateHandler } = require("./update_runner.cjs");
-const { updatePRBody } = require("./update_pr_description_helpers.cjs");
+const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { isPRContext, getPRNumber } = require("./update_context_helpers.cjs");
 
 /**
@@ -36,7 +36,7 @@ async function executePRUpdate(github, context, prNumber, updateData) {
     const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
     // Use helper to update body
-    apiData.body = updatePRBody({
+    apiData.body = updateBody({
       currentBody,
       newContent: rawBody,
       operation,
