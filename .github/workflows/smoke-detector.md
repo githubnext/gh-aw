@@ -39,7 +39,7 @@ safe-outputs:
     target: "*"
     hide-older-comments: true
   create-issue:
-    expires: 1d
+    expires: 2h
     title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]
   messages:
