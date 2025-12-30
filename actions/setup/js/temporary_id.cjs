@@ -161,6 +161,37 @@ function resolveIssueNumber(value, temporaryIdMap) {
 }
 
 /**
+ * Check if text contains unresolved temporary ID references
+ * An unresolved temporary ID is one that appears in the text but is not in the tempIdMap
+ * @param {string} text - The text to check for unresolved temporary IDs
+ * @param {Map<string, RepoIssuePair>|Object} tempIdMap - Map or object of temporary_id to {repo, number}
+ * @returns {boolean} True if text contains any unresolved temporary IDs
+ */
+function hasUnresolvedTemporaryIds(text, tempIdMap) {
+  if (!text || typeof text !== "string") {
+    return false;
+  }
+
+  // Convert tempIdMap to Map if it's a plain object
+  const map = tempIdMap instanceof Map ? tempIdMap : new Map(Object.entries(tempIdMap || {}));
+
+  // Find all temporary ID references in the text
+  const matches = text.matchAll(TEMPORARY_ID_PATTERN);
+  
+  for (const match of matches) {
+    const tempId = match[1]; // The captured group (aw_XXXXXXXXXXXX)
+    const normalizedId = normalizeTemporaryId(tempId);
+    
+    // If this temp ID is not in the map, it's unresolved
+    if (!map.has(normalizedId)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Serialize the temporary ID map to JSON for output
  * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
  * @returns {string} JSON string of the map
@@ -179,5 +210,6 @@ module.exports = {
   replaceTemporaryIdReferencesLegacy,
   loadTemporaryIdMap,
   resolveIssueNumber,
+  hasUnresolvedTemporaryIds,
   serializeTemporaryIdMap,
 };
