@@ -767,7 +767,7 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["http"],
+          "const": "http",
           "default": "http",
           "description": "Deprecated: Transport mode for the safe-inputs MCP server. This field is ignored as only 'http' mode is supported. The server always starts as a separate step.",
           "deprecated": true,
@@ -829,7 +829,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["defaults"],
+          "const": "defaults",
           "description": "Use default network access"
         },
         {
@@ -858,7 +858,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": ["disable"],
+                  "const": "disable",
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -998,6 +998,7 @@
         },
         "registry": {
           "type": "string",
+          "format": "uri",
           "description": "URI to the installation location when MCP is installed from a registry"
         },
         "command": {
@@ -1130,15 +1131,17 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["http"],
+          "const": "http",
           "description": "MCP connection type for HTTP"
         },
         "registry": {
           "type": "string",
+          "format": "uri",
           "description": "URI to the installation location when MCP is installed from a registry"
         },
         "url": {
           "type": "string",
+          "format": "uri",
           "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },

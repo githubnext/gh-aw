@@ -2020,7 +2020,7 @@ func TestValidateMCPConfigWithSchema(t *testing.T) {
 			},
 			toolName:    "test-tool",
 			wantErr:     true,
-			errContains: "minLength",
+			errContains: "valid uri", // Format validation takes precedence over minLength
 		},
 		{
 			name: "valid stdio MCP config with container",

@@ -49,10 +49,12 @@
     },
     "registry": {
       "type": "string",
+      "format": "uri",
       "description": "URI to the installation location when MCP is installed from a registry"
     },
     "url": {
       "type": "string",
+      "format": "uri",
       "minLength": 1,
       "description": "URL for HTTP MCP connections",
       "examples": ["http://localhost:8765", "https://api.example.com/mcp"]
@@ -200,7 +202,7 @@
       "if": {
         "properties": {
           "type": {
-            "enum": ["http"]
+            "const": "http"
           }
         }
       },
@@ -215,7 +217,7 @@
       "if": {
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "const": "stdio"
           }
         }
       },
@@ -257,7 +259,7 @@
       "then": {
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "const": "stdio"
           }
         }
       }
@@ -270,7 +272,7 @@
         "required": ["container"],
         "properties": {
           "type": {
-            "enum": ["stdio"]
+            "const": "stdio"
           }
         }
       }

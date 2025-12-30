@@ -794,7 +794,7 @@
                   "description": "Types of check suite events",
                   "items": {
                     "type": "string",
-                    "enum": ["completed"]
+                    "const": "completed"
                   }
                 }
               }
@@ -902,7 +902,7 @@
                   "description": "Types of merge group events",
                   "items": {
                     "type": "string",
-                    "enum": ["checks_requested"]
+                    "const": "checks_requested"
                   }
                 }
               }
@@ -1156,7 +1156,7 @@
                   "description": "Types of watch events",
                   "items": {
                     "type": "string",
-                    "enum": ["started"]
+                    "const": "started"
                   }
                 }
               }
@@ -1406,7 +1406,7 @@
             },
             "all": {
               "type": "string",
-              "enum": ["read"],
+              "const": "read",
               "description": "Permission shorthand that applies read access to all permission scopes. Can be combined with specific write permissions to override individual scopes. 'write' is not allowed for all."
             }
           }
@@ -1950,7 +1950,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["defaults"],
+          "const": "defaults",
           "description": "Use default network permissions (basic infrastructure: certificates, JSON schema, Ubuntu, etc.)"
         },
         {
@@ -1981,7 +1981,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": ["disable"],
+                  "const": "disable",
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -3185,6 +3185,7 @@
               },
               "url": {
                 "type": "string",
+                "format": "uri",
                 "description": "URL for HTTP mode MCP servers"
               },
               "headers": {
@@ -4979,8 +4980,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
+          "const": "all",
+          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
@@ -5236,7 +5237,7 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["http"],
+          "const": "http",
           "default": "http",
           "description": "Deprecated: Transport mode for the safe-inputs MCP server. This field is ignored as only 'http' mode is supported. The server always starts as a separate step.",
           "deprecated": true,
@@ -5515,6 +5516,7 @@
         },
         "registry": {
           "type": "string",
+          "format": "uri",
           "description": "URI to the installation location when MCP is installed from a registry"
         },
         "command": {
@@ -5651,15 +5653,17 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["http"],
+          "const": "http",
           "description": "MCP connection type for HTTP"
         },
         "registry": {
           "type": "string",
+          "format": "uri",
           "description": "URI to the installation location when MCP is installed from a registry"
         },
         "url": {
           "type": "string",
+          "format": "uri",
           "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
