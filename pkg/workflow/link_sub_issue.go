@@ -60,4 +60,3 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 
 	return nil
 }
-

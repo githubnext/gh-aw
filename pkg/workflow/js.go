@@ -35,7 +35,6 @@ func getCreateDiscussionScript() string        { return "" }
 func getCreateIssueScript() string             { return "" }
 func getCreatePRReviewCommentScript() string   { return "" }
 func getCreatePullRequestScript() string       { return "" }
-func getLinkSubIssueScript() string            { return "" }
 func getNoOpScript() string                    { return "" }
 func getNotifyCommentErrorScript() string      { return "" }
 func getPushToPullRequestBranchScript() string { return "" }

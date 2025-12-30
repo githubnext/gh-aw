@@ -288,15 +288,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// 19. Update Release step - now handled by handler manager
 	// 20. Link Sub Issue step - now handled by handler manager
-	// 19. Link Sub Issue step
-	if data.SafeOutputs.LinkSubIssue != nil {
-		stepConfig := c.buildLinkSubIssueStepConfig(data, mainJobName, threatDetectionEnabled, createIssueEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
 
 	// 21. Hide Comment step
 	if data.SafeOutputs.HideComment != nil {
