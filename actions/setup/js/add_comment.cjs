@@ -262,7 +262,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
-async function main(config = {}) {
+async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";

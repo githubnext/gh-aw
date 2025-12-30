@@ -145,7 +145,7 @@ async function closeDiscussion(github, discussionId, reason) {
   return result.closeDiscussion.discussion;
 }
 
-async function main(config = {}) {
+async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 

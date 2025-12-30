@@ -5,7 +5,7 @@ const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main(config = {}) {
+async function main() {
   // Use shared processor for common steps
   const result = await processSafeOutput(
     {
@@ -36,8 +36,7 @@ async function main(config = {}) {
         }
         return content;
       },
-    },
-    config // Pass handler config as third parameter
+    }
   );
 
   if (!result.success) {

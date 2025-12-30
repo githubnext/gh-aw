@@ -87,7 +87,7 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
   return undefined;
 }
 
-async function main(config = {}) {
+async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");

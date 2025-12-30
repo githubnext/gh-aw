@@ -1546,8 +1546,11 @@ jobs:
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md@ea350161ad5dcc9624cf510f134c6a9e39a6f94d"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/ea350161ad5dcc9624cf510f134c6a9e39a6f94d/workflows/ci-doctor.md"
     outputs:
-      process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
-      process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
+      add_comment_comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      add_comment_comment_url: ${{ steps.add_comment.outputs.comment_url }}
+      create_issue_issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      create_issue_issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      create_issue_temporary_id_map: ${{ steps.create_issue.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1570,19 +1573,35 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Process Safe Outputs
-        id: process_safe_outputs
+      - name: Create Issue
+        id: create_issue
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1},\"create_issue\":{\"max\":1}}"
           GH_AW_ISSUE_TITLE_PREFIX: "[CI Failure Doctor] "
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
+            const { main } = require('/tmp/gh-aw/actions/create_issue.cjs');
+            await main();
+      - name: Add Comment
+        id: add_comment
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_CREATED_ISSUE_URL: ${{ steps.create_issue.outputs.issue_url }}
+          GH_AW_CREATED_ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
+          GH_AW_TEMPORARY_ID_MAP: ${{ steps.create_issue.outputs.temporary_id_map }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/add_comment.cjs');
             await main();
 
   update_cache_memory:
