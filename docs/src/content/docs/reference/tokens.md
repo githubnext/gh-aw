@@ -322,7 +322,13 @@ This environment variable is automatically set by gh-aw based on your GitHub too
 
 ### Per-Output vs Global vs Workflow-Level
 
-You can configure tokens at three levels with different precedence:
+You can configure tokens at three levels with different precedence. All safe output types support the `github-token` field, allowing fine-grained control over authentication for different operations.
+
+**Configuration levels** (highest to lowest precedence):
+
+1. **Per-output level**: Configure `github-token` on individual safe outputs
+2. **Global safe-outputs level**: Configure `github-token` at the `safe-outputs:` level
+3. **Workflow-level**: Configure `github-token` at the top level of frontmatter
 
 ```yaml wrap
 # Workflow-level (applies to all operations by default)
@@ -337,10 +343,19 @@ safe-outputs:
     github-token: ${{ secrets.ISSUE_PAT }}
     target-repo: "org/other-repo"
   
+  add-labels:
+    # Each safe output type can have its own token
+    github-token: ${{ secrets.LABELS_PAT }}
+    allowed: [bug, feature]
+  
   create-pull-request:
     # Automatically uses Copilot token chain when copilot is reviewer
     reviewers: copilot
 ```
+
+:::tip[All safe outputs support github-token]
+Every safe output type (`create-issue`, `add-comment`, `add-labels`, `add-reviewer`, `assign-milestone`, `create-pull-request`, `update-issue`, `update-pull-request`, and all others) supports the `github-token` field. This allows you to use different tokens with different permissions for different operations.
+:::
 
 ### Cross-Repository Operations
 
@@ -467,7 +482,7 @@ safe-outputs:
 
 ### Token Scoping
 
-Scope different operations with different tokens when they need different permission levels:
+Scope different operations with different tokens when they need different permission levels. Since all safe output types support the `github-token` field, you can provide the most appropriate token for each operation:
 
 ```yaml wrap
 safe-outputs:
@@ -475,10 +490,20 @@ safe-outputs:
     github-token: ${{ secrets.READ_WRITE_PAT }}
     target-repo: "org/public-issues"
   
+  add-labels:
+    github-token: ${{ secrets.LABELS_ONLY_PAT }}  # Token with minimal permissions
+    allowed: [bug, feature, enhancement]
+  
   create-pull-request:
     github-token: ${{ secrets.LIMITED_PAT }}
     target-repo: "org/code-repo"
+  
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Token with Projects access
+    max: 10
 ```
+
+This approach follows the principle of least privilege—each operation uses only the permissions it needs.
 
 ### Prefer GitHub Apps
 

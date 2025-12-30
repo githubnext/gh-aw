@@ -50,6 +50,14 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 | [**No-Op**](#no-op-logging-noop) | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
 | [**Missing Tool**](#missing-tool-reporting-missing-tool) | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
 
+:::tip[Common configuration fields]
+All safe output types support two common configuration fields:
+- `max` - Maximum number of operations (default varies by type)
+- `github-token` - Custom GitHub token for authentication (supports per-output, global, and workflow-level configuration)
+
+See [Custom GitHub Token](#custom-github-token-github-token) for details on token precedence.
+:::
+
 Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
 ### Custom Safe Output Jobs (`jobs:`)
@@ -474,15 +482,34 @@ safe-outputs:
 
 ### Custom GitHub Token (`github-token:`)
 
-Token precedence: `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN` (default). Override globally or per safe output:
+All safe output types support the `github-token` field for fine-grained authentication control. Token precedence: per-output → global safe-outputs → workflow-level → default fallback.
+
+**Configuration levels**:
 
 ```yaml wrap
+# Workflow-level (base configuration)
+github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+
 safe-outputs:
-  github-token: ${{ secrets.CUSTOM_PAT }}  # global
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Global safe-outputs level
+  
   create-issue:
+    # Uses global token (inherits from safe-outputs level)
+    target-repo: "org/tracking-repo"
+  
+  add-labels:
+    github-token: ${{ secrets.LABELS_PAT }}  # Per-output override
+    allowed: [bug, feature]
+  
   create-pull-request:
-    github-token: ${{ secrets.PR_PAT }}    # per-output
+    github-token: ${{ secrets.PR_PAT }}      # Per-output override
+    target-repo: "org/code-repo"
+  
+  update-project:
+    github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Projects-specific token
 ```
+
+This allows you to use different tokens with different permissions for different operations, following the principle of least privilege.
 
 ### GitHub App Token (`app:`)
 
