@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // buildCreateCodeScanningAlertStepConfig builds the configuration for creating a code scanning alert
 func (c *Compiler) buildCreateCodeScanningAlertStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool, workflowFilename string) SafeOutputStepConfig {
@@ -30,6 +33,10 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
+	// Build config JSON for passing to JavaScript
+	configJSON := c.buildAssignMilestoneConfigJSON(cfg)
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSIGN_MILESTONE_CONFIG: '%s'\n", configJSON))
+
 	condition := BuildSafeOutputType("assign_milestone")
 
 	return SafeOutputStepConfig{
@@ -41,6 +48,28 @@ func (c *Compiler) buildAssignMilestoneStepConfig(data *WorkflowData, mainJobNam
 		Condition:     condition,
 		Token:         cfg.GitHubToken,
 	}
+}
+
+// buildAssignMilestoneConfigJSON builds a JSON config string for assign_milestone
+func (c *Compiler) buildAssignMilestoneConfigJSON(cfg *AssignMilestoneConfig) string {
+	config := make(map[string]any)
+
+	if cfg.Max > 0 {
+		config["max"] = cfg.Max
+	}
+	if len(cfg.Allowed) > 0 {
+		config["allowed"] = cfg.Allowed
+	}
+	if cfg.Target != "" {
+		config["target"] = cfg.Target
+	}
+
+	jsonBytes, err := json.Marshal(config)
+	if err != nil {
+		// Fallback to empty config if marshaling fails
+		return "{}"
+	}
+	return string(jsonBytes)
 }
 
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent

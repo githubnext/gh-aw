@@ -1,47 +1,59 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput } = require("./safe_output_processor.cjs");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
-  // Use shared processor for common steps
-  const result = await processSafeOutput(
-    {
-      itemType: "assign_milestone",
-      configKey: "assign_milestone",
-      displayName: "Milestone",
-      itemTypeName: "milestone assignment",
-      supportsPR: true,
-      supportsIssue: true,
-      findMultiple: true, // This processor finds multiple items
-      envVars: {
-        allowed: "GH_AW_MILESTONE_ALLOWED",
-        maxCount: "GH_AW_MILESTONE_MAX_COUNT",
-        target: "GH_AW_MILESTONE_TARGET",
-      },
-    },
-    {
-      title: "Assign Milestone",
-      description: "The following milestone assignments would be made if staged mode was disabled:",
-      renderItem: item => {
-        let content = `**Issue:** #${item.issue_number}\n`;
-        content += `**Milestone Number:** ${item.milestone_number}\n\n`;
-        return content;
-      },
-    }
-  );
+async function main(config = {}) {
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("assigned_milestones", "");
+  core.setOutput("milestone_assigned", "");
+  core.setOutput("assignment_date", "");
 
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
+  const result = loadAgentOutput();
   if (!result.success) {
     return;
   }
 
-  const { items: milestoneItems, config } = result;
-  if (!config || !milestoneItems) {
-    core.setFailed("Internal error: config or milestoneItems is undefined");
+  const milestoneItems = result.items.filter(item => item.type === "assign_milestone");
+  if (milestoneItems.length === 0) {
+    core.info("No assign-milestone items found in agent output");
     return;
   }
-  const { allowed: allowedMilestones, maxCount = 1 } = config;
+  core.info(`Found ${milestoneItems.length} assign-milestone item(s)`);
+
+  // Get configuration from config parameter or environment variable
+  let effectiveConfig = config;
+  if (Object.keys(config).length === 0 && process.env.GH_AW_ASSIGN_MILESTONE_CONFIG) {
+    try {
+      effectiveConfig = JSON.parse(process.env.GH_AW_ASSIGN_MILESTONE_CONFIG);
+      core.info(`Loaded config from GH_AW_ASSIGN_MILESTONE_CONFIG: ${JSON.stringify(effectiveConfig)}`);
+    } catch (error) {
+      core.warning(`Failed to parse GH_AW_ASSIGN_MILESTONE_CONFIG: ${getErrorMessage(error)}`);
+      effectiveConfig = {};
+    }
+  }
+  
+  const allowedMilestones = effectiveConfig.allowed || [];
+  const maxCount = effectiveConfig.max || 1;
+
+  if (isStaged) {
+    await generateStagedPreview({
+      title: "Assign Milestone",
+      description: "The following milestone assignments would be made if staged mode was disabled:",
+      items: milestoneItems.slice(0, maxCount),
+      renderItem: (item, index) => {
+        let content = `#### Assignment ${index + 1}\n`;
+        content += `**Issue:** #${item.issue_number}\n`;
+        content += `**Milestone Number:** ${item.milestone_number}\n\n`;
+        return content;
+      },
+    });
+    return;
+  }
 
   // Limit items to max count
   const itemsToProcess = milestoneItems.slice(0, maxCount);
@@ -51,7 +63,7 @@ async function main() {
 
   // Fetch all milestones to validate against allowed list
   let allMilestones = [];
-  if (allowedMilestones) {
+  if (allowedMilestones && allowedMilestones.length > 0) {
     try {
       const milestonesResponse = await github.rest.issues.listMilestones({
         owner: context.repo.owner,
@@ -71,6 +83,8 @@ async function main() {
 
   // Process each milestone assignment
   const results = [];
+  const assignmentDate = new Date().toISOString();
+  
   for (const item of itemsToProcess) {
     const issueNumber = Number(item.issue_number);
     const milestoneNumber = Number(item.milestone_number);
@@ -150,8 +164,18 @@ async function main() {
 
   await core.summary.addRaw(summaryContent).write();
 
+  // Set outputs
   const assignedMilestones = successResults.map(r => `${r.issue_number}:${r.milestone_number}`).join("\n");
   core.setOutput("assigned_milestones", assignedMilestones);
+  
+  // Set milestone_assigned output (true/false string)
+  core.setOutput("milestone_assigned", successResults.length > 0 ? "true" : "false");
+  
+  // Set assignment_date output with ISO 8601 timestamp
+  if (successResults.length > 0) {
+    core.setOutput("assignment_date", assignmentDate);
+    core.info(`Milestone assignment completed at: ${assignmentDate}`);
+  }
 
   if (failureResults.length > 0) {
     core.setFailed(`Failed to assign ${failureResults.length} milestone(s)`);

@@ -225,7 +225,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
+		outputs["assign_milestone_assigned_milestones"] = "${{ steps.assign_milestone.outputs.assigned_milestones }}"
 		outputs["assign_milestone_milestone_assigned"] = "${{ steps.assign_milestone.outputs.milestone_assigned }}"
+		outputs["assign_milestone_assignment_date"] = "${{ steps.assign_milestone.outputs.assignment_date }}"
 
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
