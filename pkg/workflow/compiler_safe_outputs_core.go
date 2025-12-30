@@ -52,7 +52,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
 	// Track which outputs are created for dependency tracking
-	var createIssueEnabled bool
 	var createPullRequestEnabled bool
 
 	// Add GitHub App token minting step if app is configured
@@ -110,7 +109,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CloseDiscussions != nil ||
 		data.SafeOutputs.AddLabels != nil ||
 		data.SafeOutputs.UpdateIssues != nil ||
-		data.SafeOutputs.UpdateDiscussions != nil
+		data.SafeOutputs.UpdateDiscussions != nil ||
+		data.SafeOutputs.LinkSubIssue != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -118,11 +118,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
 		steps = append(steps, handlerManagerSteps...)
 		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
-
-		// Track enabled types for other steps
-		if data.SafeOutputs.CreateIssues != nil {
-			createIssueEnabled = true
-		}
 
 		// Add outputs from handler manager
 		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
@@ -152,6 +147,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.UpdateDiscussions != nil {
 			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		}
+		if data.SafeOutputs.LinkSubIssue != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 		}
 	}
 
@@ -292,16 +290,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
 		permissions.Merge(NewPermissionsContentsWrite())
-	}
-
-	// 20. Link Sub Issue step
-	if data.SafeOutputs.LinkSubIssue != nil {
-		stepConfig := c.buildLinkSubIssueStepConfig(data, mainJobName, threatDetectionEnabled, createIssueEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}
 
 	// 21. Hide Comment step
