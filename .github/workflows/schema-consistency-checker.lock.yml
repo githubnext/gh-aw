@@ -185,6 +185,13 @@ jobs:
           awf --version
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.0.76
+      - name: Detect repository visibility for GitHub MCP lockdown
+        id: detect-repo-visibility
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');
+            await detectRepoVisibility(github, context, core);
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -342,6 +349,7 @@ jobs:
                 "url": "https://api.githubcopilot.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN",
+                  "X-MCP-Lockdown": "${{ steps.detect-repo-visibility.outputs.lockdown }}",
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "context,repos,issues,pull_requests,discussions"
                 }
