@@ -85,6 +85,7 @@
       ]
     },
     "applyTo": {
+      "description": "Glob pattern(s) specifying which files/directories these instructions should apply to. Used in custom agent instruction files to target specific code areas. Supports wildcards (e.g., '**/*' for all files, '**/*.py' for Python files). Can be a single pattern string or array of patterns. If omitted in custom agent files, instructions apply globally.",
       "oneOf": [
         {
           "type": "string",
