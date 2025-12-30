@@ -17,7 +17,7 @@ var maintenanceLog = logger.New("workflow:maintenance_workflow")
 func generateMaintenanceCron(minExpiresDays int) (string, string) {
 	// Use a pseudo-random but deterministic minute (37) to avoid load spikes at :00
 	minute := 37
-	
+
 	// Determine frequency based on minimum expires value
 	// Run at least as often as the shortest expiration, but max daily
 	if minExpiresDays <= 1 {
@@ -30,7 +30,7 @@ func generateMaintenanceCron(minExpiresDays int) (string, string) {
 		// For 3-4 days, run every 12 hours
 		return fmt.Sprintf("%d */12 * * *", minute), "Every 12 hours"
 	}
-	
+
 	// For 5+ days, run daily
 	return fmt.Sprintf("%d %d * * *", minute, 0), "Daily"
 }

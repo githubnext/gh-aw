@@ -112,7 +112,7 @@ const DefaultClaudeCodeVersion Version = "2.0.76"
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.372"
+const DefaultCopilotVersion Version = "0.0.373"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"

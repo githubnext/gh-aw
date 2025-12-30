@@ -127,8 +127,8 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 	}
 
 	// Should contain the default version from constants
-	if !strings.Contains(installStep, "export VERSION=0.0.372") {
-		t.Errorf("Expected default version 0.0.372 in install step, got:\n%s", installStep)
+	if !strings.Contains(installStep, "export VERSION=0.0.373") {
+		t.Errorf("Expected default version 0.0.373 in install step, got:\n%s", installStep)
 	}
 
 	// Should use the official install.sh script
