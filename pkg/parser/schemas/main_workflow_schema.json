@@ -115,13 +115,7 @@
     },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
-      "examples": [
-        {"issues": {"types": ["opened"]}},
-        {"pull_request": {"types": ["opened", "synchronize"]}},
-        "workflow_dispatch",
-        {"schedule": "daily at 9am"},
-        "/my-bot"
-      ],
+      "examples": [{ "issues": { "types": ["opened"] } }, { "pull_request": { "types": ["opened", "synchronize"] } }, "workflow_dispatch", { "schedule": "daily at 9am" }, "/my-bot"],
       "oneOf": [
         {
           "type": "string",
@@ -2337,13 +2331,8 @@
             ]
           },
           "examples": [
-            [
-              {"prompt": "Analyze the issue and create a plan"}
-            ],
-            [
-              {"uses": "actions/checkout@v4"},
-              {"prompt": "Review the code and suggest improvements"}
-            ],
+            [{ "prompt": "Analyze the issue and create a plan" }],
+            [{ "uses": "actions/checkout@v4" }, { "prompt": "Review the code and suggest improvements" }],
             [
               {
                 "name": "Download logs from last 24 hours",
@@ -2402,13 +2391,7 @@
     "engine": {
       "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'copilot'.",
       "default": "copilot",
-      "examples": [
-        "copilot",
-        "claude",
-        "codex",
-        {"id": "copilot", "version": "beta"},
-        {"id": "claude", "model": "claude-3-5-sonnet-20241022", "max-turns": 15}
-      ],
+      "examples": ["copilot", "claude", "codex", { "id": "copilot", "version": "beta" }, { "id": "claude", "model": "claude-3-5-sonnet-20241022", "max-turns": 15 }],
       "$ref": "#/$defs/engine_config"
     },
     "mcp-servers": {
@@ -2446,12 +2429,7 @@
     "tools": {
       "type": "object",
       "description": "Tools and MCP (Model Context Protocol) servers available to the AI engine for GitHub API access, browser automation, file editing, and more",
-      "examples": [
-        {"playwright": {"version": "v1.41.0"}},
-        {"github": {"mode": "remote"}},
-        {"github": {"mode": "local", "version": "latest"}},
-        {"bash": null}
-      ],
+      "examples": [{ "playwright": { "version": "v1.41.0" } }, { "github": { "mode": "remote" } }, { "github": { "mode": "local", "version": "latest" } }, { "bash": null }],
       "properties": {
         "github": {
           "description": "GitHub API tools for repository operations (issues, pull requests, content management)",
