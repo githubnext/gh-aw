@@ -219,9 +219,10 @@ function escapeMarkdownTitle(title) {
  * Process close entity items from agent output
  * @param {EntityConfig} config - Entity configuration
  * @param {EntityCallbacks} callbacks - Entity-specific API callbacks
+ * @param {Object} handlerConfig - Handler-specific configuration object
  * @returns {Promise<Array<{entity: {number: number, html_url: string, title: string}, comment: {id: number, html_url: string}}>|undefined>}
  */
-async function processCloseEntityItems(config, callbacks) {
+async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -239,8 +240,10 @@ async function processCloseEntityItems(config, callbacks) {
 
   core.info(`Found ${items.length} ${config.itemTypeDisplay} item(s)`);
 
-  // Get configuration from environment
-  const { requiredLabels, requiredTitlePrefix, target } = parseEntityConfig(config.envVarPrefix);
+  // Get configuration from handlerConfig object (not environment variables)
+  const requiredLabels = handlerConfig.required_labels || [];
+  const requiredTitlePrefix = handlerConfig.required_title_prefix || "";
+  const target = handlerConfig.target || "triggering";
 
   core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
 

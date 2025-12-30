@@ -163,11 +163,11 @@ async function main(config = {}) {
 
   core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
 
-  // Get configuration from environment
-  const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim()) : [];
-  const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
-  const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
-  const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
+  // Get configuration from config object (not environment variables)
+  const requiredLabels = config.required_labels || [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  const requiredCategory = config.required_category || "";
+  const target = config.target || "triggering";
 
   core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
 

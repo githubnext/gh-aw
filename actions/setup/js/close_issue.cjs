@@ -69,7 +69,7 @@ async function main(config = {}) {
     getDetails: getIssueDetails,
     addComment: addIssueComment,
     closeEntity: closeIssue,
-  });
+  }, config);
 }
 
 module.exports = { main };
