@@ -322,19 +322,29 @@ Test content`
 		t.Error("Expected safe_outputs job not found in output")
 	}
 
-	// Check that expected safe output steps are created within the consolidated job
+	// Check that the handler manager step is created (since create-issue, add-comment, and add-labels are now handled by the handler manager)
 	expectedSteps := []string{
-		"name: Create Issue",
-		"id: create_issue",
-		"name: Add Comment",
-		"id: add_comment",
-		"name: Add Labels",
-		"id: add_labels",
+		"name: Process Safe Outputs",
+		"id: process_safe_outputs",
 	}
 	for _, step := range expectedSteps {
 		if !strings.Contains(yamlStr, step) {
 			t.Errorf("Expected step %q not found in output", step)
 		}
+	}
+
+	// Verify handler config contains all three enabled safe outputs
+	if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in output")
+	}
+	if !strings.Contains(yamlStr, "create_issue") {
+		t.Error("Expected create_issue in handler config")
+	}
+	if !strings.Contains(yamlStr, "add_comment") {
+		t.Error("Expected add_comment in handler config")
+	}
+	if !strings.Contains(yamlStr, "add_labels") {
+		t.Error("Expected add_labels in handler config")
 	}
 
 	// Check that the consolidated job has correct timeout (15 minutes for consolidated job)

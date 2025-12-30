@@ -89,26 +89,6 @@ func (c *Compiler) buildAssignToUserStepConfig(data *WorkflowData, mainJobName s
 	}
 }
 
-// buildUpdateReleaseStepConfig builds the configuration for updating a release
-func (c *Compiler) buildUpdateReleaseStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.UpdateRelease
-
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	condition := BuildSafeOutputType("update_release")
-
-	return SafeOutputStepConfig{
-		StepName:      "Update Release",
-		StepID:        "update_release",
-		ScriptName:    "update_release",
-		Script:        getUpdateReleaseScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
 // buildCreateAgentTaskStepConfig builds the configuration for creating an agent task
 func (c *Compiler) buildCreateAgentTaskStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateAgentTasks
