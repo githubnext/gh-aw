@@ -279,4 +279,67 @@ describe("temporary_id.cjs", () => {
       });
     });
   });
+
+  describe("hasUnresolvedTemporaryIds", () => {
+    it("should return false when text has no temporary IDs", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map();
+      expect(hasUnresolvedTemporaryIds("Regular text without temp IDs", map)).toBe(false);
+    });
+
+    it("should return false when all temporary IDs are resolved", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map([
+        ["aw_abc123def456", { repo: "owner/repo", number: 100 }],
+        ["aw_111222333444", { repo: "other/repo", number: 200 }],
+      ]);
+      const text = "See #aw_abc123def456 and #aw_111222333444 for details";
+      expect(hasUnresolvedTemporaryIds(text, map)).toBe(false);
+    });
+
+    it("should return true when text has unresolved temporary IDs", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", { repo: "owner/repo", number: 100 }]]);
+      const text = "See #aw_abc123def456 and #aw_999888777666 for details";
+      expect(hasUnresolvedTemporaryIds(text, map)).toBe(true);
+    });
+
+    it("should return true when text has only unresolved temporary IDs", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "Check #aw_abc123def456 for details";
+      expect(hasUnresolvedTemporaryIds(text, map)).toBe(true);
+    });
+
+    it("should work with plain object tempIdMap", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const obj = {
+        aw_abc123def456: { repo: "owner/repo", number: 100 },
+      };
+      const text = "See #aw_abc123def456 and #aw_999888777666 for details";
+      expect(hasUnresolvedTemporaryIds(text, obj)).toBe(true);
+    });
+
+    it("should handle case-insensitive temporary IDs", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", { repo: "owner/repo", number: 100 }]]);
+      const text = "See #AW_ABC123DEF456 for details";
+      expect(hasUnresolvedTemporaryIds(text, map)).toBe(false);
+    });
+
+    it("should return false for empty or null text", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map();
+      expect(hasUnresolvedTemporaryIds("", map)).toBe(false);
+      expect(hasUnresolvedTemporaryIds(null, map)).toBe(false);
+      expect(hasUnresolvedTemporaryIds(undefined, map)).toBe(false);
+    });
+
+    it("should handle multiple unresolved IDs", async () => {
+      const { hasUnresolvedTemporaryIds } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const text = "See #aw_abc123def456, #aw_111222333444, and #aw_999888777666";
+      expect(hasUnresolvedTemporaryIds(text, map)).toBe(true);
+    });
+  });
 });
