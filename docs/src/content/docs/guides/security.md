@@ -248,6 +248,52 @@ mcp-servers:
 
 The compiler generates per-tool Squid proxies; MCP egress is forced through iptables. Only listed domains are reachable. Applies to `mcp.container` stdio servers only.
 
+#### Automatic GitHub Lockdown on Public Repositories
+
+When using the GitHub MCP tool in public repositories, lockdown mode is **automatically enabled by default** to prevent accidental data leakage. This security feature restricts the GitHub token from accessing private repositories, ensuring that workflows running in public repositories cannot inadvertently expose sensitive information.
+
+**How Automatic Detection Works:**
+
+The system automatically detects repository visibility at workflow runtime:
+
+- **Public repositories**: Lockdown mode is automatically enabled. The GitHub MCP server limits surfaced content to items authored by users with push access to the repository.
+- **Private/internal repositories**: Lockdown mode is automatically disabled since there's no risk of exposing private repository access.
+- **Detection failure**: If repository visibility cannot be determined, the system defaults to lockdown mode for maximum security.
+
+**No Configuration Required:**
+
+```yaml wrap
+tools:
+  github:
+    # Lockdown is automatically enabled for public repos
+    # No explicit configuration needed
+```
+
+**Manual Override (Optional):**
+
+You can explicitly set lockdown mode if needed:
+
+```yaml wrap
+tools:
+  github:
+    lockdown: true   # Force enable lockdown
+    # or
+    lockdown: false  # Explicitly disable (use with caution in public repos)
+```
+
+:::caution[Disabling Lockdown in Public Repositories]
+Explicitly setting `lockdown: false` in a public repository disables this security protection. Only do this if you fully understand the implications and have other controls in place to prevent data leakage.
+:::
+
+**Security Benefits:**
+
+- **Prevents token scope leakage**: Even if a GitHub token has access to private repositories, lockdown mode prevents that access from being used in public repository workflows
+- **Defense in depth**: Adds an additional layer of protection beyond token scoping
+- **Automatic and transparent**: Works without any configuration changes
+- **Safe by default**: Failures default to the most secure setting
+
+See also: [GitHub MCP Tool Configuration](/gh-aw/reference/tools/#github-tools-github) for complete tool configuration options.
+
 ### Agent Security and Prompt Injection Defense
 
 #### Sanitized Context Text Usage

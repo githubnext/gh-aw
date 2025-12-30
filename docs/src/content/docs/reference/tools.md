@@ -110,13 +110,24 @@ Setup: `gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
 
 **Read-Only**: Default behavior; restricts to read operations unless write operations configured.
 
-**Lockdown**: Filter public repository content to items from users with push access. Private repos unaffected:
+**Lockdown**: Automatically enabled for public repositories to prevent accidental data leakage. Filters public repository content to items from users with push access. Private repositories are unaffected.
+
+- **Automatic (default)**: Lockdown is automatically enabled for public repositories and disabled for private/internal repositories
+- **Manual override**: Explicitly set `lockdown: true` or `lockdown: false` to override automatic detection
 
 ```yaml wrap
 tools:
   github:
-    lockdown: true
+    # Option 1: Automatic (recommended) - no configuration needed
+    # Lockdown automatically enabled for public repos
+
+    # Option 2: Explicit override
+    lockdown: true   # Force enable
+    # or
+    lockdown: false  # Explicitly disable (use with caution in public repos)
 ```
+
+See [Automatic GitHub Lockdown](/gh-aw/guides/security/#automatic-github-lockdown-on-public-repositories) for security implications.
 
 ## Playwright Tool (`playwright:`)
 

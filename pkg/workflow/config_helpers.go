@@ -170,9 +170,10 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 }
 
 // parseExpiresFromConfig parses expires value from config map
-// Supports both integer (days) and string formats like "7d", "2w", "1m", "1y"
+// Supports both integer (days) and string formats like "2h", "7d", "2w", "1m", "1y"
 // Returns the number of days, or 0 if invalid or not present
 // Note: For uint64 values, returns 0 if the value would overflow int.
+// Note: Hours less than 24 are treated as 1 day minimum since maintenance runs daily
 func parseExpiresFromConfig(configMap map[string]any) int {
 	configHelpersLog.Printf("DEBUG: parseExpiresFromConfig called with configMap: %+v", configMap)
 	if expires, exists := configMap["expires"]; exists {
@@ -193,7 +194,7 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 			}
 			return int(v)
 		case string:
-			// Parse relative time specification like "7d", "2w", "1m", "1y"
+			// Parse relative time specification like "2h", "7d", "2w", "1m", "1y"
 			return parseRelativeTimeSpec(v)
 		}
 	}
@@ -201,9 +202,10 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 }
 
 // parseRelativeTimeSpec parses a relative time specification string
-// Supports: d (days), w (weeks), m (months ~30 days), y (years ~365 days)
-// Examples: "7d" = 7 days, "2w" = 14 days, "1m" = 30 days, "1y" = 365 days
+// Supports: h (hours), d (days), w (weeks), m (months ~30 days), y (years ~365 days)
+// Examples: "2h" = 0 days (treated as 1 day min), "7d" = 7 days, "2w" = 14 days, "1m" = 30 days, "1y" = 365 days
 // Returns 0 if the format is invalid
+// Note: Hours less than 24 are treated as 1 day minimum since maintenance runs daily
 func parseRelativeTimeSpec(spec string) int {
 	configHelpersLog.Printf("DEBUG: parseRelativeTimeSpec called with spec: %s", spec)
 	if spec == "" {
@@ -225,6 +227,17 @@ func parseRelativeTimeSpec(spec string) int {
 
 	// Convert to days based on unit
 	switch unit {
+	case "h", "H":
+		// Convert hours to days
+		// Since maintenance workflow runs daily, treat any hours < 24 as 1 day
+		days := num / 24
+		if days < 1 {
+			days = 1
+			configHelpersLog.Printf("Converted %d hours to 1 day (minimum for daily maintenance)", num)
+		} else {
+			configHelpersLog.Printf("Converted %d hours to %d days", num, days)
+		}
+		return days
 	case "d", "D":
 		return num // days
 	case "w", "W":
