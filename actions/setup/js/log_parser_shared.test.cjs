@@ -2024,4 +2024,64 @@ describe("log_parser_shared.cjs", () => {
       expect(codexResult.markdown).toContain("Error parsing Codex log");
     });
   });
+
+  describe("createEngineLogParser", () => {
+    it("should create a main function with correct configuration", async () => {
+      const { createEngineLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParseFunction = logContent => ({
+        markdown: `Parsed: ${logContent}`,
+        mcpFailures: [],
+        maxTurnsHit: false,
+        logEntries: [],
+      });
+
+      const main = createEngineLogParser({
+        parserName: "TestEngine",
+        parseFunction: mockParseFunction,
+        supportsDirectories: true,
+      });
+
+      expect(typeof main).toBe("function");
+      expect(main.constructor.name).toBe("AsyncFunction");
+    });
+
+    it("should use default supportsDirectories value", async () => {
+      const { createEngineLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParseFunction = logContent => ({
+        markdown: `Parsed: ${logContent}`,
+      });
+
+      const main = createEngineLogParser({
+        parserName: "TestEngine",
+        parseFunction: mockParseFunction,
+        // supportsDirectories not specified, should default to false
+      });
+
+      expect(typeof main).toBe("function");
+    });
+
+    it("should accept all valid configuration options", async () => {
+      const { createEngineLogParser } = await import("./log_parser_shared.cjs");
+
+      const mockParseFunction = logContent => "Result";
+
+      // Test with supportsDirectories: false
+      const main1 = createEngineLogParser({
+        parserName: "Engine1",
+        parseFunction: mockParseFunction,
+        supportsDirectories: false,
+      });
+      expect(typeof main1).toBe("function");
+
+      // Test with supportsDirectories: true
+      const main2 = createEngineLogParser({
+        parserName: "Engine2",
+        parseFunction: mockParseFunction,
+        supportsDirectories: true,
+      });
+      expect(typeof main2).toBe("function");
+    });
+  });
 });
