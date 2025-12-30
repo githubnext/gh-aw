@@ -374,8 +374,8 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			// In consolidated mode, check for create_issue step
-			expectedStep: "id: create_issue",
+			// create-issue is now handled by process_safe_outputs (handler manager)
+			expectedStep: "id: process_safe_outputs",
 			stepType:     "step",
 		},
 		{
@@ -407,8 +407,8 @@ safe-outputs:
 ---
 
 # Test workflow`,
-			// In consolidated mode, check for add_comment step
-			expectedStep: "id: add_comment",
+			// add-comment is now handled by process_safe_outputs (handler manager)
+			expectedStep: "id: process_safe_outputs",
 			stepType:     "step",
 		},
 	}

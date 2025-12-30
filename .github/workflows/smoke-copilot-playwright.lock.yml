@@ -1651,9 +1651,6 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":1},\"add_labels\":{\"allowed\":[\"smoke-copilot\"]},\"create_issue\":{\"expires\":1,\"max\":1}}"
-          GH_AW_ISSUE_EXPIRES: "1"
-          GH_AW_HIDE_OLDER_COMMENTS: "true"
-          GH_AW_LABELS_ALLOWED: "smoke-copilot"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -2024,13 +2024,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_discussion\":{\"category\":\"General\",\"max\":2},\"create_issue\":{\"max\":2},\"update_issue\":{\"allow_body\":true,\"allow_status\":true,\"allow_title\":true,\"max\":2,\"target\":\"*\"}}"
-          GH_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
-          GH_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_discussion\":{\"category\":\"General\",\"close_older_discussions\":true,\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[📜 POETRY] \"},\"create_issue\":{\"labels\":[\"poetry\",\"automation\",\"ai-generated\"],\"max\":2,\"title_prefix\":\"[🎭 POEM-BOT] \"},\"update_issue\":{\"allow_body\":true,\"allow_status\":true,\"allow_title\":true,\"max\":2,\"target\":\"*\"}}"
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
-          GH_AW_COMMENT_TARGET: "*"
-          GH_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
-          GH_AW_LABELS_MAX_COUNT: 5
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
