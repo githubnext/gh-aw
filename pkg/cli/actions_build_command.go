@@ -272,7 +272,8 @@ func buildAction(actionsDir, actionName string) error {
 
 // buildSetupAction builds the setup action by checking that source files exist.
 // Note: Both JavaScript and shell scripts are source of truth in actions/setup/js/ and actions/setup/sh/
-// They get synced to pkg/workflow/js/ and pkg/workflow/sh/ during the build process via Makefile targets.
+// These files are manually edited and committed to git. They are NOT synced to pkg/workflow/
+// At runtime, setup.sh copies these files to /tmp/gh-aw/actions for workflow execution.
 func buildSetupAction(actionsDir, actionName string) error {
 	actionPath := filepath.Join(actionsDir, actionName)
 	jsDir := filepath.Join(actionPath, "js")

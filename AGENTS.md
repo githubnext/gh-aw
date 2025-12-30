@@ -114,56 +114,47 @@ make build       # ~1.5s
 
 ## Build System
 
-### Shell Script Sync
+### JavaScript and Shell Script Files
 
-**ALWAYS sync shell scripts before building:**
+**JavaScript and shell script files are NOT embedded in the binary.**
 
-Shell scripts in `actions/setup/sh/` are the **source of truth** and are automatically synced to `pkg/workflow/sh/` during the build process.
+The architecture uses runtime file copying instead of embedded scripts:
 
-```bash
-make sync-shell-scripts  # Copies actions/setup/sh/*.sh → pkg/workflow/sh/
-make build              # Automatically runs sync-shell-scripts
-```
+#### JavaScript Files (`*.cjs`)
 
-**When modifying shell scripts:**
-1. Edit files in `actions/setup/sh/` (source of truth)
-2. Run `make build` (automatically syncs to pkg/workflow/sh/)
-3. The synced files in `pkg/workflow/sh/` are embedded in the binary via `//go:embed`
-4. **Never** edit files in `pkg/workflow/sh/` directly - they are generated
-
-**Key points:**
-- `actions/setup/sh/*.sh` = Source of truth (manually edited)
-- `pkg/workflow/sh/*.sh` = Generated (copied during build, marked as linguist-generated)
-- The build process: `actions/setup/sh/` → `pkg/workflow/sh/` → embedded in binary
-
-### JavaScript File Sync
-
-**JavaScript files follow the SAME pattern as shell scripts:**
-
-JavaScript files in `actions/setup/js/` are the **source of truth** and are automatically synced to `pkg/workflow/js/` during the build process.
-
-```bash
-make sync-js-scripts    # Copies actions/setup/js/*.cjs → pkg/workflow/js/
-make build              # Automatically runs sync-js-scripts
-```
+**Source of truth:** `actions/setup/js/*.cjs` (manually edited, committed to git)
 
 **When modifying JavaScript files:**
 1. Edit files in `actions/setup/js/` (source of truth)
-2. Run `make build` (automatically syncs to pkg/workflow/js/)
-3. The synced files in `pkg/workflow/js/` are embedded in the binary via `//go:embed`
-4. **Never** edit production files in `pkg/workflow/js/` directly - they are generated
-5. Test files (*.test.cjs) are in `actions/setup/js/` alongside source code
+2. Test files (`*.test.cjs`) are co-located with source code in `actions/setup/js/`
+3. Run `make fmt-cjs` to format JavaScript files
+4. Run `make lint-cjs` to validate JavaScript files
+5. Files are used directly at runtime (no sync or embedding required)
+
+**Runtime flow:**
+- The `actions/setup` action copies files from `actions/setup/js/` to `/tmp/gh-aw/actions` at runtime
+- Workflow jobs use these runtime files via `require()` statements
+- No embedding via `//go:embed` - files are accessed directly from the actions directory
+
+#### Shell Scripts (`*.sh`)
+
+**Source of truth:** `actions/setup/sh/*.sh` (manually edited, committed to git)
+
+**When modifying shell scripts:**
+1. Edit files in `actions/setup/sh/` (source of truth)  
+2. Files are used directly at runtime (no sync or embedding required)
+
+**Runtime flow:**
+- The `actions/setup` action copies files from `actions/setup/sh/` to `/tmp/gh-aw/actions` at runtime
+- Workflow jobs execute these shell scripts directly from `/tmp/gh-aw/actions`
+- No embedding via `//go:embed` - files are accessed directly from the actions directory
 
 **Key points:**
-- `actions/setup/js/*.cjs` = Source of truth (manually edited, production files only)
-- `pkg/workflow/js/*.cjs` = Generated (copied during build, marked as linguist-generated)
-- `actions/setup/js/*.test.cjs` = Test files (co-located with source code)
-- Test files (*.test.cjs) are not synced between directories
-- The build process: `actions/setup/js/` → `pkg/workflow/js/` → embedded in binary
-
-**Summary of patterns:**
-- Shell scripts: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
-- JavaScript: `actions/setup/js/` (source) → `pkg/workflow/js/` (generated)
+- `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh` = Source of truth (manually edited, committed)
+- `pkg/workflow/js/` = Contains only `safe_outputs_tools.json` (not synced .cjs files)
+- `pkg/workflow/sh/` = NOT used for shell scripts (may contain generated files)
+- Runtime copying: `actions/setup/` → `/tmp/gh-aw/actions` → used by workflows
+- No `make sync-js-scripts` or `make sync-shell-scripts` targets (not needed)
 
 ## Development Workflow
 

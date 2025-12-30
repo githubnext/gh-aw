@@ -85,8 +85,9 @@ Create a custom actions system that:
 │         Reused Workflow Infrastructure                   │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │  workflow.GetJavaScriptSources()                   │ │
-│  │    - All embedded .cjs files from pkg/workflow/js/ │ │
-│  │    - Accessed via map[string]string               │ │
+│  │    - Returns empty map (no embedded files)         │ │
+│  │    - JavaScript files used directly from           │ │
+│  │      actions/setup/js/ at runtime                  │ │
 │  └────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                           │
@@ -126,9 +127,9 @@ Create a custom actions system that:
 - **getActionDependencies()**: Maps action names to required JavaScript files
 
 #### 4. JavaScript Sources (`pkg/workflow/js.go`)
-- `GetJavaScriptSources()`: Returns map of all embedded JavaScript files
-- Files are embedded using `//go:embed` directives
-- Single source of truth for JavaScript dependencies
+- `GetJavaScriptSources()`: Returns empty map (embedded scripts removed)
+- JavaScript files are NOT embedded in the binary
+- Files are used directly from `actions/setup/js/` at runtime
 
 #### 5. Actions Directory (`actions/`)
 - Contains custom action subdirectories
@@ -143,48 +144,47 @@ Create a custom actions system that:
 gh-aw/
 ├── actions/                          # Custom GitHub Actions
 │   ├── README.md                     # Actions documentation
-│   ├── setup/                        # Setup action with shell scripts
+│   ├── setup/                        # Setup action with runtime file copying
 │   │   ├── action.yml               # Action metadata
-│   │   ├── setup.sh                 # Main setup script
-│   │   ├── js/                      # JavaScript files (generated)
-│   │   │   └── *.cjs                # Copied from pkg/workflow/js/
+│   │   ├── setup.sh                 # Main setup script (copies files at runtime)
+│   │   ├── js/                      # JavaScript files (SOURCE OF TRUTH)
+│   │   │   └── *.cjs                # Manually edited, committed to git (~252 files)
 │   │   ├── sh/                      # Shell scripts (SOURCE OF TRUTH)
-│   │   │   └── *.sh                 # Manually edited shell scripts
+│   │   │   └── *.sh                 # Manually edited, committed to git (~6 files)
 │   │   └── README.md                # Action-specific docs
 ├── pkg/
 │   ├── cli/
 │   │   └── actions_build_command.go # Build system implementation
 │   └── workflow/
-│       ├── js.go                    # JavaScript sources map
-│       ├── sh.go                    # Shell script sources map
-│       ├── js/                      # Embedded JavaScript files
-│       │   ├── *.cjs                # CommonJS modules
-│       │   └── *.json               # JSON configuration files
-│       └── sh/                      # Embedded shell scripts (GENERATED)
-│           └── *.sh                 # Copied from actions/setup/sh/
+│       ├── js.go                    # JavaScript sources (returns empty - no embedding)
+│       ├── sh.go                    # Shell script sources
+│       ├── js/                      # Contains only safe_outputs_tools.json
+│       │   └── safe_outputs_tools.json  # NOT synced .cjs files
+│       └── sh/                      # May contain generated files (not used at runtime)
 ├── cmd/gh-aw/
 │   └── main.go                      # CLI entry point with commands
-├── Makefile                         # Build targets (includes sync-shell-scripts)
-├── .gitattributes                   # Mark generated files (pkg/workflow/sh/*.sh)
+├── Makefile                         # Build targets (NO sync-shell-scripts or sync-js-scripts)
 └── .github/workflows/
-    └── ci.yml                       # CI pipeline with actions-build job
+    └── ci.yml                       # CI pipeline
 ```text
 
-**Shell Script Sync Flow:**
-1. **Source of Truth**: `actions/setup/sh/*.sh` (manually edited)
-2. **Sync Step**: `make sync-shell-scripts` copies to `pkg/workflow/sh/` 
-3. **Build Step**: `make build` embeds `pkg/workflow/sh/*.sh` via `//go:embed`
-4. **Actions Build**: `make actions-build` does NOT copy shell scripts (they already exist in actions/setup/sh/)
+**Runtime File Copy Flow (Current Architecture):**
 
-**JavaScript File Sync Flow:**
-1. **Source of Truth**: `actions/setup/js/*.cjs` (manually edited, production files only)
-2. **Sync Step**: `make sync-js-scripts` copies to `pkg/workflow/js/`
-3. **Build Step**: `make build` embeds `pkg/workflow/js/*.cjs` via `//go:embed`
-4. **Test Files**: `pkg/workflow/js/*.test.cjs` remain only in pkg/workflow/js/ (not synced)
+JavaScript and shell script files are NOT embedded in the binary. Instead, they are copied at runtime:
 
-Both follow the same pattern now:
-- Shell: `actions/setup/sh/` (source) → `pkg/workflow/sh/` (generated)
-- JavaScript: `actions/setup/js/` (source) → `pkg/workflow/js/` (generated)
+1. **Source of Truth**: `actions/setup/js/*.cjs` and `actions/setup/sh/*.sh` (manually edited, committed to git)
+2. **Runtime Copy**: The `actions/setup` action runs setup.sh which copies files from `actions/setup/js/` and `actions/setup/sh/` to `/tmp/gh-aw/actions`
+3. **Usage**: Workflow jobs access files directly from `/tmp/gh-aw/actions` via `require()` for JavaScript or direct execution for shell scripts
+4. **No Embedding**: Files are NOT embedded via `//go:embed` - the `pkg/workflow/js.go` file explicitly states "Embedded scripts have been removed"
+
+**Key Directories:**
+- `actions/setup/js/*.cjs` - Source of truth (manually edited, committed, ~252 files)
+- `actions/setup/sh/*.sh` - Source of truth (manually edited, committed, ~6 files)
+- `pkg/workflow/js/` - Contains only `safe_outputs_tools.json` (NOT synced .cjs files)
+- `pkg/workflow/sh/` - NOT used for runtime shell scripts
+- `/tmp/gh-aw/actions` - Runtime destination where files are copied for workflow execution
+
+**Note:** The Makefile targets `make sync-js-scripts` and `make sync-shell-scripts` do NOT exist and are not needed in the current architecture.
 
 ### Action Structure
 
@@ -255,36 +255,20 @@ The build system is implemented entirely in Go and follows these steps:
 
 ### Shell Script Sync Process
 
-**Important**: Shell scripts follow a different pattern than JavaScript files:
+**Important**: JavaScript and shell scripts are NOT embedded in the binary. They are used directly from `actions/setup/` at runtime.
 
-**Shell Scripts** (source in actions/setup/sh/):
+**Current Architecture** (NO embedding):
 ```text
-actions/setup/sh/*.sh  →  pkg/workflow/sh/*.sh  →  Embedded in binary
-   (SOURCE OF TRUTH)        (GENERATED)              (go:embed)
-```text
-
-**JavaScript Files** (source in actions/setup/js/):
-```text
-actions/setup/js/*.cjs  →  pkg/workflow/js/*.cjs  →  Embedded in binary
-   (SOURCE OF TRUTH)         (GENERATED)              (go:embed)
-```text
-
-Note: Test files (`*.test.cjs`) remain only in `pkg/workflow/js/` and are not synced from actions/setup/js/.
-
-The sync happens via Makefile targets, which are automatically run as part of `make build`:
-
-```bash
-make sync-shell-scripts  # Explicit shell sync
-make sync-js-scripts     # Explicit JavaScript sync
-make build              # Includes both syncs
+actions/setup/js/*.cjs  (SOURCE OF TRUTH)  →  Runtime copy to /tmp/gh-aw/actions
+actions/setup/sh/*.sh   (SOURCE OF TRUTH)  →  Runtime copy to /tmp/gh-aw/actions
 ```text
 
 **Why this pattern?**
-- Both shell scripts and JavaScript are part of the setup action itself and live in `actions/setup/`
-- They need to be embedded in the Go binary for compilation
-- Syncing before build ensures the embedded files match the action's source files
-- This creates a single source of truth in the actions directory
-- Test files remain in pkg/workflow/js/ for development
+- JavaScript and shell scripts live in `actions/setup/js/` and `actions/setup/sh/` as source of truth
+- They are committed to git and used directly at runtime (no embedding in binary)
+- The `actions/setup` action copies these files to `/tmp/gh-aw/actions` at runtime
+- Workflows access the files via `require()` or direct execution from `/tmp/gh-aw/actions`
+- Test files (`*.test.cjs`) remain in `actions/setup/js/` alongside production files
 
 ### Build Commands
 
@@ -568,11 +552,10 @@ The CI runs when:
 
 **Add a new shell script**:
 1. Create the file in `actions/setup/sh/`
-2. Add `//go:embed` directive in `pkg/workflow/sh.go`
-3. Add to `GetBundledShellScripts()` function in `sh.go`
-4. Run `make build` to sync and embed
-5. Update setup action's `setup.sh` to use the new script
-6. Run `make actions-build` to build the setup action
+2. Update setup action to use the new script (if needed)
+3. Commit the file to git
+4. The file will be copied to `/tmp/gh-aw/actions` at runtime by the setup action
+5. No embedding or build step required
 
 **Add a new action**:
 1. Create directory structure in `actions/`
@@ -587,24 +570,21 @@ The CI runs when:
 3. Verify: Check generated `index.js` has new files
 
 **Add new JavaScript source**:
-1. Add file to `pkg/workflow/js/`
-2. Add `//go:embed` directive in `js.go`
-3. Add to `GetJavaScriptSources()` map
-4. Update action dependencies as needed
-5. Run `make build` to embed new file
+1. Add file to `actions/setup/js/`
+2. Format and lint: `make fmt-cjs && make lint-cjs`
+3. Commit the file to git
+4. The file will be copied to `/tmp/gh-aw/actions` at runtime by the setup action
+5. No embedding or build step required
 
 #### Key Files to Know
 
 - `pkg/cli/actions_build_command.go` - **Pure Go build system** (no JavaScript)
 - `internal/tools/actions-build/main.go` - Internal CLI tool dispatcher (development only)
-- `pkg/workflow/js.go` - JavaScript source map and embedded files
-- `pkg/workflow/sh.go` - Shell script source map and embedded files
-- `actions/setup/sh/` - **Source of truth for shell scripts** (manually edited)
-- `pkg/workflow/sh/` - Generated shell scripts (synced from actions/setup/sh/)
-- `Makefile` - Primary interface for building actions (`make actions-build`, `make sync-shell-scripts`)
-- `.github/workflows/ci.yml` - CI validation
-- `actions/README.md` - Actions documentation
-- `.gitattributes` - Marks generated files (pkg/workflow/sh/*.sh, actions/setup/js/*.cjs)
+- `pkg/workflow/js.go` - JavaScript source map (returns empty - no embedded files)
+- `pkg/workflow/sh.go` - Shell script source map
+- `actions/setup/sh/` - **Source of truth for shell scripts** (manually edited, committed)
+- `actions/setup/js/` - **Source of truth for JavaScript files** (manually edited, committed)
+- `actions/setup/setup.sh` - Copies files from actions/setup/ to /tmp/gh-aw/actions at runtime
 - `Makefile` - Primary interface for building actions (`make actions-build`)
 - `.github/workflows/ci.yml` - CI validation
 - `actions/README.md` - Actions documentation
