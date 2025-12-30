@@ -81,11 +81,7 @@ async function main(config = {}) {
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   // Read labels from config object
-  let envLabels = config.labels
-    ? (Array.isArray(config.labels) ? config.labels : config.labels.split(","))
-        .map(label => String(label).trim())
-        .filter(label => label)
-    : [];
+  let envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const createdIssues = [];
   for (let i = 0; i < createIssueItems.length; i++) {
     const createIssueItem = createIssueItems[i];

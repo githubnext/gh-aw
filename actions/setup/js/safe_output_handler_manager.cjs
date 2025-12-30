@@ -68,12 +68,12 @@ async function loadHandlers(config) {
           // Call the factory function with config to get the message handler
           const handlerConfig = config[type] || {};
           const messageHandler = await handlerModule.main(handlerConfig);
-          
+
           if (typeof messageHandler !== "function") {
             core.warning(`Handler ${type} main() did not return a function`);
             continue;
           }
-          
+
           messageHandlers.set(type, messageHandler);
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
@@ -208,8 +208,8 @@ async function main() {
     const processingResult = await processMessages(messageHandlers, agentOutput.items);
 
     // Log summary
-    const successCount = processingResult.results.filter((r) => r.success).length;
-    const failureCount = processingResult.results.filter((r) => !r.success).length;
+    const successCount = processingResult.results.filter(r => r.success).length;
+    const failureCount = processingResult.results.filter(r => !r.success).length;
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);

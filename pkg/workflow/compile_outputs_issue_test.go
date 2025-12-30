@@ -243,12 +243,17 @@ This workflow tests the create-issue job generation.
 
 	lockContent := string(content)
 
-	// Verify safe_outputs consolidated job exists with create_issue step
+	// Verify safe_outputs consolidated job exists with handler
 	if !strings.Contains(lockContent, "safe_outputs:") {
 		t.Error("Expected 'safe_outputs' job to be in generated workflow")
 	}
-	if !strings.Contains(lockContent, "id: create_issue") {
-		t.Error("Expected 'create_issue' step to be in safe_outputs job")
+	// Verify handler config is present (handles all safe outputs)
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config in safe_outputs job")
+	}
+	// Verify create_issue configuration in handler config
+	if !strings.Contains(lockContent, `\"create_issue\"`) {
+		t.Error("Expected create_issue in handler config")
 	}
 
 	// Verify job properties
@@ -265,13 +270,13 @@ This workflow tests the create-issue job generation.
 		t.Error("Expected github-script action to be used in safe_outputs job")
 	}
 
-	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GH_AW_ISSUE_TITLE_PREFIX: \"[genai] \"") {
-		t.Error("Expected title prefix to be set as environment variable")
+	// Verify JavaScript content includes configuration in handler config
+	if !strings.Contains(lockContent, `\"title_prefix\":\"[genai] \"`) {
+		t.Error("Expected title prefix in handler config")
 	}
 
-	if !strings.Contains(lockContent, "GH_AW_ISSUE_LABELS: \"copilot\"") {
-		t.Error("Expected copilot label to be set as environment variable")
+	if !strings.Contains(lockContent, `\"labels\":[\"copilot\"]`) {
+		t.Error("Expected copilot label in handler config")
 	}
 
 	// Verify job dependencies
