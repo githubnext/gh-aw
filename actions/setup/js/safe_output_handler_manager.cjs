@@ -100,7 +100,7 @@ async function loadHandlers(config) {
  *
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map, pendingUpdates: Array<any>}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>, pendingUpdates: Array<any>}>}
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
@@ -223,6 +223,7 @@ async function processMessages(messageHandlers, messages) {
     results,
     temporaryIdMap: temporaryIdMapObj,
     outputsWithUnresolvedIds,
+    pendingUpdates: [],
   };
 }
 
@@ -388,17 +389,17 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
       const contentToCheck = getContentToCheck(tracked.type, tracked.message);
 
       // Check if the content still has unresolved IDs (some may now be resolved)
-      const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap);
+      const stillHasUnresolved = contentToCheck ? hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap) : false;
       const resolvedCount = temporaryIdMap.size - tracked.originalTempIdMapSize;
 
-      if (!stillHasUnresolved) {
+      if (!stillHasUnresolved && contentToCheck) {
         // All temporary IDs are now resolved - update the body directly
         let logInfo = tracked.result.commentId ? `comment ${tracked.result.commentId} on ${tracked.result.repo}#${tracked.result.itemNumber}` : `${tracked.result.repo}#${tracked.result.number}`;
         core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
 
         try {
           // Replace temporary ID references with resolved values
-          const updatedContent = replaceTemporaryIdReferences(contentToCheck, temporaryIdMap, tracked.result.repo);
+          const updatedContent = tracked.result.repo ? replaceTemporaryIdReferences(contentToCheck, temporaryIdMap, tracked.result.repo) : contentToCheck;
 
           // Update based on the original type
           switch (tracked.type) {
