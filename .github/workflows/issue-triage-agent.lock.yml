@@ -24,6 +24,7 @@ name: "Issue Triage Agent"
 "on":
   schedule:
   - cron: "0 14 * * 1-5"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
