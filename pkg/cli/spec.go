@@ -81,30 +81,38 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 	var version string
 	if len(parts) == 2 {
 		version = parts[1]
+		specLog.Printf("Version specified: %s", version)
 	}
 
 	// Check if this is a GitHub URL
 	if strings.HasPrefix(repo, "https://github.com/") || strings.HasPrefix(repo, "http://github.com/") {
+		specLog.Print("Detected GitHub URL format")
 		// Parse GitHub URL: https://github.com/owner/repo
 		repoURL, err := url.Parse(repo)
 		if err != nil {
+			specLog.Printf("Failed to parse GitHub URL: %v", err)
 			return nil, fmt.Errorf("invalid GitHub URL: %w", err)
 		}
 
 		// Extract owner/repo from path
 		pathParts := strings.Split(strings.Trim(repoURL.Path, "/"), "/")
 		if len(pathParts) != 2 || pathParts[0] == "" || pathParts[1] == "" {
+			specLog.Printf("Invalid GitHub URL path parts: %v", pathParts)
 			return nil, fmt.Errorf("invalid GitHub URL: must be https://github.com/owner/repo. Example: https://github.com/githubnext/gh-aw")
 		}
 
 		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])
+		specLog.Printf("Extracted repo from URL: %s", repo)
 	} else if repo == "." {
+		specLog.Print("Resolving current directory as repo")
 		// Handle current directory as repo (local workflow)
 		currentRepo, err := GetCurrentRepoSlug()
 		if err != nil {
+			specLog.Printf("Failed to get current repo: %v", err)
 			return nil, fmt.Errorf("failed to get current repository info: %w", err)
 		}
 		repo = currentRepo
+		specLog.Printf("Resolved current repo: %s", repo)
 	} else {
 		// Validate repository format (org/repo)
 		repoParts := strings.Split(repo, "/")
@@ -118,6 +126,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		Version:  version,
 	}
 
+	specLog.Printf("Parsed repo spec successfully: repo=%s, version=%s", repo, version)
 	return spec, nil
 }
 
@@ -131,21 +140,27 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 //   - https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/path/to/workflow.md
 //   - https://raw.githubusercontent.com/owner/repo/refs/tags/tag/path/to/workflow.md
 func parseGitHubURL(spec string) (*WorkflowSpec, error) {
+	specLog.Printf("Parsing GitHub URL: %s", spec)
 	// First validate that this is a GitHub URL (github.com or raw.githubusercontent.com)
 	parsedURL, err := url.Parse(spec)
 	if err != nil {
+		specLog.Printf("Failed to parse URL: %v", err)
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
 	// Must be a GitHub URL
 	if parsedURL.Host != "github.com" && parsedURL.Host != "raw.githubusercontent.com" {
+		specLog.Printf("Invalid host: %s", parsedURL.Host)
 		return nil, fmt.Errorf("URL must be from github.com or raw.githubusercontent.com")
 	}
 
 	owner, repo, ref, filePath, err := parser.ParseRepoFileURL(spec)
 	if err != nil {
+		specLog.Printf("Failed to parse repo file URL: %v", err)
 		return nil, err
 	}
+
+	specLog.Printf("Parsed GitHub URL: owner=%s, repo=%s, ref=%s, path=%s", owner, repo, ref, filePath)
 
 	// Ensure the file path ends with .md
 	if !strings.HasSuffix(filePath, ".md") {
@@ -271,16 +286,21 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 // parseLocalWorkflowSpec parses a local workflow specification starting with "./"
 func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
+	specLog.Printf("Parsing local workflow spec: %s", spec)
 	// Validate that it's a .md file
 	if !strings.HasSuffix(spec, ".md") {
+		specLog.Printf("Invalid extension for local workflow: %s", spec)
 		return nil, fmt.Errorf("local workflow specification must end with '.md' extension: %s", spec)
 	}
 
 	// Get current repository info
 	repoInfo, err := GetCurrentRepoSlug()
 	if err != nil {
+		specLog.Printf("Failed to get current repo slug: %v", err)
 		return nil, fmt.Errorf("failed to get current repository info for local workflow: %w", err)
 	}
+
+	specLog.Printf("Parsed local workflow: repo=%s, path=%s", repoInfo, spec)
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
