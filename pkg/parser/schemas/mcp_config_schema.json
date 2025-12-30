@@ -181,11 +181,7 @@
         "type": "string"
       },
       "description": "List of allowed tool names for this MCP server",
-      "examples": [
-        ["*"],
-        ["store_memory", "retrieve_memory", "list_memories"],
-        ["brave_web_search", "brave_local_search"]
-      ]
+      "examples": [["*"], ["store_memory", "retrieve_memory", "list_memories"], ["brave_web_search", "brave_local_search"]]
     },
     "version": {
       "type": "string",
