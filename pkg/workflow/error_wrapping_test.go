@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +13,16 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+// internalHTTPError is a custom error type used in tests to demonstrate
+// proper error wrapping patterns without using deprecated types.
+type internalHTTPError struct {
+	message string
+}
+
+func (e *internalHTTPError) Error() string {
+	return e.message
+}
 
 // TestUserFacingErrorsDontLeakInternals validates that internal errors are properly
 // wrapped and don't leak implementation details to users. This uses testify v1.11.0+'s
@@ -107,23 +116,23 @@ on:
 				case *yaml.TypeError:
 					var target *yaml.TypeError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user - the error chain should be broken by errors.New()", e))
+						"internal error type %T should not leak to user - the error chain should be broken by errors.New()", e)
 				case *yaml.SyntaxError:
 					var target *yaml.SyntaxError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type %T should not leak to user", e)
 				case *os.PathError:
 					var target *os.PathError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type %T should not leak to user", e)
 				case *os.LinkError:
 					var target *os.LinkError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type %T should not leak to user", e)
 				case *parser.ImportError:
 					var target *parser.ImportError
 					assert.NotErrorAs(t, err, &target,
-						fmt.Sprintf("internal error type %T should not leak to user", e))
+						"internal error type %T should not leak to user", e)
 				default:
 					t.Fatalf("Unknown error type in test: %T", e)
 				}
@@ -187,7 +196,7 @@ on: 123456
 			errMsg := err.Error()
 			for _, info := range tt.wantInfo {
 				assert.Contains(t, errMsg, info,
-					fmt.Sprintf("error should preserve context: '%s'", info))
+					"error should preserve context: '%s'", info)
 			}
 
 			// Verify internal error types are not in the chain
@@ -280,7 +289,7 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 	t.Run("HTTP errors should be wrapped with user-friendly messages", func(t *testing.T) {
 		// Example: if we had HTTP errors from MCP server communication,
 		// they should be wrapped like this:
-		httpErr := &http.ProtocolError{ErrorString: "simulated"}
+		httpErr := &internalHTTPError{message: "simulated"}
 
 		// WRONG: Don't use %w which exposes the internal error
 		// wrongErr := fmt.Errorf("MCP server error: %w", httpErr)
@@ -289,7 +298,7 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 		userErr := fmt.Errorf("failed to connect to MCP server: %s", httpErr.Error())
 
 		// Verify the internal error is not in the chain
-		var target *http.ProtocolError
+		var target *internalHTTPError
 		assert.NotErrorAs(t, userErr, &target,
 			"HTTP internal errors should not be in the error chain")
 

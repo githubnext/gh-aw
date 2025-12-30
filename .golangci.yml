@@ -74,6 +74,14 @@ linters:
           - revive
         text: exported
       - linters:
+          - revive
+        text: error-strings # Allow multiline user-facing error messages with formatting
+        path: pkg/workflow/compiler_orchestrator\.go
+      - linters:
+          - staticcheck
+        text: ST1005 # Allow multiline user-facing error messages with formatting
+        path: pkg/workflow/compiler_orchestrator\.go
+      - linters:
           - gosec
         text: "G204" # Allow exec.Command in controlled contexts
         path: pkg/awmg/gateway\.go
