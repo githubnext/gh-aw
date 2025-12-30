@@ -238,5 +238,3 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	sandboxLog.Printf("Generated SRT config: %s", string(jsonBytes))
 	return string(jsonBytes), nil
 }
-
-

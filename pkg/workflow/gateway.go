@@ -69,8 +69,6 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	return steps
 }
 
-
-
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
 func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConfig map[string]any) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway start step")

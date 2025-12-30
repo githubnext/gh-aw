@@ -187,4 +187,3 @@ func getAWFImageTag(firewallConfig *FirewallConfig) string {
 	// Strip the 'v' prefix if present (AWF expects version without 'v' prefix)
 	return strings.TrimPrefix(version, "v")
 }
-
