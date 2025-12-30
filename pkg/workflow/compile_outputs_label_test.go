@@ -223,10 +223,10 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 	}
 	lockContent := string(lockBytes)
 
-	// Verify step has conditional execution using BuildSafeOutputType (no event gating)
+	// Verify step has conditional execution with detection
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"contains(needs.agent.outputs.output_types, 'add_labels')",
+		"needs.detection.outputs.success == 'true'",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -236,7 +236,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_labels step to have conditional execution with always()")
+		t.Error("Expected safe_outputs job to have conditional execution with detection check")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -244,9 +244,12 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
-	// Verify max is set correctly
-	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 5") {
-		t.Error("Expected max to be set correctly")
+	// Verify max is set in handler config
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config to be passed as environment variable")
+	}
+	if !strings.Contains(lockContent, `\"add_labels\":{`) && !strings.Contains(lockContent, `\"max\":5`) {
+		t.Error("Expected max to be set in handler config")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
@@ -302,10 +305,10 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType (no event gating)
+	// Verify job has conditional execution with detection
 	expectedConditionParts := []string{
 		"!cancelled()",
-		"contains(needs.agent.outputs.output_types, 'add_labels')",
+		"needs.detection.outputs.success == 'true'",
 	}
 	conditionFound := true
 	for _, part := range expectedConditionParts {
@@ -315,7 +318,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected safe_outputs job to have conditional execution with always()")
+		t.Error("Expected safe_outputs job to have conditional execution with detection check")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -323,10 +326,12 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
-	// Note: With consolidated mode, empty/null labels config may not emit the env var
-	// Verify the add_labels step exists
-	if !strings.Contains(lockContent, "id: add_labels") {
-		t.Error("Expected add_labels step to be present")
+	// Verify the handler config is present (with add_labels configuration)
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config to be present")
+	}
+	if !strings.Contains(lockContent, `\"add_labels\"`) {
+		t.Error("Expected add_labels in handler config")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
@@ -555,14 +560,17 @@ This workflow tests the safe_outputs job generation with max.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GH_AW_LABELS_ALLOWED: \"triage,bug,enhancement\"") {
-		t.Error("Expected allowed labels to be set as environment variable")
+	// Verify handler config contains the configuration
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config to be set as environment variable")
 	}
-
-	// Verify max environment variable is set
-	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 2") {
-		t.Error("Expected max to be set as environment variable")
+	// Verify allowed labels in handler config
+	if !strings.Contains(lockContent, `\"add_labels\":{\"allowed\":[\"triage\",\"bug\",\"enhancement\"]`) {
+		t.Error("Expected allowed labels to be in handler config")
+	}
+	// Verify max in handler config
+	if !strings.Contains(lockContent, `\"max\":2`) {
+		t.Error("Expected max to be in handler config")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
@@ -617,12 +625,16 @@ This workflow tests the safe_outputs job generation with default max.
 
 	lockContent := string(content)
 
-	// Verify safe_outputs job exists with add_labels step
+	// Verify safe_outputs job exists with handler
 	if !strings.Contains(lockContent, "safe_outputs:") {
 		t.Error("Expected 'safe_outputs' job to be in generated workflow")
 	}
-	if !strings.Contains(lockContent, "id: add_labels") {
-		t.Error("Expected 'add_labels' step to be in generated workflow")
+	// Verify handler config is present (process_safe_outputs handles all outputs)
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config to be in generated workflow")
+	}
+	if !strings.Contains(lockContent, `\"add_labels\"`) {
+		t.Error("Expected add_labels in handler config")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
