@@ -69,20 +69,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	return steps
 }
 
-// validateAndNormalizePort validates the port value and returns the normalized port or an error
-func validateAndNormalizePort(port int) (int, error) {
-	// If port is 0, use the default
-	if port == 0 {
-		return DefaultMCPGatewayPort, nil
-	}
 
-	// Validate port is in valid range (1-65535)
-	if err := validateIntRange(port, 1, 65535, "port"); err != nil {
-		return 0, err
-	}
-
-	return port, nil
-}
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
 func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConfig map[string]any) GitHubActionStep {

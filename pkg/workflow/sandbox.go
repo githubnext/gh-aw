@@ -1,28 +1,21 @@
-// Package workflow provides sandbox configuration and validation for agentic workflows.
+// Package workflow provides sandbox configuration for agentic workflows.
 //
 // This file handles:
 //   - Sandbox type definitions (AWF, SRT)
 //   - Sandbox configuration structures and parsing
 //   - Sandbox runtime config generation
-//   - Domain-specific validation for sandbox configurations
 //
 // # Validation Functions
 //
-// This file contains domain-specific validation functions for sandbox configuration:
-//   - validateMountsSyntax() - Validates container mount syntax
-//   - validateSandboxConfig() - Validates complete sandbox configuration
-//
-// These validation functions are co-located with sandbox logic following the principle
-// that domain-specific validation belongs in domain files. See validation.go for the
-// validation architecture documentation.
+// Domain-specific validation functions for sandbox configuration are located in
+// sandbox_validation.go following the validation architecture pattern.
+// See validation.go for the validation architecture documentation.
 package workflow
 
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -246,100 +239,4 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// validateMountsSyntax validates that mount strings follow the correct syntax
-// Expected format: "source:destination:mode" where mode is either "ro" or "rw"
-func validateMountsSyntax(mounts []string) error {
-	for i, mount := range mounts {
-		// Split the mount string by colons
-		parts := strings.Split(mount, ":")
 
-		// Must have exactly 3 parts: source, destination, mode
-		if len(parts) != 3 {
-			return fmt.Errorf("invalid mount syntax at index %d: '%s'. Expected format: 'source:destination:mode' (e.g., '/host/path:/container/path:ro')", i, mount)
-		}
-
-		source := parts[0]
-		dest := parts[1]
-		mode := parts[2]
-
-		// Validate that source and destination are not empty
-		if source == "" {
-			return fmt.Errorf("invalid mount at index %d: source path is empty in '%s'", i, mount)
-		}
-		if dest == "" {
-			return fmt.Errorf("invalid mount at index %d: destination path is empty in '%s'", i, mount)
-		}
-
-		// Validate mode is either "ro" or "rw"
-		if mode != "ro" && mode != "rw" {
-			return fmt.Errorf("invalid mount at index %d: mode must be 'ro' (read-only) or 'rw' (read-write), got '%s' in '%s'", i, mode, mount)
-		}
-
-		sandboxLog.Printf("Validated mount %d: source=%s, dest=%s, mode=%s", i, source, dest, mode)
-	}
-
-	return nil
-}
-
-// validateSandboxConfig validates the sandbox configuration
-// Returns an error if the configuration is invalid
-func validateSandboxConfig(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.SandboxConfig == nil {
-		return nil // No sandbox config is valid
-	}
-
-	sandboxConfig := workflowData.SandboxConfig
-
-	// Validate mounts syntax if specified
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
-			return err
-		}
-	}
-
-	// Validate that SRT is only used with Copilot engine
-	if isSRTEnabled(workflowData) {
-		// Check if the sandbox-runtime feature flag is enabled
-		if !isFeatureEnabled(constants.SandboxRuntimeFeatureFlag, workflowData) {
-			return fmt.Errorf("sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag to be enabled. Set 'features: { sandbox-runtime: true }' in frontmatter or set GH_AW_FEATURES=sandbox-runtime")
-		}
-
-		if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != "copilot" {
-			engineID := "none"
-			if workflowData.EngineConfig != nil {
-				engineID = workflowData.EngineConfig.ID
-			}
-			return fmt.Errorf("sandbox-runtime is only supported with Copilot engine (current engine: %s)", engineID)
-		}
-
-		// Check for mutual exclusivity with AWF
-		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
-			return fmt.Errorf("sandbox-runtime and AWF firewall cannot be used together; please use either 'sandbox: sandbox-runtime' or 'network.firewall' but not both")
-		}
-	}
-
-	// Validate config structure if provided
-	if sandboxConfig.Config != nil {
-		if sandboxConfig.Type != SandboxTypeRuntime {
-			return fmt.Errorf("custom sandbox config can only be provided when type is 'sandbox-runtime'")
-		}
-	}
-
-	// Validate MCP gateway configuration
-	if sandboxConfig.MCP != nil {
-		mcpConfig := sandboxConfig.MCP
-
-		// Validate mutual exclusivity of command and container
-		if mcpConfig.Command != "" && mcpConfig.Container != "" {
-			return fmt.Errorf("sandbox.mcp: cannot specify both 'command' and 'container', use one or the other")
-		}
-
-		// Validate entrypointArgs is only used with container
-		if len(mcpConfig.EntrypointArgs) > 0 && mcpConfig.Container == "" {
-			return fmt.Errorf("sandbox.mcp: 'entrypointArgs' can only be used with 'container'")
-		}
-	}
-
-	return nil
-}

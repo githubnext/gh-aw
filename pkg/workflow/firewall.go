@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -189,21 +188,3 @@ func getAWFImageTag(firewallConfig *FirewallConfig) string {
 	return strings.TrimPrefix(version, "v")
 }
 
-// ValidateLogLevel validates that a firewall log-level value is one of the allowed enum values.
-// Valid values are: "debug", "info", "warn", "error".
-// Empty string is allowed as it defaults to "info" at runtime.
-// Returns an error if the log-level is invalid.
-func ValidateLogLevel(level string) error {
-	// Empty string is allowed (defaults to "info")
-	if level == "" {
-		return nil
-	}
-
-	valid := []string{"debug", "info", "warn", "error"}
-	for _, v := range valid {
-		if level == v {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid log-level '%s', must be one of: %v", level, valid)
-}
