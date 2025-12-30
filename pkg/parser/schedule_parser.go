@@ -169,7 +169,12 @@ func IsFuzzyCron(cron string) bool {
 // using FNV-1a hash algorithm, which is stable across platforms and Go versions.
 func stableHash(s string, modulo int) int {
 	h := fnv.New32a()
-	h.Write([]byte(s))
+	// hash.Hash.Write never returns an error in practice, but check to satisfy gosec G104
+	if _, err := h.Write([]byte(s)); err != nil {
+		// Return 0 (safe fallback) if write somehow fails
+		scheduleLog.Printf("Warning: hash write failed: %v", err)
+		return 0
+	}
 	return int(h.Sum32() % uint32(modulo))
 }
 
