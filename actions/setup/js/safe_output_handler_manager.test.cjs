@@ -206,8 +206,8 @@ describe("Safe Output Handler Manager", () => {
       expect(result.pendingUpdates).toBeDefined();
       // Should generate synthetic update for first issue
       expect(result.pendingUpdates.length).toBe(1);
-      expect(result.pendingUpdates[0].type).toBe("update_issue");
-      expect(result.pendingUpdates[0].issue_number).toBe(100);
+      expect(result.pendingUpdates[0].type).toBe("add_comment");
+      expect(result.pendingUpdates[0].item_number).toBe(100);
       expect(result.pendingUpdates[0]._synthetic).toBe(true);
       // Body should have temp ID replaced
       expect(result.pendingUpdates[0].body).toContain("#101");
@@ -283,10 +283,11 @@ describe("Safe Output Handler Manager", () => {
 
       expect(result.success).toBe(true);
       expect(result.pendingUpdates.length).toBe(2);
-      // Should generate update_issue for first issue
-      expect(result.pendingUpdates.find(u => u.type === "update_issue")).toBeDefined();
-      // Should generate update_discussion for discussion
-      expect(result.pendingUpdates.find(u => u.type === "update_discussion")).toBeDefined();
+      // All synthetic updates should now use add_comment
+      expect(result.pendingUpdates.every(u => u.type === "add_comment")).toBe(true);
+      // Should have item_number for targeting
+      expect(result.pendingUpdates[0].item_number).toBeDefined();
+      expect(result.pendingUpdates[1].item_number).toBeDefined();
     });
   });
 });

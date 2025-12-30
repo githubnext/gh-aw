@@ -275,28 +275,40 @@ function createSyntheticUpdate(tracked, temporaryIdMap) {
   const updatedContent = replaceTemporaryIdReferences(originalContent, temporaryIdMap, result.repo);
   
   // Generate appropriate update message based on the original type
+  // Use add_comment for all updates to post a follow-up comment with resolved references
   switch (type) {
     case "create_issue":
       return {
-        type: "update_issue",
-        issue_number: result.number,
-        body: updatedContent,
+        type: "add_comment",
+        item_number: result.number,
+        body: `**Update:** Resolved temporary ID references:\n\n${updatedContent}`,
         _synthetic: true,
         _original_type: type,
       };
     case "create_discussion":
       return {
-        type: "update_discussion",
-        discussion_number: result.number,
-        body: updatedContent,
+        type: "add_comment",
+        item_number: result.number,
+        body: `**Update:** Resolved temporary ID references:\n\n${updatedContent}`,
         _synthetic: true,
         _original_type: type,
       };
     case "add_comment":
-      // For comments, we would need to update the comment, but GitHub API doesn't support
-      // updating comments easily without the comment ID. Skip for now.
-      core.debug(`Skipping synthetic update for comment - comment updates not yet supported`);
-      return null;
+      // For comments, post a follow-up comment with resolved references
+      // Use the same target as the original comment (item_number if specified, or triggering context)
+      const followUpComment = {
+        type: "add_comment",
+        body: `**Update:** Resolved temporary ID references:\n\n${updatedContent}`,
+        _synthetic: true,
+        _original_type: type,
+      };
+      
+      // If the original comment had an explicit item_number, preserve it
+      if (message.item_number) {
+        followUpComment.item_number = message.item_number;
+      }
+      
+      return followUpComment;
     default:
       return null;
   }
