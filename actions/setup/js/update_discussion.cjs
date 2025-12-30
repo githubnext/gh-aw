@@ -11,14 +11,15 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
  * @param {any} context - GitHub Actions context
  * @param {number} discussionNumber - Discussion number to update
  * @param {any} updateData - Data to update
+ * @param {any} handlerConfig - Handler configuration object
  * @returns {Promise<any>} Updated discussion
  */
-async function executeDiscussionUpdate(github, context, discussionNumber, updateData) {
+async function executeDiscussionUpdate(github, context, discussionNumber, updateData, handlerConfig = {}) {
   // Remove internal fields used for operation handling
   const { _operation, _rawBody, labels, ...fieldsToUpdate } = updateData;
 
-  // Check if labels should be updated based on environment variable
-  const shouldUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true" && labels !== undefined;
+  // Check if labels should be updated based on handler config
+  const shouldUpdateLabels = handlerConfig.allow_labels === true && labels !== undefined;
 
   // First, fetch the discussion node ID using its number
   const getDiscussionQuery = shouldUpdateLabels

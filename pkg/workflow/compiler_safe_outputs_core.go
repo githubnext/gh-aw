@@ -882,30 +882,9 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		}
 	}
 
-	// Add Comment env vars
+	// Add Comment - all config now in handler config JSON
 	if data.SafeOutputs.AddComments != nil {
 		cfg := data.SafeOutputs.AddComments
-		if cfg.Target != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", cfg.Target))
-		}
-		if cfg.Discussion != nil && *cfg.Discussion {
-			*steps = append(*steps, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
-		}
-		if cfg.HideOlderComments {
-			*steps = append(*steps, "          GH_AW_HIDE_OLDER_COMMENTS: \"true\"\n")
-		}
-	}
-
-	// Add Labels env vars
-	if data.SafeOutputs.AddLabels != nil {
-		cfg := data.SafeOutputs.AddLabels
-		*steps = append(*steps, buildLabelsEnvVar("GH_AW_LABELS_ALLOWED", cfg.Allowed)...)
-		if cfg.Max > 0 {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_LABELS_MAX_COUNT: %d\n", cfg.Max))
-		}
-		if cfg.Target != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", cfg.Target))
-		}
 		// Add target repo slug if specified
 		if cfg.TargetRepoSlug != "" {
 			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
@@ -913,6 +892,20 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
+		// All add_comment configuration (target, hide_older_comments, max) is now in handler config JSON
+	}
+
+	// Add Labels - all config now in handler config JSON
+	if data.SafeOutputs.AddLabels != nil {
+		cfg := data.SafeOutputs.AddLabels
+		// Add target repo slug if specified
+		if cfg.TargetRepoSlug != "" {
+			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
+		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+		// All add_labels configuration (allowed, max, target) is now in handler config JSON
 	}
 
 	// Update Issue env vars
@@ -938,15 +931,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			stagedFlagAdded = true
 			_ = stagedFlagAdded // Mark as used for linter
 		}
-		if cfg.Target != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", cfg.Target))
-		}
-		if cfg.Title != nil {
-			*steps = append(*steps, "          GH_AW_UPDATE_TITLE: \"true\"\n")
-		}
-		if cfg.Body != nil {
-			*steps = append(*steps, "          GH_AW_UPDATE_BODY: \"true\"\n")
-		}
+		// All update configuration (target, allow_title, allow_body, allow_labels) is now in handler config JSON
 	}
 
 	// Note: Most handlers read from the config.json file, so we may not need all env vars here

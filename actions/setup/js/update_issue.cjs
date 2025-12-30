@@ -10,9 +10,10 @@ const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs
  * @param {any} context - GitHub Actions context
  * @param {number} issueNumber - Issue number to update
  * @param {any} updateData - Data to update
+ * @param {any} handlerConfig - Handler configuration object (unused for issues, kept for consistency)
  * @returns {Promise<any>} Updated issue
  */
-async function executeIssueUpdate(github, context, issueNumber, updateData) {
+async function executeIssueUpdate(github, context, issueNumber, updateData, handlerConfig = {}) {
   // Remove internal fields used for operation handling
   const { _operation, _rawBody, ...apiData } = updateData;
 
