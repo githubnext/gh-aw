@@ -92,28 +92,20 @@ describe("Safe Output Handler Manager", () => {
         { type: "create_issue", title: "Issue" },
       ];
 
-      const mockHandler = {
-        main: vi.fn().mockResolvedValue({ success: true }),
-      };
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
 
       const handlers = new Map([
         ["create_issue", mockHandler],
         ["add_comment", mockHandler],
       ]);
 
-      const config = {
-        create_issue: { max: 5 },
-        add_comment: { max: 1 },
-      };
-
-      const result = await processMessages(handlers, config, messages);
+      const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(2);
 
-      // Verify handlers were called with their specific config
-      expect(mockHandler.main).toHaveBeenCalledWith({ max: 1 }); // add_comment config
-      expect(mockHandler.main).toHaveBeenCalledWith({ max: 5 }); // create_issue config
+      // Verify handlers were called
+      expect(mockHandler).toHaveBeenCalledTimes(2);
 
       // Verify messages were processed in order of appearance (add_comment first, then create_issue)
       expect(result.results[0].type).toBe("add_comment");
@@ -125,21 +117,14 @@ describe("Safe Output Handler Manager", () => {
     it("should skip messages without type", async () => {
       const messages = [{ type: "create_issue", title: "Issue" }, { title: "No type" }, { type: "add_comment", body: "Comment" }];
 
-      const mockHandler = {
-        main: vi.fn().mockResolvedValue({ success: true }),
-      };
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
 
       const handlers = new Map([
         ["create_issue", mockHandler],
         ["add_comment", mockHandler],
       ]);
 
-      const config = {
-        create_issue: { max: 5 },
-        add_comment: { max: 1 },
-      };
-
-      const result = await processMessages(handlers, config, messages);
+      const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(2);
@@ -149,22 +134,157 @@ describe("Safe Output Handler Manager", () => {
     it("should handle handler errors gracefully", async () => {
       const messages = [{ type: "create_issue", title: "Issue" }];
 
-      const errorHandler = {
-        main: vi.fn().mockRejectedValue(new Error("Handler failed")),
-      };
+      const errorHandler = vi.fn().mockRejectedValue(new Error("Handler failed"));
 
       const handlers = new Map([["create_issue", errorHandler]]);
 
-      const config = {
-        create_issue: { max: 5 },
-      };
-
-      const result = await processMessages(handlers, config, messages);
+      const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
       expect(result.results).toHaveLength(1);
       expect(result.results[0].success).toBe(false);
       expect(result.results[0].error).toBe("Handler failed");
+    });
+
+    it("should track outputs with unresolved temporary IDs", async () => {
+      const messages = [
+        { 
+          type: "create_issue", 
+          body: "See #aw_abc123def456 for context",
+          title: "Test Issue" 
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([["create_issue", mockCreateIssueHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.pendingUpdates).toBeDefined();
+      // Should track the output because it has unresolved temp ID
+      expect(result.pendingUpdates.length).toBeGreaterThan(0);
+    });
+
+    it("should generate synthetic update when temporary ID is resolved", async () => {
+      const messages = [
+        { 
+          type: "create_issue", 
+          body: "See #aw_abc123def456 for context",
+          title: "First Issue" 
+        },
+        { 
+          type: "create_issue",
+          temporary_id: "aw_abc123def456",
+          body: "Second issue body",
+          title: "Second Issue" 
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn()
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 100,
+        })
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 101,
+          temporaryId: "aw_abc123def456",
+        });
+
+      const handlers = new Map([["create_issue", mockCreateIssueHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.pendingUpdates).toBeDefined();
+      // Should generate synthetic update for first issue
+      expect(result.pendingUpdates.length).toBe(1);
+      expect(result.pendingUpdates[0].type).toBe("update_issue");
+      expect(result.pendingUpdates[0].issue_number).toBe(100);
+      expect(result.pendingUpdates[0]._synthetic).toBe(true);
+      // Body should have temp ID replaced
+      expect(result.pendingUpdates[0].body).toContain("#101");
+      expect(result.pendingUpdates[0].body).not.toContain("aw_abc123def456");
+    });
+
+    it("should not generate synthetic update if temporary IDs remain unresolved", async () => {
+      const messages = [
+        { 
+          type: "create_issue", 
+          body: "See #aw_abc123def456 and #aw_unresolved99 for context",
+          title: "Test Issue" 
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+      });
+
+      const handlers = new Map([["create_issue", mockCreateIssueHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.pendingUpdates).toBeDefined();
+      // Should not generate synthetic update because IDs are still unresolved
+      expect(result.pendingUpdates.length).toBe(0);
+    });
+
+    it("should handle multiple outputs needing synthetic updates", async () => {
+      const messages = [
+        { 
+          type: "create_issue", 
+          body: "Related to #aw_tempid111111",
+          title: "First Issue" 
+        },
+        { 
+          type: "create_discussion", 
+          body: "See #aw_tempid111111 for details",
+          title: "Discussion" 
+        },
+        { 
+          type: "create_issue",
+          temporary_id: "aw_tempid111111",
+          body: "The referenced issue",
+          title: "Referenced Issue" 
+        },
+      ];
+
+      const mockCreateIssueHandler = vi.fn()
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 100,
+        })
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 102,
+          temporaryId: "aw_tempid111111",
+        });
+
+      const mockCreateDiscussionHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 101,
+      });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateIssueHandler],
+        ["create_discussion", mockCreateDiscussionHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.pendingUpdates.length).toBe(2);
+      // Should generate update_issue for first issue
+      expect(result.pendingUpdates.find(u => u.type === "update_issue")).toBeDefined();
+      // Should generate update_discussion for discussion
+      expect(result.pendingUpdates.find(u => u.type === "update_discussion")).toBeDefined();
     });
   });
 });

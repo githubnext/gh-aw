@@ -11,6 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 /**
  * Handler map configuration
@@ -94,10 +95,11 @@ async function loadHandlers(config) {
 /**
  * Process all messages from agent output in the order they appear
  * Dispatches each message to the appropriate handler while maintaining shared state (temporary ID map)
+ * Tracks outputs created with unresolved temporary IDs and generates synthetic updates after resolution
  *
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map, pendingUpdates: Array<any>}>}
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
@@ -106,6 +108,11 @@ async function processMessages(messageHandlers, messages) {
   // This will be populated by handlers as they create entities with temporary IDs
   /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
+
+  // Track outputs that were created with unresolved temporary IDs
+  // Format: {type, message, result, originalTempIdMapSize}
+  /** @type {Array<{type: string, message: any, result: any, originalTempIdMapSize: number}>} */
+  const outputsWithUnresolvedIds = [];
 
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
 
@@ -131,6 +138,9 @@ async function processMessages(messageHandlers, messages) {
 
       // Convert Map to plain object for handler
       const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
+      
+      // Record the temp ID map size before processing to detect new IDs
+      const tempIdMapSizeBefore = temporaryIdMap.size;
 
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(message, resolvedTemporaryIds);
@@ -142,6 +152,21 @@ async function processMessages(messageHandlers, messages) {
           number: result.number,
         });
         core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
+      }
+
+      // Check if this output was created with unresolved temporary IDs
+      // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
+      if (result && result.number && result.repo) {
+        const contentToCheck = getContentToCheck(messageType, message);
+        if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+          core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
+          outputsWithUnresolvedIds.push({
+            type: messageType,
+            message: message,
+            result: result,
+            originalTempIdMapSize: tempIdMapSizeBefore,
+          });
+        }
       }
 
       results.push({
@@ -163,6 +188,43 @@ async function processMessages(messageHandlers, messages) {
     }
   }
 
+  // After processing all original messages, check if any new temporary IDs were resolved
+  // If so, generate synthetic update messages for outputs that had unresolved IDs
+  const pendingUpdates = [];
+  if (outputsWithUnresolvedIds.length > 0 && temporaryIdMap.size > 0) {
+    core.info(`\n=== Checking for Synthetic Updates ===`);
+    core.info(`Found ${outputsWithUnresolvedIds.length} output(s) with unresolved temporary IDs`);
+    
+    for (const tracked of outputsWithUnresolvedIds) {
+      // Check if any new temporary IDs were resolved since this output was created
+      if (temporaryIdMap.size > tracked.originalTempIdMapSize) {
+        const contentToCheck = getContentToCheck(tracked.type, tracked.message);
+        
+        // Check if the content still has unresolved IDs (some may now be resolved)
+        const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap);
+        const resolvedCount = temporaryIdMap.size - tracked.originalTempIdMapSize;
+        
+        if (!stillHasUnresolved) {
+          // All temporary IDs are now resolved - generate synthetic update
+          core.info(`Generating synthetic update for ${tracked.result.repo}#${tracked.result.number} (${resolvedCount} temp ID(s) resolved)`);
+          
+          const syntheticUpdate = createSyntheticUpdate(tracked, temporaryIdMap);
+          if (syntheticUpdate) {
+            pendingUpdates.push(syntheticUpdate);
+          }
+        } else {
+          core.debug(`Output ${tracked.result.repo}#${tracked.result.number} still has unresolved temporary IDs`);
+        }
+      }
+    }
+    
+    if (pendingUpdates.length > 0) {
+      core.info(`Generated ${pendingUpdates.length} synthetic update(s)`);
+    } else {
+      core.info(`No synthetic updates needed`);
+    }
+  }
+
   // Convert temporaryIdMap to plain object for serialization
   const temporaryIdMapObj = Object.fromEntries(temporaryIdMap);
 
@@ -170,7 +232,73 @@ async function processMessages(messageHandlers, messages) {
     success: true,
     results,
     temporaryIdMap: temporaryIdMapObj,
+    pendingUpdates,
   };
+}
+
+/**
+ * Get the content field to check for unresolved temporary IDs based on message type
+ * @param {string} messageType - Type of the message
+ * @param {any} message - The message object
+ * @returns {string|null} Content to check for temporary IDs
+ */
+function getContentToCheck(messageType, message) {
+  switch (messageType) {
+    case "create_issue":
+      return message.body || "";
+    case "create_discussion":
+      return message.body || "";
+    case "add_comment":
+      return message.body || "";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Create a synthetic update message for an output with now-resolved temporary IDs
+ * @param {{type: string, message: any, result: any}} tracked - Tracked output info
+ * @param {Map<string, {repo: string, number: number}>} temporaryIdMap - Current temporary ID map
+ * @returns {Object|null} Synthetic update message or null if not applicable
+ */
+function createSyntheticUpdate(tracked, temporaryIdMap) {
+  const { type, message, result } = tracked;
+  
+  // Get the original content with unresolved temporary IDs
+  const originalContent = getContentToCheck(type, message);
+  if (!originalContent) {
+    return null;
+  }
+  
+  // Replace temporary ID references with resolved values
+  const updatedContent = replaceTemporaryIdReferences(originalContent, temporaryIdMap, result.repo);
+  
+  // Generate appropriate update message based on the original type
+  switch (type) {
+    case "create_issue":
+      return {
+        type: "update_issue",
+        issue_number: result.number,
+        body: updatedContent,
+        _synthetic: true,
+        _original_type: type,
+      };
+    case "create_discussion":
+      return {
+        type: "update_discussion",
+        discussion_number: result.number,
+        body: updatedContent,
+        _synthetic: true,
+        _original_type: type,
+      };
+    case "add_comment":
+      // For comments, we would need to update the comment, but GitHub API doesn't support
+      // updating comments easily without the comment ID. Skip for now.
+      core.debug(`Skipping synthetic update for comment - comment updates not yet supported`);
+      return null;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -207,6 +335,39 @@ async function main() {
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, agentOutput.items);
 
+    // Process synthetic updates if any were generated
+    let syntheticUpdateCount = 0;
+    if (processingResult.pendingUpdates && processingResult.pendingUpdates.length > 0) {
+      core.info(`\n=== Processing Synthetic Updates ===`);
+      
+      for (const syntheticUpdate of processingResult.pendingUpdates) {
+        const updateType = syntheticUpdate.type;
+        const messageHandler = messageHandlers.get(updateType);
+        
+        if (!messageHandler) {
+          core.warning(`No handler for synthetic update type: ${updateType}`);
+          continue;
+        }
+        
+        try {
+          core.info(`Processing synthetic ${updateType} for ${syntheticUpdate._original_type}`);
+          
+          // Convert temp ID map to plain object for handler
+          const resolvedTemporaryIds = processingResult.temporaryIdMap;
+          
+          // Call the message handler with the synthetic update
+          await messageHandler(syntheticUpdate, resolvedTemporaryIds);
+          
+          syntheticUpdateCount++;
+          core.info(`✓ Synthetic update completed`);
+        } catch (error) {
+          core.warning(`✗ Synthetic update failed: ${getErrorMessage(error)}`);
+        }
+      }
+      
+      core.info(`Processed ${syntheticUpdateCount}/${processingResult.pendingUpdates.length} synthetic update(s)`);
+    }
+
     // Log summary
     const successCount = processingResult.results.filter((r) => r.success).length;
     const failureCount = processingResult.results.filter((r) => !r.success).length;
@@ -216,6 +377,7 @@ async function main() {
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
+    core.info(`Synthetic updates: ${syntheticUpdateCount}`);
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
@@ -227,4 +389,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, loadConfig, loadHandlers, processMessages };
