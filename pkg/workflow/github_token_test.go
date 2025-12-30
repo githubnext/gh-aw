@@ -63,10 +63,10 @@ func TestGetEffectiveSafeOutputGitHubToken(t *testing.T) {
 			expected:      "${{ secrets.TOPLEVEL_TOKEN }}",
 		},
 		{
-			name:          "default fallback is just GITHUB_TOKEN (safe outputs chain)",
+			name:          "default fallback includes GH_AW_GITHUB_TOKEN (safe outputs chain)",
 			customToken:   "",
 			toplevelToken: "",
-			expected:      "${{ secrets.GITHUB_TOKEN }}",
+			expected:      "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		},
 	}
 

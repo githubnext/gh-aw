@@ -221,7 +221,7 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 }
 
 // addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
-// Uses precedence: config token > safe-outputs global github-token > top-level github-token > GITHUB_TOKEN
+// Uses precedence: config token > safe-outputs global github-token > top-level github-token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {
@@ -234,7 +234,7 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 		return
 	}
 
-	// Get effective token using double precedence: config > safe-outputs, then > top-level > GITHUB_TOKEN
+	// Get effective token using double precedence: config > safe-outputs, then > top-level > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 	effectiveToken := getEffectiveSafeOutputGitHubToken(configToken, getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
