@@ -317,11 +317,12 @@ func ExtractMCPServer(toolName string) string {
 
 // compiledPattern stores a pre-compiled regex with its metadata
 type compiledPattern struct {
-	regex        *regexp.Regexp
-	id           string
-	levelGroup   int
-	messageGroup int
-	severity     string
+	regex         *regexp.Regexp
+	id            string
+	levelGroup    int
+	messageGroup  int
+	severity      string
+	isBenignError bool
 }
 
 // CountErrorsAndWarningsWithPatterns extracts errors and warnings using regex patterns
@@ -334,26 +335,52 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 	}
 
 	// Pre-compile all patterns once before processing lines (performance optimization)
-	compiledPatterns := make([]compiledPattern, 0, len(patterns))
+	// Separate benign patterns from regular patterns
+	benignPatterns := make([]compiledPattern, 0)
+	regularPatterns := make([]compiledPattern, 0)
+
 	for _, pattern := range patterns {
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
 			// Skip invalid patterns
 			continue
 		}
-		compiledPatterns = append(compiledPatterns, compiledPattern{
-			regex:        regex,
-			id:           pattern.ID,
-			levelGroup:   pattern.LevelGroup,
-			messageGroup: pattern.MessageGroup,
-			severity:     pattern.Severity,
-		})
+		cp := compiledPattern{
+			regex:         regex,
+			id:            pattern.ID,
+			levelGroup:    pattern.LevelGroup,
+			messageGroup:  pattern.MessageGroup,
+			severity:      pattern.Severity,
+			isBenignError: pattern.IsBenignError,
+		}
+
+		if pattern.IsBenignError {
+			benignPatterns = append(benignPatterns, cp)
+		} else {
+			regularPatterns = append(regularPatterns, cp)
+		}
 	}
 
 	lines := strings.Split(logContent, "\n")
 
 	for lineNum, line := range lines {
-		for _, cp := range compiledPatterns {
+		// First check if this line matches any benign error pattern
+		// If it does, skip it entirely
+		isBenign := false
+		for _, cp := range benignPatterns {
+			if cp.regex.MatchString(line) {
+				isBenign = true
+				break
+			}
+		}
+
+		// Skip benign errors
+		if isBenign {
+			continue
+		}
+
+		// Now check regular patterns
+		for _, cp := range regularPatterns {
 			// Find first match only - for error detection we don't need all matches
 			match := cp.regex.FindStringSubmatch(line)
 			if match == nil {

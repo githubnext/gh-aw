@@ -825,6 +825,9 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
+	// Add benign error patterns first (so they can be explicitly filtered)
+	patterns = append(patterns, GetBenignErrorPatterns()...)
+
 	// Add Codex-specific error patterns for Rust log format
 	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)

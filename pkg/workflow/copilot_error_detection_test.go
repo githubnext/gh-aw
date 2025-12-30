@@ -105,11 +105,12 @@ func TestCopilotEngineDetectsRealWorldErrors(t *testing.T) {
 }
 
 // TestCopilotEngineDetectsCommandNotFoundInLogs tests detection of command not found errors
+// Updated: vitest errors are now filtered as benign, so this test verifies that behavior
 func TestCopilotEngineDetectsCommandNotFoundInLogs(t *testing.T) {
 	engine := NewCopilotEngine()
 	patterns := engine.GetErrorPatterns()
 
-	// Simulate log with command not found error
+	// Simulate log with command not found error (vitest - which is benign)
 	testLog := `Running make test
 sh: 1: vitest: not found
 make: *** [Makefile:100: test-js] Error 127
@@ -118,14 +119,20 @@ make: *** Waiting for unfinished jobs....`
 	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
 	errorCount := CountErrors(errors)
-	if errorCount == 0 {
-		t.Error("Expected to detect 'vitest: not found' error, but found none")
-	}
 
-	t.Logf("Successfully detected %d errors including command not found", errorCount)
+	// Vitest errors should be filtered out as benign
+	if errorCount != 0 {
+		t.Errorf("Expected vitest 'command not found' to be filtered as benign, but detected %d errors", errorCount)
+		for i, err := range errors {
+			t.Logf("  %d. [%s] Line %d: %s", i+1, err.Type, err.Line, err.Message)
+		}
+	} else {
+		t.Logf("Successfully filtered vitest 'command not found' as benign error")
+	}
 }
 
 // TestCopilotEngineDetectsNodeModuleNotFound tests detection of Node.js module errors
+// Updated: vitest module errors are now filtered as benign, so this test verifies that behavior
 func TestCopilotEngineDetectsNodeModuleNotFound(t *testing.T) {
 	engine := NewCopilotEngine()
 	patterns := engine.GetErrorPatterns()
@@ -142,9 +149,14 @@ Require stack:
 	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
 	errorCount := CountErrors(errors)
-	if errorCount == 0 {
-		t.Error("Expected to detect 'Cannot find module' error, but found none")
-	}
 
-	t.Logf("Successfully detected %d errors including module not found", errorCount)
+	// Vitest module errors should be filtered out as benign
+	if errorCount != 0 {
+		t.Errorf("Expected vitest 'Cannot find module' to be filtered as benign, but detected %d errors", errorCount)
+		for i, err := range errors {
+			t.Logf("  %d. [%s] Line %d: %s", i+1, err.Type, err.Line, err.Message)
+		}
+	} else {
+		t.Logf("Successfully filtered vitest 'Cannot find module' as benign error")
+	}
 }

@@ -1036,6 +1036,9 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
+	// Add benign error patterns first (so they can be explicitly filtered)
+	patterns = append(patterns, GetBenignErrorPatterns()...)
+
 	// Add Copilot-specific error patterns for timestamp-based log formats
 	patterns = append(patterns, []ErrorPattern{
 		{

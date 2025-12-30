@@ -96,6 +96,10 @@ type ErrorPattern struct {
 	// Severity explicitly sets the level for this pattern, overriding inference
 	// Valid values: "error", "warning", or empty string (use inference)
 	Severity string `json:"severity,omitempty"`
+	// IsBenignError marks errors that should be filtered out as false positives
+	// These are typically pre-existing environmental issues that don't affect workflow goals
+	// Examples: missing dev dependencies (vitest), optional tooling not installed
+	IsBenignError bool `json:"is_benign_error,omitempty"`
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -544,6 +548,76 @@ func GetCommonErrorPatterns() []ErrorPattern {
 			LevelGroup:   1, // "WARNING" or "Warning" is in the first capture group
 			MessageGroup: 2, // warning message is in the second capture group
 			Description:  "Generic WARNING messages",
+		},
+	}
+}
+
+// GetBenignErrorPatterns returns patterns that match errors which should be filtered out as false positives.
+// These are typically pre-existing environmental issues that don't affect the actual workflow goals.
+// Examples include missing development dependencies, optional tooling not installed, etc.
+func GetBenignErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{
+		// Development dependency errors - vitest (command not found)
+		{
+			ID:            "benign-vitest-not-found",
+			Pattern:       `vitest[:\s]*(?:command\s+)?not found`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Vitest command not found (benign dev dependency)",
+			IsBenignError: true,
+		},
+		// Development dependency errors - vitest (with ERROR/Error prefix)
+		{
+			ID:            "benign-vitest-error",
+			Pattern:       `(?:ERROR|Error)[:\s]+.*vitest.*(?:not found|command not found)`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Vitest error with ERROR/Error prefix (benign dev dependency)",
+			IsBenignError: true,
+		},
+		// Development dependency errors - vitest module
+		{
+			ID:            "benign-vitest-module",
+			Pattern:       `(?:Cannot find module|Error:.*module).*['"]vitest['"]`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Vitest Node.js module not found (benign dev dependency)",
+			IsBenignError: true,
+		},
+		// Development dependency errors - vitest in makefile
+		{
+			ID:            "benign-vitest-makefile-error",
+			Pattern:       `make:.*\[.*test-js\].*Error\s+127.*vitest`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Make test-js error due to missing vitest (benign)",
+			IsBenignError: true,
+		},
+		// Generic development dependency patterns
+		{
+			ID:            "benign-dev-deps-not-installed",
+			Pattern:       `(?:dev(?:elopment)?\s+dependencies?|devDependencies)\s+(?:not|aren't)\s+installed`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Development dependencies not installed (benign)",
+			IsBenignError: true,
+		},
+		// Pre-existing environment issues mentioned in logs
+		{
+			ID:            "benign-pre-existing-issue",
+			Pattern:       `(?:pre-existing|already\s+existing)\s+(?:issue|problem|error)`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Pre-existing environmental issue (benign)",
+			IsBenignError: true,
+		},
+		{
+			ID:            "benign-not-introduced-by-changes",
+			Pattern:       `not\s+(?:something\s+we|anything\s+that\s+was)\s+introduced`,
+			LevelGroup:    0,
+			MessageGroup:  0,
+			Description:   "Issue not introduced by current changes (benign)",
+			IsBenignError: true,
 		},
 	}
 }

@@ -130,7 +130,7 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		engine := NewCopilotEngine()
 		patterns := engine.GetErrorPatterns()
 
-		// Test logs with error context - these should be detected by generic ERROR pattern
+		// Test logs with vitest errors - these should now be FILTERED as benign
 		testLogs := []string{
 			"Error: Cannot find module 'vitest'",
 			"ERROR: vitest command not found",
@@ -139,8 +139,23 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		for _, logLine := range testLogs {
 			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
 			errorCount := CountErrors(errors)
+			// Vitest errors should be filtered out as benign
+			if errorCount != 0 {
+				t.Errorf("Vitest error should be filtered as benign, but was detected in log line: %q", logLine)
+			}
+		}
+
+		// Test that non-vitest errors are still detected
+		actualErrors := []string{
+			"Error: Cannot find module 'express'",
+			"ERROR: npm command not found",
+		}
+
+		for _, logLine := range actualErrors {
+			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			errorCount := CountErrors(errors)
 			if errorCount == 0 {
-				t.Errorf("Failed to detect error in log line: %q", logLine)
+				t.Errorf("Failed to detect actual error in log line: %q", logLine)
 			}
 		}
 	})

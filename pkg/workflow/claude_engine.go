@@ -466,9 +466,14 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Claude logs
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
+	patterns := GetCommonErrorPatterns()
+
+	// Add benign error patterns first (so they can be explicitly filtered)
+	patterns = append(patterns, GetBenignErrorPatterns()...)
+
 	// Claude uses common GitHub Actions workflow commands for error reporting
 	// No engine-specific log formats to parse
-	return GetCommonErrorPatterns()
+	return patterns
 }
 
 // GetFirewallLogsCollectionStep returns the step for collecting firewall logs (before secret redaction)
