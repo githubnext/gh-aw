@@ -110,8 +110,8 @@ async function main(config = {}) {
   }
   core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
 
-  // Parse allowed repos and default target
-  const allowedRepos = parseAllowedRepos();
+  // Parse allowed repos from config and default target
+  const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo();
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {

@@ -13,48 +13,58 @@ global.context = mockContext;
 describe("repo_helpers", () => {
   beforeEach(() => {
     vi.resetModules();
-    delete process.env.GH_AW_ALLOWED_REPOS;
     delete process.env.GH_AW_TARGET_REPO_SLUG;
     global.context = mockContext;
   });
 
   describe("parseAllowedRepos", () => {
-    it("should return empty set when env var is not set", async () => {
+    it("should return empty set when value is undefined", async () => {
       const { parseAllowedRepos } = await import("./repo_helpers.cjs");
-      const result = parseAllowedRepos();
+      const result = parseAllowedRepos(undefined);
       expect(result.size).toBe(0);
     });
 
-    it("should parse single repo from env var", async () => {
-      process.env.GH_AW_ALLOWED_REPOS = "org/repo-a";
+    it("should parse single repo from string", async () => {
       const { parseAllowedRepos } = await import("./repo_helpers.cjs");
-      const result = parseAllowedRepos();
+      const result = parseAllowedRepos("org/repo-a");
       expect(result.size).toBe(1);
       expect(result.has("org/repo-a")).toBe(true);
     });
 
-    it("should parse multiple repos from comma-separated list", async () => {
-      process.env.GH_AW_ALLOWED_REPOS = "org/repo-a, org/repo-b, org/repo-c";
+    it("should parse multiple repos from comma-separated string", async () => {
       const { parseAllowedRepos } = await import("./repo_helpers.cjs");
-      const result = parseAllowedRepos();
+      const result = parseAllowedRepos("org/repo-a, org/repo-b, org/repo-c");
       expect(result.size).toBe(3);
       expect(result.has("org/repo-a")).toBe(true);
       expect(result.has("org/repo-b")).toBe(true);
       expect(result.has("org/repo-c")).toBe(true);
     });
 
-    it("should trim whitespace from repo names", async () => {
-      process.env.GH_AW_ALLOWED_REPOS = "  org/repo-a  ,  org/repo-b  ";
+    it("should parse repos from array", async () => {
       const { parseAllowedRepos } = await import("./repo_helpers.cjs");
-      const result = parseAllowedRepos();
+      const result = parseAllowedRepos(["org/repo-a", "org/repo-b"]);
+      expect(result.size).toBe(2);
+      expect(result.has("org/repo-a")).toBe(true);
+      expect(result.has("org/repo-b")).toBe(true);
+    });
+
+    it("should trim whitespace from repo names in string", async () => {
+      const { parseAllowedRepos } = await import("./repo_helpers.cjs");
+      const result = parseAllowedRepos("  org/repo-a  ,  org/repo-b  ");
+      expect(result.has("org/repo-a")).toBe(true);
+      expect(result.has("org/repo-b")).toBe(true);
+    });
+
+    it("should trim whitespace from repo names in array", async () => {
+      const { parseAllowedRepos } = await import("./repo_helpers.cjs");
+      const result = parseAllowedRepos(["  org/repo-a  ", "  org/repo-b  "]);
       expect(result.has("org/repo-a")).toBe(true);
       expect(result.has("org/repo-b")).toBe(true);
     });
 
     it("should filter out empty strings", async () => {
-      process.env.GH_AW_ALLOWED_REPOS = "org/repo-a,,org/repo-b,  ,";
       const { parseAllowedRepos } = await import("./repo_helpers.cjs");
-      const result = parseAllowedRepos();
+      const result = parseAllowedRepos("org/repo-a,,org/repo-b,  ,");
       expect(result.size).toBe(2);
     });
   });
