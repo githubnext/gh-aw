@@ -54,7 +54,7 @@ async function main(config = {}) {
     processedCount++;
 
     const item = message;
-    
+
     // Convert resolvedTemporaryIds object to Map for resolveIssueNumber
     const temporaryIdMap = new Map(Object.entries(resolvedTemporaryIds || {}));
 
@@ -66,7 +66,7 @@ async function main(config = {}) {
     // If so, defer the operation to allow for resolution later
     const hasUnresolvedParent = parentResolved.wasTemporaryId && !parentResolved.resolved;
     const hasUnresolvedSub = subResolved.wasTemporaryId && !subResolved.resolved;
-    
+
     if (hasUnresolvedParent || hasUnresolvedSub) {
       const unresolvedIds = [];
       if (hasUnresolvedParent) {
@@ -76,7 +76,7 @@ async function main(config = {}) {
         unresolvedIds.push(`sub: ${item.sub_issue_number}`);
       }
       core.info(`Deferring link_sub_issue: unresolved temporary IDs (${unresolvedIds.join(", ")})`);
-      
+
       // Return a deferred status to indicate this should be retried later
       return {
         parent_issue_number: item.parent_issue_number,

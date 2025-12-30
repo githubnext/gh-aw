@@ -16,10 +16,10 @@ async function main(config = {}) {
       supportsPR: true,
       supportsIssue: true,
       envVars: {
-        // Config values now passed via config object, not env vars
-        allowed: null,
-        maxCount: null,
-        target: null,
+        // Environment variable names for configuration
+        allowed: "GH_AW_LABELS_ALLOWED",
+        maxCount: "GH_AW_LABELS_MAX_COUNT",
+        target: "GH_AW_LABELS_TARGET",
       },
     },
     {
@@ -45,12 +45,12 @@ async function main(config = {}) {
     return;
   }
 
-  const { item: labelsItem, config, targetResult } = result;
-  if (!config || !targetResult || targetResult.number === undefined) {
+  const { item: labelsItem, config: handlerConfig, targetResult } = result;
+  if (!handlerConfig || !targetResult || targetResult.number === undefined) {
     core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
     return;
   }
-  const { allowed: allowedLabels, maxCount } = config;
+  const { allowed: allowedLabels, maxCount } = handlerConfig;
   const itemNumber = targetResult.number;
   const { contextType } = targetResult;
 

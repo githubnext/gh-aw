@@ -61,9 +61,9 @@ const mockCore = {
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
         .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
       mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: { number: 99, title: "Existing Parent Issue" } } } });
-      
+
       const result = await handler(message, {});
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toContain("Sub-issue is already a sub-issue of #99");
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Sub-issue #50 is already a sub-issue of #99 ("Existing Parent Issue"). Skipping.'));
@@ -75,12 +75,10 @@ const mockCore = {
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
         .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
-      mockGithub.graphql
-        .mockResolvedValueOnce({ repository: { issue: { parent: null } } })
-        .mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
-      
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
       const result = await handler(message, {});
-      
+
       expect(result.success).toBe(true);
       expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("already a sub-issue"));
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
@@ -92,12 +90,10 @@ const mockCore = {
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
         .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
-      mockGithub.graphql
-        .mockRejectedValueOnce(new Error("Field 'parent' doesn't exist on type 'Issue'"))
-        .mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
-      
+      mockGithub.graphql.mockRejectedValueOnce(new Error("Field 'parent' doesn't exist on type 'Issue'")).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
       const result = await handler(message, {});
-      
+
       expect(result.success).toBe(true);
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check if sub-issue #50 has a parent"));
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Proceeding with link attempt"));
@@ -108,30 +104,26 @@ const mockCore = {
     it("should handle max count limit", async () => {
       // Create handler with max=1
       const limitedHandler = await require(path.join(process.cwd(), "link_sub_issue.cjs")).main({ max: 1 });
-      
+
       const message1 = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 };
       const message2 = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 51 };
-      
-      mockGithub.rest.issues.get
-        .mockResolvedValue({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
-        .mockResolvedValue({ data: { number: 50, title: "Sub Issue 50", node_id: "I_sub_50", labels: [] } });
-      mockGithub.graphql
-        .mockResolvedValueOnce({ repository: { issue: { parent: null } } })
-        .mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
-      
+
+      mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } }).mockResolvedValue({ data: { number: 50, title: "Sub Issue 50", node_id: "I_sub_50", labels: [] } });
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
       const result1 = await limitedHandler(message1, {});
       const result2 = await limitedHandler(message2, {});
-      
+
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(false);
       expect(result2.error).toContain("Max count of 1 reached");
     });
     it("should defer when parent is unresolved temporary ID", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: "aw_123456789abc", sub_issue_number: 50 };
-      
+
       // Empty temp ID map - temporary ID is unresolved
       const result = await handler(message, {});
-      
+
       expect(result.success).toBe(false);
       expect(result.deferred).toBe(true);
       expect(result.error).toContain("Unresolved temporary IDs");
@@ -139,10 +131,10 @@ const mockCore = {
     });
     it("should defer when sub-issue is unresolved temporary ID", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: "aw_456789abcdef" };
-      
+
       // Empty temp ID map - temporary ID is unresolved
       const result = await handler(message, {});
-      
+
       expect(result.success).toBe(false);
       expect(result.deferred).toBe(true);
       expect(result.error).toContain("Unresolved temporary IDs");
@@ -150,22 +142,20 @@ const mockCore = {
     });
     it("should succeed when temporary IDs are resolved", async () => {
       const message = { type: "link_sub_issue", parent_issue_number: "aw_123456789abc", sub_issue_number: "aw_456789abcdef" };
-      
+
       // Provide resolved temp IDs
       const resolvedIds = {
         aw_123456789abc: { repo: "testowner/testrepo", number: 100 },
         aw_456789abcdef: { repo: "testowner/testrepo", number: 50 },
       };
-      
+
       mockGithub.rest.issues.get
         .mockResolvedValueOnce({ data: { number: 100, title: "Parent Issue", node_id: "I_parent_100", labels: [] } })
         .mockResolvedValueOnce({ data: { number: 50, title: "Sub Issue", node_id: "I_sub_50", labels: [] } });
-      mockGithub.graphql
-        .mockResolvedValueOnce({ repository: { issue: { parent: null } } })
-        .mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
-      
+      mockGithub.graphql.mockResolvedValueOnce({ repository: { issue: { parent: null } } }).mockResolvedValueOnce({ addSubIssue: { issue: { id: "I_parent_100", number: 100 }, subIssue: { id: "I_sub_50", number: 50 } } });
+
       const result = await handler(message, resolvedIds);
-      
+
       expect(result.success).toBe(true);
       expect(result.deferred).toBeUndefined();
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Resolved parent temporary ID"));
