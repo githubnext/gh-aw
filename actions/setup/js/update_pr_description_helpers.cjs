@@ -62,9 +62,10 @@ function findIsland(body, runId) {
 }
 
 /**
- * Update PR body with the specified operation
+ * Update body content with the specified operation
+ * Generic helper for updating markdown bodies (PRs, releases, discussions, etc.)
  * @param {Object} params - Update parameters
- * @param {string} params.currentBody - Current PR body content
+ * @param {string} params.currentBody - Current body content
  * @param {string} params.newContent - New content to add/replace
  * @param {string} params.operation - Operation type: "append", "prepend", "replace", or "replace-island"
  * @param {string} params.workflowName - Name of the workflow
@@ -72,7 +73,7 @@ function findIsland(body, runId) {
  * @param {number} params.runId - Workflow run ID
  * @returns {string} Updated body content
  */
-function updatePRBody(params) {
+function updateBody(params) {
   const { currentBody, newContent, operation, workflowName, runUrl, runId } = params;
   const aiFooter = buildAIFooter(workflowName, runUrl);
 
@@ -125,5 +126,5 @@ module.exports = {
   buildIslandStartMarker,
   buildIslandEndMarker,
   findIsland,
-  updatePRBody,
+  updateBody,
 };

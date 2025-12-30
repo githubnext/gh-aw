@@ -11,7 +11,7 @@ const mockCore = {
 global.core = mockCore;
 
 // Import the module
-const { buildAIFooter, buildIslandStartMarker, buildIslandEndMarker, findIsland, updatePRBody } = await import("./update_pr_description_helpers.cjs");
+const { buildAIFooter, buildIslandStartMarker, buildIslandEndMarker, findIsland, updateBody } = await import("./update_pr_description_helpers.cjs");
 
 describe("update_pr_description_helpers.cjs", () => {
   beforeEach(() => {
@@ -98,9 +98,9 @@ describe("update_pr_description_helpers.cjs", () => {
     });
   });
 
-  describe("updatePRBody - replace operation", () => {
+  describe("updateBody - replace operation", () => {
     it("should replace entire body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Old content",
         newContent: "New content",
         operation: "replace",
@@ -113,9 +113,9 @@ describe("update_pr_description_helpers.cjs", () => {
     });
   });
 
-  describe("updatePRBody - append operation", () => {
+  describe("updateBody - append operation", () => {
     it("should append to empty body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "",
         newContent: "New content",
         operation: "append",
@@ -132,7 +132,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should append to existing body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original content",
         newContent: "New content",
         operation: "append",
@@ -146,7 +146,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should preserve markdown formatting", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "# Title\n\n**Bold**",
         newContent: "- List item",
         operation: "append",
@@ -160,9 +160,9 @@ describe("update_pr_description_helpers.cjs", () => {
     });
   });
 
-  describe("updatePRBody - prepend operation", () => {
+  describe("updateBody - prepend operation", () => {
     it("should prepend to empty body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "",
         newContent: "New content",
         operation: "prepend",
@@ -179,7 +179,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should prepend to existing body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original content",
         newContent: "New content",
         operation: "prepend",
@@ -193,9 +193,9 @@ describe("update_pr_description_helpers.cjs", () => {
     });
   });
 
-  describe("updatePRBody - replace-island operation", () => {
+  describe("updateBody - replace-island operation", () => {
     it("should create new island when not found", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original content",
         newContent: "Island content",
         operation: "replace-island",
@@ -215,7 +215,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should replace existing island content", () => {
       const currentBody = "Before\n<!-- gh-aw-island-start:123 -->\nOld island\n<!-- gh-aw-island-end:123 -->\nAfter";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "New island",
         operation: "replace-island",
@@ -234,7 +234,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should preserve content outside island when replacing", () => {
       const currentBody = "# Title\n\nSome intro\n\n<!-- gh-aw-island-start:123 -->\nOld\n<!-- gh-aw-island-end:123 -->\n\n## Footer\n\nMore content";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "Updated content",
         operation: "replace-island",
@@ -252,7 +252,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should not replace island with different run ID", () => {
       const currentBody = "Before\n<!-- gh-aw-island-start:456 -->\nOther island\n<!-- gh-aw-island-end:456 -->\nAfter";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "New island",
         operation: "replace-island",
@@ -270,7 +270,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should handle multiple islands with same run ID (replace first)", () => {
       const currentBody = "<!-- gh-aw-island-start:123 -->\nFirst\n<!-- gh-aw-island-end:123 -->\n<!-- gh-aw-island-start:123 -->\nSecond\n<!-- gh-aw-island-end:123 -->";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "Replaced",
         operation: "replace-island",
@@ -285,7 +285,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should handle empty island content", () => {
       const currentBody = "Before\n<!-- gh-aw-island-start:123 -->\n\n<!-- gh-aw-island-end:123 -->\nAfter";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "New content",
         operation: "replace-island",
@@ -300,7 +300,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should handle special characters in island content", () => {
       const currentBody = "<!-- gh-aw-island-start:123 -->\nOld\n<!-- gh-aw-island-end:123 -->";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "Content with **markdown**, `code`, [links](http://example.com)",
         operation: "replace-island",
@@ -315,7 +315,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should handle newlines and whitespace correctly", () => {
       const currentBody = "<!-- gh-aw-island-start:123 -->\n  \n\nOld\n\n  \n<!-- gh-aw-island-end:123 -->";
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody,
         newContent: "New\n\nMultiline\n\nContent",
         operation: "replace-island",
@@ -327,9 +327,9 @@ describe("update_pr_description_helpers.cjs", () => {
     });
   });
 
-  describe("updatePRBody - edge cases", () => {
+  describe("updateBody - edge cases", () => {
     it("should handle empty new content", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original",
         newContent: "",
         operation: "append",
@@ -343,7 +343,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should handle empty current body", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "",
         newContent: "New",
         operation: "append",
@@ -355,7 +355,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should handle unicode characters", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original 你好",
         newContent: "New 世界 🚀",
         operation: "append",
@@ -369,7 +369,7 @@ describe("update_pr_description_helpers.cjs", () => {
 
     it("should handle very long content", () => {
       const longContent = "A".repeat(10000);
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original",
         newContent: longContent,
         operation: "append",
@@ -382,7 +382,7 @@ describe("update_pr_description_helpers.cjs", () => {
     });
 
     it("should handle default to append for unknown operation", () => {
-      const result = updatePRBody({
+      const result = updateBody({
         currentBody: "Original",
         newContent: "New",
         operation: "unknown",
