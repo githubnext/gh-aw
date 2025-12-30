@@ -97,7 +97,7 @@ async function loadHandlers(config) {
  *
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object}>}
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
