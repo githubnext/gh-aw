@@ -224,6 +224,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 					"file-glob":   []any{fmt.Sprintf("%s/**", spec.ID)},
 				},
 			},
+			"bash": []any{"*"},
 		},
 		SafeOutputs: safeOutputs,
 	}
