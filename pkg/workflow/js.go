@@ -41,7 +41,6 @@ func getNotifyCommentErrorScript() string      { return "" }
 func getPushToPullRequestBranchScript() string { return "" }
 func getUpdateProjectScript() string           { return "" }
 func getUpdatePullRequestScript() string       { return "" }
-func getUpdateReleaseScript() string           { return "" }
 func getUploadAssetsScript() string            { return "" }
 
 // Public Get* functions return empty strings since embedded scripts were removed

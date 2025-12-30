@@ -27,6 +27,7 @@ const HANDLER_MAP = {
   update_issue: "./update_issue.cjs",
   update_discussion: "./update_discussion.cjs",
   link_sub_issue: "./link_sub_issue.cjs",
+  update_release: "./update_release.cjs",
 };
 
 /**

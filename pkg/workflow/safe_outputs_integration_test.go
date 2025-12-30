@@ -502,7 +502,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 			expectedStepsContaining: []string{
 				"GH_AW_WORKFLOW_ID",
 			},
-			expectedStepNames: []string{"update_release"},
+			expectedStepNames: []string{"process_safe_outputs"},
 		},
 		{
 			name: "multiple_safe_outputs_consolidated",
@@ -557,7 +557,6 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 		"assign_to_agent_in_consolidated_job":             true,
 		"assign_to_user_in_consolidated_job":              true,
 		"hide_comment_in_consolidated_job":                true,
-		"update_release_in_consolidated_job":              true,
 	}
 
 	for _, tt := range tests {

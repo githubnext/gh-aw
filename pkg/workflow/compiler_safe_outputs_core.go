@@ -110,7 +110,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AddLabels != nil ||
 		data.SafeOutputs.UpdateIssues != nil ||
 		data.SafeOutputs.UpdateDiscussions != nil ||
-		data.SafeOutputs.LinkSubIssue != nil
+		data.SafeOutputs.LinkSubIssue != nil ||
+		data.SafeOutputs.UpdateRelease != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -150,6 +151,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.LinkSubIssue != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
+		}
+		if data.SafeOutputs.UpdateRelease != nil {
+			permissions.Merge(NewPermissionsContentsWrite())
 		}
 	}
 
@@ -282,15 +286,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// This was moved out of the consolidated job to allow proper git configuration
 	// for pushing to orphaned branches
 
-	// 19. Update Release step
-	if data.SafeOutputs.UpdateRelease != nil {
-		stepConfig := c.buildUpdateReleaseStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsWrite())
-	}
+	// 19. Update Release step - now handled by handler manager
+	// 20. Link Sub Issue step - now handled by handler manager
 
 	// 21. Hide Comment step
 	if data.SafeOutputs.HideComment != nil {
@@ -863,6 +860,15 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["sub_title_prefix"] = cfg.SubTitlePrefix
 		}
 		config["link_sub_issue"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdateRelease != nil {
+		cfg := data.SafeOutputs.UpdateRelease
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		config["update_release"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure

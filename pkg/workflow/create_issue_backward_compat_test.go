@@ -63,9 +63,17 @@ This workflow uses the old format without assignees and should continue to work.
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
-	// Verify that Create Issue step is present (consolidated mode uses "Create Issue" as step name)
-	if !strings.Contains(compiledStr, "name: Create Issue") && !strings.Contains(compiledStr, "id: create_issue") {
-		t.Error("Expected Create Issue step in compiled workflow")
+	// Verify that Create Issue step is present via handler manager (consolidated mode uses handler manager)
+	if !strings.Contains(compiledStr, "name: Process Safe Outputs") && !strings.Contains(compiledStr, "id: process_safe_outputs") {
+		t.Error("Expected Process Safe Outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	}
+
+	// Verify handler config contains create_issue
+	if !strings.Contains(compiledStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in compiled workflow")
+	}
+	if !strings.Contains(compiledStr, "create_issue") {
+		t.Error("Expected create_issue in handler config")
 	}
 
 	// Verify that no assignee steps are present
@@ -73,12 +81,9 @@ This workflow uses the old format without assignees and should continue to work.
 		t.Error("Did not expect assignee steps in legacy workflow")
 	}
 
-	// Verify that outputs are still set correctly - consolidated mode uses different output format
-	if !strings.Contains(compiledStr, "create_issue_issue_number") && !strings.Contains(compiledStr, "steps.create_issue.outputs.issue_number") {
-		t.Error("Expected issue_number output in compiled workflow")
-	}
-	if !strings.Contains(compiledStr, "create_issue_issue_url") && !strings.Contains(compiledStr, "steps.create_issue.outputs.issue_url") {
-		t.Error("Expected issue_url output in compiled workflow")
+	// Verify that outputs are still set correctly - handler manager uses process_safe_outputs step
+	if !strings.Contains(compiledStr, "process_safe_outputs") {
+		t.Error("Expected process_safe_outputs step outputs in compiled workflow")
 	}
 }
 
