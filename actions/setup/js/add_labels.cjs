@@ -1,18 +1,25 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Factory function for creating label addition handler
- * @param {Object} config - Handler configuration
- * @param {string[]|undefined} config.allowed - Allowed labels list
+ * @param {Object} [config] - Handler configuration
+ * @param {string[]} [config.allowed] - Allowed labels list
  * @param {number} [config.max] - Maximum number of labels (default: 1)
  * @param {string} [config.target] - Target configuration
- * @returns {Function} Handler function that processes individual messages
+ * @param {boolean} [config._legacyMode] - Internal flag for backward compatibility
+ * @returns {Promise<Function|void>} Handler function that processes individual messages, or void in legacy mode
  */
 async function main(config = {}) {
+  // Legacy mode: maintain backward compatibility with old calling pattern
+  if (!config || Object.keys(config).length === 0 || config._legacyMode === true) {
+    return runLegacyMode();
+  }
+
   const { allowed: allowedLabels, max: maxCount = 1, target = "triggering" } = config;
 
   /**
@@ -152,6 +159,128 @@ ${labelsListMarkdown}
       return;
     }
   };
+}
+
+/**
+ * Legacy mode: Original implementation for backward compatibility
+ * This allows existing tests and workflows to continue working
+ */
+async function runLegacyMode() {
+  // Use shared processor for common steps
+  const result = await processSafeOutput(
+    {
+      itemType: "add_labels",
+      configKey: "add_labels",
+      displayName: "Labels",
+      itemTypeName: "label addition",
+      supportsPR: true,
+      supportsIssue: true,
+      envVars: {
+        allowed: "GH_AW_LABELS_ALLOWED",
+        maxCount: "GH_AW_LABELS_MAX_COUNT",
+        target: "GH_AW_LABELS_TARGET",
+      },
+    },
+    {
+      title: "Add Labels",
+      description: "The following labels would be added if staged mode was disabled:",
+      renderItem: item => {
+        let content = "";
+        if (item.item_number) {
+          content += `**Target Issue:** #${item.item_number}\n\n`;
+        } else {
+          content += `**Target:** Current issue/PR\n\n`;
+        }
+        if (item.labels && item.labels.length > 0) {
+          content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+        }
+        return content;
+      },
+    }
+  );
+
+  if (!result.success) {
+    return;
+  }
+
+  const { item: labelsItem, config, targetResult } = result;
+  if (!config || !targetResult || targetResult.number === undefined) {
+    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
+    return;
+  }
+  const { allowed: allowedLabels, maxCount } = config;
+  const itemNumber = targetResult.number;
+  const { contextType } = targetResult;
+
+  const requestedLabels = labelsItem.labels ?? [];
+  core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+
+  // Use validation helper to sanitize and validate labels
+  const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+  if (!labelsResult.valid) {
+    // If no valid labels, log info and return gracefully instead of failing
+    if (labelsResult.error?.includes("No valid labels")) {
+      core.info("No labels to add");
+      core.setOutput("labels_added", "");
+      await core.summary
+        .addRaw(
+          `
+## Label Addition
+
+No labels were added (no valid labels found in agent output).
+`
+        )
+        .write();
+      return;
+    }
+    // For other validation errors, fail the workflow
+    core.setFailed(labelsResult.error ?? "Invalid labels");
+    return;
+  }
+
+  const uniqueLabels = labelsResult.value ?? [];
+
+  if (uniqueLabels.length === 0) {
+    core.info("No labels to add");
+    core.setOutput("labels_added", "");
+    await core.summary
+      .addRaw(
+        `
+## Label Addition
+
+No labels were added (no valid labels found in agent output).
+`
+      )
+      .write();
+    return;
+  }
+  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+  try {
+    await github.rest.issues.addLabels({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: itemNumber,
+      labels: uniqueLabels,
+    });
+    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+    core.setOutput("labels_added", uniqueLabels.join("\n"));
+    const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+    await core.summary
+      .addRaw(
+        `
+## Label Addition
+
+Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+
+${labelsListMarkdown}
+`
+      )
+      .write();
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    core.error(`Failed to add labels: ${errorMessage}`);
+    core.setFailed(`Failed to add labels: ${errorMessage}`);
+  }
 }
 
 module.exports = { main };

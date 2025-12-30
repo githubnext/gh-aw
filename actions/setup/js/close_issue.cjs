@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -72,9 +73,19 @@ async function closeIssue(github, owner, repo, issueNumber) {
  * @param {string[]} [config.requiredLabels] - Required labels (any match)
  * @param {string} [config.requiredTitlePrefix] - Required title prefix
  * @param {string} [config.target] - Target configuration ("triggering", "*", or explicit number)
- * @returns {Function} Handler function that processes individual messages
+ * @param {boolean} [config._legacyMode] - Internal flag for backward compatibility
+ * @returns {Promise<Function|void|any>} Handler function that processes individual messages, or result in legacy mode
  */
 async function main(config = {}) {
+  // Legacy mode: maintain backward compatibility with old calling pattern
+  if (!config || Object.keys(config).length === 0 || config._legacyMode === true) {
+    return processCloseEntityItems(ISSUE_CONFIG, {
+      getDetails: getIssueDetails,
+      addComment: addIssueComment,
+      closeEntity: closeIssue,
+    });
+  }
+
   const { requiredLabels = [], requiredTitlePrefix = "", target = "triggering" } = config;
 
   /**
