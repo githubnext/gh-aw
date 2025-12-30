@@ -147,11 +147,14 @@ async function closeDiscussion(github, discussionId, reason) {
 
 /**
  * Factory function for creating close discussion handler
- * @param {Object} config - Handler configuration
+ * @param {Object} [config] - Handler configuration
  * @param {string[]} [config.requiredLabels] - Required labels (any match)
  * @param {string} [config.requiredTitlePrefix] - Required title prefix
  * @param {string} [config.requiredCategory] - Required category
  * @param {string} [config.target] - Target configuration ("triggering", "*", or explicit number)
+ * @param {string} [config.workflowName] - Workflow name for footer
+ * @param {string} [config.workflowSource] - Workflow source for footer
+ * @param {string} [config.workflowSourceURL] - Workflow source URL for footer
  * @param {boolean} [config._legacyMode] - Internal flag for backward compatibility
  * @returns {Promise<Function|void|any>} Handler function that processes individual messages, or result in legacy mode
  */
@@ -161,7 +164,15 @@ async function main(config = {}) {
     return runLegacyMode();
   }
 
-  const { requiredLabels = [], requiredTitlePrefix = "", requiredCategory = "", target = "triggering" } = config;
+  const {
+    requiredLabels = [],
+    requiredTitlePrefix = "",
+    requiredCategory = "",
+    target = "triggering",
+    workflowName = "Workflow",
+    workflowSource = "",
+    workflowSourceURL = "",
+  } = config;
 
   /**
    * Process a single close_discussion message
@@ -235,11 +246,8 @@ async function main(config = {}) {
       }
 
       // Build comment body
-      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-      const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-      const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
       const runId = context.runId;
-      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      const githubServer = "https://github.com";
       const runUrl = context.payload.repository
         ? `${context.payload.repository.html_url}/actions/runs/${runId}`
         : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
