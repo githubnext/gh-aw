@@ -94,7 +94,14 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `2h`, `7d`, `2w`, `1m`, `1y`. Generates daily `agentics-maintenance.yml` workflow to close expired items. Note: Hours less than 24 are treated as 1 day minimum since the maintenance workflow runs daily.
+The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `2h`, `7d`, `2w`, `1m`, `1y`. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
+
+- 1 day or less → every 2 hours
+- 2 days → every 6 hours
+- 3-4 days → every 12 hours
+- 5+ days → daily
+
+Hours less than 24 are treated as 1 day minimum for expiration calculation.
 
 #### Temporary IDs for Issue References
 
@@ -388,7 +395,7 @@ safe-outputs:
 
 ### Discussion Creation (`create-discussion:`)
 
-Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `2h`, `7d`, `2w`, `1m`, `1y`, hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates daily maintenance workflow.
+Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `2h`, `7d`, `2w`, `1m`, `1y`, hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates maintenance workflow with dynamic frequency based on shortest expiration time (see Auto-Expiration section above).
 
 ```yaml wrap
 safe-outputs:
