@@ -1147,7 +1147,9 @@ tools:
     read-only: true
 
     # Enable lockdown mode to limit content surfaced from public repositories (only
-    # items authored by users with push access). Default: false
+    # items authored by users with push access)
+    # Default: Automatically enabled for public repositories, disabled for private/internal repositories
+    # Set explicitly to override automatic detection
     # (optional)
     lockdown: true
 
