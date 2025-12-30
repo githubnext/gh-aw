@@ -61,9 +61,13 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
 
-	// Verify that create_issue step is present
-	if !strings.Contains(compiledStr, "id: create_issue") {
-		t.Error("Expected create_issue step in compiled workflow")
+	// Verify that handler manager step is present (create_issue is now handled by handler manager)
+	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
+		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	}
+	// Verify handler config contains create_issue
+	if !strings.Contains(compiledStr, "create_issue") {
+		t.Error("Expected create_issue in handler config")
 	}
 
 	// Verify actions/github-script is used
@@ -187,12 +191,16 @@ Create an issue and assign to copilot.
 
 	compiledStr := string(compiledContent)
 
-	// Verify safe_outputs job exists with create_issue step
+	// Verify safe_outputs job exists with handler manager step
 	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledStr, "id: create_issue") {
-		t.Error("Expected create_issue step in compiled workflow")
+	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
+		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	}
+	// Verify handler config contains create_issue
+	if !strings.Contains(compiledStr, "create_issue") {
+		t.Error("Expected create_issue in handler config")
 	}
 
 	// Verify that copilot is mentioned in the workflow (in description or config)
@@ -245,12 +253,16 @@ Create an issue with a single assignee.
 
 	compiledStr := string(compiledContent)
 
-	// Verify safe_outputs job exists with create_issue step
+	// Verify safe_outputs job exists with handler manager step
 	if !strings.Contains(compiledStr, "safe_outputs:") {
 		t.Error("Expected safe_outputs job in compiled workflow")
 	}
-	if !strings.Contains(compiledStr, "id: create_issue") {
-		t.Error("Expected create_issue step in compiled workflow")
+	if !strings.Contains(compiledStr, "id: process_safe_outputs") {
+		t.Error("Expected process_safe_outputs step in compiled workflow (create-issue is now handled by handler manager)")
+	}
+	// Verify handler config contains create_issue
+	if !strings.Contains(compiledStr, "create_issue") {
+		t.Error("Expected create_issue in handler config")
 	}
 
 	// Verify the assignee is referenced somewhere in the workflow
