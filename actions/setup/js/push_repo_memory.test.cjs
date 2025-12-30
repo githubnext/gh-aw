@@ -98,6 +98,46 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       expect(regex.test("test-file.md")).toBe(false);
     });
 
+    it("should correctly match .jsonl files with *.jsonl pattern", () => {
+      // Test case for validating .jsonl file pattern matching
+      // This validates the fix for: https://github.com/githubnext/gh-aw/actions/runs/20601784686/job/59169295542#step:7:1
+      // The daily-code-metrics workflow uses file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+      // and writes history.jsonl files to repo memory
+
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+        const regexPattern = pattern
+          .replace(/\\/g, "\\\\")
+          .replace(/\./g, "\\.")
+          .replace(/\*\*/g, "<!DOUBLESTAR>")
+          .replace(/\*/g, "[^/]*")
+          .replace(/<!DOUBLESTAR>/g, ".*");
+        return new RegExp(`^${regexPattern}$`);
+      });
+
+      // Should match .jsonl files (the file type that was failing)
+      expect(patterns.some(p => p.test("history.jsonl"))).toBe(true);
+      expect(patterns.some(p => p.test("data.jsonl"))).toBe(true);
+      expect(patterns.some(p => p.test("metrics.jsonl"))).toBe(true);
+
+      // Should also match other allowed extensions
+      expect(patterns.some(p => p.test("config.json"))).toBe(true);
+      expect(patterns.some(p => p.test("data.csv"))).toBe(true);
+      expect(patterns.some(p => p.test("README.md"))).toBe(true);
+
+      // Should NOT match disallowed extensions
+      expect(patterns.some(p => p.test("script.js"))).toBe(false);
+      expect(patterns.some(p => p.test("image.png"))).toBe(false);
+      expect(patterns.some(p => p.test("document.txt"))).toBe(false);
+
+      // Edge case: Should NOT match .json when pattern is *.jsonl
+      expect(patterns.some(p => p.test("file.json"))).toBe(true); // matches *.json pattern
+      const jsonlOnlyPattern = "*.jsonl";
+      const jsonlRegex = new RegExp(`^${jsonlOnlyPattern.replace(/\\/g, "\\\\").replace(/\./g, "\\.").replace(/\*/g, "[^/]*")}$`);
+      expect(jsonlRegex.test("file.json")).toBe(false); // should NOT match .json with *.jsonl pattern
+      expect(jsonlRegex.test("file.jsonl")).toBe(true); // should match .jsonl with *.jsonl pattern
+    });
+
     it("should handle multiple patterns correctly", () => {
       // Test multiple space-separated patterns
       const patterns = "*.txt *.md".split(/\s+/).map(pattern => {
