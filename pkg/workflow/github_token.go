@@ -5,7 +5,7 @@ import "github.com/githubnext/gh-aw/pkg/logger"
 var tokenLog = logger.New("workflow:github_token")
 
 // getEffectiveGitHubToken returns the GitHub token to use, with precedence:
-// 1. Custom token passed as parameter (e.g., from safe-outputs)
+// 1. Custom token passed as parameter (e.g., from tool-specific config)
 // 2. Top-level github-token from frontmatter
 // 3. Default fallback: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 func getEffectiveGitHubToken(customToken, toplevelToken string) string {
@@ -19,6 +19,24 @@ func getEffectiveGitHubToken(customToken, toplevelToken string) string {
 	}
 	tokenLog.Print("Using default GitHub token fallback")
 	return "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+}
+
+// getEffectiveSafeOutputGitHubToken returns the GitHub token to use for safe output operations, with precedence:
+// 1. Custom token passed as parameter (e.g., from per-output config)
+// 2. Top-level github-token from frontmatter
+// 3. Default fallback: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+// This simpler chain ensures safe outputs use: safe outputs token -> workflow token -> GH_AW_GITHUB_TOKEN -> GitHub Actions token
+func getEffectiveSafeOutputGitHubToken(customToken, toplevelToken string) string {
+	if customToken != "" {
+		tokenLog.Print("Using custom safe output GitHub token")
+		return customToken
+	}
+	if toplevelToken != "" {
+		tokenLog.Print("Using top-level safe output GitHub token from frontmatter")
+		return toplevelToken
+	}
+	tokenLog.Print("Using default safe output GitHub token (GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)")
+	return "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
 // getEffectiveCopilotGitHubToken returns the GitHub token to use for Copilot-related operations,
