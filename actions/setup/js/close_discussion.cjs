@@ -1,10 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -145,128 +143,60 @@ async function closeDiscussion(github, discussionId, reason) {
   return result.closeDiscussion.discussion;
 }
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+/**
+ * Factory function for creating close discussion handler
+ * @param {Object} config - Handler configuration
+ * @param {string[]} [config.requiredLabels] - Required labels (any match)
+ * @param {string} [config.requiredTitlePrefix] - Required title prefix
+ * @param {string} [config.requiredCategory] - Required category
+ * @param {string} [config.target] - Target configuration ("triggering", "*", or explicit number)
+ * @returns {Function} Handler function that processes individual messages
+ */
+async function main(config = {}) {
+  const { requiredLabels = [], requiredTitlePrefix = "", requiredCategory = "", target = "triggering" } = config;
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all close-discussion items
-  const closeDiscussionItems = result.items.filter(/** @param {any} item */ item => item.type === "close_discussion");
-  if (closeDiscussionItems.length === 0) {
-    core.info("No close-discussion items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${closeDiscussionItems.length} close-discussion item(s)`);
-
-  // Get configuration from environment
-  const requiredLabels = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS ? process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_LABELS.split(",").map(l => l.trim()) : [];
-  const requiredTitlePrefix = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_TITLE_PREFIX || "";
-  const requiredCategory = process.env.GH_AW_CLOSE_DISCUSSION_REQUIRED_CATEGORY || "";
-  const target = process.env.GH_AW_CLOSE_DISCUSSION_TARGET || "triggering";
-
-  core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, requiredCategory=${requiredCategory}, target=${target}`);
-
-  // Check if we're in a discussion context
-  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-
-  // If in staged mode, emit step summary instead of closing discussions
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Close Discussions Preview\n\n";
-    summaryContent += "The following discussions would be closed if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < closeDiscussionItems.length; i++) {
-      const item = closeDiscussionItems[i];
-      summaryContent += `### Discussion ${i + 1}\n`;
-
-      const discussionNumber = item.discussion_number;
-      if (discussionNumber) {
-        const repoUrl = getRepositoryUrl();
-        const discussionUrl = `${repoUrl}/discussions/${discussionNumber}`;
-        summaryContent += `**Target Discussion:** [#${discussionNumber}](${discussionUrl})\n\n`;
-      } else {
-        summaryContent += `**Target:** Current discussion\n\n`;
-      }
-
-      if (item.reason) {
-        summaryContent += `**Reason:** ${item.reason}\n\n`;
-      }
-
-      summaryContent += `**Comment:**\n${item.body || "No content provided"}\n\n`;
-
-      if (requiredLabels.length > 0) {
-        summaryContent += `**Required Labels:** ${requiredLabels.join(", ")}\n\n`;
-      }
-      if (requiredTitlePrefix) {
-        summaryContent += `**Required Title Prefix:** ${requiredTitlePrefix}\n\n`;
-      }
-      if (requiredCategory) {
-        summaryContent += `**Required Category:** ${requiredCategory}\n\n`;
-      }
-
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Discussion close preview written to step summary");
-    return;
-  }
-
-  // Validate context based on target configuration
-  if (target === "triggering" && !isDiscussionContext) {
-    core.info('Target is "triggering" but not running in discussion context, skipping discussion close');
-    return;
-  }
-
-  // Extract triggering context for footer generation
-  const triggeringDiscussionNumber = context.payload?.discussion?.number;
-
-  const closedDiscussions = [];
-
-  // Process each close-discussion item
-  for (let i = 0; i < closeDiscussionItems.length; i++) {
-    const item = closeDiscussionItems[i];
-    core.info(`Processing close-discussion item ${i + 1}/${closeDiscussionItems.length}: bodyLength=${item.body.length}`);
-
+  /**
+   * Process a single close_discussion message
+   * @param {Object} outputItem - The safe output item
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to actual IDs
+   * @returns {Promise<{repo: string, number: number}|undefined>} Result with repo and number, or undefined if skipped
+   */
+  return async function (outputItem, resolvedTemporaryIds) {
     // Determine the discussion number
     let discussionNumber;
 
     if (target === "*") {
-      // For target "*", we need an explicit number from the item
-      const targetNumber = item.discussion_number;
+      // Use explicit number from the item
+      const targetNumber = outputItem.discussion_number;
       if (targetNumber) {
         discussionNumber = parseInt(targetNumber, 10);
         if (isNaN(discussionNumber) || discussionNumber <= 0) {
           core.info(`Invalid discussion number specified: ${targetNumber}`);
-          continue;
+          return;
         }
       } else {
         core.info(`Target is "*" but no discussion_number specified in close-discussion item`);
-        continue;
+        return;
       }
-    } else if (target && target !== "triggering") {
+    } else if (target !== "triggering") {
       // Explicit number specified in target configuration
       discussionNumber = parseInt(target, 10);
       if (isNaN(discussionNumber) || discussionNumber <= 0) {
         core.info(`Invalid discussion number in target configuration: ${target}`);
-        continue;
+        return;
       }
     } else {
       // Default behavior: use triggering discussion
+      const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
       if (isDiscussionContext) {
         discussionNumber = context.payload.discussion?.number;
         if (!discussionNumber) {
           core.info("Discussion context detected but no discussion found in payload");
-          continue;
+          return;
         }
       } else {
         core.info("Not in discussion context and no explicit target specified");
-        continue;
+        return;
       }
     }
 
@@ -280,37 +210,45 @@ async function main() {
         const hasRequiredLabel = requiredLabels.some(required => discussionLabels.includes(required));
         if (!hasRequiredLabel) {
           core.info(`Discussion #${discussionNumber} does not have required labels: ${requiredLabels.join(", ")}`);
-          continue;
+          return;
         }
       }
 
       // Apply title prefix filter
       if (requiredTitlePrefix && !discussion.title.startsWith(requiredTitlePrefix)) {
         core.info(`Discussion #${discussionNumber} does not have required title prefix: ${requiredTitlePrefix}`);
-        continue;
+        return;
       }
 
       // Apply category filter
       if (requiredCategory && discussion.category.name !== requiredCategory) {
         core.info(`Discussion #${discussionNumber} is not in required category: ${requiredCategory}`);
-        continue;
+        return;
       }
 
-      // Extract body from the JSON item
-      let body = item.body.trim();
-
-      // Add AI disclaimer with workflow name and run url
+      // Build comment body
       const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
       const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
       const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
       const runId = context.runId;
       const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-      const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+      const runUrl = context.payload.repository
+        ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+        : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-      // Add fingerprint comment if present
+      const triggeringDiscussionNumber = context.payload?.discussion?.number;
+
+      let body = outputItem.body.trim();
       body += getTrackerID("markdown");
-
-      body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, undefined, triggeringDiscussionNumber);
+      body += generateFooter(
+        workflowName,
+        runUrl,
+        workflowSource,
+        workflowSourceURL,
+        undefined,
+        undefined,
+        triggeringDiscussionNumber
+      );
 
       core.info(`Adding comment to discussion #${discussionNumber}`);
       core.info(`Comment content length: ${body.length}`);
@@ -320,40 +258,19 @@ async function main() {
       core.info("Added discussion comment: " + comment.url);
 
       // Then close the discussion
-      core.info(`Closing discussion #${discussionNumber} with reason: ${item.reason || "none"}`);
-      const closedDiscussion = await closeDiscussion(github, discussion.id, item.reason);
+      core.info(`Closing discussion #${discussionNumber} with reason: ${outputItem.reason || "none"}`);
+      const closedDiscussion = await closeDiscussion(github, discussion.id, outputItem.reason);
       core.info("Closed discussion: " + closedDiscussion.url);
 
-      closedDiscussions.push({
+      return {
+        repo: `${context.repo.owner}/${context.repo.repo}`,
         number: discussionNumber,
-        url: discussion.url,
-        comment_url: comment.url,
-      });
-
-      // Set output for the last closed discussion (for backward compatibility)
-      if (i === closeDiscussionItems.length - 1) {
-        core.setOutput("discussion_number", discussionNumber);
-        core.setOutput("discussion_url", discussion.url);
-        core.setOutput("comment_url", comment.url);
-      }
+      };
     } catch (error) {
       core.error(`✗ Failed to close discussion #${discussionNumber}: ${getErrorMessage(error)}`);
       throw error;
     }
-  }
-
-  // Write summary for all closed discussions
-  if (closedDiscussions.length > 0) {
-    let summaryContent = "\n\n## Closed Discussions\n";
-    for (const discussion of closedDiscussions) {
-      summaryContent += `- Discussion #${discussion.number}: [View Discussion](${discussion.url})\n`;
-      summaryContent += `  - Comment: [View Comment](${discussion.comment_url})\n`;
-    }
-    await core.summary.addRaw(summaryContent).write();
-  }
-
-  core.info(`Successfully closed ${closedDiscussions.length} discussion(s)`);
-  return closedDiscussions;
+  };
 }
 
 module.exports = { main };
