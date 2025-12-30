@@ -11,7 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Handler map configuration
@@ -147,7 +147,8 @@ async function processMessages(messageHandlers, messages) {
 
       // If handler returned a temp ID mapping, add it to our map
       if (result && result.temporaryId && result.repo && result.number) {
-        temporaryIdMap.set(result.temporaryId, {
+        const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+        temporaryIdMap.set(normalizedTempId, {
           repo: result.repo,
           number: result.number,
         });
@@ -191,7 +192,7 @@ async function processMessages(messageHandlers, messages) {
   // After processing all original messages, check if any new temporary IDs were resolved
   // If so, generate synthetic update messages for outputs that had unresolved IDs
   const pendingUpdates = [];
-  if (outputsWithUnresolvedIds.length > 0 && temporaryIdMap.size > 0) {
+  if (outputsWithUnresolvedIds.length > 0) {
     core.info(`\n=== Checking for Synthetic Updates ===`);
     core.info(`Found ${outputsWithUnresolvedIds.length} output(s) with unresolved temporary IDs`);
     
