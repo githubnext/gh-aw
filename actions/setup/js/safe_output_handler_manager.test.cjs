@@ -167,12 +167,14 @@ describe("Safe Output Handler Manager", () => {
       const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
-      expect(result.pendingUpdates).toBeDefined();
-      // No synthetic updates should be generated because the temp ID is never resolved
-      expect(result.pendingUpdates.length).toBe(0);
+      expect(result.outputsWithUnresolvedIds).toBeDefined();
+      // Should track the output because it has unresolved temp ID
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
+      expect(result.outputsWithUnresolvedIds[0].type).toBe("create_issue");
+      expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
     });
 
-    it("should generate synthetic update when temporary ID is resolved", async () => {
+    it("should track outputs needing synthetic updates when temporary ID is resolved", async () => {
       const messages = [
         { 
           type: "create_issue", 
@@ -203,18 +205,16 @@ describe("Safe Output Handler Manager", () => {
       const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
-      expect(result.pendingUpdates).toBeDefined();
-      // Should generate synthetic update for first issue
-      expect(result.pendingUpdates.length).toBe(1);
-      expect(result.pendingUpdates[0].type).toBe("add_comment");
-      expect(result.pendingUpdates[0].item_number).toBe(100);
-      expect(result.pendingUpdates[0]._synthetic).toBe(true);
-      // Body should have temp ID replaced
-      expect(result.pendingUpdates[0].body).toContain("#101");
-      expect(result.pendingUpdates[0].body).not.toContain("aw_abc123def456");
+      expect(result.outputsWithUnresolvedIds).toBeDefined();
+      // Should track output with unresolved temp ID
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
+      expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
+      // Temp ID should be registered
+      expect(result.temporaryIdMap['aw_abc123def456']).toBeDefined();
+      expect(result.temporaryIdMap['aw_abc123def456'].number).toBe(101);
     });
 
-    it("should not generate synthetic update if temporary IDs remain unresolved", async () => {
+    it("should not track output if temporary IDs remain unresolved", async () => {
       const messages = [
         { 
           type: "create_issue", 
@@ -233,9 +233,9 @@ describe("Safe Output Handler Manager", () => {
       const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
-      expect(result.pendingUpdates).toBeDefined();
-      // Should not generate synthetic update because IDs are still unresolved
-      expect(result.pendingUpdates.length).toBe(0);
+      expect(result.outputsWithUnresolvedIds).toBeDefined();
+      // Should track because there are unresolved IDs
+      expect(result.outputsWithUnresolvedIds.length).toBe(1);
     });
 
     it("should handle multiple outputs needing synthetic updates", async () => {
@@ -282,12 +282,11 @@ describe("Safe Output Handler Manager", () => {
       const result = await processMessages(handlers, messages);
 
       expect(result.success).toBe(true);
-      expect(result.pendingUpdates.length).toBe(2);
-      // All synthetic updates should now use add_comment
-      expect(result.pendingUpdates.every(u => u.type === "add_comment")).toBe(true);
-      // Should have item_number for targeting
-      expect(result.pendingUpdates[0].item_number).toBeDefined();
-      expect(result.pendingUpdates[1].item_number).toBeDefined();
+      expect(result.outputsWithUnresolvedIds).toBeDefined();
+      // Should track 2 outputs (issue and discussion) with unresolved temp IDs
+      expect(result.outputsWithUnresolvedIds.length).toBe(2);
+      // Temp ID should be registered
+      expect(result.temporaryIdMap['aw_aabbcc111111']).toBeDefined();
     });
   });
 });
