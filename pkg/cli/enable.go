@@ -19,11 +19,13 @@ var enableLog = logger.New("cli:enable")
 
 // EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
 func EnableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	enableLog.Printf("EnableWorkflowsByNames called: workflow_count=%d, repo=%s", len(workflowNames), repoOverride)
 	return toggleWorkflowsByNames(workflowNames, true, repoOverride)
 }
 
 // DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
 func DisableWorkflowsByNames(workflowNames []string, repoOverride string) error {
+	enableLog.Printf("DisableWorkflowsByNames called: workflow_count=%d, repo=%s", len(workflowNames), repoOverride)
 	return toggleWorkflowsByNames(workflowNames, false, repoOverride)
 }
 
@@ -94,11 +96,14 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 	}
 
 	// Get GitHub workflows status for comparison; warn but continue if unavailable
+	enableLog.Print("Fetching GitHub workflows status for comparison")
 	githubWorkflows, err := fetchGitHubWorkflows("", false)
 	if err != nil {
+		enableLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v", err)))
 		githubWorkflows = make(map[string]*GitHubWorkflow)
 	}
+	enableLog.Printf("Retrieved %d GitHub workflows from remote", len(githubWorkflows))
 
 	// Internal target model to support enabling by ID or lock filename
 	type workflowTarget struct {
@@ -178,6 +183,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 
 	// Report any workflows that weren't found
 	if len(notFoundNames) > 0 {
+		enableLog.Printf("Workflows not found: %v", notFoundNames)
 		suggestions := []string{
 			fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
 			"Check for typos in the workflow names",
@@ -200,10 +206,12 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 
 	// If no targets after filtering, everything was already in the desired state
 	if len(targets) == 0 {
+		enableLog.Printf("No workflows need to be %sd - all already in desired state", action)
 		fmt.Fprintf(os.Stderr, "All specified workflows are already %sd\n", action)
 		return nil
 	}
 
+	enableLog.Printf("Proceeding to %s %d workflows", action, len(targets))
 	// Show what will be changed
 	fmt.Fprintf(os.Stderr, "The following workflows will be %sd:\n", action)
 	for _, t := range targets {

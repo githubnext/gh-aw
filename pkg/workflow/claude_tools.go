@@ -14,6 +14,7 @@ var claudeToolsLog = logger.New("workflow:claude_tools")
 
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
+	claudeToolsLog.Printf("Starting neutral tools expansion: input_tools=%d", len(tools))
 	result := make(map[string]any)
 
 	neutralToolCount := 0
@@ -110,6 +111,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	claudeSection["allowed"] = claudeAllowed
 	result["claude"] = claudeSection
 
+	claudeToolsLog.Printf("Expansion complete: result_tools=%d, claude_allowed=%d", len(result), len(claudeAllowed))
 	return result
 }
 
@@ -136,10 +138,12 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 
 	// Enforce that only neutral tools are provided - fail if claude section is present
 	if _, hasClaudeSection := tools["claude"]; hasClaudeSection {
+		claudeToolsLog.Print("ERROR: Claude section found in input tools, should only contain neutral tools")
 		panic("computeAllowedClaudeToolsString should only receive neutral tools, not claude section tools")
 	}
 
 	// Convert neutral tools to Claude-specific tools
+	claudeToolsLog.Print("Converting neutral tools to Claude-specific format")
 	tools = e.expandNeutralToolsToClaudeTools(tools)
 
 	defaultClaudeTools := []string{

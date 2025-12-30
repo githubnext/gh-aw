@@ -89,6 +89,7 @@ type ScriptRegistry struct {
 
 // NewScriptRegistry creates a new empty script registry.
 func NewScriptRegistry() *ScriptRegistry {
+	registryLog.Print("Creating new script registry")
 	return &ScriptRegistry{
 		scripts: make(map[string]*scriptEntry),
 	}
@@ -198,7 +199,13 @@ func (r *ScriptRegistry) GetActionPath(name string) string {
 
 	entry, exists := r.scripts[name]
 	if !exists {
+		if registryLog.Enabled() {
+			registryLog.Printf("GetActionPath: script not found: %s", name)
+		}
 		return ""
+	}
+	if registryLog.Enabled() && entry.actionPath != "" {
+		registryLog.Printf("GetActionPath: returning action path for %s: %s", name, entry.actionPath)
 	}
 	return entry.actionPath
 }
@@ -353,6 +360,7 @@ func GetScriptWithMode(name string, mode RuntimeMode) string {
 // This is used by the build system to discover which files need to be embedded in custom actions.
 // The returned list includes all .cjs files found in pkg/workflow/js/, including dependencies.
 func GetAllScriptFilenames() []string {
+	registryLog.Print("Getting all script filenames from JavaScript sources")
 	sources := GetJavaScriptSources()
 	filenames := make([]string, 0, len(sources))
 
@@ -362,6 +370,8 @@ func GetAllScriptFilenames() []string {
 			filenames = append(filenames, filename)
 		}
 	}
+
+	registryLog.Printf("Found %d .cjs files in JavaScript sources", len(filenames))
 
 	// Sort for consistency
 	sortedFilenames := make([]string, len(filenames))

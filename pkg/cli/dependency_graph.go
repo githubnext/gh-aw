@@ -133,19 +133,24 @@ func (g *DependencyGraph) addWorkflow(workflowPath string, compiler *workflow.Co
 
 // extractImportsFromFile extracts imports directly from a workflow file
 func (g *DependencyGraph) extractImportsFromFile(workflowPath string) ([]string, error) {
+	depGraphLog.Printf("Extracting imports from file: %s", workflowPath)
 	// Read the file
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
+		depGraphLog.Printf("Failed to read file %s: %v", workflowPath, err)
 		return nil, err
 	}
 
 	// Parse frontmatter
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
+		depGraphLog.Printf("Failed to parse frontmatter from %s: %v", workflowPath, err)
 		return nil, err
 	}
 
-	return g.extractImportsFromFrontmatter(workflowPath, result.Frontmatter), nil
+	imports := g.extractImportsFromFrontmatter(workflowPath, result.Frontmatter)
+	depGraphLog.Printf("Extracted %d imports from %s", len(imports), workflowPath)
+	return imports, nil
 }
 
 // extractImportsFromFrontmatter extracts the list of imported file paths from frontmatter
@@ -154,13 +159,17 @@ func (g *DependencyGraph) extractImportsFromFrontmatter(workflowPath string, fro
 
 	// Get frontmatter to extract imports
 	if frontmatter == nil {
+		depGraphLog.Printf("No frontmatter found in %s", workflowPath)
 		return imports
 	}
 
 	importsField, exists := frontmatter["imports"]
 	if !exists {
+		depGraphLog.Printf("No imports field in frontmatter for %s", workflowPath)
 		return imports
 	}
+
+	depGraphLog.Printf("Processing imports field from %s", workflowPath)
 
 	// Parse imports field - can be array of strings or objects with path
 	workflowDir := filepath.Dir(workflowPath)
@@ -227,20 +236,24 @@ func (g *DependencyGraph) resolveImportPath(importPath string, baseDir string) s
 
 // findGitRoot finds the git repository root
 func (g *DependencyGraph) findGitRoot() string {
+	depGraphLog.Printf("Finding git root starting from: %s", g.workflowsDir)
 	// Start from workflows directory and walk up
 	dir := g.workflowsDir
 	for {
 		gitDir := filepath.Join(dir, ".git")
 		if _, err := os.Stat(gitDir); err == nil {
+			depGraphLog.Printf("Found git root at: %s", dir)
 			return dir
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			// Reached filesystem root
+			depGraphLog.Printf("Reached filesystem root, no .git directory found")
 			break
 		}
 		dir = parent
 	}
+	depGraphLog.Printf("Using fallback git root: %s", g.workflowsDir)
 	return g.workflowsDir // Fallback to workflows dir
 }
 
