@@ -8,7 +8,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * Main handler factory for link_sub_issue
  * Returns a message handler function that processes individual link_sub_issue messages
  * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Function} Message handler function (message, resolvedTemporaryIds) => result
+ * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
  */
 async function main(config = {}) {
   // Extract configuration from config object
