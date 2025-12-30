@@ -67,7 +67,7 @@ This workflow uses the old format without assignees and should continue to work.
 	if !strings.Contains(compiledStr, "name: Process Safe Outputs") && !strings.Contains(compiledStr, "id: process_safe_outputs") {
 		t.Error("Expected Process Safe Outputs step in compiled workflow (create-issue is now handled by handler manager)")
 	}
-	
+
 	// Verify handler config contains create_issue
 	if !strings.Contains(compiledStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG in compiled workflow")
