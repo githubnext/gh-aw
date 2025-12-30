@@ -559,6 +559,7 @@ async function main(config = {}) {
     // Add metadata for tracking (includes comment ID, item number, and repo info)
     // This is used by the handler manager to track comments with unresolved temp IDs
     try {
+      // @ts-ignore - Add tracking metadata to comment object (works with both REST and GraphQL responses)
       comment._tracking = {
         commentId: comment.id,
         itemNumber: itemNumber,
