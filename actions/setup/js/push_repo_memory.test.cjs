@@ -102,7 +102,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test case for validating .jsonl file pattern matching
       // This validates the fix for: https://github.com/githubnext/gh-aw/actions/runs/20601784686/job/59169295542#step:7:1
       // The daily-code-metrics workflow uses file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
-      // and writes history.jsonl files to repo memory
+      // and writes history.jsonl file to repo memory at memory/default/history.jsonl
 
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
       const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
@@ -115,7 +115,8 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         return new RegExp(`^${regexPattern}$`);
       });
 
-      // Should match .jsonl files (the file type that was failing)
+      // Should match .jsonl files (the actual file from workflow run: history.jsonl)
+      // Note: Pattern matching is done on relative filename only, not full path
       expect(patterns.some(p => p.test("history.jsonl"))).toBe(true);
       expect(patterns.some(p => p.test("data.jsonl"))).toBe(true);
       expect(patterns.some(p => p.test("metrics.jsonl"))).toBe(true);
