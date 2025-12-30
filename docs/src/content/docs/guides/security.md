@@ -292,7 +292,7 @@ Explicitly setting `lockdown: false` in a public repository disables this securi
 - **Automatic and transparent**: Works without any configuration changes
 - **Safe by default**: Failures default to the most secure setting
 
-See also: [GitHub MCP Tool Configuration](/gh-aw/reference/tools/#github-tool-github) for complete tool configuration options.
+See also: [GitHub MCP Tool Configuration](/gh-aw/reference/tools/#github-tools-github) for complete tool configuration options.
 
 ### Agent Security and Prompt Injection Defense
 
