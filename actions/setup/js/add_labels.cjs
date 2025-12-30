@@ -5,7 +5,7 @@ const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main(handlerConfig = {}) {
+async function main(config = {}) {
   // Use shared processor for common steps
   const result = await processSafeOutput(
     {
@@ -17,9 +17,9 @@ async function main(handlerConfig = {}) {
       supportsIssue: true,
       envVars: {
         // Config values now passed via config object, not env vars
-        allowed: undefined,
-        maxCount: undefined,
-        target: undefined,
+        allowed: null,
+        maxCount: null,
+        target: null,
       },
     },
     {
@@ -38,7 +38,7 @@ async function main(handlerConfig = {}) {
         return content;
       },
     },
-    handlerConfig // Pass handler config as third parameter
+    config // Pass handler config as third parameter
   );
 
   if (!result.success) {

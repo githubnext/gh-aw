@@ -80,12 +80,8 @@ func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowDat
 			if useCopilotToken {
 				token = "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}"
 			} else {
-				// Standard mode: check data.GitHubToken, then default
-				if data.GitHubToken != "" {
-					token = data.GitHubToken
-				} else {
-					token = "${{ secrets.GITHUB_TOKEN }}"
-				}
+				// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
+				token = getEffectiveSafeOutputGitHubToken("", data.GitHubToken)
 			}
 		}
 	}

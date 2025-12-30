@@ -134,7 +134,7 @@ const mockCore = {
               (global.context.eventName = "discussion_comment"),
               (global.context.payload = { discussion: { number: 10 }, comment: { id: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
-              expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion or comment information not found in event payload"),
+              expect(mockCore.setFailed).toHaveBeenCalledWith("Discussion comment node ID not found in event payload"),
               expect(mockGithub.graphql).not.toHaveBeenCalled());
           }));
       }),
