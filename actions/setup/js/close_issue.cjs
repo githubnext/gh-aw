@@ -65,11 +65,15 @@ async function closeIssue(github, owner, repo, issueNumber) {
 }
 
 async function main(config = {}) {
-  return processCloseEntityItems(ISSUE_CONFIG, {
-    getDetails: getIssueDetails,
-    addComment: addIssueComment,
-    closeEntity: closeIssue,
-  }, config);
+  return processCloseEntityItems(
+    ISSUE_CONFIG,
+    {
+      getDetails: getIssueDetails,
+      addComment: addIssueComment,
+      closeEntity: closeIssue,
+    },
+    config
+  );
 }
 
 module.exports = { main };

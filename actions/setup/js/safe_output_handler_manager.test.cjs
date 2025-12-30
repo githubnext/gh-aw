@@ -150,10 +150,10 @@ describe("Safe Output Handler Manager", () => {
 
     it("should track outputs with unresolved temporary IDs", async () => {
       const messages = [
-        { 
-          type: "create_issue", 
+        {
+          type: "create_issue",
           body: "See #aw_abc123def456 for context",
-          title: "Test Issue" 
+          title: "Test Issue",
         },
       ];
 
@@ -176,20 +176,21 @@ describe("Safe Output Handler Manager", () => {
 
     it("should track outputs needing synthetic updates when temporary ID is resolved", async () => {
       const messages = [
-        { 
-          type: "create_issue", 
+        {
+          type: "create_issue",
           body: "See #aw_abc123def456 for context",
-          title: "First Issue" 
+          title: "First Issue",
         },
-        { 
+        {
           type: "create_issue",
           temporary_id: "aw_abc123def456",
           body: "Second issue body",
-          title: "Second Issue" 
+          title: "Second Issue",
         },
       ];
 
-      const mockCreateIssueHandler = vi.fn()
+      const mockCreateIssueHandler = vi
+        .fn()
         .mockResolvedValueOnce({
           repo: "owner/repo",
           number: 100,
@@ -210,16 +211,16 @@ describe("Safe Output Handler Manager", () => {
       expect(result.outputsWithUnresolvedIds.length).toBe(1);
       expect(result.outputsWithUnresolvedIds[0].result.number).toBe(100);
       // Temp ID should be registered
-      expect(result.temporaryIdMap['aw_abc123def456']).toBeDefined();
-      expect(result.temporaryIdMap['aw_abc123def456'].number).toBe(101);
+      expect(result.temporaryIdMap["aw_abc123def456"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_abc123def456"].number).toBe(101);
     });
 
     it("should not track output if temporary IDs remain unresolved", async () => {
       const messages = [
-        { 
-          type: "create_issue", 
+        {
+          type: "create_issue",
           body: "See #aw_abc123def456 and #aw_unresolved99 for context",
-          title: "Test Issue" 
+          title: "Test Issue",
         },
       ];
 
@@ -240,25 +241,26 @@ describe("Safe Output Handler Manager", () => {
 
     it("should handle multiple outputs needing synthetic updates", async () => {
       const messages = [
-        { 
-          type: "create_issue", 
+        {
+          type: "create_issue",
           body: "Related to #aw_aabbcc111111",
-          title: "First Issue" 
+          title: "First Issue",
         },
-        { 
-          type: "create_discussion", 
+        {
+          type: "create_discussion",
           body: "See #aw_aabbcc111111 for details",
-          title: "Discussion" 
+          title: "Discussion",
         },
-        { 
+        {
           type: "create_issue",
           temporary_id: "aw_aabbcc111111",
           body: "The referenced issue",
-          title: "Referenced Issue" 
+          title: "Referenced Issue",
         },
       ];
 
-      const mockCreateIssueHandler = vi.fn()
+      const mockCreateIssueHandler = vi
+        .fn()
         .mockResolvedValueOnce({
           repo: "owner/repo",
           number: 100,
@@ -286,7 +288,7 @@ describe("Safe Output Handler Manager", () => {
       // Should track 2 outputs (issue and discussion) with unresolved temp IDs
       expect(result.outputsWithUnresolvedIds.length).toBe(2);
       // Temp ID should be registered
-      expect(result.temporaryIdMap['aw_aabbcc111111']).toBeDefined();
+      expect(result.temporaryIdMap["aw_aabbcc111111"]).toBeDefined();
     });
   });
 });

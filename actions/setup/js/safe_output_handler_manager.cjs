@@ -69,12 +69,12 @@ async function loadHandlers(config) {
           // Call the factory function with config to get the message handler
           const handlerConfig = config[type] || {};
           const messageHandler = await handlerModule.main(handlerConfig);
-          
+
           if (typeof messageHandler !== "function") {
             core.warning(`Handler ${type} main() did not return a function`);
             continue;
           }
-          
+
           messageHandlers.set(type, messageHandler);
           core.info(`✓ Loaded and initialized handler for: ${type}`);
         } else {
@@ -138,7 +138,7 @@ async function processMessages(messageHandlers, messages) {
 
       // Convert Map to plain object for handler
       const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
-      
+
       // Record the temp ID map size before processing to detect new IDs
       const tempIdMapSizeBefore = temporaryIdMap.size;
 
@@ -157,7 +157,7 @@ async function processMessages(messageHandlers, messages) {
 
       // Check if this output was created with unresolved temporary IDs
       // For create_issue, create_discussion, add_comment - check if body has unresolved IDs
-      
+
       // Handle add_comment which returns an array of comments
       if (messageType === "add_comment" && Array.isArray(result)) {
         const contentToCheck = getContentToCheck(messageType, message);
@@ -254,17 +254,17 @@ function getContentToCheck(messageType, message) {
  * @returns {Promise<void>}
  */
 async function updateIssueBody(github, context, repo, issueNumber, updatedBody) {
-  const [owner, repoName] = repo.split('/');
-  
+  const [owner, repoName] = repo.split("/");
+
   core.info(`Updating issue ${repo}#${issueNumber} body with resolved temporary IDs`);
-  
+
   await github.rest.issues.update({
     owner,
     repo: repoName,
     issue_number: issueNumber,
     body: updatedBody,
   });
-  
+
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
 }
 
@@ -278,10 +278,10 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
  * @returns {Promise<void>}
  */
 async function updateDiscussionBody(github, context, repo, discussionNumber, updatedBody) {
-  const [owner, repoName] = repo.split('/');
-  
+  const [owner, repoName] = repo.split("/");
+
   core.info(`Updating discussion ${repo}#${discussionNumber} body with resolved temporary IDs`);
-  
+
   // Get the discussion node ID first
   const query = `
     query($owner: String!, $repo: String!, $number: Int!) {
@@ -292,15 +292,15 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
       }
     }
   `;
-  
+
   const result = await github.graphql(query, {
     owner,
     repo: repoName,
     number: discussionNumber,
   });
-  
+
   const discussionId = result.repository.discussion.id;
-  
+
   // Update the discussion body using GraphQL mutation
   const mutation = `
     mutation($discussionId: ID!, $body: String!) {
@@ -312,12 +312,12 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
       }
     }
   `;
-  
+
   await github.graphql(mutation, {
     discussionId,
     body: updatedBody,
   });
-  
+
   core.info(`✓ Updated discussion ${repo}#${discussionNumber}`);
 }
 
@@ -332,10 +332,10 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
  * @returns {Promise<void>}
  */
 async function updateCommentBody(github, context, repo, commentId, updatedBody, isDiscussion = false) {
-  const [owner, repoName] = repo.split('/');
-  
+  const [owner, repoName] = repo.split("/");
+
   core.info(`Updating comment ${commentId} body with resolved temporary IDs`);
-  
+
   if (isDiscussion) {
     // For discussion comments, we need to use GraphQL
     // Get the comment node ID first
@@ -348,7 +348,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
         }
       }
     `;
-    
+
     await github.graphql(mutation, {
       commentId,
       body: updatedBody,
@@ -362,7 +362,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
       body: updatedBody,
     });
   }
-  
+
   core.info(`✓ Updated comment ${commentId}`);
 }
 
@@ -377,30 +377,28 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
  */
 async function processSyntheticUpdates(github, context, trackedOutputs, temporaryIdMap) {
   let updateCount = 0;
-  
+
   core.info(`\n=== Processing Synthetic Updates ===`);
   core.info(`Found ${trackedOutputs.length} output(s) with unresolved temporary IDs`);
-  
+
   for (const tracked of trackedOutputs) {
     // Check if any new temporary IDs were resolved since this output was created
     if (temporaryIdMap.size > tracked.originalTempIdMapSize) {
       const contentToCheck = getContentToCheck(tracked.type, tracked.message);
-      
+
       // Check if the content still has unresolved IDs (some may now be resolved)
       const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap);
       const resolvedCount = temporaryIdMap.size - tracked.originalTempIdMapSize;
-      
+
       if (!stillHasUnresolved) {
         // All temporary IDs are now resolved - update the body directly
-        let logInfo = tracked.result.commentId 
-          ? `comment ${tracked.result.commentId} on ${tracked.result.repo}#${tracked.result.itemNumber}`
-          : `${tracked.result.repo}#${tracked.result.number}`;
+        let logInfo = tracked.result.commentId ? `comment ${tracked.result.commentId} on ${tracked.result.repo}#${tracked.result.itemNumber}` : `${tracked.result.repo}#${tracked.result.number}`;
         core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
-        
+
         try {
           // Replace temporary ID references with resolved values
           const updatedContent = replaceTemporaryIdReferences(contentToCheck, temporaryIdMap, tracked.result.repo);
-          
+
           // Update based on the original type
           switch (tracked.type) {
             case "create_issue":
@@ -431,13 +429,13 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
       }
     }
   }
-  
+
   if (updateCount > 0) {
     core.info(`Completed ${updateCount} synthetic update(s)`);
   } else {
     core.info(`No synthetic updates needed`);
   }
-  
+
   return updateCount;
 }
 
@@ -480,18 +478,13 @@ async function main() {
     if (processingResult.outputsWithUnresolvedIds && processingResult.outputsWithUnresolvedIds.length > 0) {
       // Convert temp ID map back to Map
       const temporaryIdMap = new Map(Object.entries(processingResult.temporaryIdMap));
-      
-      syntheticUpdateCount = await processSyntheticUpdates(
-        github,
-        context,
-        processingResult.outputsWithUnresolvedIds,
-        temporaryIdMap
-      );
+
+      syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap);
     }
 
     // Log summary
-    const successCount = processingResult.results.filter((r) => r.success).length;
-    const failureCount = processingResult.results.filter((r) => !r.success).length;
+    const successCount = processingResult.results.filter(r => r.success).length;
+    const failureCount = processingResult.results.filter(r => !r.success).length;
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);

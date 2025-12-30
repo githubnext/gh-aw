@@ -177,17 +177,17 @@ function hasUnresolvedTemporaryIds(text, tempIdMap) {
 
   // Find all temporary ID references in the text
   const matches = text.matchAll(TEMPORARY_ID_PATTERN);
-  
+
   for (const match of matches) {
     const tempId = match[1]; // The captured group (aw_XXXXXXXXXXXX)
     const normalizedId = normalizeTemporaryId(tempId);
-    
+
     // If this temp ID is not in the map, it's unresolved
     if (!map.has(normalizedId)) {
       return true;
     }
   }
-  
+
   return false;
 }
 

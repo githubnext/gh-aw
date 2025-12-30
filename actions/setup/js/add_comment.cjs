@@ -549,13 +549,13 @@ async function main(config = {}) {
     }
 
     createdComments.push(comment);
-    
+
     // Set output for the last created comment (for backward compatibility)
     if (i === commentItems.length - 1) {
       core.setOutput("comment_id", comment.id);
       core.setOutput("comment_url", comment.html_url);
     }
-    
+
     // Add metadata for tracking (includes comment ID, item number, and repo info)
     // This is used by the handler manager to track comments with unresolved temp IDs
     try {
