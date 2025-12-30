@@ -60,7 +60,9 @@ func TempDir(t *testing.T, pattern string) string {
 
 	// Register cleanup to remove the directory after test completes
 	t.Cleanup(func() {
-		os.RemoveAll(tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Warning: failed to clean up temporary directory %s: %v", tempDir, err)
+		}
 	})
 
 	return tempDir
