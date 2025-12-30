@@ -21,36 +21,57 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
-| Output Type | Key | Description | Max | Cross-Repo |
-|-------------|-----|-------------|-----|-----------|
-| [**Create Issue**](#issue-creation-create-issue) | `create-issue:` | Create GitHub issues | 1 | ✅ |
-| [**Close Issue**](#close-issue-close-issue) | `close-issue:` | Close issues with comment | 1 | ✅ |
-| [**Add Comment**](#comment-creation-add-comment) | `add-comment:` | Post comments on issues, PRs, or discussions | 1 | ✅ |
-| [**Hide Comment**](#hide-comment-hide-comment) | `hide-comment:` | Hide comments on issues, PRs, or discussions | 5 | ✅ |
-| [**Update Issue**](#issue-updates-update-issue) | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
-| [**Update PR**](#pull-request-updates-update-pull-request) | `update-pull-request:` | Update PR title or body | 1 | ✅ |
-| [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) | `link-sub-issue:` | Link issues as sub-issues | 1 | ✅ |
-| [**Update Project**](#project-board-updates-update-project) | `update-project:` | Manage GitHub Projects boards and campaign labels | 10 | ❌ |
-| [**Add Labels**](#add-labels-add-labels) | `add-labels:` | Add labels to issues or PRs | 3 | ✅ |
-| [**Add Reviewer**](#add-reviewer-add-reviewer) | `add-reviewer:` | Add reviewers to pull requests | 3 | ✅ |
-| [**Assign Milestone**](#assign-milestone-assign-milestone) | `assign-milestone:` | Assign issues to milestones | 1 | ✅ |
-| [**Create PR**](#pull-request-creation-create-pull-request) | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
-| [**Close PR**](#close-pull-request-close-pull-request) | `close-pull-request:` | Close pull requests without merging | 10 | ✅ |
-| [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) | `create-pull-request-review-comment:` | Create review comments on code lines | 10 | ✅ |
-| [**Create Discussion**](#discussion-creation-create-discussion) | `create-discussion:` | Create GitHub discussions | 1 | ✅ |
-| [**Close Discussion**](#close-discussion-close-discussion) | `close-discussion:` | Close discussions with comment and resolution | 1 | ✅ |
-| [**Update Discussion**](#discussion-updates-update-discussion) | `update-discussion:` | Update discussion title, body, or labels | 1 | ✅ |
-| [**Create Agent Task**](#agent-task-creation-create-agent-task) | `create-agent-task:` | Create Copilot agent tasks | 1 | ✅ |
-| [**Assign to Agent**](#assign-to-agent-assign-to-agent) | `assign-to-agent:` | Assign Copilot agents to issues | 1 | ✅ |
-| [**Assign to User**](#assign-to-user-assign-to-user) | `assign-to-user:` | Assign users to issues | 1 | ✅ |
-| [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) | `push-to-pull-request-branch:` | Push changes to PR branch | 1 | ❌ |
-| [**Update Release**](#release-updates-update-release) | `update-release:` | Update GitHub release descriptions | 1 | ✅ |
-| [**Upload Assets**](#asset-uploads-upload-asset) | `upload-asset:` | Upload files to orphaned git branch | 10 | ❌ |
-| [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) | `create-code-scanning-alert:` | Generate SARIF security advisories | unlimited | ❌ |
-| [**No-Op**](#no-op-logging-noop) | `noop:` | Log completion message for transparency (auto-enabled) | 1 | ❌ |
-| [**Missing Tool**](#missing-tool-reporting-missing-tool) | `missing-tool:` | Report missing tools (auto-enabled) | unlimited | ❌ |
+:::note
+Most safe output types support cross-repository operations. Exceptions are noted below.
+:::
 
-Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
+### Issues & Discussions
+
+- [**Create Issue**](#issue-creation-create-issue) (`create-issue`) — Create GitHub issues (max: 1)
+- [**Update Issue**](#issue-updates-update-issue) (`update-issue`) — Update issue status, title, or body (max: 1)
+- [**Close Issue**](#close-issue-close-issue) (`close-issue`) — Close issues with comment (max: 1)
+- [**Link Sub-Issue**](#link-sub-issue-link-sub-issue) (`link-sub-issue`) — Link issues as sub-issues (max: 1)
+- [**Create Discussion**](#discussion-creation-create-discussion) (`create-discussion`) — Create GitHub discussions (max: 1)
+- [**Update Discussion**](#discussion-updates-update-discussion) (`update-discussion`) — Update discussion title, body, or labels (max: 1)
+- [**Close Discussion**](#close-discussion-close-discussion) (`close-discussion`) — Close discussions with comment and resolution (max: 1)
+
+### Pull Requests
+
+- [**Create PR**](#pull-request-creation-create-pull-request) (`create-pull-request`) — Create pull requests with code changes (max: 1)
+- [**Update PR**](#pull-request-updates-update-pull-request) (`update-pull-request`) — Update PR title or body (max: 1)
+- [**Close PR**](#close-pull-request-close-pull-request) (`close-pull-request`) — Close pull requests without merging (max: 10)
+- [**PR Review Comments**](#pr-review-comments-create-pull-request-review-comment) (`create-pull-request-review-comment`) — Create review comments on code lines (max: 10)
+- [**Push to PR Branch**](#push-to-pr-branch-push-to-pull-request-branch) (`push-to-pull-request-branch`) — Push changes to PR branch (max: 1, same-repo only)
+
+### Labels, Assignments & Reviews
+
+- [**Add Comment**](#comment-creation-add-comment) (`add-comment`) — Post comments on issues, PRs, or discussions (max: 1)
+- [**Hide Comment**](#hide-comment-hide-comment) (`hide-comment`) — Hide comments on issues, PRs, or discussions (max: 5)
+- [**Add Labels**](#add-labels-add-labels) (`add-labels`) — Add labels to issues or PRs (max: 3)
+- [**Add Reviewer**](#add-reviewer-add-reviewer) (`add-reviewer`) — Add reviewers to pull requests (max: 3)
+- [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) — Assign issues to milestones (max: 1)
+- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) — Assign Copilot agents to issues (max: 1)
+- [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) — Assign users to issues (max: 1)
+
+### Projects, Releases & Assets
+
+- [**Update Project**](#project-board-updates-update-project) (`update-project`) — Manage GitHub Projects boards (max: 10, same-repo only)
+- [**Update Release**](#release-updates-update-release) (`update-release`) — Update GitHub release descriptions (max: 1)
+- [**Upload Assets**](#asset-uploads-upload-asset) (`upload-asset`) — Upload files to orphaned git branch (max: 10, same-repo only)
+
+### Security & Agent Tasks
+
+- [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
+- [**Create Agent Task**](#agent-task-creation-create-agent-task) (`create-agent-task`) — Create Copilot agent tasks (max: 1)
+
+### System Types (Auto-Enabled)
+
+- [**No-Op**](#no-op-logging-noop) (`noop`) — Log completion message for transparency (max: 1, same-repo only)
+- [**Missing Tool**](#missing-tool-reporting-missing-tool) (`missing-tool`) — Report missing tools (max: unlimited, same-repo only)
+
+:::tip
+Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/)
+:::
 
 ### Custom Safe Output Jobs (`jobs:`)
 
@@ -73,7 +94,7 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `7d`, `2w`, `1m`, `1y`. Generates daily `agentics-maintenance.yml` workflow to close expired items.
+The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `2h`, `7d`, `2w`, `1m`, `1y`. Generates daily `agentics-maintenance.yml` workflow to close expired items. Note: Hours less than 24 are treated as 1 day minimum since the maintenance workflow runs daily.
 
 #### Temporary IDs for Issue References
 
@@ -237,7 +258,7 @@ Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projec
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. Falls back to issue if creation fails (e.g., org settings block it). `expires` field (same-repo only) auto-closes after period: integers (days) or `7d`, `2w`, `1m`, `1y`.
+Creates PRs with code changes. Falls back to issue if creation fails (e.g., org settings block it). `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
 
 ```yaml wrap
 safe-outputs:
@@ -367,7 +388,7 @@ safe-outputs:
 
 ### Discussion Creation (`create-discussion:`)
 
-Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `7d`, `2w`, `1m`, `1y`) as "OUTDATED" with comment. Generates daily maintenance workflow.
+Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `2h`, `7d`, `2w`, `1m`, `1y`, hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates daily maintenance workflow.
 
 ```yaml wrap
 safe-outputs:

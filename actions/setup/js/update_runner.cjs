@@ -30,9 +30,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @property {boolean} supportsStatus - Whether this type supports status updates
  * @property {boolean} supportsOperation - Whether this type supports operation (append/prepend/replace)
  * @property {(item: any, index: number) => string} renderStagedItem - Function to render item for staged preview
- * @property {(github: any, context: any, targetNumber: number, updateData: any, handlerConfig?: any) => Promise<any>} executeUpdate - Function to execute the update API call
+ * @property {(github: any, context: any, targetNumber: number, updateData: any) => Promise<any>} executeUpdate - Function to execute the update API call
  * @property {(result: any) => string} getSummaryLine - Function to generate summary line for an updated item
- * @property {any} [handlerConfig] - Optional handler configuration object passed from handler manager
  */
 
 /**
