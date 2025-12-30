@@ -201,21 +201,6 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 				return c.buildUpdateProjectJob(data, mainJobName)
 			},
 		},
-		{
-			name:           "link_sub_issue",
-			safeOutputType: "link-sub-issue",
-			configBuilder: func() *SafeOutputsConfig {
-				return &SafeOutputsConfig{
-					LinkSubIssue: &LinkSubIssueConfig{
-						ParentTitlePrefix: "[Parent] ",
-					},
-				}
-			},
-			requiredEnvVar: "GH_AW_WORKFLOW_ID",
-			jobBuilder: func(c *Compiler, data *WorkflowData, mainJobName string) (*Job, error) {
-				return c.buildLinkSubIssueJob(data, mainJobName, "")
-			},
-		},
 	}
 
 	// Known issue: Individual job builders are missing GH_AW_WORKFLOW_ID
@@ -231,7 +216,6 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 		"create_agent_task":          true,
 		"upload_assets":              true,
 		"update_project":             true,
-		"link_sub_issue":             true,
 	}
 
 	for _, tt := range tests {

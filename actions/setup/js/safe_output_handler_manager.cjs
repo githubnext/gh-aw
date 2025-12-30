@@ -26,6 +26,7 @@ const HANDLER_MAP = {
   add_labels: "./add_labels.cjs",
   update_issue: "./update_issue.cjs",
   update_discussion: "./update_discussion.cjs",
+  link_sub_issue: "./link_sub_issue.cjs",
   update_release: "./update_release.cjs",
 };
 
@@ -115,6 +116,11 @@ async function processMessages(messageHandlers, messages) {
   /** @type {Array<{type: string, message: any, result: any, originalTempIdMapSize: number}>} */
   const outputsWithUnresolvedIds = [];
 
+  // Track messages that were deferred due to unresolved temporary IDs
+  // These will be retried after the first pass when more temp IDs may be resolved
+  /** @type {Array<{type: string, message: any, messageIndex: number, handler: Function}>} */
+  const deferredMessages = [];
+
   core.info(`Processing ${messages.length} message(s) in order of appearance...`);
 
   // Process messages in order of appearance
@@ -145,6 +151,25 @@ async function processMessages(messageHandlers, messages) {
 
       // Call the message handler with the individual message and resolved temp IDs
       const result = await messageHandler(message, resolvedTemporaryIds);
+
+      // Check if the operation was deferred due to unresolved temporary IDs
+      if (result && result.deferred === true) {
+        core.info(`⏸ Message ${i + 1} (${messageType}) deferred - will retry after first pass`);
+        deferredMessages.push({
+          type: messageType,
+          message: message,
+          messageIndex: i,
+          handler: messageHandler,
+        });
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          deferred: true,
+          result,
+        });
+        continue;
+      }
 
       // If handler returned a temp ID mapping, add it to our map
       if (result && result.temporaryId && result.repo && result.number) {
@@ -211,6 +236,50 @@ async function processMessages(messageHandlers, messages) {
         success: false,
         error: getErrorMessage(error),
       });
+    }
+  }
+
+  // Retry deferred messages now that more temporary IDs may have been resolved
+  if (deferredMessages.length > 0) {
+    core.info(`\n=== Retrying Deferred Messages ===`);
+    core.info(`Found ${deferredMessages.length} deferred message(s) to retry`);
+
+    for (const deferred of deferredMessages) {
+      try {
+        core.info(`Retrying message ${deferred.messageIndex + 1}/${messages.length}: ${deferred.type}`);
+
+        // Convert Map to plain object for handler
+        const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
+
+        // Call the handler again with updated temp ID map
+        const result = await deferred.handler(deferred.message, resolvedTemporaryIds);
+
+        // Check if still deferred
+        if (result && result.deferred === true) {
+          core.warning(`⏸ Message ${deferred.messageIndex + 1} (${deferred.type}) still deferred - some temporary IDs remain unresolved`);
+          // Update the existing result entry
+          const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+          if (resultIndex >= 0) {
+            results[resultIndex].result = result;
+          }
+        } else {
+          core.info(`✓ Message ${deferred.messageIndex + 1} (${deferred.type}) completed on retry`);
+          // Update the result to success
+          const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+          if (resultIndex >= 0) {
+            results[resultIndex].success = true;
+            results[resultIndex].deferred = false;
+            results[resultIndex].result = result;
+          }
+        }
+      } catch (error) {
+        core.error(`✗ Retry of message ${deferred.messageIndex + 1} (${deferred.type}) failed: ${getErrorMessage(error)}`);
+        // Update the result to error
+        const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
+        if (resultIndex >= 0) {
+          results[resultIndex].error = getErrorMessage(error);
+        }
+      }
     }
   }
 

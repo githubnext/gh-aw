@@ -52,7 +52,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
 	// Track which outputs are created for dependency tracking
-	var createIssueEnabled bool
 	var createPullRequestEnabled bool
 
 	// Add GitHub App token minting step if app is configured
@@ -111,6 +110,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.AddLabels != nil ||
 		data.SafeOutputs.UpdateIssues != nil ||
 		data.SafeOutputs.UpdateDiscussions != nil ||
+		data.SafeOutputs.LinkSubIssue != nil ||
 		data.SafeOutputs.UpdateRelease != nil
 
 	// If we have handler manager types, use the handler manager step
@@ -119,11 +119,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		handlerManagerSteps := c.buildHandlerManagerStep(data)
 		steps = append(steps, handlerManagerSteps...)
 		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
-
-		// Track enabled types for other steps
-		if data.SafeOutputs.CreateIssues != nil {
-			createIssueEnabled = true
-		}
 
 		// Add outputs from handler manager
 		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
@@ -153,6 +148,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 		if data.SafeOutputs.UpdateDiscussions != nil {
 			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
+		}
+		if data.SafeOutputs.LinkSubIssue != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 		}
 		if data.SafeOutputs.UpdateRelease != nil {
 			permissions.Merge(NewPermissionsContentsWrite())
@@ -288,15 +286,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// This was moved out of the consolidated job to allow proper git configuration
 	// for pushing to orphaned branches
 
-	// 19. Link Sub Issue step
-	if data.SafeOutputs.LinkSubIssue != nil {
-		stepConfig := c.buildLinkSubIssueStepConfig(data, mainJobName, threatDetectionEnabled, createIssueEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
-	}
+	// 19. Update Release step - now handled by handler manager
+	// 20. Link Sub Issue step - now handled by handler manager
 
 	// 21. Hide Comment step
 	if data.SafeOutputs.HideComment != nil {
@@ -848,6 +839,27 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["allowed_labels"] = cfg.AllowedLabels
 		}
 		config["update_discussion"] = handlerConfig
+	}
+
+	if data.SafeOutputs.LinkSubIssue != nil {
+		cfg := data.SafeOutputs.LinkSubIssue
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.ParentRequiredLabels) > 0 {
+			handlerConfig["parent_required_labels"] = cfg.ParentRequiredLabels
+		}
+		if cfg.ParentTitlePrefix != "" {
+			handlerConfig["parent_title_prefix"] = cfg.ParentTitlePrefix
+		}
+		if len(cfg.SubRequiredLabels) > 0 {
+			handlerConfig["sub_required_labels"] = cfg.SubRequiredLabels
+		}
+		if cfg.SubTitlePrefix != "" {
+			handlerConfig["sub_title_prefix"] = cfg.SubTitlePrefix
+		}
+		config["link_sub_issue"] = handlerConfig
 	}
 
 	if data.SafeOutputs.UpdateRelease != nil {
