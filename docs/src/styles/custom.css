@@ -998,7 +998,7 @@ html {
     display: none !important;
   }
   
-  /* Force theme toggle to stay visible on mobile ONLY on landing page (with hero) */
+  /* Force theme toggle and social icons to stay visible on mobile ONLY on landing page (with hero) */
   body:has(.hero) header starlight-theme-select,
   body:has(.hero) .header starlight-theme-select,
   body:has(.hero) starlight-theme-select {
@@ -1007,7 +1007,12 @@ html {
     opacity: 1 !important;
   }
   
-  /* Hide theme toggle on mobile for non-landing pages (without hero) to prevent overlap with TOC button */
+  body:has(.hero) .social-icons {
+    display: flex !important;
+    visibility: visible !important;
+  }
+  
+  /* Hide theme toggle and social icons on mobile for non-landing pages (without hero) to prevent overlap with TOC button */
   body:not(:has(.hero)) header starlight-theme-select,
   body:not(:has(.hero)) .header starlight-theme-select,
   body:not(:has(.hero)) starlight-theme-select {
@@ -1016,11 +1021,15 @@ html {
     opacity: 0 !important;
   }
   
+  body:not(:has(.hero)) .social-icons {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
   /* Override Starlight's hiding of header right side on mobile */
   header .sl-flex,
   header .right-group,
-  header [class*="right"],
-  .social-icons {
+  header [class*="right"] {
     display: flex !important;
     visibility: visible !important;
   }
