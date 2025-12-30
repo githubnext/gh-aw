@@ -10,9 +10,7 @@ async function main() {
   const command = process.env.GH_AW_COMMAND; // Only present for command workflows
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository 
-    ? `${context.payload.repository.html_url}/actions/runs/${runId}` 
-    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
@@ -26,7 +24,10 @@ async function main() {
     return;
   }
 
-  const { eventName, repo: { owner, repo } } = context;
+  const {
+    eventName,
+    repo: { owner, repo },
+  } = context;
   let reactionEndpoint;
   let commentUpdateEndpoint;
   const shouldCreateComment = true; // Always create comments for all events
@@ -122,9 +123,7 @@ async function main() {
 
     // Add reaction first (use GraphQL for discussions, REST for others)
     const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
-    await (isDiscussionEvent 
-      ? addDiscussionReaction(reactionEndpoint, reaction)
-      : addReaction(reactionEndpoint, reaction));
+    await (isDiscussionEvent ? addDiscussionReaction(reactionEndpoint, reaction) : addReaction(reactionEndpoint, reaction));
 
     // Then add comment
     core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
@@ -217,8 +216,6 @@ async function getDiscussionId(owner, repo, discussionNumber) {
   return repository.discussion;
 }
 
-
-
 /**
  * Add a comment with a workflow run link
  * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
@@ -286,7 +283,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
       const discussionId = repository.discussion.id;
       const mutationParams = { dId: discussionId, body: commentBody };
-      
+
       // Add replyToId for comment threads
       if (eventName === "discussion_comment") {
         mutationParams.replyToId = context.payload?.comment?.node_id;
