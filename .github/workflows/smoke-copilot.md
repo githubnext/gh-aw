@@ -30,7 +30,7 @@ safe-outputs:
     add-comment:
       hide-older-comments: true
     create-issue:
-      expires: 1d
+      expires: 2h
     add-labels:
       allowed: [smoke-copilot]
     messages:

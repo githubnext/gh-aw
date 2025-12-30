@@ -1606,7 +1606,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '2h', '7d', '2w', '1m', '1y'; hours <24 = 1 day)
     expires: "example-value"
 
   # Option 2: Enable issue creation with default configuration
@@ -1739,7 +1739,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '2h', '7d', '2w', '1m', '1y'; hours <24 = 1 day)
     expires: "example-value"
 
   # Option 2: Enable discussion creation with default configuration
@@ -2029,7 +2029,7 @@ safe-outputs:
     # Option 1: Number of days until expires
     expires: 1
 
-    # Option 2: Relative time (e.g., '7d', '2w', '1m', '1y')
+    # Option 2: Relative time (e.g., '2h', '7d', '2w', '1m', '1y'; hours <24 = 1 day)
     expires: "example-value"
 
   # Option 2: Enable pull request creation with default configuration

@@ -73,7 +73,7 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `7d`, `2w`, `1m`, `1y`. Generates daily `agentics-maintenance.yml` workflow to close expired items.
+The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `2h`, `7d`, `2w`, `1m`, `1y`. Generates daily `agentics-maintenance.yml` workflow to close expired items. Note: Hours less than 24 are treated as 1 day minimum since the maintenance workflow runs daily.
 
 #### Temporary IDs for Issue References
 
@@ -237,7 +237,7 @@ Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projec
 
 ### Pull Request Creation (`create-pull-request:`)
 
-Creates PRs with code changes. Falls back to issue if creation fails (e.g., org settings block it). `expires` field (same-repo only) auto-closes after period: integers (days) or `7d`, `2w`, `1m`, `1y`.
+Creates PRs with code changes. Falls back to issue if creation fails (e.g., org settings block it). `expires` field (same-repo only) auto-closes after period: integers (days) or `2h`, `7d`, `2w`, `1m`, `1y` (hours < 24 treated as 1 day).
 
 ```yaml wrap
 safe-outputs:
@@ -367,7 +367,7 @@ safe-outputs:
 
 ### Discussion Creation (`create-discussion:`)
 
-Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `7d`, `2w`, `1m`, `1y`) as "OUTDATED" with comment. Generates daily maintenance workflow.
+Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `2h`, `7d`, `2w`, `1m`, `1y`, hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates daily maintenance workflow.
 
 ```yaml wrap
 safe-outputs:
