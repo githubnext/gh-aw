@@ -262,11 +262,11 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
-async function main() {
+async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
   const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-  const hideOlderCommentsEnabled = process.env.GH_AW_HIDE_OLDER_COMMENTS === "true";
+  const hideOlderCommentsEnabled = config.hide_older_comments === true;
 
   // Load the temporary ID map from create_issue job
   const temporaryIdMap = loadTemporaryIdMap();
@@ -293,8 +293,8 @@ async function main() {
     return item.item_number;
   }
 
-  // Get the target configuration from environment variable
-  const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
+  // Get the target configuration from config object
+  const commentTarget = config.target || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
 
   // Check if we're in an issue, pull request, or discussion context

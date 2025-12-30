@@ -158,7 +158,22 @@ function buildUpdateData(params) {
  * @returns {Promise<any[]|undefined>} Array of updated items or undefined
  */
 async function runUpdateWorkflow(config) {
-  const { itemType, displayName, displayNamePlural, numberField, outputNumberKey, outputUrlKey, isValidContext, getContextNumber, supportsStatus, supportsOperation, renderStagedItem, executeUpdate, getSummaryLine } = config;
+  const {
+    itemType,
+    displayName,
+    displayNamePlural,
+    numberField,
+    outputNumberKey,
+    outputUrlKey,
+    isValidContext,
+    getContextNumber,
+    supportsStatus,
+    supportsOperation,
+    renderStagedItem,
+    executeUpdate,
+    getSummaryLine,
+    handlerConfig = {},
+  } = config;
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -188,12 +203,12 @@ async function runUpdateWorkflow(config) {
     return;
   }
 
-  // Get the configuration from environment variables
-  const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
-  const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
-  const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
-  const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
-  const canUpdateLabels = process.env.GH_AW_UPDATE_LABELS === "true";
+  // Get the configuration from handler config object
+  const updateTarget = handlerConfig.target || "triggering";
+  const canUpdateStatus = handlerConfig.allow_status === true;
+  const canUpdateTitle = handlerConfig.allow_title === true;
+  const canUpdateBody = handlerConfig.allow_body === true;
+  const canUpdateLabels = handlerConfig.allow_labels === true;
 
   core.info(`Update target configuration: ${updateTarget}`);
   if (supportsStatus) {
@@ -267,7 +282,7 @@ async function runUpdateWorkflow(config) {
 
     try {
       // Execute the update using the provided function
-      const updatedItem = await executeUpdate(github, context, targetNumber, updateData);
+      const updatedItem = await executeUpdate(github, context, targetNumber, updateData, handlerConfig);
       core.info(`Updated ${displayName} #${updatedItem.number}: ${updatedItem.html_url}`);
       updatedItems.push(updatedItem);
 
@@ -399,7 +414,7 @@ function createUpdateHandler(config) {
   });
 
   // Return the main handler function
-  return async function main() {
+  return async function main(handlerConfig = {}) {
     return await runUpdateWorkflow({
       itemType: config.itemType,
       displayName: config.displayName,
@@ -414,6 +429,7 @@ function createUpdateHandler(config) {
       renderStagedItem,
       executeUpdate: config.executeUpdate,
       getSummaryLine,
+      handlerConfig, // Pass handler config to the runner
     });
   };
 }

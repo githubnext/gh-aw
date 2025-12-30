@@ -5,7 +5,7 @@ const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
+async function main(config = {}) {
   // Use shared processor for common steps
   const result = await processSafeOutput(
     {
@@ -16,9 +16,10 @@ async function main() {
       supportsPR: true,
       supportsIssue: true,
       envVars: {
-        allowed: "GH_AW_LABELS_ALLOWED",
-        maxCount: "GH_AW_LABELS_MAX_COUNT",
-        target: "GH_AW_LABELS_TARGET",
+        // Config values now passed via config object, not env vars
+        allowed: null,
+        maxCount: null,
+        target: null,
       },
     },
     {
@@ -36,7 +37,8 @@ async function main() {
         }
         return content;
       },
-    }
+    },
+    config // Pass handler config as third parameter
   );
 
   if (!result.success) {

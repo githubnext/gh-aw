@@ -7,14 +7,19 @@
  */
 
 /**
- * Parse the allowed repos from environment variable
+ * Parse the allowed repos from config value (array or comma-separated string)
+ * @param {string[]|string|undefined} allowedReposValue - Allowed repos from config (array or comma-separated string)
  * @returns {Set<string>} Set of allowed repository slugs
  */
-function parseAllowedRepos() {
-  const allowedReposEnv = process.env.GH_AW_ALLOWED_REPOS;
+function parseAllowedRepos(allowedReposValue) {
   const set = new Set();
-  if (allowedReposEnv) {
-    allowedReposEnv
+  if (Array.isArray(allowedReposValue)) {
+    allowedReposValue
+      .map(repo => repo.trim())
+      .filter(repo => repo)
+      .forEach(repo => set.add(repo));
+  } else if (typeof allowedReposValue === "string") {
+    allowedReposValue
       .split(",")
       .map(repo => repo.trim())
       .filter(repo => repo)
