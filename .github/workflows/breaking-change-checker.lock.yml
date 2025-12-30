@@ -1088,7 +1088,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_TRACKER_ID: "breaking-change-checker"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1102,7 +1102,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Breaking Change Checker"
           GH_AW_TRACKER_ID: "breaking-change-checker"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1122,7 +1122,7 @@ jobs:
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e ⚠️ *Compatibility report by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔬 Breaking Change Checker online! [{workflow_name}]({run_url}) is analyzing API compatibility on this {event_type}...\",\"runSuccess\":\"✅ Analysis complete! [{workflow_name}]({run_url}) has reviewed all changes. Compatibility verdict delivered! 📋\",\"runFailure\":\"🔬 Analysis interrupted! [{workflow_name}]({run_url}) {status}. Compatibility status unknown...\"}"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1490,7 +1490,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"breaking-change\",\"automated-analysis\"],\"max\":1,\"title_prefix\":\"[breaking-change] \"}}"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
