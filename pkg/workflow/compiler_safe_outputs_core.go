@@ -700,6 +700,13 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
 		}
+		// Add labels, title_prefix to config
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
 		config["create_issue"] = handlerConfig
 	}
 
@@ -863,16 +870,12 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Track if we've already added staged flag to avoid duplicates
 	stagedFlagAdded := false
 
-	// Create Issue env vars
+	// Create Issue env vars - now handled by config object
 	if data.SafeOutputs.CreateIssues != nil {
 		cfg := data.SafeOutputs.CreateIssues
-		*steps = append(*steps, buildTitlePrefixEnvVar("GH_AW_ISSUE_TITLE_PREFIX", cfg.TitlePrefix)...)
-		*steps = append(*steps, buildLabelsEnvVar("GH_AW_ISSUE_LABELS", cfg.Labels)...)
+		// Only add allowed_labels and allowed_repos env vars for backward compatibility with processSafeOutput helper
 		*steps = append(*steps, buildLabelsEnvVar("GH_AW_ISSUE_ALLOWED_LABELS", cfg.AllowedLabels)...)
 		*steps = append(*steps, buildAllowedReposEnvVar("GH_AW_ALLOWED_REPOS", cfg.AllowedRepos)...)
-		if cfg.Expires > 0 {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", cfg.Expires))
-		}
 		// Add target repo slug if specified
 		if cfg.TargetRepoSlug != "" {
 			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))

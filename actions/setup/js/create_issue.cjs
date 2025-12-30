@@ -80,11 +80,10 @@ async function main(config = {}) {
   const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
-  const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
-  let envLabels = labelsEnv
-    ? labelsEnv
-        .split(",")
-        .map(label => label.trim())
+  // Read labels from config object
+  let envLabels = config.labels
+    ? (Array.isArray(config.labels) ? config.labels : config.labels.split(","))
+        .map(label => String(label).trim())
         .filter(label => label)
     : [];
   const createdIssues = [];
@@ -178,7 +177,8 @@ async function main(config = {}) {
     if (!title) {
       title = createIssueItem.body || "Agent Output";
     }
-    const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+    // Read title_prefix from config object
+    const titlePrefix = config.title_prefix;
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
@@ -204,8 +204,17 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Add expiration comment if expires is set
-    addExpirationComment(bodyLines, "GH_AW_ISSUE_EXPIRES", "Issue");
+    // Add expiration comment if expires is set in config
+    if (config.expires) {
+      const expiresDays = parseInt(String(config.expires), 10);
+      if (!isNaN(expiresDays) && expiresDays > 0) {
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + expiresDays);
+        const expirationISO = expirationDate.toISOString();
+        bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+        core.info(`Issue will expire on ${expirationISO} (${expiresDays} days)`);
+      }
+    }
 
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
     const body = bodyLines.join("\n").trim();
