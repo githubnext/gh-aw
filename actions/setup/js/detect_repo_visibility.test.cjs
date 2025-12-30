@@ -54,9 +54,7 @@ describe("detect_repo_visibility", () => {
     });
     expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "public");
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining("GitHub MCP lockdown mode enabled")
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GitHub MCP lockdown mode enabled"));
   });
 
   it("should set lockdown to false for private repository", async () => {
@@ -98,14 +96,10 @@ describe("detect_repo_visibility", () => {
 
     await detectRepoVisibility(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.error).toHaveBeenCalledWith(
-      "Failed to detect repository visibility: API request failed"
-    );
+    expect(mockCore.error).toHaveBeenCalledWith("Failed to detect repository visibility: API request failed");
     expect(mockCore.setOutput).toHaveBeenCalledWith("lockdown", "true");
     expect(mockCore.setOutput).toHaveBeenCalledWith("visibility", "unknown");
-    expect(mockCore.warning).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to detect repository visibility")
-    );
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to detect repository visibility"));
   });
 
   it("should infer visibility from private field when visibility field is missing", async () => {
@@ -132,12 +126,8 @@ describe("detect_repo_visibility", () => {
 
     await detectRepoVisibility(mockGithub, mockContext, mockCore);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Detecting repository visibility for GitHub MCP lockdown configuration"
-    );
-    expect(mockCore.info).toHaveBeenCalledWith(
-      "Checking visibility for repository: test-owner/test-repo"
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Detecting repository visibility for GitHub MCP lockdown configuration");
+    expect(mockCore.info).toHaveBeenCalledWith("Checking visibility for repository: test-owner/test-repo");
     expect(mockCore.info).toHaveBeenCalledWith("Repository visibility: public");
     expect(mockCore.info).toHaveBeenCalledWith("Repository is private: false");
     expect(mockCore.info).toHaveBeenCalledWith("Setting GitHub MCP lockdown: true");
