@@ -665,6 +665,51 @@ func TestRenderTitleBox(t *testing.T) {
 	}
 }
 
+func TestRenderErrorBox(t *testing.T) {
+	tests := []struct {
+		name     string
+		title    string
+		expected []string // Substrings that should be present in output
+	}{
+		{
+			name:  "security advisory",
+			title: "🔴 SECURITY ADVISORIES",
+			expected: []string{
+				"🔴",
+				"SECURITY ADVISORIES",
+			},
+		},
+		{
+			name:  "critical error",
+			title: "Critical Error",
+			expected: []string{
+				"Critical Error",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderErrorBox(tt.title)
+
+			// Check that output is not empty
+			if len(output) == 0 {
+				t.Error("RenderErrorBox() returned empty slice")
+			}
+
+			// Join output for checking
+			fullOutput := strings.Join(output, "\n")
+
+			// Check that title appears in output
+			for _, expected := range tt.expected {
+				if !strings.Contains(fullOutput, expected) {
+					t.Errorf("RenderErrorBox() output missing expected string '%s'\nGot:\n%s", expected, fullOutput)
+				}
+			}
+		})
+	}
+}
+
 func TestRenderInfoSection(t *testing.T) {
 	tests := []struct {
 		name     string

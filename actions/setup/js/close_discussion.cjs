@@ -8,7 +8,7 @@ const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
- * Get discussion details using GraphQL
+ * Get discussion details using GraphQL with pagination for labels
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -16,33 +16,75 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @returns {Promise<{id: string, title: string, category: {name: string}, labels: {nodes: Array<{name: string}>}, url: string}>} Discussion details
  */
 async function getDiscussionDetails(github, owner, repo, discussionNumber) {
-  const { repository } = await github.graphql(
-    `
-    query($owner: String!, $repo: String!, $num: Int!) {
-      repository(owner: $owner, name: $repo) {
-        discussion(number: $num) { 
-          id
-          title
-          category {
-            name
-          }
-          labels(first: 100) {
-            nodes {
+  // Fetch all labels with pagination
+  const allLabels = [];
+  let hasNextPage = true;
+  let cursor = null;
+  let discussion = null;
+
+  while (hasNextPage) {
+    const query = await github.graphql(
+      `
+      query($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          discussion(number: $num) {
+            id
+            title
+            category {
               name
             }
+            url
+            labels(first: 100, after: $cursor) {
+              nodes {
+                name
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
           }
-          url
         }
-      }
-    }`,
-    { owner, repo, num: discussionNumber }
-  );
+      }`,
+      { owner, repo, num: discussionNumber, cursor }
+    );
 
-  if (!repository || !repository.discussion) {
-    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+    if (!query?.repository?.discussion) {
+      throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+    }
+
+    // Store the discussion metadata from the first query
+    if (!discussion) {
+      discussion = {
+        id: query.repository.discussion.id,
+        title: query.repository.discussion.title,
+        category: query.repository.discussion.category,
+        url: query.repository.discussion.url,
+      };
+    }
+
+    const labels = query.repository.discussion.labels?.nodes || [];
+    allLabels.push(...labels);
+
+    hasNextPage = query.repository.discussion.labels?.pageInfo?.hasNextPage || false;
+    cursor = query.repository.discussion.labels?.pageInfo?.endCursor || null;
   }
 
-  return repository.discussion;
+  // discussion is guaranteed to be set because we always enter the while loop at least once
+  // and throw an error if the discussion is not found
+  if (!discussion) {
+    throw new Error(`Failed to fetch discussion #${discussionNumber}`);
+  }
+
+  return {
+    id: discussion.id,
+    title: discussion.title,
+    category: discussion.category,
+    url: discussion.url,
+    labels: {
+      nodes: allLabels,
+    },
+  };
 }
 
 /**

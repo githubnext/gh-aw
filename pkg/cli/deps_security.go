@@ -91,8 +91,11 @@ func DisplaySecurityAdvisories(advisories []SecurityAdvisory) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security Advisories"))
-	fmt.Fprintln(os.Stderr, console.FormatErrorMessage("==================="))
+	// Display header with bordered box using console helper
+	errorBox := console.RenderErrorBox("🔴 SECURITY ADVISORIES")
+	for _, line := range errorBox {
+		fmt.Fprintln(os.Stderr, line)
+	}
 	fmt.Fprintln(os.Stderr, "")
 
 	// Sort by severity (critical first)

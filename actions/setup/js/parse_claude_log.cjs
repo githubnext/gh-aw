@@ -1,16 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, wrapLogParser } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 
-async function main() {
-  runLogParser({
-    parseLog: logContent => wrapLogParser(parseClaudeLog, "Claude", logContent),
-    parserName: "Claude",
-    supportsDirectories: false,
-  });
-}
+const main = createEngineLogParser({
+  parserName: "Claude",
+  parseFunction: parseClaudeLog,
+  supportsDirectories: false,
+});
 
 /**
  * Parses Claude log content and converts it to markdown format

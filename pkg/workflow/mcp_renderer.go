@@ -42,11 +42,19 @@ func NewMCPConfigRenderer(opts MCPRendererOptions) *MCPConfigRendererUnified {
 func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+
+	// Get lockdown value - use detected value if lockdown wasn't explicitly set
 	lockdown := getGitHubLockdown(githubTool)
+	if !hasGitHubLockdownExplicitlySet(githubTool) {
+		// Use the detected lockdown value from the step output
+		// This will be evaluated at runtime based on repository visibility
+		lockdown = true // This is a placeholder - actual value comes from step output
+	}
+
 	toolsets := getGitHubToolsets(githubTool)
 
-	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t, toolsets=%v, format=%s",
-		githubType, readOnly, lockdown, toolsets, r.options.Format)
+	mcpRendererLog.Printf("Rendering GitHub MCP: type=%s, read_only=%t, lockdown=%t (explicit=%t), toolsets=%v, format=%s",
+		githubType, readOnly, lockdown, hasGitHubLockdownExplicitlySet(githubTool), toolsets, r.options.Format)
 
 	if r.options.Format == "toml" {
 		r.renderGitHubTOML(yaml, githubTool, workflowData)
@@ -68,6 +76,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
 			Lockdown:           lockdown,
+			LockdownFromStep:   !hasGitHubLockdownExplicitlySet(githubTool),
 			Toolsets:           toolsets,
 			AuthorizationValue: authValue,
 			IncludeToolsField:  r.options.IncludeCopilotFields,
@@ -82,6 +91,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
 			Lockdown:           lockdown,
+			LockdownFromStep:   !hasGitHubLockdownExplicitlySet(githubTool),
 			Toolsets:           toolsets,
 			DockerImageVersion: githubDockerImageVersion,
 			CustomArgs:         customArgs,
@@ -426,6 +436,8 @@ type GitHubMCPDockerOptions struct {
 	ReadOnly bool
 	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
 	Lockdown bool
+	// LockdownFromStep indicates if lockdown value should be read from step output
+	LockdownFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// DockerImageVersion specifies the GitHub MCP server Docker image version
@@ -465,7 +477,12 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 	}
 
-	if options.Lockdown {
+	if options.LockdownFromStep {
+		// Use lockdown value from step output (detected based on repository visibility)
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}\",\n")
+	} else if options.Lockdown {
+		// Use explicit lockdown value from configuration
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_LOCKDOWN_MODE=1\",\n")
 	}
@@ -520,6 +537,8 @@ type GitHubMCPRemoteOptions struct {
 	ReadOnly bool
 	// Lockdown enables lockdown mode for GitHub MCP server (limits content from public repos)
 	Lockdown bool
+	// LockdownFromStep indicates if lockdown value should be read from step output
+	LockdownFromStep bool
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// AuthorizationValue is the value for the Authorization header
@@ -556,7 +575,11 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	}
 
 	// Add X-MCP-Lockdown header if lockdown mode is enabled
-	if options.Lockdown {
+	if options.LockdownFromStep {
+		// Use lockdown value from step output (detected based on repository visibility)
+		headers["X-MCP-Lockdown"] = "${{ steps.detect-repo-visibility.outputs.lockdown }}"
+	} else if options.Lockdown {
+		// Use explicit lockdown value from configuration
 		headers["X-MCP-Lockdown"] = "true"
 	}
 

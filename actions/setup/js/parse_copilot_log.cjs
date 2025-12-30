@@ -1,16 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { runLogParser } = require("./log_parser_bootstrap.cjs");
-const { generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries, wrapLogParser } = require("./log_parser_shared.cjs");
+const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, formatInitializationSummary, formatToolUse, parseLogEntries } = require("./log_parser_shared.cjs");
 
-async function main() {
-  runLogParser({
-    parseLog: logContent => wrapLogParser(parseCopilotLog, "Copilot", logContent),
-    parserName: "Copilot",
-    supportsDirectories: true,
-  });
-}
+const main = createEngineLogParser({
+  parserName: "Copilot",
+  parseFunction: parseCopilotLog,
+  supportsDirectories: true,
+});
 
 /**
  * Extracts the premium request count from the log content using regex

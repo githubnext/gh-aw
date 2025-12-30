@@ -107,7 +107,7 @@ func TestEachToolHasRequiredMCPFields(t *testing.T) {
 			// If required field exists, it should be an array of strings
 			if required, ok := inputSchema["required"]; ok {
 				requiredArray, ok := required.([]any)
-				assert.True(t, ok, "Tool %d inputSchema 'required' should be an array", i)
+				require.True(t, ok, "Tool %d inputSchema 'required' should be an array", i)
 				for _, req := range requiredArray {
 					assert.IsType(t, "", req, "Tool %d inputSchema 'required' items should be strings", i)
 				}
@@ -141,7 +141,7 @@ func TestToolsJSONStructureMatchesMCPSpecification(t *testing.T) {
 			}
 
 			for field := range tool {
-				assert.True(t, allowedFields[field],
+				assert.Contains(t, allowedFields, field,
 					"Tool '%s' has unexpected field '%s'. MCP tools should only have: name, title, description, inputSchema, outputSchema, annotations",
 					name, field)
 			}
@@ -171,7 +171,7 @@ func TestToolsJSONStructureMatchesMCPSpecification(t *testing.T) {
 				}
 
 				for field := range annotationsObj {
-					assert.True(t, allowedAnnotations[field],
+					assert.Contains(t, allowedAnnotations, field,
 						"Tool '%s' annotations has unexpected field '%s'. Allowed fields: title, readOnlyHint, destructiveHint, idempotentHint, openWorldHint",
 						name, field)
 				}
