@@ -99,7 +99,7 @@ async function loadHandlers(config) {
  *
  * @param {Map<string, Function>} messageHandlers - Map of message handler functions
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Map, pendingUpdates: Array<any>}>}
+ * @returns {Promise<{success: boolean, results: Array<any>, temporaryIdMap: Object, outputsWithUnresolvedIds: Array<any>}>}
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
@@ -387,6 +387,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
       const contentToCheck = getContentToCheck(tracked.type, tracked.message);
 
       // Check if the content still has unresolved IDs (some may now be resolved)
+      // @ts-ignore - hasUnresolvedTemporaryIds handles null values
       const stillHasUnresolved = hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap);
       const resolvedCount = temporaryIdMap.size - tracked.originalTempIdMapSize;
 
@@ -397,6 +398,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
 
         try {
           // Replace temporary ID references with resolved values
+          // @ts-ignore - replaceTemporaryIdReferences handles null values
           const updatedContent = replaceTemporaryIdReferences(contentToCheck, temporaryIdMap, tracked.result.repo);
 
           // Update based on the original type
