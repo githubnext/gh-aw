@@ -283,7 +283,7 @@ func TestMCPServer_AuditTool(t *testing.T) {
 	params := &mcp.CallToolParams{
 		Name: "audit",
 		Arguments: map[string]any{
-			"run_id": int64(1),
+			"run_id_or_url": "1",
 		},
 	}
 	result, err := session.CallTool(ctx, params)
@@ -779,7 +779,7 @@ func TestMCPServer_ContextCancellation(t *testing.T) {
 				params = &mcp.CallToolParams{
 					Name: "audit",
 					Arguments: map[string]any{
-						"run_id": int64(1),
+						"run_id_or_url": "1",
 					},
 				}
 			}

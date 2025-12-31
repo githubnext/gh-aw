@@ -241,7 +241,7 @@ func TestMCPServer_AuditToolReturnsValidJSON(t *testing.T) {
 	params := &mcp.CallToolParams{
 		Name: "audit",
 		Arguments: map[string]any{
-			"run_id": int64(1),
+			"run_id_or_url": "1",
 		},
 	}
 	result, err := session.CallTool(ctx, params)
