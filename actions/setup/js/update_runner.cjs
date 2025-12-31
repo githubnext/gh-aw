@@ -205,11 +205,22 @@ async function runUpdateWorkflow(config) {
   }
 
   // Get the configuration from handler config object
-  const updateTarget = handlerConfig.target || "triggering";
-  const canUpdateStatus = handlerConfig.allow_status === true;
-  const canUpdateTitle = handlerConfig.allow_title === true;
-  const canUpdateBody = handlerConfig.allow_body === true;
-  const canUpdateLabels = handlerConfig.allow_labels === true;
+  // For backwards compatibility, also read from environment variables
+  const updateTarget = handlerConfig.target || process.env.GH_AW_UPDATE_TARGET || "triggering";
+  const canUpdateStatus = handlerConfig.allow_status === true || process.env.GH_AW_UPDATE_STATUS === "true";
+  const canUpdateTitle = handlerConfig.allow_title === true || process.env.GH_AW_UPDATE_TITLE === "true";
+  const canUpdateBody = handlerConfig.allow_body === true || process.env.GH_AW_UPDATE_BODY === "true";
+  const canUpdateLabels = handlerConfig.allow_labels === true || process.env.GH_AW_UPDATE_LABELS === "true";
+  
+  // Build merged config object for passing to executeUpdate
+  const mergedHandlerConfig = {
+    ...handlerConfig,
+    target: updateTarget,
+    allow_status: canUpdateStatus,
+    allow_title: canUpdateTitle,
+    allow_body: canUpdateBody,
+    allow_labels: canUpdateLabels,
+  };
 
   core.info(`Update target configuration: ${updateTarget}`);
   if (supportsStatus) {
@@ -283,7 +294,7 @@ async function runUpdateWorkflow(config) {
 
     try {
       // Execute the update using the provided function
-      const updatedItem = await executeUpdate(github, context, targetNumber, updateData, handlerConfig);
+      const updatedItem = await executeUpdate(github, context, targetNumber, updateData, mergedHandlerConfig);
       core.info(`Updated ${displayName} #${updatedItem.number}: ${updatedItem.html_url}`);
       updatedItems.push(updatedItem);
 
