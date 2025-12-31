@@ -163,8 +163,8 @@ self-hosted-runner:
 		return fmt.Errorf("failed to create .github directory: %w", err)
 	}
 
-	// Write the config file
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+	// Write the config file with restrictive permissions (0600 for security)
+	if err := os.WriteFile(configPath, []byte(configContent), 0600); err != nil {
 		return fmt.Errorf("failed to write actionlint.yaml: %w", err)
 	}
 
