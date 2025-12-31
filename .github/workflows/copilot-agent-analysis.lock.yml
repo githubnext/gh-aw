@@ -1177,7 +1177,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
+          - **Allowed Files**: Only files matching patterns: memory/copilot-agent-analysis/*.json, memory/copilot-agent-analysis/*.jsonl, memory/copilot-agent-analysis/*.csv, memory/copilot-agent-analysis/*.md
           - **Max File Size**: 102400 bytes (0.10 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -1969,7 +1969,7 @@ jobs:
           BRANCH_NAME: memory/copilot-agent-analysis
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+          FILE_GLOB_FILTER: "memory/copilot-agent-analysis/*.json memory/copilot-agent-analysis/*.jsonl memory/copilot-agent-analysis/*.csv memory/copilot-agent-analysis/*.md"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');

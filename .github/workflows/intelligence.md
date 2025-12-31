@@ -35,7 +35,7 @@ tools:
     toolsets: [repos, issues, search]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "**/**"  # Read all campaign data
+    file-glob: "memory/campaigns/**"  # Read all campaign data
 
 imports:
   - shared/trends.md

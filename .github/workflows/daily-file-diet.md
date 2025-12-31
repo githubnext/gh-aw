@@ -32,7 +32,7 @@ tools:
     toolsets: [default]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "go-file-size-reduction-*/**"
+    file-glob: "memory/campaigns/go-file-size-reduction-*/**"
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \\; | sort -rn"

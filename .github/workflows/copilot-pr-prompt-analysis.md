@@ -38,7 +38,7 @@ tools:
   repo-memory:
     branch-name: memory/prompt-analysis
     description: "Historical prompt pattern analysis"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/prompt-analysis/*.json", "memory/prompt-analysis/*.jsonl", "memory/prompt-analysis/*.csv", "memory/prompt-analysis/*.md"]
     max-file-size: 102400  # 100KB
   edit:
   github:

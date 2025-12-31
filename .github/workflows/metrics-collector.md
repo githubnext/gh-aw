@@ -15,7 +15,7 @@ tools:
     toolsets: [default]
   repo-memory:
     branch-name: memory/meta-orchestrators
-    file-glob: "metrics/**"
+    file-glob: "memory/meta-orchestrators/metrics/**"
 timeout-minutes: 15
 ---
 

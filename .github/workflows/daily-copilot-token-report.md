@@ -15,7 +15,7 @@ tools:
   repo-memory:
     branch-name: memory/token-metrics
     description: "Historical token consumption and cost data"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/token-metrics/*.json", "memory/token-metrics/*.jsonl", "memory/token-metrics/*.csv", "memory/token-metrics/*.md"]
     max-file-size: 102400  # 100KB
   bash:
     - "*"

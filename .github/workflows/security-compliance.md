@@ -35,7 +35,7 @@ tools:
     toolsets: [repos, search, code_security]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "security-compliance-*/**"
+    file-glob: "memory/campaigns/security-compliance-*/**"
 
 ---
 
