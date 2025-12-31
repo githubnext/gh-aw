@@ -54,7 +54,7 @@ The server provides the following tools:
   - status      - Show status of agentic workflow files
   - compile     - Compile Markdown workflows to GitHub Actions YAML
   - logs        - Download and analyze workflow logs
-  - audit       - Investigate a workflow run and generate a report
+  - audit       - Investigate a workflow run, job, or step and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
   - add         - Add workflows from remote repositories to .github/workflows
   - update      - Update workflows from their source repositories
@@ -502,16 +502,27 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 
 	// Add audit tool
 	type auditArgs struct {
-		RunID    int64  `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
-		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
+		RunIDOrURL string `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
+		JqFilter   string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "audit",
-		Description: `Investigate a workflow run and generate a concise report.
+		Description: `Investigate a workflow run, job, or specific step and generate a concise report.
+
+Accepts multiple input formats:
+- Numeric run ID: 1234567890
+- Run URL: https://github.com/owner/repo/actions/runs/1234567890
+- Job URL: https://github.com/owner/repo/actions/runs/1234567890/job/9876543210
+- Job URL with step: https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1
+
+When a job URL is provided:
+- If a step number is included (#step:7:1), extracts that specific step's output
+- If no step number, finds and extracts the first failing step's output
+- Saves job logs and step-specific logs to the output directory
 
 Returns JSON with the following structure:
-- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url)
+- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url, logs_path)
 - metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
 - jobs: List of job details (name, status, conclusion, duration)
 - downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
@@ -520,6 +531,7 @@ Returns JSON with the following structure:
 - errors: Error details (file, line, type, message)
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
+- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, denied_requests, allowed_domains, denied_domains)
 
 Note: Output can be filtered using the jq parameter.`,
 		Icons: []mcp.Icon{
@@ -540,7 +552,8 @@ Note: Output can be filtered using the jq parameter.`,
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
 		// Use --json flag to output structured JSON for MCP consumption
-		cmdArgs := []string{"audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
+		// Pass the run ID or URL directly - the audit command will parse it
+		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
@@ -550,7 +563,7 @@ Note: Output can be filtered using the jq parameter.`,
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
 				Message: "failed to audit workflow run",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id": args.RunID}),
+				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id_or_url": args.RunIDOrURL}),
 			}
 		}
 
