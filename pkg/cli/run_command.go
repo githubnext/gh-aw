@@ -120,6 +120,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 			workflowID = wf.ID
 			if wf.State == "disabled_manually" {
 				wasDisabled = true
+				runLog.Printf("Workflow %s is disabled, temporarily enabling for this run (id=%d)", workflowIdOrName, wf.ID)
 				if verbose {
 					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 				}
@@ -130,9 +131,12 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 				}
 				cmd := workflow.ExecGH(enableArgs...)
 				if err := cmd.Run(); err != nil {
+					runLog.Printf("Failed to enable workflow %s: %v", workflowIdOrName, err)
 					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
 				}
 				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Enabled workflow: %s", workflowIdOrName)))
+			} else {
+				runLog.Printf("Workflow %s is already enabled (state=%s)", workflowIdOrName, wf.State)
 			}
 		}
 	}
@@ -161,6 +165,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		// Check if the lock file exists in .github/workflows
 		lockFilePath = filepath.Join(".github/workflows", lockFileName)
 		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+			runLog.Printf("Lock file not found: %s (workflow must be compiled first)", lockFilePath)
 			suggestions := []string{
 				fmt.Sprintf("Run '%s compile' to compile all workflows", string(constants.CLIExtensionPrefix)),
 				fmt.Sprintf("Run '%s compile %s' to compile this specific workflow", string(constants.CLIExtensionPrefix), filename),
@@ -170,6 +175,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 				suggestions,
 			))
 		}
+		runLog.Printf("Found lock file: %s", lockFilePath)
 	}
 
 	// Recompile workflow if engine override is provided (only for local workflows)

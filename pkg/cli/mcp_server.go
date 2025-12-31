@@ -171,6 +171,7 @@ Note: Output can be filtered using the jq parameter.`,
 			cmdArgs = append(cmdArgs, args.Pattern)
 		}
 
+		mcpLog.Printf("Executing status tool: pattern=%s, jqFilter=%s", args.Pattern, args.JqFilter)
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
@@ -308,6 +309,8 @@ Note: Output can be filtered using the jq parameter.`,
 
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
+		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v",
+			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint)
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()

@@ -194,6 +194,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 	// Add Python as dependency when uv is detected (uv requires Python)
 	if _, hasUV := requirements["uv"]; hasUV {
 		if _, hasPython := requirements["python"]; !hasPython {
+			runtimeSetupLog.Print("UV detected without Python, automatically adding Python runtime")
 			pythonRuntime := findRuntimeByID("python")
 			if pythonRuntime != nil {
 				updateRequiredRuntime(pythonRuntime, "", requirements)
@@ -405,6 +406,7 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 	existing, exists := requirements[runtime.ID]
 
 	if !exists {
+		runtimeSetupLog.Printf("Adding new runtime requirement: %s (version=%s)", runtime.ID, newVersion)
 		requirements[runtime.ID] = &RuntimeRequirement{
 			Runtime: runtime,
 			Version: newVersion,

@@ -54,7 +54,8 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 		return nil
 	}
 
-	gatewayLog.Print("Generating MCP gateway steps")
+	gatewayLog.Printf("Generating MCP gateway steps: port=%d, container=%s, command=%s, servers=%d",
+		config.Port, config.Container, config.Command, len(mcpServersConfig))
 
 	var steps []GitHubActionStep
 

@@ -70,6 +70,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 
 	// Handle nil value (simple enable with defaults) - same as true
 	if repoMemoryValue == nil {
+		repoMemoryLog.Print("Using default repo-memory configuration (nil value)")
 		config.Memories = []RepoMemoryEntry{
 			{
 				ID:           "default",
@@ -85,6 +86,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	// Handle boolean value (simple enable/disable)
 	if boolValue, ok := repoMemoryValue.(bool); ok {
 		if boolValue {
+			repoMemoryLog.Print("Using default repo-memory configuration (boolean true)")
 			// Create a single default memory entry
 			config.Memories = []RepoMemoryEntry{
 				{
@@ -95,6 +97,8 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					CreateOrphan: true,
 				},
 			}
+		} else {
+			repoMemoryLog.Print("Repo-memory disabled (boolean false)")
 		}
 		// If false, return empty config (empty array means disabled)
 		return config, nil
@@ -215,6 +219,7 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 	// Handle object configuration (single memory, backward compatible)
 	// Convert to array with single entry
 	if configMap, ok := repoMemoryValue.(map[string]any); ok {
+		repoMemoryLog.Print("Processing object-style repo-memory configuration (backward compatible)")
 		entry := RepoMemoryEntry{
 			ID:           "default",
 			BranchName:   generateDefaultBranchName("default"),
