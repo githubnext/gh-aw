@@ -29,7 +29,7 @@ engine: copilot
 timeout-minutes: 10
 
 network:
-  allowed: ["go"]
+  allowed: ["defaults", "go"]
 
 tools:
   github:
