@@ -73,8 +73,11 @@ async function loadHandlers(config) {
           const messageHandler = await handlerModule.main(handlerConfig);
 
           if (typeof messageHandler !== "function") {
-            core.warning(`Handler ${type} main() did not return a function`);
-            continue;
+            // This is a fatal error - the handler is misconfigured
+            // Re-throw to fail the step rather than continuing
+            const error = new Error(`Handler ${type} main() did not return a function - expected a message handler function but got ${typeof messageHandler}`);
+            core.error(`✗ Fatal error loading handler ${type}: ${error.message}`);
+            throw error;
           }
 
           messageHandlers.set(type, messageHandler);
@@ -83,7 +86,13 @@ async function loadHandlers(config) {
           core.warning(`Handler module ${type} does not export a main function`);
         }
       } catch (error) {
-        core.warning(`Failed to load handler for ${type}: ${getErrorMessage(error)}`);
+        // Re-throw fatal handler validation errors
+        const errorMessage = getErrorMessage(error);
+        if (errorMessage.includes("did not return a function")) {
+          throw error;
+        }
+        // For other errors (e.g., module not found), log warning and continue
+        core.warning(`Failed to load handler for ${type}: ${errorMessage}`);
       }
     } else {
       core.debug(`Handler not enabled: ${type}`);
