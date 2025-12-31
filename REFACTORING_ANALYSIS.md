@@ -54,8 +54,7 @@ The validation system is **well-organized** and follows the architecture documen
 ├── secrets_validation.go (28 lines) - Secret validation
 ├── gateway_validation.go (24 lines) - Gateway config
 ├── compiler_filters_validation.go (106 lines) - Filter validation
-├── safe_output_validation_config.go (293 lines) - Safe outputs
-└── npm_validation.go (88 lines) - NPM validation
+└── safe_output_validation_config.go (293 lines) - Safe outputs
 ```
 
 **Pattern**: Each validation file is focused on a specific domain, with clear naming conventions.
