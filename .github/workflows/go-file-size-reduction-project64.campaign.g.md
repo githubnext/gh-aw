@@ -33,6 +33,7 @@ tools:
         - branch-name: memory/campaigns
           file-glob:
             - go-file-size-reduction-project64-*/**
+            - go-file-size-reduction-project64/**
           id: campaigns
 ---
 
