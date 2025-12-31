@@ -10,46 +10,49 @@ import (
 
 var orchestratorLog = logger.New("campaign:orchestrator")
 
-// extractFileGlobPattern extracts the file glob pattern from memory-paths or
-// metrics-glob configuration. This pattern is used for the file-glob filter in
+// convertStringsToAny converts a slice of strings to a slice of any
+func convertStringsToAny(strings []string) []any {
+	result := make([]any, len(strings))
+	for i, s := range strings {
+		result[i] = s
+	}
+	return result
+}
+
+// extractFileGlobPatterns extracts all file glob patterns from memory-paths or
+// metrics-glob configuration. These patterns are used for the file-glob filter in
 // repo-memory configuration to match files that the agent creates.
 //
 // For campaigns that use dated directory patterns (e.g., campaign-id-*/), this
-// function preserves the wildcard pattern instead of using just the campaign ID.
+// function preserves all wildcard patterns from memory-paths to support multiple
+// directory structures (both dated and non-dated).
 //
 // Examples:
-//   - memory-paths: ["memory/campaigns/project64-*/**"] -> "project64-*/**"
-//   - metrics-glob: "memory/campaigns/project64-*/metrics/*.json" -> "project64-*/**"
-//   - no patterns with wildcards -> "project64/**" (fallback to ID)
-func extractFileGlobPattern(spec *CampaignSpec) string {
-	// Try to extract pattern from memory-paths first
-	// Prefer patterns with wildcards in the directory name (e.g., campaign-id-*)
-	var firstValidPattern string
+//   - memory-paths: ["memory/campaigns/project64-*/**", "memory/campaigns/project64/**"] 
+//     -> ["project64-*/**", "project64/**"]
+//   - memory-paths: ["memory/campaigns/project64-*/**"] -> ["project64-*/**"]
+//   - metrics-glob: "memory/campaigns/project64-*/metrics/*.json" -> ["project64-*/**"]
+//   - no patterns with wildcards -> ["project64/**"] (fallback to ID)
+func extractFileGlobPatterns(spec *CampaignSpec) []string {
+	var patterns []string
+	
+	// Extract all patterns from memory-paths
 	for _, memPath := range spec.MemoryPaths {
 		// Remove "memory/campaigns/" prefix if present
 		pattern := strings.TrimPrefix(memPath, "memory/campaigns/")
 		// If pattern has both wildcards and slashes, it's a valid pattern
 		if strings.Contains(pattern, "*") && strings.Contains(pattern, "/") {
-			// Check if wildcard is in the directory name (not just in **)
-			if strings.Contains(strings.Split(pattern, "/")[0], "*") {
-				// This pattern has a wildcard in the directory name - prefer it
-				orchestratorLog.Printf("Extracted file-glob pattern from memory-paths (with wildcard): %s", pattern)
-				return pattern
-			}
-			// Save this as a fallback valid pattern
-			if firstValidPattern == "" {
-				firstValidPattern = pattern
-			}
+			patterns = append(patterns, pattern)
+			orchestratorLog.Printf("Extracted file-glob pattern from memory-paths: %s", pattern)
 		}
 	}
 
-	// If we found a valid pattern (even without directory wildcard), use it
-	if firstValidPattern != "" {
-		orchestratorLog.Printf("Extracted file-glob pattern from memory-paths: %s", firstValidPattern)
-		return firstValidPattern
+	// If we found patterns from memory-paths, return them
+	if len(patterns) > 0 {
+		return patterns
 	}
 
-	// Try to extract pattern from metrics-glob
+	// Try to extract pattern from metrics-glob as fallback
 	if spec.MetricsGlob != "" {
 		pattern := strings.TrimPrefix(spec.MetricsGlob, "memory/campaigns/")
 		if strings.Contains(pattern, "*") {
@@ -57,7 +60,7 @@ func extractFileGlobPattern(spec *CampaignSpec) string {
 			if idx := strings.Index(pattern, "/metrics/"); idx > 0 {
 				basePattern := pattern[:idx] + "/**"
 				orchestratorLog.Printf("Extracted file-glob pattern from metrics-glob: %s", basePattern)
-				return basePattern
+				return []string{basePattern}
 			}
 		}
 	}
@@ -65,7 +68,7 @@ func extractFileGlobPattern(spec *CampaignSpec) string {
 	// Fallback to simple ID-based pattern
 	fallbackPattern := fmt.Sprintf("%s/**", spec.ID)
 	orchestratorLog.Printf("Using fallback file-glob pattern: %s", fallbackPattern)
-	return fallbackPattern
+	return []string{fallbackPattern}
 }
 
 // BuildOrchestrator constructs a minimal agentic workflow representation for a
@@ -259,9 +262,9 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
 
-	// Extract file-glob pattern from memory-paths or metrics-glob to support
-	// dated campaign directory patterns like "campaign-id-*/**"
-	fileGlobPattern := extractFileGlobPattern(spec)
+	// Extract file-glob patterns from memory-paths or metrics-glob to support
+	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
+	fileGlobPatterns := extractFileGlobPatterns(spec)
 
 	data := &workflow.WorkflowData{
 		Name:            name,
@@ -283,7 +286,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 				map[string]any{
 					"id":          "campaigns",
 					"branch-name": "memory/campaigns",
-					"file-glob":   []any{fileGlobPattern},
+					"file-glob":   convertStringsToAny(fileGlobPatterns),
 				},
 			},
 			"bash": []any{"*"},

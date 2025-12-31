@@ -10,6 +10,7 @@ workflows:
 tracker-label: "campaign:go-file-size-reduction-project64"
 memory-paths:
   - "memory/campaigns/go-file-size-reduction-project64-*/**"
+  - "memory/campaigns/go-file-size-reduction-project64/**"
 metrics-glob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json"
 state: active
 tags:
