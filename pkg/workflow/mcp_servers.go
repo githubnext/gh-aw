@@ -445,8 +445,19 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	// Extract version setting from tool properties
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
-			if stringValue, ok := versionSetting.(string); ok {
-				githubDockerImageVersion = stringValue
+			// Handle different version types
+			switch v := versionSetting.(type) {
+			case string:
+				githubDockerImageVersion = v
+			case int:
+				githubDockerImageVersion = fmt.Sprintf("%d", v)
+			case int64:
+				githubDockerImageVersion = fmt.Sprintf("%d", v)
+			case uint64:
+				githubDockerImageVersion = fmt.Sprintf("%d", v)
+			case float64:
+				// Use %g to avoid trailing zeros and scientific notation for simple numbers
+				githubDockerImageVersion = fmt.Sprintf("%g", v)
 			}
 		}
 	}
@@ -617,8 +628,17 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
-			if stringValue, ok := versionSetting.(string); ok {
-				playwrightDockerImageVersion = stringValue
+			switch v := versionSetting.(type) {
+			case string:
+				playwrightDockerImageVersion = v
+			case int:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case int64:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case uint64:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case float64:
+				playwrightDockerImageVersion = fmt.Sprintf("%g", v)
 			}
 		}
 	}

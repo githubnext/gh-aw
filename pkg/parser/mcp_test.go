@@ -209,6 +209,52 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "GitHub tool with integer version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"version": 20,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:20",
+					},
+					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "GitHub tool with float version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"version": 3.11,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:3.11",
+					},
+					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
 			name: "Playwright tool default configuration",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
@@ -273,6 +319,78 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with integer version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         20,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:20",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with float version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         1.41,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:1.41",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with int64 version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         int64(142),
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:142",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
 				},
 			},
 		},
