@@ -1,17 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
+const path = require("path");
+const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
+
 /**
  * Parses firewall logs and creates a step summary
  * Firewall log format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
  */
 
-const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
-
 async function main() {
-  const fs = require("fs");
-  const path = require("path");
-
   try {
     // Get the firewall logs directory path - awf writes logs to /tmp/gh-aw/sandbox/firewall/logs
     const squidLogsDir = `/tmp/gh-aw/sandbox/firewall/logs/`;
