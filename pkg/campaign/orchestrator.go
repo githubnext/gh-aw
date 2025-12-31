@@ -209,14 +209,17 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
-	promptData := CampaignPromptData{ProjectURL: strings.TrimSpace(spec.ProjectURL)}
-	promptData.Objective = strings.TrimSpace(spec.Objective)
+	promptData := CampaignPromptData{
+		CampaignID:  spec.ID,
+		ProjectURL:  strings.TrimSpace(spec.ProjectURL),
+		Objective:   strings.TrimSpace(spec.Objective),
+		TrackerLabel: strings.TrimSpace(spec.TrackerLabel),
+		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
+		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
+	}
 	if len(spec.KPIs) > 0 {
 		promptData.KPIs = spec.KPIs
 	}
-	promptData.TrackerLabel = strings.TrimSpace(spec.TrackerLabel)
-	promptData.CursorGlob = strings.TrimSpace(spec.CursorGlob)
-	promptData.MetricsGlob = strings.TrimSpace(spec.MetricsGlob)
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
 		promptData.MaxDiscoveryPagesPerRun = spec.Governance.MaxDiscoveryPagesPerRun
