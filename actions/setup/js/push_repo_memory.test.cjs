@@ -101,19 +101,24 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
     it("should correctly match .jsonl files with *.jsonl pattern", () => {
       // Test case for validating .jsonl file pattern matching
       // This validates the fix for: https://github.com/githubnext/gh-aw/actions/runs/20601784686/job/59169295542#step:7:1
+      // And: https://github.com/githubnext/gh-aw/actions/runs/20608399402/job/59188647531#step:7:1
       // The daily-code-metrics workflow uses file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
       // and writes history.jsonl file to repo memory at memory/default/history.jsonl
 
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
-      const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
-        const regexPattern = pattern
-          .replace(/\\/g, "\\\\")
-          .replace(/\./g, "\\.")
-          .replace(/\*\*/g, "<!DOUBLESTAR>")
-          .replace(/\*/g, "[^/]*")
-          .replace(/<!DOUBLESTAR>/g, ".*");
-        return new RegExp(`^${regexPattern}$`);
-      });
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
 
       // Should match .jsonl files (the actual file from workflow run: history.jsonl)
       // Note: Pattern matching is done on relative filename only, not full path
@@ -153,6 +158,38 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Should NOT match other extensions
       expect(patterns.some(p => p.test("script.js"))).toBe(false);
       expect(patterns.some(p => p.test("image.png"))).toBe(false);
+    });
+
+    it("should handle patterns with leading/trailing whitespace", () => {
+      // Test that trim() and filter(Boolean) properly handle edge cases
+      // This validates that empty patterns from whitespace don't cause issues
+      const fileGlobFilter = " *.json  *.jsonl  *.csv  *.md "; // Extra spaces
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // Should still have exactly 4 patterns (empty strings filtered out)
+      expect(patterns.length).toBe(4);
+
+      // Should still match valid files
+      expect(patterns.some(p => p.test("history.jsonl"))).toBe(true);
+      expect(patterns.some(p => p.test("data.json"))).toBe(true);
+      expect(patterns.some(p => p.test("metrics.csv"))).toBe(true);
+      expect(patterns.some(p => p.test("README.md"))).toBe(true);
+
+      // Should NOT match disallowed extensions
+      expect(patterns.some(p => p.test("script.js"))).toBe(false);
     });
 
     it("should handle exact filename patterns", () => {

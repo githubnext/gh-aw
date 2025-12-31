@@ -97,9 +97,9 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", title: "Updated title" }],
     });
-    process.env.GH_AW_UPDATE_TITLE = "true";
+    const config = { allow_title: true };
     global.context.eventName = "push";
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
     expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in discussion context, skipping discussion update');
     expect(mockGithub.graphql).not.toHaveBeenCalled();
   });
@@ -108,7 +108,7 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", title: "Updated discussion title" }],
     });
-    process.env.GH_AW_UPDATE_TITLE = "true";
+    const config = { allow_title: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -146,7 +146,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -159,7 +159,7 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", body: "New discussion body content" }],
     });
-    process.env.GH_AW_UPDATE_BODY = "true";
+    const config = { allow_body: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -197,7 +197,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -213,8 +213,7 @@ describe("update_discussion.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_UPDATE_TITLE = "true";
-    process.env.GH_AW_UPDATE_BODY = "true";
+    const config = { allow_title: true, allow_body: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -254,7 +253,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
   });
@@ -269,8 +268,7 @@ describe("update_discussion.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_UPDATE_TITLE = "true";
-    process.env.GH_AW_UPDATE_TARGET = "*";
+    const config = { allow_title: true, target: "*" };
     global.context.eventName = "push";
 
     const mockDiscussion = {
@@ -308,7 +306,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Should use the explicit discussion number 456
@@ -325,11 +323,10 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", title: "New title" }],
     });
-    process.env.GH_AW_UPDATE_TITLE = "false";
-    process.env.GH_AW_UPDATE_BODY = "false";
+    const config = { allow_title: false, allow_body: false };
     global.context.eventName = "discussion";
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith("No valid updates to apply for this item");
     expect(mockGithub.graphql).not.toHaveBeenCalled();
@@ -339,7 +336,7 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", body: "New discussion body" }],
     });
-    process.env.GH_AW_UPDATE_BODY = "true";
+    const config = { allow_body: true };
     process.env.GH_AW_WORKFLOW_NAME = "Custom Workflow";
     process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
       footer: "> Custom footer by [{workflow_name}]({run_url})",
@@ -388,7 +385,7 @@ describe("update_discussion.cjs", () => {
       });
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
     // Verify the custom footer was used
@@ -400,7 +397,7 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", labels: ["bug", "enhancement"] }],
     });
-    process.env.GH_AW_UPDATE_LABELS = "true";
+    const config = { allow_labels: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -462,7 +459,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_number", 123);
@@ -479,8 +476,7 @@ describe("update_discussion.cjs", () => {
         },
       ],
     });
-    process.env.GH_AW_UPDATE_TITLE = "true";
-    process.env.GH_AW_UPDATE_LABELS = "true";
+    const config = { allow_title: true, allow_labels: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -543,7 +539,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
   });
@@ -552,7 +548,7 @@ describe("update_discussion.cjs", () => {
     setAgentOutput({
       items: [{ type: "update_discussion", labels: ["label-150"] }],
     });
-    process.env.GH_AW_UPDATE_LABELS = "true";
+    const config = { allow_labels: true };
     global.context.eventName = "discussion";
 
     const mockDiscussion = {
@@ -631,7 +627,7 @@ describe("update_discussion.cjs", () => {
       },
     });
 
-    await eval(`(async () => { ${updateDiscussionScript}; await main(); })()`);
+    await eval(`(async () => { ${updateDiscussionScript}; await main(${JSON.stringify(config)}); })()`);
 
     // Verify pagination occurred: 1 (get discussion) + 2 (label pages) + 1 (add labels) + 1 (final query) = 5
     expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
