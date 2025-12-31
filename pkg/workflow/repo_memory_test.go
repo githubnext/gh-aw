@@ -663,46 +663,46 @@ func TestRepoMemoryMaxFileCountValidationArray(t *testing.T) {
 
 // TestRepoMemoryConfigWithCampaignID tests repo-memory configuration with campaign-id field
 func TestRepoMemoryConfigWithCampaignID(t *testing.T) {
-toolsMap := map[string]any{
-"repo-memory": []any{
-map[string]any{
-"id":          "campaigns",
-"branch-name": "memory/campaigns",
-"file-glob":   []any{"go-file-size-reduction-project64/**"},
-"campaign-id": "go-file-size-reduction-project64",
-},
-},
-}
+	toolsMap := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "campaigns",
+				"branch-name": "memory/campaigns",
+				"file-glob":   []any{"go-file-size-reduction-project64/**"},
+				"campaign-id": "go-file-size-reduction-project64",
+			},
+		},
+	}
 
-toolsConfig, err := ParseToolsConfig(toolsMap)
-if err != nil {
-t.Fatalf("Failed to parse tools config: %v", err)
-}
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	if err != nil {
+		t.Fatalf("Failed to parse tools config: %v", err)
+	}
 
-compiler := NewCompiler(false, "", "test")
-config, err := compiler.extractRepoMemoryConfig(toolsConfig)
-if err != nil {
-t.Fatalf("Failed to extract repo-memory config: %v", err)
-}
+	compiler := NewCompiler(false, "", "test")
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig)
+	if err != nil {
+		t.Fatalf("Failed to extract repo-memory config: %v", err)
+	}
 
-if config == nil {
-t.Fatal("Expected non-nil config")
-}
+	if config == nil {
+		t.Fatal("Expected non-nil config")
+	}
 
-if len(config.Memories) != 1 {
-t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
-}
+	if len(config.Memories) != 1 {
+		t.Fatalf("Expected 1 memory, got %d", len(config.Memories))
+	}
 
-memory := config.Memories[0]
-if memory.ID != "campaigns" {
-t.Errorf("Expected ID 'campaigns', got '%s'", memory.ID)
-}
+	memory := config.Memories[0]
+	if memory.ID != "campaigns" {
+		t.Errorf("Expected ID 'campaigns', got '%s'", memory.ID)
+	}
 
-if memory.CampaignID != "go-file-size-reduction-project64" {
-t.Errorf("Expected campaign ID 'go-file-size-reduction-project64', got '%s'", memory.CampaignID)
-}
+	if memory.CampaignID != "go-file-size-reduction-project64" {
+		t.Errorf("Expected campaign ID 'go-file-size-reduction-project64', got '%s'", memory.CampaignID)
+	}
 
-if len(memory.FileGlob) != 1 || memory.FileGlob[0] != "go-file-size-reduction-project64/**" {
-t.Errorf("Expected file glob 'go-file-size-reduction-project64/**', got %v", memory.FileGlob)
-}
+	if len(memory.FileGlob) != 1 || memory.FileGlob[0] != "go-file-size-reduction-project64/**" {
+		t.Errorf("Expected file glob 'go-file-size-reduction-project64/**', got %v", memory.FileGlob)
+	}
 }
