@@ -383,7 +383,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		// Mount copilot CLI binary from /usr/local/bin (where the installer script places it)
 		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/copilot:/usr/local/bin/copilot:ro")
-		
+
 		// Mount .copilot directory for MCP configuration
 		// XDG_CONFIG_HOME is set to /home/runner, so Copilot CLI looks for config at /home/runner/.copilot/mcp-config.json
 		// Mount host /home/runner/.copilot to container /home/runner/.copilot so the config is accessible
