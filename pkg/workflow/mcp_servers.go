@@ -617,8 +617,17 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
-			if stringValue, ok := versionSetting.(string); ok {
-				playwrightDockerImageVersion = stringValue
+			switch v := versionSetting.(type) {
+			case string:
+				playwrightDockerImageVersion = v
+			case int:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case int64:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case uint64:
+				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
+			case float64:
+				playwrightDockerImageVersion = fmt.Sprintf("%g", v)
 			}
 		}
 	}

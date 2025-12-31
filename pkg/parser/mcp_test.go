@@ -276,6 +276,78 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Playwright tool with integer version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         20,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:20",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with float version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         1.41,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:1.41",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+				},
+			},
+		},
+		{
+			name: "Playwright tool with int64 version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"playwright": map[string]any{
+						"allowed_domains": []any{"example.com"},
+						"version":         int64(142),
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "playwright",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+						"mcr.microsoft.com/playwright:142",
+					},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+				},
+			},
+		},
 
 		{
 			name: "Server filter - matching",

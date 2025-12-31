@@ -51,6 +51,36 @@ func TestVersionField(t *testing.T) {
 		if result != string(constants.DefaultPlaywrightBrowserVersion) {
 			t.Errorf("Expected default %s, got %s", string(constants.DefaultPlaywrightBrowserVersion), result)
 		}
+
+		// Test integer version
+		playwrightToolInt := map[string]any{
+			"allowed_domains": []any{"example.com"},
+			"version":         20,
+		}
+		result = getPlaywrightDockerImageVersion(playwrightToolInt)
+		if result != "20" {
+			t.Errorf("Expected 20, got %s", result)
+		}
+
+		// Test float version
+		playwrightToolFloat := map[string]any{
+			"allowed_domains": []any{"example.com"},
+			"version":         1.41,
+		}
+		result = getPlaywrightDockerImageVersion(playwrightToolFloat)
+		if result != "1.41" {
+			t.Errorf("Expected 1.41, got %s", result)
+		}
+
+		// Test int64 version
+		playwrightToolInt64 := map[string]any{
+			"allowed_domains": []any{"example.com"},
+			"version":         int64(142),
+		}
+		result = getPlaywrightDockerImageVersion(playwrightToolInt64)
+		if result != "142" {
+			t.Errorf("Expected 142, got %s", result)
+		}
 	})
 
 	// Test MCP parser integration
@@ -113,6 +143,66 @@ func TestVersionField(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("Expected to find v1.41.0 in args, got: %v", configs[0].Args)
+		}
+
+		// Test Playwright tool with integer version
+		frontmatterPlaywrightInt := map[string]any{
+			"tools": map[string]any{
+				"playwright": map[string]any{
+					"allowed_domains": []any{"example.com"},
+					"version":         20,
+				},
+			},
+		}
+
+		configs, err = parser.ExtractMCPConfigurations(frontmatterPlaywrightInt, "")
+		if err != nil {
+			t.Fatalf("Error parsing Playwright with integer version: %v", err)
+		}
+
+		if len(configs) == 0 {
+			t.Fatal("No configs returned")
+		}
+
+		found = false
+		for _, arg := range configs[0].Args {
+			if strings.Contains(arg, "mcr.microsoft.com/playwright:20") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find :20 in args, got: %v", configs[0].Args)
+		}
+
+		// Test Playwright tool with float version
+		frontmatterPlaywrightFloat := map[string]any{
+			"tools": map[string]any{
+				"playwright": map[string]any{
+					"allowed_domains": []any{"example.com"},
+					"version":         1.41,
+				},
+			},
+		}
+
+		configs, err = parser.ExtractMCPConfigurations(frontmatterPlaywrightFloat, "")
+		if err != nil {
+			t.Fatalf("Error parsing Playwright with float version: %v", err)
+		}
+
+		if len(configs) == 0 {
+			t.Fatal("No configs returned")
+		}
+
+		found = false
+		for _, arg := range configs[0].Args {
+			if strings.Contains(arg, "mcr.microsoft.com/playwright:1.41") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected to find :1.41 in args, got: %v", configs[0].Args)
 		}
 	})
 }
