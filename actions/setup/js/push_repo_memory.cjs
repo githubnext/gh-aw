@@ -247,11 +247,10 @@ async function main() {
   }
 
   // Create destination directory in repo
-  // Extract the relative folder path from the branch name
-  // For branch "memory/code-metrics", use "memory/code-metrics" as the destination path
-  // This ensures the folder structure matches the branch name
-  const destMemoryPath = path.join(workspaceDir, branchName);
-  fs.mkdirSync(destMemoryPath, { recursive: true });
+  // Files are copied to the root of the checked-out branch (workspaceDir)
+  // The branch name (e.g., "memory/campaigns") identifies the branch,
+  // but files go at the branch root, not in a nested subdirectory
+  const destMemoryPath = workspaceDir;
   core.info(`Destination directory: ${destMemoryPath}`);
 
   // Recursively scan and collect files from artifact directory
