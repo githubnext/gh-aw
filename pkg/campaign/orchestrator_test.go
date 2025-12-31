@@ -315,10 +315,10 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 
 func TestExtractFileGlobPatterns(t *testing.T) {
 	tests := []struct {
-		name            string
-		spec            *CampaignSpec
-		expectedGlobs   []string
-		expectedLogMsg  string
+		name           string
+		spec           *CampaignSpec
+		expectedGlobs  []string
+		expectedLogMsg string
 	}{
 		{
 			name: "flexible pattern matching both dated and non-dated",
@@ -343,7 +343,7 @@ func TestExtractFileGlobPatterns(t *testing.T) {
 		{
 			name: "multiple patterns in memory-paths",
 			spec: &CampaignSpec{
-				ID:          "go-file-size-reduction-project64",
+				ID: "go-file-size-reduction-project64",
 				MemoryPaths: []string{
 					"memory/campaigns/go-file-size-reduction-project64-*/**",
 					"memory/campaigns/go-file-size-reduction-project64/**",

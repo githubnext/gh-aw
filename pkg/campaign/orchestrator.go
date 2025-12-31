@@ -28,14 +28,14 @@ func convertStringsToAny(strings []string) []any {
 // directory structures (both dated and non-dated).
 //
 // Examples:
-//   - memory-paths: ["memory/campaigns/project64-*/**", "memory/campaigns/project64/**"] 
+//   - memory-paths: ["memory/campaigns/project64-*/**", "memory/campaigns/project64/**"]
 //     -> ["project64-*/**", "project64/**"]
 //   - memory-paths: ["memory/campaigns/project64-*/**"] -> ["project64-*/**"]
 //   - metrics-glob: "memory/campaigns/project64-*/metrics/*.json" -> ["project64-*/**"]
 //   - no patterns with wildcards -> ["project64/**"] (fallback to ID)
 func extractFileGlobPatterns(spec *CampaignSpec) []string {
 	var patterns []string
-	
+
 	// Extract all patterns from memory-paths
 	for _, memPath := range spec.MemoryPaths {
 		// Remove "memory/campaigns/" prefix if present
