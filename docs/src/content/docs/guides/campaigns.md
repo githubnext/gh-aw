@@ -3,17 +3,21 @@ title: "Agentic campaigns"
 description: "Run structured, visible delegation initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-Agentic Campaigns are bounded, goal-driven efforts where agents carry out work over time.
+Agentic campaigns are bounded, goal-driven efforts where agents carry out work over time.
 
-In practice, it is the step from automation to delegation. Workflows are already capable of running continuously (scheduled, event-driven, and re-run), and many initiatives should be automated that way. An agentic campaign is the convention that makes that continuous work easy to see, review, and steer toward a specific goal.
+Agentic workflows are already capable of running continuously (scheduled, event-driven, and re-run), and many initiatives should be automated that way. An agentic campaign is the step from automation to delegation which makes this continuous work easy to see, review, and steer toward a specific goal, is the step from automation to delegation.
 
-For example, a GitHub Agentic Workflows workflow can run an agent on a schedule, decide whether a repo needs a dependency bump, and then emit a `create_pull_request` safe-output to open the PR. An agentic campaign uses that same kind of agentic workflow as a repeatable worker and adds the coordination layer: it defines the objective and KPIs, applies a tracker label like `campaign:<id>`, keeps a GitHub Project updated, and writes durable progress (a `cursor.json` checkpoint plus `metrics/*.json` snapshots) to repo-memory until the goal is met.
+For example, an agentic workflow can run an agent on a schedule, decide whether a repo needs a dependency bump, and then emit a `create_pull_request` safe-output to open the PR. An agentic campaign uses that same kind of agentic workflow as a repeatable worker and adds the coordination layer: it defines the objective and KPIs, applies a tracker label, keeps a GitHub Project updated, and writes durable progress to repo-memory until the goal is met.
 
 ## When to use a campaign
 
-Use a campaign when you care about progress across days or weeks (scope, tracking, and reporting), not just the output of one execution.
+Use a campaign when you need to track progress over time (days/weeks). Use an agentic workflow when you just need a single automated run with logs/artifacts and pass/fail.
 
-If what you need is run-level automation with logs, artifacts, and pass/fail, agentic workflows are enough. If what you need is a bounded, goal-driven initiative with a dashboard, a tracker label, and ongoing reporting, you want the campaign pattern.
+- Example of an agentic workflow (single run):
+  > Every time a new discussion is created, classify it and apply labels. If it fails, show an error in the run logs.
+
+- Example of an agentic campaign (ongoing initiative):
+  > Over the next two weeks, label and triage 500 existing Actions discussions to a new taxonomy, track completion with a campaign:actions-labeling label, and publish weekly progress updates (done/remaining, top failure reasons).
 
 ## What you get
 
