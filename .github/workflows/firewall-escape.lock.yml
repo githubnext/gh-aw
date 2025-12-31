@@ -638,14 +638,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: prompt.txt
+          name: prompt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: aw_info.json
+          name: aw-info
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Execute GitHub Copilot CLI

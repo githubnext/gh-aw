@@ -230,7 +230,7 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 // and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs
 func buildAgentOutputDownloadSteps() []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "agent_output.json", // Use constant value directly to avoid import cycle
+		ArtifactName: "agent-output", // Use hyphenated name without extension
 		DownloadPath: "/tmp/gh-aw/safeoutputs/",
 		SetupEnvStep: true,
 		EnvVarName:   "GH_AW_AGENT_OUTPUT",

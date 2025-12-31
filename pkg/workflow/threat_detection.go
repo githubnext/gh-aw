@@ -190,7 +190,7 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 
 	// Download prompt artifact
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "prompt.txt",
+		ArtifactName: "prompt",
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
 		StepName:     "Download prompt artifact",
@@ -198,7 +198,7 @@ func (c *Compiler) buildDownloadArtifactStep(mainJobName string) []string {
 
 	// Download agent output artifact
 	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
-		ArtifactName: "agent_output.json",
+		ArtifactName: constants.AgentOutputArtifactName,
 		DownloadPath: "/tmp/gh-aw/threat-detection/",
 		SetupEnvStep: false,
 		StepName:     "Download agent output artifact",

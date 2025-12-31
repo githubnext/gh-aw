@@ -55,8 +55,9 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
 		steps = append(steps, fmt.Sprintf("          find \"%s\" -type f -print\n", config.DownloadPath))
-		// Configure environment variable to point to downloaded artifact file
-		artifactPath := fmt.Sprintf("%s%s", config.DownloadPath, config.ArtifactName)
+		// artifacts are extracted to {download-path}/{artifact-name}/
+		// The actual file is agent_output.json inside that directory
+		artifactPath := fmt.Sprintf("%s%s/agent_output.json", config.DownloadPath, config.ArtifactName)
 		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 

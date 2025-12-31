@@ -702,12 +702,12 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"- name: Download agent output artifact",
 		"continue-on-error: true",
 		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
-		"name: agent_output.json",
+		"name: agent-output",
 		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",
 		"mkdir -p /tmp/gh-aw/safeoutputs/",
 		"find \"/tmp/gh-aw/safeoutputs/\" -type f -print",
-		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
+		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent-output/agent_output.json",
 	}
 
 	for _, expected := range expectedComponents {

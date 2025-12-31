@@ -293,8 +293,8 @@ const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
-const SafeOutputArtifactName = "safe_output.jsonl"
-const AgentOutputArtifactName = "agent_output.json"
+const SafeOutputArtifactName = "safe-output"
+const AgentOutputArtifactName = "agent-output"
 
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID = "safeoutputs"
