@@ -253,6 +253,37 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "A test job with choice input",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "environment": {
+                    "description": "Target environment",
+                    "enum": [
+                      "staging",
+                      "production"
+                    ],
+                    "type": "string"
+                  },
+                  "test_type": {
+                    "description": "Type of test to run",
+                    "enum": [
+                      "smoke",
+                      "integration",
+                      "e2e"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "environment",
+                  "test_type"
+                ],
+                "type": "object"
+              },
+              "name": "test_environment"
             }
           ]
           EOF
