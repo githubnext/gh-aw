@@ -379,6 +379,17 @@ jobs:
       - name: Run benchmarks
         run: make bench
 
+      - name: Display benchmark summary
+        run: |
+          echo "## 📊 Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          # Show compiler benchmarks from the results
+          grep "BenchmarkCompile" bench_results.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "No benchmark results found" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📁 Full results saved to artifact: benchmark-results" >> $GITHUB_STEP_SUMMARY
+
       # Benchmark results for performance trend analysis - 14 days allows comparison across multiple runs
       - name: Save benchmark results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
