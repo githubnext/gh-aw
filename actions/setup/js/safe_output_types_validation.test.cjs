@@ -14,11 +14,7 @@ import path from "path";
 
 describe("Safe Output Types Validation", () => {
   const typeDefsPath = path.join(__dirname, "types", "safe-outputs.d.ts");
-  const configDefsPath = path.join(
-    __dirname,
-    "types",
-    "safe-outputs-config.d.ts"
-  );
+  const configDefsPath = path.join(__dirname, "types", "safe-outputs-config.d.ts");
 
   it("safe-outputs.d.ts should NOT contain github-token field", () => {
     const content = fs.readFileSync(typeDefsPath, "utf-8");
@@ -40,9 +36,7 @@ describe("Safe Output Types Validation", () => {
 
     // Verify it's in the right places (base config and safe job config)
     const lines = content.split("\n");
-    const githubTokenLines = lines.filter((line) =>
-      line.includes('"github-token"')
-    );
+    const githubTokenLines = lines.filter(line => line.includes('"github-token"'));
 
     // Should appear at least twice: once in SafeOutputConfig, once in SafeJobConfig
     expect(githubTokenLines.length).toBeGreaterThanOrEqual(2);
@@ -95,9 +89,7 @@ describe("Safe Output Types Validation", () => {
     const content = fs.readFileSync(typeDefsPath, "utf-8");
 
     // Extract BaseSafeOutputItem definition
-    const baseInterfaceMatch = content.match(
-      /interface BaseSafeOutputItem\s*{([^}]*)}/
-    );
+    const baseInterfaceMatch = content.match(/interface BaseSafeOutputItem\s*{([^}]*)}/);
     expect(baseInterfaceMatch).toBeTruthy();
 
     if (baseInterfaceMatch) {
@@ -118,9 +110,7 @@ describe("Safe Output Types Validation", () => {
     const content = fs.readFileSync(configDefsPath, "utf-8");
 
     // Extract SafeOutputConfig definition
-    const baseInterfaceMatch = content.match(
-      /interface SafeOutputConfig\s*{([^}]*)}/
-    );
+    const baseInterfaceMatch = content.match(/interface SafeOutputConfig\s*{([^}]*)}/);
     expect(baseInterfaceMatch).toBeTruthy();
 
     if (baseInterfaceMatch) {

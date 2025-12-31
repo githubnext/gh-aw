@@ -905,5 +905,61 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         expect(matches).toBe(true);
       }
     });
+
+    it("should match patterns against relative paths, not branch-prefixed paths", () => {
+      // This test validates the fix for: https://github.com/githubnext/gh-aw/actions/runs/20613564835
+      // Campaign workflows specify patterns relative to the memory directory,
+      // not including the branch name prefix.
+      //
+      // Example scenario:
+      // - Branch name: memory/campaigns
+      // - File in artifact: go-file-size-reduction-project64/cursor.json
+      // - Pattern: go-file-size-reduction-project64/**
+      //
+      // The pattern should match the file's relative path within the memory directory,
+      // NOT the full branch path (memory/campaigns/go-file-size-reduction-project64/cursor.json).
+
+      const fileGlobFilter = "go-file-size-reduction-project64/**";
+      const relativeFilePath = "go-file-size-reduction-project64/cursor.json";
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // Test against relative path (CORRECT)
+      const normalizedRelPath = relativeFilePath.replace(/\\/g, "/");
+      const matchesRelativePath = patterns.some(p => p.test(normalizedRelPath));
+      expect(matchesRelativePath).toBe(true);
+
+      // Verify it would NOT match if we incorrectly prepended branch name
+      const branchName = "memory/campaigns";
+      const branchRelativePath = `${branchName}/${relativeFilePath}`;
+      const matchesBranchPath = patterns.some(p => p.test(branchRelativePath));
+      expect(matchesBranchPath).toBe(false); // This is the bug we're fixing!
+
+      // Additional test cases for the campaign pattern
+      const testFiles = [
+        { path: "go-file-size-reduction-project64/cursor.json", shouldMatch: true },
+        { path: "go-file-size-reduction-project64/metrics/2024-12-31.json", shouldMatch: true },
+        { path: "go-file-size-reduction-project64/data/config.yaml", shouldMatch: true },
+        { path: "other-campaign/cursor.json", shouldMatch: false },
+        { path: "cursor.json", shouldMatch: false },
+      ];
+
+      for (const { path, shouldMatch } of testFiles) {
+        const matches = patterns.some(p => p.test(path));
+        expect(matches).toBe(shouldMatch);
+      }
+    });
   });
 });
