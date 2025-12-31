@@ -2,9 +2,10 @@
 "gh-aw": patch
 ---
 
-Fix safe-inputs MCP server start step so tool secrets are passed to the server
+Ensure safe-inputs MCP server start step receives tool secrets via an
+`env:` block so the MCP server process inherits the correct environment.
+Removes redundant `export` statements in the start script that attempted
+to export variables that were not present in the step environment.
 
-Safe-inputs tools with `env:` configuration were not receiving their secrets because the MCP server start step
-exported variables that didn't exist in its environment. The start step now injects the collected tool secrets
-via an `env:` block so the Node.js server process inherits the required secrets.
+Fixes passing of secrets like `GH_AW_GH_TOKEN` to the MCP server process.
 
