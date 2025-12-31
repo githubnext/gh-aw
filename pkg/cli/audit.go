@@ -402,19 +402,19 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 
 	// Fetch job logs using gh CLI
 	args := []string{"run", "view"}
-	
+
 	// Add hostname flag if specified (for GitHub Enterprise)
 	if hostname != "" && hostname != "github.com" {
 		args = append(args, "--hostname", hostname)
 	}
-	
+
 	// Add repository flag if specified
 	if owner != "" && repo != "" {
 		args = append(args, "-R", fmt.Sprintf("%s/%s", owner, repo))
 	}
-	
+
 	args = append(args, "--job", fmt.Sprintf("%d", jobID), "--log")
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", jobID)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
@@ -427,7 +427,7 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	}
 
 	jobLogContent := string(output)
-	
+
 	// Save full job log
 	jobLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d.log", jobID))
 	if err := os.WriteFile(jobLogPath, []byte(jobLogContent), 0644); err != nil {
@@ -474,11 +474,11 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 	if !jsonOutput {
 		absOutputDir, _ := filepath.Abs(outputDir)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Job audit complete. Logs saved to %s", absOutputDir)))
-		
+
 		// Display file locations
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
 		fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)
-		
+
 		if stepNumber > 0 {
 			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
 			if _, err := os.Stat(stepLogPath); err == nil {
@@ -501,7 +501,7 @@ func extractStepOutput(jobLog string, stepNumber int) (string, error) {
 	lines := strings.Split(jobLog, "\n")
 	var stepOutput []string
 	inStep := false
-	stepPattern := fmt.Sprintf("##[group]Run ") // GitHub Actions step marker
+	stepPattern := "##[group]Run " // GitHub Actions step marker
 	stepEndPattern := "##[endgroup]"
 	currentStep := 0
 
@@ -550,12 +550,12 @@ func findFirstFailingStep(jobLog string) (int, string) {
 			foundFailure = false
 		} else if inStep {
 			stepOutput = append(stepOutput, line)
-			
+
 			// Detect failure indicators
-			if strings.Contains(line, "##[error]") || 
-			   strings.Contains(line, "Error:") ||
-			   strings.Contains(line, "FAILED") ||
-			   strings.Contains(line, "exit code") && !strings.Contains(line, "exit code 0") {
+			if strings.Contains(line, "##[error]") ||
+				strings.Contains(line, "Error:") ||
+				strings.Contains(line, "FAILED") ||
+				strings.Contains(line, "exit code") && !strings.Contains(line, "exit code 0") {
 				foundFailure = true
 			}
 		}

@@ -416,16 +416,16 @@ func TestParseGitHubURL_Errors(t *testing.T) {
 
 func TestParseRunURL(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		wantRunID     int64
-		wantOwner     string
-		wantRepo      string
-		wantHost      string
-		wantJobID     int64
-		wantStepNum   int
-		wantStepLine  int
-		wantErr       bool
+		name         string
+		input        string
+		wantRunID    int64
+		wantOwner    string
+		wantRepo     string
+		wantHost     string
+		wantJobID    int64
+		wantStepNum  int
+		wantStepLine int
+		wantErr      bool
 	}{
 		{
 			name:      "Numeric run ID",

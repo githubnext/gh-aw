@@ -1319,10 +1319,10 @@ Cleaning up...
 
 func TestFindFirstFailingStep(t *testing.T) {
 	tests := []struct {
-		name             string
-		jobLog           string
-		expectedStepNum  int
-		checkOutput      func(t *testing.T, output string)
+		name            string
+		jobLog          string
+		expectedStepNum int
+		checkOutput     func(t *testing.T, output string)
 	}{
 		{
 			name: "Find failing step with error marker",
