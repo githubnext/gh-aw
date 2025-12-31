@@ -32,7 +32,7 @@ tools:
     repo-memory:
         - branch-name: memory/campaigns
           file-glob:
-            - go-file-size-reduction-project64*/**
+            - go-file-size-reduction-project64/**
           id: campaigns
 ---
 
@@ -49,7 +49,7 @@ This workflow orchestrates the 'Go File Size Reduction Campaign (Project 64)' ca
   - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
   - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
 - Associated workflows: daily-file-diet
-- Memory paths: memory/campaigns/go-file-size-reduction-project64*/**
+- Memory paths: memory/campaigns/go-file-size-reduction-project64/**
 - Metrics glob: `memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json`
 - Project URL: https://github.com/orgs/githubnext/projects/64
 - Governance: max new items per run: 5
