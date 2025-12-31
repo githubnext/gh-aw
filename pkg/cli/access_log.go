@@ -32,9 +32,9 @@ type AccessLogEntry struct {
 // DomainAnalysis represents analysis of domains from access logs
 type DomainAnalysis struct {
 	DomainBuckets
-	TotalRequests int
-	AllowedCount  int
-	DeniedCount   int
+	TotalRequests int `json:"total_requests"`
+	AllowedCount  int `json:"allowed_count"`
+	DeniedCount   int `json:"denied_count"`
 }
 
 // AddMetrics adds metrics from another analysis
