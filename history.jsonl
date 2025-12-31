@@ -1,0 +1,172 @@
+{
+  "date": "2025-12-31",
+  "timestamp": 1767203566,
+  "metrics": {
+    "size": {
+      "total_loc": 425681,
+      "total_files": 1691,
+      "by_language": {
+        ".md": {
+          "files": 316,
+          "loc": 53073,
+          "comment_lines": 0
+        },
+        ".go": {
+          "files": 1081,
+          "loc": 307008,
+          "comment_lines": 30522
+        },
+        ".yml": {
+          "files": 4,
+          "loc": 332,
+          "comment_lines": 71
+        },
+        ".py": {
+          "files": 1,
+          "loc": 156,
+          "comment_lines": 17
+        },
+        ".js": {
+          "files": 7,
+          "loc": 2007,
+          "comment_lines": 397
+        },
+        ".ts": {
+          "files": 18,
+          "loc": 2345,
+          "comment_lines": 426
+        },
+        ".mjs": {
+          "files": 8,
+          "loc": 1482,
+          "comment_lines": 60
+        },
+        ".cjs": {
+          "files": 256,
+          "loc": 59278,
+          "comment_lines": 6311
+        }
+      },
+      "by_directory": {
+        "cmd": {
+          "files": 8,
+          "loc": 2057
+        },
+        "pkg": {
+          "files": 1202,
+          "loc": 313167
+        },
+        "internal": {
+          "files": 2,
+          "loc": 74
+        },
+        "docs": {
+          "files": 92,
+          "loc": 20187
+        },
+        ".github/workflows": {
+          "files": 319,
+          "loc": 257387
+        },
+        "skills": {
+          "files": 22,
+          "loc": 7063
+        },
+        "actions": {
+          "files": 264,
+          "loc": 60512
+        }
+      }
+    },
+    "quality": {
+      "avg_file_size": 251.7,
+      "large_files_count": 195,
+      "large_files": [
+        {
+          "path": "docs/src/content/docs/reference/frontmatter-full.md",
+          "loc": 2802
+        },
+        {
+          "path": "pkg/parser/schema_test.go",
+          "loc": 2111
+        },
+        {
+          "path": "actions/setup/js/log_parser_shared.test.cjs",
+          "loc": 2087
+        },
+        {
+          "path": "CHANGELOG.md",
+          "loc": 2075
+        },
+        {
+          "path": "skills/developer/SKILL.md",
+          "loc": 1910
+        },
+        {
+          "path": "pkg/cli/logs_test.go",
+          "loc": 1646
+        },
+        {
+          "path": "actions/setup/js/collect_ndjson_output.test.cjs",
+          "loc": 1638
+        },
+        {
+          "path": "actions/setup/js/log_parser_shared.cjs",
+          "loc": 1559
+        },
+        {
+          "path": "pkg/cli/templates/github-agentic-workflows.md",
+          "loc": 1555
+        },
+        {
+          "path": "pkg/workflow/permissions_test.go",
+          "loc": 1553
+        }
+      ],
+      "comment_lines": 37804,
+      "comment_ratio": 8.88
+    },
+    "tests": {
+      "test_files": 712,
+      "test_loc": 210889,
+      "test_to_source_ratio": 68.25
+    },
+    "churn": {
+      "files_modified": 1094,
+      "commits": 299,
+      "lines_added": 82733,
+      "lines_deleted": 650130,
+      "most_active_files": [
+        {
+          "file": ".github/workflows/super-linter.lock.yml",
+          "changes": 30
+        },
+        {
+          "file": ".github/workflows/stale-repo-identifier.lock.yml",
+          "changes": 29
+        },
+        {
+          "file": ".github/workflows/release.lock.yml",
+          "changes": 27
+        },
+        {
+          "file": ".github/workflows/issue-classifier.lock.yml",
+          "changes": 27
+        }
+      ]
+    },
+    "workflows": {
+      "count": 140,
+      "total_loc": 214773,
+      "avg_size": 1534.1,
+      "lock_files": 126
+    },
+    "docs": {
+      "files": 76,
+      "loc": 21034
+    },
+    "derived": {
+      "code_to_docs_ratio": 20.24
+    }
+  }
+}
