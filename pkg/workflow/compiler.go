@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -64,6 +65,14 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 // CompileWorkflowData compiles a workflow from already-parsed WorkflowData
 // This avoids re-parsing when the data has already been parsed
 func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+	// Track compilation time for performance monitoring
+	startTime := time.Now()
+	defer func() {
+		if log.Enabled() {
+			log.Printf("Compilation completed in %v", time.Since(startTime))
+		}
+	}()
+
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 

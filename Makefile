@@ -96,12 +96,21 @@ bench:
 	@echo "Running benchmarks..."
 	go test -bench=. -benchmem -benchtime=3x -run=^$$ ./pkg/... | tee bench_results.txt
 
-# Run benchmarks with comparison output
+# Run benchmarks with more iterations for comparison (saves to separate file)
 .PHONY: bench-compare
 bench-compare:
-	@echo "Running benchmarks and saving results..."
-	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_results.txt
-	@echo "Benchmark results saved to bench_results.txt"
+	@echo "Running benchmarks with more iterations for comparison..."
+	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_compare.txt
+	@echo "Comparison results saved to bench_compare.txt"
+	@echo "Compare with: benchstat bench_results.txt bench_compare.txt"
+
+# Run memory profiling benchmarks
+.PHONY: bench-memory
+bench-memory:
+	@echo "Running memory profiling benchmarks..."
+	go test -bench=. -benchmem -memprofile=mem.prof -cpuprofile=cpu.prof -benchtime=10x -run=^$$ ./pkg/workflow
+	@echo "Memory profile saved to mem.prof, CPU profile saved to cpu.prof"
+	@echo "View with: go tool pprof -http=:8080 mem.prof"
 
 # Run fuzz tests
 .PHONY: fuzz
@@ -191,8 +200,8 @@ clean:
 	rm -f bundle-js
 	@# Remove coverage files
 	rm -f coverage.out coverage.html
-	@# Remove benchmark results
-	rm -f bench_results.txt
+	@# Remove benchmark results and profiling data
+	rm -f bench_results.txt bench_compare.txt mem.prof cpu.prof
 	@# Remove SBOM files
 	rm -f sbom.spdx.json sbom.cdx.json
 	@# Remove security scan reports
@@ -562,7 +571,8 @@ help:
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
 	@echo "  bench            - Run benchmarks for performance testing"
-	@echo "  bench-compare    - Run benchmarks with comparison output"
+	@echo "  bench-compare    - Run benchmarks with more iterations (for benchstat comparison)"
+	@echo "  bench-memory     - Run memory profiling benchmarks with pprof output"
 	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"

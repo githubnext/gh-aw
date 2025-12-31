@@ -19,32 +19,17 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Inspects MCP (Model Context Protocol) server configurations and validates their functionality
+# Daily CLI Performance - Runs benchmarks, tracks performance trends, and reports regressions
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/arxiv.md
-#     - shared/mcp/ast-grep.md
-#     - shared/mcp/brave.md
-#     - shared/mcp/context7.md
-#     - shared/mcp/datadog.md
-#     - shared/mcp/deepwiki.md
-#     - shared/mcp/fabric-rti.md
-#     - shared/mcp/gh-aw.md
-#     - shared/mcp/markitdown.md
-#     - shared/mcp/microsoft-docs.md
-#     - shared/mcp/notion.md
-#     - shared/mcp/sentry.md
-#     - shared/mcp/server-memory.md
-#     - shared/mcp/slack.md
-#     - shared/mcp/tavily.md
 #     - shared/reporting.md
 
-name: "MCP Inspector Agent"
+name: "Daily CLI Performance Agent"
 "on":
   schedule:
-  - cron: "0 18 * * 1"
-    # Friendly format: weekly on monday at 18:00
+  - cron: "2 22 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
@@ -52,7 +37,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "MCP Inspector Agent"
+run-name: "Daily CLI Performance Agent"
 
 jobs:
   activation:
@@ -76,7 +61,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "mcp-inspector.lock.yml"
+          GH_AW_WORKFLOW_FILE: "daily-cli-performance.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -88,7 +73,6 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -119,49 +103,17 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          go-version: '1.25'
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-      - name: Install Go language service (gopls)
-        run: go install golang.org/x/tools/gopls@latest
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Install dependencies
-        run: make deps-dev
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Install binary as 'gh-aw'
-        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
-      - name: Install Markitdown MCP
-        run: pip install markitdown-mcp
-
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /tmp/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/cli-performance
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -267,37 +219,45 @@ jobs:
             done
           }
           
-          docker_pull_with_retry docker.io/mcp/brave-search
           docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
-          docker_pull_with_retry mcp/arxiv-mcp-server
-          docker_pull_with_retry mcp/ast-grep:latest
-          docker_pull_with_retry mcp/context7
-          docker_pull_with_retry mcp/memory
-          docker_pull_with_retry mcp/notion
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{"max":0},"noop":{"max":1},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
+          {"add_comment":{"max":5},"create_issue":{"max":3},"missing_tool":{"max":0},"noop":{"max":1}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Discussions will be created in category \"audits\".",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 3 issue(s) can be created. Title will be prefixed with \"[performance] \". Labels [performance automation] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
                     "type": "string"
                   },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
                     "type": "string"
                   },
                   "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
                     "type": "string"
                   }
                 },
@@ -307,7 +267,29 @@ jobs:
                 ],
                 "type": "object"
               },
-              "name": "create_discussion"
+              "name": "create_issue"
+            },
+            {
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 5 comment(s) can be added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.",
+                    "type": "string"
+                  },
+                  "item_number": {
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "body",
+                  "item_number"
+                ],
+                "type": "object"
+              },
+              "name": "add_comment"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -351,46 +333,12 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
-            },
-            {
-              "description": "Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "message": {
-                    "description": "The message to post (max 200 characters, supports Slack markdown)",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "post_to_slack_channel"
-            },
-            {
-              "description": "Add a comment to a Notion page",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "comment": {
-                    "description": "The comment text to add",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "comment"
-                ],
-                "type": "object"
-              },
-              "name": "notion_add_comment"
             }
           ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_discussion": {
+            "add_comment": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -399,14 +347,35 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "category": {
+                "item_number": {
+                  "issueOrPRNumber": true
+                }
+              }
+            },
+            "create_issue": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
                   "type": "string",
                   "sanitize": true,
-                  "maxLength": 128
+                  "maxLength": 65000
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
                 },
                 "repo": {
                   "type": "string",
                   "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
                 },
                 "title": {
                   "required": true,
@@ -461,134 +430,6 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "arxiv": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "search_arxiv",
-                  "get_paper_details",
-                  "get_paper_pdf"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
-                ]
-              },
-              "ast-grep": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/ast-grep:latest"
-                ]
-              },
-              "brave-search": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
-                ],
-                "env": {
-                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
-                }
-              },
-              "context7": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "get-library-docs",
-                  "resolve-library-id"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
-                ],
-                "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
-                }
-              },
-              "datadog": {
-                "type": "http",
-                "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-                "headers": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
-                },
-                "tools": [
-                  "search_datadog_dashboards",
-                  "search_datadog_slos",
-                  "search_datadog_metrics",
-                  "get_datadog_metric"
-                ],
-                "env": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
-                }
-              },
-              "deepwiki": {
-                "type": "http",
-                "url": "https://mcp.deepwiki.com/sse",
-                "tools": [
-                  "read_wiki_structure",
-                  "read_wiki_contents",
-                  "ask_question"
-                ]
-              },
-              "fabric-rti": {
-                "type": "local",
-                "command": "uvx",
-                "tools": [
-                  "kusto_known_services",
-                  "kusto_query",
-                  "kusto_list_databases",
-                  "kusto_list_tables",
-                  "kusto_get_entities_schema",
-                  "kusto_get_table_schema",
-                  "kusto_get_function_schema",
-                  "kusto_sample_table_data",
-                  "kusto_sample_function_data",
-                  "kusto_get_shots",
-                  "list_eventstreams",
-                  "get_eventstream",
-                  "get_eventstream_definition"
-                ],
-                "args": [
-                  "microsoft-fabric-rti-mcp"
-                ],
-                "env": {
-                  "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
-                  "AZURE_CLIENT_SECRET": "${{ secrets.AZURE_CLIENT_SECRET }}",
-                  "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
-                }
-              },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765",
-                "tools": [
-                  "*"
-                ]
-              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -611,59 +452,6 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
-              "markitdown": {
-                "type": "local",
-                "command": "markitdown-mcp",
-                "tools": [
-                  "*"
-                ]
-              },
-              "memory": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "store_memory",
-                  "retrieve_memory",
-                  "list_memories",
-                  "delete_memory"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-v",
-                  "/tmp/gh-aw/cache-memory:/app/dist",
-                  "mcp/memory"
-                ]
-              },
-              "microsoftdocs": {
-                "type": "http",
-                "url": "https://learn.microsoft.com/api/mcp",
-                "tools": [
-                  "*"
-                ]
-              },
-              "notion": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "search_pages",
-                  "get_page",
-                  "get_database",
-                  "query_database"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "NOTION_API_TOKEN",
-                  "mcp/notion"
-                ],
-                "env": {
-                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
-                }
-              },
               "safeoutputs": {
                 "type": "local",
                 "command": "node",
@@ -682,53 +470,6 @@ jobs:
                   "GITHUB_SHA": "\${GITHUB_SHA}",
                   "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}"
-                }
-              },
-              "sentry": {
-                "type": "local",
-                "command": "npx",
-                "tools": [
-                  "whoami",
-                  "find_organizations",
-                  "find_teams",
-                  "find_projects",
-                  "find_releases",
-                  "get_issue_details",
-                  "get_trace_details",
-                  "get_event_attachment",
-                  "search_events",
-                  "search_issues",
-                  "find_dsns",
-                  "analyze_issue_with_seer",
-                  "search_docs requires SENTRY_OPENAI_API_KEY",
-                  "get_doc"
-                ],
-                "args": [
-                  "@sentry/mcp-server@0.26.0"
-                ],
-                "env": {
-                  "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",
-                  "SENTRY_ACCESS_TOKEN": "${{ secrets.SENTRY_ACCESS_TOKEN }}",
-                  "SENTRY_HOST": "${{ env.SENTRY_HOST }}"
-                }
-              },
-              "serena": {
-                "type": "local",
-                "command": "uvx",
-                "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
-                "tools": ["*"]
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
-                },
-                "tools": [
-                  "*"
-                ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
                 }
               }
             }
@@ -754,7 +495,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.373",
-              workflow_name: "MCP Inspector Agent",
+              workflow_name: "Daily CLI Performance Agent",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -768,7 +509,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","containers","node","cdn.jsdelivr.net","fonts.googleapis.com","fonts.gstatic.com"],
+              allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.7.0",
               steps: {
@@ -828,149 +569,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          
-          
-          ## ast-grep MCP Server
-          
-          ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
-          
-          ### Available Tools
-          
-          The ast-grep MCP server provides MCP tools for structural code analysis. The specific tools exposed by the server can be discovered using the MCP protocol. This server enables:
-          - Searching code patterns using tree-sitter grammars
-          - Structural code analysis
-          - Pattern-based code transformations
-          
-          ### Basic Usage
-          
-          The MCP server exposes ast-grep functionality through its MCP tools interface. When using ast-grep in your workflow, you can perform structural searches across multiple programming languages (Go, JavaScript, TypeScript, Python, etc.) with pattern matching based on code structure rather than text.
-          
-          **Example patterns that can be searched:**
-          
-          1. **Unmarshal with dash tag** (problematic Go pattern):
-             - Pattern: `json:"-"`
-             - Reference: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
-          
-          2. **Error handling patterns:**
-             - Pattern: `if err != nil { $$$A }`
-          
-          3. **Function call patterns:**
-             - Pattern: `functionName($$$ARGS)`
-          
-          ### More Information
-          
-          - Documentation: https://ast-grep.github.io/
-          - Go patterns catalog: https://ast-grep.github.io/catalog/go/
-          - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
-          - Docker image: https://hub.docker.com/r/mcp/ast-grep
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          ## Slack Integration
-          
-          This shared configuration provides a custom safe-job for posting messages to Slack channels.
-          
-          ### Safe Job: post-to-slack-channel
-          
-          The `post-to-slack-channel` safe-job allows agentic workflows to post messages to Slack channels through the Slack API.
-          
-          **Agent Output Format:**
-          
-          The agent should output JSON with items of type `post_to_slack_channel`:
-          
-          ```json
-          {
-            "items": [
-              {
-                "type": "post_to_slack_channel",
-                "message": "Your message here (max 200 characters)"
-              }
-            ]
-          }
-          ```
-          
-          **Required Environment Variable:**
-          - `GH_AW_SLACK_CHANNEL_ID`: The Slack channel ID (e.g., C1234567890) where messages will be posted
-          
-          **Message Field:**
-          - `message`: The message text to post (maximum 200 characters)
-          
-          **Message Length Limit:**
-          Messages are limited to 200 characters to ensure concise, focused updates. Items with messages exceeding this limit will be skipped with a warning.
-          
-          **Supported Slack Markdown:**
-          The message supports basic Slack markdown syntax:
-          - `*bold*` - Bold text
-          - `_italic_` - Italic text
-          - `~strike~` - Strikethrough text
-          - `` `code` `` - Inline code
-          - ` ```code block``` ` - Code block
-          - `>quote` - Block quote
-          - `<url|text>` - Hyperlink with custom text
-          
-          **Example Usage in Workflow:**
-          
-          ```
-          Please post a summary using the post_to_slack_channel output type.
-          Keep the message under 200 characters.
-          ```
-          
-          Note: The `GH_AW_SLACK_CHANNEL_ID` environment variable must be set in your workflow configuration or repository environment variables.
-          
-          **Staged Mode Support:**
-          
-          This safe-job fully supports staged mode. When `staged: true` is set in the workflow's safe-outputs configuration, messages will be previewed in the step summary instead of being posted to Slack.
-          
-          ### Setup
-          
-          1. **Create a Slack App** with a Bot User OAuth Token:
-             - Go to https://api.slack.com/apps
-             - Create a new app or select an existing one
-             - Navigate to "OAuth & Permissions"
-             - Add the `chat:write` bot token scope
-             - Install the app to your workspace
-             - Copy the "Bot User OAuth Token" (starts with `xoxb-`)
-          
-          2. **Add the bot to your channel**:
-             - In Slack, go to the channel where you want to post messages
-             - Type `/invite @YourBotName` to add the bot
-             - Get the channel ID from the channel details
-          
-          3. **Configure GitHub Secrets and Environment Variables**:
-             - Add `SLACK_BOT_TOKEN` secret to your repository with the Bot User OAuth Token
-             - Add `GH_AW_SLACK_CHANNEL_ID` as an environment variable or repository variable with the Slack channel ID
-          
-          4. **Include this configuration in your workflow**:
-             ```yaml
-             imports:
-               - shared/mcp/slack.md
-             ```
-          
-          
-          
           ## Report Structure
           
           1. **Overview**: 1-2 paragraphs summarizing key findings
@@ -982,50 +586,564 @@ jobs:
           - Include up to 3 most relevant run URLs at end under `**References:**`
           - Do NOT add footer attribution (system adds automatically)
           
-          # MCP Inspector Agent
+          {{#runtime-import? .github/shared-instructions.md}}
           
-          Systematically investigate and document all MCP server configurations in `.github/workflows/shared/mcp/*.md`.
+          # Daily CLI Performance Agent
+          
+          You are the Daily CLI Performance Agent - an expert system that monitors compilation performance, tracks benchmarks over time, detects regressions, and opens issues when performance problems are found.
           
           ## Mission
           
-          For each MCP configuration file:
-          1. Read the file in `.github/workflows/shared/mcp/`
-          2. Extract: server name, type (http/container/local), tools, secrets required
-          3. Document configuration status and any issues
+          Run daily performance benchmarks for workflow compilation, store results in cache memory, analyze trends, and open issues if performance regressions are detected.
           
-          Generate:
+          **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          **Memory Location**: `/tmp/gh-aw/repo-memory/default/`
+          
+          ## Phase 1: Run Performance Benchmarks
+          
+          ### 1.1 Run Compilation Benchmarks
+          
+          Run the benchmark suite and capture results:
+          
+          ```bash
+          # Create directory for results
+          mkdir -p /tmp/gh-aw/benchmarks
+          
+          # Run benchmarks - this will take a few minutes
+          make bench 2>&1 | tee /tmp/gh-aw/benchmarks/bench_results.txt
+          
+          # Also capture just the summary
+          grep "Benchmark" /tmp/gh-aw/benchmarks/bench_results.txt > /tmp/gh-aw/benchmarks/bench_summary.txt || true
+          ```
+          
+          **Expected benchmarks**:
+          - `BenchmarkCompileSimpleWorkflow` - Simple workflow compilation (<100ms target)
+          - `BenchmarkCompileComplexWorkflow` - Complex workflows (<500ms target)
+          - `BenchmarkCompileMCPWorkflow` - MCP-heavy workflows (<1s target)
+          - `BenchmarkCompileMemoryUsage` - Memory profiling
+          - `BenchmarkParseWorkflow` - Parsing phase
+          - `BenchmarkValidation` - Validation phase
+          - `BenchmarkYAMLGeneration` - YAML generation
+          
+          ### 1.2 Parse Benchmark Results
+          
+          Parse the benchmark output and extract key metrics:
+          
+          ```bash
+          # Extract benchmark results using awk
+          cat > /tmp/gh-aw/benchmarks/parse_results.sh << 'EOF'
+          #!/bin/bash
+          # Parse Go benchmark output and create JSON
+          results_file="/tmp/gh-aw/benchmarks/bench_results.txt"
+          output_file="/tmp/gh-aw/benchmarks/current_metrics.json"
+          
+          # Initialize JSON
+          echo "{" > "$output_file"
+          echo '  "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",' >> "$output_file"
+          echo '  "date": "'$(date -u +%Y-%m-%d)'",' >> "$output_file"
+          echo '  "benchmarks": {' >> "$output_file"
+          
+          first=true
+          while IFS= read -r line; do
+            if [[ $line =~ ^Benchmark([A-Za-z_]+)-([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]ns/op[[:space:]]+([0-9]+)[[:space:]]B/op[[:space:]]+([0-9]+)[[:space:]]allocs/op ]]; then
+              name="${BASH_REMATCH[1]}"
+              iterations="${BASH_REMATCH[3]}"
+              ns_per_op="${BASH_REMATCH[4]}"
+              bytes_per_op="${BASH_REMATCH[5]}"
+              allocs_per_op="${BASH_REMATCH[6]}"
+              
+              # Add comma if not first entry
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo "," >> "$output_file"
+              fi
+              
+              # Write benchmark entry
+              echo -n "    \"$name\": {" >> "$output_file"
+              echo -n "\"ns_per_op\": $ns_per_op, " >> "$output_file"
+              echo -n "\"bytes_per_op\": $bytes_per_op, " >> "$output_file"
+              echo -n "\"allocs_per_op\": $allocs_per_op, " >> "$output_file"
+              echo -n "\"iterations\": $iterations" >> "$output_file"
+              echo -n "}" >> "$output_file"
+            fi
+          done < "$results_file"
+          
+          echo "" >> "$output_file"
+          echo "  }" >> "$output_file"
+          echo "}" >> "$output_file"
+          
+          echo "Parsed benchmark results to $output_file"
+          cat "$output_file"
+          EOF
+          
+          chmod +x /tmp/gh-aw/benchmarks/parse_results.sh
+          /tmp/gh-aw/benchmarks/parse_results.sh
+          ```
+          
+          ## Phase 2: Load Historical Data
+          
+          ### 2.1 Check for Historical Benchmark Data
+          
+          Look for historical data in cache memory:
+          
+          ```bash
+          # List available historical data
+          ls -lh /tmp/gh-aw/repo-memory/default/ || echo "No historical data found"
+          
+          # Create history file if it doesn't exist
+          if [ ! -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
+            echo "Creating new benchmark history file"
+            touch /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
+          fi
+          
+          # Append current results to history
+          cat /tmp/gh-aw/benchmarks/current_metrics.json >> /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
+          echo "" >> /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
+          
+          echo "Historical data updated"
+          ```
+          
+          ## Phase 3: Analyze Performance Trends
+          
+          ### 3.1 Compare with Historical Data
+          
+          Analyze trends and detect regressions:
+          
+          ```bash
+          cat > /tmp/gh-aw/benchmarks/analyze_trends.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Analyze benchmark trends and detect performance regressions
+          """
+          import json
+          import os
+          from datetime import datetime, timedelta
+          from pathlib import Path
+          
+          # Configuration
+          HISTORY_FILE = '/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl'
+          CURRENT_FILE = '/tmp/gh-aw/benchmarks/current_metrics.json'
+          OUTPUT_FILE = '/tmp/gh-aw/benchmarks/analysis.json'
+          
+          # Regression thresholds
+          REGRESSION_THRESHOLD = 1.10  # 10% slower is a regression
+          WARNING_THRESHOLD = 1.05     # 5% slower is a warning
+          
+          def load_history():
+              """Load historical benchmark data"""
+              history = []
+              if os.path.exists(HISTORY_FILE):
+                  with open(HISTORY_FILE, 'r') as f:
+                      for line in f:
+                          line = line.strip()
+                          if line:
+                              try:
+                                  history.append(json.loads(line))
+                              except json.JSONDecodeError:
+                                  continue
+              return history
+          
+          def load_current():
+              """Load current benchmark results"""
+              with open(CURRENT_FILE, 'r') as f:
+                  return json.load(f)
+          
+          def analyze_benchmark(name, current_ns, history_data):
+              """Analyze a single benchmark for regressions"""
+              # Get historical values for this benchmark
+              historical_values = []
+              for entry in history_data:
+                  if 'benchmarks' in entry and name in entry['benchmarks']:
+                      historical_values.append(entry['benchmarks'][name]['ns_per_op'])
+              
+              if len(historical_values) < 2:
+                  return {
+                      'status': 'baseline',
+                      'message': 'Not enough historical data for comparison',
+                      'current_ns': current_ns,
+                      'avg_historical_ns': None,
+                      'change_percent': 0
+                  }
+              
+              # Calculate average of recent history (last 7 data points)
+              recent_history = historical_values[-7:] if len(historical_values) >= 7 else historical_values
+              avg_historical = sum(recent_history) / len(recent_history)
+              
+              # Calculate change percentage
+              change_percent = ((current_ns - avg_historical) / avg_historical) * 100
+              
+              # Determine status
+              if current_ns > avg_historical * REGRESSION_THRESHOLD:
+                  status = 'regression'
+                  message = f'⚠️ REGRESSION: {change_percent:.1f}% slower than historical average'
+              elif current_ns > avg_historical * WARNING_THRESHOLD:
+                  status = 'warning'
+                  message = f'⚡ WARNING: {change_percent:.1f}% slower than historical average'
+              elif current_ns < avg_historical * 0.95:
+                  status = 'improvement'
+                  message = f'✅ IMPROVEMENT: {change_percent:.1f}% faster than historical average'
+              else:
+                  status = 'stable'
+                  message = f'✓ STABLE: {change_percent:.1f}% change from historical average'
+              
+              return {
+                  'status': status,
+                  'message': message,
+                  'current_ns': current_ns,
+                  'avg_historical_ns': int(avg_historical),
+                  'change_percent': round(change_percent, 2),
+                  'data_points': len(historical_values)
+              }
+          
+          def main():
+              # Load data
+              history = load_history()
+              current = load_current()
+              
+              # Analyze each benchmark
+              analysis = {
+                  'timestamp': current['timestamp'],
+                  'date': current['date'],
+                  'benchmarks': {},
+                  'summary': {
+                      'total': 0,
+                      'regressions': 0,
+                      'warnings': 0,
+                      'improvements': 0,
+                      'stable': 0
+                  }
+              }
+              
+              for name, metrics in current['benchmarks'].items():
+                  result = analyze_benchmark(name, metrics['ns_per_op'], history)
+                  analysis['benchmarks'][name] = result
+                  analysis['summary']['total'] += 1
+                  
+                  if result['status'] == 'regression':
+                      analysis['summary']['regressions'] += 1
+                  elif result['status'] == 'warning':
+                      analysis['summary']['warnings'] += 1
+                  elif result['status'] == 'improvement':
+                      analysis['summary']['improvements'] += 1
+                  elif result['status'] == 'stable':
+                      analysis['summary']['stable'] += 1
+              
+              # Save analysis
+              with open(OUTPUT_FILE, 'w') as f:
+                  json.dump(analysis, f, indent=2)
+              
+              print("Analysis complete!")
+              print(json.dumps(analysis, indent=2))
+          
+          if __name__ == '__main__':
+              main()
+          EOF
+          
+          chmod +x /tmp/gh-aw/benchmarks/analyze_trends.py
+          python3 /tmp/gh-aw/benchmarks/analyze_trends.py
+          ```
+          
+          ## Phase 4: Open Issues for Regressions
+          
+          ### 4.1 Check for Performance Problems
+          
+          Review the analysis and determine if issues should be opened:
+          
+          ```bash
+          # Display analysis summary
+          echo "=== Performance Analysis Summary ==="
+          cat /tmp/gh-aw/benchmarks/analysis.json | python3 -m json.tool
+          ```
+          
+          ### 4.2 Open Issues for Regressions
+          
+          If regressions are detected, open issues with detailed information.
+          
+          **Rules for opening issues:**
+          1. Open one issue per regression detected (max 3 as per safe-outputs config)
+          2. Include benchmark name, current performance, historical average, and change percentage
+          3. Add "performance" and "automation" labels
+          4. Use title format: `[performance] Regression in [BenchmarkName]: X% slower`
+          
+          **Issue template:**
           
           ```markdown
-          # 🔍 MCP Inspector Report - [DATE]
+          # Performance Regression Detected
           
-          ## Summary
-          - **Servers Inspected**: [NUMBER]  
-          - **By Type**: HTTP: [N], Container: [N], Local: [N]
+          ## Benchmark: [BenchmarkName]
           
-          ## Inventory Table
-          
-          | Server | Type | Tools | Secrets | Status |
-          |--------|------|-------|---------|--------|
-          | [name] | [type] | [count] | [Y/N] | [✅/⚠️/❌] |
+          **Current Performance**: [current_ns] ns/op  
+          **Historical Average**: [avg_historical_ns] ns/op  
+          **Change**: [change_percent]% slower
           
           ## Details
           
-          ### [Server Name]
-          - **File**: `shared/mcp/[file].md`
-          - **Type**: [http/container/local]
-          - **Tools**: [list or count]
-          - **Secrets**: [list if any]
-          - **Notes**: [observations]
+          This benchmark has regressed by more than 10% compared to the 7-day historical average.
           
-          [Repeat for all servers]
+          ### Performance Metrics
           
-          ## Recommendations
-          1. [Issue or improvement]
+          - **ns/op**: [current_ns] (was [avg_historical_ns])
+          - **Change**: +[change_percent]%
+          - **Historical Data Points**: [data_points]
+          
+          ### Baseline Targets
+          
+          - Simple workflows: <100ms
+          - Complex workflows: <500ms
+          - MCP-heavy workflows: <1s
+          
+          ## Recommended Actions
+          
+          1. Review recent changes to the compilation pipeline
+          2. Run `make bench-memory` to generate memory profiles
+          3. Use `go tool pprof` to identify hotspots
+          4. Compare with previous benchmark results: `benchstat`
+          
+          ## Additional Context
+          
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
+          - **Date**: [date]
+          - **Workflow**: [Daily CLI Performance](__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__)
+          
+          ---
+          *Automatically generated by Daily CLI Performance workflow*
           ```
           
-          Save to `/tmp/gh-aw/cache-memory/mcp-inspections/[DATE].json` and create discussion in "audits" category.
+          ### 4.3 Implementation
+          
+          Parse the analysis and create issues:
+          
+          ```bash
+          cat > /tmp/gh-aw/benchmarks/create_issues.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Create GitHub issues for performance regressions
+          """
+          import json
+          import os
+          
+          ANALYSIS_FILE = '/tmp/gh-aw/benchmarks/analysis.json'
+          
+          def main():
+              with open(ANALYSIS_FILE, 'r') as f:
+                  analysis = json.load(f)
+              
+              regressions = []
+              for name, result in analysis['benchmarks'].items():
+                  if result['status'] == 'regression':
+                      regressions.append({
+                          'name': name,
+                          'current_ns': result['current_ns'],
+                          'avg_historical_ns': result['avg_historical_ns'],
+                          'change_percent': result['change_percent'],
+                          'data_points': result['data_points']
+                      })
+              
+              if not regressions:
+                  print("✅ No performance regressions detected!")
+                  return
+              
+              print(f"⚠️ Found {len(regressions)} regression(s):")
+              for reg in regressions:
+                  print(f"  - {reg['name']}: {reg['change_percent']:+.1f}%")
+              
+              # Save regressions for processing
+              with open('/tmp/gh-aw/benchmarks/regressions.json', 'w') as f:
+                  json.dump(regressions, f, indent=2)
+          
+          if __name__ == '__main__':
+              main()
+          EOF
+          
+          chmod +x /tmp/gh-aw/benchmarks/create_issues.py
+          python3 /tmp/gh-aw/benchmarks/create_issues.py
+          ```
+          
+          Now, for each regression found, use the `create issue` tool to open an issue with the details.
+          
+          ## Phase 5: Generate Performance Report
+          
+          ### 5.1 Create Summary Report
+          
+          Generate a comprehensive summary of today's benchmark run:
+          
+          ```bash
+          cat > /tmp/gh-aw/benchmarks/generate_report.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Generate performance summary report
+          """
+          import json
+          
+          ANALYSIS_FILE = '/tmp/gh-aw/benchmarks/analysis.json'
+          CURRENT_FILE = '/tmp/gh-aw/benchmarks/current_metrics.json'
+          
+          def format_ns(ns):
+              """Format nanoseconds in human-readable form"""
+              if ns < 1000:
+                  return f"{ns}ns"
+              elif ns < 1000000:
+                  return f"{ns/1000:.2f}µs"
+              elif ns < 1000000000:
+                  return f"{ns/1000000:.2f}ms"
+              else:
+                  return f"{ns/1000000000:.2f}s"
+          
+          def main():
+              with open(ANALYSIS_FILE, 'r') as f:
+                  analysis = json.load(f)
+              
+              with open(CURRENT_FILE, 'r') as f:
+                  current = json.load(f)
+              
+              print("\n" + "="*70)
+              print("  DAILY CLI PERFORMANCE BENCHMARK REPORT")
+              print("="*70)
+              print(f"\nDate: {analysis['date']}")
+              print(f"Timestamp: {analysis['timestamp']}")
+              
+              print("\n" + "-"*70)
+              print("SUMMARY")
+              print("-"*70)
+              summary = analysis['summary']
+              print(f"Total Benchmarks: {summary['total']}")
+              print(f"  ✅ Stable: {summary['stable']}")
+              print(f"  ⚡ Warnings: {summary['warnings']}")
+              print(f"  ⚠️  Regressions: {summary['regressions']}")
+              print(f"  ✨ Improvements: {summary['improvements']}")
+              
+              print("\n" + "-"*70)
+              print("DETAILED RESULTS")
+              print("-"*70)
+              
+              for name, result in sorted(analysis['benchmarks'].items()):
+                  metrics = current['benchmarks'][name]
+                  status_icon = {
+                      'regression': '⚠️ ',
+                      'warning': '⚡',
+                      'improvement': '✨',
+                      'stable': '✓',
+                      'baseline': 'ℹ️ '
+                  }.get(result['status'], '?')
+                  
+                  print(f"\n{status_icon} {name}")
+                  print(f"  Current: {format_ns(result['current_ns'])}")
+                  if result['avg_historical_ns']:
+                      print(f"  Historical Avg: {format_ns(result['avg_historical_ns'])}")
+                      print(f"  Change: {result['change_percent']:+.1f}%")
+                  print(f"  Memory: {metrics['bytes_per_op']} B/op")
+                  print(f"  Allocations: {metrics['allocs_per_op']} allocs/op")
+                  if result['status'] != 'baseline':
+                      print(f"  {result['message']}")
+              
+              print("\n" + "="*70)
+              print()
+          
+          if __name__ == '__main__':
+              main()
+          EOF
+          
+          chmod +x /tmp/gh-aw/benchmarks/generate_report.py
+          python3 /tmp/gh-aw/benchmarks/generate_report.py
+          ```
+          
+          ## Success Criteria
+          
+          A successful daily run will:
+          
+          ✅ **Run benchmarks** - Execute `make bench` and capture results  
+          ✅ **Parse results** - Extract key metrics (ns/op, B/op, allocs/op) from benchmark output  
+          ✅ **Store in memory** - Append results to `benchmark_history.jsonl` in cache-memory  
+          ✅ **Analyze trends** - Compare current performance with 7-day historical average  
+          ✅ **Detect regressions** - Identify benchmarks that are >10% slower  
+          ✅ **Open issues** - Create GitHub issues for each regression detected (max 3)  
+          ✅ **Generate report** - Display comprehensive performance summary
+          
+          ## Performance Baselines
+          
+          Target compilation times (from PR description):
+          - **Simple workflows**: <100ms (0.1s or 100,000,000 ns)
+          - **Complex workflows**: <500ms (0.5s or 500,000,000 ns)
+          - **MCP-heavy workflows**: <1s (1,000,000,000 ns)
+          
+          ## Cache Memory Structure
+          
+          Performance data is stored in:
+          - **Location**: `/tmp/gh-aw/repo-memory/default/`
+          - **File**: `benchmark_history.jsonl`
+          - **Format**: JSON Lines (one entry per day)
+          - **Retention**: Managed by cache-memory tool
+          
+          Each entry contains:
+          ```json
+          {
+          PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
+              }
+            });
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+            "timestamp": "2025-12-31T17:00:00Z",
+            "date": "2025-12-31",
+            "benchmarks": {
+              "CompileSimpleWorkflow": {
+                "ns_per_op": 97000,
+                "bytes_per_op": 35000,
+                "allocs_per_op": 666,
+                "iterations": 10
+              }
+            }
+          }
+          ```
+          
+          Begin your daily performance analysis now!
           
           PROMPT_EOF
+      - name: Substitute placeholders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
+        with:
+          script: |
+            const substitutePlaceholders = require('/tmp/gh-aw/actions/substitute_placeholders.cjs');
+            
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
+                GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL
+              }
+            });
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1059,22 +1177,7 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          <file-editing>
-          <description>File Editing Access Permissions</description>
-          <allowed-paths>
-            <path name="workspace">$GITHUB_WORKSPACE</path>
-            <path name="temporary">/tmp/gh-aw/</path>
-          </allowed-paths>
-          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
-          </file-editing>
-          
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
+      - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
@@ -1082,20 +1185,25 @@ jobs:
           
           ---
           
-          ## Cache Folder Available
+          ## Repo Memory Available
           
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Historical CLI compilation performance benchmark results
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
+          - **Git Branch Storage**: Files are stored in the `memory/cli-performance` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: memory/cli-performance/*.json, memory/cli-performance/*.jsonl, memory/cli-performance/*.txt
+          - **Max File Size**: 512000 bytes (0.49 MB) per file
+          - **Max File Count**: 100 files per commit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
@@ -1112,7 +1220,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, notion-add-comment, post-to-slack-channel
+          **Available tools**: add_comment, create_issue, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1194,6 +1302,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1221,72 +1332,8 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool arxiv
-        # --allow-tool arxiv(get_paper_details)
-        # --allow-tool arxiv(get_paper_pdf)
-        # --allow-tool arxiv(search_arxiv)
-        # --allow-tool ast-grep
-        # --allow-tool ast-grep(*)
-        # --allow-tool brave-search
-        # --allow-tool brave-search(*)
-        # --allow-tool context7
-        # --allow-tool context7(get-library-docs)
-        # --allow-tool context7(resolve-library-id)
-        # --allow-tool datadog
-        # --allow-tool datadog(get_datadog_metric)
-        # --allow-tool datadog(search_datadog_dashboards)
-        # --allow-tool datadog(search_datadog_metrics)
-        # --allow-tool datadog(search_datadog_slos)
-        # --allow-tool deepwiki
-        # --allow-tool deepwiki(ask_question)
-        # --allow-tool deepwiki(read_wiki_contents)
-        # --allow-tool deepwiki(read_wiki_structure)
-        # --allow-tool fabric-rti
-        # --allow-tool fabric-rti(get_eventstream)
-        # --allow-tool fabric-rti(get_eventstream_definition)
-        # --allow-tool fabric-rti(kusto_get_entities_schema)
-        # --allow-tool fabric-rti(kusto_get_function_schema)
-        # --allow-tool fabric-rti(kusto_get_shots)
-        # --allow-tool fabric-rti(kusto_get_table_schema)
-        # --allow-tool fabric-rti(kusto_known_services)
-        # --allow-tool fabric-rti(kusto_list_databases)
-        # --allow-tool fabric-rti(kusto_list_tables)
-        # --allow-tool fabric-rti(kusto_query)
-        # --allow-tool fabric-rti(kusto_sample_function_data)
-        # --allow-tool fabric-rti(kusto_sample_table_data)
-        # --allow-tool fabric-rti(list_eventstreams)
-        # --allow-tool gh-aw
         # --allow-tool github
-        # --allow-tool markitdown
-        # --allow-tool markitdown(*)
-        # --allow-tool memory
-        # --allow-tool memory(delete_memory)
-        # --allow-tool memory(list_memories)
-        # --allow-tool memory(retrieve_memory)
-        # --allow-tool memory(store_memory)
-        # --allow-tool microsoftdocs
-        # --allow-tool microsoftdocs(*)
-        # --allow-tool notion
-        # --allow-tool notion(get_database)
-        # --allow-tool notion(get_page)
-        # --allow-tool notion(query_database)
-        # --allow-tool notion(search_pages)
         # --allow-tool safeoutputs
-        # --allow-tool sentry
-        # --allow-tool sentry(analyze_issue_with_seer)
-        # --allow-tool sentry(find_dsns)
-        # --allow-tool sentry(find_organizations)
-        # --allow-tool sentry(find_projects)
-        # --allow-tool sentry(find_releases)
-        # --allow-tool sentry(find_teams)
-        # --allow-tool sentry(get_doc)
-        # --allow-tool sentry(get_event_attachment)
-        # --allow-tool sentry(get_issue_details)
-        # --allow-tool sentry(get_trace_details)
-        # --allow-tool sentry(search_docs requires SENTRY_OPENAI_API_KEY)
-        # --allow-tool sentry(search_events)
-        # --allow-tool sentry(search_issues)
-        # --allow-tool sentry(whoami)
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
@@ -1299,21 +1346,15 @@ jobs:
         # --allow-tool shell(uniq)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
-        # --allow-tool tavily
-        # --allow-tool tavily(*)
-        # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains '*.docker.com,*.docker.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,fonts.googleapis.com,fonts.gstatic.com,gcr.io,get.pnpm.io,ghcr.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safeoutputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
-          DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1323,7 +1364,6 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
@@ -1338,23 +1378,11 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'AZURE_CLIENT_ID,AZURE_CLIENT_SECRET,AZURE_TENANT_ID,BRAVE_API_KEY,CONTEXT7_API_KEY,COPILOT_GITHUB_TOKEN,DD_API_KEY,DD_APPLICATION_KEY,DD_SITE,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,NOTION_API_TOKEN,SENTRY_ACCESS_TOKEN,SENTRY_OPENAI_API_KEY,TAVILY_API_KEY'
-          SECRET_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          SECRET_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          SECRET_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          SECRET_BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-          SECRET_CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          SECRET_DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          SECRET_DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
-          SECRET_DD_SITE: ${{ secrets.DD_SITE }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          SECRET_SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-          SECRET_SENTRY_OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }}
-          SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -1367,7 +1395,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.docker.com,*.docker.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,fonts.googleapis.com,fonts.gstatic.com,gcr.io,get.pnpm.io,ghcr.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1414,7 +1442,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-mcp-inspector-agent
+          name: firewall-logs-daily-cli-performance-agent
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -1433,12 +1461,15 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
         if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1457,10 +1488,8 @@ jobs:
       - activation
       - agent
       - detection
-      - notion_add_comment
-      - post_to_slack_channel
+      - push_repo_memory
       - safe_outputs
-      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1511,7 +1540,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
+          GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
+          GH_AW_TRACKER_ID: "daily-cli-performance"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1524,7 +1554,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
+          GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
+          GH_AW_TRACKER_ID: "daily-cli-performance"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1540,7 +1571,8 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
+          GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
+          GH_AW_TRACKER_ID: "daily-cli-performance"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1599,8 +1631,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "MCP Inspector Agent"
-          WORKFLOW_DESCRIPTION: "Inspects MCP (Model Context Protocol) server configurations and validates their functionality"
+          WORKFLOW_NAME: "Daily CLI Performance Agent"
+          WORKFLOW_DESCRIPTION: "Daily CLI Performance - Runs benchmarks, tracks performance trends, and reports regressions"
         with:
           script: |
             const fs = require('fs');
@@ -1821,279 +1853,66 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  notion_add_comment:
+  push_repo_memory:
     needs:
       - agent
       - detection
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
+    if: always() && needs.detection.outputs.success == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /tmp/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
         run: |
-          find "/tmp/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Add comment to Notion page
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/cli-performance
+          MAX_FILE_SIZE: 512000
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "memory/cli-performance/*.json memory/cli-performance/*.jsonl memory/cli-performance/*.txt"
         with:
-          script: |-
-            const fs = require('fs');
-            const notionToken = process.env.NOTION_API_TOKEN;
-            const pageId = process.env.NOTION_PAGE_ID;
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
-            const outputContent = process.env.GH_AW_AGENT_OUTPUT;
-
-            if (!notionToken) {
-              core.setFailed('NOTION_API_TOKEN secret is not configured');
-              return;
-            }
-            if (!pageId) {
-              core.setFailed('NOTION_PAGE_ID variable is not set');
-              return;
-            }
-
-            // Read and parse agent output
-            if (!outputContent) {
-              core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            let agentOutputData;
-            try {
-              const fileContent = fs.readFileSync(outputContent, 'utf8');
-              agentOutputData = JSON.parse(fileContent);
-            } catch (error) {
-              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
-              core.info('No valid items found in agent output');
-              return;
-            }
-
-            // Filter for notion_add_comment items
-            const notionCommentItems = agentOutputData.items.filter(item => item.type === 'notion_add_comment');
-
-            if (notionCommentItems.length === 0) {
-              core.info('No notion_add_comment items found in agent output');
-              return;
-            }
-
-            core.info(`Found ${notionCommentItems.length} notion_add_comment item(s)`);
-
-            // Process each comment item
-            for (let i = 0; i < notionCommentItems.length; i++) {
-              const item = notionCommentItems[i];
-              const comment = item.comment;
-
-              if (!comment) {
-                core.warning(`Item ${i + 1}: Missing comment field, skipping`);
-                continue;
-              }
-
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Notion Comment Preview\n\n";
-                summaryContent += "The following comment would be added to Notion if staged mode was disabled:\n\n";
-                summaryContent += `**Page ID:** ${pageId}\n\n`;
-                summaryContent += `**Comment:**\n${comment}\n\n`;
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Notion comment preview written to step summary");
-                continue;
-              }
-
-              core.info(`Adding comment ${i + 1}/${notionCommentItems.length} to Notion page: ${pageId}`);
-
-              try {
-                const response = await fetch('https://api.notion.com/v1/comments', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${notionToken}`,
-                    'Notion-Version': '2022-06-28',
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    parent: {
-                      page_id: pageId
-                    },
-                    rich_text: [{
-                      type: 'text',
-                      text: {
-                        content: comment
-                      }
-                    }]
-                  })
-                });
-
-                if (!response.ok) {
-                  const errorData = await response.text();
-                  core.setFailed(`Notion API error (${response.status}): ${errorData}`);
-                  return;
-                }
-
-                const data = await response.json();
-                core.info(`✅ Comment ${i + 1} added successfully`);
-                core.info(`Comment ID: ${data.id}`);
-              } catch (error) {
-                core.setFailed(`Failed to add comment ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
-
-  post_to_slack_channel:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'post_to_slack_channel'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          find "/tmp/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Post message to Slack
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ env.GH_AW_SLACK_CHANNEL_ID }}
-        with:
-          script: |-
-            const fs = require('fs');
-            const slackBotToken = process.env.SLACK_BOT_TOKEN;
-            const slackChannelId = process.env.SLACK_CHANNEL_ID;
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
-            const outputContent = process.env.GH_AW_AGENT_OUTPUT;
-
-            // Validate required environment variables
-            if (!slackBotToken) {
-              core.setFailed('SLACK_BOT_TOKEN secret is not configured. Please add it to your repository secrets.');
-              return;
-            }
-
-            if (!slackChannelId) {
-              core.setFailed('GH_AW_SLACK_CHANNEL_ID environment variable is required');
-              return;
-            }
-
-            // Read and parse agent output
-            if (!outputContent) {
-              core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            let agentOutputData;
-            try {
-              const fileContent = fs.readFileSync(outputContent, 'utf8');
-              agentOutputData = JSON.parse(fileContent);
-            } catch (error) {
-              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
-              core.info('No valid items found in agent output');
-              return;
-            }
-
-            // Filter for post_to_slack_channel items
-            const slackMessageItems = agentOutputData.items.filter(item => item.type === 'post_to_slack_channel');
-
-            if (slackMessageItems.length === 0) {
-              core.info('No post_to_slack_channel items found in agent output');
-              return;
-            }
-
-            core.info(`Found ${slackMessageItems.length} post_to_slack_channel item(s)`);
-
-            // Process each message item
-            for (let i = 0; i < slackMessageItems.length; i++) {
-              const item = slackMessageItems[i];
-              const message = item.message;
-
-              if (!message) {
-                core.warning(`Item ${i + 1}: Missing message field, skipping`);
-                continue;
-              }
-
-              // Validate message length (max 200 characters)
-              const maxLength = 200;
-              if (message.length > maxLength) {
-                core.warning(`Item ${i + 1}: Message length (${message.length} characters) exceeds maximum allowed length of ${maxLength} characters, skipping`);
-                continue;
-              }
-
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Slack Message Preview\n\n";
-                summaryContent += "The following message would be posted to Slack if staged mode was disabled:\n\n";
-                summaryContent += `**Channel ID:** ${slackChannelId}\n\n`;
-                summaryContent += `**Message:** ${message}\n\n`;
-                summaryContent += `**Message Length:** ${message.length} characters\n\n`;
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Slack message preview written to step summary");
-                continue;
-              }
-
-              core.info(`Posting message ${i + 1}/${slackMessageItems.length} to Slack channel: ${slackChannelId}`);
-              core.info(`Message length: ${message.length} characters`);
-
-              try {
-                const response = await fetch('https://slack.com/api/chat.postMessage', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Authorization': `Bearer ${slackBotToken}`
-                  },
-                  body: JSON.stringify({
-                    channel: slackChannelId,
-                    text: message
-                  })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                  core.setFailed(`Slack API HTTP error (${response.status}): ${response.statusText}`);
-                  return;
-                }
-
-                if (!data.ok) {
-                  core.setFailed(`Slack API error: ${data.error || 'Unknown error'}`);
-                  if (data.error === 'invalid_auth') {
-                    core.error('Authentication failed. Please verify your SLACK_BOT_TOKEN is correct.');
-                  } else if (data.error === 'channel_not_found') {
-                    core.error('Channel not found. Please verify the GH_AW_SLACK_CHANNEL_ID environment variable is correct and the bot has access to it.');
-                  }
-                  return;
-                }
-
-                core.info(`✅ Message ${i + 1} posted successfully to Slack`);
-                core.info(`Message timestamp: ${data.ts}`);
-                core.info(`Channel: ${data.channel}`);
-              } catch (error) {
-                core.setFailed(`Failed to post message ${i + 1} to Slack: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/push_repo_memory.cjs');
+            await main();
 
   safe_outputs:
     needs:
@@ -2104,11 +1923,14 @@ jobs:
     permissions:
       contents: read
       discussions: write
+      issues: write
+      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "mcp-inspector"
-      GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
+      GH_AW_TRACKER_ID: "daily-cli-performance"
+      GH_AW_WORKFLOW_ID: "daily-cli-performance"
+      GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -2139,7 +1961,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":5},\"create_issue\":{\"labels\":[\"performance\",\"automation\"],\"max\":3,\"title_prefix\":\"[performance] \"}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2147,35 +1969,4 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /tmp/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
 
