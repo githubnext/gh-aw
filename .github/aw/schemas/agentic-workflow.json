@@ -4452,10 +4452,6 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository comment hiding. Takes precedence over trial target repo settings."
                 },
-                "github-token": {
-                  "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                },
                 "allowed-reasons": {
                   "type": "array",
                   "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
