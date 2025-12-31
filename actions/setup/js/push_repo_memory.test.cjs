@@ -1062,4 +1062,258 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Patterns should match against the relative path within the artifact, not the branch path.
     });
   });
+
+  describe("metrics validation error messages", () => {
+    // Helper function to simulate the validation logic from push_repo_memory.cjs
+    function validateCampaignMetricsSnapshot(obj, campaignId, relPath) {
+      function isPlainObject(value) {
+        return typeof value === "object" && value !== null && !Array.isArray(value);
+      }
+
+      if (!isPlainObject(obj)) {
+        throw new Error(`Metrics snapshot must be a JSON object: ${relPath}`);
+      }
+      if (typeof obj.campaign_id !== "string" || obj.campaign_id.trim() === "") {
+        throw new Error(`Metrics snapshot must include non-empty 'campaign_id': ${relPath}`);
+      }
+      if (obj.campaign_id !== campaignId) {
+        throw new Error(`Metrics snapshot 'campaign_id' must match '${campaignId}': ${relPath}`);
+      }
+      if (typeof obj.date !== "string" || obj.date.trim() === "") {
+        throw new Error(`Metrics snapshot must include non-empty 'date' (YYYY-MM-DD): ${relPath}`);
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(obj.date)) {
+        throw new Error(`Metrics snapshot 'date' must be YYYY-MM-DD: ${relPath}`);
+      }
+
+      // Require these to be present and non-negative integers (aligns with CampaignMetricsSnapshot).
+      const requiredIntFields = ["tasks_total", "tasks_completed"];
+      for (const field of requiredIntFields) {
+        const value = obj[field];
+        if (value === null || value === undefined) {
+          throw new Error(`Metrics snapshot '${field}' is required but was ${value === null ? "null" : "undefined"}: ${relPath}`);
+        }
+        if (typeof value !== "number") {
+          throw new Error(`Metrics snapshot '${field}' must be a number, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+        }
+        if (!Number.isInteger(value)) {
+          throw new Error(`Metrics snapshot '${field}' must be an integer, got ${value}: ${relPath}`);
+        }
+        if (value < 0) {
+          throw new Error(`Metrics snapshot '${field}' must be non-negative, got ${value}: ${relPath}`);
+        }
+      }
+
+      // Optional numeric fields, if present.
+      const optionalIntFields = ["tasks_in_progress", "tasks_blocked"];
+      for (const field of optionalIntFields) {
+        const value = obj[field];
+        if (value !== undefined && value !== null) {
+          if (typeof value !== "number") {
+            throw new Error(`Metrics snapshot '${field}' must be a number when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+          }
+          if (!Number.isInteger(value)) {
+            throw new Error(`Metrics snapshot '${field}' must be an integer when present, got ${value}: ${relPath}`);
+          }
+          if (value < 0) {
+            throw new Error(`Metrics snapshot '${field}' must be non-negative when present, got ${value}: ${relPath}`);
+          }
+        }
+      }
+      if (obj.velocity_per_day !== undefined && obj.velocity_per_day !== null) {
+        const value = obj.velocity_per_day;
+        if (typeof value !== "number") {
+          throw new Error(`Metrics snapshot 'velocity_per_day' must be a number when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+        }
+        if (value < 0) {
+          throw new Error(`Metrics snapshot 'velocity_per_day' must be non-negative when present, got ${value}: ${relPath}`);
+        }
+      }
+      if (obj.estimated_completion !== undefined && obj.estimated_completion !== null) {
+        const value = obj.estimated_completion;
+        if (typeof value !== "string") {
+          throw new Error(`Metrics snapshot 'estimated_completion' must be a string when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+        }
+      }
+    }
+
+    it("should provide clear error message when tasks_total is null", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: null,
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_total' is required but was null: test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should provide clear error message when tasks_total is undefined", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_total' is required but was undefined: test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should provide clear error message when tasks_total is a string", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: "10",
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_total' must be a number, got string (value: \"10\"): test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should provide clear error message when tasks_total is a float", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10.5,
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_total' must be an integer, got 10.5: test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should provide clear error message when tasks_total is negative", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: -5,
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_total' must be non-negative, got -5: test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should accept valid integer values for required fields", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).not.toThrow();
+    });
+
+    it("should accept zero for required integer fields", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 0,
+        tasks_completed: 0,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).not.toThrow();
+    });
+
+    it("should allow optional fields to be undefined", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+        // tasks_in_progress, tasks_blocked, velocity_per_day, estimated_completion are undefined
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).not.toThrow();
+    });
+
+    it("should allow optional fields to be null", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+        tasks_in_progress: null,
+        tasks_blocked: null,
+        velocity_per_day: null,
+        estimated_completion: null,
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).not.toThrow();
+    });
+
+    it("should validate optional integer fields when present", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+        tasks_in_progress: "3", // Invalid: string instead of number
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_in_progress' must be a number when present, got string (value: \"3\"): test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should validate optional float fields when present", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+        velocity_per_day: "2.5", // Invalid: string instead of number
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'velocity_per_day' must be a number when present, got string (value: \"2.5\"): test-campaign/metrics/2025-12-31.json");
+    });
+
+    it("should accept valid optional fields", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: 5,
+        tasks_in_progress: 3,
+        tasks_blocked: 1,
+        velocity_per_day: 2.5,
+        estimated_completion: "2026-01-15",
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).not.toThrow();
+    });
+
+    it("should validate tasks_completed field with same rigor as tasks_total", () => {
+      const metricsSnapshot = {
+        date: "2025-12-31",
+        campaign_id: "test-campaign",
+        tasks_total: 10,
+        tasks_completed: "5", // Invalid: string
+      };
+
+      expect(() => {
+        validateCampaignMetricsSnapshot(metricsSnapshot, "test-campaign", "test-campaign/metrics/2025-12-31.json");
+      }).toThrow("Metrics snapshot 'tasks_completed' must be a number, got string (value: \"5\"): test-campaign/metrics/2025-12-31.json");
+    });
+  });
 });

@@ -133,23 +133,51 @@ async function main() {
     // Require these to be present and non-negative integers (aligns with CampaignMetricsSnapshot).
     const requiredIntFields = ["tasks_total", "tasks_completed"];
     for (const field of requiredIntFields) {
-      if (!Number.isInteger(obj[field]) || obj[field] < 0) {
-        throw new Error(`Metrics snapshot '${field}' must be a non-negative integer: ${relPath}`);
+      const value = obj[field];
+      if (value === null || value === undefined) {
+        throw new Error(`Metrics snapshot '${field}' is required but was ${value === null ? "null" : "undefined"}: ${relPath}`);
+      }
+      if (typeof value !== "number") {
+        throw new Error(`Metrics snapshot '${field}' must be a number, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+      }
+      if (!Number.isInteger(value)) {
+        throw new Error(`Metrics snapshot '${field}' must be an integer, got ${value}: ${relPath}`);
+      }
+      if (value < 0) {
+        throw new Error(`Metrics snapshot '${field}' must be non-negative, got ${value}: ${relPath}`);
       }
     }
 
     // Optional numeric fields, if present.
     const optionalIntFields = ["tasks_in_progress", "tasks_blocked"];
     for (const field of optionalIntFields) {
-      if (obj[field] !== undefined && (!Number.isInteger(obj[field]) || obj[field] < 0)) {
-        throw new Error(`Metrics snapshot '${field}' must be a non-negative integer when present: ${relPath}`);
+      const value = obj[field];
+      if (value !== undefined && value !== null) {
+        if (typeof value !== "number") {
+          throw new Error(`Metrics snapshot '${field}' must be a number when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+        }
+        if (!Number.isInteger(value)) {
+          throw new Error(`Metrics snapshot '${field}' must be an integer when present, got ${value}: ${relPath}`);
+        }
+        if (value < 0) {
+          throw new Error(`Metrics snapshot '${field}' must be non-negative when present, got ${value}: ${relPath}`);
+        }
       }
     }
-    if (obj.velocity_per_day !== undefined && (typeof obj.velocity_per_day !== "number" || obj.velocity_per_day < 0)) {
-      throw new Error(`Metrics snapshot 'velocity_per_day' must be a non-negative number when present: ${relPath}`);
+    if (obj.velocity_per_day !== undefined && obj.velocity_per_day !== null) {
+      const value = obj.velocity_per_day;
+      if (typeof value !== "number") {
+        throw new Error(`Metrics snapshot 'velocity_per_day' must be a number when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+      }
+      if (value < 0) {
+        throw new Error(`Metrics snapshot 'velocity_per_day' must be non-negative when present, got ${value}: ${relPath}`);
+      }
     }
-    if (obj.estimated_completion !== undefined && typeof obj.estimated_completion !== "string") {
-      throw new Error(`Metrics snapshot 'estimated_completion' must be a string when present: ${relPath}`);
+    if (obj.estimated_completion !== undefined && obj.estimated_completion !== null) {
+      const value = obj.estimated_completion;
+      if (typeof value !== "string") {
+        throw new Error(`Metrics snapshot 'estimated_completion' must be a string when present, got ${typeof value} (value: ${JSON.stringify(value)}): ${relPath}`);
+      }
     }
   }
 
