@@ -31,6 +31,7 @@ tools:
             - code_security
     repo-memory:
         - branch-name: memory/campaigns
+          campaign-id: go-file-size-reduction-project64
           file-glob:
             - go-file-size-reduction-project64/**
           id: campaigns
