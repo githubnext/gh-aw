@@ -5,7 +5,7 @@ const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main(handlerConfig = {}) {
+async function main(config = {}) {
   // Use shared processor for common steps
   const result = await processSafeOutput(
     {
@@ -16,10 +16,10 @@ async function main(handlerConfig = {}) {
       supportsPR: true,
       supportsIssue: true,
       envVars: {
-        // Config values now passed via config object, not env vars
-        allowed: undefined,
-        maxCount: undefined,
-        target: undefined,
+        // Environment variable names for configuration
+        allowed: "GH_AW_LABELS_ALLOWED",
+        maxCount: "GH_AW_LABELS_MAX_COUNT",
+        target: "GH_AW_LABELS_TARGET",
       },
     },
     {
@@ -38,19 +38,19 @@ async function main(handlerConfig = {}) {
         return content;
       },
     },
-    handlerConfig // Pass handler config as third parameter
+    config // Pass handler config as third parameter
   );
 
   if (!result.success) {
     return;
   }
 
-  const { item: labelsItem, config, targetResult } = result;
-  if (!config || !targetResult || targetResult.number === undefined) {
+  const { item: labelsItem, config: handlerConfig, targetResult } = result;
+  if (!handlerConfig || !targetResult || targetResult.number === undefined) {
     core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
     return;
   }
-  const { allowed: allowedLabels, maxCount } = config;
+  const { allowed: allowedLabels, maxCount } = handlerConfig;
   const itemNumber = targetResult.number;
   const { contextType } = targetResult;
 

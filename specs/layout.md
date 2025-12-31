@@ -182,7 +182,7 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 
 | Constant | Type | Value | Description |
 |----------|------|-------|-------------|
-| `DefaultCopilotVersion` | `Version` | `"0.0.372"` | GitHub Copilot CLI version |
+| `DefaultCopilotVersion` | `Version` | `"0.0.373"` | GitHub Copilot CLI version |
 | `DefaultClaudeCodeVersion` | `Version` | `"2.0.76"` | Claude Code CLI version |
 | `DefaultCodexVersion` | `Version` | `"0.77.0"` | OpenAI Codex CLI version |
 | `DefaultGitHubMCPServerVersion` | `Version` | `"v0.26.3"` | GitHub MCP server Docker image |

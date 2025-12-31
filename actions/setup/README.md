@@ -70,19 +70,37 @@ This action copies files from `actions/setup/`, including:
 - `create_cache_memory_dir.sh` - Creates cache-memory directory
 - `create_prompt_first.sh` - Creates prompt directory
 
-All files are copied from the committed `js/` and `sh/` directories which are populated by running `make actions-build` during development.
+All files are copied from the committed `js/` and `sh/` directories which contain the source of truth for all JavaScript and shell scripts.
 
 ## Development
 
-The `js/` and `sh/` directories contain generated files created by `make actions-build`. These files are committed to the repository so that workflows using sparse checkout can access them without needing to rebuild.
+The `js/` and `sh/` directories contain the source of truth for all JavaScript and shell script files. These files are manually edited and committed to the repository.
 
-To update the files after modifying source files in `pkg/workflow/js/` or `pkg/workflow/sh/`:
+**To update JavaScript files:**
 
 ```bash
-make actions-build
-git add actions/setup/js/ actions/setup/sh/
-git commit -m "Update action files"
+# Edit files in actions/setup/js/
+# Format the JavaScript files
+make fmt-cjs
+
+# Lint the JavaScript files  
+make lint-cjs
+
+# Commit the changes
+git add actions/setup/js/
+git commit -m "Update JavaScript files"
 ```
+
+**To update shell scripts:**
+
+```bash
+# Edit files in actions/setup/sh/
+# Commit the changes
+git add actions/setup/sh/
+git commit -m "Update shell scripts"
+```
+
+**Note:** JavaScript and shell files are NOT embedded in the binary. They are copied at runtime by `setup.sh` from `actions/setup/js/` and `actions/setup/sh/` to `/tmp/gh-aw/actions` where workflows can access them.
 
 ## Testing Locally
 

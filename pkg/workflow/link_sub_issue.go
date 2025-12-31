@@ -1,8 +1,6 @@
 package workflow
 
 import (
-	"fmt"
-
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -61,76 +59,4 @@ func (c *Compiler) parseLinkSubIssueConfig(outputMap map[string]any) *LinkSubIss
 	}
 
 	return nil
-}
-
-// buildLinkSubIssueJob creates the link_sub_issue job
-func (c *Compiler) buildLinkSubIssueJob(data *WorkflowData, mainJobName string, createIssueJobName string) (*Job, error) {
-	linkSubIssueLog.Printf("Building link_sub_issue job: main_job=%s, create_issue_job=%s", mainJobName, createIssueJobName)
-	if data.SafeOutputs == nil || data.SafeOutputs.LinkSubIssue == nil {
-		return nil, fmt.Errorf("safe-outputs.link-sub-issue configuration is required")
-	}
-
-	cfg := data.SafeOutputs.LinkSubIssue
-
-	maxCount := 5
-	if cfg.Max > 0 {
-		maxCount = cfg.Max
-	}
-
-	// Build custom environment variables specific to link-sub-issue
-	var customEnvVars []string
-
-	// Pass the max limit
-	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_LINK_SUB_ISSUE_MAX_COUNT", maxCount)...)
-
-	// Pass parent required labels
-	if len(cfg.ParentRequiredLabels) > 0 {
-		customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_LINK_SUB_ISSUE_PARENT_REQUIRED_LABELS", cfg.ParentRequiredLabels)...)
-	}
-
-	// Pass parent title prefix
-	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_LINK_SUB_ISSUE_PARENT_TITLE_PREFIX", cfg.ParentTitlePrefix)...)
-
-	// Pass sub required labels
-	if len(cfg.SubRequiredLabels) > 0 {
-		customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_LINK_SUB_ISSUE_SUB_REQUIRED_LABELS", cfg.SubRequiredLabels)...)
-	}
-
-	// Pass sub title prefix
-	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_LINK_SUB_ISSUE_SUB_TITLE_PREFIX", cfg.SubTitlePrefix)...)
-
-	// Add environment variable for temporary ID map from create_issue job
-	if createIssueJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
-	}
-
-	// Add standard environment variables (metadata + staged/target repo)
-	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"linked_issues": "${{ steps.link_sub_issue.outputs.linked_issues }}",
-	}
-
-	// Build the needs list - always depend on mainJobName, and conditionally on create_issue
-	needs := []string{mainJobName}
-	if createIssueJobName != "" {
-		needs = append(needs, createIssueJobName)
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "link_sub_issue",
-		StepName:       "Link Sub-Issue",
-		StepID:         "link_sub_issue",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getLinkSubIssueScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
-		Outputs:        outputs,
-		Needs:          needs,
-		Token:          cfg.GitHubToken,
-		Condition:      BuildSafeOutputType("link_sub_issue"),
-		TargetRepoSlug: cfg.TargetRepoSlug,
-	})
 }

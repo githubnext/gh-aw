@@ -32,7 +32,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @property {(item: any, index: number) => string} renderStagedItem - Function to render item for staged preview
  * @property {(github: any, context: any, targetNumber: number, updateData: any, handlerConfig?: any) => Promise<any>} executeUpdate - Function to execute the update API call
  * @property {(result: any) => string} getSummaryLine - Function to generate summary line for an updated item
- * @property {any} [handlerConfig] - Optional handler-specific configuration
+ * @property {any} [handlerConfig] - Optional handler configuration passed to executeUpdate
  */
 
 /**
