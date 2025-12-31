@@ -1,7 +1,0 @@
-# Configuration for actionlint
-# See https://github.com/rhysd/actionlint/blob/main/docs/config.md
-
-self-hosted-runner:
-  # Labels of self-hosted runner in array of strings
-  labels:
-    - ubuntu-slim
