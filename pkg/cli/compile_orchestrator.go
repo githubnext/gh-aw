@@ -117,6 +117,15 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 			fmt.Fprintf(b, "  - %q\n", role)
 		}
 	}
+	// Render tools configuration if present
+	if len(data.Tools) > 0 {
+		payload := map[string]any{"tools": data.Tools}
+		if out, err := yaml.Marshal(payload); err == nil {
+			b.WriteString(string(out))
+		} else {
+			compileOrchestratorLog.Printf("Failed to render tools for generated campaign orchestrator: %v", err)
+		}
+	}
 	b.WriteString("---\n\n")
 	// Include version for released builds only (not "dev", "dirty", or "test")
 	version := workflow.GetVersion()
