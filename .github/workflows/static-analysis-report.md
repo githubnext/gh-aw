@@ -55,6 +55,17 @@ steps:
       docker run --rm ghcr.io/boostsecurityio/poutine:latest --version || echo "Warning: poutine version check failed"
       
       echo "Static analysis tools verification complete"
+  - name: Run compile with security tools
+    run: |
+      set -e
+      echo "Running gh aw compile with security tools to download Docker images..."
+      
+      # Run compile with all security scanner flags to download Docker images
+      # Store the output in a file for inspection
+      ./gh-aw compile --zizmor --poutine --actionlint 2>&1 | tee /tmp/gh-aw/compile-output.txt || true
+      
+      echo "Compile with security tools completed"
+      echo "Output saved to /tmp/gh-aw/compile-output.txt"
 ---
 
 # Static Analysis Report
