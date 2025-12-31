@@ -1,0 +1,239 @@
+// Package cli provides workflow file processing functions for compilation.
+//
+// This file contains functions that process individual workflow files and
+// campaign specs, handling both regular workflows and campaign orchestrators.
+//
+// # Organization Rationale
+//
+// These workflow processing functions are grouped here because they:
+//   - Handle per-file processing logic
+//   - Process both regular workflows and campaign specs
+//   - Have a clear domain focus (workflow file processing)
+//   - Keep the main orchestrator focused on batch operations
+//
+// # Key Functions
+//
+// Workflow Processing:
+//   - processWorkflowFile() - Process a single workflow markdown file
+//   - processCampaignSpec() - Process a campaign spec file
+//   - collectLockFilesForLinting() - Collect lock files for batch linting
+//
+// These functions abstract per-file processing, allowing the main compile
+// orchestrator to focus on coordination while these handle file processing.
+package cli
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/campaign"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
+)
+
+var compileWorkflowProcessorLog = logger.New("cli:compile_workflow_processor")
+
+// compileWorkflowFileResult represents the result of compiling a single workflow file
+type compileWorkflowFileResult struct {
+	workflowData   *workflow.WorkflowData
+	lockFile       string
+	validationResult ValidationResult
+	success        bool
+}
+
+// compileWorkflowFile compiles a single workflow file (not a campaign spec)
+// Returns the workflow data, lock file path, validation result, and success status
+func compileWorkflowFile(
+	compiler *workflow.Compiler,
+	resolvedFile string,
+	verbose bool,
+	jsonOutput bool,
+	noEmit bool,
+	zizmor bool,
+	poutine bool,
+	actionlint bool,
+	strict bool,
+	validate bool,
+) compileWorkflowFileResult {
+	compileWorkflowProcessorLog.Printf("Processing workflow file: %s", resolvedFile)
+	
+	result := compileWorkflowFileResult{
+		validationResult: ValidationResult{
+			Workflow: filepath.Base(resolvedFile),
+			Valid:    true,
+			Errors:   []ValidationError{},
+			Warnings: []ValidationError{},
+		},
+		success: false,
+	}
+	
+	lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+	result.lockFile = lockFile
+	if !noEmit {
+		result.validationResult.CompiledFile = lockFile
+	}
+	
+	// Parse workflow file to get data
+	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
+	
+	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
+	relPath, err := getRepositoryRelativePath(resolvedFile)
+	if err != nil {
+		compileWorkflowProcessorLog.Printf("Warning: failed to get repository-relative path for %s: %v", resolvedFile, err)
+		// Fallback to basename if we can't get relative path
+		relPath = filepath.Base(resolvedFile)
+	}
+	compiler.SetWorkflowIdentifier(relPath)
+	
+	// Set repository slug for this specific file (may differ from CWD's repo)
+	fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
+	if fileRepoSlug != "" {
+		compiler.SetRepositorySlug(fileRepoSlug)
+		compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
+	}
+	
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
+		result.validationResult.Valid = false
+		result.validationResult.Errors = append(result.validationResult.Errors, ValidationError{
+			Type:    "parse_error",
+			Message: err.Error(),
+		})
+		return result
+	}
+	result.workflowData = workflowData
+	
+	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
+	
+	// Compile the workflow
+	// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
+	if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
+		// Always put error on a new line and don't wrap with "failed to compile workflow"
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
+		result.validationResult.Valid = false
+		result.validationResult.Errors = append(result.validationResult.Errors, ValidationError{
+			Type:    "compilation_error",
+			Message: err.Error(),
+		})
+		return result
+	}
+	
+	result.success = true
+	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
+	return result
+}
+
+// processCampaignSpec processes a campaign spec file
+// Returns the validation result and success status
+func processCampaignSpec(
+	compiler *workflow.Compiler,
+	resolvedFile string,
+	verbose bool,
+	jsonOutput bool,
+	noEmit bool,
+	zizmor bool,
+	poutine bool,
+	actionlint bool,
+	strict bool,
+	validate bool,
+) (ValidationResult, bool) {
+	compileWorkflowProcessorLog.Printf("Processing campaign spec file: %s", resolvedFile)
+	
+	result := ValidationResult{
+		Workflow: filepath.Base(resolvedFile),
+		Valid:    true,
+		Errors:   []ValidationError{},
+		Warnings: []ValidationError{},
+	}
+	
+	// Validate the campaign spec file and referenced workflows
+	spec, problems, vErr := campaign.ValidateSpecFromFile(resolvedFile)
+	if vErr != nil {
+		errMsg := fmt.Sprintf("failed to validate campaign spec %s: %v", resolvedFile, vErr)
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Type:    "campaign_validation_error",
+			Message: vErr.Error(),
+		})
+		return result, false
+	}
+	
+	// Also ensure that workflows referenced by the campaign spec exist
+	workflowsDir := filepath.Dir(resolvedFile)
+	workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
+	problems = append(problems, workflowProblems...)
+	
+	if len(problems) > 0 {
+		for _, p := range problems {
+			if !jsonOutput {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
+			}
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Type:    "campaign_validation_error",
+				Message: p,
+			})
+		}
+		return result, false
+	}
+	
+	if verbose && !jsonOutput {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(resolvedFile))))
+	}
+	
+	// Generate and compile the campaign orchestrator
+	if _, genErr := generateAndCompileCampaignOrchestrator(
+		compiler,
+		spec,
+		resolvedFile,
+		verbose && !jsonOutput,
+		noEmit,
+		zizmor && !noEmit,
+		poutine && !noEmit,
+		actionlint && !noEmit,
+		strict,
+		validate && !noEmit,
+	); genErr != nil {
+		errMsg := fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(resolvedFile), genErr)
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
+		return result, false
+	}
+	
+	compileWorkflowProcessorLog.Printf("Successfully processed campaign spec: %s", resolvedFile)
+	return result, true
+}
+
+// collectLockFilesForLinting collects lock files that exist for batch linting
+func collectLockFilesForLinting(resolvedFiles []string, noEmit bool) []string {
+	if noEmit {
+		return nil
+	}
+	
+	var lockFiles []string
+	for _, resolvedFile := range resolvedFiles {
+		lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
+		if _, err := os.Stat(lockFile); err == nil {
+			lockFiles = append(lockFiles, lockFile)
+		}
+	}
+	
+	compileWorkflowProcessorLog.Printf("Collected %d lock files for linting", len(lockFiles))
+	return lockFiles
+}
