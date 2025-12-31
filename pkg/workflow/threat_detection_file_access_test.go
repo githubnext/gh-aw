@@ -22,14 +22,14 @@ func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
 	steps := compiler.buildThreatDetectionSteps(data, "agent")
 	stepsString := strings.Join(steps, "")
 
-	// Verify that the setup script checks for agent output file existence
-	if !strings.Contains(stepsString, "agent_output.json") {
-		t.Error("Expected threat detection to reference agent_output.json file")
+	// Verify that the setup script requires the setup_threat_detection.cjs file
+	if !strings.Contains(stepsString, "setup_threat_detection.cjs") {
+		t.Error("Expected threat detection to require setup_threat_detection.cjs file")
 	}
 
-	// Verify that we use file path info instead of inline content
-	if !strings.Contains(stepsString, "agentOutputFileInfo") {
-		t.Error("Expected threat detection to use agentOutputFileInfo variable")
+	// Verify that the template content is passed to the main function
+	if !strings.Contains(stepsString, "const templateContent = `# Threat Detection Analysis") {
+		t.Error("Expected threat detection to pass template content to main function")
 	}
 
 	// Verify the prompt template references file path
@@ -37,9 +37,9 @@ func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
 		t.Error("Expected threat detection prompt to use {AGENT_OUTPUT_FILE} placeholder")
 	}
 
-	// Verify we replace with file info, not content
-	if !strings.Contains(stepsString, ".replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)") {
-		t.Error("Expected prompt to replace {AGENT_OUTPUT_FILE} with agentOutputFileInfo")
+	// Verify we call main with the template
+	if !strings.Contains(stepsString, "await main(templateContent)") {
+		t.Error("Expected to call main function with templateContent parameter")
 	}
 
 	// Verify we DON'T inline the agent output content via environment variable

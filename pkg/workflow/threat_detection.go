@@ -253,8 +253,8 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"          script: |\n",
 	}...)
 
-	// Add the setup script
-	setupScript := c.buildSetupScript()
+	// Require the setup_threat_detection.cjs module and call main with the template
+	setupScript := c.buildSetupScriptRequire()
 	formattedSetupScript := FormatJavaScriptForYAML(setupScript)
 	steps = append(steps, formattedSetupScript...)
 
@@ -272,7 +272,20 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	return steps
 }
 
+// buildSetupScriptRequire creates the setup script that requires the .cjs module
+func (c *Compiler) buildSetupScriptRequire() string {
+	// Build a simple require statement that calls the main function with the template
+	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('` + SetupActionDestination + `/setup_threat_detection.cjs');
+const templateContent = %s;
+await main(templateContent);`
+
+	return fmt.Sprintf(script, c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
+}
+
 // buildSetupScript creates the setup portion
+// DEPRECATED: This function is replaced by buildSetupScriptRequire which uses a separate .cjs file
 func (c *Compiler) buildSetupScript() string {
 	// Build the JavaScript code with proper handling of backticks for markdown code blocks
 	script := `const fs = require('fs');
