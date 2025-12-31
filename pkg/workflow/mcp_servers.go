@@ -299,17 +299,28 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Step 4: Start the HTTP server in the background
 		yaml.WriteString("      - name: Start Safe Inputs MCP HTTP Server\n")
 		yaml.WriteString("        id: safe-inputs-start\n")
+
+		// Add env block with tool-specific secrets so they're available to the Node.js MCP server process
+		safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+		if len(safeInputsSecrets) > 0 {
+			yaml.WriteString("        env:\n")
+			// Sort env var names for consistent output
+			envVarNames := make([]string, 0, len(safeInputsSecrets))
+			for envVarName := range safeInputsSecrets {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				secretExpr := safeInputsSecrets[envVarName]
+				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, secretExpr)
+			}
+		}
+
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Set environment variables for the server\n")
 		yaml.WriteString("          export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}\n")
 		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
-		yaml.WriteString("          \n")
-
-		// Pass through environment variables from safe-inputs config
-		envVars := getSafeInputsEnvVars(workflowData.SafeInputs)
-		for _, envVar := range envVars {
-			fmt.Fprintf(yaml, "          export %s=\"${%s}\"\n", envVar, envVar)
-		}
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
