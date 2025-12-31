@@ -1495,7 +1495,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
+          - **Allowed Files**: Only files matching patterns: memory/nlp-analysis/*.json, memory/nlp-analysis/*.jsonl, memory/nlp-analysis/*.csv, memory/nlp-analysis/*.md
           - **Max File Size**: 102400 bytes (0.10 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -2205,7 +2205,7 @@ jobs:
           BRANCH_NAME: memory/nlp-analysis
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
+          FILE_GLOB_FILTER: "memory/nlp-analysis/*.json memory/nlp-analysis/*.jsonl memory/nlp-analysis/*.csv memory/nlp-analysis/*.md"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');

@@ -1707,7 +1707,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: **/**
+          - **Allowed Files**: Only files matching patterns: memory/campaigns/**
           - **Max File Size**: 10240 bytes (0.01 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -2416,7 +2416,7 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "**/**"
+          FILE_GLOB_FILTER: "memory/campaigns/**"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');

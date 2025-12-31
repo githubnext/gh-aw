@@ -32,7 +32,7 @@ tools:
     repo-memory:
         - branch-name: memory/campaigns
           file-glob:
-            - memory/campaigns/go-file-size-reduction-project64/**
+            - go-file-size-reduction-project64/**
           id: campaigns
 ---
 

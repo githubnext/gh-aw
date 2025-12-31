@@ -1137,7 +1137,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: *.md
+          - **Allowed Files**: Only files matching patterns: memory/deep-report/*.md
           - **Max File Size**: 1048576 bytes (1.00 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -1832,7 +1832,7 @@ jobs:
           BRANCH_NAME: memory/deep-report
           MAX_FILE_SIZE: 1048576
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "*.md"
+          FILE_GLOB_FILTER: "memory/deep-report/*.md"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
