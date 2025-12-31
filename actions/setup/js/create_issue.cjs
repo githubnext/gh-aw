@@ -1,6 +1,5 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
-/// <reference path="./types/handler-factory.d.ts" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
@@ -9,6 +8,13 @@ const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTempora
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "create_issue";
 
 /**
  * Main handler factory for create_issue
