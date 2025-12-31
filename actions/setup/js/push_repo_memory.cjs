@@ -307,15 +307,15 @@ async function main() {
           });
 
           if (!matchResults.some(m => m)) {
-            core.error(`File does not match allowed patterns: ${normalizedRelPath}`);
-            core.error(`Allowed patterns: ${fileGlobFilter}`);
-            core.error(`Pattern test results:`);
+            core.warning(`Skipping file that does not match allowed patterns: ${normalizedRelPath}`);
+            core.debug(`Allowed patterns: ${fileGlobFilter}`);
+            core.debug(`Pattern test results:`);
             const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
             patterns.forEach((pattern, idx) => {
-              core.error(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? "MATCH" : "NO MATCH"}`);
+              core.debug(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? "MATCH" : "NO MATCH"}`);
             });
-            core.setFailed("File pattern validation failed");
-            throw new Error("File pattern validation failed");
+            // Skip this file instead of failing - it may be from a previous run with different patterns
+            return;
           }
         }
 
