@@ -195,29 +195,7 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
-            {
-              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
@@ -1909,29 +1887,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate COPILOT_GITHUB_TOKEN secret
-        run: |
-          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
-            {
-              echo "❌ Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-              echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: None of the following secrets are set: COPILOT_GITHUB_TOKEN"
-            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
-            echo "✅ COPILOT_GITHUB_TOKEN: Configured"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN GitHub Copilot CLI https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI

@@ -137,31 +137,7 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        run: |
-          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
-            {
-              echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-              echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$CODEX_API_KEY" ]; then
-            echo "✅ CODEX_API_KEY: Configured"
-          else
-            echo "✅ OPENAI_API_KEY: Configured (using as fallback for CODEX_API_KEY)"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -1379,31 +1355,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
-        run: |
-          if [ -z "$CODEX_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
-            {
-              echo "❌ Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-              echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set"
-            echo "The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$CODEX_API_KEY" ]; then
-            echo "✅ CODEX_API_KEY: Configured"
-          else
-            echo "✅ OPENAI_API_KEY: Configured (using as fallback for CODEX_API_KEY)"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
