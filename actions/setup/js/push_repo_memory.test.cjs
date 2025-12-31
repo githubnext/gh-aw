@@ -981,5 +981,24 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
         expect(matches).toBe(shouldMatch);
       }
     });
+
+    it("should allow filtering out legacy files from previous runs", () => {
+      // Real-world scenario: The memory/campaigns branch had old files with incorrect
+      // nesting (memory/default/...) from before a bug fix. When cloning this branch,
+      // these old files are present alongside new correctly-structured files.
+      // The glob filter should match only the new files, allowing old files to be skipped.
+      const currentPattern = globPatternToRegex("go-file-size-reduction-project64/**");
+
+      // New files (should match)
+      expect(currentPattern.test("go-file-size-reduction-project64/cursor.json")).toBe(true);
+      expect(currentPattern.test("go-file-size-reduction-project64/metrics/2025-12-31.json")).toBe(true);
+
+      // Legacy files with incorrect nesting (should not match)
+      expect(currentPattern.test("memory/default/go-file-size-reduction-20610415309/metrics/2025-12-31.json")).toBe(false);
+      expect(currentPattern.test("memory/campaigns/go-file-size-reduction-project64/cursor.json")).toBe(false);
+
+      // This behavior allows push_repo_memory.cjs to skip legacy files instead of failing,
+      // enabling gradual migration from old to new structure without manual branch cleanup.
+    });
   });
 });
