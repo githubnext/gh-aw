@@ -91,7 +91,7 @@ See [Grumpy Code Reviewer](https://github.com/githubnext/gh-aw/blob/main/.github
 
 # Repo Memory
 
-Persistent file storage via Git branches with unlimited retention. The compiler auto-configures branch cloning/creation, file access at `/tmp/gh-aw/repo-memory-{id}/memory/{id}/`, commits/pushes, and merge conflict resolution (your changes win).
+Persistent file storage via Git branches with unlimited retention. The compiler auto-configures branch cloning/creation, file access at `/tmp/gh-aw/repo-memory-{id}/`, commits/pushes, and merge conflict resolution (your changes win).
 
 ## Enabling Repo Memory
 
@@ -102,7 +102,7 @@ tools:
 ---
 ```
 
-Creates branch `memory/default` at `/tmp/gh-aw/repo-memory-default/memory/default/`. Files auto-commit/push after workflow completion.
+Creates branch `memory/default` at `/tmp/gh-aw/repo-memory-default/`. Files are stored within the branch at the branch name path (`memory/default/`). Files auto-commit/push after workflow completion.
 
 ## Advanced Configuration
 
@@ -135,7 +135,7 @@ tools:
 ---
 ```
 
-Mounts at `/tmp/gh-aw/repo-memory-{id}/memory/{id}/`. Required `id` determines folder/branch names; `branch-name` defaults to `memory/{id}`.
+Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `memory/{id}`. Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch).
 
 ## Behavior
 

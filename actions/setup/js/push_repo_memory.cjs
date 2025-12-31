@@ -245,7 +245,10 @@ async function main() {
   }
 
   // Create destination directory in repo
-  const destMemoryPath = path.join(workspaceDir, "memory", memoryId);
+  // Extract the relative folder path from the branch name
+  // For branch "memory/code-metrics", use "memory/code-metrics" as the destination path
+  // This ensures the folder structure matches the branch name
+  const destMemoryPath = path.join(workspaceDir, branchName);
   fs.mkdirSync(destMemoryPath, { recursive: true });
   core.info(`Destination directory: ${destMemoryPath}`);
 

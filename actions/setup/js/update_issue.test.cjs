@@ -89,8 +89,7 @@ const mockCore = {
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, state: "closed" }));
       }),
       it("should update multiple fields successfully", async () => {
-        (setAgentOutput({ items: [{ type: "update_issue", title: "New title", body: "New body content", status: "open" }] }),
-          (global.context.eventName = "issues"));
+        (setAgentOutput({ items: [{ type: "update_issue", title: "New title", body: "New body content", status: "open" }] }), (global.context.eventName = "issues"));
         const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
           await eval(`(async () => { ${updateIssueScript}; await main({ allow_title: true, allow_body: true, allow_status: true }); })()`),
