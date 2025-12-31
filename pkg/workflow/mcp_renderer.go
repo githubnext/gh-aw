@@ -236,24 +236,13 @@ func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, sa
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
 // Uses HTTP transport exclusively
 func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
-	envVars := getSafeInputsEnvVars(safeInputs)
-
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
 	yaml.WriteString("          url = \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\"\n")
 	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
-
-	// Add environment variables: server config + tool-specific vars
-	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
-	yaml.WriteString("          env_vars = [")
-	for i, envVar := range envVarsWithServerConfig {
-		if i > 0 {
-			yaml.WriteString(", ")
-		}
-		yaml.WriteString("\"" + envVar + "\"")
-	}
-	yaml.WriteString("]\n")
+	// Note: env_vars is not supported for HTTP transport in MCP configuration
+	// Environment variables are passed via the workflow job's env: section instead
 }
 
 // RenderAgenticWorkflowsMCP generates the Agentic Workflows MCP server configuration

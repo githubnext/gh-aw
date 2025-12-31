@@ -90,13 +90,10 @@ Test safe-inputs HTTP transport for Codex
 		t.Error("Codex config should not use stdio transport with mcp-server.cjs args, should use HTTP")
 	}
 
-	// Verify environment variables are included
-	if !strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_PORT") {
-		t.Error("Expected GH_AW_SAFE_INPUTS_PORT env var in config")
-	}
-
-	if !strings.Contains(codexConfigSection, "GH_AW_SAFE_INPUTS_API_KEY") {
-		t.Error("Expected GH_AW_SAFE_INPUTS_API_KEY env var in config")
+	// Verify environment variables are NOT in the MCP config (env_vars not supported for HTTP transport)
+	// They should be in the job's env section instead
+	if strings.Contains(codexConfigSection, "env_vars") {
+		t.Error("HTTP MCP servers should not have env_vars in config (not supported for HTTP transport)")
 	}
 
 	t.Logf("✓ Codex engine correctly uses HTTP transport for safe-inputs")
@@ -161,16 +158,13 @@ Test safe-inputs with secrets
 	yamlStr := string(lockContent)
 	codexConfigSection := extractCodexConfigSection(yamlStr)
 
-	// Verify tool-specific env vars are included in HTTP transport config
-	if !strings.Contains(codexConfigSection, "API_KEY") {
-		t.Error("Expected API_KEY env var in safe-inputs config")
+	// Verify tool-specific env vars are NOT in the MCP config (env_vars not supported for HTTP)
+	// They should be passed via the job's env section instead
+	if strings.Contains(codexConfigSection, "env_vars") {
+		t.Error("HTTP MCP servers should not have env_vars in config (not supported for HTTP transport)")
 	}
 
-	if !strings.Contains(codexConfigSection, "GH_TOKEN") {
-		t.Error("Expected GH_TOKEN env var in safe-inputs config")
-	}
-
-	// Verify env vars are set in Setup MCPs step
+	// Verify env vars are set in Setup MCPs step (this is the correct location for HTTP transport)
 	if !strings.Contains(yamlStr, "API_KEY: ${{ secrets.API_KEY }}") {
 		t.Error("Expected API_KEY secret in Setup MCPs env section")
 	}
@@ -179,5 +173,5 @@ Test safe-inputs with secrets
 		t.Error("Expected GH_TOKEN in Setup MCPs env section")
 	}
 
-	t.Logf("✓ Codex engine correctly passes secrets through HTTP transport")
+	t.Logf("✓ Codex engine correctly passes secrets through HTTP transport (via job env, not MCP config)")
 }
