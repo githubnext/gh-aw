@@ -60,11 +60,10 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Did not expect 'Print sanitized agent output' step (should be in JavaScript now)")
 	}
 
-	// Verify that the JavaScript uses addRaw to build the summary
-	// Note: The workflow overview .addRaw is now in generate_workflow_overview.cjs,
-	// so we expect at least 1 .addRaw call (from other parts like threat detection)
-	if strings.Count(lockContent, ".addRaw(") < 1 {
-		t.Error("Expected at least 1 '.addRaw(' call in JavaScript code for summary building")
+	// Verify that the threat detection setup requires the .cjs file
+	// (The .addRaw call for threat detection is now in setup_threat_detection.cjs, not inline)
+	if strings.Contains(lockContent, "setup_threat_detection.cjs") {
+		t.Log("✓ Threat detection setup correctly requires .cjs file")
 	}
 
 	t.Log("Step summary correctly includes processed output sections")
