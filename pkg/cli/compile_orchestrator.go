@@ -195,14 +195,14 @@ func generateAndCompileCampaignOrchestrator(
 
 // CompileWorkflows compiles workflows based on the provided configuration
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
-	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v", 
+	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)
 
 	// Validate configuration
 	if err := validateCompileConfig(config); err != nil {
 		return nil, err
 	}
-	
+
 	// Validate action mode if specified
 	if err := validateActionModeConfig(config.ActionMode); err != nil {
 		return nil, err

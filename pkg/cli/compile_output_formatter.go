@@ -39,16 +39,16 @@ func formatCompilationSummary(stats *CompilationStats) {
 // formatValidationOutput formats validation results as JSON
 func formatValidationOutput(results []ValidationResult) (string, error) {
 	compileOutputFormatterLog.Printf("Formatting validation output for %d workflow(s)", len(results))
-	
+
 	// Sanitize validation results before JSON marshaling to prevent logging of sensitive information
 	// This removes potential secret key names from error messages at the output boundary
 	sanitizedResults := sanitizeValidationResults(results)
-	
+
 	jsonBytes, err := json.MarshalIndent(sanitizedResults, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	
+
 	return string(jsonBytes), nil
 }
 

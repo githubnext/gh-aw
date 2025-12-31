@@ -38,10 +38,10 @@ var compileWorkflowProcessorLog = logger.New("cli:compile_workflow_processor")
 
 // compileWorkflowFileResult represents the result of compiling a single workflow file
 type compileWorkflowFileResult struct {
-	workflowData   *workflow.WorkflowData
-	lockFile       string
+	workflowData     *workflow.WorkflowData
+	lockFile         string
 	validationResult ValidationResult
-	success        bool
+	success          bool
 }
 
 // compileWorkflowFile compiles a single workflow file (not a campaign spec)
@@ -59,7 +59,7 @@ func compileWorkflowFile(
 	validate bool,
 ) compileWorkflowFileResult {
 	compileWorkflowProcessorLog.Printf("Processing workflow file: %s", resolvedFile)
-	
+
 	result := compileWorkflowFileResult{
 		validationResult: ValidationResult{
 			Workflow: filepath.Base(resolvedFile),
@@ -69,16 +69,16 @@ func compileWorkflowFile(
 		},
 		success: false,
 	}
-	
+
 	lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
 	result.lockFile = lockFile
 	if !noEmit {
 		result.validationResult.CompiledFile = lockFile
 	}
-	
+
 	// Parse workflow file to get data
 	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
-	
+
 	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
 	relPath, err := getRepositoryRelativePath(resolvedFile)
 	if err != nil {
@@ -87,14 +87,14 @@ func compileWorkflowFile(
 		relPath = filepath.Base(resolvedFile)
 	}
 	compiler.SetWorkflowIdentifier(relPath)
-	
+
 	// Set repository slug for this specific file (may differ from CWD's repo)
 	fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
 	if fileRepoSlug != "" {
 		compiler.SetRepositorySlug(fileRepoSlug)
 		compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
 	}
-	
+
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 	if err != nil {
@@ -110,9 +110,9 @@ func compileWorkflowFile(
 		return result
 	}
 	result.workflowData = workflowData
-	
+
 	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
-	
+
 	// Compile the workflow
 	// Disable per-file actionlint run (false instead of actionlint && !noEmit) - we'll batch them
 	if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
@@ -127,7 +127,7 @@ func compileWorkflowFile(
 		})
 		return result
 	}
-	
+
 	result.success = true
 	compileWorkflowProcessorLog.Printf("Successfully processed workflow file: %s", resolvedFile)
 	return result
@@ -148,14 +148,14 @@ func processCampaignSpec(
 	validate bool,
 ) (ValidationResult, bool) {
 	compileWorkflowProcessorLog.Printf("Processing campaign spec file: %s", resolvedFile)
-	
+
 	result := ValidationResult{
 		Workflow: filepath.Base(resolvedFile),
 		Valid:    true,
 		Errors:   []ValidationError{},
 		Warnings: []ValidationError{},
 	}
-	
+
 	// Validate the campaign spec file and referenced workflows
 	spec, problems, vErr := campaign.ValidateSpecFromFile(resolvedFile)
 	if vErr != nil {
@@ -170,12 +170,12 @@ func processCampaignSpec(
 		})
 		return result, false
 	}
-	
+
 	// Also ensure that workflows referenced by the campaign spec exist
 	workflowsDir := filepath.Dir(resolvedFile)
 	workflowProblems := campaign.ValidateWorkflowsExist(spec, workflowsDir)
 	problems = append(problems, workflowProblems...)
-	
+
 	if len(problems) > 0 {
 		for _, p := range problems {
 			if !jsonOutput {
@@ -189,11 +189,11 @@ func processCampaignSpec(
 		}
 		return result, false
 	}
-	
+
 	if verbose && !jsonOutput {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign spec %s", filepath.Base(resolvedFile))))
 	}
-	
+
 	// Generate and compile the campaign orchestrator
 	if _, genErr := generateAndCompileCampaignOrchestrator(
 		compiler,
@@ -215,25 +215,7 @@ func processCampaignSpec(
 		result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
 		return result, false
 	}
-	
+
 	compileWorkflowProcessorLog.Printf("Successfully processed campaign spec: %s", resolvedFile)
 	return result, true
-}
-
-// collectLockFilesForLinting collects lock files that exist for batch linting
-func collectLockFilesForLinting(resolvedFiles []string, noEmit bool) []string {
-	if noEmit {
-		return nil
-	}
-	
-	var lockFiles []string
-	for _, resolvedFile := range resolvedFiles {
-		lockFile := strings.TrimSuffix(resolvedFile, ".md") + ".lock.yml"
-		if _, err := os.Stat(lockFile); err == nil {
-			lockFiles = append(lockFiles, lockFile)
-		}
-	}
-	
-	compileWorkflowProcessorLog.Printf("Collected %d lock files for linting", len(lockFiles))
-	return lockFiles
 }

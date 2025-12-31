@@ -40,40 +40,40 @@ var compileCompilerSetupLog = logger.New("cli:compile_compiler_setup")
 func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	compileCompilerSetupLog.Printf("Creating compiler with config: verbose=%v, validate=%v, strict=%v, trialMode=%v",
 		config.Verbose, config.Validate, config.Strict, config.TrialMode)
-	
+
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(config.Verbose, config.EngineOverride, GetVersion())
 	compileCompilerSetupLog.Print("Created compiler instance")
-	
+
 	// Configure compiler flags
 	configureCompilerFlags(compiler, config)
-	
+
 	// Set up action mode
 	setupActionMode(compiler, config.ActionMode)
-	
+
 	// Set up repository context
 	setupRepositoryContext(compiler)
-	
+
 	return compiler
 }
 
 // configureCompilerFlags sets various compilation flags on the compiler
 func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compileCompilerSetupLog.Print("Configuring compiler flags")
-	
+
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!config.Validate)
 	compileCompilerSetupLog.Printf("Validation enabled: %v", config.Validate)
-	
+
 	// Set noEmit flag to validate without generating lock files
 	compiler.SetNoEmit(config.NoEmit)
 	if config.NoEmit {
 		compileCompilerSetupLog.Print("No-emit mode enabled: validating without generating lock files")
 	}
-	
+
 	// Set strict mode if specified
 	compiler.SetStrictMode(config.Strict)
-	
+
 	// Set trial mode if specified
 	if config.TrialMode {
 		compileCompilerSetupLog.Printf("Enabling trial mode: repoSlug=%s", config.TrialLogicalRepoSlug)
@@ -82,7 +82,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 			compiler.SetTrialLogicalRepoSlug(config.TrialLogicalRepoSlug)
 		}
 	}
-	
+
 	// Set refresh stop time flag
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {
@@ -93,7 +93,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 // setupActionMode configures the action script inlining mode
 func setupActionMode(compiler *workflow.Compiler, actionMode string) {
 	compileCompilerSetupLog.Printf("Setting up action mode: %s", actionMode)
-	
+
 	if actionMode != "" {
 		mode := workflow.ActionMode(actionMode)
 		if !mode.IsValid() {
@@ -114,7 +114,7 @@ func setupActionMode(compiler *workflow.Compiler, actionMode string) {
 // setupRepositoryContext sets the repository slug for schedule scattering
 func setupRepositoryContext(compiler *workflow.Compiler) {
 	compileCompilerSetupLog.Print("Setting up repository context")
-	
+
 	// Set repository slug for schedule scattering
 	repoSlug := getRepositorySlugFromRemote()
 	if repoSlug != "" {
@@ -130,11 +130,11 @@ func validateActionModeConfig(actionMode string) error {
 	if actionMode == "" {
 		return nil
 	}
-	
+
 	mode := workflow.ActionMode(actionMode)
 	if !mode.IsValid() {
 		return fmt.Errorf("invalid action mode '%s'. Must be 'inline', 'dev', or 'release'", actionMode)
 	}
-	
+
 	return nil
 }

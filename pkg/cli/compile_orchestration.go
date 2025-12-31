@@ -307,12 +307,12 @@ func compileAllFilesInDirectory(
 
 // purgeTrackingData holds data needed for purge operations
 type purgeTrackingData struct {
-	existingLockFiles                      []string
-	existingInvalidFiles                   []string
-	existingCampaignOrchestratorFiles      []string
-	existingCampaignOrchestratorLockFiles  []string
-	expectedLockFiles                      []string
-	expectedCampaignDefinitions            []string
+	existingLockFiles                     []string
+	existingInvalidFiles                  []string
+	existingCampaignOrchestratorFiles     []string
+	existingCampaignOrchestratorLockFiles []string
+	expectedLockFiles                     []string
+	expectedCampaignDefinitions           []string
 }
 
 // collectPurgeData collects existing files for purge operations
@@ -349,10 +349,11 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 
 // runPurgeOperations runs all purge operations
 func runPurgeOperations(workflowsDir string, data *purgeTrackingData, verbose bool) {
-	purgeOrphanedLockFiles(workflowsDir, data.expectedLockFiles, verbose)
-	purgeInvalidFiles(workflowsDir, verbose)
-	purgeOrphanedCampaignOrchestrators(workflowsDir, data.expectedCampaignDefinitions, verbose)
-	purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir, data.expectedCampaignDefinitions, verbose)
+	// Errors from purge operations are logged but don't stop compilation
+	_ = purgeOrphanedLockFiles(workflowsDir, data.expectedLockFiles, verbose)
+	_ = purgeInvalidFiles(workflowsDir, verbose)
+	_ = purgeOrphanedCampaignOrchestrators(workflowsDir, data.expectedCampaignDefinitions, verbose)
+	_ = purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir, data.expectedCampaignDefinitions, verbose)
 }
 
 // displayScheduleWarnings displays any schedule warnings from the compiler
@@ -375,10 +376,8 @@ func runPostProcessing(
 	// Get action cache
 	actionCache := compiler.GetSharedActionCache()
 
-	// Update .gitattributes
-	if err := updateGitAttributes(successCount, actionCache, config.Verbose); err != nil {
-		// Non-fatal, continue
-	}
+	// Update .gitattributes (errors are non-fatal)
+	_ = updateGitAttributes(successCount, actionCache, config.Verbose)
 
 	// Generate Dependabot manifests if requested
 	if config.Dependabot && !config.NoEmit {
@@ -400,8 +399,8 @@ func runPostProcessing(
 		}
 	}
 
-	// Save action cache
-	saveActionCache(actionCache, config.Verbose)
+	// Save action cache (errors are logged but non-fatal)
+	_ = saveActionCache(actionCache, config.Verbose)
 
 	return nil
 }
@@ -418,10 +417,8 @@ func runPostProcessingForDirectory(
 	// Get action cache
 	actionCache := compiler.GetSharedActionCache()
 
-	// Update .gitattributes
-	if err := updateGitAttributes(successCount, actionCache, config.Verbose); err != nil {
-		// Non-fatal, continue
-	}
+	// Update .gitattributes (errors are non-fatal)
+	_ = updateGitAttributes(successCount, actionCache, config.Verbose)
 
 	// Generate Dependabot manifests if requested
 	if config.Dependabot && !config.NoEmit {
@@ -450,8 +447,8 @@ func runPostProcessingForDirectory(
 		}
 	}
 
-	// Save action cache
-	saveActionCache(actionCache, config.Verbose)
+	// Save action cache (errors are logged but non-fatal)
+	_ = saveActionCache(actionCache, config.Verbose)
 
 	return nil
 }

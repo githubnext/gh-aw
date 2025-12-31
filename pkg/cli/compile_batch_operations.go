@@ -44,9 +44,9 @@ func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
 		compileBatchOperationsLog.Print("No lock files to lint with actionlint")
 		return nil
 	}
-	
+
 	compileBatchOperationsLog.Printf("Running batch actionlint on %d lock files", len(lockFiles))
-	
+
 	if err := RunActionlintOnFiles(lockFiles, verbose, strict); err != nil {
 		if strict {
 			return fmt.Errorf("actionlint linter failed: %w", err)
@@ -56,7 +56,7 @@ func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("actionlint warnings: %v", err)))
 		}
 	}
-	
+
 	return nil
 }
 
@@ -64,28 +64,28 @@ func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
 // These are lock files that exist but don't have a corresponding .md file
 func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purging orphaned lock files in %s", workflowsDir)
-	
+
 	// Find all existing .lock.yml files
 	existingLockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 	if err != nil {
 		return fmt.Errorf("failed to find existing lock files: %w", err)
 	}
-	
+
 	if len(existingLockFiles) == 0 {
 		compileBatchOperationsLog.Print("No lock files found")
 		return nil
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
 	}
-	
+
 	// Build a set of expected lock files
 	expectedLockFileSet := make(map[string]bool)
 	for _, expected := range expectedLockFiles {
 		expectedLockFileSet[expected] = true
 	}
-	
+
 	// Find lock files that should be deleted (exist but aren't expected)
 	var orphanedFiles []string
 	for _, existing := range existingLockFiles {
@@ -93,7 +93,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 			orphanedFiles = append(orphanedFiles, existing)
 		}
 	}
-	
+
 	// Delete orphaned lock files
 	if len(orphanedFiles) > 0 {
 		for _, orphanedFile := range orphanedFiles {
@@ -109,7 +109,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .lock.yml files found to purge"))
 	}
-	
+
 	compileBatchOperationsLog.Printf("Purged %d orphaned lock files", len(orphanedFiles))
 	return nil
 }
@@ -118,22 +118,22 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 // These are temporary debugging artifacts that should not persist
 func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purging invalid files in %s", workflowsDir)
-	
+
 	// Find all existing .invalid.yml files
 	existingInvalidFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
 	if err != nil {
 		return fmt.Errorf("failed to find existing invalid files: %w", err)
 	}
-	
+
 	if len(existingInvalidFiles) == 0 {
 		compileBatchOperationsLog.Print("No invalid files found")
 		return nil
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
 	}
-	
+
 	// Delete all .invalid.yml files
 	for _, invalidFile := range existingInvalidFiles {
 		if err := os.Remove(invalidFile); err != nil {
@@ -142,11 +142,11 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed invalid file: %s", filepath.Base(invalidFile))))
 		}
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
 	}
-	
+
 	compileBatchOperationsLog.Printf("Purged %d invalid files", len(existingInvalidFiles))
 	return nil
 }
@@ -155,28 +155,28 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 // These are generated from .campaign.md source files, so remove them if source no longer exists
 func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDefinitions []string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purging orphaned campaign orchestrators in %s", workflowsDir)
-	
+
 	// Find all existing campaign orchestrator files (.campaign.g.md)
 	existingCampaignOrchestratorFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.md"))
 	if err != nil {
 		return fmt.Errorf("failed to find existing campaign orchestrator files: %w", err)
 	}
-	
+
 	if len(existingCampaignOrchestratorFiles) == 0 {
 		compileBatchOperationsLog.Print("No campaign orchestrator files found")
 		return nil
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .campaign.g.md files", len(existingCampaignOrchestratorFiles))))
 	}
-	
+
 	// Build a set of expected campaign definition files
 	expectedCampaignSet := make(map[string]bool)
 	for _, campaignDef := range expectedCampaignDefinitions {
 		expectedCampaignSet[campaignDef] = true
 	}
-	
+
 	// Find orphaned orchestrator files
 	var orphanedOrchestrators []string
 	for _, orchestratorFile := range existingCampaignOrchestratorFiles {
@@ -185,13 +185,13 @@ func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDef
 		baseName := filepath.Base(orchestratorFile)
 		sourceName := strings.TrimSuffix(baseName, ".g.md") + ".md"
 		sourcePath := filepath.Join(workflowsDir, sourceName)
-		
+
 		// Check if the source campaign definition exists
 		if !expectedCampaignSet[sourcePath] {
 			orphanedOrchestrators = append(orphanedOrchestrators, orchestratorFile)
 		}
 	}
-	
+
 	// Delete orphaned campaign orchestrator files
 	if len(orphanedOrchestrators) > 0 {
 		for _, orphanedFile := range orphanedOrchestrators {
@@ -207,7 +207,7 @@ func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDef
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .campaign.g.md files found to purge"))
 	}
-	
+
 	compileBatchOperationsLog.Printf("Purged %d orphaned campaign orchestrators", len(orphanedOrchestrators))
 	return nil
 }
@@ -216,28 +216,28 @@ func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDef
 // These are compiled from .campaign.g.md files, which are generated from .campaign.md source files
 func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCampaignDefinitions []string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purging orphaned campaign orchestrator lock files in %s", workflowsDir)
-	
+
 	// Find all existing campaign orchestrator lock files (.campaign.g.lock.yml)
 	existingCampaignOrchestratorLockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.lock.yml"))
 	if err != nil {
 		return fmt.Errorf("failed to find existing campaign orchestrator lock files: %w", err)
 	}
-	
+
 	if len(existingCampaignOrchestratorLockFiles) == 0 {
 		compileBatchOperationsLog.Print("No campaign orchestrator lock files found")
 		return nil
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .campaign.g.lock.yml files", len(existingCampaignOrchestratorLockFiles))))
 	}
-	
+
 	// Build a set of expected campaign definition files
 	expectedCampaignSet := make(map[string]bool)
 	for _, campaignDef := range expectedCampaignDefinitions {
 		expectedCampaignSet[campaignDef] = true
 	}
-	
+
 	// Find orphaned lock files
 	var orphanedLockFiles []string
 	for _, lockFile := range existingCampaignOrchestratorLockFiles {
@@ -246,13 +246,13 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 		baseName := filepath.Base(lockFile)
 		sourceName := strings.TrimSuffix(strings.TrimSuffix(baseName, ".g.lock.yml"), ".campaign") + ".campaign.md"
 		sourcePath := filepath.Join(workflowsDir, sourceName)
-		
+
 		// Check if the source campaign definition exists
 		if !expectedCampaignSet[sourcePath] {
 			orphanedLockFiles = append(orphanedLockFiles, lockFile)
 		}
 	}
-	
+
 	// Delete orphaned campaign orchestrator lock files
 	if len(orphanedLockFiles) > 0 {
 		for _, orphanedFile := range orphanedLockFiles {
@@ -268,7 +268,7 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .campaign.g.lock.yml files found to purge"))
 	}
-	
+
 	compileBatchOperationsLog.Printf("Purged %d orphaned campaign orchestrator lock files", len(orphanedLockFiles))
 	return nil
 }

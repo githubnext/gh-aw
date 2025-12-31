@@ -49,7 +49,7 @@ func generateDependabotManifestsWrapper(
 	strict bool,
 ) error {
 	compilePostProcessingLog.Print("Generating Dependabot manifests for compiled workflows")
-	
+
 	if err := compiler.GenerateDependabotManifests(workflowDataList, workflowsDir, forceOverwrite); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate Dependabot manifests: %w", err)
@@ -57,7 +57,7 @@ func generateDependabotManifestsWrapper(
 		// Non-strict mode: just report as warning
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate Dependabot manifests: %v", err)))
 	}
-	
+
 	return nil
 }
 
@@ -70,7 +70,7 @@ func generateMaintenanceWorkflowWrapper(
 	strict bool,
 ) error {
 	compilePostProcessingLog.Print("Generating maintenance workflow")
-	
+
 	if err := workflow.GenerateMaintenanceWorkflow(workflowDataList, workflowsDir, compiler.GetVersion(), compiler.GetActionMode(), verbose); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
@@ -78,14 +78,14 @@ func generateMaintenanceWorkflowWrapper(
 		// Non-strict mode: just report as warning
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
 	}
-	
+
 	return nil
 }
 
 // validateCampaignsWrapper validates campaign specs if they exist
 func validateCampaignsWrapper(workflowDir string, verbose bool, strict bool) error {
 	compilePostProcessingLog.Print("Validating campaign specs")
-	
+
 	if err := validateCampaigns(workflowDir, verbose); err != nil {
 		if strict {
 			return fmt.Errorf("campaign validation failed: %w", err)
@@ -93,14 +93,14 @@ func validateCampaignsWrapper(workflowDir string, verbose bool, strict bool) err
 		// Non-strict mode: just report as warning
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Campaign validation: %v", err)))
 	}
-	
+
 	return nil
 }
 
 // collectWorkflowStatisticsWrapper collects and returns workflow statistics
 func collectWorkflowStatisticsWrapper(markdownFiles []string) []*WorkflowStats {
 	compilePostProcessingLog.Printf("Collecting workflow statistics for %d files", len(markdownFiles))
-	
+
 	var statsList []*WorkflowStats
 	for _, file := range markdownFiles {
 		resolvedFile, err := resolveWorkflowFile(file, false)
@@ -112,23 +112,7 @@ func collectWorkflowStatisticsWrapper(markdownFiles []string) []*WorkflowStats {
 			statsList = append(statsList, workflowStats)
 		}
 	}
-	
-	compilePostProcessingLog.Printf("Collected statistics for %d workflows", len(statsList))
-	return statsList
-}
 
-// collectWorkflowStatisticsFromDir collects workflow statistics from all files in a directory
-func collectWorkflowStatisticsFromDir(mdFiles []string) []*WorkflowStats {
-	compilePostProcessingLog.Printf("Collecting workflow statistics for %d files", len(mdFiles))
-	
-	var statsList []*WorkflowStats
-	for _, file := range mdFiles {
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-		if workflowStats, err := collectWorkflowStats(lockFile); err == nil {
-			statsList = append(statsList, workflowStats)
-		}
-	}
-	
 	compilePostProcessingLog.Printf("Collected statistics for %d workflows", len(statsList))
 	return statsList
 }
@@ -136,9 +120,9 @@ func collectWorkflowStatisticsFromDir(mdFiles []string) []*WorkflowStats {
 // updateGitAttributes ensures .gitattributes marks .lock.yml files as generated
 func updateGitAttributes(successCount int, actionCache *workflow.ActionCache, verbose bool) error {
 	compilePostProcessingLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", successCount, actionCache != nil)
-	
+
 	hasActionCacheEntries := actionCache != nil && len(actionCache.Entries) > 0
-	
+
 	// Only update if we successfully compiled workflows or have action cache entries
 	if successCount > 0 || hasActionCacheEntries {
 		compilePostProcessingLog.Printf("Updating .gitattributes (compiled=%d, actionCache=%v)", successCount, hasActionCacheEntries)
@@ -156,7 +140,7 @@ func updateGitAttributes(successCount int, actionCache *workflow.ActionCache, ve
 	} else {
 		compilePostProcessingLog.Print("Skipping .gitattributes update (no compiled workflows and no action cache entries)")
 	}
-	
+
 	return nil
 }
 
@@ -165,9 +149,9 @@ func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
 	if actionCache == nil {
 		return nil
 	}
-	
+
 	compilePostProcessingLog.Print("Saving action cache")
-	
+
 	if err := actionCache.Save(); err != nil {
 		compilePostProcessingLog.Printf("Failed to save action cache: %v", err)
 		if verbose {
@@ -175,12 +159,12 @@ func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
 		}
 		return err
 	}
-	
+
 	compilePostProcessingLog.Print("Action cache saved successfully")
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Action cache saved to %s", actionCache.GetCachePath())))
 	}
-	
+
 	return nil
 }
 
