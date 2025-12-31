@@ -33,8 +33,14 @@ This command accepts:
 - A numeric run ID (e.g., 1234567890)
 - A GitHub Actions run URL (e.g., https://github.com/owner/repo/actions/runs/1234567890)
 - A GitHub Actions job URL (e.g., https://github.com/owner/repo/actions/runs/1234567890/job/9876543210)
+- A GitHub Actions job URL with step (e.g., https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)
 - A GitHub workflow run URL (e.g., https://github.com/owner/repo/runs/1234567890)
 - GitHub Enterprise URLs (e.g., https://github.example.com/owner/repo/actions/runs/1234567890)
+
+When a job URL is provided:
+- If a step number is included (#step:7:1), extracts that specific step's output
+- If no step number, finds and extracts the first failing step's output
+- Saves job logs to the output directory
 
 This command:
 - Downloads artifacts and logs for the specified run ID
@@ -46,7 +52,8 @@ This command:
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890     # Audit run with ID 1234567890
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
-  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit from job URL
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit job and extract first failing step
+  ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1  # Extract step 7 output
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/runs/1234567890  # Audit from workflow run URL
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
   ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 -o ./audit-reports  # Custom output directory
@@ -57,7 +64,8 @@ Examples:
 			runIDOrURL := args[0]
 
 			// Parse run information from input (either numeric ID or URL)
-			runID, owner, repo, hostname, err := parser.ParseRunURL(runIDOrURL)
+			// Use extended parsing to capture job ID and step information
+			components, err := parser.ParseRunURLExtended(runIDOrURL)
 			if err != nil {
 				return err
 			}
@@ -67,7 +75,18 @@ Examples:
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			parse, _ := cmd.Flags().GetBool("parse")
 
-			return AuditWorkflowRun(runID, owner, repo, hostname, outputDir, verbose, parse, jsonOutput)
+			return AuditWorkflowRun(
+				components.Number,
+				components.Owner,
+				components.Repo,
+				components.Host,
+				outputDir,
+				verbose,
+				parse,
+				jsonOutput,
+				components.JobID,
+				components.StepNumber,
+			)
 		},
 	}
 
@@ -105,15 +124,30 @@ func isPermissionError(err error) bool {
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
-func AuditWorkflowRun(runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool) error {
-	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s", runID, owner, repo)
+// If jobID is provided (>0), focuses audit on that specific job
+// If stepNumber is provided (>0), extracts output for that specific step
+func AuditWorkflowRun(runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int) error {
+	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s, jobID=%d, stepNumber=%d", runID, owner, repo, jobID, stepNumber)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
+		if jobID > 0 {
+			if stepNumber > 0 {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d, job %d, step %d...", runID, jobID, stepNumber)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d, job %d...", runID, jobID)))
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
+		}
 	}
 
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
 	auditLog.Printf("Using output directory: %s", runOutputDir)
+
+	// If job ID is provided, handle job-specific audit
+	if jobID > 0 {
+		return auditJobRun(runID, jobID, stepNumber, owner, repo, hostname, runOutputDir, verbose, jsonOutput)
+	}
 
 	// Check if we have locally cached artifacts first
 	hasLocalCache := fileutil.DirExists(runOutputDir) && !fileutil.IsDirEmpty(runOutputDir)
@@ -354,6 +388,184 @@ func AuditWorkflowRun(runID int64, owner, repo, hostname string, outputDir strin
 	}
 
 	return nil
+}
+
+// auditJobRun performs a targeted audit of a specific job within a workflow run
+// If stepNumber > 0, focuses on extracting output for that specific step
+func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname string, outputDir string, verbose bool, jsonOutput bool) error {
+	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d", runID, jobID, stepNumber)
+
+	// Create output directory for job-specific artifacts
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	// Fetch job logs using gh CLI
+	args := []string{"run", "view"}
+	
+	// Add hostname flag if specified (for GitHub Enterprise)
+	if hostname != "" && hostname != "github.com" {
+		args = append(args, "--hostname", hostname)
+	}
+	
+	// Add repository flag if specified
+	if owner != "" && repo != "" {
+		args = append(args, "-R", fmt.Sprintf("%s/%s", owner, repo))
+	}
+	
+	args = append(args, "--job", fmt.Sprintf("%d", jobID), "--log")
+	
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", jobID)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
+	}
+
+	cmd := workflow.ExecGH(args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to fetch job logs: %w\nOutput: %s", err, string(output))
+	}
+
+	jobLogContent := string(output)
+	
+	// Save full job log
+	jobLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d.log", jobID))
+	if err := os.WriteFile(jobLogPath, []byte(jobLogContent), 0644); err != nil {
+		return fmt.Errorf("failed to write job log: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Job log saved to %s", jobLogPath)))
+	}
+
+	// If step number is specified, extract that step's output
+	if stepNumber > 0 {
+		stepOutput, err := extractStepOutput(jobLogContent, stepNumber)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract step %d output: %v", stepNumber, err)))
+			}
+		} else {
+			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
+			if err := os.WriteFile(stepLogPath, []byte(stepOutput), 0644); err != nil {
+				return fmt.Errorf("failed to write step log: %w", err)
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Step %d output saved to %s", stepNumber, stepLogPath)))
+			}
+		}
+	} else {
+		// No step specified, find and extract first failing step
+		failingStepNum, failingStepOutput := findFirstFailingStep(jobLogContent)
+		if failingStepNum > 0 {
+			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d-failed.log", jobID, failingStepNum))
+			if err := os.WriteFile(stepLogPath, []byte(failingStepOutput), 0644); err != nil {
+				return fmt.Errorf("failed to write failing step log: %w", err)
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("First failing step %d output saved to %s", failingStepNum, stepLogPath)))
+			}
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No failing steps found in job"))
+		}
+	}
+
+	// Display summary
+	if !jsonOutput {
+		absOutputDir, _ := filepath.Abs(outputDir)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Job audit complete. Logs saved to %s", absOutputDir)))
+		
+		// Display file locations
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nDownloaded files:"))
+		fmt.Fprintf(os.Stderr, "  - %s (full job log)\n", jobLogPath)
+		
+		if stepNumber > 0 {
+			stepLogPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-%d.log", jobID, stepNumber))
+			if _, err := os.Stat(stepLogPath); err == nil {
+				fmt.Fprintf(os.Stderr, "  - %s (step %d output)\n", stepLogPath, stepNumber)
+			}
+		} else {
+			failingStepPath := filepath.Join(outputDir, fmt.Sprintf("job-%d-step-*-failed.log", jobID))
+			matches, _ := filepath.Glob(failingStepPath)
+			for _, match := range matches {
+				fmt.Fprintf(os.Stderr, "  - %s (first failing step)\n", match)
+			}
+		}
+	}
+
+	return nil
+}
+
+// extractStepOutput extracts the output of a specific step from job logs
+func extractStepOutput(jobLog string, stepNumber int) (string, error) {
+	lines := strings.Split(jobLog, "\n")
+	var stepOutput []string
+	inStep := false
+	stepPattern := fmt.Sprintf("##[group]Run ") // GitHub Actions step marker
+	stepEndPattern := "##[endgroup]"
+	currentStep := 0
+
+	for _, line := range lines {
+		// Detect step boundaries
+		if strings.Contains(line, stepPattern) || strings.HasPrefix(line, fmt.Sprintf("##[group]Step %d:", stepNumber)) {
+			currentStep++
+			if currentStep == stepNumber {
+				inStep = true
+			}
+		} else if strings.Contains(line, stepEndPattern) {
+			if inStep {
+				break // End of target step
+			}
+		}
+
+		if inStep {
+			stepOutput = append(stepOutput, line)
+		}
+	}
+
+	if len(stepOutput) == 0 {
+		return "", fmt.Errorf("step %d not found in job logs", stepNumber)
+	}
+
+	return strings.Join(stepOutput, "\n"), nil
+}
+
+// findFirstFailingStep finds the first step that failed in the job logs
+func findFirstFailingStep(jobLog string) (int, string) {
+	lines := strings.Split(jobLog, "\n")
+	var stepOutput []string
+	inStep := false
+	currentStep := 0
+	foundFailure := false
+
+	for _, line := range lines {
+		// Detect step start
+		if strings.Contains(line, "##[group]") {
+			if inStep && foundFailure {
+				break // We found a complete failing step
+			}
+			inStep = true
+			currentStep++
+			stepOutput = []string{line}
+			foundFailure = false
+		} else if inStep {
+			stepOutput = append(stepOutput, line)
+			
+			// Detect failure indicators
+			if strings.Contains(line, "##[error]") || 
+			   strings.Contains(line, "Error:") ||
+			   strings.Contains(line, "FAILED") ||
+			   strings.Contains(line, "exit code") && !strings.Contains(line, "exit code 0") {
+				foundFailure = true
+			}
+		}
+	}
+
+	if foundFailure && len(stepOutput) > 0 {
+		return currentStep, strings.Join(stepOutput, "\n")
+	}
+
+	return 0, ""
 }
 
 // fetchWorkflowRunMetadata fetches metadata for a single workflow run
