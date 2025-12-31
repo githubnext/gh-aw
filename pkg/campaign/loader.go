@@ -185,7 +185,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n")
 
-	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o644); err != nil {
+	// Use restrictive permissions (0600) to follow security best practices
+	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o600); err != nil {
 		return "", fmt.Errorf("failed to write campaign spec file '%s': %w", relPath, err)
 	}
 
