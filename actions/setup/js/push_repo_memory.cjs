@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -33,6 +34,14 @@ async function main() {
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
   const ghToken = process.env.GH_TOKEN;
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+
+  // Log environment variable configuration for debugging
+  core.info("Environment configuration:");
+  core.info(`  MEMORY_ID: ${memoryId}`);
+  core.info(`  MAX_FILE_SIZE: ${maxFileSize}`);
+  core.info(`  MAX_FILE_COUNT: ${maxFileCount}`);
+  core.info(`  FILE_GLOB_FILTER: ${fileGlobFilter ? `"${fileGlobFilter}"` : "(empty - all files accepted)"}`);
+  core.info(`  FILE_GLOB_FILTER length: ${fileGlobFilter.length}`);
 
   /** @param {unknown} value */
   function isPlainObject(value) {
@@ -246,6 +255,15 @@ async function main() {
   let campaignCursorFound = false;
   let campaignMetricsCount = 0;
 
+  // Log the file glob filter configuration
+  if (fileGlobFilter) {
+    core.info(`File glob filter enabled: ${fileGlobFilter}`);
+    const patternCount = fileGlobFilter.trim().split(/\s+/).filter(Boolean).length;
+    core.info(`Number of patterns: ${patternCount}`);
+  } else {
+    core.info("No file glob filter - all files will be accepted");
+  }
+
   /**
    * Recursively scan directory and collect files
    * @param {string} dirPath - Directory to scan
@@ -266,26 +284,28 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .map(pattern => {
-              // Convert glob pattern to regex that supports directory wildcards
-              // ** matches any path segment (including /)
-              // * matches any characters except /
-              let regexPattern = pattern
-                .replace(/\\/g, "\\\\") // Escape backslashes
-                .replace(/\./g, "\\.") // Escape dots
-                .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-                .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
-                .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
-              return new RegExp(`^${regexPattern}$`);
-            });
+          const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(globPatternToRegex);
 
-          if (!patterns.some(pattern => pattern.test(relativeFilePath))) {
+          // Debug logging: Show what we're testing
+          core.debug(`Testing file: ${relativeFilePath}`);
+          core.debug(`File glob filter: ${fileGlobFilter}`);
+          core.debug(`Number of patterns: ${patterns.length}`);
+
+          const matchResults = patterns.map((pattern, idx) => {
+            const matches = pattern.test(relativeFilePath);
+            const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
+            core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
+            return matches;
+          });
+
+          if (!matchResults.some(m => m)) {
             core.error(`File does not match allowed patterns: ${relativeFilePath}`);
             core.error(`Allowed patterns: ${fileGlobFilter}`);
+            core.error(`Pattern test results:`);
+            const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+            patterns.forEach((pattern, idx) => {
+              core.error(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? "MATCH" : "NO MATCH"}`);
+            });
             core.setFailed("File pattern validation failed");
             throw new Error("File pattern validation failed");
           }
@@ -323,6 +343,15 @@ async function main() {
 
   try {
     scanDirectory(sourceMemoryPath);
+    core.info(`Scan complete: Found ${filesToCopy.length} file(s) to copy`);
+    if (filesToCopy.length > 0 && filesToCopy.length <= 10) {
+      core.info("Files found:");
+      filesToCopy.forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
+    } else if (filesToCopy.length > 10) {
+      core.info(`First 10 files:`);
+      filesToCopy.slice(0, 10).forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
+      core.info(`  ... and ${filesToCopy.length - 10} more`);
+    }
   } catch (error) {
     core.setFailed(`Failed to scan artifact directory: ${getErrorMessage(error)}`);
     return;

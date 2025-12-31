@@ -1,4 +1,212 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { globPatternToRegex } from "./glob_pattern_helpers.cjs";
+
+describe("push_repo_memory.cjs - globPatternToRegex helper", () => {
+  describe("basic pattern matching", () => {
+    it("should match exact filenames without wildcards", () => {
+      const regex = globPatternToRegex("specific-file.txt");
+
+      expect(regex.test("specific-file.txt")).toBe(true);
+      expect(regex.test("specific-file.md")).toBe(false);
+      expect(regex.test("other-file.txt")).toBe(false);
+    });
+
+    it("should match files with * wildcard (single segment)", () => {
+      const regex = globPatternToRegex("*.json");
+
+      expect(regex.test("data.json")).toBe(true);
+      expect(regex.test("config.json")).toBe(true);
+      expect(regex.test("file.jsonl")).toBe(false);
+      expect(regex.test("dir/data.json")).toBe(false); // * doesn't cross directories
+    });
+
+    it("should match files with ** wildcard (multi-segment)", () => {
+      const regex = globPatternToRegex("metrics/**");
+
+      expect(regex.test("metrics/file.json")).toBe(true);
+      expect(regex.test("metrics/daily/file.json")).toBe(true);
+      expect(regex.test("metrics/daily/archive/file.json")).toBe(true);
+      expect(regex.test("data/file.json")).toBe(false);
+    });
+
+    it("should distinguish between * and **", () => {
+      const singleStar = globPatternToRegex("logs/*");
+      const doubleStar = globPatternToRegex("logs/**");
+
+      // Single * should match direct children only
+      expect(singleStar.test("logs/error.log")).toBe(true);
+      expect(singleStar.test("logs/2024/error.log")).toBe(false);
+
+      // Double ** should match nested paths
+      expect(doubleStar.test("logs/error.log")).toBe(true);
+      expect(doubleStar.test("logs/2024/error.log")).toBe(true);
+      expect(doubleStar.test("logs/2024/12/error.log")).toBe(true);
+    });
+  });
+
+  describe("special character escaping", () => {
+    it("should escape dots correctly", () => {
+      const regex = globPatternToRegex("file.txt");
+
+      expect(regex.test("file.txt")).toBe(true);
+      expect(regex.test("filextxt")).toBe(false); // dot shouldn't act as wildcard
+      expect(regex.test("file_txt")).toBe(false);
+    });
+
+    it("should escape backslashes correctly", () => {
+      // Test pattern with backslash (though rare in file patterns)
+      const regex = globPatternToRegex("test\\.txt");
+
+      // The backslash should be escaped, making this match literally
+      expect(regex.source).toContain("\\\\");
+    });
+
+    it("should handle patterns with multiple dots", () => {
+      const regex = globPatternToRegex("file.min.js");
+
+      expect(regex.test("file.min.js")).toBe(true);
+      expect(regex.test("filexminxjs")).toBe(false);
+    });
+  });
+
+  describe("real-world patterns", () => {
+    it("should match .jsonl files (daily-code-metrics use case)", () => {
+      const regex = globPatternToRegex("*.jsonl");
+
+      expect(regex.test("history.jsonl")).toBe(true);
+      expect(regex.test("data.jsonl")).toBe(true);
+      expect(regex.test("metrics.jsonl")).toBe(true);
+      expect(regex.test("file.json")).toBe(false);
+    });
+
+    it("should match nested metrics files", () => {
+      const regex = globPatternToRegex("metrics/**/*.json");
+
+      // metrics/**/*.json = metrics/ + .* + / + [^/]*.json
+      // The ** matches any path (including empty), but literal / after ** must exist
+      expect(regex.test("metrics/daily/2024-12-26.json")).toBe(true);
+      expect(regex.test("metrics/subdir/another/file.json")).toBe(true);
+
+      // This won't match because we need the / after ** even if ** matches empty
+      expect(regex.test("metrics/2024-12-26.json")).toBe(false);
+      expect(regex.test("data/metrics.json")).toBe(false);
+
+      // To match both nested and direct children, use: metrics/**
+      const flexibleRegex = globPatternToRegex("metrics/**");
+      expect(flexibleRegex.test("metrics/2024-12-26.json")).toBe(true);
+      expect(flexibleRegex.test("metrics/daily/file.json")).toBe(true);
+    });
+
+    it("should match campaign-specific patterns", () => {
+      const cursorRegex = globPatternToRegex("security-q1/cursor.json");
+      const metricsRegex = globPatternToRegex("security-q1/metrics/**");
+
+      expect(cursorRegex.test("security-q1/cursor.json")).toBe(true);
+      expect(cursorRegex.test("security-q1/metrics/file.json")).toBe(false);
+
+      expect(metricsRegex.test("security-q1/metrics/2024-12-29.json")).toBe(true);
+      expect(metricsRegex.test("security-q1/metrics/daily/snapshot.json")).toBe(true);
+      expect(metricsRegex.test("security-q1/cursor.json")).toBe(false);
+    });
+
+    it("should match multiple file extensions", () => {
+      const patterns = ["*.json", "*.jsonl", "*.csv", "*.md"].map(globPatternToRegex);
+
+      const testCases = [
+        { file: "data.json", shouldMatch: true },
+        { file: "history.jsonl", shouldMatch: true },
+        { file: "metrics.csv", shouldMatch: true },
+        { file: "README.md", shouldMatch: true },
+        { file: "script.js", shouldMatch: false },
+        { file: "image.png", shouldMatch: false },
+      ];
+
+      for (const { file, shouldMatch } of testCases) {
+        const matches = patterns.some(p => p.test(file));
+        expect(matches).toBe(shouldMatch);
+      }
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle empty pattern", () => {
+      const regex = globPatternToRegex("");
+
+      expect(regex.test("")).toBe(true);
+      expect(regex.test("anything")).toBe(false);
+    });
+
+    it("should handle pattern with only wildcards", () => {
+      const singleWildcard = globPatternToRegex("*");
+      const doubleWildcard = globPatternToRegex("**");
+
+      expect(singleWildcard.test("file.txt")).toBe(true);
+      expect(singleWildcard.test("dir/file.txt")).toBe(false);
+
+      expect(doubleWildcard.test("file.txt")).toBe(true);
+      expect(doubleWildcard.test("dir/file.txt")).toBe(true);
+    });
+
+    it("should handle complex nested patterns", () => {
+      const regex = globPatternToRegex("data/**/archive/*.csv");
+
+      // data/**/archive/*.csv = data/ + .* + /archive/ + [^/]*.csv
+      // The ** matches any path, but literal /archive/ must follow
+      expect(regex.test("data/2024/archive/metrics.csv")).toBe(true);
+      expect(regex.test("data/2024/12/archive/metrics.csv")).toBe(true);
+
+      // This won't match - ** matches empty but /archive/ must still be literal
+      expect(regex.test("data/archive/metrics.csv")).toBe(false);
+
+      expect(regex.test("data/metrics.csv")).toBe(false);
+      expect(regex.test("data/archive/metrics.json")).toBe(false);
+
+      // To match data/archive/*.csv directly, use this pattern
+      const directRegex = globPatternToRegex("data/archive/*.csv");
+      expect(directRegex.test("data/archive/metrics.csv")).toBe(true);
+    });
+
+    it("should handle patterns with hyphens and underscores", () => {
+      const regex = globPatternToRegex("test-file_name.json");
+
+      expect(regex.test("test-file_name.json")).toBe(true);
+      expect(regex.test("test_file-name.json")).toBe(false);
+    });
+
+    it("should be case-sensitive", () => {
+      const regex = globPatternToRegex("*.JSON");
+
+      expect(regex.test("file.JSON")).toBe(true);
+      expect(regex.test("file.json")).toBe(false);
+    });
+  });
+
+  describe("regex output format", () => {
+    it("should return RegExp objects", () => {
+      const regex = globPatternToRegex("*.json");
+
+      expect(regex).toBeInstanceOf(RegExp);
+    });
+
+    it("should anchor patterns with ^ and $", () => {
+      const regex = globPatternToRegex("*.json");
+
+      expect(regex.source).toMatch(/^\^.*\$$/);
+    });
+
+    it("should convert * to [^/]* in regex source", () => {
+      const regex = globPatternToRegex("*.json");
+
+      expect(regex.source).toContain("[^/]*");
+    });
+
+    it("should convert ** to .* in regex source", () => {
+      const regex = globPatternToRegex("data/**");
+
+      expect(regex.source).toContain(".*");
+    });
+  });
+});
 
 describe("push_repo_memory.cjs - glob pattern security tests", () => {
   describe("glob-to-regex conversion", () => {
@@ -559,6 +767,142 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // All patterns should validate against explicit campaign ID
       for (const pattern of patterns) {
         expect(pattern.startsWith(`${explicitCampaignId}/`)).toBe(true);
+      }
+    });
+  });
+
+  describe("debug logging for pattern matching", () => {
+    it("should log pattern matching details for debugging", () => {
+      // Test that debug logging provides helpful information
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "history.jsonl";
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // Log what we're testing
+      const matchResults = patterns.map((pattern, idx) => {
+        const matches = pattern.test(testFile);
+        const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
+        return { patternStr, regex: pattern.source, matches };
+      });
+
+      // Verify that history.jsonl matches the *.jsonl pattern
+      const jsonlMatch = matchResults.find(r => r.patternStr === "*.jsonl");
+      expect(jsonlMatch).toBeDefined();
+      expect(jsonlMatch.matches).toBe(true);
+      expect(jsonlMatch.regex).toBe("^[^/]*\\.jsonl$");
+
+      // Verify overall that at least one pattern matches
+      expect(matchResults.some(r => r.matches)).toBe(true);
+    });
+
+    it("should show which patterns match and which don't for a given file", () => {
+      // Test with a file that should only match one pattern
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "data.csv";
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+      const matchResults = patterns.map((pattern, idx) => ({
+        pattern: patternStrs[idx],
+        regex: pattern.source,
+        matches: pattern.test(testFile),
+      }));
+
+      // Should match *.csv but not others
+      expect(matchResults[0].matches).toBe(false); // *.json
+      expect(matchResults[1].matches).toBe(false); // *.jsonl
+      expect(matchResults[2].matches).toBe(true); // *.csv
+      expect(matchResults[3].matches).toBe(false); // *.md
+    });
+
+    it("should provide helpful error details when no patterns match", () => {
+      // Test with a file that doesn't match any pattern
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "script.js";
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+      const matchResults = patterns.map((pattern, idx) => ({
+        pattern: patternStrs[idx],
+        regex: pattern.source,
+        matches: pattern.test(testFile),
+      }));
+
+      // None should match
+      expect(matchResults.every(r => !r.matches)).toBe(true);
+
+      // Error message should include pattern details
+      const errorDetails = matchResults.map(r => `${r.pattern} -> regex: ${r.regex} -> ${r.matches ? "MATCH" : "NO MATCH"}`);
+
+      expect(errorDetails[0]).toContain("*.json -> regex: ^[^/]*\\.json$ -> NO MATCH");
+      expect(errorDetails[1]).toContain("*.jsonl -> regex: ^[^/]*\\.jsonl$ -> NO MATCH");
+      expect(errorDetails[2]).toContain("*.csv -> regex: ^[^/]*\\.csv$ -> NO MATCH");
+      expect(errorDetails[3]).toContain("*.md -> regex: ^[^/]*\\.md$ -> NO MATCH");
+    });
+
+    it("should correctly match files in the root directory (no subdirectories)", () => {
+      // The daily-code-metrics workflow writes history.jsonl to the root of repo memory
+      // Test that pattern matching works for root-level files
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const rootFiles = ["history.jsonl", "data.json", "metrics.csv", "README.md"];
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // All root files should match at least one pattern
+      for (const file of rootFiles) {
+        const matches = patterns.some(p => p.test(file));
+        expect(matches).toBe(true);
       }
     });
   });
