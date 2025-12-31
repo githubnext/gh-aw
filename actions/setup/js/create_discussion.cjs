@@ -144,10 +144,10 @@ async function main(config = {}) {
   /** @type {Map<string, {repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}>} */
   const repoInfoCache = new Map();
 
-  // Get configuration from environment variables (if set) or config object
+  // Get configuration from config object
   const closeOlderEnabled = config.close_older_discussions === true;
-  const titlePrefix = config.title_prefix || process.env.GH_AW_DISCUSSION_TITLE_PREFIX || "";
-  const configCategory = config.category || process.env.GH_AW_DISCUSSION_CATEGORY || "";
+  const titlePrefix = config.title_prefix || "";
+  const configCategory = config.category || "";
   // Parse labels from config (can be array or comma-separated string)
   const labelsConfig = config.labels || [];
   const labels = Array.isArray(labelsConfig)
