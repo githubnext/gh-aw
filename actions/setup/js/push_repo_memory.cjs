@@ -7,6 +7,30 @@ const { execSync } = require("child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Convert a glob pattern to a RegExp
+ * @param {string} pattern - Glob pattern (e.g., "*.json", "metrics/**", "data/**\/*.csv")
+ * @returns {RegExp} - Regular expression that matches the pattern
+ *
+ * Supports:
+ * - * matches any characters except /
+ * - ** matches any characters including /
+ * - . is escaped to match literal dots
+ * - \ is escaped properly
+ */
+function globPatternToRegex(pattern) {
+  // Convert glob pattern to regex that supports directory wildcards
+  // ** matches any path segment (including /)
+  // * matches any characters except /
+  let regexPattern = pattern
+    .replace(/\\/g, "\\\\") // Escape backslashes
+    .replace(/\./g, "\\.") // Escape dots
+    .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
+    .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
+    .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
+  return new RegExp(`^${regexPattern}$`);
+}
+
+/**
  * Push repo-memory changes to git branch
  * Environment variables:
  *   ARTIFACT_DIR: Path to the downloaded artifact directory containing memory files
@@ -283,22 +307,7 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .map(pattern => {
-              // Convert glob pattern to regex that supports directory wildcards
-              // ** matches any path segment (including /)
-              // * matches any characters except /
-              let regexPattern = pattern
-                .replace(/\\/g, "\\\\") // Escape backslashes
-                .replace(/\./g, "\\.") // Escape dots
-                .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-                .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
-                .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
-              return new RegExp(`^${regexPattern}$`);
-            });
+          const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(globPatternToRegex);
 
           // Debug logging: Show what we're testing
           core.debug(`Testing file: ${relativeFilePath}`);
@@ -481,4 +490,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+module.exports = { main, globPatternToRegex };
