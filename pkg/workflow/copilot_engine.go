@@ -386,8 +386,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 		// Mount .copilot directory for MCP configuration
 		// XDG_CONFIG_HOME is set to /home/runner, so Copilot CLI looks for config at /home/runner/.copilot/mcp-config.json
-		// Mount host /home/runner/.copilot to container /home/runner/.copilot so the config is accessible
-		awfArgs = append(awfArgs, "--mount", "/home/runner/.copilot:/home/runner/.copilot:ro")
+		// Mount host /home/runner/.copilot to container /home/runner/.copilot with read-write access for CLI state/logs
+		awfArgs = append(awfArgs, "--mount", "/home/runner/.copilot:/home/runner/.copilot:rw")
 		copilotLog.Print("Added gh CLI, copilot binary, and .copilot config directory mounts to AWF container")
 
 		// Add custom mounts from agent config if specified
