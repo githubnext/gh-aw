@@ -51,39 +51,33 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       }),
       it("should close specific issue when target is *", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 100, body: "Closing this issue." }] }),
-          (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 100, title: "[refactor] Refactor Test", labels: [{ name: "refactoring" }], state: "open", html_url: "https://github.com/testowner/testrepo/issues/100" } }),
           mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 456, html_url: "https://github.com/testowner/testrepo/issues/100#issuecomment-456" } }),
           mockGithub.rest.issues.update.mockResolvedValue({ data: { number: 100, html_url: "https://github.com/testowner/testrepo/issues/100", title: "[refactor] Refactor Test" } }),
-          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main({ target: "*" }); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 100 }),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 100));
       }),
       it("should filter by required title prefix", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 50, body: "Closing this issue." }] }),
-          (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
-          (process.env.GH_AW_CLOSE_ISSUE_REQUIRED_TITLE_PREFIX = "[refactor] "),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 50, title: "[bug] Bug Fix", labels: [], state: "open", html_url: "https://github.com/testowner/testrepo/issues/50" } }),
-          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main({ target: "*", required_title_prefix: "[refactor] " }); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not have required title prefix")));
       }),
       it("should filter by required labels", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 60, body: "Closing this issue." }] }),
-          (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
-          (process.env.GH_AW_CLOSE_ISSUE_REQUIRED_LABELS = "automated,stale"),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 60, title: "Test Issue", labels: [{ name: "bug" }], state: "open", html_url: "https://github.com/testowner/testrepo/issues/60" } }),
-          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main({ target: "*", required_labels: ["automated", "stale"] }); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not have required labels")));
       }),
       it("should skip already closed issues", async () => {
         (setAgentOutput({ items: [{ type: "close_issue", issue_number: 70, body: "Closing this issue." }] }),
-          (process.env.GH_AW_CLOSE_ISSUE_TARGET = "*"),
           mockGithub.rest.issues.get.mockResolvedValue({ data: { number: 70, title: "Already Closed", labels: [], state: "closed", html_url: "https://github.com/testowner/testrepo/issues/70" } }),
-          await eval(`(async () => { ${closeIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${closeIssueScript}; await main({ target: "*" }); })()`),
           expect(mockGithub.rest.issues.get).toHaveBeenCalled(),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled(),
           expect(mockCore.info).toHaveBeenCalledWith("Issue #70 is already closed, skipping"));

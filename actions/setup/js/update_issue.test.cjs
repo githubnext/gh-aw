@@ -71,10 +71,10 @@ const mockCore = {
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }),
       it("should update issue title successfully", async () => {
-        (setAgentOutput({ items: [{ type: "update_issue", title: "Updated issue title" }] }), (process.env.GH_AW_UPDATE_TITLE = "true"), (global.context.eventName = "issues"));
+        (setAgentOutput({ items: [{ type: "update_issue", title: "Updated issue title" }] }), (global.context.eventName = "issues"));
         const mockIssue = { number: 123, title: "Updated issue title", html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main({ allow_title: true }); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, title: "Updated issue title" }),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 123),
           expect(mockCore.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url),
@@ -82,28 +82,25 @@ const mockCore = {
           expect(mockCore.summary.write).toHaveBeenCalled());
       }),
       it("should update issue status successfully", async () => {
-        (setAgentOutput({ items: [{ type: "update_issue", status: "closed" }] }), (process.env.GH_AW_UPDATE_STATUS = "true"), (global.context.eventName = "issues"));
+        (setAgentOutput({ items: [{ type: "update_issue", status: "closed" }] }), (global.context.eventName = "issues"));
         const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main({ allow_status: true }); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, state: "closed" }));
       }),
       it("should update multiple fields successfully", async () => {
         (setAgentOutput({ items: [{ type: "update_issue", title: "New title", body: "New body content", status: "open" }] }),
-          (process.env.GH_AW_UPDATE_TITLE = "true"),
-          (process.env.GH_AW_UPDATE_BODY = "true"),
-          (process.env.GH_AW_UPDATE_STATUS = "true"),
           (global.context.eventName = "issues"));
         const mockIssue = { number: 123, html_url: "https://github.com/testowner/testrepo/issues/123" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main({ allow_title: true, allow_body: true, allow_status: true }); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 123, title: "New title", body: "New body content", state: "open" }));
       }),
       it('should handle explicit issue number with target "*"', async () => {
-        (setAgentOutput({ items: [{ type: "update_issue", issue_number: 456, title: "Updated title" }] }), (process.env.GH_AW_UPDATE_TITLE = "true"), (process.env.GH_AW_UPDATE_TARGET = "*"), (global.context.eventName = "push"));
+        (setAgentOutput({ items: [{ type: "update_issue", issue_number: 456, title: "Updated title" }] }), (global.context.eventName = "push"));
         const mockIssue = { number: 456, html_url: "https://github.com/testowner/testrepo/issues/456" };
         (mockGithub.rest.issues.update.mockResolvedValue({ data: mockIssue }),
-          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main({ allow_title: true, target: "*" }); })()`),
           expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({ owner: "testowner", repo: "testrepo", issue_number: 456, title: "Updated title" }));
       }),
       it("should skip when no valid updates are provided", async () => {
@@ -118,9 +115,8 @@ const mockCore = {
       }),
       it("should validate status values", async () => {
         (setAgentOutput({ items: [{ type: "update_issue", status: "invalid" }] }),
-          (process.env.GH_AW_UPDATE_STATUS = "true"),
           (global.context.eventName = "issues"),
-          await eval(`(async () => { ${updateIssueScript}; await main(); })()`),
+          await eval(`(async () => { ${updateIssueScript}; await main({ allow_status: true }); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("Invalid status value: invalid. Must be 'open' or 'closed'"),
           expect(mockGithub.rest.issues.update).not.toHaveBeenCalled());
       }));
