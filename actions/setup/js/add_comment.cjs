@@ -1,12 +1,18 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
-/// <reference path="./types/handler-factory.d.ts" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
 
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "add_comment";
 
 // Copy helper functions from original file
 async function minimizeComment(github, nodeId, reason = "outdated") {
@@ -195,7 +201,7 @@ async function hideOlderComments(github, owner, repo, itemNumber, workflowId, is
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
  * @param {string} message - Comment body
- * @param {string|undefined} replyToId - Optional comment node ID to reply to (for threaded comments)
+ * @param {string|null|undefined} replyToId - Optional comment node ID to reply to (for threaded comments)
  * @returns {Promise<{id: string, html_url: string, discussion_url: string}>} Comment details
  */
 async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
@@ -401,12 +407,12 @@ async function main(config = {}) {
         comment = data;
       }
 
-      core.info(`Created comment: ${comment.html_url || comment.url}`);
+      core.info(`Created comment: ${comment.html_url || /** @type {any} */ comment.url}`);
 
       // Add tracking metadata
       const commentResult = {
         id: comment.id,
-        html_url: comment.html_url || comment.url,
+        html_url: comment.html_url || /** @type {any} */ comment.url,
         _tracking: {
           commentId: comment.id,
           itemNumber: itemNumber,
@@ -420,7 +426,7 @@ async function main(config = {}) {
       return {
         success: true,
         commentId: comment.id,
-        url: comment.html_url || comment.url,
+        url: comment.html_url || /** @type {any} */ comment.url,
         itemNumber: itemNumber,
         isDiscussion: isDiscussion,
       };

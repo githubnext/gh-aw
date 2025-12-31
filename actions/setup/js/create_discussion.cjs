@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
-/// <reference path="./types/handler-factory.d.ts" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "create_discussion";
 
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");

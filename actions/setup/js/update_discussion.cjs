@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
-/// <reference path="./types/handler-factory.d.ts" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
 
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");

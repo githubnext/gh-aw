@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
-/// <reference path="./types/handler-factory.d.ts" />
+
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "update_issue";
 
 const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
