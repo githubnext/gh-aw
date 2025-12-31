@@ -64,6 +64,11 @@ async function main() {
     const summary = generateSafeInputsSummary(allLogEntries);
     core.summary.addRaw(summary).write();
   } catch (error) {
+    // Log full error information to core.info for debugging
+    core.info(`Error parsing safe-inputs logs: ${getErrorMessage(error)}`);
+    if (error instanceof Error && error.stack) {
+      core.info(`Stack trace: ${error.stack}`);
+    }
     core.setFailed(getErrorMessage(error));
   }
 }

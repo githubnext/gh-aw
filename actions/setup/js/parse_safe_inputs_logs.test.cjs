@@ -378,7 +378,25 @@ describe("parse_safe_inputs_logs.cjs", () => {
 
       await main();
 
+      // Verify that full error information is logged to core.info
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Error parsing safe-inputs logs: Test error"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringMatching(/Stack trace:.*Error: Test error/));
       expect(mockCore.setFailed).toHaveBeenCalledWith("Test error");
+    });
+
+    it("should handle non-Error exceptions gracefully", async () => {
+      const error = "String error";
+
+      // Mock fs to throw string error
+      vi.spyOn(fs, "existsSync").mockImplementation(() => {
+        throw error;
+      });
+
+      await main();
+
+      // Verify that error is logged to core.info (no stack trace for non-Error)
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Error parsing safe-inputs logs: String error"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith("String error");
     });
 
     it("should process multiple log files", async () => {
