@@ -145,7 +145,15 @@ async function processMessages(messageHandlers, messages) {
     const messageHandler = messageHandlers.get(messageType);
 
     if (!messageHandler) {
-      core.debug(`No handler for type: ${messageType} (message ${i + 1})`);
+      core.warning(
+        `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.`
+      );
+      results.push({
+        type: messageType,
+        messageIndex: i,
+        success: false,
+        error: `No handler loaded for type '${messageType}'`,
+      });
       continue;
     }
 
@@ -567,17 +575,28 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success).length;
+    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred).length;
+    const deferredCount = processingResult.results.filter(r => r.deferred).length;
+    const skippedCount = processingResult.results.filter(r => !r.success && r.error?.includes("No handler loaded")).length;
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
+    if (deferredCount > 0) {
+      core.info(`Deferred: ${deferredCount}`);
+    }
+    if (skippedCount > 0) {
+      core.warning(`Skipped (no handler): ${skippedCount}`);
+    }
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
 
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
+    }
+    if (skippedCount > 0) {
+      core.warning(`${skippedCount} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
     }
 
     core.info("Safe Output Handler Manager completed");
