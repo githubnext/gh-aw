@@ -3,39 +3,33 @@ title: "Agentic campaigns"
 description: "Run structured, visible delegation initiatives with GitHub Agentic Workflows and GitHub Projects."
 ---
 
-Agentic campaigns are bounded, goal-driven efforts where agents carry out work over time.
+Agentic campaigns are bounded, goal-driven initiatives that run over time and are easy to see, review, and steer. They reuse agentic workflows as repeatable workers, but add a delegation layer: a clear objective, a set of measurable KPIs, governance, and a shared tracker so progress stays consistent across many runs.
 
-Agentic workflows are already capable of running continuously (scheduled, event-driven, and re-run), and many initiatives should be automated that way. An agentic campaign is the step from automation to delegation which makes this continuous work easy to see, review, and steer toward a specific goal, is the step from automation to delegation.
+While agentic workflows can already run continuously (scheduled, event-driven, and rerunnable), a campaign is what you use when you want that continuous work to be directed at a specific outcome and managed like a project, not just executed like automation.
 
-For example, an agentic workflow can run an agent on a schedule, decide whether a repo needs a dependency bump, and then emit a `create_pull_request` safe-output to open the PR. An agentic campaign uses that same kind of agentic workflow as a repeatable worker and adds the coordination layer: it defines the objective and KPIs, applies a tracker label, keeps a GitHub Project updated, and writes durable progress to repo-memory until the goal is met.
+For example, an agentic workflow might run nightly, decide whether a repo needs a dependency bump, and open a pull request. An agentic campaign uses the same kind of workflow as a worker and adds coordination: it defines what success looks like, tracks progress against KPIs, and maintains a single source of truth for status via a GitHub Project that automatically reflects which tracked items are new, in progress, blocked, or done. It also writes durable checkpoints and metrics so the campaign can resume safely and report progress until the goal is met.
 
 ## When to use a campaign
 
-Use a campaign when you need to track progress over time (days/weeks). Use an agentic workflow when you just need a single automated run with logs/artifacts and pass/fail.
+Use a campaign when you need to manage an initiative—scope, progress, and outcomes—across many workflow runs, not just execute automation and inspect each run’s result. Workflows execute; campaigns coordinate work toward a goal with shared tracking and a clear definition of done.
 
-- Example of an agentic workflow (single run):
+- Example of an agentic workflow (per-event automation):
   > Every time a new discussion is created, classify it and apply labels. If it fails, show an error in the run logs.
 
 - Example of an agentic campaign (ongoing initiative):
   > Over the next two weeks, label and triage 500 existing Actions discussions to a new taxonomy, track completion with a campaign:actions-labeling label, and publish weekly progress updates (done/remaining, top failure reasons).
 
-## What you get
+## Campaign structure
 
-You get a GitHub Project as the dashboard, a generated orchestrator workflow that keeps that dashboard in sync, and a spec file that makes the effort reviewable (objective, KPIs, governance, and wiring). The orchestrator is just another workflow; campaigns are a way of wiring workflows together around a shared goal.
+A campaign gives you a dashboard (GitHub Project), a coordinating orchestrator workflow that keeps it in sync, and a spec file that captures the objective, KPIs, governance, and wiring. In the repo, the spec lives at `.github/workflows/<id>.campaign.md` and is the source of truth.
 
-## What it is in the repo
-
-A campaign is defined by a spec file and, when needed, a generated orchestrator. The spec lives at `.github/workflows/<id>.campaign.md`. When the spec includes meaningful campaign wiring, compilation also generates `.github/workflows/<id>.campaign.g.md` and compiles it to a `.lock.yml` workflow.
-
-The spec is the source of truth for what success means (the objective), how progress is measured (KPIs, with exactly one marked `primary`), where progress is shown (the GitHub Project URL), what participates (the workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
+When the spec includes orchestration, the tooling generates `.github/workflows/<id>.campaign.g.md` and compiles it into a locked `.lock.yml` workflow. The spec defines what success means (objective), how progress is measured (KPIs, with exactly one marked primary), where progress is shown (GitHub Project URL), what participates (workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
 
 ## How it works
 
-Most campaigns follow the same shape. The GitHub Project is the human-facing status view. The orchestrator workflow discovers tracked items and updates the Project. Worker workflows (when you use them) do the real work, such as opening pull requests or applying fixes.
+Most campaigns follow the same shape. The GitHub Project is the human-facing status view. The orchestrator workflow discovers tracked items from the workers and updates the Project. Worker workflows do the real work, such as opening pull requests or applying fixes but they stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker which the orchestrator can search for.
 
-Workers stay campaign-agnostic. If you want cross-run discovery of worker-created assets, workers can include a `tracker-id` marker and the orchestrator can search for it.
-
-## Durable state (repo-memory)
+## Memory
 
 Campaigns become repeatable when they also write durable state to repo-memory (a git branch used for snapshots). The recommended layout is `memory/campaigns/<campaign-id>/cursor.json` for the checkpoint (treated as an opaque JSON object) and `memory/campaigns/<campaign-id>/metrics/<date>.json` for append-only metrics snapshots.
 
