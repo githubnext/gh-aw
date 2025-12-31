@@ -854,6 +854,8 @@ jobs:
           
       - name: Start Safe Inputs MCP HTTP Server
         id: safe-inputs-start
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Set environment variables for the server
           export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
