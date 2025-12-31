@@ -266,18 +266,22 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(pattern => {
-            // Convert glob pattern to regex that supports directory wildcards
-            // ** matches any path segment (including /)
-            // * matches any characters except /
-            let regexPattern = pattern
-              .replace(/\\/g, "\\\\") // Escape backslashes
-              .replace(/\./g, "\\.") // Escape dots
-              .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-              .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
-              .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
-            return new RegExp(`^${regexPattern}$`);
-          });
+          const patterns = fileGlobFilter
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(pattern => {
+              // Convert glob pattern to regex that supports directory wildcards
+              // ** matches any path segment (including /)
+              // * matches any characters except /
+              let regexPattern = pattern
+                .replace(/\\/g, "\\\\") // Escape backslashes
+                .replace(/\./g, "\\.") // Escape dots
+                .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
+                .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
+                .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
+              return new RegExp(`^${regexPattern}$`);
+            });
 
           if (!patterns.some(pattern => pattern.test(relativeFilePath))) {
             core.error(`File does not match allowed patterns: ${relativeFilePath}`);

@@ -106,15 +106,19 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // and writes history.jsonl file to repo memory at memory/default/history.jsonl
 
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
-      const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(pattern => {
-        const regexPattern = pattern
-          .replace(/\\/g, "\\\\")
-          .replace(/\./g, "\\.")
-          .replace(/\*\*/g, "<!DOUBLESTAR>")
-          .replace(/\*/g, "[^/]*")
-          .replace(/<!DOUBLESTAR>/g, ".*");
-        return new RegExp(`^${regexPattern}$`);
-      });
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
 
       // Should match .jsonl files (the actual file from workflow run: history.jsonl)
       // Note: Pattern matching is done on relative filename only, not full path
@@ -161,15 +165,19 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // This validates that empty patterns from whitespace don't cause issues
       const fileGlobFilter = " *.json  *.jsonl  *.csv  *.md "; // Extra spaces
 
-      const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(pattern => {
-        const regexPattern = pattern
-          .replace(/\\/g, "\\\\")
-          .replace(/\./g, "\\.")
-          .replace(/\*\*/g, "<!DOUBLESTAR>")
-          .replace(/\*/g, "[^/]*")
-          .replace(/<!DOUBLESTAR>/g, ".*");
-        return new RegExp(`^${regexPattern}$`);
-      });
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
 
       // Should still have exactly 4 patterns (empty strings filtered out)
       expect(patterns.length).toBe(4);
