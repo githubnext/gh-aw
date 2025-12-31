@@ -353,23 +353,6 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Add a comment to a Notion page",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "comment": {
-                    "description": "The comment text to add",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "comment"
-                ],
-                "type": "object"
-              },
-              "name": "notion_add_comment"
-            },
-            {
               "description": "Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -385,6 +368,23 @@ jobs:
                 "type": "object"
               },
               "name": "post_to_slack_channel"
+            },
+            {
+              "description": "Add a comment to a Notion page",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "comment": {
+                    "description": "The comment text to add",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "comment"
+                ],
+                "type": "object"
+              },
+              "name": "notion_add_comment"
             }
           ]
           EOF
