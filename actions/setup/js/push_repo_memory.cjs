@@ -147,9 +147,21 @@ async function main() {
     return;
   }
 
+  // TypeScript assertions: After validation above, these are guaranteed to be strings
+  /** @type {string} */
+  const validatedBranchName = branchName;
+  /** @type {string} */
+  const validatedArtifactDir = artifactDir;
+  /** @type {string} */
+  const validatedMemoryId = memoryId;
+  /** @type {string} */
+  const validatedTargetRepo = targetRepo;
+  /** @type {string} */
+  const validatedGhToken = ghToken;
+
   // Source directory with memory files (artifact location)
   // The artifactDir IS the memory directory (no nested structure needed)
-  const sourceMemoryPath = artifactDir;
+  const sourceMemoryPath = validatedArtifactDir;
 
   // ============================================================================
   // CAMPAIGN MODE DETECTION
@@ -177,8 +189,8 @@ async function main() {
   // Determine campaign ID from patterns or explicit override
   let campaignId = explicitCampaignId;
 
-  // If no explicit campaign ID, try to extract from patterns when memoryId is "campaigns"
-  if (!campaignId && memoryId === "campaigns" && patterns.length > 0) {
+  // If no explicit campaign ID, try to extract from patterns when validatedMemoryId is "campaigns"
+  if (!campaignId && validatedMemoryId === "campaigns" && patterns.length > 0) {
     // Try to extract campaign ID from first pattern matching "<campaign-id>/**"
     const campaignMatch = /^([^*?/]+)\/\*\*/.exec(patterns[0]);
     if (campaignMatch) {
@@ -223,21 +235,21 @@ async function main() {
   }
 
   // Checkout or create the memory branch
-  core.info(`Checking out branch: ${branchName}...`);
+  core.info(`Checking out branch: ${validatedBranchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+    const repoUrl = `https://x-access-token:${validatedGhToken}@github.com/${validatedTargetRepo}.git`;
 
     // Try to fetch the branch
     try {
-      execSync(`git fetch "${repoUrl}" "${branchName}:${branchName}"`, { stdio: "pipe" });
-      execSync(`git checkout "${branchName}"`, { stdio: "inherit" });
-      core.info(`Checked out existing branch: ${branchName}`);
+      execSync(`git fetch "${repoUrl}" "${validatedBranchName}:${validatedBranchName}"`, { stdio: "pipe" });
+      execSync(`git checkout "${validatedBranchName}"`, { stdio: "inherit" });
+      core.info(`Checked out existing branch: ${validatedBranchName}`);
     } catch (fetchError) {
       // Branch doesn't exist, create orphan branch
-      core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
-      execSync(`git checkout --orphan "${branchName}"`, { stdio: "inherit" });
+      core.info(`Branch ${validatedBranchName} does not exist, creating orphan branch...`);
+      execSync(`git checkout --orphan "${validatedBranchName}"`, { stdio: "inherit" });
       execSync("git rm -rf . || true", { stdio: "pipe" });
-      core.info(`Created orphan branch: ${branchName}`);
+      core.info(`Created orphan branch: ${validatedBranchName}`);
     }
   } catch (error) {
     core.setFailed(`Failed to checkout branch: ${getErrorMessage(error)}`);
@@ -248,7 +260,7 @@ async function main() {
   // Extract the relative folder path from the branch name
   // For branch "memory/code-metrics", use "memory/code-metrics" as the destination path
   // This ensures the folder structure matches the branch name
-  const destMemoryPath = path.join(workspaceDir, branchName);
+  const destMemoryPath = path.join(workspaceDir, validatedBranchName);
   fs.mkdirSync(destMemoryPath, { recursive: true });
   core.info(`Destination directory: ${destMemoryPath}`);
 
@@ -291,7 +303,7 @@ async function main() {
 
           // Build the full path that will exist in the branch (branch name + relative file path)
           // This accounts for the memory/{id} folder structure within the branch
-          const branchRelativePath = path.join(branchName, relativeFilePath).replace(/\\/g, "/");
+          const branchRelativePath = path.join(validatedBranchName, relativeFilePath).replace(/\\/g, "/");
 
           // Debug logging: Show what we're testing
           core.debug(`Testing file: ${relativeFilePath}`);
@@ -454,21 +466,21 @@ async function main() {
   }
 
   // Pull with merge strategy (ours wins on conflicts)
-  core.info(`Pulling latest changes from ${branchName}...`);
+  core.info(`Pulling latest changes from ${validatedBranchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
-    execSync(`git pull --no-rebase -X ours "${repoUrl}" "${branchName}"`, { stdio: "inherit" });
+    const repoUrl = `https://x-access-token:${validatedGhToken}@github.com/${validatedTargetRepo}.git`;
+    execSync(`git pull --no-rebase -X ours "${repoUrl}" "${validatedBranchName}"`, { stdio: "inherit" });
   } catch (error) {
     // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
     core.warning(`Pull failed (this may be expected): ${getErrorMessage(error)}`);
   }
 
   // Push changes
-  core.info(`Pushing changes to ${branchName}...`);
+  core.info(`Pushing changes to ${validatedBranchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
-    execSync(`git push "${repoUrl}" HEAD:"${branchName}"`, { stdio: "inherit" });
-    core.info(`Successfully pushed changes to ${branchName} branch`);
+    const repoUrl = `https://x-access-token:${validatedGhToken}@github.com/${validatedTargetRepo}.git`;
+    execSync(`git push "${repoUrl}" HEAD:"${validatedBranchName}"`, { stdio: "inherit" });
+    core.info(`Successfully pushed changes to ${validatedBranchName} branch`);
   } catch (error) {
     core.setFailed(`Failed to push changes: ${getErrorMessage(error)}`);
     return;
