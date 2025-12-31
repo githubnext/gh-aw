@@ -266,7 +266,7 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter.split(/\s+/).map(pattern => {
+          const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(pattern => {
             // Convert glob pattern to regex that supports directory wildcards
             // ** matches any path segment (including /)
             // * matches any characters except /
