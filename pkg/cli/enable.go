@@ -264,14 +264,14 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 
 		if output, err := cmd.CombinedOutput(); err != nil {
 			if len(output) > 0 {
-				fmt.Fprintf(os.Stderr, "Failed to %s workflow %s: %v\n%s\n", action, t.Name, err, string(output))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to %s workflow %s: %v\n%s", action, t.Name, err, string(output))))
 				// Provide clearer hint on common permission issues
 				outStr := strings.ToLower(string(output))
 				if strings.Contains(outStr, "http 403") || strings.Contains(outStr, "resource not accessible by integration") {
-					fmt.Fprintf(os.Stderr, "Hint: Disabling/enabling workflows requires repository admin or maintainer permissions. Ensure your gh auth has write/admin access to this repo.\n")
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Hint: Disabling/enabling workflows requires repository admin or maintainer permissions. Ensure your gh auth has write/admin access to this repo."))
 				}
 			} else {
-				fmt.Fprintf(os.Stderr, "Failed to %s workflow %s: %v\n", action, t.Name, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to %s workflow %s: %v", action, t.Name, err)))
 			}
 			failures = append(failures, t.Name)
 		} else {
