@@ -87,9 +87,7 @@ async function main() {
 
   // Check if workflow file is newer than lock file
   if (workflowDate > lockDate) {
-    const warningMessage = `WARNING: Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
-
-    core.error(warningMessage);
+    const warningMessage = `Lock file '${lockFilePath}' is outdated! The workflow file '${workflowMdPath}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
 
     // Format timestamps and commits for display
     const workflowTimestamp = workflowDate.toISOString();
@@ -109,6 +107,9 @@ async function main() {
       .addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
 
     await summary.write();
+
+    // Fail the step to prevent workflow from running with outdated configuration
+    core.setFailed(warningMessage);
   } else if (workflowCommit.sha === lockCommit.sha) {
     core.info("✅ Lock file is up to date (same commit)");
   } else {
