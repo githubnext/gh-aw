@@ -28,7 +28,8 @@ concurrency:
 engine: copilot
 timeout-minutes: 10
 
-network: {}
+network:
+  allowed: ["defaults", "go"]
 
 tools:
   github:
