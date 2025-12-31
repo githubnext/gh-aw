@@ -192,25 +192,35 @@
 :root[data-theme='light'] .sl-markdown-content pre {
   background-color: #f6f8fa;
   border: 1px solid #d0d7de;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 :root[data-theme='light'] .sl-markdown-content code {
   background-color: rgba(175, 184, 193, 0.2);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 :root[data-theme='light'] .sl-markdown-content table {
   width: 100%;
-  table-layout: fixed;
+  max-width: 100%;
+  table-layout: auto;
   border: 1px solid #d0d7de;
+  overflow: hidden;
 }
 
 :root[data-theme='light'] .sl-markdown-content th {
   background-color: #f6f8fa;
   border-bottom: 1px solid #d0d7de;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 :root[data-theme='light'] .sl-markdown-content td {
   border-bottom: 1px solid #d0d7de;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 :root[data-theme='light'] .sl-markdown-content blockquote {
@@ -466,6 +476,10 @@ header::after {
 .sl-markdown-content {
   color: #f0f6fc;
   font-family: var(--sl-font) !important;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .sl-markdown-content p {
@@ -537,6 +551,8 @@ header::after {
   background-color: #161b22;
   border: 1px solid #30363d;
   border-radius: 6px;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .sl-markdown-content code {
@@ -544,6 +560,8 @@ header::after {
   border-radius: 4px;
   font-size: 85%;
   font-family: var(--sl-font-mono);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .sl-markdown-content pre code {
@@ -551,26 +569,44 @@ header::after {
   border-radius: 0;
   font-size: 0.875rem;
   line-height: 1.6;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-wrap: normal;
 }
 
 /* Tables */
 .sl-markdown-content table {
   width: 100%;
-  table-layout: fixed;
+  max-width: 100%;
+  table-layout: auto;
   border: 1px solid #30363d;
   border-radius: 6px;
   border-collapse: separate;
   border-spacing: 0;
+  overflow: hidden;
+}
+
+/* Responsive table wrapper for mobile/tablet */
+@media (max-width: 900px) {
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .sl-markdown-content th {
   background-color: #161b22;
   border-bottom: 1px solid #30363d;
   font-weight: 600;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .sl-markdown-content td {
   border-bottom: 1px solid #21262d;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .sl-markdown-content tr:last-child td {
@@ -1121,4 +1157,67 @@ a:hover {
   line-height: 1.6;
   color: #c9d1d9;
   font-weight: 400;
+}
+
+/* Responsive improvements to prevent horizontal overflow */
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure body and main containers don't overflow */
+body, html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.page,
+.main-frame,
+main,
+.content-panel {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Ensure all content respects container width */
+.sl-markdown-content > * {
+  max-width: 100%;
+}
+
+/* Specific fixes for common overflow culprits */
+.sl-markdown-content img,
+.sl-markdown-content video,
+.sl-markdown-content iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid diagrams responsive */
+.sl-markdown-content .mermaid {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Code examples with wrap attribute */
+.sl-markdown-content pre[class*="language-"] {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Additional tablet-specific fixes (iPad Pro 11 at 834px) */
+@media (min-width: 768px) and (max-width: 900px) {
+  /* Ensure header doesn't overflow on tablets */
+  .custom-header-links {
+    gap: 0.5rem !important;
+  }
+  
+  .header-link {
+    font-size: 0.8125rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  /* Ensure content has proper padding on tablets */
+  .sl-markdown-content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
