@@ -312,3 +312,134 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 		t.Fatalf("unexpected update-project max: got %d, want %d", data.SafeOutputs.UpdateProjects.Max, 4)
 	}
 }
+
+func TestExtractFileGlobPattern(t *testing.T) {
+	tests := []struct {
+		name           string
+		spec           *CampaignSpec
+		expectedGlob   string
+		expectedLogMsg string
+	}{
+		{
+			name: "dated pattern in memory-paths",
+			spec: &CampaignSpec{
+				ID:          "go-file-size-reduction-project64",
+				MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
+				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+			},
+			expectedGlob:   "go-file-size-reduction-project64-*/**",
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
+		},
+		{
+			name: "dated pattern in metrics-glob only",
+			spec: &CampaignSpec{
+				ID:          "go-file-size-reduction-project64",
+				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+			},
+			expectedGlob:   "go-file-size-reduction-project64-*/**",
+			expectedLogMsg: "Extracted file-glob pattern from metrics-glob",
+		},
+		{
+			name: "simple pattern without wildcards",
+			spec: &CampaignSpec{
+				ID:          "simple-campaign",
+				MemoryPaths: []string{"memory/campaigns/simple-campaign/**"},
+			},
+			expectedGlob:   "simple-campaign/**",
+			expectedLogMsg: "Using fallback file-glob pattern",
+		},
+		{
+			name: "no memory paths or metrics glob",
+			spec: &CampaignSpec{
+				ID: "minimal-campaign",
+			},
+			expectedGlob:   "minimal-campaign/**",
+			expectedLogMsg: "Using fallback file-glob pattern",
+		},
+		{
+			name: "multiple memory paths with wildcard",
+			spec: &CampaignSpec{
+				ID: "multi-path",
+				MemoryPaths: []string{
+					"memory/campaigns/multi-path-staging/**",
+					"memory/campaigns/multi-path-*/data/**",
+				},
+			},
+			expectedGlob:   "multi-path-*/data/**",
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractFileGlobPattern(tt.spec)
+			if result != tt.expectedGlob {
+				t.Errorf("extractFileGlobPattern(%q) = %q, want %q", tt.spec.ID, result, tt.expectedGlob)
+			}
+		})
+	}
+}
+
+func TestBuildOrchestrator_FileGlobMatchesMemoryPaths(t *testing.T) {
+	// This test verifies that the file-glob pattern in repo-memory configuration
+	// matches the pattern defined in memory-paths, including wildcards
+	spec := &CampaignSpec{
+		ID:           "go-file-size-reduction-project64",
+		Name:         "Go File Size Reduction Campaign",
+		Description:  "Test campaign with dated memory paths",
+		ProjectURL:   "https://github.com/orgs/githubnext/projects/64",
+		Workflows:    []string{"daily-file-diet"},
+		MemoryPaths:  []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
+		MetricsGlob:  "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+		TrackerLabel: "campaign:go-file-size-reduction-project64",
+	}
+
+	mdPath := ".github/workflows/go-file-size-reduction-project64.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	// Extract repo-memory configuration from Tools
+	repoMemoryConfig, ok := data.Tools["repo-memory"]
+	if !ok {
+		t.Fatalf("expected repo-memory to be configured in Tools")
+	}
+
+	repoMemoryArray, ok := repoMemoryConfig.([]any)
+	if !ok || len(repoMemoryArray) == 0 {
+		t.Fatalf("expected repo-memory to be an array with at least one entry")
+	}
+
+	repoMemoryEntry, ok := repoMemoryArray[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected repo-memory entry to be a map")
+	}
+
+	fileGlob, ok := repoMemoryEntry["file-glob"]
+	if !ok {
+		t.Fatalf("expected file-glob to be present in repo-memory entry")
+	}
+
+	fileGlobArray, ok := fileGlob.([]any)
+	if !ok || len(fileGlobArray) == 0 {
+		t.Fatalf("expected file-glob to be an array with at least one entry")
+	}
+
+	fileGlobPattern, ok := fileGlobArray[0].(string)
+	if !ok {
+		t.Fatalf("expected file-glob pattern to be a string")
+	}
+
+	// Verify that the file-glob pattern includes the wildcard for dated directories
+	expectedPattern := "go-file-size-reduction-project64-*/**"
+	if fileGlobPattern != expectedPattern {
+		t.Errorf("file-glob pattern = %q, want %q", fileGlobPattern, expectedPattern)
+	}
+
+	// Verify that the pattern would match dated directories
+	if !strings.Contains(fileGlobPattern, "*") {
+		t.Errorf("file-glob pattern should include wildcard for dated directories, got %q", fileGlobPattern)
+	}
+}
