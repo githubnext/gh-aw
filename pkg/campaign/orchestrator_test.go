@@ -321,6 +321,16 @@ func TestExtractFileGlobPatterns(t *testing.T) {
 		expectedLogMsg  string
 	}{
 		{
+			name: "flexible pattern matching both dated and non-dated",
+			spec: &CampaignSpec{
+				ID:          "go-file-size-reduction-project64",
+				MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64*/**"},
+				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+			},
+			expectedGlobs:  []string{"go-file-size-reduction-project64*/**"},
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
+		},
+		{
 			name: "dated pattern in memory-paths",
 			spec: &CampaignSpec{
 				ID:          "go-file-size-reduction-project64",
