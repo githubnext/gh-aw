@@ -246,6 +246,15 @@ async function main() {
   let campaignCursorFound = false;
   let campaignMetricsCount = 0;
 
+  // Log the file glob filter configuration
+  if (fileGlobFilter) {
+    core.info(`File glob filter enabled: ${fileGlobFilter}`);
+    const patternCount = fileGlobFilter.trim().split(/\s+/).filter(Boolean).length;
+    core.info(`Number of patterns: ${patternCount}`);
+  } else {
+    core.info("No file glob filter - all files will be accepted");
+  }
+
   /**
    * Recursively scan directory and collect files
    * @param {string} dirPath - Directory to scan
@@ -283,9 +292,26 @@ async function main() {
               return new RegExp(`^${regexPattern}$`);
             });
 
-          if (!patterns.some(pattern => pattern.test(relativeFilePath))) {
+          // Debug logging: Show what we're testing
+          core.debug(`Testing file: ${relativeFilePath}`);
+          core.debug(`File glob filter: ${fileGlobFilter}`);
+          core.debug(`Number of patterns: ${patterns.length}`);
+          
+          const matchResults = patterns.map((pattern, idx) => {
+            const matches = pattern.test(relativeFilePath);
+            const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
+            core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? '✓ MATCH' : '✗ NO MATCH'}`);
+            return matches;
+          });
+
+          if (!matchResults.some(m => m)) {
             core.error(`File does not match allowed patterns: ${relativeFilePath}`);
             core.error(`Allowed patterns: ${fileGlobFilter}`);
+            core.error(`Pattern test results:`);
+            const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+            patterns.forEach((pattern, idx) => {
+              core.error(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? 'MATCH' : 'NO MATCH'}`);
+            });
             core.setFailed("File pattern validation failed");
             throw new Error("File pattern validation failed");
           }

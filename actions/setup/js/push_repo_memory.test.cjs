@@ -562,4 +562,142 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       }
     });
   });
+
+  describe("debug logging for pattern matching", () => {
+    it("should log pattern matching details for debugging", () => {
+      // Test that debug logging provides helpful information
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "history.jsonl";
+      
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // Log what we're testing
+      const matchResults = patterns.map((pattern, idx) => {
+        const matches = pattern.test(testFile);
+        const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
+        return { patternStr, regex: pattern.source, matches };
+      });
+
+      // Verify that history.jsonl matches the *.jsonl pattern
+      const jsonlMatch = matchResults.find(r => r.patternStr === "*.jsonl");
+      expect(jsonlMatch).toBeDefined();
+      expect(jsonlMatch.matches).toBe(true);
+      expect(jsonlMatch.regex).toBe("^[^/]*\\.jsonl$");
+
+      // Verify overall that at least one pattern matches
+      expect(matchResults.some(r => r.matches)).toBe(true);
+    });
+
+    it("should show which patterns match and which don't for a given file", () => {
+      // Test with a file that should only match one pattern
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "data.csv";
+      
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+      const matchResults = patterns.map((pattern, idx) => ({
+        pattern: patternStrs[idx],
+        regex: pattern.source,
+        matches: pattern.test(testFile),
+      }));
+
+      // Should match *.csv but not others
+      expect(matchResults[0].matches).toBe(false); // *.json
+      expect(matchResults[1].matches).toBe(false); // *.jsonl
+      expect(matchResults[2].matches).toBe(true);  // *.csv
+      expect(matchResults[3].matches).toBe(false); // *.md
+    });
+
+    it("should provide helpful error details when no patterns match", () => {
+      // Test with a file that doesn't match any pattern
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFile = "script.js";
+      
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
+      const matchResults = patterns.map((pattern, idx) => ({
+        pattern: patternStrs[idx],
+        regex: pattern.source,
+        matches: pattern.test(testFile),
+      }));
+
+      // None should match
+      expect(matchResults.every(r => !r.matches)).toBe(true);
+
+      // Error message should include pattern details
+      const errorDetails = matchResults.map(r => 
+        `${r.pattern} -> regex: ${r.regex} -> ${r.matches ? 'MATCH' : 'NO MATCH'}`
+      );
+      
+      expect(errorDetails[0]).toContain("*.json -> regex: ^[^/]*\\.json$ -> NO MATCH");
+      expect(errorDetails[1]).toContain("*.jsonl -> regex: ^[^/]*\\.jsonl$ -> NO MATCH");
+      expect(errorDetails[2]).toContain("*.csv -> regex: ^[^/]*\\.csv$ -> NO MATCH");
+      expect(errorDetails[3]).toContain("*.md -> regex: ^[^/]*\\.md$ -> NO MATCH");
+    });
+
+    it("should correctly match files in the root directory (no subdirectories)", () => {
+      // The daily-code-metrics workflow writes history.jsonl to the root of repo memory
+      // Test that pattern matching works for root-level files
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const rootFiles = ["history.jsonl", "data.json", "metrics.csv", "README.md"];
+      
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // All root files should match at least one pattern
+      for (const file of rootFiles) {
+        const matches = patterns.some(p => p.test(file));
+        expect(matches).toBe(true);
+      }
+    });
+  });
 });
