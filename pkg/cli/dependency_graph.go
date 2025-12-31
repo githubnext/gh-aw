@@ -133,18 +133,20 @@ func (g *DependencyGraph) addWorkflow(workflowPath string, compiler *workflow.Co
 
 // extractImportsFromFile extracts imports directly from a workflow file
 func (g *DependencyGraph) extractImportsFromFile(workflowPath string) ([]string, error) {
-	depGraphLog.Printf("Extracting imports from file: %s", workflowPath)
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(workflowPath)
+	depGraphLog.Printf("Extracting imports from file: %s", cleanPath)
 	// Read the file
-	content, err := os.ReadFile(workflowPath)
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
-		depGraphLog.Printf("Failed to read file %s: %v", workflowPath, err)
+		depGraphLog.Printf("Failed to read file %s: %v", cleanPath, err)
 		return nil, err
 	}
 
 	// Parse frontmatter
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		depGraphLog.Printf("Failed to parse frontmatter from %s: %v", workflowPath, err)
+		depGraphLog.Printf("Failed to parse frontmatter from %s: %v", cleanPath, err)
 		return nil, err
 	}
 
