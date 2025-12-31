@@ -11,7 +11,7 @@ import (
 func TestVersionField(t *testing.T) {
 	// Test GitHub tool version extraction
 	t.Run("GitHub version field extraction", func(t *testing.T) {
-		// Test "version" field
+		// Test "version" field with string
 		githubTool := map[string]any{
 			"allowed": []any{"create_issue"},
 			"version": "v2.0.0",
@@ -19,6 +19,33 @@ func TestVersionField(t *testing.T) {
 		result := getGitHubDockerImageVersion(githubTool)
 		if result != "v2.0.0" {
 			t.Errorf("Expected v2.0.0, got %s", result)
+		}
+
+		// Test "version" field with integer
+		githubToolInt := map[string]any{
+			"version": 20,
+		}
+		result = getGitHubDockerImageVersion(githubToolInt)
+		if result != "20" {
+			t.Errorf("Expected 20, got %s", result)
+		}
+
+		// Test "version" field with uint64 (as YAML parser returns)
+		githubToolUint64 := map[string]any{
+			"version": uint64(42),
+		}
+		result = getGitHubDockerImageVersion(githubToolUint64)
+		if result != "42" {
+			t.Errorf("Expected 42, got %s", result)
+		}
+
+		// Test "version" field with float
+		githubToolFloat := map[string]any{
+			"version": 3.11,
+		}
+		result = getGitHubDockerImageVersion(githubToolFloat)
+		if result != "3.11" {
+			t.Errorf("Expected 3.11, got %s", result)
 		}
 
 		// Test default value when version field is not present
