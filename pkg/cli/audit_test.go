@@ -1239,3 +1239,151 @@ func TestRenderJSONWithFirewall(t *testing.T) {
 		t.Errorf("Expected 1 denied domain, got %d", len(parsed.FirewallAnalysis.DeniedDomains))
 	}
 }
+
+func TestExtractStepOutput(t *testing.T) {
+	jobLog := `##[group]Run actions/checkout@v4
+Checking out repository...
+##[endgroup]
+##[group]Run ./setup-environment.sh
+Setting up environment...
+ENVIRONMENT=test
+##[endgroup]
+##[group]Run npm test
+Running tests...
+##[error]Test failed: expected 5, got 3
+Error: Process completed with exit code 1.
+##[endgroup]
+##[group]Run cleanup.sh
+Cleaning up...
+##[endgroup]`
+
+	tests := []struct {
+		name        string
+		stepNumber  int
+		expectError bool
+		checkOutput func(t *testing.T, output string)
+	}{
+		{
+			name:        "Extract step 3 (failing step)",
+			stepNumber:  3,
+			expectError: false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "npm test") {
+					t.Error("Output should contain 'npm test'")
+				}
+				if !strings.Contains(output, "##[error]Test failed") {
+					t.Error("Output should contain error message")
+				}
+			},
+		},
+		{
+			name:        "Extract step 1",
+			stepNumber:  1,
+			expectError: false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "actions/checkout") {
+					t.Error("Output should contain 'actions/checkout'")
+				}
+			},
+		},
+		{
+			name:        "Extract non-existent step",
+			stepNumber:  99,
+			expectError: true,
+			checkOutput: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := extractStepOutput(jobLog, tt.stepNumber)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if tt.checkOutput != nil {
+				tt.checkOutput(t, output)
+			}
+		})
+	}
+}
+
+func TestFindFirstFailingStep(t *testing.T) {
+	tests := []struct {
+		name             string
+		jobLog           string
+		expectedStepNum  int
+		checkOutput      func(t *testing.T, output string)
+	}{
+		{
+			name: "Find failing step with error marker",
+			jobLog: `##[group]Step 1
+Success
+##[endgroup]
+##[group]Step 2
+Running...
+##[error]Something went wrong
+Error details here
+##[endgroup]
+##[group]Step 3
+This runs after failure
+##[endgroup]`,
+			expectedStepNum: 2,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "##[error]Something went wrong") {
+					t.Error("Output should contain error message")
+				}
+			},
+		},
+		{
+			name: "Find failing step with exit code",
+			jobLog: `##[group]Step 1
+Success
+##[endgroup]
+##[group]Step 2
+Running command...
+exit code 1
+##[endgroup]`,
+			expectedStepNum: 2,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "exit code 1") {
+					t.Error("Output should contain exit code")
+				}
+			},
+		},
+		{
+			name: "No failing steps",
+			jobLog: `##[group]Step 1
+Success
+##[endgroup]
+##[group]Step 2
+Also success
+##[endgroup]`,
+			expectedStepNum: 0,
+			checkOutput:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stepNum, output := findFirstFailingStep(tt.jobLog)
+
+			if stepNum != tt.expectedStepNum {
+				t.Errorf("Expected step number %d, got %d", tt.expectedStepNum, stepNum)
+			}
+
+			if tt.checkOutput != nil && stepNum > 0 {
+				tt.checkOutput(t, output)
+			}
+		})
+	}
+}
