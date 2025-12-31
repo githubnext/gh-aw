@@ -240,10 +240,13 @@ async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
 
   core.info(`Found ${items.length} ${config.itemTypeDisplay} item(s)`);
 
-  // Get configuration from handlerConfig object (not environment variables)
-  const requiredLabels = handlerConfig.required_labels || [];
-  const requiredTitlePrefix = handlerConfig.required_title_prefix || "";
-  const target = handlerConfig.target || "triggering";
+  // Get configuration from environment variables (if set) or handlerConfig object
+  const envVarPrefix = config.envVarPrefix;
+  const parsedConfig = parseEntityConfig(envVarPrefix);
+  
+  const requiredLabels = handlerConfig.required_labels || parsedConfig.requiredLabels;
+  const requiredTitlePrefix = handlerConfig.required_title_prefix || parsedConfig.requiredTitlePrefix;
+  const target = handlerConfig.target || parsedConfig.target;
 
   core.info(`Configuration: requiredLabels=${requiredLabels.join(",")}, requiredTitlePrefix=${requiredTitlePrefix}, target=${target}`);
 

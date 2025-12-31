@@ -204,12 +204,12 @@ async function runUpdateWorkflow(config) {
     return;
   }
 
-  // Get the configuration from handler config object
-  const updateTarget = handlerConfig.target || "triggering";
-  const canUpdateStatus = handlerConfig.allow_status === true;
-  const canUpdateTitle = handlerConfig.allow_title === true;
-  const canUpdateBody = handlerConfig.allow_body === true;
-  const canUpdateLabels = handlerConfig.allow_labels === true;
+  // Get the configuration from environment variables (if set) or handler config object
+  const updateTarget = handlerConfig.target || process.env.GH_AW_UPDATE_TARGET || "triggering";
+  const canUpdateStatus = handlerConfig.allow_status === true || process.env.GH_AW_UPDATE_STATUS === "true";
+  const canUpdateTitle = handlerConfig.allow_title === true || process.env.GH_AW_UPDATE_TITLE === "true";
+  const canUpdateBody = handlerConfig.allow_body === true || process.env.GH_AW_UPDATE_BODY === "true";
+  const canUpdateLabels = handlerConfig.allow_labels === true || process.env.GH_AW_UPDATE_LABELS === "true";
 
   core.info(`Update target configuration: ${updateTarget}`);
   if (supportsStatus) {
