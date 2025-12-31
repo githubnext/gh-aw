@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processCloseEntityItems, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Get issue details using REST API
@@ -64,16 +64,135 @@ async function closeIssue(github, owner, repo, issueNumber) {
   return issue;
 }
 
+/**
+ * Main handler factory for close_issue
+ * Returns a message handler function that processes individual close_issue messages
+ * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+ * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ */
 async function main(config = {}) {
-  return processCloseEntityItems(
-    ISSUE_CONFIG,
-    {
-      getDetails: getIssueDetails,
-      addComment: addIssueComment,
-      closeEntity: closeIssue,
-    },
-    config
-  );
+  // Extract configuration
+  const requiredLabels = config.required_labels || [];
+  const requiredTitlePrefix = config.required_title_prefix || "";
+  const maxCount = config.max || 10;
+  const comment = config.comment || "";
+
+  core.info(`Close issue configuration: max=${maxCount}`);
+  if (requiredLabels.length > 0) {
+    core.info(`Required labels: ${requiredLabels.join(", ")}`);
+  }
+  if (requiredTitlePrefix) {
+    core.info(`Required title prefix: ${requiredTitlePrefix}`);
+  }
+
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
+
+  /**
+   * Message handler function that processes a single close_issue message
+   * @param {Object} message - The close_issue message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleCloseIssue(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping close_issue: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    processedCount++;
+
+    const item = message;
+
+    // Determine issue number
+    let issueNumber;
+    if (item.issue_number !== undefined) {
+      issueNumber = parseInt(String(item.issue_number), 10);
+      if (isNaN(issueNumber)) {
+        core.warning(`Invalid issue number: ${item.issue_number}`);
+        return {
+          success: false,
+          error: `Invalid issue number: ${item.issue_number}`,
+        };
+      }
+    } else {
+      // Use context issue if available
+      const contextIssue = context.payload?.issue?.number;
+      if (!contextIssue) {
+        core.warning("No issue_number provided and not in issue context");
+        return {
+          success: false,
+          error: "No issue number available",
+        };
+      }
+      issueNumber = contextIssue;
+    }
+
+    try {
+      // Fetch issue details
+      const issue = await getIssueDetails(github, context.repo.owner, context.repo.repo, issueNumber);
+
+      // Check if already closed
+      if (issue.state === "closed") {
+        core.info(`Issue #${issueNumber} is already closed`);
+        return {
+          success: true,
+          number: issueNumber,
+          alreadyClosed: true,
+        };
+      }
+
+      // Validate required labels if configured
+      if (requiredLabels.length > 0) {
+        const issueLabels = issue.labels.map(l => (typeof l === "string" ? l : l.name || ""));
+        const missingLabels = requiredLabels.filter(required => !issueLabels.includes(required));
+        if (missingLabels.length > 0) {
+          core.warning(`Issue #${issueNumber} missing required labels: ${missingLabels.join(", ")}`);
+          return {
+            success: false,
+            error: `Missing required labels: ${missingLabels.join(", ")}`,
+          };
+        }
+      }
+
+      // Validate required title prefix if configured
+      if (requiredTitlePrefix && !issue.title.startsWith(requiredTitlePrefix)) {
+        core.warning(`Issue #${issueNumber} title doesn't start with "${requiredTitlePrefix}"`);
+        return {
+          success: false,
+          error: `Title doesn't start with "${requiredTitlePrefix}"`,
+        };
+      }
+
+      // Add comment if configured
+      if (comment) {
+        await addIssueComment(github, context.repo.owner, context.repo.repo, issueNumber, comment);
+        core.info(`Added comment to issue #${issueNumber}`);
+      }
+
+      // Close the issue
+      const closedIssue = await closeIssue(github, context.repo.owner, context.repo.repo, issueNumber);
+      core.info(`Closed issue #${issueNumber}: ${closedIssue.html_url}`);
+
+      return {
+        success: true,
+        number: issueNumber,
+        url: closedIssue.html_url,
+        title: closedIssue.title,
+      };
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to close issue #${issueNumber}: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  };
 }
 
 module.exports = { main };
