@@ -499,46 +499,8 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-
-	// Read from aw_info.json that was created by the previous step
-	yaml.WriteString("            const fs = require('fs');\n")
-	yaml.WriteString("            const awInfoPath = '/tmp/gh-aw/aw_info.json';\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Load aw_info.json\n")
-	yaml.WriteString("            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));\n")
-	yaml.WriteString("            \n")
-
-	// Generate HTML with details/summary for collapsible output
-	yaml.WriteString("            let networkDetails = '';\n")
-	yaml.WriteString("            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {\n")
-	yaml.WriteString("              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\\n');\n")
-	yaml.WriteString("              if (awInfo.allowed_domains.length > 10) {\n")
-	yaml.WriteString("                networkDetails += `\\n  - ... and ${awInfo.allowed_domains.length - 10} more`;\n")
-	yaml.WriteString("              }\n")
-	yaml.WriteString("            }\n")
-	yaml.WriteString("            \n")
-	// Build summary using string concatenation to avoid YAML parsing issues with template literals
-	yaml.WriteString("            const summary = '<details>\\n' +\n")
-	yaml.WriteString("              '<summary>Run details</summary>\\n\\n' +\n")
-	yaml.WriteString("              '#### Engine Configuration\\n' +\n")
-	yaml.WriteString("              '| Property | Value |\\n' +\n")
-	yaml.WriteString("              '|----------|-------|\\n' +\n")
-	yaml.WriteString("              `| Engine ID | ${awInfo.engine_id} |\\n` +\n")
-	yaml.WriteString("              `| Engine Name | ${awInfo.engine_name} |\\n` +\n")
-	yaml.WriteString("              `| Model | ${awInfo.model || '(default)'} |\\n` +\n")
-	yaml.WriteString("              '\\n' +\n")
-	yaml.WriteString("              '#### Network Configuration\\n' +\n")
-	yaml.WriteString("              '| Property | Value |\\n' +\n")
-	yaml.WriteString("              '|----------|-------|\\n' +\n")
-	yaml.WriteString("              `| Mode | ${awInfo.network_mode || 'defaults'} |\\n` +\n")
-	yaml.WriteString("              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\\n` +\n")
-	yaml.WriteString("              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\\n` +\n")
-	yaml.WriteString("              '\\n' +\n")
-	yaml.WriteString("              (networkDetails ? `##### Allowed Domains\\n${networkDetails}\\n` : '') +\n")
-	yaml.WriteString("              '</details>';\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            await core.summary.addRaw(summary).write();\n")
-	yaml.WriteString("            console.log('Generated workflow overview in step summary');\n")
+	yaml.WriteString("            const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');\n")
+	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {

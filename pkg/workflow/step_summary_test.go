@@ -61,8 +61,10 @@ This workflow tests that the step summary includes both JSONL and processed outp
 	}
 
 	// Verify that the JavaScript uses addRaw to build the summary
-	if strings.Count(lockContent, ".addRaw(") < 2 {
-		t.Error("Expected at least 2 '.addRaw(' calls in JavaScript code for summary building")
+	// Note: The workflow overview .addRaw is now in generate_workflow_overview.cjs,
+	// so we expect at least 1 .addRaw call (from other parts like threat detection)
+	if strings.Count(lockContent, ".addRaw(") < 1 {
+		t.Error("Expected at least 1 '.addRaw(' call in JavaScript code for summary building")
 	}
 
 	t.Log("Step summary correctly includes processed output sections")
@@ -242,9 +244,12 @@ This workflow tests the workflow overview for Claude engine.
 				t.Error("Expected 'Generate agentic run info' step to run BEFORE 'Generate workflow overview' step")
 			}
 
-			// Verify workflow overview reads from aw_info.json
-			if !strings.Contains(lockContent, "const awInfoPath = '/tmp/gh-aw/aw_info.json'") {
-				t.Error("Expected workflow overview step to read from aw_info.json")
+			// Verify workflow overview uses require to call the .cjs file
+			if !strings.Contains(lockContent, "const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');") {
+				t.Error("Expected workflow overview step to use require to invoke generate_workflow_overview.cjs")
+			}
+			if !strings.Contains(lockContent, "await generateWorkflowOverview(core);") {
+				t.Error("Expected workflow overview step to call generateWorkflowOverview function")
 			}
 
 			// Verify engine ID is present in aw_info.json
@@ -295,16 +300,9 @@ This workflow tests the workflow overview for Claude engine.
 				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Create prompt' step")
 			}
 
-			// Verify HTML details/summary format
-			if !strings.Contains(lockContent, "<details>") {
-				t.Error("Expected HTML <details> tag for collapsible summary")
-			}
-			if !strings.Contains(lockContent, "<summary>Run details</summary>") {
-				t.Error("Expected HTML <summary> tag with 'Run details' title")
-			}
-			if !strings.Contains(lockContent, "</details>") {
-				t.Error("Expected HTML </details> closing tag")
-			}
+			// Note: HTML details/summary format is now in generate_workflow_overview.cjs
+			// The compiled workflow will call the function via require
+			// The actual HTML generation is tested in generate_workflow_overview.test.cjs
 
 			t.Logf("✓ Workflow overview step correctly generated for %s", tt.name)
 		})
