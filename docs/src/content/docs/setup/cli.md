@@ -290,6 +290,57 @@ gh aw campaign validate                # Validate specs (fails on problems)
 
 See [Agentic campaigns guide](/gh-aw/guides/campaigns/) for full spec and defaults. Alternative: use "🚀 Start an Agentic Campaign" issue form ([docs](/gh-aw/guides/campaigns/getting-started/#start-an-agentic-campaign-with-github-issue-forms)).
 
+##### `campaign validate`
+
+Validate campaign spec files for common issues. Performs lightweight semantic validation on campaign definitions including IDs, tracker labels, workflows, lifecycle state, and other key fields.
+
+```bash wrap
+gh aw campaign validate                # Validate all campaigns
+gh aw campaign validate security       # Filter by ID or name
+gh aw campaign validate --json         # JSON validation report
+gh aw campaign validate --no-strict    # Report problems without failing
+```
+
+**Options:** `--json`, `--strict` / `--no-strict`
+
+**Validation checks performed:**
+
+- **ID validation**: Must use only lowercase letters, digits, and hyphens
+- **Name and description**: Name should be explicitly set (falls back to ID if omitted)
+- **Workflows**: Validates that referenced workflows exist as `.md` files in `.github/workflows/`
+- **Project URL**: Must be a valid GitHub Project URL (path includes `/projects/`)
+- **Tracker label**: Should use namespaced pattern (e.g., `campaign:security-q1-2025`)
+- **State**: Must be one of: `planned`, `active`, `paused`, `completed`, `archived`
+- **Governance policies**: Validates governance limits are non-negative integers
+- **KPIs and objective**: 
+  - When objective is set, at least one KPI must be defined
+  - When KPIs are provided, objective should be set
+  - Exactly one primary KPI required (with `priority: primary`)
+  - Time window days must be ≥ 1
+  - Direction must be `increase` or `decrease` (if specified)
+  - Source must be one of: `ci`, `pull_requests`, `code_security`, `custom` (if specified)
+- **JSON schema**: Validates against the embedded campaign spec schema
+
+**Exit status:**
+
+- With `--strict` (default): Exits with non-zero status if any problems are found
+- With `--no-strict`: Always exits with zero status, reports problems without failing
+
+**When to use:**
+
+- **Pre-commit validation**: Run in CI to catch invalid campaign specs before merge
+- **Bulk checking**: Validate all campaigns after making structural changes
+- **Troubleshooting**: Diagnose why campaigns aren't working as expected
+- **Development**: Check spec correctness while creating new campaigns
+
+**Example validation output:**
+
+```bash
+gh aw campaign validate
+```
+
+Shows structured table with campaign ID, name, and list of problems (if any). Use `--json` for machine-readable output suitable for CI/CD pipelines.
+
 ### Management
 
 #### `enable` / `disable`
