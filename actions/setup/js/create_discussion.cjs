@@ -1,10 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { closeOlderDiscussions } = require("./close_older_discussions.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -86,69 +85,21 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
   return undefined;
 }
 
+/**
+ * Main handler factory for create_discussion
+ * Returns a message handler function that processes individual create_discussion messages
+ * @type {HandlerFactoryFunction}
+ */
 async function main(config = {}) {
-  // Initialize outputs to empty strings to ensure they're always set
-  core.setOutput("discussion_number", "");
-  core.setOutput("discussion_url", "");
-
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-  if (createDiscussionItems.length === 0) {
-    core.warning("No create-discussion items found in agent output");
-    return;
-  }
-  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-
-  // Parse allowed repos from config and default target
+  // Extract configuration
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo();
-  core.info(`Default target repo: ${defaultTargetRepo}`);
-  if (allowedRepos.size > 0) {
-    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
-  }
-
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-    for (let i = 0; i < createDiscussionItems.length; i++) {
-      const item = createDiscussionItems[i];
-      summaryContent += `### Discussion ${i + 1}\n`;
-      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-      if (item.repo) {
-        summaryContent += `**Repository:** ${item.repo}\n\n`;
-      }
-      if (item.body) {
-        summaryContent += `**Body:**\n${item.body}\n\n`;
-      }
-      if (item.category) {
-        summaryContent += `**Category:** ${item.category}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Discussion creation preview written to step summary");
-    return;
-  }
-
-  // Cache for repository info to avoid redundant API calls
-  /** @type {Map<string, {repositoryId: string, discussionCategories: Array<{id: string, name: string, slug: string, description: string}>}>} */
-  const repoInfoCache = new Map();
-
-  // Get configuration from config object
-  const closeOlderEnabled = config.close_older_discussions === true;
   const titlePrefix = config.title_prefix || "";
   const configCategory = config.category || "";
-  // Parse labels from config (can be array or comma-separated string)
+  const maxCount = config.max || 10;
+  const expiresDays = config.expires ? parseInt(String(config.expires), 10) : 0;
+
+  // Parse labels from config
   const labelsConfig = config.labels || [];
   const labels = Array.isArray(labelsConfig)
     ? labelsConfig
@@ -156,32 +107,69 @@ async function main(config = {}) {
         .split(",")
         .map(l => l.trim())
         .filter(l => l.length > 0);
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const runId = context.runId;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-  const createdDiscussions = [];
-  const closedDiscussionsSummary = [];
+  core.info(`Create discussion configuration: max=${maxCount}`);
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
+  }
 
-  for (let i = 0; i < createDiscussionItems.length; i++) {
-    const createDiscussionItem = createDiscussionItems[i];
+  // Track state
+  let processedCount = 0;
+  const repoInfoCache = new Map();
+  const temporaryIdMap = new Map();
 
-    // Determine target repository for this discussion
-    const itemRepo = createDiscussionItem.repo ? String(createDiscussionItem.repo).trim() : defaultTargetRepo;
+  /**
+   * Message handler function that processes a single create_discussion message
+   * @param {Object} message - The create_discussion message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleCreateDiscussion(message, resolvedTemporaryIds) {
+    // Check max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_discussion: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
 
-    // Validate the repository is allowed
+    processedCount++;
+
+    const item = message;
+
+    // Merge resolved temp IDs
+    if (resolvedTemporaryIds) {
+      for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
+        if (!temporaryIdMap.has(tempId)) {
+          temporaryIdMap.set(tempId, resolved);
+        }
+      }
+    }
+
+    // Determine target repository
+    const itemRepo = item.repo ? String(item.repo).trim() : defaultTargetRepo;
+
+    // Validate repository
     const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
     if (!repoValidation.valid) {
       core.warning(`Skipping discussion: ${repoValidation.error}`);
-      continue;
+      return {
+        success: false,
+        error: repoValidation.error,
+      };
     }
 
-    // Parse the repository slug
+    // Parse repository slug
     const repoParts = parseRepoSlug(itemRepo);
     if (!repoParts) {
-      core.warning(`Skipping discussion: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
-      continue;
+      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
+      core.warning(`Skipping discussion: ${error}`);
+      return {
+        success: false,
+        error,
+      };
     }
 
     // Get repository info (cached)
@@ -190,89 +178,80 @@ async function main(config = {}) {
       try {
         const fetchedInfo = await fetchRepoDiscussionInfo(repoParts.owner, repoParts.repo);
         if (!fetchedInfo) {
-          core.warning(`Skipping discussion: Failed to fetch repository information for '${itemRepo}'`);
-          continue;
+          const error = `Failed to fetch repository information for '${itemRepo}'`;
+          core.warning(error);
+          return {
+            success: false,
+            error,
+          };
         }
         repoInfo = fetchedInfo;
         repoInfoCache.set(itemRepo, repoInfo);
-        core.info(`Fetched discussion categories for ${itemRepo}: ${JSON.stringify(repoInfo.discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+        core.info(`Fetched discussion categories for ${itemRepo}`);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
-        if (errorMessage.includes("Not Found") || errorMessage.includes("not found") || errorMessage.includes("Could not resolve to a Repository")) {
-          core.warning(`Skipping discussion: Discussions are not enabled for repository '${itemRepo}'`);
-          continue;
-        }
-        core.error(`Failed to get discussion categories for ${itemRepo}: ${errorMessage}`);
-        throw error;
+        core.error(`Failed to fetch repo info: ${errorMessage}`);
+        return {
+          success: false,
+          error: errorMessage,
+        };
       }
     }
 
-    // Resolve category ID for this discussion
-    const categoryInfo = resolveCategoryId(configCategory, createDiscussionItem.category, repoInfo.discussionCategories);
-    if (!categoryInfo) {
-      core.warning(`Skipping discussion in ${itemRepo}: No discussion category available`);
-      continue;
+    // Resolve category
+    const resolvedCategory = resolveCategoryId(configCategory, item.category, repoInfo.discussionCategories);
+    if (!resolvedCategory) {
+      const error = `No discussion categories available in ${itemRepo}`;
+      core.error(error);
+      return {
+        success: false,
+        error,
+      };
     }
 
-    // Log how the category was resolved
-    if (categoryInfo.matchType === "name") {
-      core.info(`Using category by name: ${categoryInfo.name} (${categoryInfo.id})`);
-    } else if (categoryInfo.matchType === "slug") {
-      core.info(`Using category by slug: ${categoryInfo.name} (${categoryInfo.id})`);
-    } else if (categoryInfo.matchType === "fallback") {
-      if (categoryInfo.requestedCategory) {
-        const availableCategoryNames = repoInfo.discussionCategories.map(cat => cat.name).join(", ");
-        core.warning(`Category "${categoryInfo.requestedCategory}" not found by ID, name, or slug. Available categories: ${availableCategoryNames}`);
-        core.info(`Falling back to default category: ${categoryInfo.name} (${categoryInfo.id})`);
-      } else {
-        core.info(`Using default first category: ${categoryInfo.name} (${categoryInfo.id})`);
-      }
-    }
+    const categoryId = resolvedCategory.id;
+    core.info(`Using category: ${resolvedCategory.name} (${resolvedCategory.matchType})`);
 
-    const categoryId = categoryInfo.id;
-
-    core.info(`Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body?.length || 0}, repo=${itemRepo}`);
-
-    // Replace temporary ID references in title
-    let title = createDiscussionItem.title ? replaceTemporaryIdReferences(createDiscussionItem.title.trim(), temporaryIdMap, itemRepo) : "";
-    // Replace temporary ID references in body (with defensive null check)
-    const bodyText = createDiscussionItem.body || "";
-    let processedBody = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo);
-
-    // Remove duplicate title from description if it starts with a header matching the title
+    // Build title
+    let title = item.title ? item.title.trim() : "";
+    let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, itemRepo);
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
-    let bodyLines = processedBody.split("\n");
     if (!title) {
-      title = replaceTemporaryIdReferences(bodyText, temporaryIdMap, itemRepo) || "Agent Output";
+      title = item.body || "Discussion";
     }
+
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
 
-    // Add tracker-id comment if present
+    // Build body
+    let bodyLines = processedBody.split("\n");
+
+    // Add tracker ID
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Add expiration comment if expires is set in config
-    if (config.expires) {
-      const expiresDays = parseInt(String(config.expires), 10);
-      if (!isNaN(expiresDays) && expiresDays > 0) {
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + expiresDays);
-        const expirationISO = expirationDate.toISOString();
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-        core.info(`Discussion will expire on ${expirationISO} (${expiresDays} days)`);
-      }
+    // Add expiration if configured
+    if (expiresDays > 0) {
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + expiresDays);
+      const expirationISO = expirationDate.toISOString();
+      bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
     }
+
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const runId = context.runId;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
     const body = bodyLines.join("\n").trim();
+
     core.info(`Creating discussion in ${itemRepo} with title: ${title}`);
-    core.info(`Category ID: ${categoryId}`);
-    core.info(`Body length: ${body.length}`);
+
     try {
       const createDiscussionMutation = `
         mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
@@ -291,66 +270,41 @@ async function main(config = {}) {
           }
         }
       `;
+
       const mutationResult = await github.graphql(createDiscussionMutation, {
         repositoryId: repoInfo.repositoryId,
         categoryId: categoryId,
         title: title,
         body: body,
       });
+
       const discussion = mutationResult.createDiscussion.discussion;
       if (!discussion) {
-        core.error(`Failed to create discussion in ${itemRepo}: No discussion data returned`);
-        continue;
+        const error = "No discussion data returned";
+        core.error(error);
+        return {
+          success: false,
+          error,
+        };
       }
+
       core.info(`Created discussion ${itemRepo}#${discussion.number}: ${discussion.url}`);
-      createdDiscussions.push({ ...discussion, _repo: itemRepo });
-      if (i === createDiscussionItems.length - 1) {
-        core.setOutput("discussion_number", discussion.number);
-        core.setOutput("discussion_url", discussion.url);
-      }
 
-      // Close older discussions if enabled and title prefix or labels are set
-      // Note: close-older-discussions only works within the same repository
-      const hasMatchingCriteria = titlePrefix || labels.length > 0;
-      if (closeOlderEnabled && hasMatchingCriteria) {
-        core.info("close-older-discussions is enabled, searching for older discussions to close...");
-        try {
-          const closedDiscussions = await closeOlderDiscussions(github, repoParts.owner, repoParts.repo, titlePrefix, labels, categoryId, { number: discussion.number, url: discussion.url }, workflowName, runUrl);
-
-          if (closedDiscussions.length > 0) {
-            closedDiscussionsSummary.push(...closedDiscussions);
-            core.info(`Closed ${closedDiscussions.length} older discussion(s) as outdated`);
-          }
-        } catch (closeError) {
-          // Log error but don't fail the workflow - closing older discussions is a nice-to-have
-          core.warning(`Failed to close older discussions: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
-        }
-      } else if (closeOlderEnabled && !hasMatchingCriteria) {
-        core.warning("close-older-discussions is enabled but no title-prefix or labels are set - skipping close older discussions");
-      }
+      return {
+        success: true,
+        repo: itemRepo,
+        number: discussion.number,
+        url: discussion.url,
+      };
     } catch (error) {
-      core.error(`✗ Failed to create discussion "${title}" in ${itemRepo}: ${getErrorMessage(error)}`);
-      throw error;
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to create discussion: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
-  }
-  if (createdDiscussions.length > 0) {
-    let summaryContent = "\n\n## GitHub Discussions\n";
-    for (const discussion of createdDiscussions) {
-      const repoLabel = discussion._repo !== defaultTargetRepo ? ` (${discussion._repo})` : "";
-      summaryContent += `- Discussion #${discussion.number}${repoLabel}: [${discussion.title}](${discussion.url})\n`;
-    }
-
-    // Add closed discussions to summary
-    if (closedDiscussionsSummary.length > 0) {
-      summaryContent += "\n### Closed Older Discussions\n";
-      for (const closed of closedDiscussionsSummary) {
-        summaryContent += `- Discussion #${closed.number}: [View](${closed.url}) (marked as outdated)\n`;
-      }
-    }
-
-    await core.summary.addRaw(summaryContent).write();
-  }
-  core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+  };
 }
 
 module.exports = { main };
