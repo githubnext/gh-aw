@@ -1000,5 +1000,66 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // This behavior allows push_repo_memory.cjs to skip legacy files instead of failing,
       // enabling gradual migration from old to new structure without manual branch cleanup.
     });
+
+    it("should match root-level files without branch name prefix (daily-code-metrics scenario)", () => {
+      // This test validates the fix for: https://github.com/githubnext/gh-aw/actions/runs/20623556740/job/59230494223#step:7:1
+      // The daily-code-metrics workflow writes files to the artifact root (e.g., history.jsonl).
+      // Previously, the workflow incorrectly specified patterns like "memory/code-metrics/*.jsonl",
+      // which included the branch name prefix and failed to match root-level files.
+      //
+      // Correct pattern format:
+      // - Branch name: memory/code-metrics (stored in branch-name field)
+      // - Artifact structure: history.jsonl (at root of artifact)
+      // - Pattern: *.jsonl (relative to artifact root, NOT including branch name)
+      //
+      // INCORRECT (old config):
+      // file-glob: ["memory/code-metrics/*.json", "memory/code-metrics/*.jsonl", ...]
+      //
+      // CORRECT (new config):
+      // file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+
+      const fileGlobFilter = "*.json *.jsonl *.csv *.md";
+      const testFiles = [
+        { file: "history.jsonl", shouldMatch: true },
+        { file: "data.json", shouldMatch: true },
+        { file: "metrics.csv", shouldMatch: true },
+        { file: "README.md", shouldMatch: true },
+        { file: "script.js", shouldMatch: false },
+        { file: "image.png", shouldMatch: false },
+      ];
+
+      const patterns = fileGlobFilter
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(pattern => {
+          const regexPattern = pattern
+            .replace(/\\/g, "\\\\")
+            .replace(/\./g, "\\.")
+            .replace(/\*\*/g, "<!DOUBLESTAR>")
+            .replace(/\*/g, "[^/]*")
+            .replace(/<!DOUBLESTAR>/g, ".*");
+          return new RegExp(`^${regexPattern}$`);
+        });
+
+      // Verify each file is matched correctly
+      for (const { file, shouldMatch } of testFiles) {
+        const matches = patterns.some(p => p.test(file));
+        expect(matches).toBe(shouldMatch);
+      }
+
+      // Verify that patterns with branch name prefix would FAIL to match
+      const incorrectPattern = "memory/code-metrics/*.jsonl";
+      const incorrectRegex = globPatternToRegex(incorrectPattern);
+
+      // This should NOT match because pattern expects "memory/code-metrics/" prefix
+      expect(incorrectRegex.test("history.jsonl")).toBe(false);
+
+      // But it WOULD match if file had that structure (which it doesn't in the artifact)
+      expect(incorrectRegex.test("memory/code-metrics/history.jsonl")).toBe(true);
+
+      // Key insight: The branch name is stored in BRANCH_NAME env var, not in file paths.
+      // Patterns should match against the relative path within the artifact, not the branch path.
+    });
   });
 });

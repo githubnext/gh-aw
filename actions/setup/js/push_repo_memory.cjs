@@ -18,6 +18,18 @@ const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
  *   MAX_FILE_COUNT: Maximum number of files per commit
  *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/** data/**")
  *                     Supports * (matches any chars except /) and ** (matches any chars including /)
+ *
+ *                     IMPORTANT: Patterns are matched against the RELATIVE FILE PATH from the artifact directory,
+ *                     NOT against the branch path. Do NOT include the branch name in the patterns.
+ *
+ *                     Example:
+ *                       BRANCH_NAME: memory/code-metrics
+ *                       Artifact file: /tmp/gh-aw/repo-memory/default/history.jsonl
+ *                       Relative path tested: "history.jsonl"
+ *                       CORRECT pattern: "*.jsonl"
+ *                       INCORRECT pattern: "memory/code-metrics/*.jsonl"  (includes branch name)
+ *
+ *                     The branch name is used for git operations (checkout, push) but not for pattern matching.
  *   GH_AW_CAMPAIGN_ID: Optional campaign ID override. When set with MEMORY_ID=campaigns,
  *                      enforces all FILE_GLOB_FILTER patterns are under <campaign-id>/...
  *   GH_TOKEN: GitHub token for authentication
@@ -294,7 +306,7 @@ async function main() {
           // Patterns are specified relative to the memory artifact directory, not the branch path
           const normalizedRelPath = relativeFilePath.replace(/\\/g, "/");
 
-          // Debug logging: Show what we're testing
+          // Enhanced logging: Show what we're testing (use info for first file to aid debugging)
           core.debug(`Testing file: ${normalizedRelPath}`);
           core.debug(`File glob filter: ${fileGlobFilter}`);
           core.debug(`Number of patterns: ${patterns.length}`);
@@ -307,13 +319,16 @@ async function main() {
           });
 
           if (!matchResults.some(m => m)) {
+            // Enhanced warning with more context about the filtering issue
             core.warning(`Skipping file that does not match allowed patterns: ${normalizedRelPath}`);
-            core.debug(`Allowed patterns: ${fileGlobFilter}`);
-            core.debug(`Pattern test results:`);
+            core.info(`  File path being tested (relative to artifact): ${normalizedRelPath}`);
+            core.info(`  Configured patterns: ${fileGlobFilter}`);
             const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
             patterns.forEach((pattern, idx) => {
-              core.debug(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? "MATCH" : "NO MATCH"}`);
+              core.info(`    Pattern: "${patternStrs[idx]}" -> Regex: ${pattern.source} -> ${matchResults[idx] ? "✅ MATCH" : "❌ NO MATCH"}`);
             });
+            core.info(`  Note: Patterns are matched against the full relative file path from the artifact directory.`);
+            core.info(`  If patterns include directory prefixes (like 'branch-name/'), ensure files are organized that way in the artifact.`);
             // Skip this file instead of failing - it may be from a previous run with different patterns
             return;
           }

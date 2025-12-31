@@ -13,7 +13,7 @@ tools:
   repo-memory:
     branch-name: memory/code-metrics
     description: "Historical code quality and health metrics"
-    file-glob: ["memory/code-metrics/*.json", "memory/code-metrics/*.jsonl", "memory/code-metrics/*.csv", "memory/code-metrics/*.md"]
+    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
     max-file-size: 102400  # 100KB
   bash:
 safe-outputs:
