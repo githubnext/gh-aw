@@ -2,86 +2,89 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences, serializeTemporaryIdMap } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
+const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-/**
- * Main handler factory for create_issue
- * Returns a message handler function that processes individual create_issue messages
- * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
- */
 async function main(config = {}) {
-  // Extract configuration
-  const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
-  const titlePrefix = config.title_prefix || "";
-  const expiresDays = config.expires ? parseInt(String(config.expires), 10) : 0;
-  const maxCount = config.max || 10;
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("issue_number", "");
+  core.setOutput("issue_url", "");
+  core.setOutput("temporary_id_map", "{}");
+  core.setOutput("issues_to_assign_copilot", "");
+
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return;
+  }
+
+  const createIssueItems = result.items.filter(item => item.type === "create_issue");
+  if (createIssueItems.length === 0) {
+    core.info("No create-issue items found in agent output");
+    return;
+  }
+  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+
+  // Parse allowed repos from config and default target
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo();
-
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
     core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
-  if (envLabels.length > 0) {
-    core.info(`Default labels: ${envLabels.join(", ")}`);
-  }
-  if (titlePrefix) {
-    core.info(`Title prefix: ${titlePrefix}`);
-  }
-  if (expiresDays > 0) {
-    core.info(`Issues expire after: ${expiresDays} days`);
-  }
-  core.info(`Max count: ${maxCount}`);
 
-  // Track how many items we've processed for max limit
-  let processedCount = 0;
+  if (isStaged) {
+    await generateStagedPreview({
+      title: "Create Issues",
+      description: "The following issues would be created if staged mode was disabled:",
+      items: createIssueItems,
+      renderItem: (item, index) => {
+        let content = `#### Issue ${index + 1}\n`;
+        content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.temporary_id) {
+          content += `**Temporary ID:** ${item.temporary_id}\n\n`;
+        }
+        if (item.repo) {
+          content += `**Repository:** ${item.repo}\n\n`;
+        }
+        if (item.body) {
+          content += `**Body:**\n${item.body}\n\n`;
+        }
+        if (item.labels && item.labels.length > 0) {
+          content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+        }
+        if (item.parent) {
+          content += `**Parent:** ${item.parent}\n\n`;
+        }
+        return content;
+      },
+    });
+    return;
+  }
+  const parentIssueNumber = context.payload?.issue?.number;
 
-  // Track created issues for outputs
-  const createdIssues = [];
-
-  // Map to track temporary_id -> {repo, number} relationships across messages
+  // Map to track temporary_id -> {repo, number} relationships
+  /** @type {Map<string, {repo: string, number: number}>} */
   const temporaryIdMap = new Map();
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
   const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
-  const parentIssueNumber = context.payload?.issue?.number;
 
-  /**
-   * Message handler function that processes a single create_issue message
-   * @param {Object} message - The create_issue message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status and issue details
-   */
-  return async function handleCreateIssue(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping create_issue: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
-    }
-
-    processedCount++;
-
-    const createIssueItem = message;
-
-    // Merge external resolved temp IDs with our local map
-    if (resolvedTemporaryIds) {
-      for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
-        if (!temporaryIdMap.has(tempId)) {
-          temporaryIdMap.set(tempId, resolved);
-        }
-      }
-    }
+  // Read labels from config object
+  let envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  const createdIssues = [];
+  for (let i = 0; i < createIssueItems.length; i++) {
+    const createIssueItem = createIssueItems[i];
 
     // Determine target repository for this issue
     const itemRepo = createIssueItem.repo ? String(createIssueItem.repo).trim() : defaultTargetRepo;
@@ -90,26 +93,23 @@ async function main(config = {}) {
     const repoValidation = validateRepo(itemRepo, defaultTargetRepo, allowedRepos);
     if (!repoValidation.valid) {
       core.warning(`Skipping issue: ${repoValidation.error}`);
-      return {
-        success: false,
-        error: repoValidation.error,
-      };
+      continue;
     }
 
     // Parse the repository slug
     const repoParts = parseRepoSlug(itemRepo);
     if (!repoParts) {
-      const error = `Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`;
-      core.warning(`Skipping issue: ${error}`);
-      return {
-        success: false,
-        error,
-      };
+      core.warning(`Skipping issue: Invalid repository format '${itemRepo}'. Expected 'owner/repo'.`);
+      continue;
     }
 
     // Get or generate the temporary ID for this issue
     const temporaryId = createIssueItem.temporary_id || generateTemporaryId();
-    core.info(`Processing create_issue: title=${createIssueItem.title}, bodyLength=${createIssueItem.body?.length || 0}, temporaryId=${temporaryId}, repo=${itemRepo}`);
+    core.info(`Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}, temporaryId=${temporaryId}, repo=${itemRepo}`);
+
+    // Debug logging for parent field
+    core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+    core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
 
     // Resolve parent: check if it's a temporary ID reference
     let effectiveParentIssueNumber;
@@ -143,8 +143,11 @@ async function main(config = {}) {
         effectiveParentIssueNumber = parentIssueNumber;
       }
     }
+    core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}, effectiveParentRepo = ${effectiveParentRepo}`);
 
-    // Build labels array
+    if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+      core.info(`Using explicit parent issue number from item: ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
+    }
     let labels = [...envLabels];
     if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
       labels = [...labels, ...createIssueItem.labels];
@@ -157,11 +160,10 @@ async function main(config = {}) {
       .filter(label => label)
       .map(label => (label.length > 64 ? label.substring(0, 64) : label))
       .filter((label, index, arr) => arr.indexOf(label) === index);
-
     let title = createIssueItem.title ? createIssueItem.title.trim() : "";
 
     // Replace temporary ID references in the body using already-created issues
-    let processedBody = replaceTemporaryIdReferences(createIssueItem.body || "", temporaryIdMap, itemRepo);
+    let processedBody = replaceTemporaryIdReferences(createIssueItem.body, temporaryIdMap, itemRepo);
 
     // Remove duplicate title from description if it starts with a header matching the title
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
@@ -171,13 +173,11 @@ async function main(config = {}) {
     if (!title) {
       title = createIssueItem.body || "Agent Output";
     }
-
-    // Apply title prefix
+    // Read title_prefix from config object
+    const titlePrefix = config.title_prefix;
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-
-    // Add parent reference
     if (effectiveParentIssueNumber) {
       core.info("Detected issue context, parent issue " + effectiveParentRepo + "#" + effectiveParentIssueNumber);
       // Use full repo reference if cross-repo, short reference if same repo
@@ -187,7 +187,6 @@ async function main(config = {}) {
         bodyLines.push(`Related to ${effectiveParentRepo}#${effectiveParentIssueNumber}`);
       }
     }
-
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
@@ -202,21 +201,22 @@ async function main(config = {}) {
     }
 
     // Add expiration comment if expires is set in config
-    if (expiresDays > 0) {
-      const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + expiresDays);
-      const expirationISO = expirationDate.toISOString();
-      bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-      core.info(`Issue will expire on ${expirationISO} (${expiresDays} days)`);
+    if (config.expires) {
+      const expiresDays = parseInt(String(config.expires), 10);
+      if (!isNaN(expiresDays) && expiresDays > 0) {
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + expiresDays);
+        const expirationISO = expirationDate.toISOString();
+        bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+        core.info(`Issue will expire on ${expirationISO} (${expiresDays} days)`);
+      }
     }
 
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
     const body = bodyLines.join("\n").trim();
-
     core.info(`Creating issue in ${itemRepo} with title: ${title}`);
-    core.info(`Labels: ${labels.join(", ")}`);
+    core.info(`Labels: ${labels}`);
     core.info(`Body length: ${body.length}`);
-
     try {
       const { data: issue } = await github.rest.issues.create({
         owner: repoParts.owner,
@@ -225,13 +225,15 @@ async function main(config = {}) {
         body: body,
         labels: labels,
       });
-
       core.info(`Created issue ${itemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: itemRepo });
 
       // Store the mapping of temporary_id -> {repo, number}
       temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: itemRepo, number: issue.number });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${itemRepo}#${issue.number}`);
+
+      // Debug logging for sub-issue linking
+      core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
 
       // Sub-issue linking only works within the same repository
       if (effectiveParentIssueNumber && effectiveParentRepo === itemRepo) {
@@ -309,34 +311,49 @@ async function main(config = {}) {
         }
       } else if (effectiveParentIssueNumber && effectiveParentRepo !== itemRepo) {
         core.info(`Skipping sub-issue linking: parent is in different repository (${effectiveParentRepo})`);
+      } else {
+        core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
       }
-
-      // Return result with temporary ID mapping info
-      return {
-        success: true,
-        repo: itemRepo,
-        number: issue.number,
-        url: issue.html_url,
-        temporaryId: temporaryId,
-        _repo: itemRepo, // For tracking in the closure
-      };
+      if (i === createIssueItems.length - 1) {
+        core.setOutput("issue_number", issue.number);
+        core.setOutput("issue_url", issue.html_url);
+      }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       if (errorMessage.includes("Issues has been disabled in this repository")) {
         core.info(`⚠ Cannot create issue "${title}" in ${itemRepo}: Issues are disabled for this repository`);
         core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-        return {
-          success: false,
-          error: "Issues disabled for repository",
-        };
+        continue;
       }
       core.error(`✗ Failed to create issue "${title}" in ${itemRepo}: ${errorMessage}`);
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      throw error;
     }
-  };
+  }
+  if (createdIssues.length > 0) {
+    let summaryContent = "\n\n## GitHub Issues\n";
+    for (const issue of createdIssues) {
+      const repoLabel = issue._repo !== defaultTargetRepo ? ` (${issue._repo})` : "";
+      summaryContent += `- Issue #${issue.number}${repoLabel}: [${issue.title}](${issue.html_url})\n`;
+    }
+    await core.summary.addRaw(summaryContent).write();
+  }
+
+  // Output the temporary ID map as JSON for use by downstream jobs
+  const tempIdMapOutput = serializeTemporaryIdMap(temporaryIdMap);
+  core.setOutput("temporary_id_map", tempIdMapOutput);
+  core.info(`Temporary ID map: ${tempIdMapOutput}`);
+
+  // Output issues that need copilot assignment for assign_to_agent job
+  // This is used when create-issue has assignees: [copilot]
+  const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+  if (assignCopilot && createdIssues.length > 0) {
+    // Format: repo:number for each issue (for cross-repo support)
+    const issuesToAssign = createdIssues.map(issue => `${issue._repo}:${issue.number}`).join(",");
+    core.setOutput("issues_to_assign_copilot", issuesToAssign);
+    core.info(`Issues to assign copilot: ${issuesToAssign}`);
+  }
+
+  core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
 
 module.exports = { main };
