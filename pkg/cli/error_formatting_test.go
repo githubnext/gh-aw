@@ -19,7 +19,7 @@ func TestCompileErrorFormatting(t *testing.T) {
 	// Create a temporary test workflow with invalid frontmatter
 	tempDir := t.TempDir()
 	invalidWorkflow := fmt.Sprintf("%s/invalid.md", tempDir)
-	
+
 	// Write invalid workflow (missing closing frontmatter delimiter)
 	err := os.WriteFile(invalidWorkflow, []byte(`---
 name: test
@@ -40,7 +40,7 @@ This is not valid frontmatter
 	// Restore stderr and read captured output
 	w.Close()
 	os.Stderr = oldStderr
-	
+
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)
 	_ = buf.String() // Capture but don't use (just verifying no panic)
@@ -54,7 +54,7 @@ This is not valid frontmatter
 func TestResolveWorkflowErrorFormatting(t *testing.T) {
 	// Test with non-existent workflow file
 	nonExistentFile := "/tmp/nonexistent-workflow-file-12345.md"
-	
+
 	// Capture stderr
 	oldStderr := os.Stderr
 	r, w, _ := os.Pipe()
@@ -66,13 +66,13 @@ func TestResolveWorkflowErrorFormatting(t *testing.T) {
 	// Restore stderr and read captured output
 	w.Close()
 	os.Stderr = oldStderr
-	
+
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)
 
 	// Should return an error
 	require.Error(t, err, "Expected error for non-existent file")
-	
+
 	// Error message should contain helpful information
 	assert.Contains(t, err.Error(), "not found", "Error should mention file not found")
 }
@@ -80,9 +80,9 @@ func TestResolveWorkflowErrorFormatting(t *testing.T) {
 // TestConsoleFormatErrorMessageUsage verifies console.FormatErrorMessage is used correctly
 func TestConsoleFormatErrorMessageUsage(t *testing.T) {
 	tests := []struct {
-		name           string
-		message        string
-		shouldContain  []string
+		name          string
+		message       string
+		shouldContain []string
 	}{
 		{
 			name:    "simple error message",
@@ -104,10 +104,10 @@ func TestConsoleFormatErrorMessageUsage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			formatted := console.FormatErrorMessage(tt.message)
-			
+
 			// Verify the formatted message contains the original text
 			for _, expected := range tt.shouldContain {
-				assert.Contains(t, formatted, expected, 
+				assert.Contains(t, formatted, expected,
 					"Formatted message should contain: %s", expected)
 			}
 		})
@@ -141,7 +141,7 @@ func TestConsoleFormatWarningMessageUsage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			formatted := console.FormatWarningMessage(tt.message)
-			
+
 			// Verify the formatted message contains the original text
 			for _, expected := range tt.shouldContain {
 				assert.Contains(t, formatted, expected,
@@ -186,7 +186,7 @@ func TestErrorMessagePatterns(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.errorCreator()
 			require.Error(t, err)
-			
+
 			errMsg := err.Error()
 			for _, expected := range tt.shouldContain {
 				assert.Contains(t, errMsg, expected,
@@ -199,7 +199,7 @@ func TestErrorMessagePatterns(t *testing.T) {
 // TestNoPlainErrorOutput verifies that critical error paths don't use plain fmt.Fprintln
 func TestNoPlainErrorOutput(t *testing.T) {
 	// This test serves as documentation that errors should use console formatting
-	
+
 	testCases := []struct {
 		description string
 		goodExample string
@@ -230,17 +230,17 @@ func TestNoPlainErrorOutput(t *testing.T) {
 // TestErrorFormattingConsistency verifies console formatting functions are consistent
 func TestErrorFormattingConsistency(t *testing.T) {
 	testMessage := "test error message"
-	
+
 	// Test error formatting
 	errorFormatted := console.FormatErrorMessage(testMessage)
 	assert.NotEmpty(t, errorFormatted)
 	assert.Contains(t, errorFormatted, testMessage)
-	
+
 	// Test warning formatting
 	warningFormatted := console.FormatWarningMessage(testMessage)
 	assert.NotEmpty(t, warningFormatted)
 	assert.Contains(t, warningFormatted, testMessage)
-	
+
 	// Error and warning formatting should be different
 	assert.NotEqual(t, errorFormatted, warningFormatted,
 		"Error and warning formatting should produce different output")
@@ -273,7 +273,7 @@ func TestErrorFormattingDoesNotMangle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			formatted := console.FormatErrorMessage(tt.message)
-			
+
 			// All essential parts of the message should be preserved
 			// (formatting may add prefixes/styling but shouldn't lose content)
 			essentialParts := strings.Fields(tt.message)
