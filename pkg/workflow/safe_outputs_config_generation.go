@@ -617,7 +617,18 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	// Add custom job tools from SafeOutputs.Jobs
 	if len(data.SafeOutputs.Jobs) > 0 {
 		safeOutputsConfigLog.Printf("Adding %d custom job tools", len(data.SafeOutputs.Jobs))
-		for jobName, jobConfig := range data.SafeOutputs.Jobs {
+
+		// Sort job names for deterministic output
+		// This ensures compiled workflows have consistent tool ordering
+		jobNames := make([]string, 0, len(data.SafeOutputs.Jobs))
+		for jobName := range data.SafeOutputs.Jobs {
+			jobNames = append(jobNames, jobName)
+		}
+		sort.Strings(jobNames)
+
+		// Iterate over jobs in sorted order
+		for _, jobName := range jobNames {
+			jobConfig := data.SafeOutputs.Jobs[jobName]
 			// Normalize job name to use underscores for consistency
 			normalizedJobName := normalizeSafeOutputIdentifier(jobName)
 
