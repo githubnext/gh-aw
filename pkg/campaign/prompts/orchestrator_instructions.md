@@ -24,10 +24,43 @@ You must treat this file as the source of truth for incremental discovery:
 
 You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
 
+**Required JSON schema** for each metrics file:
+```json
+{
+  "campaign_id": "{{ .CampaignID }}",
+  "date": "YYYY-MM-DD",
+  "tasks_total": 0,
+  "tasks_completed": 0,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "velocity_per_day": 0.0,
+  "estimated_completion": "YYYY-MM-DD",
+  "kpi_trends": [
+    {"name": "KPI Name", "trend": "Improving|Flat|Regressing", "value": 0.0}
+  ]
+}
+```
+
+**Required fields** (must be present):
+- `campaign_id` (string): Must be exactly "{{ .CampaignID }}"
+- `date` (string): ISO date in YYYY-MM-DD format (use UTC)
+- `tasks_total` (integer): Total number of campaign tasks (≥0)
+- `tasks_completed` (integer): Number of completed tasks (≥0)
+
+**Optional fields** (omit or set to null if not applicable):
+- `tasks_in_progress` (integer): Tasks currently being worked on (≥0)
+- `tasks_blocked` (integer): Tasks that are blocked (≥0)
+- `velocity_per_day` (number): Average tasks completed per day (≥0)
+- `estimated_completion` (string): Estimated completion date in YYYY-MM-DD format
+- `kpi_trends` (array): KPI trend information with name, trend status, and current value
+
 Guidance:
 - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
 - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
-- If a KPI is present, record its computed value and trend (Improving/Flat/Regressing).
+- If a KPI is present, record its computed value and trend (Improving/Flat/Regressing) in the kpi_trends array.
+- Count tasks from all sources: tracker-labeled issues, worker-created issues, and project board items.
+- Set tasks_total to the total number of unique tasks discovered in this run.
+- Set tasks_completed to the count of tasks with state "Done" or closed status.
 {{ end }}
 {{ if gt .MaxDiscoveryItemsPerRun 0 }}
 **Read budget**: max discovery items per run: {{ .MaxDiscoveryItemsPerRun }}

@@ -22,6 +22,9 @@ var closingInstructionsTemplate string
 
 // CampaignPromptData holds data for rendering campaign orchestrator prompts.
 type CampaignPromptData struct {
+	// CampaignID is the unique identifier for this campaign.
+	CampaignID string
+
 	// Objective is the campaign objective statement.
 	Objective string
 
