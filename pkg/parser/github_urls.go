@@ -28,19 +28,24 @@ const (
 
 // GitHubURLComponents represents the parsed components of a GitHub URL
 type GitHubURLComponents struct {
-	Host   string        // Hostname (e.g., "github.com", "github.example.com", "raw.githubusercontent.com")
-	Owner  string        // Repository owner
-	Repo   string        // Repository name
-	Type   GitHubURLType // Type of URL (run, pull, issue, blob, tree, raw, rawcontent)
-	Number int64         // Number for runs, PRs, issues, jobs
-	Path   string        // File path for blob/tree/raw URLs
-	Ref    string        // Git reference (branch, tag, SHA) for file URLs
+	Host       string        // Hostname (e.g., "github.com", "github.example.com", "raw.githubusercontent.com")
+	Owner      string        // Repository owner
+	Repo       string        // Repository name
+	Type       GitHubURLType // Type of URL (run, pull, issue, blob, tree, raw, rawcontent)
+	Number     int64         // Number for runs, PRs, issues, jobs
+	Path       string        // File path for blob/tree/raw URLs
+	Ref        string        // Git reference (branch, tag, SHA) for file URLs
+	JobID      int64         // Job ID for job URLs (e.g., /job/123)
+	StepNumber int           // Step number from URL fragment (e.g., #step:7:1)
+	StepLine   int           // Line number within step from URL fragment
 }
 
 // ParseGitHubURL parses a GitHub URL and extracts its components.
 // Supports various URL formats:
 //   - GitHub Actions runs: https://github.com/owner/repo/actions/runs/12345678
 //   - GitHub Actions runs (short): https://github.com/owner/repo/runs/12345678
+//   - GitHub Actions job URLs: https://github.com/owner/repo/actions/runs/12345678/job/98765432
+//   - GitHub Actions step URLs: https://github.com/owner/repo/actions/runs/12345678/job/98765432#step:7:1
 //   - Pull requests: https://github.com/owner/repo/pull/123
 //   - Issues: https://github.com/owner/repo/issues/123
 //   - File blob: https://github.com/owner/repo/blob/main/path/to/file.md
@@ -97,14 +102,26 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 			// Pattern: /owner/repo/actions/runs/12345678
 			if len(pathParts) >= 5 && pathParts[3] == "runs" {
 				urlLog.Print("Parsing GitHub Actions run URL")
-				return parseRunURL(host, owner, repo, pathParts[4:])
+				components, err := parseRunURL(host, owner, repo, pathParts[4:])
+				if err != nil {
+					return nil, err
+				}
+				// Parse fragment for step information
+				parseStepFragment(parsedURL.Fragment, components)
+				return components, nil
 			}
 
 		case "runs":
 			// Pattern: /owner/repo/runs/12345678 (short form)
 			if len(pathParts) >= 4 {
 				urlLog.Print("Parsing GitHub Actions run URL (short form)")
-				return parseRunURL(host, owner, repo, pathParts[3:])
+				components, err := parseRunURL(host, owner, repo, pathParts[3:])
+				if err != nil {
+					return nil, err
+				}
+				// Parse fragment for step information
+				parseStepFragment(parsedURL.Fragment, components)
+				return components, nil
 			}
 
 		case "pull":
@@ -174,6 +191,11 @@ func ParseGitHubURL(urlStr string) (*GitHubURLComponents, error) {
 }
 
 // parseRunURL parses the run ID portion of a GitHub Actions URL
+// Supports:
+//   - /runs/12345678
+//   - /runs/12345678/job/98765432
+//   - /runs/12345678/job/98765432#step:7:1
+//   - /runs/12345678/attempts/2
 func parseRunURL(host, owner, repo string, parts []string) (*GitHubURLComponents, error) {
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("missing run ID")
@@ -184,13 +206,50 @@ func parseRunURL(host, owner, repo string, parts []string) (*GitHubURLComponents
 		return nil, fmt.Errorf("invalid run ID: %s", parts[0])
 	}
 
-	return &GitHubURLComponents{
+	components := &GitHubURLComponents{
 		Host:   host,
 		Owner:  owner,
 		Repo:   repo,
 		Type:   URLTypeRun,
 		Number: runID,
-	}, nil
+	}
+
+	// Check for additional path components (job ID, attempts, etc.)
+	if len(parts) >= 3 && parts[1] == "job" {
+		jobID, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid job ID: %s", parts[2])
+		}
+		components.JobID = jobID
+	}
+
+	return components, nil
+}
+
+// parseStepFragment parses the URL fragment for step information
+// Supports formats like: #step:7:1 (step 7, line 1)
+func parseStepFragment(fragment string, components *GitHubURLComponents) {
+	if fragment == "" {
+		return
+	}
+
+	// Check if fragment starts with "step:"
+	if !strings.HasPrefix(fragment, "step:") {
+		return
+	}
+
+	// Parse step:number:line format
+	parts := strings.Split(fragment, ":")
+	if len(parts) >= 2 {
+		if stepNum, err := strconv.Atoi(parts[1]); err == nil {
+			components.StepNumber = stepNum
+		}
+	}
+	if len(parts) >= 3 {
+		if lineNum, err := strconv.Atoi(parts[2]); err == nil {
+			components.StepLine = lineNum
+		}
+	}
 }
 
 // parseRawGitHubContentURL parses raw.githubusercontent.com URLs
@@ -249,7 +308,10 @@ func parseRawGitHubContentURL(parsedURL *url.URL) (*GitHubURLComponents, error) 
 //   - GitHub Actions run URL: "https://github.com/owner/repo/actions/runs/12345678"
 //   - Short run URL: "https://github.com/owner/repo/runs/12345678"
 //   - Job URL: "https://github.com/owner/repo/actions/runs/12345678/job/98765432"
+//   - Job URL with step: "https://github.com/owner/repo/actions/runs/12345678/job/98765432#step:7:1"
 //   - Enterprise URLs: "https://github.example.com/owner/repo/actions/runs/12345678"
+//
+// For deep URLs with job/step information, use ParseRunURLExtended to get all details.
 func ParseRunURL(input string) (runID int64, owner, repo, hostname string, err error) {
 	// First try to parse as a direct numeric ID
 	if runID, err := strconv.ParseInt(input, 10, 64); err == nil {
@@ -267,6 +329,30 @@ func ParseRunURL(input string) (runID int64, owner, repo, hostname string, err e
 	}
 
 	return components.Number, components.Owner, components.Repo, components.Host, nil
+}
+
+// ParseRunURLExtended is similar to ParseRunURL but returns additional information
+// including job ID and step details from deep URLs.
+func ParseRunURLExtended(input string) (*GitHubURLComponents, error) {
+	// First try to parse as a direct numeric ID
+	if runID, err := strconv.ParseInt(input, 10, 64); err == nil {
+		return &GitHubURLComponents{
+			Type:   URLTypeRun,
+			Number: runID,
+		}, nil
+	}
+
+	// Try to parse as a GitHub URL
+	components, err := ParseGitHubURL(input)
+	if err != nil {
+		return nil, fmt.Errorf("invalid run ID or URL '%s': must be a numeric run ID or a GitHub URL containing '/actions/runs/{run-id}' or '/runs/{run-id}'", input)
+	}
+
+	if components.Type != URLTypeRun {
+		return nil, fmt.Errorf("URL is not a GitHub Actions run URL")
+	}
+
+	return components, nil
 }
 
 // ParsePRURL is a convenience function that parses a GitHub PR URL and extracts PR information.
