@@ -235,31 +235,7 @@ jobs:
             const { main } = require('/tmp/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
-        run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            {
-              echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-              echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "✅ CLAUDE_CODE_OAUTH_TOKEN: Configured"
-          else
-            echo "✅ ANTHROPIC_API_KEY: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY Claude Code https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -1667,31 +1643,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
-        run: |
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-            {
-              echo "❌ Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-              echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
-              echo "Please configure one of these secrets in your repository settings."
-              echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
-            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure one of these secrets in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
-            exit 1
-          fi
-          
-          # Log success in collapsible section
-          echo "<details>"
-          echo "<summary>Agent Environment Validation</summary>"
-          echo ""
-          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "✅ CLAUDE_CODE_OAUTH_TOKEN: Configured"
-          else
-            echo "✅ ANTHROPIC_API_KEY: Configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
-          fi
-          echo "</details>"
+        run: /tmp/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY Claude Code https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -77,18 +78,9 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 			docsURL:     "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 			wantStrings: []string{
 				"Validate CODEX_API_KEY or OPENAI_API_KEY secret",
-				"Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set",
-				"The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured",
-				"Please configure one of these secrets in your repository settings",
-				"Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
-				"<details>",
-				"<summary>Agent Environment Validation</summary>",
-				"✅ CODEX_API_KEY: Configured",
-				"✅ OPENAI_API_KEY: Configured (using as fallback for CODEX_API_KEY)",
-				"</details>",
+				"run: /tmp/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
 				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
 				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
-				">> \"$GITHUB_STEP_SUMMARY\"",
 			},
 		},
 	}
@@ -104,9 +96,9 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 				}
 			}
 
-			// Verify it has a run block
-			if !strings.Contains(stepContent, "run: |") {
-				t.Error("Expected step to have 'run: |' block")
+			// Verify it calls the validate_multi_secret.sh script
+			if !strings.Contains(stepContent, "/tmp/gh-aw/actions/validate_multi_secret.sh") {
+				t.Error("Expected step to call validate_multi_secret.sh script")
 			}
 
 			// Verify it has an env section
@@ -114,9 +106,12 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 				t.Error("Expected step to have 'env:' section")
 			}
 
-			// Verify it exits with code 1 on failure
-			if !strings.Contains(stepContent, "exit 1") {
-				t.Error("Expected step to exit with code 1 on validation failure")
+			// Verify all secrets are passed as environment variables
+			for _, secretName := range tt.secretNames {
+				expectedEnvVar := fmt.Sprintf("%s: ${{ secrets.%s }}", secretName, secretName)
+				if !strings.Contains(stepContent, expectedEnvVar) {
+					t.Errorf("Expected step to have environment variable: %s", expectedEnvVar)
+				}
 			}
 		})
 	}
@@ -186,9 +181,12 @@ func TestCodexEngineHasSecretValidation(t *testing.T) {
 		t.Error("Secret validation step should reference secrets.OPENAI_API_KEY")
 	}
 
-	// Should have fallback logic
-	if !strings.Contains(firstStep, "if [ -z \"$CODEX_API_KEY\" ] && [ -z \"$OPENAI_API_KEY\" ]") {
-		t.Error("Should validate that at least one of CODEX_API_KEY or OPENAI_API_KEY is set")
+	// Should call the validate_multi_secret.sh script with both secret names
+	if !strings.Contains(firstStep, "/tmp/gh-aw/actions/validate_multi_secret.sh") {
+		t.Error("Should call validate_multi_secret.sh script")
+	}
+	if !strings.Contains(firstStep, "CODEX_API_KEY OPENAI_API_KEY") {
+		t.Error("Should pass both CODEX_API_KEY and OPENAI_API_KEY to the script")
 	}
 }
 
