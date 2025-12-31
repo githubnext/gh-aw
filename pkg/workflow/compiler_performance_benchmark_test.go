@@ -201,7 +201,7 @@ Standard workflow for memory profiling.
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	
+
 	// Track memory allocations
 	for i := 0; i < b.N; i++ {
 		_ = compiler.CompileWorkflow(testFile)
