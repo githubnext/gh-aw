@@ -1,7 +1,10 @@
 // Package stringutil provides utility functions for working with strings.
 package stringutil
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Truncate truncates a string to a maximum length, adding "..." if truncated.
 // If maxLen is 3 or less, the string is truncated without "...".
@@ -32,4 +35,20 @@ func NormalizeWhitespace(content string) string {
 	}
 
 	return normalized
+}
+
+// ParseVersionValue converts version values of various types to strings.
+// Supports string, int, int64, uint64, and float64 types.
+// Returns empty string for unsupported types.
+func ParseVersionValue(version any) string {
+	switch v := version.(type) {
+	case string:
+		return v
+	case int, int64, uint64:
+		return fmt.Sprintf("%d", v)
+	case float64:
+		return fmt.Sprintf("%g", v)
+	default:
+		return ""
+	}
 }

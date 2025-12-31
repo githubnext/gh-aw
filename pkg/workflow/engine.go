@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var engineLog = logger.New("workflow:engine")
@@ -64,14 +65,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 			// Extract optional 'version' field
 			if version, hasVersion := engineObj["version"]; hasVersion {
-				switch v := version.(type) {
-				case string:
-					config.Version = v
-				case int, int64, uint64:
-					config.Version = fmt.Sprintf("%d", v)
-				case float64:
-					config.Version = fmt.Sprintf("%g", v)
-				}
+				config.Version = stringutil.ParseVersionValue(version)
 			}
 
 			// Extract optional 'model' field
