@@ -64,8 +64,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 			// Extract optional 'version' field
 			if version, hasVersion := engineObj["version"]; hasVersion {
-				if versionStr, ok := version.(string); ok {
-					config.Version = versionStr
+				switch v := version.(type) {
+				case string:
+					config.Version = v
+				case int, int64, uint64:
+					config.Version = fmt.Sprintf("%d", v)
+				case float64:
+					config.Version = fmt.Sprintf("%g", v)
 				}
 			}
 
