@@ -287,6 +287,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 					"id":          "campaigns",
 					"branch-name": "memory/campaigns",
 					"file-glob":   convertStringsToAny(fileGlobPatterns),
+					"campaign-id": spec.ID,
 				},
 			},
 			"bash": []any{"*"},

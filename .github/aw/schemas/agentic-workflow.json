@@ -3027,6 +3027,10 @@
                 "create-orphan": {
                   "type": "boolean",
                   "description": "Create orphaned branch if it doesn't exist (default: true)"
+                },
+                "campaign-id": {
+                  "type": "string",
+                  "description": "Campaign ID for campaign-specific repo-memory (optional, used to correlate memory with campaign workflows)"
                 }
               },
               "additionalProperties": false,
@@ -3093,6 +3097,10 @@
                   "create-orphan": {
                     "type": "boolean",
                     "description": "Create orphaned branch if it doesn't exist (default: true)"
+                  },
+                  "campaign-id": {
+                    "type": "string",
+                    "description": "Campaign ID for campaign-specific repo-memory (optional, used to correlate memory with campaign workflows)"
                   }
                 },
                 "additionalProperties": false

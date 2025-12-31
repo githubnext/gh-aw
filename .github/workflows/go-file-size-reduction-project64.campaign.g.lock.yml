@@ -1625,6 +1625,7 @@ jobs:
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
           FILE_GLOB_FILTER: "go-file-size-reduction-project64/**"
+          GH_AW_CAMPAIGN_ID: go-file-size-reduction-project64
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
