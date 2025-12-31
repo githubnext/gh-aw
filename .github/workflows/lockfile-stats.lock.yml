@@ -460,41 +460,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const fs = require('fs');
-            const awInfoPath = '/tmp/gh-aw/aw_info.json';
-            
-            // Load aw_info.json
-            const awInfo = JSON.parse(fs.readFileSync(awInfoPath, 'utf8'));
-            
-            let networkDetails = '';
-            if (awInfo.allowed_domains && awInfo.allowed_domains.length > 0) {
-              networkDetails = awInfo.allowed_domains.slice(0, 10).map(d => `  - ${d}`).join('\n');
-              if (awInfo.allowed_domains.length > 10) {
-                networkDetails += `\n  - ... and ${awInfo.allowed_domains.length - 10} more`;
-              }
-            }
-            
-            const summary = '<details>\n' +
-              '<summary>Run details</summary>\n\n' +
-              '#### Engine Configuration\n' +
-              '| Property | Value |\n' +
-              '|----------|-------|\n' +
-              `| Engine ID | ${awInfo.engine_id} |\n` +
-              `| Engine Name | ${awInfo.engine_name} |\n` +
-              `| Model | ${awInfo.model || '(default)'} |\n` +
-              '\n' +
-              '#### Network Configuration\n' +
-              '| Property | Value |\n' +
-              '|----------|-------|\n' +
-              `| Mode | ${awInfo.network_mode || 'defaults'} |\n` +
-              `| Firewall | ${awInfo.firewall_enabled ? '✅ Enabled' : '❌ Disabled'} |\n` +
-              `| Firewall Version | ${awInfo.awf_version || '(latest)'} |\n` +
-              '\n' +
-              (networkDetails ? `##### Allowed Domains\n${networkDetails}\n` : '') +
-              '</details>';
-            
-            await core.summary.addRaw(summary).write();
-            console.log('Generated workflow overview in step summary');
+            const { generateWorkflowOverview } = require('/tmp/gh-aw/actions/generate_workflow_overview.cjs');
+            await generateWorkflowOverview(core);
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
