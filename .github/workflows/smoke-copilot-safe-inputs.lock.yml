@@ -479,9 +479,7 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_INPUTS_PORT": "\${GH_AW_SAFE_INPUTS_PORT}",
-                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}",
-                  "GH_AW_GH_TOKEN": "\${GH_AW_GH_TOKEN}",
-                  "GH_DEBUG": "\${GH_DEBUG}"
+                  "GH_AW_SAFE_INPUTS_API_KEY": "\${GH_AW_SAFE_INPUTS_API_KEY}"
                 }
               },
               "safeoutputs": {
