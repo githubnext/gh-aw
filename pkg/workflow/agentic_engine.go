@@ -306,68 +306,18 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 	// Build the step name
 	stepName := fmt.Sprintf("      - name: Validate %s secret", strings.Join(secretNames, " or "))
 
-	// Build the condition for checking if all secrets are empty
-	conditions := make([]string, len(secretNames))
-	for i, secretName := range secretNames {
-		conditions[i] = fmt.Sprintf("[ -z \"$%s\" ]", secretName)
-	}
-	allEmptyCondition := strings.Join(conditions, " && ")
-
-	// Build error message
-	var errorMsg string
-	if len(secretNames) == 2 {
-		errorMsg = fmt.Sprintf("Neither %s nor %s secret is set", secretNames[0], secretNames[1])
-	} else {
-		errorMsg = fmt.Sprintf("None of the following secrets are set: %s", strings.Join(secretNames, ", "))
-	}
-
-	requirementMsg := fmt.Sprintf("The %s engine requires either %s secret to be configured.", engineName, strings.Join(secretNames, " or "))
+	// Build the command to call the validation script
+	// The script expects: SECRET_NAME1 [SECRET_NAME2 ...] ENGINE_NAME DOCS_URL
+	scriptArgs := append(secretNames, engineName, docsURL)
+	scriptArgsStr := strings.Join(scriptArgs, " ")
 
 	stepLines := []string{
 		stepName,
-		"        run: |",
-		fmt.Sprintf("          if %s; then", allEmptyCondition),
-		"            {",
-		fmt.Sprintf("              echo \"❌ Error: %s\"", errorMsg),
-		fmt.Sprintf("              echo \"%s\"", requirementMsg),
-		"              echo \"Please configure one of these secrets in your repository settings.\"",
-		fmt.Sprintf("              echo \"Documentation: %s\"", docsURL),
-		"            } >> \"$GITHUB_STEP_SUMMARY\"",
-		fmt.Sprintf("            echo \"Error: %s\"", errorMsg),
-		fmt.Sprintf("            echo \"%s\"", requirementMsg),
-		"            echo \"Please configure one of these secrets in your repository settings.\"",
-		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
-		"            exit 1",
-		"          fi",
-		"          ",
-		"          # Log success in collapsible section",
-		"          echo \"<details>\"",
-		"          echo \"<summary>Agent Environment Validation</summary>\"",
-		"          echo \"\"",
+		"        run: /tmp/gh-aw/actions/validate_multi_secret.sh " + scriptArgsStr,
+		"        env:",
 	}
-
-	// Add conditional messages for each secret in collapsible section
-	for i, secretName := range secretNames {
-		if i == 0 {
-			stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
-		} else if i == len(secretNames)-1 {
-			stepLines = append(stepLines, "          else")
-			if len(secretNames) == 2 {
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured (using as fallback for %s)\"", secretName, secretNames[0]))
-			} else {
-				stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
-			}
-		} else {
-			stepLines = append(stepLines, fmt.Sprintf("          elif [ -n \"$%s\" ]; then", secretName))
-			stepLines = append(stepLines, fmt.Sprintf("            echo \"✅ %s: Configured\"", secretName))
-		}
-	}
-	stepLines = append(stepLines, "          fi")
-	stepLines = append(stepLines, "          echo \"</details>\"")
 
 	// Add env section with all secrets
-	stepLines = append(stepLines, "        env:")
 	for _, secretName := range secretNames {
 		stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName))
 	}
