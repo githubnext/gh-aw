@@ -224,6 +224,43 @@ describe("parse_safe_inputs_logs.cjs", () => {
       expect(summary).toContain("=== Safe Inputs MCP Server Logs ===");
       expect(summary).toContain("Total entries: 0");
     });
+
+    it("should include full logs in plain text summary", () => {
+      const logEntries = [
+        { timestamp: "2025-12-31T15:43:54.000Z", serverName: "safe-inputs", message: "Starting Safe Inputs MCP Server", raw: false },
+        { timestamp: "2025-12-31T15:43:55.000Z", serverName: "safe-inputs", message: "Server started successfully", raw: false },
+        { timestamp: null, serverName: null, message: "Unparsed log line", raw: true },
+      ];
+
+      const summary = generatePlainTextSummary(logEntries);
+
+      expect(summary).toContain("Full Logs (first 5000 lines):");
+      expect(summary).toContain("[safe-inputs] Starting Safe Inputs MCP Server");
+      expect(summary).toContain("[safe-inputs] Server started successfully");
+      expect(summary).toContain("Unparsed log line");
+    });
+
+    it("should limit full logs to 5000 lines", () => {
+      // Create 5500 log entries
+      const logEntries = [];
+      for (let i = 0; i < 5500; i++) {
+        logEntries.push({
+          timestamp: "2025-12-31T15:43:54.000Z",
+          serverName: "safe-inputs",
+          message: `Log entry ${i}`,
+          raw: false,
+        });
+      }
+
+      const summary = generatePlainTextSummary(logEntries);
+
+      expect(summary).toContain("Full Logs (first 5000 lines):");
+      expect(summary).toContain("Log entry 0");
+      expect(summary).toContain("Log entry 4999");
+      expect(summary).toContain("... (truncated, showing first 5000 lines of 5500 total entries)");
+      expect(summary).not.toContain("Log entry 5000");
+      expect(summary).not.toContain("Log entry 5499");
+    });
   });
 
   describe("generateSafeInputsSummary", () => {
