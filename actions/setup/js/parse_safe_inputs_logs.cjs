@@ -184,6 +184,28 @@ function generatePlainTextSummary(logEntries) {
     lines.push("");
   }
 
+  // Full logs section (limited to first 5000 lines)
+  lines.push("Full Logs (first 5000 lines):");
+  lines.push("");
+
+  let lineCount = 0;
+  for (const entry of logEntries) {
+    if (lineCount >= 5000) {
+      lines.push(`... (truncated, showing first 5000 lines of ${logEntries.length} total entries)`);
+      break;
+    }
+
+    if (entry.raw) {
+      // Display unparsed lines as-is
+      lines.push(entry.message);
+    } else {
+      const time = entry.timestamp ? `[${entry.timestamp}]` : "";
+      const server = entry.serverName ? `[${entry.serverName}]` : "";
+      lines.push(`${time} ${server} ${entry.message}`);
+    }
+    lineCount++;
+  }
+
   return lines.join("\n");
 }
 
