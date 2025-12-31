@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { isDiscussionContext, getDiscussionNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -65,8 +66,7 @@ async function executeDiscussionUpdate(github, context, discussionNumber, update
 /**
  * Main handler factory for update_discussion
  * Returns a message handler function that processes individual update_discussion messages
- * @param {Object} config - Handler configuration
- * @returns {Promise<Function>} Message handler function
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

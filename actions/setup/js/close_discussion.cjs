@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
@@ -142,8 +143,7 @@ async function closeDiscussion(github, discussionId, reason) {
 /**
  * Main handler factory for close_discussion
  * Returns a message handler function that processes individual close_discussion messages
- * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

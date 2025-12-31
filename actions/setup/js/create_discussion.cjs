@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
@@ -87,8 +88,7 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
 /**
  * Main handler factory for create_discussion
  * Returns a message handler function that processes individual create_discussion messages
- * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

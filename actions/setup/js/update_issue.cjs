@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { isIssueContext, getIssueNumber } = require("./update_context_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -29,8 +30,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
 /**
  * Main handler factory for update_issue
  * Returns a message handler function that processes individual update_issue messages
- * @param {Object} config - Handler configuration
- * @returns {Promise<Function>} Message handler function
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

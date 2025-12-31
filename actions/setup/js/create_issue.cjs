@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
@@ -12,8 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Main handler factory for create_issue
  * Returns a message handler function that processes individual create_issue messages
- * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

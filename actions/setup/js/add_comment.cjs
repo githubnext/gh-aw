@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
@@ -258,8 +259,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
 /**
  * Main handler factory for add_comment
  * Returns a message handler function that processes individual add_comment messages
- * @param {Object} config - Handler configuration
- * @returns {Promise<Function>} Message handler function
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration

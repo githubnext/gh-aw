@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+/// <reference path="./types/handler-factory.d.ts" />
 
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -7,8 +8,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 /**
  * Main handler factory for add_labels
  * Returns a message handler function that processes individual add_labels messages
- * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
- * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
   // Extract configuration
