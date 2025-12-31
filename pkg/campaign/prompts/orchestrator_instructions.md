@@ -17,6 +17,19 @@ You must treat this file as the source of truth for incremental discovery:
 - If it exists, read it first and continue from that boundary.
 - If it does not exist yet, create it by the end of the run.
 - Always write the updated cursor back to the same path.
+
+**Required cursor schema**:
+```json
+{
+  "campaign_id": "{{ .ID }}",
+  "date": "YYYY-MM-DD",
+  "last_processed_issue": <optional>,
+  "last_processed_pr": <optional>,
+  "last_updated_at": <optional>
+}
+```
+
+The cursor payload is intentionally opaque - include whatever state you need for resumable incremental discovery.
 {{ end }}
 
 {{ if .MetricsGlob }}
@@ -28,6 +41,34 @@ Guidance:
 - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
 - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
 - If a KPI is present, record its computed value and trend (Improving/Flat/Regressing).
+
+**Required metrics snapshot schema**:
+```json
+{
+  "campaign_id": "{{ .ID }}",
+  "date": "YYYY-MM-DD",
+  "tasks_total": <integer>,
+  "tasks_completed": <integer>,
+  "tasks_in_progress": <integer, optional>,
+  "tasks_blocked": <integer, optional>,
+  "velocity_per_day": <number, optional>,
+  "estimated_completion": <string, optional>
+}
+```
+{{ end }}
+{{ if or .CursorGlob .MetricsGlob }}
+
+**Campaign state files directory structure**:
+
+Write all campaign state files to `/tmp/gh-aw/repo-memory/campaigns/` following this structure:
+```
+{{ .ID }}/
+├── cursor.json          (required if cursor tracking is needed)
+└── metrics/
+    └── YYYY-MM-DD.json  (required - at least one metrics snapshot)
+```
+
+The system will automatically upload these files to the configured repo-memory branch. Do NOT include the branch name (e.g., "memory/campaigns") in your file paths - write directly to the campaign ID directory.
 {{ end }}
 {{ if gt .MaxDiscoveryItemsPerRun 0 }}
 **Read budget**: max discovery items per run: {{ .MaxDiscoveryItemsPerRun }}
