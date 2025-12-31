@@ -225,6 +225,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 				},
 			},
 			"bash": []any{"*"},
+			"edit": nil,
 		},
 		SafeOutputs: safeOutputs,
 	}

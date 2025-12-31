@@ -23,6 +23,7 @@ roles:
 tools:
     bash:
         - '*'
+    edit: null
     github:
         toolsets:
             - default
