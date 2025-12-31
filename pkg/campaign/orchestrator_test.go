@@ -313,13 +313,23 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 	}
 }
 
-func TestExtractFileGlobPattern(t *testing.T) {
+func TestExtractFileGlobPatterns(t *testing.T) {
 	tests := []struct {
 		name           string
 		spec           *CampaignSpec
-		expectedGlob   string
+		expectedGlobs  []string
 		expectedLogMsg string
 	}{
+		{
+			name: "flexible pattern matching both dated and non-dated",
+			spec: &CampaignSpec{
+				ID:          "go-file-size-reduction-project64",
+				MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64*/**"},
+				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+			},
+			expectedGlobs:  []string{"go-file-size-reduction-project64*/**"},
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
+		},
 		{
 			name: "dated pattern in memory-paths",
 			spec: &CampaignSpec{
@@ -327,7 +337,20 @@ func TestExtractFileGlobPattern(t *testing.T) {
 				MemoryPaths: []string{"memory/campaigns/go-file-size-reduction-project64-*/**"},
 				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
 			},
-			expectedGlob:   "go-file-size-reduction-project64-*/**",
+			expectedGlobs:  []string{"go-file-size-reduction-project64-*/**"},
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
+		},
+		{
+			name: "multiple patterns in memory-paths",
+			spec: &CampaignSpec{
+				ID: "go-file-size-reduction-project64",
+				MemoryPaths: []string{
+					"memory/campaigns/go-file-size-reduction-project64-*/**",
+					"memory/campaigns/go-file-size-reduction-project64/**",
+				},
+				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
+			},
+			expectedGlobs:  []string{"go-file-size-reduction-project64-*/**", "go-file-size-reduction-project64/**"},
 			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
 		},
 		{
@@ -336,7 +359,7 @@ func TestExtractFileGlobPattern(t *testing.T) {
 				ID:          "go-file-size-reduction-project64",
 				MetricsGlob: "memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json",
 			},
-			expectedGlob:   "go-file-size-reduction-project64-*/**",
+			expectedGlobs:  []string{"go-file-size-reduction-project64-*/**"},
 			expectedLogMsg: "Extracted file-glob pattern from metrics-glob",
 		},
 		{
@@ -345,15 +368,15 @@ func TestExtractFileGlobPattern(t *testing.T) {
 				ID:          "simple-campaign",
 				MemoryPaths: []string{"memory/campaigns/simple-campaign/**"},
 			},
-			expectedGlob:   "simple-campaign/**",
-			expectedLogMsg: "Using fallback file-glob pattern",
+			expectedGlobs:  []string{"simple-campaign/**"},
+			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
 		},
 		{
 			name: "no memory paths or metrics glob",
 			spec: &CampaignSpec{
 				ID: "minimal-campaign",
 			},
-			expectedGlob:   "minimal-campaign/**",
+			expectedGlobs:  []string{"minimal-campaign/**"},
 			expectedLogMsg: "Using fallback file-glob pattern",
 		},
 		{
@@ -365,16 +388,22 @@ func TestExtractFileGlobPattern(t *testing.T) {
 					"memory/campaigns/multi-path-*/data/**",
 				},
 			},
-			expectedGlob:   "multi-path-*/data/**",
+			expectedGlobs:  []string{"multi-path-staging/**", "multi-path-*/data/**"},
 			expectedLogMsg: "Extracted file-glob pattern from memory-paths",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractFileGlobPattern(tt.spec)
-			if result != tt.expectedGlob {
-				t.Errorf("extractFileGlobPattern(%q) = %q, want %q", tt.spec.ID, result, tt.expectedGlob)
+			result := extractFileGlobPatterns(tt.spec)
+			if len(result) != len(tt.expectedGlobs) {
+				t.Errorf("extractFileGlobPatterns(%q) returned %d patterns, want %d", tt.spec.ID, len(result), len(tt.expectedGlobs))
+				return
+			}
+			for i, expected := range tt.expectedGlobs {
+				if result[i] != expected {
+					t.Errorf("extractFileGlobPatterns(%q)[%d] = %q, want %q", tt.spec.ID, i, result[i], expected)
+				}
 			}
 		})
 	}

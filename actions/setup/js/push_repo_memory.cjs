@@ -180,6 +180,8 @@ async function main() {
   // If no explicit campaign ID, try to extract from patterns when memoryId is "campaigns"
   if (!campaignId && memoryId === "campaigns" && patterns.length > 0) {
     // Try to extract campaign ID from first pattern matching "<campaign-id>/**"
+    // This only works for simple patterns without wildcards in the campaign ID portion
+    // For patterns like "campaign-id-*/**", use GH_AW_CAMPAIGN_ID environment variable
     const campaignMatch = /^([^*?/]+)\/\*\*/.exec(patterns[0]);
     if (campaignMatch) {
       campaignId = campaignMatch[1];

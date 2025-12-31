@@ -109,6 +109,26 @@ describe("push_repo_memory.cjs - globPatternToRegex helper", () => {
       expect(metricsRegex.test("security-q1/cursor.json")).toBe(false);
     });
 
+    it("should match flexible campaign pattern for both dated and non-dated structures", () => {
+      // Pattern: go-file-size-reduction-project64*/**
+      // This should match BOTH:
+      // - go-file-size-reduction-project64-2025-12-31/ (with date suffix)
+      // - go-file-size-reduction-project64/ (without suffix)
+      const flexibleRegex = globPatternToRegex("go-file-size-reduction-project64*/**");
+
+      // Test dated structure (with suffix)
+      expect(flexibleRegex.test("go-file-size-reduction-project64-2025-12-31/cursor.json")).toBe(true);
+      expect(flexibleRegex.test("go-file-size-reduction-project64-2025-12-31/metrics/2025-12-31.json")).toBe(true);
+
+      // Test non-dated structure (without suffix)
+      expect(flexibleRegex.test("go-file-size-reduction-project64/cursor.json")).toBe(true);
+      expect(flexibleRegex.test("go-file-size-reduction-project64/metrics/2025-12-31.json")).toBe(true);
+
+      // Should not match other campaigns
+      expect(flexibleRegex.test("other-campaign/file.json")).toBe(false);
+      expect(flexibleRegex.test("security-q1/cursor.json")).toBe(false);
+    });
+
     it("should match multiple file extensions", () => {
       const patterns = ["*.json", "*.jsonl", "*.csv", "*.md"].map(globPatternToRegex);
 
