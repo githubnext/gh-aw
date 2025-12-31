@@ -305,6 +305,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			noopConfig["max"] = maxValue
 			safeOutputsConfig["noop"] = noopConfig
 		}
+		if data.SafeOutputs.HideComment != nil {
+			hideCommentConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 5 // default
+			if data.SafeOutputs.HideComment.Max > 0 {
+				maxValue = data.SafeOutputs.HideComment.Max
+			}
+			hideCommentConfig["max"] = maxValue
+			if len(data.SafeOutputs.HideComment.AllowedReasons) > 0 {
+				hideCommentConfig["allowed_reasons"] = data.SafeOutputs.HideComment.AllowedReasons
+			}
+			safeOutputsConfig["hide_comment"] = hideCommentConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
