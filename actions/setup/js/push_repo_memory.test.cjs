@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { globPatternToRegex } from "./push_repo_memory.cjs";
+import { globPatternToRegex } from "./glob_pattern_helpers.cjs";
 
 describe("push_repo_memory.cjs - globPatternToRegex helper", () => {
   describe("basic pattern matching", () => {

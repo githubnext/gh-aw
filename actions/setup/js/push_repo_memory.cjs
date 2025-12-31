@@ -5,30 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-/**
- * Convert a glob pattern to a RegExp
- * @param {string} pattern - Glob pattern (e.g., "*.json", "metrics/**", "data/**\/*.csv")
- * @returns {RegExp} - Regular expression that matches the pattern
- *
- * Supports:
- * - * matches any characters except /
- * - ** matches any characters including /
- * - . is escaped to match literal dots
- * - \ is escaped properly
- */
-function globPatternToRegex(pattern) {
-  // Convert glob pattern to regex that supports directory wildcards
-  // ** matches any path segment (including /)
-  // * matches any characters except /
-  let regexPattern = pattern
-    .replace(/\\/g, "\\\\") // Escape backslashes
-    .replace(/\./g, "\\.") // Escape dots
-    .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-    .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
-    .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
-  return new RegExp(`^${regexPattern}$`);
-}
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -490,4 +467,4 @@ async function main() {
   }
 }
 
-module.exports = { main, globPatternToRegex };
+module.exports = { main };
