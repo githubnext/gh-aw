@@ -157,6 +157,35 @@ describe("Safe Output Handler Manager", () => {
       expect(core.warning).toHaveBeenCalledWith("Skipping message 2 without type");
     });
 
+    it("should warn and record result when no handler is available for message type", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { type: "unknown_type", data: "test" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_issue handler is available, unknown_type has no handler
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(2);
+
+      // First message should succeed
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[0].type).toBe("create_issue");
+
+      // Second message should be recorded as failed with no handler error
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].type).toBe("unknown_type");
+      expect(result.results[1].error).toContain("No handler loaded");
+
+      // Should have logged a warning
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'unknown_type'"));
+    });
+
     it("should handle handler errors gracefully", async () => {
       const messages = [{ type: "create_issue", title: "Issue" }];
 
