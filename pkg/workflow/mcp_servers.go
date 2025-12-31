@@ -323,13 +323,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}\n")
 		yaml.WriteString("          \n")
 
-		// Pass through environment variables from safe-inputs config
-		envVars := getSafeInputsEnvVars(workflowData.SafeInputs)
-		for _, envVar := range envVars {
-			fmt.Fprintf(yaml, "          export %s=\"${%s}\"\n", envVar, envVar)
-		}
-		yaml.WriteString("          \n")
-
 		// Call the bundled shell script to start the server
 		yaml.WriteString("          bash /tmp/gh-aw/actions/start_safe_inputs_server.sh\n")
 		yaml.WriteString("          \n")

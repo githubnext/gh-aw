@@ -455,9 +455,6 @@ jobs:
           export GH_AW_SAFE_INPUTS_PORT=${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
           export GH_AW_SAFE_INPUTS_API_KEY=${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           
-          export GH_AW_GH_TOKEN="${GH_AW_GH_TOKEN}"
-          export GH_DEBUG="${GH_DEBUG}"
-          
           bash /tmp/gh-aw/actions/start_safe_inputs_server.sh
           
       - name: Setup MCPs
