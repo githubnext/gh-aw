@@ -104,7 +104,7 @@ describe("Safe Output Handler Manager", () => {
       //
       // The implementation checks: typeof messageHandler !== "function"
       // and throws: "Handler X main() did not return a function"
-      
+
       // Note: Actual integration testing requires real handler modules
       // This test documents the expected behavior for validation
       expect(true).toBe(true);
