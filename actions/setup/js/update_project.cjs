@@ -12,11 +12,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 function logGraphQLError(error, operation) {
   core.info(`GraphQL Error during: ${operation}`);
   core.info(`Message: ${getErrorMessage(error)}`);
-  
+
   const errorList = Array.isArray(error.errors) ? error.errors : [];
   const hasInsufficientScopes = errorList.some(e => e?.type === "INSUFFICIENT_SCOPES");
   const hasNotFound = errorList.some(e => e?.type === "NOT_FOUND");
-  
+
   if (hasInsufficientScopes) {
     core.info(
       "This looks like a token permission problem for Projects v2. The GraphQL fields used by update_project require a token with Projects access (classic PAT: scope 'project'; fine-grained PAT: Organization permission 'Projects' and access to the org). Fix: set safe-outputs.update-project.github-token to a secret PAT that can access the target org project."
@@ -26,7 +26,7 @@ function logGraphQLError(error, operation) {
       "GitHub returned NOT_FOUND for ProjectV2. This can mean either: (1) the project number is wrong for Projects v2, (2) the project is a classic Projects board (not Projects v2), or (3) the token does not have access to that org/user project."
     );
   }
-  
+
   if (error.errors) {
     core.info(`Errors array (${error.errors.length} error(s)):`);
     error.errors.forEach((err, idx) => {
@@ -36,7 +36,7 @@ function logGraphQLError(error, operation) {
       if (err.locations) core.info(`      Locations: ${JSON.stringify(err.locations)}`);
     });
   }
-  
+
   if (error.request) core.info(`Request: ${JSON.stringify(error.request, null, 2)}`);
   if (error.data) core.info(`Response data: ${JSON.stringify(error.data, null, 2)}`);
 }
@@ -49,12 +49,12 @@ function parseProjectInput(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
     throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
-  
+
   const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (!urlMatch) {
     throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
-  
+
   return urlMatch[1];
 }
 
@@ -67,16 +67,16 @@ function parseProjectUrl(projectUrl) {
   if (!projectUrl || typeof projectUrl !== "string") {
     throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
-  
+
   const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
     throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
-  
-  return { 
-    scope: match[1], 
-    ownerLogin: match[2], 
-    projectNumber: match[3] 
+
+  return {
+    scope: match[1],
+    ownerLogin: match[2],
+    projectNumber: match[3],
   };
 }
 /**
@@ -105,35 +105,34 @@ async function listAccessibleProjectsV2(projectInfo) {
     }
   }`;
 
-  const query = projectInfo.scope === "orgs"
-    ? `query($login: String!) {
+  const query =
+    projectInfo.scope === "orgs"
+      ? `query($login: String!) {
         organization(login: $login) {
           ${baseQuery}
         }
       }`
-    : `query($login: String!) {
+      : `query($login: String!) {
       user(login: $login) {
         ${baseQuery}
       }
     }`;
-    
+
   const result = await github.graphql(query, { login: projectInfo.ownerLogin });
-  const conn = projectInfo.scope === "orgs" 
-    ? result?.organization?.projectsV2 
-    : result?.user?.projectsV2;
-    
+  const conn = projectInfo.scope === "orgs" ? result?.organization?.projectsV2 : result?.user?.projectsV2;
+
   const rawNodes = Array.isArray(conn?.nodes) ? conn.nodes : [];
   const rawEdges = Array.isArray(conn?.edges) ? conn.edges : [];
   const nodeNodes = rawNodes.filter(Boolean);
   const edgeNodes = rawEdges.map(e => e?.node).filter(Boolean);
-  
+
   const unique = new Map();
   for (const n of [...nodeNodes, ...edgeNodes]) {
     if (n && typeof n.id === "string") {
       unique.set(n.id, n);
     }
   }
-  
+
   return {
     nodes: Array.from(unique.values()),
     totalCount: conn?.totalCount,
@@ -155,12 +154,12 @@ function summarizeProjectsV2(projects, limit = 20) {
   if (!Array.isArray(projects) || projects.length === 0) {
     return "(none)";
   }
-  
+
   const normalized = projects
     .filter(p => p && typeof p.number === "number" && typeof p.title === "string")
     .slice(0, limit)
     .map(p => `#${p.number} ${p.closed ? "(closed) " : ""}${p.title}`);
-    
+
   return normalized.length > 0 ? normalized.join("; ") : "(none)";
 }
 
@@ -172,14 +171,12 @@ function summarizeProjectsV2(projects, limit = 20) {
 function summarizeEmptyProjectsV2List(list) {
   const total = typeof list.totalCount === "number" ? list.totalCount : undefined;
   const d = list?.diagnostics;
-  const diag = d 
-    ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` 
-    : "";
-    
+  const diag = d ? ` nodes=${d.rawNodesCount} (null=${d.nullNodesCount}), edges=${d.rawEdgesCount} (nullNode=${d.nullEdgeNodesCount})` : "";
+
   if (typeof total === "number" && total > 0) {
     return `(none; totalCount=${total} but returned 0 readable project nodes${diag}. This often indicates the token can see the org/user but lacks Projects v2 access, or the org enforces SSO and the token is not authorized.)`;
   }
-  
+
   return `(none${diag})`;
 }
 /**
@@ -190,8 +187,9 @@ function summarizeEmptyProjectsV2List(list) {
  */
 async function resolveProjectV2(projectInfo, projectNumberInt) {
   try {
-    const query = projectInfo.scope === "orgs"
-      ? `query($login: String!, $number: Int!) {
+    const query =
+      projectInfo.scope === "orgs"
+        ? `query($login: String!, $number: Int!) {
           organization(login: $login) {
             projectV2(number: $number) {
               id
@@ -201,7 +199,7 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
             }
           }
         }`
-      : `query($login: String!, $number: Int!) {
+        : `query($login: String!, $number: Int!) {
           user(login: $login) {
             projectV2(number: $number) {
               id
@@ -211,33 +209,29 @@ async function resolveProjectV2(projectInfo, projectNumberInt) {
             }
           }
         }`;
-        
-    const direct = await github.graphql(query, { 
-      login: projectInfo.ownerLogin, 
-      number: projectNumberInt 
+
+    const direct = await github.graphql(query, {
+      login: projectInfo.ownerLogin,
+      number: projectNumberInt,
     });
-    
-    const project = projectInfo.scope === "orgs" 
-      ? direct?.organization?.projectV2
-      : direct?.user?.projectV2;
-      
+
+    const project = projectInfo.scope === "orgs" ? direct?.organization?.projectV2 : direct?.user?.projectV2;
+
     if (project) return project;
   } catch (error) {
     core.warning(`Direct projectV2(number) query failed; falling back to projectsV2 list search: ${getErrorMessage(error)}`);
   }
-  
+
   const list = await listAccessibleProjectsV2(projectInfo);
   const nodes = Array.isArray(list.nodes) ? list.nodes : [];
   const found = nodes.find(p => p && typeof p.number === "number" && p.number === projectNumberInt);
-  
+
   if (found) return found;
-  
+
   const summary = nodes.length > 0 ? summarizeProjectsV2(nodes) : summarizeEmptyProjectsV2List(list);
   const total = typeof list.totalCount === "number" ? ` (totalCount=${list.totalCount})` : "";
-  const who = projectInfo.scope === "orgs" 
-    ? `org ${projectInfo.ownerLogin}` 
-    : `user ${projectInfo.ownerLogin}`;
-    
+  const who = projectInfo.scope === "orgs" ? `org ${projectInfo.ownerLogin}` : `user ${projectInfo.ownerLogin}`;
+
   throw new Error(`Project #${projectNumberInt} not found or not accessible for ${who}.${total} Accessible Projects v2: ${summary}`);
 }
 /**
@@ -266,11 +260,11 @@ async function updateProject(output) {
   const projectInfo = parseProjectUrl(output.project);
   const projectNumberFromUrl = projectInfo.projectNumber;
   const campaignId = output.campaign_id;
-  
+
   try {
     core.info(`Looking up project #${projectNumberFromUrl} from URL: ${output.project}`);
     core.info("[1/4] Fetching repository information...");
-    
+
     let repoResult;
     try {
       repoResult = await github.graphql(
@@ -289,11 +283,11 @@ async function updateProject(output) {
       logGraphQLError(error, "Fetching repository information");
       throw error;
     }
-    
+
     const repositoryId = repoResult.repository.id;
     const ownerType = repoResult.repository.owner.__typename;
     core.info(`✓ Repository: ${owner}/${repo} (${ownerType})`);
-    
+
     try {
       const viewerResult = await github.graphql(`query {
           viewer {
@@ -306,11 +300,11 @@ async function updateProject(output) {
     } catch (viewerError) {
       core.warning(`Could not resolve token identity (viewer.login): ${getErrorMessage(viewerError)}`);
     }
-    
+
     let projectId;
     core.info(`[2/4] Resolving project from URL (scope=${projectInfo.scope}, login=${projectInfo.ownerLogin}, number=${projectNumberFromUrl})...`);
     let resolvedProjectNumber = projectNumberFromUrl;
-    
+
     try {
       const projectNumberInt = parseInt(projectNumberFromUrl, 10);
       if (!Number.isFinite(projectNumberInt)) {
@@ -324,24 +318,24 @@ async function updateProject(output) {
       logGraphQLError(error, "Resolving project from URL");
       throw error;
     }
-    
+
     core.info("[3/4] Processing content (issue/PR/draft) if specified...");
     const hasContentNumber = output.content_number !== undefined && output.content_number !== null;
     const hasIssue = output.issue !== undefined && output.issue !== null;
     const hasPullRequest = output.pull_request !== undefined && output.pull_request !== null;
     const values = [];
-    
+
     if (hasContentNumber) values.push({ key: "content_number", value: output.content_number });
     if (hasIssue) values.push({ key: "issue", value: output.issue });
     if (hasPullRequest) values.push({ key: "pull_request", value: output.pull_request });
-    
+
     if (values.length > 1) {
       const uniqueValues = [...new Set(values.map(v => String(v.value)))];
       const list = values.map(v => `${v.key}=${v.value}`).join(", ");
       const descriptor = uniqueValues.length > 1 ? "different values" : `same value "${uniqueValues[0]}"`;
       core.warning(`Multiple content number fields (${descriptor}): ${list}. Using priority content_number > issue > pull_request.`);
     }
-    
+
     if (hasIssue) core.warning('Field "issue" deprecated; use "content_number" instead.');
     if (hasPullRequest) core.warning('Field "pull_request" deprecated; use "content_number" instead.');
 
@@ -349,12 +343,12 @@ async function updateProject(output) {
       if (values.length > 0) {
         core.warning('content_number/issue/pull_request is ignored when content_type is "draft_issue".');
       }
-      
+
       const draftTitle = typeof output.draft_title === "string" ? output.draft_title.trim() : "";
       if (!draftTitle) {
         throw new Error('Invalid draft_title. When content_type is "draft_issue", draft_title is required and must be a non-empty string.');
       }
-      
+
       const draftBody = typeof output.draft_body === "string" ? output.draft_body : undefined;
       const result = await github.graphql(
         `mutation($projectId: ID!, $title: String!, $body: String) {
@@ -577,7 +571,6 @@ async function updateProject(output) {
     if (getErrorMessage(error) && getErrorMessage(error).includes("does not have permission to create projects")) {
       const usingCustomToken = !!process.env.GH_AW_PROJECT_GITHUB_TOKEN;
       core.error(
-      core.error(
         `Failed to manage project: ${getErrorMessage(error)}\n\nTroubleshooting:\n  • Create the project manually at https://github.com/orgs/${owner}/projects/new.\n  • Or supply a PAT (classic with project + repo scopes, or fine-grained with Projects: Read+Write) via GH_AW_PROJECT_GITHUB_TOKEN.\n  • Or use a GitHub App with Projects: Read+Write permission.\n  • Ensure the workflow grants projects: write.\n\n` +
           (usingCustomToken ? "GH_AW_PROJECT_GITHUB_TOKEN is set but lacks access." : "Using default GITHUB_TOKEN - this cannot access Projects v2 API. You must configure GH_AW_PROJECT_GITHUB_TOKEN.")
       );
@@ -594,10 +587,10 @@ async function updateProject(output) {
 async function main() {
   const result = loadAgentOutput();
   if (!result.success) return;
-  
+
   const updateProjectItems = result.items.filter(item => item.type === "update_project");
   if (updateProjectItems.length === 0) return;
-  
+
   for (let i = 0; i < updateProjectItems.length; i++) {
     const output = updateProjectItems[i];
     try {
