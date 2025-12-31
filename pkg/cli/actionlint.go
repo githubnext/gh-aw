@@ -135,43 +135,6 @@ func getActionlintVersion() (string, error) {
 	return version, nil
 }
 
-// ensureActionlintConfig creates .github/actionlint.yaml to configure custom runner labels if it doesn't exist
-func ensureActionlintConfig(gitRoot string) error {
-	configPath := filepath.Join(gitRoot, ".github", "actionlint.yaml")
-	actionlintLog.Printf("Ensuring actionlint config at: %s", configPath)
-
-	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
-		// Config exists, do not update it
-		actionlintLog.Print("actionlint.yaml already exists, skipping creation")
-		return nil
-	}
-
-	// Create the config file
-	configContent := `# Configuration for actionlint
-# See https://github.com/rhysd/actionlint/blob/main/docs/config.md
-
-self-hosted-runner:
-  # Labels of self-hosted runner in array of strings
-  labels:
-    - ubuntu-slim
-`
-
-	// Ensure .github directory exists
-	githubDir := filepath.Join(gitRoot, ".github")
-	if err := os.MkdirAll(githubDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github directory: %w", err)
-	}
-
-	// Write the config file
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
-		return fmt.Errorf("failed to write actionlint.yaml: %w", err)
-	}
-
-	actionlintLog.Printf("Created actionlint.yaml at %s", configPath)
-	return nil
-}
-
 // runActionlintOnFile runs the actionlint linter on one or more .lock.yml files using Docker
 func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
@@ -195,11 +158,6 @@ func runActionlintOnFile(lockFiles []string, verbose bool, strict bool) error {
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
-	}
-
-	// Ensure actionlint config exists with custom runner labels
-	if err := ensureActionlintConfig(gitRoot); err != nil {
-		return fmt.Errorf("failed to ensure actionlint config: %w", err)
 	}
 
 	// Get relative paths from git root for all files
