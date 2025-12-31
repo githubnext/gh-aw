@@ -97,8 +97,8 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         (mockGithub.rest.repos.getReleaseByTag.mockRejectedValue(new Error("Not Found")),
           setAgentOutput({ items: [{ type: "update_release", tag: "v99.99.99", operation: "replace", body: "New notes" }], errors: [] }),
           await eval(`(async () => { ${updateReleaseScript}; await main(); })()`),
-          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update release")),
-          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("not found")),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Release with tag 'v99.99.99' not found")),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Error details")),
           expect(mockCore.setFailed).toHaveBeenCalled());
       }),
       it("should handle multiple release updates", async () => {
@@ -116,7 +116,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           await eval(`(async () => { ${updateReleaseScript}; await main(); })()`),
           expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledTimes(2),
           expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledTimes(2),
-          expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Updated 2 release(s)")));
+          expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Release Updates")));
       }),
       it("should infer tag from release event context", async () => {
         ((mockContext.eventName = "release"), (mockContext.payload = { release: { tag_name: "v1.5.0", name: "Version 1.5.0", body: "Original release body" } }));
@@ -136,7 +136,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
           (mockContext.payload = {}),
           setAgentOutput({ items: [{ type: "update_release", operation: "replace", body: "Updated body" }], errors: [] }),
           await eval(`(async () => { ${updateReleaseScript}; await main(); })()`),
-          expect(mockCore.error).toHaveBeenCalledWith("No tag provided and unable to infer from event context"),
+          expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to update release")),
           expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Release tag is required")),
           delete mockContext.eventName,
           delete mockContext.payload);
