@@ -138,7 +138,9 @@ Arguments are added in order and placed before the `--prompt` flag. Common uses 
 
 ## Engine Error Patterns
 
-All engines support custom error pattern recognition for enhanced log validation:
+All engines (Copilot, Claude, Codex, and Custom) support custom error pattern recognition for enhanced log validation. This allows you to define project-specific error formats that should be detected in agent logs.
+
+### Basic Usage
 
 ```yaml wrap
 engine:
@@ -149,6 +151,55 @@ engine:
       message_group: 3
       description: "Custom error format with timestamp"
 ```
+
+### Multiple Patterns
+
+Define multiple error patterns to catch different error formats:
+
+```yaml wrap
+engine:
+  id: claude
+  error_patterns:
+    - pattern: "PROJECT_ERROR:\\s+(.+)"
+      message_group: 1
+      description: "Project-specific error"
+    - pattern: "VALIDATION_FAILED:\\s+(.+)"
+      message_group: 1
+      description: "Validation error"
+```
+
+### Pattern Fields
+
+- **`pattern`** (required): ECMAScript regular expression to match log lines
+- **`level_group`** (optional): Capture group index (1-based) containing error level (ERROR, WARNING, etc.). Use 0 to infer from pattern content.
+- **`message_group`** (optional): Capture group index (1-based) containing the error message. Use 0 to use the entire match.
+- **`description`** (optional): Human-readable description of what this pattern matches
+
+### Shared Error Patterns
+
+Error patterns can be defined in shared workflows and imported:
+
+**`shared/error-patterns.md`:**
+```yaml wrap
+---
+engine:
+  error_patterns:
+    - pattern: "SHARED_ERROR:\\s+(.+)"
+      message_group: 1
+      description: "Shared error pattern"
+---
+```
+
+**Main workflow:**
+```yaml wrap
+---
+imports:
+  - ./shared/error-patterns.md
+engine: copilot
+---
+```
+
+Custom error patterns are merged with engine-specific built-in patterns during workflow compilation.
 
 ## Migration Between Engines
 
