@@ -1,4 +1,10 @@
-cd /tmp/gh-aw/safe-inputs
+#!/usr/bin/env bash
+# Start Safe Inputs MCP HTTP Server
+# This script starts the safe-inputs MCP server and waits for it to become ready
+
+set -e
+
+cd /tmp/gh-aw/safe-inputs || exit 1
 
 # Verify required files exist
 echo "Verifying safe-inputs setup..."
