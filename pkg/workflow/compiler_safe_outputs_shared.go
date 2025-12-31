@@ -4,6 +4,7 @@ package workflow
 func (c *Compiler) buildHideCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.HideComment
 
+	// No custom environment variables - configuration is passed via config object
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 

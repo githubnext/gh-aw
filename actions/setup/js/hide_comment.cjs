@@ -30,19 +30,14 @@ async function hideComment(github, nodeId, reason = "spam") {
   };
 }
 
-async function main() {
+async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  // Parse allowed reasons from environment variable
-  let allowedReasons = null;
-  if (process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS) {
-    try {
-      allowedReasons = JSON.parse(process.env.GH_AW_HIDE_COMMENT_ALLOWED_REASONS);
-      core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
-    } catch (error) {
-      core.warning(`Failed to parse GH_AW_HIDE_COMMENT_ALLOWED_REASONS: ${getErrorMessage(error)}`);
-    }
+  // Parse allowed reasons from config object
+  const allowedReasons = config.allowed_reasons || null;
+  if (allowedReasons && allowedReasons.length > 0) {
+    core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
   }
 
   const result = loadAgentOutput();
