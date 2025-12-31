@@ -145,36 +145,7 @@ jobs:
             const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');
             await detectRepoVisibility(github, context, core);
       - name: Downloading container images
-        run: |
-          set -e
-          # Helper function to pull Docker images with retry logic
-          docker_pull_with_retry() {
-            local image="$1"
-            local max_attempts=3
-            local attempt=1
-            local wait_time=5
-            
-            while [ $attempt -le $max_attempts ]; do
-              echo "Attempt $attempt of $max_attempts: Pulling $image..."
-              if docker pull --quiet "$image"; then
-                echo "Successfully pulled $image"
-                return 0
-              fi
-              
-              if [ $attempt -lt $max_attempts ]; then
-                echo "Failed to pull $image. Retrying in ${wait_time}s..."
-                sleep $wait_time
-                wait_time=$((wait_time * 2))  # Exponential backoff
-              else
-                echo "Failed to pull $image after $max_attempts attempts"
-                return 1
-              fi
-              attempt=$((attempt + 1))
-            done
-          }
-          
-          docker_pull_with_retry ghcr.io/github/github-mcp-server:v0.26.3
-          docker_pull_with_retry mcp/fetch
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3 mcp/fetch
       - name: Setup MCPs
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
