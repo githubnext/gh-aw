@@ -127,7 +127,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
 		// Always show compilation errors on new line
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		stats.Errors++
 		stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 	} else {

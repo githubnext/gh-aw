@@ -66,7 +66,7 @@ func compileSpecificFiles(
 		resolvedFile, err := resolveWorkflowFile(markdownFile, config.Verbose)
 		if err != nil {
 			if !config.JSONOutput {
-				fmt.Fprintln(os.Stderr, err.Error())
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			}
 			errorMessages = append(errorMessages, err.Error())
 			errorCount++

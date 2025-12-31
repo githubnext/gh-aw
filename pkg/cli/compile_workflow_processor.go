@@ -118,7 +118,7 @@ func compileWorkflowFile(
 	if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose && !jsonOutput, zizmor && !noEmit, poutine && !noEmit, false, strict, validate && !noEmit); err != nil {
 		// Always put error on a new line and don't wrap with "failed to compile workflow"
 		if !jsonOutput {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		}
 		result.validationResult.Valid = false
 		result.validationResult.Errors = append(result.validationResult.Errors, ValidationError{
