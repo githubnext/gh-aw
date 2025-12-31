@@ -568,7 +568,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test that debug logging provides helpful information
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
       const testFile = "history.jsonl";
-      
+
       const patterns = fileGlobFilter
         .trim()
         .split(/\s+/)
@@ -604,7 +604,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test with a file that should only match one pattern
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
       const testFile = "data.csv";
-      
+
       const patterns = fileGlobFilter
         .trim()
         .split(/\s+/)
@@ -629,7 +629,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Should match *.csv but not others
       expect(matchResults[0].matches).toBe(false); // *.json
       expect(matchResults[1].matches).toBe(false); // *.jsonl
-      expect(matchResults[2].matches).toBe(true);  // *.csv
+      expect(matchResults[2].matches).toBe(true); // *.csv
       expect(matchResults[3].matches).toBe(false); // *.md
     });
 
@@ -637,7 +637,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test with a file that doesn't match any pattern
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
       const testFile = "script.js";
-      
+
       const patterns = fileGlobFilter
         .trim()
         .split(/\s+/)
@@ -663,10 +663,8 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       expect(matchResults.every(r => !r.matches)).toBe(true);
 
       // Error message should include pattern details
-      const errorDetails = matchResults.map(r => 
-        `${r.pattern} -> regex: ${r.regex} -> ${r.matches ? 'MATCH' : 'NO MATCH'}`
-      );
-      
+      const errorDetails = matchResults.map(r => `${r.pattern} -> regex: ${r.regex} -> ${r.matches ? "MATCH" : "NO MATCH"}`);
+
       expect(errorDetails[0]).toContain("*.json -> regex: ^[^/]*\\.json$ -> NO MATCH");
       expect(errorDetails[1]).toContain("*.jsonl -> regex: ^[^/]*\\.jsonl$ -> NO MATCH");
       expect(errorDetails[2]).toContain("*.csv -> regex: ^[^/]*\\.csv$ -> NO MATCH");
@@ -678,7 +676,7 @@ describe("push_repo_memory.cjs - glob pattern security tests", () => {
       // Test that pattern matching works for root-level files
       const fileGlobFilter = "*.json *.jsonl *.csv *.md";
       const rootFiles = ["history.jsonl", "data.json", "metrics.csv", "README.md"];
-      
+
       const patterns = fileGlobFilter
         .trim()
         .split(/\s+/)

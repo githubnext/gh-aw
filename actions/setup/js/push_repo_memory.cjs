@@ -34,6 +34,14 @@ async function main() {
   const ghToken = process.env.GH_TOKEN;
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
 
+  // Log environment variable configuration for debugging
+  core.info("Environment configuration:");
+  core.info(`  MEMORY_ID: ${memoryId}`);
+  core.info(`  MAX_FILE_SIZE: ${maxFileSize}`);
+  core.info(`  MAX_FILE_COUNT: ${maxFileCount}`);
+  core.info(`  FILE_GLOB_FILTER: ${fileGlobFilter ? `"${fileGlobFilter}"` : "(empty - all files accepted)"}`);
+  core.info(`  FILE_GLOB_FILTER length: ${fileGlobFilter.length}`);
+
   /** @param {unknown} value */
   function isPlainObject(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -296,11 +304,11 @@ async function main() {
           core.debug(`Testing file: ${relativeFilePath}`);
           core.debug(`File glob filter: ${fileGlobFilter}`);
           core.debug(`Number of patterns: ${patterns.length}`);
-          
+
           const matchResults = patterns.map((pattern, idx) => {
             const matches = pattern.test(relativeFilePath);
             const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
-            core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? '✓ MATCH' : '✗ NO MATCH'}`);
+            core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
             return matches;
           });
 
@@ -310,7 +318,7 @@ async function main() {
             core.error(`Pattern test results:`);
             const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);
             patterns.forEach((pattern, idx) => {
-              core.error(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? 'MATCH' : 'NO MATCH'}`);
+              core.error(`  ${patternStrs[idx]} -> regex: ${pattern.source} -> ${matchResults[idx] ? "MATCH" : "NO MATCH"}`);
             });
             core.setFailed("File pattern validation failed");
             throw new Error("File pattern validation failed");
@@ -349,6 +357,15 @@ async function main() {
 
   try {
     scanDirectory(sourceMemoryPath);
+    core.info(`Scan complete: Found ${filesToCopy.length} file(s) to copy`);
+    if (filesToCopy.length > 0 && filesToCopy.length <= 10) {
+      core.info("Files found:");
+      filesToCopy.forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
+    } else if (filesToCopy.length > 10) {
+      core.info(`First 10 files:`);
+      filesToCopy.slice(0, 10).forEach(f => core.info(`  - ${f.relativePath} (${f.size} bytes)`));
+      core.info(`  ... and ${filesToCopy.length - 10} more`);
+    }
   } catch (error) {
     core.setFailed(`Failed to scan artifact directory: ${getErrorMessage(error)}`);
     return;
