@@ -369,7 +369,21 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			// Check for custom Docker image version (only applicable in local/Docker mode)
 			if !useRemote {
 				if version, exists := toolConfig["version"]; exists {
-					if versionStr, ok := version.(string); ok {
+					var versionStr string
+					switch v := version.(type) {
+					case string:
+						versionStr = v
+					case int:
+						versionStr = fmt.Sprintf("%d", v)
+					case int64:
+						versionStr = fmt.Sprintf("%d", v)
+					case uint64:
+						versionStr = fmt.Sprintf("%d", v)
+					case float64:
+						// Use %g to avoid trailing zeros and scientific notation for simple numbers
+						versionStr = fmt.Sprintf("%g", v)
+					}
+					if versionStr != "" {
 						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
 						// Update the Docker image in args
 						for i, arg := range config.Args {

@@ -209,6 +209,52 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "GitHub tool with integer version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"version": 20,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:20",
+					},
+					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "GitHub tool with float version",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"version": 3.11,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:3.11",
+					},
+					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
 			name: "Playwright tool default configuration",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
