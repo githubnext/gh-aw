@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -415,13 +416,16 @@ func TestParseGitHubURL_Errors(t *testing.T) {
 
 func TestParseRunURL(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		wantRunID int64
-		wantOwner string
-		wantRepo  string
-		wantHost  string
-		wantErr   bool
+		name          string
+		input         string
+		wantRunID     int64
+		wantOwner     string
+		wantRepo      string
+		wantHost      string
+		wantJobID     int64
+		wantStepNum   int
+		wantStepLine  int
+		wantErr       bool
 	}{
 		{
 			name:      "Numeric run ID",
@@ -448,7 +452,31 @@ func TestParseRunURL(t *testing.T) {
 			wantOwner: "owner",
 			wantRepo:  "repo",
 			wantHost:  "github.com",
+			wantJobID: 98765432,
 			wantErr:   false,
+		},
+		{
+			name:         "Job URL with step fragment",
+			input:        "https://github.com/owner/repo/actions/runs/12345678/job/98765432#step:7:1",
+			wantRunID:    12345678,
+			wantOwner:    "owner",
+			wantRepo:     "repo",
+			wantHost:     "github.com",
+			wantJobID:    98765432,
+			wantStepNum:  7,
+			wantStepLine: 1,
+			wantErr:      false,
+		},
+		{
+			name:        "Job URL with step fragment (no line)",
+			input:       "https://github.com/githubnext/gh-aw/actions/runs/20623556740/job/59230494223#step:7",
+			wantRunID:   20623556740,
+			wantOwner:   "githubnext",
+			wantRepo:    "gh-aw",
+			wantHost:    "github.com",
+			wantJobID:   59230494223,
+			wantStepNum: 7,
+			wantErr:     false,
 		},
 		{
 			name:      "Short run URL",
@@ -487,7 +515,18 @@ func TestParseRunURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runID, owner, repo, host, err := ParseRunURL(tt.input)
+			// For numeric IDs, use ParseRunURLExtended
+			// For URLs, use ParseGitHubURL
+			var components *GitHubURLComponents
+			var err error
+
+			if _, numErr := strconv.ParseInt(tt.input, 10, 64); numErr == nil {
+				// It's a numeric ID
+				components, err = ParseRunURLExtended(tt.input)
+			} else {
+				// It's a URL
+				components, err = ParseGitHubURL(tt.input)
+			}
 
 			if tt.wantErr {
 				if err == nil {
@@ -501,20 +540,32 @@ func TestParseRunURL(t *testing.T) {
 				return
 			}
 
-			if runID != tt.wantRunID {
-				t.Errorf("ParseRunURL() runID = %v, want %v", runID, tt.wantRunID)
+			if components.Number != tt.wantRunID {
+				t.Errorf("ParseRunURL() runID = %v, want %v", components.Number, tt.wantRunID)
 			}
 
-			if owner != tt.wantOwner {
-				t.Errorf("ParseRunURL() owner = %v, want %v", owner, tt.wantOwner)
+			if components.Owner != tt.wantOwner {
+				t.Errorf("ParseRunURL() owner = %v, want %v", components.Owner, tt.wantOwner)
 			}
 
-			if repo != tt.wantRepo {
-				t.Errorf("ParseRunURL() repo = %v, want %v", repo, tt.wantRepo)
+			if components.Repo != tt.wantRepo {
+				t.Errorf("ParseRunURL() repo = %v, want %v", components.Repo, tt.wantRepo)
 			}
 
-			if host != tt.wantHost {
-				t.Errorf("ParseRunURL() host = %v, want %v", host, tt.wantHost)
+			if components.Host != tt.wantHost {
+				t.Errorf("ParseRunURL() host = %v, want %v", components.Host, tt.wantHost)
+			}
+
+			if components.JobID != tt.wantJobID {
+				t.Errorf("ParseRunURL() jobID = %v, want %v", components.JobID, tt.wantJobID)
+			}
+
+			if components.StepNumber != tt.wantStepNum {
+				t.Errorf("ParseRunURL() stepNumber = %v, want %v", components.StepNumber, tt.wantStepNum)
+			}
+
+			if components.StepLine != tt.wantStepLine {
+				t.Errorf("ParseRunURL() stepLine = %v, want %v", components.StepLine, tt.wantStepLine)
 			}
 		})
 	}
