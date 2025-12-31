@@ -1,128 +1,140 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { processSafeOutput } = require("./safe_output_processor.cjs");
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/**
+ * Main handler factory for add_labels
+ * Returns a message handler function that processes individual add_labels messages
+ * @param {Object} config - Handler configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG
+ * @returns {Promise<Function>} Message handler function (message, resolvedTemporaryIds) => result
+ */
 async function main(config = {}) {
-  // Use shared processor for common steps
-  const result = await processSafeOutput(
-    {
-      itemType: "add_labels",
-      configKey: "add_labels",
-      displayName: "Labels",
-      itemTypeName: "label addition",
-      supportsPR: true,
-      supportsIssue: true,
-      envVars: {
-        // Environment variable names for configuration
-        allowed: "GH_AW_LABELS_ALLOWED",
-        maxCount: "GH_AW_LABELS_MAX_COUNT",
-        target: "GH_AW_LABELS_TARGET",
-      },
-    },
-    {
-      title: "Add Labels",
-      description: "The following labels would be added if staged mode was disabled:",
-      renderItem: item => {
-        let content = "";
-        if (item.item_number) {
-          content += `**Target Issue:** #${item.item_number}\n\n`;
-        } else {
-          content += `**Target:** Current issue/PR\n\n`;
-        }
-        if (item.labels && item.labels.length > 0) {
-          content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
-        }
-        return content;
-      },
-    },
-    config // Pass handler config as third parameter
-  );
+  // Extract configuration
+  const allowedLabels = config.allowed || [];
+  const maxCount = config.max || 10;
 
-  if (!result.success) {
-    return;
+  core.info(`Add labels configuration: max=${maxCount}`);
+  if (allowedLabels.length > 0) {
+    core.info(`Allowed labels: ${allowedLabels.join(", ")}`);
   }
 
-  const { item: labelsItem, config: handlerConfig, targetResult } = result;
-  if (!handlerConfig || !targetResult || targetResult.number === undefined) {
-    core.setFailed("Internal error: config, targetResult, or targetResult.number is undefined");
-    return;
-  }
-  const { allowed: allowedLabels, maxCount } = handlerConfig;
-  const itemNumber = targetResult.number;
-  const { contextType } = targetResult;
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
 
-  const requestedLabels = labelsItem.labels ?? [];
-  core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-
-  // Use validation helper to sanitize and validate labels
-  const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
-  if (!labelsResult.valid) {
-    // If no valid labels, log info and return gracefully instead of failing
-    if (labelsResult.error?.includes("No valid labels")) {
-      core.info("No labels to add");
-      core.setOutput("labels_added", "");
-      await core.summary
-        .addRaw(
-          `
-## Label Addition
-
-No labels were added (no valid labels found in agent output).
-`
-        )
-        .write();
-      return;
+  /**
+   * Message handler function that processes a single add_labels message
+   * @param {Object} message - The add_labels message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleAddLabels(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping add_labels: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
     }
-    // For other validation errors, fail the workflow
-    core.setFailed(labelsResult.error ?? "Invalid labels");
-    return;
-  }
 
-  const uniqueLabels = labelsResult.value ?? [];
+    processedCount++;
 
-  if (uniqueLabels.length === 0) {
-    core.info("No labels to add");
-    core.setOutput("labels_added", "");
-    await core.summary
-      .addRaw(
-        `
-## Label Addition
+    const item = message;
 
-No labels were added (no valid labels found in agent output).
-`
-      )
-      .write();
-    return;
-  }
-  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
-  try {
-    await github.rest.issues.addLabels({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      issue_number: itemNumber,
-      labels: uniqueLabels,
-    });
-    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-    core.setOutput("labels_added", uniqueLabels.join("\n"));
-    const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-    await core.summary
-      .addRaw(
-        `
-## Label Addition
+    // Determine target issue/PR number
+    let itemNumber;
+    if (item.item_number !== undefined) {
+      itemNumber = parseInt(String(item.item_number), 10);
+      if (isNaN(itemNumber)) {
+        core.warning(`Invalid item number: ${item.item_number}`);
+        return {
+          success: false,
+          error: `Invalid item number: ${item.item_number}`,
+        };
+      }
+    } else {
+      // Use context issue or PR if available
+      const contextIssue = context.payload?.issue?.number;
+      const contextPR = context.payload?.pull_request?.number;
+      itemNumber = contextIssue || contextPR;
 
-Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+      if (!itemNumber) {
+        core.warning("No item_number provided and not in issue/PR context");
+        return {
+          success: false,
+          error: "No issue/PR number available",
+        };
+      }
+    }
 
-${labelsListMarkdown}
-`
-      )
-      .write();
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    core.error(`Failed to add labels: ${errorMessage}`);
-    core.setFailed(`Failed to add labels: ${errorMessage}`);
-  }
+    // Determine context type
+    const contextType = context.payload?.pull_request ? "pull request" : "issue";
+
+    const requestedLabels = item.labels ?? [];
+    core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+
+    // Use validation helper to sanitize and validate labels
+    const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+    if (!labelsResult.valid) {
+      // If no valid labels, log info and return gracefully
+      if (labelsResult.error?.includes("No valid labels")) {
+        core.info("No labels to add");
+        return {
+          success: true,
+          number: itemNumber,
+          labelsAdded: [],
+          message: "No valid labels found",
+        };
+      }
+      // For other validation errors, return error
+      core.warning(`Label validation failed: ${labelsResult.error}`);
+      return {
+        success: false,
+        error: labelsResult.error ?? "Invalid labels",
+      };
+    }
+
+    const uniqueLabels = labelsResult.value ?? [];
+
+    if (uniqueLabels.length === 0) {
+      core.info("No labels to add");
+      return {
+        success: true,
+        number: itemNumber,
+        labelsAdded: [],
+        message: "No labels to add",
+      };
+    }
+
+    core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+
+    try {
+      await github.rest.issues.addLabels({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        issue_number: itemNumber,
+        labels: uniqueLabels,
+      });
+
+      core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+
+      return {
+        success: true,
+        number: itemNumber,
+        labelsAdded: uniqueLabels,
+        contextType: contextType,
+      };
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to add labels: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  };
 }
 
 module.exports = { main };
