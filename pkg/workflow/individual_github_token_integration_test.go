@@ -191,9 +191,10 @@ This workflow tests that add-labels uses its own github-token.
 
 		yamlContent := string(content)
 
-		// Verify that the safe_outputs job is generated with add_labels step
-		if !strings.Contains(yamlContent, "id: add_labels") {
-			t.Error("Expected safe_outputs job with add_labels step to be generated")
+		// Verify that the safe_outputs job is generated with handler manager step
+		// (add-labels is now handled by the consolidated handler manager)
+		if !strings.Contains(yamlContent, "id: process_safe_outputs") {
+			t.Error("Expected safe_outputs job with process_safe_outputs step to be generated")
 		}
 
 		if !strings.Contains(yamlContent, "github-token: ${{ secrets.LABELS_PAT }}") {

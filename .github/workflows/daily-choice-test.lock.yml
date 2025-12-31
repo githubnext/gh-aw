@@ -278,8 +278,8 @@ jobs:
                   }
                 },
                 "required": [
-                  "environment",
-                  "test_type"
+                  "test_type",
+                  "environment"
                 ],
                 "type": "object"
               },

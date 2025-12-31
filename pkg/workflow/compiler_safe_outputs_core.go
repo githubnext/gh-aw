@@ -646,8 +646,11 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	c.addAllSafeOutputConfigEnvVars(&steps, data)
 
 	// With section for github-token
+	// Use the first individual handler token if any handler has one,
+	// otherwise fall back to global safe-outputs token
+	individualToken := c.getFirstHandlerIndividualToken(data)
 	steps = append(steps, "        with:\n")
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, "")
+	c.addSafeOutputGitHubTokenForConfig(&steps, data, individualToken)
 
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
@@ -656,6 +659,50 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	steps = append(steps, "            await main();\n")
 
 	return steps
+}
+
+// getFirstHandlerIndividualToken returns the first non-empty individual token from handler-managed safe outputs
+// This is used when multiple handlers are consolidated into a single step and we need to determine
+// which token to use. Returns empty string if no individual tokens are set.
+func (c *Compiler) getFirstHandlerIndividualToken(data *WorkflowData) string {
+	if data.SafeOutputs == nil {
+		return ""
+	}
+
+	// Check each handler-managed safe output type for an individual token
+	// Order matches the order they are checked in buildConsolidatedSafeOutputsJob
+	if data.SafeOutputs.CreateIssues != nil && data.SafeOutputs.CreateIssues.GitHubToken != "" {
+		return data.SafeOutputs.CreateIssues.GitHubToken
+	}
+	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.GitHubToken != "" {
+		return data.SafeOutputs.AddComments.GitHubToken
+	}
+	if data.SafeOutputs.CreateDiscussions != nil && data.SafeOutputs.CreateDiscussions.GitHubToken != "" {
+		return data.SafeOutputs.CreateDiscussions.GitHubToken
+	}
+	if data.SafeOutputs.CloseIssues != nil && data.SafeOutputs.CloseIssues.GitHubToken != "" {
+		return data.SafeOutputs.CloseIssues.GitHubToken
+	}
+	if data.SafeOutputs.CloseDiscussions != nil && data.SafeOutputs.CloseDiscussions.GitHubToken != "" {
+		return data.SafeOutputs.CloseDiscussions.GitHubToken
+	}
+	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.GitHubToken != "" {
+		return data.SafeOutputs.AddLabels.GitHubToken
+	}
+	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.GitHubToken != "" {
+		return data.SafeOutputs.UpdateIssues.GitHubToken
+	}
+	if data.SafeOutputs.UpdateDiscussions != nil && data.SafeOutputs.UpdateDiscussions.GitHubToken != "" {
+		return data.SafeOutputs.UpdateDiscussions.GitHubToken
+	}
+	if data.SafeOutputs.LinkSubIssue != nil && data.SafeOutputs.LinkSubIssue.GitHubToken != "" {
+		return data.SafeOutputs.LinkSubIssue.GitHubToken
+	}
+	if data.SafeOutputs.UpdateRelease != nil && data.SafeOutputs.UpdateRelease.GitHubToken != "" {
+		return data.SafeOutputs.UpdateRelease.GitHubToken
+	}
+
+	return ""
 }
 
 // addHandlerManagerConfigEnvVar adds a JSON config environment variable for the handler manager
