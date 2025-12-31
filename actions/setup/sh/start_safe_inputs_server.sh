@@ -2,6 +2,8 @@ cd /tmp/gh-aw/safe-inputs
 
 # Verify required files exist
 echo "Verifying safe-inputs setup..."
+
+# Check core configuration files
 if [ ! -f mcp-server.cjs ]; then
   echo "ERROR: mcp-server.cjs not found in /tmp/gh-aw/safe-inputs"
   ls -la /tmp/gh-aw/safe-inputs/
@@ -12,7 +14,47 @@ if [ ! -f tools.json ]; then
   ls -la /tmp/gh-aw/safe-inputs/
   exit 1
 fi
+
+# Check required dependency files for the MCP server
+# These files are required by safe_inputs_mcp_server_http.cjs and its dependencies
+REQUIRED_DEPS=(
+  "safe_inputs_mcp_server_http.cjs"
+  "mcp_http_transport.cjs"
+  "safe_inputs_validation.cjs"
+  "mcp_enhanced_errors.cjs"
+  "mcp_logger.cjs"
+  "safe_inputs_bootstrap.cjs"
+  "error_helpers.cjs"
+  "mcp_server_core.cjs"
+  "safe_inputs_config_loader.cjs"
+  "read_buffer.cjs"
+  "mcp_handler_shell.cjs"
+  "mcp_handler_python.cjs"
+)
+
+MISSING_FILES=()
+for dep in "${REQUIRED_DEPS[@]}"; do
+  if [ ! -f "$dep" ]; then
+    MISSING_FILES+=("$dep")
+  fi
+done
+
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+  echo "ERROR: Missing required dependency files in /tmp/gh-aw/safe-inputs/"
+  for file in "${MISSING_FILES[@]}"; do
+    echo "  - $file"
+  done
+  echo
+  echo "Current directory contents:"
+  ls -la /tmp/gh-aw/safe-inputs/
+  echo
+  echo "These files should have been copied by the Setup Scripts action."
+  echo "This usually indicates a problem with the actions/setup step."
+  exit 1
+fi
+
 echo "Configuration files verified"
+echo "All ${#REQUIRED_DEPS[@]} required dependency files present"
 
 # Log environment configuration
 echo "Server configuration:"

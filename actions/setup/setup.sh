@@ -118,15 +118,27 @@ SAFE_INPUTS_FILES=(
 )
 
 SAFE_INPUTS_COUNT=0
+SAFE_INPUTS_MISSING=()
 for file in "${SAFE_INPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
     echo "::notice::Copied safe-inputs: ${file}"
     SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
   else
-    echo "::warning::Safe-inputs file not found: ${file}"
+    echo "::error::Safe-inputs file not found: ${file}"
+    SAFE_INPUTS_MISSING+=("${file}")
   fi
 done
+
+if [ ${#SAFE_INPUTS_MISSING[@]} -gt 0 ]; then
+  echo "::error::Failed to copy ${#SAFE_INPUTS_MISSING[@]} required safe-inputs files:"
+  for missing_file in "${SAFE_INPUTS_MISSING[@]}"; do
+    echo "::error::  - ${missing_file}"
+  done
+  echo "::error::Expected location: ${JS_SOURCE_DIR}"
+  echo "::error::These files must exist in the repository for safe-inputs to work"
+  exit 1
+fi
 
 echo "::notice::Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUTS_DEST}"
 
@@ -167,6 +179,7 @@ SAFE_OUTPUTS_FILES=(
 )
 
 SAFE_OUTPUTS_COUNT=0
+SAFE_OUTPUTS_MISSING=()
 for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
@@ -178,9 +191,20 @@ for file in "${SAFE_OUTPUTS_FILES[@]}"; do
     echo "::notice::Copied safe-outputs (from destination): ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   else
-    echo "::warning::Safe-outputs file not found: ${file}"
+    echo "::error::Safe-outputs file not found: ${file}"
+    SAFE_OUTPUTS_MISSING+=("${file}")
   fi
 done
+
+if [ ${#SAFE_OUTPUTS_MISSING[@]} -gt 0 ]; then
+  echo "::error::Failed to copy ${#SAFE_OUTPUTS_MISSING[@]} required safe-outputs files:"
+  for missing_file in "${SAFE_OUTPUTS_MISSING[@]}"; do
+    echo "::error::  - ${missing_file}"
+  done
+  echo "::error::Expected locations: ${JS_SOURCE_DIR} or ${DESTINATION}"
+  echo "::error::These files must exist in the repository for safe-outputs to work"
+  exit 1
+fi
 
 # Copy the MCP server entry point to mcp-server.cjs (the name expected by MCP config)
 if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
