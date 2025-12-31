@@ -13,7 +13,6 @@ on:
   workflow_dispatch:
 jobs:
   test:
-    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
