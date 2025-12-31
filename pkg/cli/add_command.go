@@ -742,12 +742,12 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		// Try to compile the workflow and track generated files
 		if tracker != nil {
 			if err := compileWorkflowWithTracking(destFile, verbose, engineOverride, tracker); err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			}
 		} else {
 			// Fall back to basic compilation without tracking
 			if err := compileWorkflow(destFile, verbose, engineOverride); err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			}
 		}
 	}

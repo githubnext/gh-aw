@@ -635,7 +635,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 					if err := cloneCmd.Run(); err != nil {
 						// Clean up temporary directory on error
 						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-							fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 						}
 						return fmt.Errorf("failed to clone target repository: %w", err)
 					}
@@ -647,7 +647,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 					if err := os.Chdir(tempDir); err != nil {
 						// Clean up temporary directory on error
 						if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-							fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 						}
 						return fmt.Errorf("failed to change to cloned repository directory: %w", err)
 					}
@@ -666,7 +666,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 				if err := cloneCmd.Run(); err != nil {
 					// Clean up temporary directory on error
 					if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-						fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 					}
 					return fmt.Errorf("failed to clone target repository: %w", err)
 				}
@@ -678,7 +678,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 				if err := os.Chdir(tempDir); err != nil {
 					// Clean up temporary directory on error
 					if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-						fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 					}
 					return fmt.Errorf("failed to change to cloned repository directory: %w", err)
 				}
@@ -697,7 +697,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 			if err := cloneCmd.Run(); err != nil {
 				// Clean up temporary directory on error
 				if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-					fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 				}
 				return fmt.Errorf("failed to clone target repository: %w", err)
 			}
@@ -709,7 +709,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 			if err := os.Chdir(tempDir); err != nil {
 				// Clean up temporary directory on error
 				if rmErr := os.RemoveAll(tempDir); rmErr != nil && verbose {
-					fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", tempDir, rmErr)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", tempDir, rmErr)))
 				}
 				return fmt.Errorf("failed to change to cloned repository directory: %w", err)
 			}
@@ -727,7 +727,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		if needsCleanup && workingDir != "" {
 			// Clean up temporary directory when done
 			if err := os.RemoveAll(workingDir); err != nil && verbose {
-				fmt.Fprintf(os.Stderr, "Warning: failed to clean up temporary directory %s: %v\n", workingDir, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("failed to clean up temporary directory %s: %v", workingDir, err)))
 			}
 		}
 	}()
