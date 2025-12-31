@@ -24,6 +24,7 @@ safe-outputs:
     close-older-discussions: true
 
 tools:
+  agentic-workflows:
   github:
     toolsets:
       - default
