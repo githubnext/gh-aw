@@ -279,7 +279,9 @@ async function updateProject(output) {
         }`,
         { owner, repo }
       );
-    } catch (error) {
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       logGraphQLError(error, "Fetching repository information");
       throw error;
     }
@@ -314,7 +316,9 @@ async function updateProject(output) {
       projectId = project.id;
       resolvedProjectNumber = String(project.number);
       core.info(`✓ Resolved project #${resolvedProjectNumber} (${projectInfo.ownerLogin}) (ID: ${projectId})`);
-    } catch (error) {
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       logGraphQLError(error, "Resolving project from URL");
       throw error;
     }
@@ -595,7 +599,9 @@ async function main() {
     const output = updateProjectItems[i];
     try {
       await updateProject(output);
-    } catch (error) {
+    } catch (err) {
+      // prettier-ignore
+      const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
       core.error(`Failed to process item ${i + 1}`);
       logGraphQLError(error, `Processing update_project item ${i + 1}`);
     }
