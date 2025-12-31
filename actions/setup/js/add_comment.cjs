@@ -1,20 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
-const { replaceTemporaryIdReferences, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-/**
- * Hide/minimize a comment using the GraphQL API
- * @param {any} github - GitHub GraphQL instance
- * @param {string} nodeId - Comment node ID
- * @param {string} reason - Reason for hiding (default: outdated)
- * @returns {Promise<{id: string, isMinimized: boolean}>}
- */
+// Copy helper functions from original file
 async function minimizeComment(github, nodeId, reason = "outdated") {
   const query = /* GraphQL */ `
     mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
@@ -262,324 +255,184 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   };
 }
 
+/**
+ * Main handler factory for add_comment
+ * Returns a message handler function that processes individual add_comment messages
+ * @param {Object} config - Handler configuration
+ * @returns {Promise<Function>} Message handler function
+ */
 async function main(config = {}) {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-  const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+  // Extract configuration
   const hideOlderCommentsEnabled = config.hide_older_comments === true;
-
-  // Load the temporary ID map from create_issue job
-  const temporaryIdMap = loadTemporaryIdMap();
-  if (temporaryIdMap.size > 0) {
-    core.info(`Loaded temporary ID map with ${temporaryIdMap.size} entries`);
-  }
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all add-comment items
-  const commentItems = result.items.filter(/** @param {any} item */ item => item.type === "add_comment");
-  if (commentItems.length === 0) {
-    core.info("No add-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${commentItems.length} add-comment item(s)`);
-
-  // Helper function to get the target number (issue, discussion, or pull request)
-  function getTargetNumber(item) {
-    return item.item_number;
-  }
-
-  // Get the target configuration from config object
   const commentTarget = config.target || "triggering";
-  core.info(`Comment target configuration: ${commentTarget}`);
+  const maxCount = config.max || 20;
 
-  // Check if we're in an issue, pull request, or discussion context
-  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-  const isPRContext = context.eventName === "pull_request" || context.eventName === "pull_request_review" || context.eventName === "pull_request_review_comment";
-  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-  const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-
-  // Get workflow ID for hiding older comments
-  // Use GITHUB_WORKFLOW environment variable which is automatically set by GitHub Actions
-  const workflowId = process.env.GITHUB_WORKFLOW || "";
-
-  // Parse allowed reasons from environment variable
-  const allowedReasons = process.env.GH_AW_ALLOWED_REASONS
-    ? (() => {
-        try {
-          const parsed = JSON.parse(process.env.GH_AW_ALLOWED_REASONS);
-          core.info(`Allowed reasons for hiding: [${parsed.join(", ")}]`);
-          return parsed;
-        } catch (error) {
-          core.warning(`Failed to parse GH_AW_ALLOWED_REASONS: ${getErrorMessage(error)}`);
-          return null;
-        }
-      })()
-    : null;
-
+  core.info(`Add comment configuration: max=${maxCount}, target=${commentTarget}`);
   if (hideOlderCommentsEnabled) {
-    core.info(`Hide-older-comments is enabled with workflow ID: ${workflowId || "(none)"}`);
+    core.info("Hide-older-comments is enabled");
   }
 
-  // If in staged mode, emit step summary instead of creating comments
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-    summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-
-    // Show created items references if available
-    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-
-    if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-      summaryContent += "#### Related Items\n\n";
-      if (createdIssueUrl && createdIssueNumber) {
-        summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-      }
-      if (createdDiscussionUrl && createdDiscussionNumber) {
-        summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-      }
-      if (createdPullRequestUrl && createdPullRequestNumber) {
-        summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-      }
-      summaryContent += "\n";
-    }
-
-    for (let i = 0; i < commentItems.length; i++) {
-      const item = commentItems[i];
-      summaryContent += `### Comment ${i + 1}\n`;
-      const targetNumber = getTargetNumber(item);
-      if (targetNumber) {
-        const repoUrl = getRepositoryUrl();
-        if (isDiscussion) {
-          const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-          summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-        } else {
-          const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-          summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-        }
-      } else {
-        if (isDiscussion) {
-          summaryContent += `**Target:** Current discussion\n\n`;
-        } else {
-          summaryContent += `**Target:** Current issue/PR\n\n`;
-        }
-      }
-      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Comment creation preview written to step summary");
-    return;
-  }
-
-  // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-    core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-    return;
-  }
-
-  // Extract triggering context for footer generation
-  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-  const triggeringDiscussionNumber = context.payload?.discussion?.number;
-
+  // Track state
+  let processedCount = 0;
+  const temporaryIdMap = new Map();
   const createdComments = [];
 
-  // Process each comment item
-  for (let i = 0; i < commentItems.length; i++) {
-    const commentItem = commentItems[i];
-    core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+  // Get workflow ID for hiding older comments
+  const workflowId = process.env.GITHUB_WORKFLOW || "";
 
-    // Determine the issue/PR number and comment endpoint for this comment
+  /**
+   * Message handler function
+   * @param {Object} message - The add_comment message
+   * @param {Object} resolvedTemporaryIds - Resolved temporary IDs
+   * @returns {Promise<Object>} Result
+   */
+  return async function handleAddComment(message, resolvedTemporaryIds) {
+    // Check max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping add_comment: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
+
+    processedCount++;
+
+    const item = message;
+
+    // Merge resolved temp IDs
+    if (resolvedTemporaryIds) {
+      for (const [tempId, resolved] of Object.entries(resolvedTemporaryIds)) {
+        if (!temporaryIdMap.has(tempId)) {
+          temporaryIdMap.set(tempId, resolved);
+        }
+      }
+    }
+
+    // Determine target number and type
     let itemNumber;
-    let commentEndpoint;
+    let isDiscussion = false;
 
-    if (commentTarget === "*") {
-      // For target "*", we need an explicit number from the comment item
-      const targetNumber = getTargetNumber(commentItem);
-      if (targetNumber) {
-        itemNumber = parseInt(targetNumber, 10);
-        if (isNaN(itemNumber) || itemNumber <= 0) {
-          core.info(`Invalid target number specified: ${targetNumber}`);
-          continue;
-        }
-        commentEndpoint = isDiscussion ? "discussions" : "issues";
-      } else {
-        core.info(`Target is "*" but no number specified in comment item`);
-        continue;
+    if (item.item_number !== undefined) {
+      itemNumber = parseInt(String(item.item_number), 10);
+      if (isNaN(itemNumber)) {
+        core.warning(`Invalid item number: ${item.item_number}`);
+        return {
+          success: false,
+          error: `Invalid item number: ${item.item_number}`,
+        };
       }
-    } else if (commentTarget && commentTarget !== "triggering") {
-      // Explicit number specified in target configuration
-      itemNumber = parseInt(commentTarget, 10);
-      if (isNaN(itemNumber) || itemNumber <= 0) {
-        core.info(`Invalid target number in target configuration: ${commentTarget}`);
-        continue;
-      }
-      commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
-      // Default behavior: use triggering issue/PR/discussion
-      if (isIssueContext) {
-        itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-        if (context.payload.issue) {
-          commentEndpoint = "issues";
-        } else {
-          core.info("Issue context detected but no issue found in payload");
-          continue;
-        }
-      } else if (isPRContext) {
-        itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-        if (context.payload.pull_request) {
-          commentEndpoint = "issues"; // PR comments use the issues API endpoint
-        } else {
-          core.info("Pull request context detected but no pull request found in payload");
-          continue;
-        }
-      } else if (isDiscussionContext) {
-        itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-        if (context.payload.discussion) {
-          commentEndpoint = "discussions"; // Discussion comments use GraphQL via commentOnDiscussion
-        } else {
-          core.info("Discussion context detected but no discussion found in payload");
-          continue;
-        }
+      // Use context
+      const contextIssue = context.payload?.issue?.number;
+      const contextPR = context.payload?.pull_request?.number;
+      const contextDiscussion = context.payload?.discussion?.number;
+
+      if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
+        isDiscussion = true;
+        itemNumber = contextDiscussion;
+      } else {
+        itemNumber = contextIssue || contextPR;
+      }
+
+      if (!itemNumber) {
+        core.warning("No item_number provided and not in issue/PR/discussion context");
+        return {
+          success: false,
+          error: "No target number available",
+        };
       }
     }
 
-    if (!itemNumber) {
-      core.info("Could not determine issue, pull request, or discussion number");
-      continue;
-    }
+    // Replace temporary ID references in body
+    let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, `${context.repo.owner}/${context.repo.repo}`);
 
-    // Extract body from the JSON item and replace temporary ID references
-    let body = replaceTemporaryIdReferences(commentItem.body.trim(), temporaryIdMap);
-
-    // Append references to created issues, discussions, and pull requests if they exist
-    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-
-    // Add references section if any URLs are available
-    const references = [
-      createdIssueUrl && createdIssueNumber && `- Issue: [#${createdIssueNumber}](${createdIssueUrl})`,
-      createdDiscussionUrl && createdDiscussionNumber && `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})`,
-      createdPullRequestUrl && createdPullRequestNumber && `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})`,
-    ].filter(Boolean);
-
-    if (references.length > 0) {
-      body += `\n\n#### Related Items\n\n${references.join("\n")}\n`;
-    }
-
-    // Add AI disclaimer with workflow name and run url
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-    const runId = context.runId;
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-
-    // Add workflow ID comment marker if present
-    if (workflowId) {
-      body += `\n\n<!-- workflow-id: ${workflowId} -->`;
-    }
-
-    // Add tracker-id comment if present
+    // Add tracker ID and footer
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
-      body += trackerIDComment;
+      processedBody += "\n\n" + trackerIDComment;
     }
 
-    // Add comment type marker to identify this as an add-comment
-    body += `\n\n<!-- comment-type: add-comment -->`;
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const runId = context.runId;
+    const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    processedBody += `\n\n> AI generated by [${workflowName}](${runUrl})`;
 
-    body += generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
+    core.info(`Adding comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber}`);
 
-    // Hide older comments from the same workflow if enabled
-    if (hideOlderCommentsEnabled && workflowId) {
-      core.info("Hide-older-comments is enabled, searching for previous comments to hide");
-      await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, commentEndpoint === "discussions", "outdated", allowedReasons);
-    }
-
-    let comment;
-
-    // Use GraphQL API for discussions, REST API for issues/PRs
-    if (commentEndpoint === "discussions") {
-      core.info(`Creating comment on discussion #${itemNumber}`);
-      core.info(`Comment content length: ${body.length}`);
-
-      // For discussion_comment events, extract the comment node_id to create a threaded reply
-      const replyToId = context.eventName === "discussion_comment" && context.payload?.comment?.node_id ? context.payload.comment.node_id : undefined;
-
-      if (replyToId) {
-        core.info(`Creating threaded reply to comment ${replyToId}`);
+    try {
+      // Hide older comments if enabled
+      if (hideOlderCommentsEnabled && workflowId) {
+        await hideOlderComments(github, context.repo.owner, context.repo.repo, itemNumber, workflowId, isDiscussion);
       }
 
-      // Create discussion comment using GraphQL
-      comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-      core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+      let comment;
+      if (isDiscussion) {
+        // Use GraphQL for discussions
+        const discussionQuery = `
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              discussion(number: $number) {
+                id
+              }
+            }
+          }
+        `;
+        const queryResult = await github.graphql(discussionQuery, {
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          number: itemNumber,
+        });
 
-      // Add discussion_url to the comment object for consistency
-      comment.discussion_url = comment.discussion_url;
-    } else {
-      core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-      core.info(`Comment content length: ${body.length}`);
+        const discussionId = queryResult?.repository?.discussion?.id;
+        if (!discussionId) {
+          throw new Error(`Discussion #${itemNumber} not found`);
+        }
 
-      // Create regular issue/PR comment using REST API
-      const { data: restComment } = await github.rest.issues.createComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: itemNumber,
-        body: body,
-      });
+        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, processedBody, null);
+      } else {
+        // Use REST API for issues/PRs
+        const { data } = await github.rest.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: itemNumber,
+          body: processedBody,
+        });
+        comment = data;
+      }
 
-      comment = restComment;
-      core.info("Created comment #" + comment.id + ": " + comment.html_url);
-    }
+      core.info(`Created comment: ${comment.html_url || comment.url}`);
 
-    createdComments.push(comment);
+      // Add tracking metadata
+      const commentResult = {
+        id: comment.id,
+        html_url: comment.html_url || comment.url,
+        _tracking: {
+          commentId: comment.id,
+          itemNumber: itemNumber,
+          repo: `${context.repo.owner}/${context.repo.repo}`,
+          isDiscussion: isDiscussion,
+        },
+      };
 
-    // Set output for the last created comment (for backward compatibility)
-    if (i === commentItems.length - 1) {
-      core.setOutput("comment_id", comment.id);
-      core.setOutput("comment_url", comment.html_url);
-    }
+      createdComments.push(commentResult);
 
-    // Add metadata for tracking (includes comment ID, item number, and repo info)
-    // This is used by the handler manager to track comments with unresolved temp IDs
-    try {
-      // @ts-ignore - Adding tracking metadata dynamically
-      comment._tracking = {
+      return {
+        success: true,
         commentId: comment.id,
+        url: comment.html_url || comment.url,
         itemNumber: itemNumber,
-        repo: `${context.repo.owner}/${context.repo.repo}`,
-        isDiscussion: commentEndpoint === "discussions",
+        isDiscussion: isDiscussion,
       };
     } catch (error) {
-      // Silently ignore tracking errors to not break existing functionality
-      core.debug(`Failed to add tracking metadata: ${getErrorMessage(error)}`);
+      const errorMessage = getErrorMessage(error);
+      core.error(`Failed to add comment: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
-  }
-
-  // Write summary for all created comments
-  if (createdComments.length > 0) {
-    const summaryContent = "\n\n## GitHub Comments\n" + createdComments.map(c => `- Comment #${c.id}: [View Comment](${c.html_url})`).join("\n");
-    await core.summary.addRaw(summaryContent).write();
-  }
-
-  core.info(`Successfully created ${createdComments.length} comment(s)`);
-  return createdComments;
+  };
 }
 
 module.exports = { main };
