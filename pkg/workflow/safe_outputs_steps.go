@@ -78,6 +78,8 @@ func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowDat
 		// Final fallback depends on mode
 		if token == "" {
 			if useCopilotToken {
+				// #nosec G101 -- This is not a hardcoded credential, it's a GitHub Actions expression template
+				// that will be rendered in the workflow YAML to reference secrets at runtime
 				token = "${{ secrets.COPILOT_TOKEN || secrets.GITHUB_TOKEN }}"
 			} else {
 				// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
