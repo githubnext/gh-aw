@@ -407,12 +407,12 @@ async function main(config = {}) {
         comment = data;
       }
 
-      core.info(`Created comment: ${comment.html_url || /** @type {any} */ comment.url}`);
+      core.info(`Created comment: ${comment.html_url || /** @type {any} */ (comment).url}`);
 
       // Add tracking metadata
       const commentResult = {
         id: comment.id,
-        html_url: comment.html_url || /** @type {any} */ comment.url,
+        html_url: comment.html_url || /** @type {any} */ (comment).url,
         _tracking: {
           commentId: comment.id,
           itemNumber: itemNumber,
@@ -426,7 +426,7 @@ async function main(config = {}) {
       return {
         success: true,
         commentId: comment.id,
-        url: comment.html_url || /** @type {any} */ comment.url,
+        url: comment.html_url || /** @type {any} */ (comment).url,
         itemNumber: itemNumber,
         isDiscussion: isDiscussion,
       };
