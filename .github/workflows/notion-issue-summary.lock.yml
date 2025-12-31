@@ -265,6 +265,23 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Add a comment to a Notion page",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "comment": {
+                    "description": "The comment text to add",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "comment"
+                ],
+                "type": "object"
+              },
+              "name": "notion_add_comment"
             }
           ]
           EOF
