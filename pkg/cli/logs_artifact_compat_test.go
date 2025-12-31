@@ -123,7 +123,7 @@ func TestAuditCommandFindsNewArtifacts(t *testing.T) {
 		"aw-info/aw_info.json":            `{"engine_id":"claude","workflow_name":"test","run_id":123456}`,
 		"safe-output/safe_output.jsonl":   `{"action":"create_issue","title":"test"}`,
 		"agent-output/agent_output.json":  `{"safe_outputs":[]}`,
-		"prompt/prompt.txt":                "Test prompt",
+		"prompt/prompt.txt":               "Test prompt",
 		"agent-stdio-log/agent-stdio.log": "Agent logs",
 	}
 
