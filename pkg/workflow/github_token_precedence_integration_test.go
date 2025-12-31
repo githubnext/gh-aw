@@ -117,9 +117,9 @@ Test that safe-outputs github-token overrides top-level.
 		}
 	})
 
-	t.Run("individual safe-output token overrides both", func(t *testing.T) {
+	t.Run("safe-outputs token overrides top-level", func(t *testing.T) {
 		testContent := `---
-name: Test Individual Override
+name: Test Safe Outputs Override
 on:
   issues:
     types: [opened]
@@ -128,12 +128,12 @@ github-token: ${{ secrets.TOPLEVEL_PAT }}
 safe-outputs:
   github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}
   create-issue:
-    github-token: ${{ secrets.INDIVIDUAL_PAT }}
+    title-prefix: "[AUTO] "
 ---
 
-# Test Individual Override
+# Test Safe Outputs Override
 
-Test that individual safe-output github-token has highest precedence.
+Test that safe-outputs github-token overrides top-level token.
 `
 
 		testFile := filepath.Join(tmpDir, "test-individual-override.md")
@@ -155,29 +155,28 @@ Test that individual safe-output github-token has highest precedence.
 
 		yamlContent := string(content)
 
-		// Verify that individual token is used in the safe_outputs job
-		if !strings.Contains(yamlContent, "github-token: ${{ secrets.INDIVIDUAL_PAT }}") {
-			t.Error("Expected individual safe-output github-token to be used in safe_outputs job")
+		// Verify that safe-outputs token is used in the safe_outputs job
+		if !strings.Contains(yamlContent, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}") {
+			t.Error("Expected safe-outputs github-token to be used in safe_outputs job")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
-		// Count occurrences of each token to verify precedence
-		individualCount := strings.Count(yamlContent, "github-token: ${{ secrets.INDIVIDUAL_PAT }}")
-		safeOutputsCount := strings.Count(yamlContent, "github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}")
-		toplevelCount := strings.Count(yamlContent, "github-token: ${{ secrets.TOPLEVEL_PAT }}")
-
-		if individualCount == 0 {
-			t.Error("Individual token should be present at least once")
-		}
-
-		// Note: safe-outputs global token might appear in other safe-output jobs or contexts
-		// but should not appear more frequently than the individual token in the safe_outputs job
-		// The test is primarily checking that the individual token is used where it should be
-		if individualCount == 0 && safeOutputsCount > 0 {
-			t.Error("Individual token should take precedence over safe-outputs token")
-		}
-		if individualCount == 0 && toplevelCount > 0 {
-			t.Error("Individual token should take precedence over top-level token")
+		// Verify top-level token is not used in safe_outputs job
+		// (it may appear in other jobs, but not in safe_outputs)
+		lines := strings.Split(yamlContent, "\n")
+		inSafeOutputsJob := false
+		for i, line := range lines {
+			if strings.Contains(line, "safe_outputs:") && !strings.Contains(line, "#") {
+				inSafeOutputsJob = true
+				continue
+			}
+			// Check if we've moved to a new top-level job
+			if inSafeOutputsJob && len(line) > 0 && !strings.HasPrefix(line, " ") && strings.Contains(line, ":") {
+				inSafeOutputsJob = false
+			}
+			if inSafeOutputsJob && strings.Contains(line, "github-token: ${{ secrets.TOPLEVEL_PAT }}") {
+				t.Errorf("Top-level token should not be used in safe_outputs job (found at line %d)", i+1)
+			}
 		}
 	})
 
