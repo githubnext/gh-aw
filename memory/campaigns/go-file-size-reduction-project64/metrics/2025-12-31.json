@@ -1,5 +1,8 @@
 {
   "date": "2025-12-31",
+  "campaign_id": "go-file-size-reduction-project64",
+  "tasks_total": 0,
+  "tasks_completed": 0,
   "largest_file_path": "pkg/cli/compile_orchestrator.go",
   "largest_file_loc": 1200,
   "files_over_threshold": 17,
