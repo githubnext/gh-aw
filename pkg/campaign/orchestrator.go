@@ -210,9 +210,9 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Render orchestrator instructions using templates
 	// All orchestrators follow the same system-agnostic rules with no conditional logic
 	promptData := CampaignPromptData{
-		CampaignID:  spec.ID,
-		ProjectURL:  strings.TrimSpace(spec.ProjectURL),
-		Objective:   strings.TrimSpace(spec.Objective),
+		CampaignID:   spec.ID,
+		ProjectURL:   strings.TrimSpace(spec.ProjectURL),
+		Objective:    strings.TrimSpace(spec.Objective),
 		TrackerLabel: strings.TrimSpace(spec.TrackerLabel),
 		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
 		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
