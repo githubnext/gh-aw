@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 )
 
 // ========================================
@@ -473,6 +474,8 @@ func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) m
 
 	// Add required fields array if any inputs are required
 	if len(requiredFields) > 0 {
+		// Sort required fields for stable output
+		sort.Strings(requiredFields)
 		inputSchema["required"] = requiredFields
 	}
 

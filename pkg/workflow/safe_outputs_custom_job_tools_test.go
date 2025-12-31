@@ -207,3 +207,78 @@ func TestCustomJobToolsWithDifferentInputTypes(t *testing.T) {
 	assert.NotContains(t, required, "count", "Count should not be required")
 	assert.NotContains(t, required, "mode", "Mode should not be required")
 }
+
+// TestCustomJobToolsRequiredFieldsAreSorted verifies that the required array
+// in custom job tool definitions is always sorted alphabetically for stable output
+func TestCustomJobToolsRequiredFieldsAreSorted(t *testing.T) {
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"sorted_required_job": {
+					Description: "Job to test sorted required fields",
+					Inputs: map[string]*InputDefinition{
+						"zebra": {
+							Description: "Last alphabetically",
+							Required:    true,
+							Type:        "string",
+						},
+						"alpha": {
+							Description: "First alphabetically",
+							Required:    true,
+							Type:        "string",
+						},
+						"middle": {
+							Description: "Middle alphabetically",
+							Required:    true,
+							Type:        "string",
+						},
+						"optional": {
+							Description: "Not required",
+							Required:    false,
+							Type:        "string",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Generate the tools JSON
+	toolsJSON, err := generateFilteredToolsJSON(workflowData)
+	require.NoError(t, err, "Should generate tools JSON")
+
+	// Parse the JSON
+	var tools []map[string]any
+	err = json.Unmarshal([]byte(toolsJSON), &tools)
+	require.NoError(t, err, "Should parse tools JSON")
+
+	// Find the sorted_required_job tool
+	var jobTool map[string]any
+	for _, tool := range tools {
+		if name, ok := tool["name"].(string); ok && name == "sorted_required_job" {
+			jobTool = tool
+			break
+		}
+	}
+
+	require.NotNil(t, jobTool, "Should find sorted_required_job tool in tools.json")
+
+	// Verify the input schema
+	inputSchema, ok := jobTool["inputSchema"].(map[string]any)
+	require.True(t, ok, "Should have inputSchema")
+
+	// Verify required fields are sorted
+	required, ok := inputSchema["required"].([]any)
+	require.True(t, ok, "Should have required array")
+	assert.Len(t, required, 3, "Should have 3 required fields")
+
+	// Convert to string slice for easier comparison
+	var requiredStrings []string
+	for _, r := range required {
+		requiredStrings = append(requiredStrings, r.(string))
+	}
+
+	// Verify the required fields are in sorted order
+	assert.Equal(t, []string{"alpha", "middle", "zebra"}, requiredStrings,
+		"Required fields should be sorted alphabetically: alpha, middle, zebra")
+}
