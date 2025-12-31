@@ -1,6 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const fs = require("fs");
+const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 /**
  * Parses safe-inputs MCP server logs and creates a step summary
  * Log format: [timestamp] [server-name] message
@@ -10,11 +14,6 @@
  * Main function to parse and display safe-inputs logs
  */
 async function main() {
-  const fs = require("fs");
-  const path = require("path");
-
-  const { getErrorMessage } = require("./error_helpers.cjs");
-
   try {
     // Get the safe-inputs logs directory path
     const safeInputsLogsDir = `/tmp/gh-aw/safe-inputs/logs/`;
