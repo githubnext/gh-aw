@@ -153,9 +153,8 @@ make security-scan  # Run gosec, govulncheck, and trivy
 #### Run performance benchmarks
 ```bash
 make bench               # Run all benchmarks (~30s)
-make bench-compiler      # Compiler-specific benchmarks
+make bench-compare       # Run with more iterations for benchstat comparison
 make bench-memory        # Memory profiling with pprof output
-make test-benchmark      # Validate benchmarks work correctly
 ```
 **When to use**: Measuring compilation performance, detecting regressions, or optimizing.
 
@@ -168,6 +167,14 @@ make test-benchmark      # Validate benchmarks work correctly
 - Simple workflows: <100ms compilation time
 - Complex workflows: <500ms compilation time
 - MCP-heavy workflows: <1s compilation time
+
+**Comparing benchmark results**:
+```bash
+make bench                    # Baseline run, saves to bench_results.txt
+# Make code changes
+make bench-compare            # Comparison run, saves to bench_compare.txt
+benchstat bench_results.txt bench_compare.txt  # Compare results
+```
 
 **Memory profiling**:
 ```bash

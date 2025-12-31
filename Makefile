@@ -96,33 +96,21 @@ bench:
 	@echo "Running benchmarks..."
 	go test -bench=. -benchmem -benchtime=3x -run=^$$ ./pkg/... | tee bench_results.txt
 
-# Run benchmarks with comparison output
+# Run benchmarks with more iterations for comparison (saves to separate file)
 .PHONY: bench-compare
 bench-compare:
-	@echo "Running benchmarks and saving results..."
-	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_results.txt
-	@echo "Benchmark results saved to bench_results.txt"
-
-# Run compiler-specific performance benchmarks
-.PHONY: bench-compiler
-bench-compiler:
-	@echo "Running compiler performance benchmarks..."
-	go test -bench=BenchmarkCompile -benchmem -benchtime=10x -run=^$$ ./pkg/workflow | tee bench_compiler_results.txt
-	@echo "Compiler benchmark results saved to bench_compiler_results.txt"
+	@echo "Running benchmarks with more iterations for comparison..."
+	go test -bench=. -benchmem -benchtime=100x -run=^$$ ./pkg/... | tee bench_compare.txt
+	@echo "Comparison results saved to bench_compare.txt"
+	@echo "Compare with: benchstat bench_results.txt bench_compare.txt"
 
 # Run memory profiling benchmarks
 .PHONY: bench-memory
 bench-memory:
 	@echo "Running memory profiling benchmarks..."
-	go test -bench=BenchmarkCompileMemoryUsage -benchmem -memprofile=mem.prof -cpuprofile=cpu.prof -benchtime=10x -run=^$$ ./pkg/workflow
+	go test -bench=. -benchmem -memprofile=mem.prof -cpuprofile=cpu.prof -benchtime=10x -run=^$$ ./pkg/workflow
 	@echo "Memory profile saved to mem.prof, CPU profile saved to cpu.prof"
 	@echo "View with: go tool pprof -http=:8080 mem.prof"
-
-# Test with benchmarks included
-.PHONY: test-benchmark
-test-benchmark:
-	@echo "Running tests with benchmark validation..."
-	go test -v -timeout=3m -bench=. -benchtime=1x -run='Test|Benchmark' ./pkg/workflow
 
 # Run fuzz tests
 .PHONY: fuzz
@@ -213,7 +201,7 @@ clean:
 	@# Remove coverage files
 	rm -f coverage.out coverage.html
 	@# Remove benchmark results and profiling data
-	rm -f bench_results.txt bench_compiler_results.txt mem.prof cpu.prof
+	rm -f bench_results.txt bench_compare.txt mem.prof cpu.prof
 	@# Remove SBOM files
 	rm -f sbom.spdx.json sbom.cdx.json
 	@# Remove security scan reports
@@ -583,10 +571,8 @@ help:
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
 	@echo "  bench            - Run benchmarks for performance testing"
-	@echo "  bench-compare    - Run benchmarks with comparison output"
-	@echo "  bench-compiler   - Run compiler-specific performance benchmarks"
-	@echo "  bench-memory     - Run memory profiling benchmarks"
-	@echo "  test-benchmark   - Run tests with benchmark validation"
+	@echo "  bench-compare    - Run benchmarks with more iterations (for benchstat comparison)"
+	@echo "  bench-memory     - Run memory profiling benchmarks with pprof output"
 	@echo "  fuzz             - Run fuzz tests for 30 seconds"
 	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
