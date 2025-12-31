@@ -906,7 +906,6 @@ jobs:
           type = "http"
           url = "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT"
           headers = { Authorization = "Bearer $GH_AW_SAFE_INPUTS_API_KEY" }
-          env_vars = ["GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY", "GH_TOKEN"]
           
           [mcp_servers.safeoutputs]
           command = "node"
