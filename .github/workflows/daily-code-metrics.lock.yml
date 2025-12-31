@@ -731,7 +731,7 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Allowed Files**: Only files matching patterns: memory/code-metrics/*.json, memory/code-metrics/*.jsonl, memory/code-metrics/*.csv, memory/code-metrics/*.md
+          - **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md
           - **Max File Size**: 102400 bytes (0.10 MB) per file
           - **Max File Count**: 100 files per commit
           
@@ -1500,7 +1500,7 @@ jobs:
           BRANCH_NAME: memory/code-metrics
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "memory/code-metrics/*.json memory/code-metrics/*.jsonl memory/code-metrics/*.csv memory/code-metrics/*.md"
+          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
