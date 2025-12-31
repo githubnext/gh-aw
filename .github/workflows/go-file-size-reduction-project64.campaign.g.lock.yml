@@ -600,7 +600,8 @@ jobs:
             - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
           - Associated workflows: daily-file-diet
           - Memory paths: memory/campaigns/go-file-size-reduction-project64/**
-          - Metrics glob: `memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json`
+          - Metrics glob: `memory/campaigns/go-file-size-reduction-project64/metrics/*.json`
+          - Cursor glob: `memory/campaigns/go-file-size-reduction-project64/cursor.json`
           - Project URL: https://github.com/orgs/githubnext/projects/64
           - Governance: max new items per run: 5
           - Governance: max discovery items per run: 50
@@ -621,9 +622,16 @@ jobs:
           - On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
           
           
+          **Cursor file (repo-memory)**: `memory/campaigns/go-file-size-reduction-project64/cursor.json`
+          
+          You must treat this file as the source of truth for incremental discovery:
+          - If it exists, read it first and continue from that boundary.
+          - If it does not exist yet, create it by the end of the run.
+          - Always write the updated cursor back to the same path.
           
           
-          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/go-file-size-reduction-project64-*/metrics/*.json`
+          
+          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/go-file-size-reduction-project64/metrics/*.json`
           
           You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
           
