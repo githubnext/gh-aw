@@ -4,8 +4,8 @@ package cli
 // This struct is embedded by DomainAnalysis and FirewallAnalysis to share
 // domain management functionality and eliminate code duplication.
 type DomainBuckets struct {
-	AllowedDomains []string
-	DeniedDomains  []string
+	AllowedDomains []string `json:"allowed_domains,omitempty"`
+	DeniedDomains  []string `json:"denied_domains,omitempty"`
 }
 
 // GetAllowedDomains returns the list of allowed domains

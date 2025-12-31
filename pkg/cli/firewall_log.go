@@ -118,10 +118,10 @@ type FirewallLogEntry struct {
 // This mirrors the structure from the JavaScript parser
 type FirewallAnalysis struct {
 	DomainBuckets
-	TotalRequests    int
-	AllowedRequests  int
-	DeniedRequests   int
-	RequestsByDomain map[string]DomainRequestStats
+	TotalRequests    int                           `json:"total_requests"`
+	AllowedRequests  int                           `json:"allowed_requests"`
+	DeniedRequests   int                           `json:"denied_requests"`
+	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty"`
 }
 
 // AddMetrics adds metrics from another analysis
@@ -143,8 +143,8 @@ func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
 
 // DomainRequestStats tracks request statistics per domain
 type DomainRequestStats struct {
-	Allowed int
-	Denied  int
+	Allowed int `json:"allowed"`
+	Denied  int `json:"denied"`
 }
 
 // parseFirewallLogLine parses a single firewall log line
