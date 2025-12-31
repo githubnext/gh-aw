@@ -150,6 +150,39 @@ make security-scan  # Run gosec, govulncheck, and trivy
 ```
 **When to use**: Before releases or when checking for vulnerabilities.
 
+#### Run performance benchmarks
+```bash
+make bench               # Run all benchmarks (~30s)
+make bench-compare       # Run with more iterations for benchstat comparison
+make bench-memory        # Memory profiling with pprof output
+```
+**When to use**: Measuring compilation performance, detecting regressions, or optimizing.
+
+**Interpreting results**:
+- **ns/op**: Nanoseconds per operation (lower is better)
+- **B/op**: Bytes allocated per operation (lower is better)
+- **allocs/op**: Number of allocations per operation (lower is better)
+
+**Performance baselines**:
+- Simple workflows: <100ms compilation time
+- Complex workflows: <500ms compilation time
+- MCP-heavy workflows: <1s compilation time
+
+**Comparing benchmark results**:
+```bash
+make bench                    # Baseline run, saves to bench_results.txt
+# Make code changes
+make bench-compare            # Comparison run, saves to bench_compare.txt
+benchstat bench_results.txt bench_compare.txt  # Compare results
+```
+
+**Memory profiling**:
+```bash
+make bench-memory                # Generate mem.prof and cpu.prof
+go tool pprof -http=:8080 mem.prof  # Interactive memory analysis
+go tool pprof -http=:8080 cpu.prof  # Interactive CPU analysis
+```
+
 #### Check for slow tests
 ```bash
 make test-perf  # Shows 10 slowest tests with timing
