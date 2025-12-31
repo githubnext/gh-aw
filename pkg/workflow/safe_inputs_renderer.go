@@ -64,8 +64,6 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
 // Only supports HTTP transport mode
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
-	envVars := getSafeInputsEnvVars(safeInputs)
-
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
 
 	// HTTP transport configuration - server started in separate step
@@ -98,13 +96,17 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 		yaml.WriteString("                \"tools\": [\"*\"],\n")
 	}
 
-	// Add env block for environment variable passthrough
-	envVarsWithServerConfig := append([]string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}, envVars...)
+	// Add env block for server configuration environment variables only
+	// Note: Tool-specific env vars (like GH_AW_GH_TOKEN) are already set in the step's env block
+	// and don't need to be passed through the MCP config since the server uses HTTP transport
 	yaml.WriteString("                \"env\": {\n")
 
+	// Only include server configuration variables
+	serverConfigVars := []string{"GH_AW_SAFE_INPUTS_PORT", "GH_AW_SAFE_INPUTS_API_KEY"}
+
 	// Write environment variables with appropriate escaping
-	for i, envVar := range envVarsWithServerConfig {
-		isLastEnvVar := i == len(envVarsWithServerConfig)-1
+	for i, envVar := range serverConfigVars {
+		isLastEnvVar := i == len(serverConfigVars)-1
 		comma := ""
 		if !isLastEnvVar {
 			comma = ","
