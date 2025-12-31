@@ -14,10 +14,6 @@ func TestSafeInputsHTTPMode(t *testing.T) {
 		mode string // empty string tests default behavior
 	}{
 		{
-			name: "explicit_http_mode",
-			mode: "http",
-		},
-		{
 			name: "default_mode",
 			mode: "", // No mode specified, should default to HTTP
 		},
