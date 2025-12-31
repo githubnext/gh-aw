@@ -1146,3 +1146,265 @@ func TestCopilotEngineParseLogMetrics_NoTokenData(t *testing.T) {
 		t.Errorf("Expected token usage 0 when no usage data present, got %d", metrics.TokenUsage)
 	}
 }
+
+func TestCopilotEngineExtractToolSizes(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name          string
+		jsonStr       string
+		expectedTools map[string]struct{ inputSize, outputSize int }
+		expectError   bool
+	}{
+		{
+			name: "tool call with arguments",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"role": "assistant",
+						"tool_calls": [{
+							"id": "call_abc123",
+							"type": "function",
+							"function": {
+								"name": "bash",
+								"arguments": "{\"command\":\"echo 'test'\",\"description\":\"Test command\"}"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"bash": {inputSize: 54, outputSize: 0},
+			},
+		},
+		{
+			name: "multiple tool calls",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": [{
+							"function": {
+								"name": "github",
+								"arguments": "{\"owner\":\"githubnext\",\"repo\":\"gh-aw\"}"
+							}
+						}, {
+							"function": {
+								"name": "playwright",
+								"arguments": "{\"url\":\"https://example.com\",\"action\":\"screenshot\"}"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"github":     {inputSize: 37, outputSize: 0},
+				"playwright": {inputSize: 51, outputSize: 0},
+			},
+		},
+		{
+			name: "tool call without arguments",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": [{
+							"function": {
+								"name": "bash"
+							}
+						}]
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"bash": {inputSize: 0, outputSize: 0},
+			},
+		},
+		{
+			name: "empty tool_calls array",
+			jsonStr: `{
+				"choices": [{
+					"message": {
+						"tool_calls": []
+					}
+				}]
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{},
+		},
+		{
+			name:          "invalid JSON",
+			jsonStr:       `{invalid json}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{},
+			expectError:   true,
+		},
+		{
+			name: "tool call in alternative message format",
+			jsonStr: `{
+				"message": {
+					"tool_calls": [{
+						"function": {
+							"name": "edit",
+							"arguments": "{\"path\":\"/test/file.txt\",\"content\":\"test content\"}"
+						}
+					}]
+				}
+			}`,
+			expectedTools: map[string]struct{ inputSize, outputSize int }{
+				"edit": {inputSize: 50, outputSize: 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolCallMap := make(map[string]*ToolCallInfo)
+			engine.extractToolCallSizes(tt.jsonStr, toolCallMap, true)
+
+			// Verify tool count
+			if len(toolCallMap) != len(tt.expectedTools) {
+				t.Errorf("Expected %d tools, got %d: %v", len(tt.expectedTools), len(toolCallMap), toolCallMap)
+			}
+
+			// Verify each tool's sizes
+			for toolName, expectedSizes := range tt.expectedTools {
+				toolInfo, exists := toolCallMap[toolName]
+				if !exists {
+					t.Errorf("Expected tool '%s' not found in tool call map", toolName)
+					continue
+				}
+
+				if toolInfo.MaxInputSize != expectedSizes.inputSize {
+					t.Errorf("Tool '%s': expected MaxInputSize %d, got %d",
+						toolName, expectedSizes.inputSize, toolInfo.MaxInputSize)
+				}
+
+				if toolInfo.MaxOutputSize != expectedSizes.outputSize {
+					t.Errorf("Tool '%s': expected MaxOutputSize %d, got %d",
+						toolName, expectedSizes.outputSize, toolInfo.MaxOutputSize)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExtractToolSizes_MaxTracking(t *testing.T) {
+	engine := NewCopilotEngine()
+	toolCallMap := make(map[string]*ToolCallInfo)
+
+	// First call with smaller arguments
+	json1 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"cmd\":\"ls\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json1, toolCallMap, false)
+
+	// Second call with larger arguments
+	json2 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"command\":\"echo 'This is a much longer command with more content'\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json2, toolCallMap, false)
+
+	// Third call with smaller arguments again
+	json3 := `{
+		"choices": [{
+			"message": {
+				"tool_calls": [{
+					"function": {
+						"name": "bash",
+						"arguments": "{\"cmd\":\"pwd\"}"
+					}
+				}]
+			}
+		}]
+	}`
+	engine.extractToolCallSizes(json3, toolCallMap, false)
+
+	// Verify that MaxInputSize tracks the maximum
+	bashInfo, exists := toolCallMap["bash"]
+	if !exists {
+		t.Fatal("bash tool not found in tool call map")
+	}
+
+	// Should have tracked the largest input size (from json2)
+	expectedMaxInput := len("{\"command\":\"echo 'This is a much longer command with more content'\"}")
+	if bashInfo.MaxInputSize != expectedMaxInput {
+		t.Errorf("Expected MaxInputSize %d (from largest call), got %d", expectedMaxInput, bashInfo.MaxInputSize)
+	}
+
+	// Call count should be 3
+	if bashInfo.CallCount != 3 {
+		t.Errorf("Expected CallCount 3, got %d", bashInfo.CallCount)
+	}
+}
+
+func TestCopilotEngineParseLogMetrics_WithToolSizes(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	// Log with tool calls containing size information
+	logWithTools := `2025-09-26T11:13:17.989Z [DEBUG] response (Request-ID 00000-4ceedfde):
+2025-09-26T11:13:17.989Z [DEBUG] data:
+2025-09-26T11:13:17.990Z [DEBUG] {
+2025-09-26T11:13:17.990Z [DEBUG]   "choices": [
+2025-09-26T11:13:17.990Z [DEBUG]     {
+2025-09-26T11:13:17.990Z [DEBUG]       "message": {
+2025-09-26T11:13:17.990Z [DEBUG]         "tool_calls": [
+2025-09-26T11:13:17.990Z [DEBUG]           {
+2025-09-26T11:13:17.990Z [DEBUG]             "function": {
+2025-09-26T11:13:17.990Z [DEBUG]               "name": "github",
+2025-09-26T11:13:17.990Z [DEBUG]               "arguments": "{\"owner\":\"githubnext\",\"repo\":\"gh-aw\",\"method\":\"list_issues\"}"
+2025-09-26T11:13:17.990Z [DEBUG]             }
+2025-09-26T11:13:17.990Z [DEBUG]           }
+2025-09-26T11:13:17.990Z [DEBUG]         ]
+2025-09-26T11:13:17.990Z [DEBUG]       }
+2025-09-26T11:13:17.990Z [DEBUG]     }
+2025-09-26T11:13:17.990Z [DEBUG]   ],
+2025-09-26T11:13:17.990Z [DEBUG]   "usage": {
+2025-09-26T11:13:17.990Z [DEBUG]     "prompt_tokens": 100,
+2025-09-26T11:13:17.990Z [DEBUG]     "completion_tokens": 50
+2025-09-26T11:13:17.990Z [DEBUG]   }
+2025-09-26T11:13:17.990Z [DEBUG] }
+2025-09-26T11:13:18.000Z [DEBUG] Executing tool: github`
+
+	metrics := engine.ParseLogMetrics(logWithTools, false)
+
+	// Verify token usage
+	if metrics.TokenUsage != 150 {
+		t.Errorf("Expected token usage 150, got %d", metrics.TokenUsage)
+	}
+
+	// Verify tool info was extracted
+	if len(metrics.ToolCalls) != 1 {
+		t.Fatalf("Expected 1 tool call, got %d", len(metrics.ToolCalls))
+	}
+
+	githubTool := metrics.ToolCalls[0]
+	if githubTool.Name != "github" {
+		t.Errorf("Expected tool name 'github', got '%s'", githubTool.Name)
+	}
+
+	// Verify input size was extracted
+	expectedInputSize := len("{\"owner\":\"githubnext\",\"repo\":\"gh-aw\",\"method\":\"list_issues\"}")
+	if githubTool.MaxInputSize != expectedInputSize {
+		t.Errorf("Expected MaxInputSize %d, got %d", expectedInputSize, githubTool.MaxInputSize)
+	}
+
+	// Output size should be 0 (not extracted from current log format)
+	if githubTool.MaxOutputSize != 0 {
+		t.Errorf("Expected MaxOutputSize 0, got %d", githubTool.MaxOutputSize)
+	}
+}
