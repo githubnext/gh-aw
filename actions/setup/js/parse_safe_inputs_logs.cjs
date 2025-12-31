@@ -199,9 +199,8 @@ function generatePlainTextSummary(logEntries) {
       // Display unparsed lines as-is
       lines.push(entry.message);
     } else {
-      const time = entry.timestamp ? `[${entry.timestamp}]` : "";
       const server = entry.serverName ? `[${entry.serverName}]` : "";
-      lines.push(`${time} ${server} ${entry.message}`);
+      lines.push(`${server} ${entry.message}`.trim());
     }
     lineCount++;
   }

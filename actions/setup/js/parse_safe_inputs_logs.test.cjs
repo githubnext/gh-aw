@@ -235,8 +235,8 @@ describe("parse_safe_inputs_logs.cjs", () => {
       const summary = generatePlainTextSummary(logEntries);
 
       expect(summary).toContain("Full Logs (first 5000 lines):");
-      expect(summary).toContain("[2025-12-31T15:43:54.000Z] [safe-inputs] Starting Safe Inputs MCP Server");
-      expect(summary).toContain("[2025-12-31T15:43:55.000Z] [safe-inputs] Server started successfully");
+      expect(summary).toContain("[safe-inputs] Starting Safe Inputs MCP Server");
+      expect(summary).toContain("[safe-inputs] Server started successfully");
       expect(summary).toContain("Unparsed log line");
     });
 
