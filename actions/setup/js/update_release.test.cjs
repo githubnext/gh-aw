@@ -23,7 +23,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         tempFilePath && fs.existsSync(tempFilePath) && (fs.unlinkSync(tempFilePath), (tempFilePath = void 0));
       }),
       it("should handle empty message in staged mode", async () => {
-        (process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true",
+        ((process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
           await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); const result = await handler({}); return result; })()`),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Staged mode:")),
           expect(mockGithub.rest.repos.getReleaseByTag).not.toHaveBeenCalled());
@@ -32,9 +32,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         const mockRelease = { id: 1, tag_name: "v1.0.0", name: "Release v1.0.0", body: "Old release notes", html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.0.0" },
           mockUpdatedRelease = { ...mockRelease, body: "New release notes" };
         const message = { type: "update_release", tag: "v1.0.0", operation: "replace", body: "New release notes" };
-        (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }),
-          mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }),
-          (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
+        (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }), mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: mockUpdatedRelease }), (process.env.GH_AW_WORKFLOW_NAME = "Test Workflow"));
         const result = await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); return await handler(${JSON.stringify(message)}); })()`);
         expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.0.0" });
         expect(mockGithub.rest.repos.updateRelease).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", release_id: 1, body: "New release notes" });
@@ -118,8 +116,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         ((mockContext.eventName = "release"), (mockContext.payload = { release: { tag_name: "v1.5.0", name: "Version 1.5.0", body: "Original release body" } }));
         const mockRelease = { id: 1, tag_name: "v1.5.0", body: "Original release body", html_url: "https://github.com/test-owner/test-repo/releases/tag/v1.5.0" };
         const message = { type: "update_release", operation: "replace", body: "Updated body" };
-        (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }),
-          mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } }));
+        (mockGithub.rest.repos.getReleaseByTag.mockResolvedValue({ data: mockRelease }), mockGithub.rest.repos.updateRelease.mockResolvedValue({ data: { ...mockRelease, body: "Updated body" } }));
         await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); return await handler(${JSON.stringify(message)}); })()`);
         expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Inferred release tag from event context: v1.5.0"));
         expect(mockGithub.rest.repos.getReleaseByTag).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", tag: "v1.5.0" });
@@ -128,8 +125,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
         delete mockContext.payload;
       }),
       it("should fail gracefully when tag is missing and cannot be inferred", async () => {
-        ((mockContext.eventName = "push"),
-          (mockContext.payload = {}));
+        ((mockContext.eventName = "push"), (mockContext.payload = {}));
         const message = { type: "update_release", operation: "replace", body: "Updated body" };
         try {
           await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); return await handler(${JSON.stringify(message)}); })()`);

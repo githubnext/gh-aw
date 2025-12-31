@@ -97,9 +97,9 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             addDiscussionComment: {
               comment: {
                 id: "DC_kwDOTest01",
-                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1"
-              }
-            }
+                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1",
+              },
+            },
           }),
           // Mock closeDiscussion mutation
           mockGithub.graphql.mockResolvedValueOnce({
@@ -134,9 +134,9 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             addDiscussionComment: {
               comment: {
                 id: "DC_kwDOTest01",
-                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1"
-              }
-            }
+                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1",
+              },
+            },
           }),
           // Mock closeDiscussion mutation
           mockGithub.graphql.mockResolvedValueOnce({
@@ -171,9 +171,9 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
             addDiscussionComment: {
               comment: {
                 id: "DC_kwDOTest01",
-                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1"
-              }
-            }
+                url: "https://github.com/testowner/testrepo/discussions/42#discussioncomment-1",
+              },
+            },
           }),
           // Mock closeDiscussion mutation
           mockGithub.graphql.mockResolvedValueOnce({
