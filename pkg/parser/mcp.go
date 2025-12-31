@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -369,21 +370,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			// Check for custom Docker image version (only applicable in local/Docker mode)
 			if !useRemote {
 				if version, exists := toolConfig["version"]; exists {
-					var versionStr string
-					switch v := version.(type) {
-					case string:
-						versionStr = v
-					case int:
-						versionStr = fmt.Sprintf("%d", v)
-					case int64:
-						versionStr = fmt.Sprintf("%d", v)
-					case uint64:
-						versionStr = fmt.Sprintf("%d", v)
-					case float64:
-						// Use %g to avoid trailing zeros and scientific notation for simple numbers
-						versionStr = fmt.Sprintf("%g", v)
-					}
-					if versionStr != "" {
+					if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
 						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
 						// Update the Docker image in args
 						for i, arg := range config.Args {
@@ -458,20 +445,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 			// Check for custom Docker image version
 			if version, exists := toolConfig["version"]; exists {
-				var versionStr string
-				switch v := version.(type) {
-				case string:
-					versionStr = v
-				case int:
-					versionStr = fmt.Sprintf("%d", v)
-				case int64:
-					versionStr = fmt.Sprintf("%d", v)
-				case uint64:
-					versionStr = fmt.Sprintf("%d", v)
-				case float64:
-					versionStr = fmt.Sprintf("%g", v)
-				}
-				if versionStr != "" {
+				if versionStr := stringutil.ParseVersionValue(version); versionStr != "" {
 					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
 					// Update the Docker image in args
 					for i, arg := range config.Args {
