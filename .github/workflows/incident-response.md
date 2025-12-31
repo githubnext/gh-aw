@@ -37,7 +37,7 @@ tools:
     toolsets: [repos, issues, pull_requests, search]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "incident-*/**"
+    file-glob: "memory/campaigns/incident-*/**"
 
 safe-outputs:
   create-issue:

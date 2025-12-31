@@ -37,7 +37,7 @@ tools:
   repo-memory:
     branch-name: memory/copilot-agent-analysis
     description: "Historical agent performance metrics"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/copilot-agent-analysis/*.json", "memory/copilot-agent-analysis/*.jsonl", "memory/copilot-agent-analysis/*.csv", "memory/copilot-agent-analysis/*.md"]
     max-file-size: 102400  # 100KB
   github:
     toolsets: [default]

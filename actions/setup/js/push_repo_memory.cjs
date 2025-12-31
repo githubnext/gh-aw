@@ -289,20 +289,25 @@ async function main() {
         if (fileGlobFilter) {
           const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(globPatternToRegex);
 
+          // Build the full path that will exist in the branch (branch name + relative file path)
+          // This accounts for the memory/{id} folder structure within the branch
+          const branchRelativePath = path.join(branchName, relativeFilePath).replace(/\\/g, "/");
+
           // Debug logging: Show what we're testing
           core.debug(`Testing file: ${relativeFilePath}`);
+          core.debug(`Branch-relative path: ${branchRelativePath}`);
           core.debug(`File glob filter: ${fileGlobFilter}`);
           core.debug(`Number of patterns: ${patterns.length}`);
 
           const matchResults = patterns.map((pattern, idx) => {
-            const matches = pattern.test(relativeFilePath);
+            const matches = pattern.test(branchRelativePath);
             const patternStr = fileGlobFilter.trim().split(/\s+/).filter(Boolean)[idx];
             core.debug(`  Pattern ${idx + 1}: "${patternStr}" -> ${pattern.source} -> ${matches ? "✓ MATCH" : "✗ NO MATCH"}`);
             return matches;
           });
 
           if (!matchResults.some(m => m)) {
-            core.error(`File does not match allowed patterns: ${relativeFilePath}`);
+            core.error(`File does not match allowed patterns: ${branchRelativePath}`);
             core.error(`Allowed patterns: ${fileGlobFilter}`);
             core.error(`Pattern test results:`);
             const patternStrs = fileGlobFilter.trim().split(/\s+/).filter(Boolean);

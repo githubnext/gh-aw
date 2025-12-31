@@ -38,7 +38,7 @@ tools:
   repo-memory:
     branch-name: memory/daily-news
     description: "Historical news digest data"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/daily-news/*.json", "memory/daily-news/*.jsonl", "memory/daily-news/*.csv", "memory/daily-news/*.md"]
     max-file-size: 102400  # 100KB
   edit:
   bash:

@@ -40,7 +40,7 @@ tools:
   repo-memory:
     branch-name: memory/nlp-analysis
     description: "Historical NLP analysis results"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/nlp-analysis/*.json", "memory/nlp-analysis/*.jsonl", "memory/nlp-analysis/*.csv", "memory/nlp-analysis/*.md"]
     max-file-size: 102400  # 100KB
   edit:
   github:

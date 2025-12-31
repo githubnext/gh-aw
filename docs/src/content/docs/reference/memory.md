@@ -112,13 +112,15 @@ tools:
   repo-memory:
     branch-name: memory/custom-agent
     description: "Long-term insights"
-    file-glob: ["*.md", "*.json"]
+    file-glob: ["memory/custom-agent/*.md", "memory/custom-agent/*.json"]
     max-file-size: 1048576  # 1MB (default 10KB)
     max-file-count: 50      # default 100
     target-repo: "owner/repository"
     create-orphan: true     # default
 ---
 ```
+
+**Note**: File glob patterns must include the full branch path structure. For branch `memory/custom-agent`, use patterns like `memory/custom-agent/*.json` to match files stored at that path within the branch.
 
 ## Multiple Repo Memory Configurations
 
@@ -128,14 +130,14 @@ tools:
   repo-memory:
     - id: insights
       branch-name: memory/insights
-      file-glob: ["*.md"]
+      file-glob: ["memory/insights/*.md"]
     - id: state
-      file-glob: ["*.json"]
+      file-glob: ["memory/state/*.json"]
       max-file-size: 524288  # 512KB
 ---
 ```
 
-Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `memory/{id}`. Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch).
+Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `memory/{id}`. Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns must include the full branch path.**
 
 ## Behavior
 

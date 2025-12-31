@@ -14,7 +14,7 @@ tools:
   repo-memory:
     branch-name: memory/audit-workflows
     description: "Historical audit data and patterns"
-    file-glob: ["*.json", "*.jsonl", "*.csv", "*.md"]
+    file-glob: ["memory/audit-workflows/*.json", "memory/audit-workflows/*.jsonl", "memory/audit-workflows/*.csv", "memory/audit-workflows/*.md"]
     max-file-size: 102400  # 100KB
   timeout: 300
 steps:

@@ -29,7 +29,7 @@ tools:
     toolsets: [repos, issues, search]
   repo-memory:
     branch-name: memory/campaigns
-    file-glob: "human-ai-collab-*/**"
+    file-glob: "memory/campaigns/human-ai-collab-*/**"
 
 ---
 
