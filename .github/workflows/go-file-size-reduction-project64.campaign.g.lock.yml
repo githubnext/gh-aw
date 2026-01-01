@@ -19,24 +19,26 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Automatically executes pending spec-kit tasks on a schedule
+# Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions.
 
-name: "Spec Kit Executor"
+name: "Go File Size Reduction Campaign (Project 64)"
 "on":
   schedule:
-  - cron: "25 9 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 18 * * *"
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
+  security-events: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: false
+  group: campaign-go-file-size-reduction-project64-orchestrator-${{ github.ref }}
 
-run-name: "Spec Kit Executor"
+run-name: "Go File Size Reduction Campaign (Project 64)"
 
 jobs:
   activation:
@@ -60,7 +62,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "spec-kit-executor.lock.yml"
+          GH_AW_WORKFLOW_FILE: "go-file-size-reduction-project64.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -72,9 +74,11 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
+      security-events: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -104,24 +108,13 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: bash /tmp/gh-aw/actions/create_cache_memory_dir.sh
-      - name: Restore cache memory file share data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
       # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
+      - name: Clone repo-memory branch (campaigns)
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/default
+          BRANCH_NAME: memory/campaigns
           TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
           CREATE_ORPHAN: true
         run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
@@ -185,42 +178,31 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_pull_request":{},"missing_tool":{"max":0},"noop":{"max":1}}
+          {"add_comment":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Reviewers [copilot] will be assigned.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Detailed PR description in Markdown. Include what changes were made, why, testing notes, and any breaking changes. Do NOT repeat the title as a heading.",
+                    "description": "Comment content in Markdown. Provide helpful, relevant information that adds value to the conversation.",
                     "type": "string"
                   },
-                  "branch": {
-                    "description": "Source branch name containing the changes. If omitted, uses the current working branch.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the PR (e.g., 'enhancement', 'bugfix'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "title": {
-                    "description": "Concise PR title describing the changes. Follow repository conventions (e.g., conventional commits). The title appears as the main heading.",
-                    "type": "string"
+                  "item_number": {
+                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). Must be a valid existing item in the repository. Required.",
+                    "type": "number"
                   }
                 },
                 "required": [
-                  "title",
-                  "body"
+                  "body",
+                  "item_number"
                 ],
                 "type": "object"
               },
-              "name": "create_pull_request"
+              "name": "add_comment"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -264,12 +246,64 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campaign_id": {
+                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
+                    "type": "string"
+                  },
+                  "content_number": {
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
+                    "type": "number"
+                  },
+                  "content_type": {
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "enum": [
+                      "issue",
+                      "pull_request",
+                      "draft_issue"
+                    ],
+                    "type": "string"
+                  },
+                  "create_if_missing": {
+                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
+                    "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
+                    "type": "object"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project",
+                  "content_type"
+                ],
+                "type": "object"
+              },
+              "name": "update_project"
             }
           ]
           EOF
           cat > /tmp/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_pull_request": {
+            "add_comment": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -278,23 +312,8 @@ jobs:
                   "sanitize": true,
                   "maxLength": 65000
                 },
-                "branch": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 256
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
+                "item_number": {
+                  "issueOrPRNumber": true
                 }
               }
             },
@@ -330,6 +349,43 @@ jobs:
                   "maxLength": 65000
                 }
               }
+            },
+            "update_project": {
+              "defaultMax": 10,
+              "fields": {
+                "campaign_id": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
+                }
+              }
             }
           }
           EOF
@@ -357,7 +413,7 @@ jobs:
                   "-e",
                   "GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,code_security",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
@@ -408,7 +464,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.373",
-              workflow_name: "Spec Kit Executor",
+              workflow_name: "Go File Size Reduction Campaign (Project 64)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -422,7 +478,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults","github"],
+              allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.7.0",
               steps: {
@@ -452,217 +508,378 @@ jobs:
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          # Spec Kit Executor
           
-          You are an AI agent that executes pending spec-kit implementation tasks. You check for feature specifications with pending tasks and implement them according to the spec-driven development methodology.
           
-          ## Your Mission
           
-          1. Scan for feature specifications in the `specs/` directory
-          2. Identify features with pending tasks in their `tasks.md` file
-          3. Execute the implementation plan following the `/speckit.implement` workflow
-          4. Create pull requests with the completed implementations
+          # Campaign Orchestrator
           
-          ## Task Steps
+          This workflow orchestrates the 'Go File Size Reduction Campaign (Project 64)' campaign.
           
-          ### 1. Load Constitution and Context
+          - Tracker label: `campaign:go-file-size-reduction-project64`
+          - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+          - KPIs:
+            - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
+            - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days percent
+          - Associated workflows: daily-file-diet
+          - Memory paths: memory/campaigns/go-file-size-reduction-project64/**
+          - Metrics glob: `memory/campaigns/go-file-size-reduction-project64/metrics/*.json`
+          - Cursor glob: `memory/campaigns/go-file-size-reduction-project64/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/64
+          - Governance: max new items per run: 5
+          - Governance: max discovery items per run: 50
+          - Governance: max discovery pages per run: 5
+          - Governance: max project updates per run: 10
+          - Governance: max comments per run: 10
           
-          First, read the project constitution to understand the development principles:
+          ## Campaign Orchestrator Rules
           
-          ```bash
-          cat .specify/memory/constitution.md
+          This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with the campaign's tracker label.
+          
+          ### Traffic and rate limits (required)
+          
+          - Minimize API calls: avoid full rescans when possible and avoid repeated reads of the same data in a single run.
+          - Prefer incremental processing: use deterministic ordering (e.g., by updated time) and process a bounded slice each run.
+          - Use strict pagination budgets: if a query would require many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint: persist the last processed boundary (e.g., updatedAt cutoff + last seen ID) so the next run can continue without rescanning.
+          - On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
+          
+          
+          **Cursor file (repo-memory)**: `memory/campaigns/go-file-size-reduction-project64/cursor.json`
+          
+          You must treat this file as the source of truth for incremental discovery:
+          - If it exists, read it first and continue from that boundary.
+          - If it does not exist yet, create it by the end of the run.
+          - Always write the updated cursor back to the same path.
+          
+          
+          
+          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/go-file-size-reduction-project64/metrics/*.json`
+          
+          You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
+          
+          **Required JSON schema** for each metrics file:
+          ```json
+          {
+            "campaign_id": "go-file-size-reduction-project64",
+            "date": "YYYY-MM-DD",
+            "tasks_total": 0,
+            "tasks_completed": 0,
+            "tasks_in_progress": 0,
+            "tasks_blocked": 0,
+            "velocity_per_day": 0.0,
+            "estimated_completion": "YYYY-MM-DD",
+            "kpi_trends": [
+              {"name": "KPI Name", "trend": "Improving|Flat|Regressing", "value": 0.0}
+            ]
+          }
           ```
           
-          This constitution defines how all development should be conducted in this repository.
+          **Required fields** (must be present):
+          - `campaign_id` (string): Must be exactly "go-file-size-reduction-project64"
+          - `date` (string): ISO date in YYYY-MM-DD format (use UTC)
+          - `tasks_total` (integer): Total number of campaign tasks (≥0)
+          - `tasks_completed` (integer): Number of completed tasks (≥0)
           
-          ### 2. Scan for Feature Specifications
+          **Optional fields** (omit or set to null if not applicable):
+          - `tasks_in_progress` (integer): Tasks currently being worked on (≥0)
+          - `tasks_blocked` (integer): Tasks that are blocked (≥0)
+          - `velocity_per_day` (number): Average tasks completed per day (≥0)
+          - `estimated_completion` (string): Estimated completion date in YYYY-MM-DD format
+          - `kpi_trends` (array): KPI trend information with name, trend status, and current value
           
-          Check for feature specifications in the specs directory:
+          Guidance:
+          - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
+          - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
+          - If a KPI is present, record its computed value and trend (Improving/Flat/Regressing) in the kpi_trends array.
+          - Count tasks from all sources: tracker-labeled issues, worker-created issues, and project board items.
+          - Set tasks_total to the total number of unique tasks discovered in this run.
+          - Set tasks_completed to the count of tasks with state "Done" or closed status.
           
-          ```bash
-          find specs -type f -name 'plan.md' -o -name 'tasks.md'
+          
+          **Read budget**: max discovery items per run: 50
+          
+          
+          **Read budget**: max discovery pages per run: 5
+          
+          
+          ### Core Principles
+          
+          1. **Workers are immutable** - Worker workflows never change based on campaign state
+          2. **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
+          3. **Campaign logic is external** - All orchestration, sequencing, and decision-making happens here
+          4. **Workers only execute work** - No progress tracking or campaign-aware decisions in workers
+          5. **Campaign owns all coordination** - Sequencing, retries, continuation, and termination are campaign responsibilities
+          6. **State is external** - Campaign state lives in GitHub Projects, not in worker execution
+          7. **Single source of truth** - The GitHub Project board is the authoritative campaign state
+          8. **Correlation is explicit** - All work shares the campaign's tracker-id for correlation
+          9. **Separation of concerns** - State reads and state writes are separate operations
+          10. **Predefined fields only** - Only update explicitly defined project board fields
+          11. **Explicit outcomes** - Record actual outcomes, never infer status
+          12. **Idempotent operations** - Re-execution produces the same result without corruption
+          13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
+          
+          ### Objective and KPIs (first-class)
+          
+          
+          **Objective**: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
+          
+          
+          
+          **KPIs** (max 3):
+          
+          - Files reduced to target size (primary): baseline 0 → target 100 over 90 days (unit: percent) (direction: increase) (source: custom)
+          
+          - Test coverage maintained (supporting): baseline 80 → target 80 over 7 days (unit: percent) (direction: increase) (source: ci)
+          
+          
+          
+          If objective/KPIs are present, you must:
+          - Compute a per-run KPI snapshot (as-of now) using GitHub signals.
+          - Determine trend status for each KPI: Improving / Flat / Regressing (use the KPI direction when present).
+          - Tie all decisions to the primary KPI first.
+          
+          ### Default signals (built-in)
+          
+          Collect these signals every run (bounded by the read budgets above):
+          - **CI health**: recent check/workflow outcomes relevant to the repo(s) in scope.
+          - **PR cycle time**: recent PR open→merge latency and backlog size.
+          - **Security alerts**: open code scanning / Dependabot / secret scanning items (as available).
+          
+          If a signal cannot be retrieved (permissions/tooling), explicitly report it as unavailable and proceed with the remaining signals.
+          
+          ### Orchestration Workflow
+          
+          Execute these steps in sequence each time this orchestrator runs:
+          
+          #### Phase 1: Read State (Discovery)
+          
+          1. **Query tracker-labeled items** - Search for issues and PRs matching the campaign's tracker label
+             - Search: `repo:OWNER/REPO label:TRACKER_LABEL` for all open and closed items
+             - If governance opt-out labels are configured, exclude items with those labels
+             - Collect all matching issue/PR URLs
+             - Record metadata: number, title, state (open/closed), created date, updated date
+          
+          2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
+             - Worker workflows: daily-file-diet
+             - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
+             - Collect all matching issue URLs
+             - Record issue metadata: number, title, state (open/closed), created date, updated date
+          
+          3. **Query current project state** - Read the GitHub Project board
+             - Retrieve all items currently on the project board
+             - For each item, record: issue URL, status field value, other predefined field values
+             - Create a snapshot of current board state
+          
+          4. **Compare and identify gaps** - Determine what needs updating
+             - Items from step 1 or 2 not on board = **new work to add**
+             - Items on board with state mismatch = **status to update**
+             - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate**
+             - Items on board but no longer found = **check if archived/deleted**
+          
+          #### Phase 2: Make Decisions (Planning)
+          
+          4.5 **Deterministic planner step (required when objective/KPIs are present)**
+          
+          Before choosing additions/updates, produce a small, bounded plan that is rule-based and reproducible from the discovered state:
+          - Output at most **3** planned actions.
+          - Prefer actions that are directly connected to improving the **primary** KPI.
+          - If signals indicate risk or uncertainty, prefer smaller, reversible actions.
+          
+          Plan format (keep under 2KB):
+          ```json
+          {
+             "objective": "...",
+             "primary_kpi": "...",
+             "kpi_trends": [{"name": "...", "trend": "Improving|Flat|Regressing"}],
+             "actions": [
+                {"type": "add_to_project|update_status|comment", "why": "...", "target_url": "..."}
+             ]
+          }
           ```
           
-          List all features and their status:
+          5. **Decide additions (with pacing)** - For each new item discovered:
+             - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)
+             - If `governance.max-new-items-per-run` is set, add at most that many new items
+             - Prefer adding oldest (or least recently updated) missing items first
+             - Determine initial status field value based on item state:
+               - Open issue/PR → "Todo" status
+               - Closed issue/PR → "Done" status
           
-          ```bash
-          find specs/ -maxdepth 1 -ls
+          6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
+             - Decision: Update status field? (Default: yes if item state changed)
+             - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
+             - Determine new status field value:
+               - Open issue/PR → "In Progress" or "Todo"
+               - Closed issue/PR → "Done"
+          
+          6.5 **Decide field updates** - For each existing board item, check for missing custom fields:
+             - If item is missing `worker_workflow` field:
+               - Search issue body for tracker-id (e.g., ``)
+               - If tracker-id matches a worker in `workflows`, populate `worker_workflow` field with that worker ID
+             - Only update fields that exist on the project board
+             - Skip items that already have all required fields populated
+          
+          7. **Decide completion** - Check campaign completion criteria:
+             - If all discovered issues are closed AND all board items are "Done" → Campaign complete
+             - Otherwise → Campaign in progress
+          
+          #### Phase 3: Write State (Execution)
+          
+          8. **Execute additions** - Add new items to project board
+             - Use `update-project` safe-output for each new item
+             - Set predefined fields: `status` (required), optionally `priority`, `size`
+             - If worker tracker-id is found in issue body, populate `worker_workflow` field
+             - Record outcome: success or failure with error details
+          
+          9. **Execute status updates** - Update existing board items with status changes
+             - Use `update-project` safe-output for each status change
+             - Update only predefined fields: `status` and related metadata
+             - Record outcome: success or failure with error details
+          
+          9.5 **Execute field updates** - Update existing board items with missing custom fields
+             - Use `update-project` safe-output for each item with missing fields
+             - Populate missing fields identified in step 6.5 (e.g., `worker_workflow`)
+             - Record outcome: success or failure with error details
+          
+          10. **Record completion state** - If campaign is complete:
+              - Mark project metadata field `campaign_status` as "completed"
+              - Do NOT create new work or modify existing items
+              - This is a terminal state
+          
+          #### Phase 4: Report (Output)
+          
+          11. **Generate status report** - Summarize execution results:
+              - Total items discovered via tracker label and worker tracker-ids
+              - Items added to board this run (count and URLs)
+              - Items updated on board this run (count and status changes)
+              - Items with fields populated this run (count and which fields, e.g., worker_workflow)
+              - Items skipped due to governance limits (and why)
+              - Current campaign metrics: open vs closed, progress percentage
+              - Any failures encountered during writes
+              - Campaign completion status
+          
+          ### Predefined Project Fields
+          
+          Only these fields may be updated on the project board:
+          
+          - `status` (required) - Values: "Todo", "In Progress", "Done"
+          - `priority` (optional) - Values: "High", "Medium", "Low"
+          - `size` (optional) - Values: "Small", "Medium", "Large"
+          - `campaign_status` (metadata) - Values: "active", "completed"
+          
+          Do NOT update any other fields or create custom fields.
+          
+          ### Correlation Mechanism
+          
+          Workers embed a tracker-id in all created assets via XML comment:
+          ```
+          <!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->
           ```
           
-          ### 3. Identify Pending Work
+          The orchestrator uses this tracker-id to discover worker output by searching issue bodies. This correlation is explicit and does not require workers to be aware of the campaign.
           
-          For each feature found in the `specs/` directory:
+          ### Idempotency Guarantee
           
-          1. Check if a `tasks.md` file exists
-          2. If it exists, analyze the task status:
-             - Count total tasks (lines with `- [ ]` or `- [x]`)
-             - Count completed tasks (lines with `- [x]` or `- [X]`)
-             - Count pending tasks (lines with `- [ ]`)
+          All operations must be idempotent:
+          - Adding an issue already on the board → No-op (do not duplicate)
+          - Updating a status that matches current value → No-op (no change recorded)
+          - Marking a completed campaign as completed → No-op (terminal state preserved)
           
-          3. Create a summary table:
+          Re-running the orchestrator produces consistent results regardless of how many times it executes.
           
-          ```text
-          | Feature | Total Tasks | Completed | Pending | Status |
-          |---------|-------------|-----------|---------|--------|
-          | 001-feature-name | 12 | 8 | 4 | 🔨 IN PROGRESS |
-          | 002-other-feature | 10 | 10 | 0 | ✅ COMPLETE |
-          | 003-new-feature | 15 | 0 | 15 | 📋 NOT STARTED |
+          ### Project Board Integration
+          
+          Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
+          
+          **Project URL**: https://github.com/orgs/githubnext/projects/64
+          
+          **Campaign ID**: Extract from tracker label `campaign:go-file-size-reduction-project64` (format: `campaign:CAMPAIGN_ID`)
+          
+          
+          #### Adding New Issues
+          
+          When adding an issue to the project board:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/64"
+            item_url: "ISSUE_URL"
+            status: "Todo"  # or "Done" if issue is already closed
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
           ```
           
-          ### 4. Select Feature to Implement
+          **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
+          - `Start Date` is set from the issue's `createdAt` timestamp
+          - `End Date` is set from the issue's `closedAt` timestamp (if closed)
           
-          Choose the feature to work on based on priority:
+          No additional configuration is needed. The dates are extracted in ISO format (YYYY-MM-DD) and only populate if the fields exist and aren't already set. This enables roadmap timeline visualization.
           
-          1. **First Priority**: Features that are "IN PROGRESS" (partially completed tasks)
-          2. **Second Priority**: Features that are "NOT STARTED" (no completed tasks)
-          3. **Skip**: Features that are "COMPLETE" (all tasks done)
+          **Recommended Custom Fields**: To enable advanced project board features (swimlanes, "Slice by" filtering), populate these fields when available:
           
-          If multiple features match the same priority, choose the one with the lowest feature number (e.g., 001 before 002).
-          
-          ### 5. Load Implementation Context
-          
-          For the selected feature, load all relevant documentation:
-          
-          ```bash
-          # Check prerequisites and get feature paths
-          bash .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/64"
+            item_url: "ISSUE_URL"
+            fields:
+              status: "Todo"  # or "In Progress", "Blocked", "Done"
+              campaign_id: "CAMPAIGN_ID"  # Extract from tracker label campaign:go-file-size-reduction-project64
+              worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+              priority: "High"  # or "Medium", "Low" - enables priority-based views
+              effort: "Medium"  # or "Small", "Large" - enables capacity planning
+              team: "TEAM_NAME"  # Optional: for team-based grouping
+              repository: "REPO_NAME"  # Optional: for cross-repository campaigns
           ```
           
-          Then read the implementation context:
+          **Custom Field Benefits**:
+          - `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+          - `priority`: Enables priority-based filtering and sorting
+          - `effort`: Supports capacity planning and workload distribution
+          - `team`: Enables team-based grouping for multi-team campaigns
+          - `repository`: Enables repository-based grouping for cross-repository campaigns
           
-          ```bash
-          # Read the specification
-          cat specs/[FEATURE-NUMBER]-[FEATURE-NAME]/spec.md
+          **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
           
-          # Read the implementation plan
-          cat specs/[FEATURE-NUMBER]-[FEATURE-NAME]/plan.md
+          Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
           
-          # Read the tasks
-          cat specs/[FEATURE-NUMBER]-[FEATURE-NAME]/tasks.md
+          #### Updating Existing Items
           
-          # Read additional context if available
-          cat specs/[FEATURE-NUMBER]-[FEATURE-NAME]/data-model.md 2>/dev/null || true
-          cat specs/[FEATURE-NUMBER]-[FEATURE-NAME]/research.md 2>/dev/null || true
+          When updating status for an existing board item:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/64"
+            item_url: "ISSUE_URL"
+            status: "Done"  # or "In Progress", "Todo"
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
           ```
           
-          ### 6. Execute Implementation
+          #### Idempotency
           
-          Follow the implementation workflow from `.specify/commands/implement.md`:
+          - If an issue is already on the board with matching status → Skip (no-op)
+          - If an issue is already on the board with different status → Update status field only
+          - If an issue URL is invalid or deleted → Record failure, continue with remaining items
           
-          1. **Verify Project Setup**: Check for proper ignore files (.gitignore, etc.)
-          2. **Parse Task Structure**: Extract task phases, dependencies, and execution order
-          3. **Execute Tasks Phase-by-Phase**:
-             - Setup Phase: Initialize structure, dependencies, configuration
-             - Tests Phase: Write tests before implementation (TDD)
-             - Core Phase: Implement models, services, commands
-             - Integration Phase: Connect components, add logging
-             - Polish Phase: Optimization, documentation
+          #### Write Operation Rules
           
-          4. **Follow TDD Approach**: Write tests before code for each feature
-          5. **Respect Dependencies**: Execute sequential tasks in order, parallel tasks can run together
-          6. **Mark Completed Tasks**: Update `tasks.md` to mark completed tasks as `[x]`
+          1. **Batch writes separately** - Do not mix reads and writes in the same operation
+          2. **Validate before writing** - Confirm issue URL exists and is accessible
+          3. **Record all outcomes** - Log success/failure for each write operation
+          4. **Never infer state** - Only update based on explicit issue state (open/closed)
+          5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
           
-          ### 7. Validation and Testing
+          ### Summary
           
-          After implementing each phase:
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          Execute all four phases in order:
+          1. **Read State** - Discover worker issues and query project board
+          2. **Make Decisions** - Determine what to add, update, or mark complete
+          3. **Write State** - Execute additions and updates via update-project
+          4. **Report** - Generate status report with execution outcomes
           
-          ```bash
-          # Format the code
-          make fmt
-          
-          # Lint the code
-          make lint
-          
-          # Build the project
-          make build
-          
-          # Run tests
-          make test
-          ```
-          
-          If any step fails, fix the issues before proceeding to the next phase.
-          
-          ### 8. Create Pull Request
-          
-          Once implementation is complete or a significant milestone is reached:
-          
-          1. **Prepare Summary**: List all completed tasks and changes made
-          2. **Use safe-outputs**: Create a PR with the changes
-          3. **PR Description Format**:
-          
-          ```markdown
-          ## Spec-Kit Implementation - [Feature Name]
-          
-          This PR implements tasks from feature `[FEATURE-NUMBER]-[FEATURE-NAME]` following the spec-driven development methodology.
-          
-          ### Completed Tasks
-          
-          - [x] Task 1: Description
-          - [x] Task 2: Description
-          - [x] Task 3: Description
-          
-          ### Changes Made
-          
-          - Created/modified files: `path/to/file.go`, `path/to/test.go`
-          - Updated documentation: `docs/path/to/doc.md`
-          - Added tests: `pkg/path/to/test.go`
-          
-          ### Testing
-          
-          All tests pass:
-          - Unit tests: ✅
-          - Integration tests: ✅
-          - Linting: ✅
-          - Build: ✅
-          
-          ### Next Steps
-          
-          [List any remaining tasks or follow-up work needed]
-          ```
-          
-          ### 9. Handle Edge Cases
-          
-          - **No Pending Work**: If no features have pending tasks, exit gracefully without creating a PR
-          - **Build Failures**: If tests fail, include the errors in the PR description and mark as draft
-          - **Complex Tasks**: If a task requires human decision-making, document it in the PR and mark as draft
-          - **Multiple Features**: Only work on one feature per run; the workflow will run again the next day
-          
-          ## Guidelines
-          
-          - **Follow Constitution**: Strictly adhere to the project's constitution principles
-          - **Minimal Changes**: Make the smallest possible changes to achieve the task goals
-          - **Test-Driven**: Always write tests before implementation
-          - **Incremental Progress**: Complete tasks one phase at a time
-          - **Clear Documentation**: Document all changes and decisions
-          - **Use Proper Tools**: Use make commands for building, testing, and formatting
-          - **Console Formatting**: Use the console package for all CLI output
-          - **Security First**: Validate changes don't introduce vulnerabilities
-          
-          ## Important Notes
-          
-          - You have access to the edit tool to modify files
-          - You have access to GitHub tools to search and review code
-          - You have access to bash commands to run builds and tests
-          - The safe-outputs create-pull-request will automatically create a PR
-          - Always read the constitution before making changes
-          - Focus on one feature at a time for clean, focused PRs
-          - Mark tasks as complete in tasks.md as you finish them
-          
-          ## Spec-Kit Commands Reference
-          
-          The following commands from spec-kit are embedded in `.specify/commands/`:
-          
-          - `/speckit.constitution` - Create/update project principles
-          - `/speckit.specify` - Define requirements and user stories
-          - `/speckit.plan` - Create technical implementation plans
-          - `/speckit.tasks` - Generate actionable task lists
-          - `/speckit.implement` - Execute tasks (this workflow implements this)
-          - `/speckit.analyze` - Cross-artifact consistency analysis
-          - `/speckit.clarify` - Clarify underspecified areas
-          
-          This workflow automates the `/speckit.implement` command to execute pending work on a schedule.
-          
-          Good luck! Your implementations help move the project forward while maintaining high quality standards.
+          Remember: Workers are immutable and campaign-agnostic. All coordination, sequencing, and state management happens in this orchestrator. The GitHub Project board is the single source of truth for campaign state.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -680,31 +897,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat "/tmp/gh-aw/prompts/edit_tool_prompt.md" >> "$GH_AW_PROMPT"
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -713,26 +905,24 @@ jobs:
           
           ---
           
-          ## Repo Memory Available
+          ## Repo Memory Locations Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch.
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
           
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/default` branch of the current repository
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
           - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
           - **Merge Strategy**: In case of conflicts, your changes (current version) win
           - **Persistence**: Files persist across workflow runs via git branch storage
           
-          **Constraints:**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
           
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -747,7 +937,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_pull_request, missing_tool, noop
+          **Available tools**: add_comment, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -856,47 +1046,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        # --allow-tool shell(bash .specify/scripts/bash/check-prerequisites.sh)
-        # --allow-tool shell(bash .specify/scripts/bash/create-new-feature.sh)
-        # --allow-tool shell(cat .specify/memory/constitution.md)
-        # --allow-tool shell(cat specs/*/plan.md)
-        # --allow-tool shell(cat specs/*/tasks.md)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find .specify/ -maxdepth 1 -ls)
-        # --allow-tool shell(find specs -type f -name '*.md')
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git diff)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(make build)
-        # --allow-tool shell(make fmt)
-        # --allow-tool shell(make lint)
-        # --allow-tool shell(make test)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
-        timeout-minutes: 60
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains '*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(bash .specify/scripts/bash/check-prerequisites.sh)' --allow-tool 'shell(bash .specify/scripts/bash/create-new-feature.sh)' --allow-tool 'shell(cat .specify/memory/constitution.md)' --allow-tool 'shell(cat specs/*/plan.md)' --allow-tool 'shell(cat specs/*/tasks.md)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find .specify/ -maxdepth 1 -ls)' --allow-tool 'shell(find specs -type f -name '\''*.md'\'')' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git diff)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make build)' --allow-tool 'shell(make fmt)' --allow-tool 'shell(make lint)' --allow-tool 'shell(make test)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -938,7 +1092,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,github.githubassets.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -985,7 +1139,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-spec-kit-executor
+          name: firewall-logs-go-file-size-reduction-campaign-project-64-
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -1005,20 +1159,14 @@ jobs:
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
+      - name: Upload repo-memory artifact (campaigns)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
           retention-days: 1
           if-no-files-found: ignore
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: always()
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1031,13 +1179,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/validate_errors.cjs');
             await main();
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
   conclusion:
     needs:
@@ -1046,7 +1187,6 @@ jobs:
       - detection
       - push_repo_memory
       - safe_outputs
-      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1097,8 +1237,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Spec Kit Executor"
-          GH_AW_TRACKER_ID: "spec-kit-executor"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1111,8 +1250,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Spec Kit Executor"
-          GH_AW_TRACKER_ID: "spec-kit-executor"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1128,8 +1266,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Spec Kit Executor"
-          GH_AW_TRACKER_ID: "spec-kit-executor"
+          GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1188,8 +1325,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Spec Kit Executor"
-          WORKFLOW_DESCRIPTION: "Automatically executes pending spec-kit tasks on a schedule"
+          WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
+          WORKFLOW_DESCRIPTION: "Systematically reduce oversized Go files to improve maintainability. Success: all files ≤800 LOC, maintain coverage, no regressions."
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1370,24 +1507,26 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
+      - name: Download repo-memory artifact (campaigns)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/default
+          BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "go-file-size-reduction-project64/**"
+          GH_AW_CAMPAIGN_ID: go-file-size-reduction-project64
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1397,24 +1536,23 @@ jobs:
 
   safe_outputs:
     needs:
-      - activation
       - agent
       - detection
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: write
+      contents: read
+      discussions: write
       issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_TRACKER_ID: "spec-kit-executor"
-      GH_AW_WORKFLOW_ID: "spec-kit-executor"
-      GH_AW_WORKFLOW_NAME: "Spec Kit Executor"
+      GH_AW_WORKFLOW_ID: "go-file-size-reduction-project64.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Go File Size Reduction Campaign (Project 64)"
     outputs:
-      create_pull_request_pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      create_pull_request_pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+      process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
+      process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1437,78 +1575,30 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          token: ${{ github.token }}
-          persist-credentials: false
-          fetch-depth: 1
-      - name: Configure Git credentials
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Create Pull Request
-        id: create_pull_request
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+      - name: Process Safe Outputs
+        id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_DRAFT: "true"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_PR_ALLOW_EMPTY: "false"
-          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/create_pull_request.cjs');
+            const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Update Project
+        id: update_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /tmp/gh-aw/actions
-      - name: Download cache-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
-      - name: Save cache-memory to cache (default)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/update_project.cjs');
+            await main();
 
