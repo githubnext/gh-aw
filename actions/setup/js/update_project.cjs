@@ -251,6 +251,35 @@ function generateCampaignId(projectUrl, projectNumber) {
   return `${base}-${timestamp}`;
 }
 /**
+ * Convert ISO 8601 timestamp to YYYY-MM-DD date format
+ * @param {string | null | undefined} timestamp - ISO 8601 timestamp
+ * @returns {string | null} Date in YYYY-MM-DD format or null
+ */
+function extractDateFromTimestamp(timestamp) {
+  if (!timestamp || typeof timestamp !== "string") {
+    return null;
+  }
+  // Extract YYYY-MM-DD from ISO 8601 timestamp (e.g., "2025-12-15T10:30:00Z" -> "2025-12-15")
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+/**
+ * Extract workflow name from issue/PR body by parsing the XML comment marker
+ * @param {string | null | undefined} body - Issue or PR body content
+ * @returns {string | null} Workflow name or null if not found
+ */
+function extractWorkerWorkflowFromBody(body) {
+  if (!body || typeof body !== "string") {
+    return null;
+  }
+  // Look for XML comment marker: <!-- agentic-workflow: WorkflowName, ... -->
+  const match = body.match(/<!--\s*agentic-workflow:\s*([^,]+?)(?:,|-->)/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+/**
  * Update a GitHub Project v2
  * @param {any} output - Safe output configuration
  * @returns {Promise<void>}
@@ -456,13 +485,14 @@ async function updateProject(output) {
       const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
         contentQuery =
           "Issue" === contentType
-            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }"
-            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }",
+            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n                createdAt\n                closedAt\n                body\n              }\n            }\n          }"
+            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n                createdAt\n                closedAt\n                body\n              }\n            }\n          }",
         contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
         contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
         contentId = contentData.id,
         createdAt = contentData.createdAt,
         closedAt = contentData.closedAt,
+        body = contentData.body,
         existingItem = await (async function (projectId, contentId) {
           let hasNextPage = !0,
             endCursor = null;
@@ -569,6 +599,233 @@ async function updateProject(output) {
           );
         }
       }
+
+      // Auto-populate Start Date and End Date fields from issue/PR timestamps
+      // This enables roadmap timeline visualization for campaign project boards
+      // Only auto-populate for campaign operations (when campaign_id is provided)
+      if (campaignId) {
+        core.info("[4/4] Auto-populating Start Date and End Date fields if present...");
+
+        const startDate = extractDateFromTimestamp(createdAt);
+        const endDate = extractDateFromTimestamp(closedAt);
+
+        // Check if user explicitly provided Start Date or End Date fields
+        const userProvidedFields = output.fields
+          ? Object.keys(output.fields).map(k =>
+              k
+                .split(/[\s_-]+/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(" ")
+            )
+          : [];
+        const userProvidedStartDate = userProvidedFields.includes("Start Date");
+        const userProvidedEndDate = userProvidedFields.includes("End Date");
+
+        if (startDate || endDate) {
+          // Fetch project fields to check if Start Date and End Date exist
+          const projectFields = (
+            await github.graphql(
+              `query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2Field {
+                          id
+                          name
+                          dataType
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+              { projectId }
+            )
+          ).node.fields.nodes;
+
+          // Auto-populate Start Date field if it exists and wasn't explicitly provided
+          const startDateField = projectFields.find(f => f.name === "Start Date" && f.dataType === "DATE");
+          if (startDateField && startDate && !userProvidedStartDate) {
+            try {
+              core.info(`✓ Auto-populating Start Date: ${startDate}`);
+              await github.graphql(
+                `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: $value
+                  }) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }`,
+                { projectId, itemId, fieldId: startDateField.id, value: { date: startDate } }
+              );
+            } catch (dateError) {
+              core.warning(`Failed to auto-populate Start Date: ${getErrorMessage(dateError)}`);
+            }
+          } else if (userProvidedStartDate) {
+            core.info("ℹ Start Date was explicitly provided, skipping auto-population");
+          }
+
+          // Auto-populate End Date field if it exists, issue/PR is closed, and wasn't explicitly provided
+          const endDateField = projectFields.find(f => f.name === "End Date" && f.dataType === "DATE");
+          if (endDateField && endDate && !userProvidedEndDate) {
+            try {
+              core.info(`✓ Auto-populating End Date: ${endDate}`);
+              await github.graphql(
+                `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: $value
+                  }) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }`,
+                { projectId, itemId, fieldId: endDateField.id, value: { date: endDate } }
+              );
+            } catch (dateError) {
+              core.warning(`Failed to auto-populate End Date: ${getErrorMessage(dateError)}`);
+            }
+          } else if (userProvidedEndDate) {
+            core.info("ℹ End Date was explicitly provided, skipping auto-population");
+          }
+
+          if (!startDateField && !endDateField) {
+            core.info("ℹ No Start Date or End Date fields found on project board");
+          }
+        } else {
+          core.info("ℹ No date timestamps available to auto-populate");
+        }
+
+        // Auto-populate Worker Workflow field from issue/PR body
+        // This enables discovering which worker created the item for campaign tracking
+        const workerWorkflow = extractWorkerWorkflowFromBody(body);
+        const userProvidedWorkerWorkflow = userProvidedFields.includes("Worker Workflow");
+
+        if (workerWorkflow && !userProvidedWorkerWorkflow) {
+          core.info(`[5/5] Auto-populating Worker Workflow field if present...`);
+
+          // Fetch project fields to check if Worker Workflow exists
+          const projectFields = (
+            await github.graphql(
+              `query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2Field {
+                          id
+                          name
+                          dataType
+                        }
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          dataType
+                          options {
+                            id
+                            name
+                            color
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`,
+              { projectId }
+            )
+          ).node.fields.nodes;
+
+          const workerWorkflowField = projectFields.find(f => f.name === "Worker Workflow");
+
+          if (workerWorkflowField) {
+            try {
+              core.info(`✓ Auto-populating Worker Workflow: ${workerWorkflow}`);
+
+              let valueToSet;
+              if (workerWorkflowField.dataType === "DATE") {
+                valueToSet = { date: String(workerWorkflow) };
+              } else if (workerWorkflowField.options) {
+                // Single select field - find or create option
+                let option = workerWorkflowField.options.find(o => o.name === workerWorkflow);
+                if (!option) {
+                  // Create new option
+                  try {
+                    const allOptions = [...workerWorkflowField.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(workerWorkflow), description: "", color: "GRAY" }];
+                    const updatedField = (
+                      await github.graphql(
+                        `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                          updateProjectV2Field(input: {
+                            fieldId: $fieldId,
+                            name: $fieldName,
+                            singleSelectOptions: $options
+                          }) {
+                            projectV2Field {
+                              ... on ProjectV2SingleSelectField {
+                                id
+                                options {
+                                  id
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        }`,
+                        { fieldId: workerWorkflowField.id, fieldName: workerWorkflowField.name, options: allOptions }
+                      )
+                    ).updateProjectV2Field.projectV2Field;
+                    option = updatedField.options.find(o => o.name === workerWorkflow);
+                  } catch (createError) {
+                    core.warning(`Failed to create option "${workerWorkflow}": ${getErrorMessage(createError)}`);
+                  }
+                }
+                if (option) {
+                  valueToSet = { singleSelectOptionId: option.id };
+                }
+              } else {
+                // Text field
+                valueToSet = { text: String(workerWorkflow) };
+              }
+
+              if (valueToSet) {
+                await github.graphql(
+                  `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                    updateProjectV2ItemFieldValue(input: {
+                      projectId: $projectId,
+                      itemId: $itemId,
+                      fieldId: $fieldId,
+                      value: $value
+                    }) {
+                      projectV2Item {
+                        id
+                      }
+                    }
+                  }`,
+                  { projectId, itemId, fieldId: workerWorkflowField.id, value: valueToSet }
+                );
+              }
+            } catch (workerWorkflowError) {
+              core.warning(`Failed to auto-populate Worker Workflow: ${getErrorMessage(workerWorkflowError)}`);
+            }
+          } else {
+            core.info("ℹ No Worker Workflow field found on project board");
+          }
+        } else if (userProvidedWorkerWorkflow) {
+          core.info("ℹ Worker Workflow was explicitly provided, skipping auto-population");
+        } else if (!workerWorkflow) {
+          core.info("ℹ No workflow name found in issue/PR body, skipping Worker Workflow auto-population");
+        }
+      }
+
       core.setOutput("item-id", itemId);
     }
   } catch (error) {
@@ -608,4 +865,4 @@ async function main() {
   }
 }
 
-module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
+module.exports = { updateProject, parseProjectInput, generateCampaignId, extractDateFromTimestamp, extractWorkerWorkflowFromBody, main };
