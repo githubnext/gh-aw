@@ -49,7 +49,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
+        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c
         with:
           destination: /tmp/gh-aw/actions
       - name: Check workflow file timestamps
@@ -86,7 +86,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
+        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c
         with:
           destination: /tmp/gh-aw/actions
       - name: Checkout repository
@@ -728,7 +728,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
+        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c
         with:
           destination: /tmp/gh-aw/actions
       - name: Debug job inputs
@@ -815,7 +815,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
+        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c
         with:
           destination: /tmp/gh-aw/actions
       - name: Download prompt artifact
@@ -998,7 +998,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@523f6cfa6283c35c866e1cb55b567f7b6cdb8ee1
+        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c
         with:
           destination: /tmp/gh-aw/actions
       - name: Download agent output artifact
