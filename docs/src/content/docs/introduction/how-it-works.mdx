@@ -7,6 +7,61 @@ sidebar:
 
 GitHub Agentic Workflows enable AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can make decisions) to perform complex, multi-step tasks automatically with your team. Built on [GitHub Actions](https://docs.github.com/en/actions), they use [**GitHub Copilot**](/gh-aw/reference/engines/#github-copilot-cli) (or experimental engines like Claude and Codex) to interpret natural language instructions and enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — systematic, automated application of AI to software collaboration.
 
+## Workflow Lifecycle
+
+The workflow lifecycle transforms natural language instructions into secure, executable automation:
+
+```mermaid
+flowchart LR
+    subgraph Write["① Write"]
+        direction TB
+        MD["📝 workflow.md"]
+        DESC1["<small>Natural language<br/>instructions</small>"]
+        MD ~~~ DESC1
+    end
+    
+    subgraph Compile["② Compile"]
+        direction TB
+        CMD["⚙️ gh aw compile"]
+        DESC2["<small>Validates config<br/>Applies security<br/>Pins actions</small>"]
+        CMD ~~~ DESC2
+    end
+    
+    subgraph Commit["③ Commit"]
+        direction TB
+        LOCK["📄 workflow.lock.yml"]
+        DESC3["<small>GitHub Actions YAML<br/>with hardening</small>"]
+        LOCK ~~~ DESC3
+    end
+    
+    subgraph Execute["④ Execute"]
+        direction TB
+        GHA["🤖 AI Agent"]
+        DESC4["<small>Runs on GitHub<br/>Actions runner</small>"]
+        GHA ~~~ DESC4
+    end
+    
+    subgraph Result["⑤ Result"]
+        direction TB
+        OPS["✅ GitHub Operations"]
+        DESC5["<small>Issues, PRs,<br/>Comments</small>"]
+        OPS ~~~ DESC5
+    end
+    
+    MD --> CMD
+    CMD --> LOCK
+    LOCK --> GHA
+    GHA --> OPS
+    
+    style Write fill:#e8f5e9
+    style Compile fill:#fff3e0
+    style Commit fill:#e3f2fd
+    style Execute fill:#f3e5f5
+    style Result fill:#e8f5e9
+```
+
+This compilation-based approach ensures that every workflow is validated for security before execution, with the `.md` file serving as the human-readable source and `.lock.yml` as the machine-executable output.
+
 ## Workflow Structure
 
 Each workflow contains [frontmatter](/gh-aw/reference/glossary/#frontmatter) (YAML configuration section) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.

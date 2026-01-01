@@ -54,6 +54,40 @@ GitHub Agentic Workflows transforms how you automate your repository. Instead of
 **Security built-in:**  
 Workflows run with read-only permissions by default. Write operations require explicit approval through sanitized safe-outputs, with sandboxed execution, tool allowlisting, and network isolation ensuring AI agents operate safely within controlled boundaries.
 
+## How It Works
+
+GitHub Agentic Workflows follows a simple, secure compilation model:
+
+```mermaid
+flowchart LR
+    subgraph Input["📝 Write"]
+        MD["workflow.md<br/><small>Natural language</small>"]
+    end
+    
+    subgraph Compile["⚙️ Compile"]
+        CMD["gh aw compile<br/><small>Validate & secure</small>"]
+    end
+    
+    subgraph Output["📄 Deploy"]
+        LOCK["workflow.lock.yml<br/><small>GitHub Actions</small>"]
+    end
+    
+    subgraph Execute["🤖 Execute"]
+        AI["AI Agent<br/><small>Copilot/Claude</small>"]
+    end
+    
+    subgraph Actions["✅ Result"]
+        OPS["GitHub Ops<br/><small>Issues, PRs</small>"]
+    end
+    
+    MD --> CMD
+    CMD --> LOCK
+    LOCK --> AI
+    AI --> OPS
+```
+
+**Learn more:** [How It Works](/gh-aw/introduction/how-it-works/) • [Quick Start](/gh-aw/setup/quick-start/)
+
 ## Key Features
 
 <FeatureGrid columns={3}>

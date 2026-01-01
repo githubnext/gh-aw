@@ -44,11 +44,32 @@ npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/githubn
 
 Before installing anything, it helps to understand the workflow lifecycle:
 
-```text
-1. You write       2. Compile           3. GitHub Actions runs
-   .md file    →    gh aw compile   →    .lock.yml file
-   (natural         (translates to        (GitHub Actions
-   language)        GitHub Actions)       executes)
+```mermaid
+flowchart LR
+    subgraph Write["① You Write"]
+        MD["📝 workflow.md<br/><small>Natural language<br/>+ YAML config</small>"]
+    end
+    
+    subgraph Compile["② Compile"]
+        CMD["⚙️ gh aw compile<br/><small>Validates & transforms</small>"]
+    end
+    
+    subgraph Output["③ Output"]
+        LOCK["📄 workflow.lock.yml<br/><small>GitHub Actions YAML<br/>(committed to git)</small>"]
+    end
+    
+    subgraph Execute["④ GitHub Actions"]
+        GHA["🤖 AI Agent Execution<br/><small>Runs on GitHub</small>"]
+    end
+    
+    subgraph Result["⑤ Result"]
+        OPS["✅ GitHub Operations<br/><small>Issues, PRs, Comments</small>"]
+    end
+    
+    MD --> CMD
+    CMD --> LOCK
+    LOCK --> GHA
+    GHA --> OPS
 ```
 
 **Why two files?**
