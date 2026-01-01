@@ -12,6 +12,7 @@
  */
 
 const fs = require("fs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Main entry point for setting up threat detection
@@ -28,8 +29,7 @@ async function main(templateContent) {
       promptFileInfo = promptPath + " (" + stats.size + " bytes)";
       core.info("Prompt file found: " + promptFileInfo);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      core.warning("Failed to stat prompt file: " + message);
+      core.warning("Failed to stat prompt file: " + getErrorMessage(error));
     }
   } else {
     core.info("No prompt file found at: " + promptPath);
@@ -44,8 +44,7 @@ async function main(templateContent) {
       agentOutputFileInfo = agentOutputPath + " (" + stats.size + " bytes)";
       core.info("Agent output file found: " + agentOutputFileInfo);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      core.warning("Failed to stat agent output file: " + message);
+      core.warning("Failed to stat agent output file: " + getErrorMessage(error));
     }
   } else {
     core.info("No agent output file found at: " + agentOutputPath);
@@ -60,8 +59,7 @@ async function main(templateContent) {
       patchFileInfo = patchPath + " (" + stats.size + " bytes)";
       core.info("Patch file found: " + patchFileInfo);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      core.warning("Failed to stat patch file: " + message);
+      core.warning("Failed to stat patch file: " + getErrorMessage(error));
     }
   } else {
     core.info("No patch file found at: " + patchPath);
