@@ -262,6 +262,37 @@ describe("temporary_id.cjs", () => {
       expect(result.wasTemporaryId).toBe(false);
       expect(result.errorMessage).toContain("Invalid issue number: -5");
     });
+
+    it("should return specific error for malformed temporary ID (contains non-hex chars)", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("aw_d0c5b3e1n3r5", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid temporary ID format");
+      expect(result.errorMessage).toContain("aw_d0c5b3e1n3r5");
+      expect(result.errorMessage).toContain("12 hexadecimal characters");
+    });
+
+    it("should return specific error for malformed temporary ID (too short)", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("aw_abc123", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid temporary ID format");
+      expect(result.errorMessage).toContain("aw_abc123");
+    });
+
+    it("should return specific error for malformed temporary ID (too long)", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("aw_abc123def4567890", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid temporary ID format");
+      expect(result.errorMessage).toContain("aw_abc123def4567890");
+    });
   });
 
   describe("serializeTemporaryIdMap", () => {
