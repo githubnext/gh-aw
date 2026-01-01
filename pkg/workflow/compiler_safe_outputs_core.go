@@ -692,6 +692,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.TitlePrefix != "" {
 			handlerConfig["title_prefix"] = cfg.TitlePrefix
 		}
+		// Add target-repo to config
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
 		config["create_issue"] = handlerConfig
 	}
 
@@ -706,6 +710,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.HideOlderComments {
 			handlerConfig["hide_older_comments"] = true
+		}
+		// Add target-repo to config
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
 		}
 		config["add_comment"] = handlerConfig
 	}
@@ -736,6 +744,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
+		}
+		// Add target-repo to config
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
 		}
 		config["create_discussion"] = handlerConfig
 	}
@@ -894,13 +906,11 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Track if we've already added staged flag to avoid duplicates
 	stagedFlagAdded := false
 
-	// Create Issue env vars - allowed_labels and allowed_repos now in config object
+	// Create Issue env vars - target-repo, allowed_labels and allowed_repos now in config object
 	if data.SafeOutputs.CreateIssues != nil {
 		cfg := data.SafeOutputs.CreateIssues
-		// Add target repo slug if specified
-		if cfg.TargetRepoSlug != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
-		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
@@ -909,23 +919,19 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Add Comment - all config now in handler config JSON
 	if data.SafeOutputs.AddComments != nil {
 		cfg := data.SafeOutputs.AddComments
-		// Add target repo slug if specified
-		if cfg.TargetRepoSlug != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
-		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
-		// All add_comment configuration (target, hide_older_comments, max) is now in handler config JSON
+		// All add_comment configuration (target, target-repo, hide_older_comments, max) is now in handler config JSON
 	}
 
 	// Add Labels - all config now in handler config JSON
 	if data.SafeOutputs.AddLabels != nil {
 		cfg := data.SafeOutputs.AddLabels
-		// Add target repo slug if specified
-		if cfg.TargetRepoSlug != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
-		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
@@ -935,10 +941,8 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Update Issue env vars
 	if data.SafeOutputs.UpdateIssues != nil {
 		cfg := data.SafeOutputs.UpdateIssues
-		// Add target repo slug if specified
-		if cfg.TargetRepoSlug != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
-		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
@@ -947,10 +951,8 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Update Discussion env vars
 	if data.SafeOutputs.UpdateDiscussions != nil {
 		cfg := data.SafeOutputs.UpdateDiscussions
-		// Add target repo slug if specified
-		if cfg.TargetRepoSlug != "" {
-			*steps = append(*steps, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", cfg.TargetRepoSlug))
-		} else if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 			_ = stagedFlagAdded // Mark as used for linter
