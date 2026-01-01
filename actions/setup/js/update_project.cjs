@@ -251,6 +251,19 @@ function generateCampaignId(projectUrl, projectNumber) {
   return `${base}-${timestamp}`;
 }
 /**
+ * Convert ISO 8601 timestamp to YYYY-MM-DD date format
+ * @param {string | null | undefined} timestamp - ISO 8601 timestamp
+ * @returns {string | null} Date in YYYY-MM-DD format or null
+ */
+function extractDateFromTimestamp(timestamp) {
+  if (!timestamp || typeof timestamp !== "string") {
+    return null;
+  }
+  // Extract YYYY-MM-DD from ISO 8601 timestamp (e.g., "2025-12-15T10:30:00Z" -> "2025-12-15")
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+/**
  * Update a GitHub Project v2
  * @param {any} output - Safe output configuration
  * @returns {Promise<void>}
@@ -569,6 +582,105 @@ async function updateProject(output) {
           );
         }
       }
+
+      // Auto-populate Start Date and End Date fields from issue/PR timestamps
+      // This enables roadmap timeline visualization for campaign project boards
+      core.info("[4/4] Auto-populating Start Date and End Date fields if present...");
+      
+      const startDate = extractDateFromTimestamp(createdAt);
+      const endDate = extractDateFromTimestamp(closedAt);
+      
+      // Check if user explicitly provided Start Date or End Date fields
+      const userProvidedFields = output.fields ? Object.keys(output.fields).map(k => 
+        k.split(/[\s_-]+/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ")
+      ) : [];
+      const userProvidedStartDate = userProvidedFields.includes("Start Date");
+      const userProvidedEndDate = userProvidedFields.includes("End Date");
+      
+      if (startDate || endDate) {
+        // Fetch project fields to check if Start Date and End Date exist
+        const projectFields = (
+          await github.graphql(
+            `query($projectId: ID!) {
+              node(id: $projectId) {
+                ... on ProjectV2 {
+                  fields(first: 20) {
+                    nodes {
+                      ... on ProjectV2Field {
+                        id
+                        name
+                        dataType
+                      }
+                    }
+                  }
+                }
+              }
+            }`,
+            { projectId }
+          )
+        ).node.fields.nodes;
+
+        // Auto-populate Start Date field if it exists and wasn't explicitly provided
+        const startDateField = projectFields.find(f => f.name === "Start Date" && f.dataType === "DATE");
+        if (startDateField && startDate && !userProvidedStartDate) {
+          try {
+            core.info(`✓ Auto-populating Start Date: ${startDate}`);
+            await github.graphql(
+              `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId,
+                  itemId: $itemId,
+                  fieldId: $fieldId,
+                  value: $value
+                }) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }`,
+              { projectId, itemId, fieldId: startDateField.id, value: { date: startDate } }
+            );
+          } catch (dateError) {
+            core.warning(`Failed to auto-populate Start Date: ${getErrorMessage(dateError)}`);
+          }
+        } else if (userProvidedStartDate) {
+          core.info("ℹ Start Date was explicitly provided, skipping auto-population");
+        }
+
+        // Auto-populate End Date field if it exists, issue/PR is closed, and wasn't explicitly provided
+        const endDateField = projectFields.find(f => f.name === "End Date" && f.dataType === "DATE");
+        if (endDateField && endDate && !userProvidedEndDate) {
+          try {
+            core.info(`✓ Auto-populating End Date: ${endDate}`);
+            await github.graphql(
+              `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId,
+                  itemId: $itemId,
+                  fieldId: $fieldId,
+                  value: $value
+                }) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }`,
+              { projectId, itemId, fieldId: endDateField.id, value: { date: endDate } }
+            );
+          } catch (dateError) {
+            core.warning(`Failed to auto-populate End Date: ${getErrorMessage(dateError)}`);
+          }
+        } else if (userProvidedEndDate) {
+          core.info("ℹ End Date was explicitly provided, skipping auto-population");
+        }
+
+        if (!startDateField && !endDateField) {
+          core.info("ℹ No Start Date or End Date fields found on project board");
+        }
+      } else {
+        core.info("ℹ No date timestamps available to auto-populate");
+      }
+
       core.setOutput("item-id", itemId);
     }
   } catch (error) {
@@ -608,4 +720,4 @@ async function main() {
   }
 }
 
-module.exports = { updateProject, parseProjectInput, generateCampaignId, main };
+module.exports = { updateProject, parseProjectInput, generateCampaignId, extractDateFromTimestamp, main };

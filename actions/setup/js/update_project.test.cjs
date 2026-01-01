@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vite
 let updateProject;
 let parseProjectInput;
 let generateCampaignId;
+let extractDateFromTimestamp;
 
 const mockCore = {
   debug: vi.fn(),
@@ -52,6 +53,7 @@ beforeAll(async () => {
   updateProject = exports.updateProject;
   parseProjectInput = exports.parseProjectInput;
   generateCampaignId = exports.generateCampaignId;
+  extractDateFromTimestamp = exports.extractDateFromTimestamp;
   // Call main to execute the module
   if (exports.main) {
     await exports.main();
@@ -207,6 +209,28 @@ describe("generateCampaignId", () => {
     const id = generateCampaignId("https://github.com/orgs/acme/projects/42", "42");
     expect(id).toBe("acme-project-42-m4syw5xc");
     nowSpy.mockRestore();
+  });
+});
+
+describe("extractDateFromTimestamp", () => {
+  it("extracts YYYY-MM-DD from ISO 8601 timestamp", () => {
+    expect(extractDateFromTimestamp("2025-12-15T10:30:00Z")).toBe("2025-12-15");
+    expect(extractDateFromTimestamp("2025-01-01T00:00:00.000Z")).toBe("2025-01-01");
+    expect(extractDateFromTimestamp("2024-06-30T23:59:59+00:00")).toBe("2024-06-30");
+  });
+
+  it("returns null for invalid timestamps", () => {
+    expect(extractDateFromTimestamp(null)).toBe(null);
+    expect(extractDateFromTimestamp(undefined)).toBe(null);
+    expect(extractDateFromTimestamp("")).toBe(null);
+    expect(extractDateFromTimestamp("invalid")).toBe(null);
+    expect(extractDateFromTimestamp("12/15/2025")).toBe(null);
+  });
+
+  it("returns null for non-string values", () => {
+    expect(extractDateFromTimestamp(123)).toBe(null);
+    expect(extractDateFromTimestamp({})).toBe(null);
+    expect(extractDateFromTimestamp([])).toBe(null);
   });
 });
 
@@ -597,12 +621,18 @@ describe("updateProject", () => {
       ]),
       updateFieldValueResponse(),
       updateFieldValueResponse(),
+      // Auto-population logic queries fields again
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-end", name: "End Date", dataType: "DATE" },
+      ]),
     ]);
 
     await updateProject(output);
 
-    // Should NOT auto-populate any date fields
-    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Auto-populating"));
+    // Should skip auto-populating because user explicitly provided the fields
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Start Date was explicitly provided, skipping auto-population"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("End Date was explicitly provided, skipping auto-population"));
 
     // Verify user-provided values are used
     const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
@@ -643,5 +673,152 @@ describe("updateProject", () => {
     expect(updateCall[1].value).toEqual({ date: "2025-12-31" });
     // Explicitly verify it's NOT using singleSelectOptionId
     expect(updateCall[1].value).not.toHaveProperty("singleSelectOptionId");
+  });
+
+  it("auto-populates Start Date and End Date from issue timestamps", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+    };
+
+    const issueWithTimestamps = {
+      repository: {
+        issue: {
+          id: "issue-id-100",
+          createdAt: "2025-12-15T10:30:00Z",
+          closedAt: "2025-12-18T16:45:00Z",
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-auto-date"),
+      issueWithTimestamps,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-auto-date" } } },
+      fieldsResponse([
+        { id: "field-start-auto", name: "Start Date", dataType: "DATE" },
+        { id: "field-end-auto", name: "End Date", dataType: "DATE" },
+      ]),
+      updateFieldValueResponse(),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify auto-population messages
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Start Date: 2025-12-15"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating End Date: 2025-12-18"));
+
+    // Verify the field values were set with correct dates
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(2);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-15" });
+    expect(updateCalls[1][1].value).toEqual({ date: "2025-12-18" });
+  });
+
+  it("auto-populates only Start Date when issue is not closed", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 101,
+    };
+
+    const openIssue = {
+      repository: {
+        issue: {
+          id: "issue-id-101",
+          createdAt: "2025-12-20T14:00:00Z",
+          closedAt: null,
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-open-issue"),
+      openIssue,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-open-issue" } } },
+      fieldsResponse([
+        { id: "field-start-open", name: "Start Date", dataType: "DATE" },
+        { id: "field-end-open", name: "End Date", dataType: "DATE" },
+      ]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify only Start Date is auto-populated
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Start Date: 2025-12-20"));
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Auto-populating End Date"));
+
+    // Verify only one field update call
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-20" });
+  });
+
+  it("does not auto-populate when user explicitly provides date fields", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 102,
+      fields: {
+        start_date: "2025-11-01",
+        end_date: "2025-11-30",
+      },
+    };
+
+    const issueWithTimestamps = {
+      repository: {
+        issue: {
+          id: "issue-id-102",
+          createdAt: "2025-12-01T10:00:00Z",
+          closedAt: "2025-12-05T18:00:00Z",
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-user-dates"),
+      issueWithTimestamps,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-user-dates" } } },
+      fieldsResponse([
+        { id: "field-start-user", name: "Start Date", dataType: "DATE" },
+        { id: "field-end-user", name: "End Date", dataType: "DATE" },
+      ]),
+      updateFieldValueResponse(),
+      updateFieldValueResponse(),
+      fieldsResponse([
+        { id: "field-start-user", name: "Start Date", dataType: "DATE" },
+        { id: "field-end-user", name: "End Date", dataType: "DATE" },
+      ]),
+    ]);
+
+    await updateProject(output);
+
+    // Verify skipping messages
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Start Date was explicitly provided, skipping auto-population"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("End Date was explicitly provided, skipping auto-population"));
+
+    // Verify user-provided values are used (not the auto-populated timestamps)
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(2);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-11-01" });
+    expect(updateCalls[1][1].value).toEqual({ date: "2025-11-30" });
   });
 });
