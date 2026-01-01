@@ -61,6 +61,8 @@ Security is foundational to GitHub Agentic Workflows. Workflows run with read-on
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
 
+For architectural patterns and design decisions, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Contributing
 
 We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
@@ -69,6 +71,7 @@ We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
 - **Improve documentation** by contributing to our docs
 - **Contribute code** by following our [Development Guide](DEVGUIDE.md)
   - **Quick Start**: See [Common Development Tasks](DEVGUIDE.md#common-development-tasks) for scenario-based command reference
+  - **Architecture**: See [ARCHITECTURE.md](ARCHITECTURE.md) for patterns and design decisions
 - **Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 
 For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).

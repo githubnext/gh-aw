@@ -137,17 +137,24 @@ The agent follows these principles:
 
 **Key Patterns the Agent Uses**:
 
-1. **Create Functions Pattern** - One file per GitHub entity creation
+The codebase implements **five architectural patterns** that govern how features are organized:
+
+1. **Safe-Output Operations** - GitHub API write operations (30+ files)
    - Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
 
-2. **Engine Separation Pattern** - Each engine has its own file
-   - Examples: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
-   - Shared helpers in `engine_helpers.go`
+2. **Complex Feature Architecture** - Multi-file features (5+ files each)
+   - Examples: Engine implementations, MCP configuration, expression handling
 
-3. **Focused Utilities Pattern** - Self-contained feature files
-   - Examples: `expressions.go`, `strings.go`, `artifacts.go`
+3. **Feature-Specific Files** - Focused implementations (1-2 files)
+   - Examples: `strings.go`, `artifacts.go`, `args.go`
 
-See [Code Organization Patterns](specs/code-organization.md) for details.
+4. **Core Infrastructure** - Foundation files (37 files)
+   - Examples: `compiler.go`, `validation.go`, `permissions.go`
+
+5. **Passthrough Extraction** - Simple YAML field extraction (14 fields)
+   - Examples: `extractString()`, `extractBool()`, `extractStringList()`
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for complete architectural documentation and [Code Organization Patterns](specs/code-organization.md) for detailed guidelines.
 
 #### Validation Patterns
 
@@ -238,8 +245,11 @@ The agent understands this structure:
 ├── .github/             # Instructions and sample workflows
 │   ├── instructions/    # Agent instructions
 │   └── workflows/       # Sample workflows and CI
+├── ARCHITECTURE.md      # Architectural patterns and design decisions
 └── Makefile             # Build automation (agent uses this)
 ```
+
+For architectural patterns and design decisions, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 📋 Dependency License Policy
 
