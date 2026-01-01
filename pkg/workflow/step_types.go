@@ -181,3 +181,49 @@ func (s *WorkflowStep) ToYAML() (string, error) {
 	stepTypesLog.Printf("Successfully converted step to YAML: size=%d bytes", len(yamlBytes))
 	return string(yamlBytes), nil
 }
+
+// SliceToSteps converts a slice of any (typically []map[string]any from YAML parsing)
+// to a typed slice of WorkflowStep pointers for type-safe manipulation
+func SliceToSteps(steps []any) ([]*WorkflowStep, error) {
+	stepTypesLog.Printf("Converting slice to typed steps: count=%d", len(steps))
+	if steps == nil {
+		return nil, nil
+	}
+
+	result := make([]*WorkflowStep, 0, len(steps))
+	for i, stepAny := range steps {
+		stepMap, ok := stepAny.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("step %d is not a map[string]any, got %T", i, stepAny)
+		}
+
+		step, err := MapToStep(stepMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert step %d: %w", i, err)
+		}
+
+		result = append(result, step)
+	}
+
+	stepTypesLog.Printf("Successfully converted %d steps to typed steps", len(result))
+	return result, nil
+}
+
+// StepsToSlice converts a typed slice of WorkflowStep pointers back to []any
+// for backward compatibility with existing YAML generation code
+func StepsToSlice(steps []*WorkflowStep) []any {
+	stepTypesLog.Printf("Converting typed steps to slice: count=%d", len(steps))
+	if steps == nil {
+		return nil
+	}
+
+	result := make([]any, 0, len(steps))
+	for _, step := range steps {
+		if step != nil {
+			result = append(result, step.ToMap())
+		}
+	}
+
+	stepTypesLog.Printf("Successfully converted %d typed steps to slice", len(result))
+	return result
+}
