@@ -153,11 +153,21 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	// Update ParsedTools to reflect changes made by applyDefaultTools
 	data.ParsedTools = NewTools(data.Tools)
 
+	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
+	// In this case, we should NOT apply default read-all
+	if data.Permissions == "permissions: {}" {
+		// Explicitly empty permissions - preserve the empty state
+		// The agent job in dev mode will add contents: read if needed for local actions
+		return nil
+	}
+	
 	if data.Permissions == "" {
 		// ============================================================================
 		// PERMISSIONS DEFAULTS
 		// ============================================================================
-		// Default behavior: keep existing workflows stable with read-all permissions.
+		// When no permissions are specified, set default to contents: read.
+		// This provides minimal access needed for most workflows while following
+		// the principle of least privilege.
 		//
 		// CAMPAIGN-SPECIFIC HANDLING:
 		// Campaign orchestrator workflows (.campaign.g.md files) are auto-generated
@@ -205,7 +215,18 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 			data.Permissions = strings.Join(lines, "\n")
 		} else {
-			data.Permissions = NewPermissionsReadAll().RenderToYAML()
+			// For non-campaign workflows, set default to contents: read
+			perms := NewPermissionsContentsRead()
+			yaml := perms.RenderToYAML()
+			// RenderToYAML uses job-friendly indentation (6 spaces). WorkflowData.Permissions
+			// is stored in workflow-level indentation (2 spaces) and later re-indented for jobs.
+			lines := strings.Split(yaml, "\n")
+			for i := 1; i < len(lines); i++ {
+				if strings.HasPrefix(lines[i], "      ") {
+					lines[i] = "  " + lines[i][6:]
+				}
+			}
+			data.Permissions = strings.Join(lines, "\n")
 		}
 	}
 	return nil

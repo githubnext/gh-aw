@@ -27,7 +27,7 @@ name: "Layout Specification Maintainer"
   - cron: "0 7 * * 1-5"
   workflow_dispatch:
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

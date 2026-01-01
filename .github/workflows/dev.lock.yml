@@ -30,7 +30,9 @@ name: "Dev"
         required: true
         type: string
 
-permissions: {}
+permissions:
+  contents: read
+  issues: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

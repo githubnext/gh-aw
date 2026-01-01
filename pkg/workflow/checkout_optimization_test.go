@@ -17,7 +17,7 @@ func TestCheckoutOptimization(t *testing.T) {
 		description         string
 	}{
 		{
-			name: "no permissions defaults to read-all should include checkout",
+			name: "no permissions specified - agent job gets contents:read in dev mode",
 			frontmatter: `---
 on:
   issues:
@@ -29,7 +29,7 @@ engine: claude
 strict: false
 ---`,
 			expectedHasCheckout: true,
-			description:         "When no permissions are specified, default read-all grants checkout",
+			description:         "When no permissions are specified, agent job adds contents:read in dev mode for local actions",
 		},
 		{
 			name: "permissions without contents should omit checkout",

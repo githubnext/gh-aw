@@ -26,7 +26,8 @@ name: "Example: Custom Error Patterns"
     types:
     - opened
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
@@ -68,7 +69,8 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      contents: read
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}
     steps:

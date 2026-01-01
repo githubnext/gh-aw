@@ -32,7 +32,9 @@ name: "Human-AI Collaboration Campaign"
         description: Scope to analyze (e.g., repos:api-*, issues:label:tech-debt)
         required: true
 
-permissions: {}
+permissions:
+  contents: read
+  issues: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
