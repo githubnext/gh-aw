@@ -22,6 +22,21 @@ func RunActionlintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runActionlintOnFile(lockFiles, verbose, strict)
 }
 
+// RunZizmorOnFiles runs zizmor on multiple lock files in a single batch
+// This is more efficient than running zizmor once per file
+func RunZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+	return runZizmorOnFiles(lockFiles, verbose, strict)
+}
+
+// RunPoutineOnDirectory runs poutine security scanner once on a directory
+// Poutine scans all workflows in a directory, so it only needs to run once
+func RunPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error {
+	return runPoutineOnDirectory(workflowDir, verbose, strict)
+}
+
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	compileValidationLog.Printf("Compiling workflow with validation: file=%s, strict=%v, validateSHAs=%v", filePath, strict, validateActionSHAs)
