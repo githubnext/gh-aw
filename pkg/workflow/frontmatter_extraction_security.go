@@ -1,10 +1,17 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var frontmatterExtractionSecurityLog = logger.New("workflow:frontmatter_extraction_security")
+
 // extractNetworkPermissions extracts network permissions from frontmatter
 func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *NetworkPermissions {
+	frontmatterExtractionSecurityLog.Print("Extracting network permissions from frontmatter")
+
 	if network, exists := frontmatter["network"]; exists {
 		// Handle string format: "defaults"
 		if networkStr, ok := network.(string); ok {
+			frontmatterExtractionSecurityLog.Printf("Network permissions string format: %s", networkStr)
 			if networkStr == "defaults" {
 				return &NetworkPermissions{
 					Mode:              "defaults",
@@ -12,11 +19,13 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				}
 			}
 			// Unknown string format, return nil
+			frontmatterExtractionSecurityLog.Printf("Unknown network string format: %s", networkStr)
 			return nil
 		}
 
 		// Handle object format: { allowed: [...], firewall: ... } or {}
 		if networkObj, ok := network.(map[string]any); ok {
+			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
 				ExplicitlyDefined: true,
 			}
@@ -29,11 +38,13 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 							permissions.Allowed = append(permissions.Allowed, domainStr)
 						}
 					}
+					frontmatterExtractionSecurityLog.Printf("Extracted %d allowed domains", len(permissions.Allowed))
 				}
 			}
 
 			// Extract firewall configuration if present
 			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
+				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
 				permissions.Firewall = c.extractFirewallConfig(firewall)
 			}
 
@@ -41,6 +52,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			return permissions
 		}
 	}
+	frontmatterExtractionSecurityLog.Print("No network permissions found in frontmatter")
 	return nil
 }
 
@@ -110,13 +122,17 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 
 // extractSandboxConfig extracts sandbox configuration from front matter
 func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConfig {
+	frontmatterExtractionSecurityLog.Print("Extracting sandbox configuration from frontmatter")
+
 	sandbox, exists := frontmatter["sandbox"]
 	if !exists {
+		frontmatterExtractionSecurityLog.Print("No sandbox configuration found")
 		return nil
 	}
 
 	// Handle legacy string format: "default" or "sandbox-runtime"
 	if sandboxStr, ok := sandbox.(string); ok {
+		frontmatterExtractionSecurityLog.Printf("Sandbox string format: type=%s", sandboxStr)
 		sandboxType := SandboxType(sandboxStr)
 		if isSupportedSandboxType(sandboxType) {
 			return &SandboxConfig{
@@ -124,6 +140,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 			}
 		}
 		// Unknown string format, return nil
+		frontmatterExtractionSecurityLog.Printf("Unsupported sandbox type: %s", sandboxStr)
 		return nil
 	}
 
@@ -133,14 +150,18 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		return nil
 	}
 
+	frontmatterExtractionSecurityLog.Printf("Sandbox object format with %d fields", len(sandboxObj))
+
 	config := &SandboxConfig{}
 
 	// Check for new format: { agent: ..., mcp: ... }
 	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
+		frontmatterExtractionSecurityLog.Print("Extracting agent sandbox configuration")
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
 	if mcpVal, hasMCP := sandboxObj["mcp"]; hasMCP {
+		frontmatterExtractionSecurityLog.Print("Extracting MCP sandbox configuration")
 		if mcpObj, ok := mcpVal.(map[string]any); ok {
 			config.MCP = parseMCPGatewayTool(mcpObj)
 		}
@@ -148,6 +169,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 	// If we found agent or mcp fields, return the new format config
 	if config.Agent != nil || config.MCP != nil {
+		frontmatterExtractionSecurityLog.Print("Sandbox configured with new format (agent/mcp)")
 		return config
 	}
 

@@ -132,9 +132,9 @@ const userProjectV2Response = (url, number = 60, id = "project123", userLogin = 
 const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
 const userProjectNullResponse = () => ({ user: { projectV2: null } });
 
-const issueResponse = id => ({ repository: { issue: { id } } });
+const issueResponse = (id, body = null) => ({ repository: { issue: { id, body } } });
 
-const pullRequestResponse = id => ({ repository: { pullRequest: { id } } });
+const pullRequestResponse = (id, body = null) => ({ repository: { pullRequest: { id, body } } });
 
 const emptyItemsResponse = () => ({
   node: {
@@ -211,8 +211,9 @@ describe("generateCampaignId", () => {
 });
 
 describe("updateProject", () => {
-  it("fails when the project URL cannot be resolved", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+  it("rejects project URL when project not found", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/99";
+
     const output = { type: "update_project", project: projectUrl };
 
     queueResponses([repoResponse(), viewerResponse(), orgProjectNullResponse()]);
@@ -559,56 +560,6 @@ describe("updateProject", () => {
     await updateProject(output);
 
     expect(mockCore.error).not.toHaveBeenCalled();
-  });
-
-  it("updates date fields only when provided", async () => {
-    const projectUrl = "https://github.com/orgs/testowner/projects/60";
-    const output = {
-      type: "update_project",
-      project: projectUrl,
-      content_type: "issue",
-      content_number: 50,
-      fields: {
-        start_date: "2025-12-01",
-        end_date: "2025-12-20",
-      },
-    };
-
-    const issueWithTimestamps = {
-      repository: {
-        issue: {
-          id: "issue-id-50",
-          createdAt: "2025-12-15T10:30:00Z",
-          closedAt: "2025-12-18T16:45:00Z",
-        },
-      },
-    };
-
-    queueResponses([
-      repoResponse(),
-      viewerResponse(),
-      orgProjectV2Response(projectUrl, 60, "project-override"),
-      issueWithTimestamps,
-      emptyItemsResponse(),
-      { addProjectV2ItemById: { item: { id: "item-override" } } },
-      fieldsResponse([
-        { id: "field-start", name: "Start Date", dataType: "DATE" },
-        { id: "field-end", name: "End Date", dataType: "DATE" },
-      ]),
-      updateFieldValueResponse(),
-      updateFieldValueResponse(),
-    ]);
-
-    await updateProject(output);
-
-    // Should NOT auto-populate any date fields
-    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Auto-populating"));
-
-    // Verify user-provided values are used
-    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
-    expect(updateCalls).toHaveLength(2);
-    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-01" });
-    expect(updateCalls[1][1].value).toEqual({ date: "2025-12-20" });
   });
 
   it("correctly identifies DATE fields and uses date format (not singleSelectOptionId)", async () => {

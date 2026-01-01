@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/types"
+
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
@@ -85,9 +87,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -96,7 +96,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -111,9 +112,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -121,7 +120,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -134,9 +134,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -144,7 +142,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -171,15 +170,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -195,15 +193,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:latest",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{"issue_create", "pull_request_list"},
 				},
 			},
@@ -218,15 +215,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:20",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -241,15 +237,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:3.11",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -264,16 +259,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -288,16 +281,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:v1.41.0",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -309,16 +300,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"}}, Name: "playwright",
 				},
 			},
 		},
@@ -333,16 +322,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:20",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -357,16 +344,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:1.41",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -381,16 +366,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:142",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -410,15 +393,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 			serverFilter: "github",
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -527,13 +509,12 @@ func TestParseMCPConfig(t *testing.T) {
 				"args":    []any{"--verbose", "--config=/etc/config.yml"},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:    "test-server",
-				Type:    "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "/usr/bin/server",
 				Args:    []string{"--verbose", "--config=/etc/config.yml"},
 				Env:     map[string]string{},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "test-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -549,9 +530,7 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:      "docker-server",
-				Type:      "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Container: "myregistry/server:latest",
 				Command:   "docker",
 				Args:      []string{"run", "--rm", "-i", "-e", "DEBUG", "-e", "API_URL", "myregistry/server:latest"},
@@ -559,7 +538,8 @@ func TestParseMCPConfig(t *testing.T) {
 					"DEBUG":   "1",
 					"API_URL": "https://api.example.com",
 				},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "docker-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -575,15 +555,14 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name: "http-server",
-				Type: "http",
-				URL:  "https://mcp.example.com/api",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+				URL: "https://mcp.example.com/api",
 				Headers: map[string]string{
 					"Authorization": "Bearer token123",
 					"User-Agent":    "gh-aw/1.0",
 				},
-				Env:     map[string]string{},
+				Env: map[string]string{}}, Name: "http-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -600,16 +579,15 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name: "datadog-server",
-				Type: "http",
-				URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+				URL: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				Headers: map[string]string{
 					"DD_API_KEY":         "test-api-key",
 					"DD_APPLICATION_KEY": "test-app-key",
 					"DD_SITE":            "datadoghq.com",
 				},
-				Env:     map[string]string{},
+				Env: map[string]string{}}, Name: "datadog-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -623,12 +601,11 @@ func TestParseMCPConfig(t *testing.T) {
 			toolConfig: map[string]any{
 				"allowed": []any{"tool1", "tool2", "tool3"},
 			},
-			expected: MCPServerConfig{
-				Name:    "server-with-allowed",
-				Type:    "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Env:     map[string]string{},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "server-with-allowed",
+
 				Allowed: []string{"tool1", "tool2", "tool3"},
 			},
 		},
@@ -644,15 +621,14 @@ func TestParseMCPConfig(t *testing.T) {
 				}
 			}`,
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:    "json-server",
-				Type:    "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "python",
 				Args:    []string{"-m", "mcp_server"},
 				Env: map[string]string{
 					"PYTHON_PATH": "/opt/python",
 				},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "json-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -668,15 +644,14 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:    "env-server",
-				Type:    "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Env: map[string]string{
 					"LOG_LEVEL": "debug",
 					"PORT":      "8080",
 				},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "env-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -686,13 +661,12 @@ func TestParseMCPConfig(t *testing.T) {
 			toolName:   "inferred-stdio",
 			mcpSection: map[string]any{"command": "server"},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:    "inferred-stdio",
-				Type:    "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
 				Command: "server",
 				Args:    nil,
 				Env:     map[string]string{},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "inferred-stdio",
+
 				Allowed: nil,
 			},
 		},
@@ -710,15 +684,16 @@ func TestParseMCPConfig(t *testing.T) {
 				},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:      "network-proxy-server",
-				Type:      "stdio",
-				Command:   "docker",
-				Args:      []string{"run", "myserver"},
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+				Command: "docker",
+				Args:    []string{"run", "myserver"},
+
+				Env:     map[string]string{},
+				Headers: map[string]string{}}, Name: "network-proxy-server",
+
 				ProxyArgs: []string{"--network-proxy-arg1", "--network-proxy-arg2"},
-				Env:       map[string]string{},
-				Headers:   map[string]string{},
-				Allowed:   []string{},
+
+				Allowed: []string{},
 			},
 		},
 		{
@@ -730,13 +705,12 @@ func TestParseMCPConfig(t *testing.T) {
 				"args":    []any{"--local-mode"},
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:    "local-server",
-				Type:    "stdio", // normalized to stdio
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio", // normalized to stdio
 				Command: "local-mcp-server",
 				Args:    []string{"--local-mode"},
 				Env:     map[string]string{},
-				Headers: map[string]string{},
+				Headers: map[string]string{}}, Name: "local-server",
+
 				Allowed: []string{},
 			},
 		},
@@ -749,14 +723,15 @@ func TestParseMCPConfig(t *testing.T) {
 				"registry": "https://registry.example.com/servers/mcp-server",
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:     "registry-stdio",
-				Type:     "stdio",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+
+				Command: "registry-server",
+				Env:     map[string]string{},
+				Headers: map[string]string{}}, Name: "registry-stdio",
+
 				Registry: "https://registry.example.com/servers/mcp-server",
-				Command:  "registry-server",
-				Env:      map[string]string{},
-				Headers:  map[string]string{},
-				Allowed:  []string{},
+
+				Allowed: []string{},
 			},
 		},
 		{
@@ -768,14 +743,15 @@ func TestParseMCPConfig(t *testing.T) {
 				"registry": "https://registry.example.com/servers/http-mcp",
 			},
 			toolConfig: map[string]any{},
-			expected: MCPServerConfig{
-				Name:     "registry-http",
-				Type:     "http",
+			expected: MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "http",
+
+				URL:     "https://api.example.com/mcp",
+				Headers: map[string]string{},
+				Env:     map[string]string{}}, Name: "registry-http",
+
 				Registry: "https://registry.example.com/servers/http-mcp",
-				URL:      "https://api.example.com/mcp",
-				Headers:  map[string]string{},
-				Env:      map[string]string{},
-				Allowed:  []string{},
+
+				Allowed: []string{},
 			},
 		},
 		{
@@ -937,15 +913,16 @@ func TestParseMCPConfig(t *testing.T) {
 // TestMCPConfigTypes tests the struct types for proper JSON serialization
 func TestMCPConfigTypes(t *testing.T) {
 	// Test that our structs can be properly marshaled/unmarshaled
-	config := MCPServerConfig{
-		Name:      "test-server",
-		Type:      "stdio",
-		Command:   "test-command",
-		Args:      []string{"arg1", "arg2"},
+	config := MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+		Command: "test-command",
+		Args:    []string{"arg1", "arg2"},
+
+		Env:     map[string]string{"KEY": "value"},
+		Headers: map[string]string{"Content-Type": "application/json"}}, Name: "test-server",
+
 		ProxyArgs: []string{"--proxy-test"},
-		Env:       map[string]string{"KEY": "value"},
-		Headers:   map[string]string{"Content-Type": "application/json"},
-		Allowed:   []string{"tool1", "tool2"},
+
+		Allowed: []string{"tool1", "tool2"},
 	}
 
 	// Marshal to JSON

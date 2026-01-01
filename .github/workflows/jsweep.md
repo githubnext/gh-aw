@@ -204,19 +204,43 @@ Testing is NOT optional - the file you clean must have comprehensive test covera
 - Handle errors appropriately
 - Use standard Node.js patterns
 
-### 6. Run Tests and TypeScript Build
+### 6. Validate Your Changes
 
-After making changes to the file:
-1. Navigate to the JavaScript directory: `cd /home/runner/work/gh-aw/gh-aw/actions/setup/js/`
-2. Run the JavaScript tests: `npm run test:js` - verify all tests pass
-3. Run the TypeScript type checker: `npm run typecheck` - verify no type errors
-4. Run prettier to format the code: `npm run format:cjs` - ensure consistent formatting
-5. If there are test failures or type errors, fix them before proceeding
-6. The tests, typecheck, and prettier ensure code quality, type safety, and consistent formatting
+Before returning to create the pull request, **you MUST complete all these validation steps** to ensure code quality:
+
+1. **Format the JavaScript code**:
+   ```bash
+   cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
+   npm run format:cjs
+   ```
+   This ensures consistent code formatting using Prettier.
+
+2. **Lint the JavaScript code**:
+   ```bash
+   cd /home/runner/work/gh-aw/gh-aw
+   make lint-cjs
+   ```
+   This validates that the code follows formatting standards. The code must pass this check.
+
+3. **Run TypeScript type checking**:
+   ```bash
+   cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
+   npm run typecheck
+   ```
+   This ensures there are no type errors. The code must pass type checking without errors.
+
+4. **Run impacted tests**:
+   ```bash
+   cd /home/runner/work/gh-aw/gh-aw
+   make test-js
+   ```
+   This runs the JavaScript test suite. All tests must pass.
+
+**CRITICAL**: The code must pass ALL four checks above (format, lint, typecheck, and tests) before you create the pull request. If any check fails, fix the issues and re-run all checks until they all pass.
 
 ### 7. Create Pull Request
 
-After cleaning the file, adding/improving tests, and verifying all tests, TypeScript validation, and prettier formatting pass:
+After cleaning the file, adding/improving tests, and **successfully passing all validation checks** (format, lint, typecheck, and tests):
 1. Update cache-memory to mark this file as cleaned (add to `cleaned_files` array with timestamp)
 2. Create a pull request with:
    - Title: `[jsweep] Clean <filename>`
@@ -226,22 +250,30 @@ After cleaning the file, adding/improving tests, and verifying all tests, TypeSc
    - Summary of changes for the file
    - Context type (github-script or Node.js) for the file
    - Test improvements (number of tests added, coverage improvements)
-   - Confirmation that all tests pass, typecheck succeeds, and prettier formatting is applied
+   - ✅ Confirmation that ALL validation checks passed:
+     - Formatting: `npm run format:cjs` ✓
+     - Linting: `make lint-cjs` ✓
+     - Type checking: `npm run typecheck` ✓
+     - Tests: `make test-js` ✓
 
 ## Important Constraints
 
 - **PRIORITIZE files with `@ts-nocheck`** - These files need type checking enabled. Remove `@ts-nocheck`, add proper type annotations, and fix all type errors.
 - **DO NOT change logic** - only make the code cleaner and more maintainable
 - **Always add or improve tests** - the file must have comprehensive test coverage with at least 5-10 test cases
-- **Always run tests** after changes to verify they pass: `npm run test:js`
-- **Always run TypeScript typecheck** before creating the PR to ensure type safety: `npm run typecheck`
-  - If the file had `@ts-nocheck`, it MUST pass typecheck after removing it
-- **Always run prettier** to format the code consistently: `npm run format:cjs`
 - **Preserve all functionality** - ensure the file works exactly as before
 - **One file per run** - focus on quality over quantity
+- **Before creating the PR, you MUST complete ALL validation checks**:
+  1. Format the code: `cd actions/setup/js && npm run format:cjs`
+  2. Lint the code: `make lint-cjs` (from repo root)
+  3. Type check: `cd actions/setup/js && npm run typecheck`
+  4. Run impacted tests: `make test-js` (from repo root)
+  - **ALL checks must pass** - if any fail, fix the issues and re-run all checks
+  - If the file had `@ts-nocheck`, it MUST pass typecheck after removing it
 - **Document your changes** in the PR description, including:
   - Whether `@ts-nocheck` was removed and type errors fixed
   - Test improvements (number of tests added, coverage improvements)
+  - Confirmation that all validation checks passed (format, lint, typecheck, tests)
 
 ## Current Repository Context
 

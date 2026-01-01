@@ -19,26 +19,24 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Meta-orchestrator for monitoring and managing health of all agentic workflows in the repository
+# Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks.
 
-name: "Workflow Health Manager - Meta-Orchestrator"
+name: "Documentation Quality & Maintenance Campaign (Project 67)"
 "on":
   schedule:
-  - cron: "13 2 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "0 18 * * *"
   workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: false
+  group: campaign-docs-quality-maintenance-project67-orchestrator-${{ github.ref }}
 
-run-name: "Workflow Health Manager - Meta-Orchestrator"
+run-name: "Documentation Quality & Maintenance Campaign (Project 67)"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -59,7 +57,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "workflow-health-manager.lock.yml"
+          GH_AW_WORKFLOW_FILE: "docs-quality-maintenance-project67.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -75,6 +73,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+      security-events: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -105,12 +104,12 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /tmp/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
+      - name: Clone repo-memory branch (campaigns)
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/meta-orchestrators
+          BRANCH_NAME: memory/campaigns
           TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
           CREATE_ORPHAN: true
         run: bash /tmp/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
@@ -174,52 +173,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":15},"create_issue":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"update_issue":{"max":5}}
+          {"add_comment":{"max":10},"missing_tool":{"max":0},"noop":{"max":1},"update_project":{"max":15}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 10 issue(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "parent": {
-                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_issue"
-            },
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 15 comment(s) can be added.",
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -239,39 +198,6 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
-            },
-            {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 5 issue(s) can be updated.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
-                    "type": "string"
-                  },
-                  "issue_number": {
-                    "description": "Issue number to update. This is the numeric ID from the GitHub URL (e.g., 789 in github.com/owner/repo/issues/789). Required when the workflow target is '*' (any issue).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "status": {
-                    "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
-                    "enum": [
-                      "open",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "New issue title to replace the existing title.",
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "name": "update_issue"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -315,6 +241,58 @@ jobs:
                 "type": "object"
               },
               "name": "noop"
+            },
+            {
+              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "campaign_id": {
+                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
+                    "type": "string"
+                  },
+                  "content_number": {
+                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
+                    "type": "number"
+                  },
+                  "content_type": {
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "enum": [
+                      "issue",
+                      "pull_request",
+                      "draft_issue"
+                    ],
+                    "type": "string"
+                  },
+                  "create_if_missing": {
+                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
+                    "type": "boolean"
+                  },
+                  "draft_body": {
+                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "draft_title": {
+                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
+                    "type": "string"
+                  },
+                  "fields": {
+                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
+                    "type": "object"
+                  },
+                  "project": {
+                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
+                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project",
+                  "content_type"
+                ],
+                "type": "object"
+              },
+              "name": "update_project"
             }
           ]
           EOF
@@ -331,39 +309,6 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
-                }
-              }
-            },
-            "create_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "parent": {
-                  "issueOrPRNumber": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "temporary_id": {
-                  "type": "string"
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
                 }
               }
             },
@@ -400,31 +345,42 @@ jobs:
                 }
               }
             },
-            "update_issue": {
-              "defaultMax": 1,
+            "update_project": {
+              "defaultMax": 10,
               "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "issue_number": {
-                  "issueOrPRNumber": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "open",
-                    "closed"
-                  ]
-                },
-                "title": {
+                "campaign_id": {
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
+                },
+                "content_number": {
+                  "optionalPositiveInteger": true
+                },
+                "content_type": {
+                  "type": "string",
+                  "enum": [
+                    "issue",
+                    "pull_request"
+                  ]
+                },
+                "fields": {
+                  "type": "object"
+                },
+                "issue": {
+                  "optionalPositiveInteger": true
+                },
+                "project": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 512,
+                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
+                },
+                "pull_request": {
+                  "optionalPositiveInteger": true
                 }
-              },
-              "customValidation": "requiresOneOf:status,title,body"
+              }
             }
           }
           EOF
@@ -452,7 +408,7 @@ jobs:
                   "-e",
                   "GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}",
                   "-e",
-                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions,code_security",
                   "ghcr.io/github/github-mcp-server:v0.26.3"
                 ],
                 "tools": ["*"],
@@ -503,7 +459,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
               agent_version: "0.0.373",
-              workflow_name: "Workflow Health Manager - Meta-Orchestrator",
+              workflow_name: "Documentation Quality & Maintenance Campaign (Project 67)",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -547,428 +503,359 @@ jobs:
         run: |
           bash /tmp/gh-aw/actions/create_prompt_first.sh
           cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
-          
-          # Workflow Health Manager - Meta-Orchestrator
-          
-          You are a workflow health manager responsible for monitoring and maintaining the health of all 120+ agentic workflows in this repository.
-          
-          ## Important Note: Shared Include Files
-          
-          **DO NOT** report `.md` files in the `.github/workflows/shared/` directory as missing lock files. These are reusable workflow components (imports) that are included by other workflows using the `imports:` field or `{{#import ...}}` directive. They are **intentionally not compiled** as standalone workflows.
-          
-          Only executable workflows in the root `.github/workflows/` directory should have corresponding `.lock.yml` files.
-          
-          ## Your Role
-          
-          As a meta-orchestrator for workflow health, you oversee the operational health of the entire agentic workflow ecosystem, identify failing or problematic workflows, and coordinate fixes to maintain system reliability.
-          
-          ## Responsibilities
-          
-          ### 1. Workflow Discovery and Inventory
-          
-          **Discover all workflows:**
-          - Scan `.github/workflows/` for all `.md` workflow files
-          - **EXCLUDE** files in `.github/workflows/shared/` subdirectory (these are reusable imports, not standalone workflows)
-          - Categorize workflows:
-            - Campaign orchestrators (`.campaign.g.md`)
-            - Campaign specs (`.campaign.md`)
-            - Regular agentic workflows (`.md`)
-            - GitHub Actions workflows (`.yml`)
-          - Build workflow inventory with metadata:
-            - Workflow name and description
-            - Engine type (copilot, claude, codex, custom)
-            - Trigger configuration (schedule, events)
-            - Safe outputs enabled
-            - Tools and permissions
-          
-          ### 2. Health Monitoring
-          
-          **Check compilation status:**
-          - Verify each **executable workflow** has a corresponding `.lock.yml` file
-          - **EXCLUDE** shared include files in `.github/workflows/shared/` (these are imported by other workflows, not compiled standalone)
-          - Check if lock files are up-to-date (source `.md` modified after `.lock.yml`)
-          - Identify workflows that failed to compile
-          - Flag workflows with compilation warnings
-          
-          **Monitor workflow execution:**
-          - Load shared metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
-          - Use workflow_runs data for each workflow:
-            - Total runs, successful runs, failed runs
-            - Success rate (already calculated)
-          - Query recent workflow runs (past 7 days) for detailed error analysis
-          - Track success/failure rates from metrics data
-          - Identify workflows with:
-            - Consistent failures (>80% failure rate from metrics)
-            - Recent regressions (compare to historical metrics)
-            - Timeout issues
-            - Permission/authentication errors
-            - Tool invocation failures
-          - Calculate mean time between failures (MTBF) for each workflow
-          
-          **Analyze error patterns:**
-          - Group failures by error type:
-            - Timeout errors
-            - Permission denied errors
-            - API rate limiting
-            - Network/connectivity issues
-            - Tool configuration errors
-            - Safe output validation failures
-          - Identify systemic issues affecting multiple workflows
-          - Detect cascading failures (one workflow failure causing others)
-          
-          ### 3. Dependency and Interaction Analysis
-          
-          **Map workflow dependencies:**
-          - Identify workflows that trigger other workflows
-          - Track workflows using shared resources:
-            - Same GitHub Project boards
-            - Same issue labels
-            - Same repository paths
-            - Same safe output targets
-          - Detect circular dependencies or potential deadlocks
-          
-          **Analyze interaction patterns:**
-          - Find workflows that frequently conflict:
-            - Creating issues in the same areas
-            - Modifying the same documentation
-            - Operating on the same codebase regions
-          - Identify coordination opportunities (workflows that should be orchestrated together)
-          - Flag redundant workflows (multiple workflows doing similar work)
-          
-          ### 4. Performance and Resource Management
-          
-          **Track resource utilization:**
-          - Calculate total workflow run time per day/week
-          - Identify resource-intensive workflows (>10 min run time)
-          - Track API quota usage patterns
-          - Monitor safe output usage (approaching max limits)
-          
-          **Optimize scheduling:**
-          - Identify workflows running at the same time (potential conflicts)
-          - Recommend schedule adjustments to spread load
-          - Suggest consolidation of similar workflows
-          - Flag workflows that could be triggered on-demand instead of scheduled
-          
-          **Quality metrics:**
-          - Use historical metrics for trend analysis:
-            - Load daily metrics from: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/`
-            - Calculate 7-day and 30-day success rate trends
-            - Identify workflows with declining quality
-          - Calculate workflow reliability score (0-100):
-            - Compilation success: +20 points
-            - Recent runs successful (from metrics): +30 points
-            - No timeout issues: +20 points
-            - Proper error handling: +15 points
-            - Up-to-date documentation: +15 points
-          - Rank workflows by reliability
-          - Track quality trends over time using historical metrics data
-          
-          ### 5. Proactive Maintenance
-          
-          **Create maintenance issues:**
-          - For consistently failing workflows:
-            - Document failure pattern and error messages
-            - Suggest potential fixes based on error analysis
-            - Assign priority based on workflow importance
-          - For outdated workflows:
-            - Flag workflows with deprecated tool versions
-            - Identify workflows using outdated patterns
-            - Suggest modernization approaches
-          
-          **Recommend improvements:**
-          - Workflows that could benefit from better error handling
-          - Workflows that should use safe outputs instead of direct permissions
-          - Workflows with overly broad permissions
-          - Workflows missing timeout configurations
-          - Workflows without proper documentation
-          
-          ## Workflow Execution
-          
-          Execute these phases each run:
-          
-          ## Shared Memory Integration
-          
-          **Access shared repo memory at `/tmp/gh-aw/repo-memory-default/memory/default/`**
-          
-          This workflow shares memory with other meta-orchestrators (Campaign Manager and Agent Performance Analyzer) to coordinate insights and avoid duplicate work.
-          
-          **Shared Metrics Infrastructure:**
-          
-          The Metrics Collector workflow runs daily and stores performance metrics in a structured JSON format:
-          
-          1. **Latest Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/latest.json`
-             - Most recent workflow run statistics
-             - Success rates, failure counts for all workflows
-             - Use to identify failing workflows without querying GitHub API repeatedly
-          
-          2. **Historical Metrics**: `/tmp/gh-aw/repo-memory-default/memory/default/metrics/daily/YYYY-MM-DD.json`
-             - Daily metrics for the last 30 days
-             - Track workflow health trends over time
-             - Identify recent regressions by comparing current vs. historical success rates
-             - Calculate mean time between failures (MTBF)
-          
-          **Read from shared memory:**
-          1. Check for existing files in the memory directory:
-             - `metrics/latest.json` - Latest performance metrics (NEW - use this first!)
-             - `metrics/daily/*.json` - Historical daily metrics for trend analysis (NEW)
-             - `workflow-health-latest.md` - Your last run's summary
-             - `campaign-manager-latest.md` - Latest campaign health insights
-             - `agent-performance-latest.md` - Latest agent quality insights
-             - `shared-alerts.md` - Cross-orchestrator alerts and coordination notes
-          
-          2. Use insights from other orchestrators:
-             - Campaign Manager may identify campaigns that need workflow attention
-             - Agent Performance Analyzer may flag agents with quality issues that need health checks
-             - Coordinate actions to avoid duplicate issues or conflicting recommendations
-          
-          **Write to shared memory:**
-          1. Save your current run's summary as `workflow-health-latest.md`:
-             - Workflow health scores and categories
-             - Critical issues (P0/P1) identified
-             - Systemic problems detected
-             - Issues created
-             - Run timestamp
-          
-          2. Add coordination notes to `shared-alerts.md`:
-             - Workflows affecting multiple campaigns
-             - Systemic issues requiring campaign-level attention
-             - Health patterns that affect agent performance
-          
-          **Format for memory files:**
-          - Use markdown format only
-          - Include timestamp and workflow name at the top
-          - Keep files concise (< 10KB recommended)
-          - Use clear headers and bullet points
-          - Include issue/PR/workflow numbers for reference
-          
-          ### Phase 1: Discovery (5 minutes)
-          
-          1. **Scan workflow directory:**
-             - List all `.md` files in `.github/workflows/` (excluding `shared/` subdirectory)
-             - Parse frontmatter for each workflow
-             - Extract key metadata (engine, triggers, tools, permissions)
-          
-          2. **Check compilation status:**
-             - For each **executable** `.md` file, verify `.lock.yml` exists
-             - **SKIP** files in `.github/workflows/shared/` directory (reusable imports, not standalone workflows)
-             - Compare modification timestamps
-             - Run `gh aw compile --validate` to check for compilation errors
-          
-          3. **Build workflow inventory:**
-             - Create structured data for each workflow
-             - Categorize by type, engine, and purpose
-             - Map relationships and dependencies
-          
-          ### Phase 2: Health Assessment (7 minutes)
-          
-          4. **Query workflow runs:**
-             - For each workflow, get last 10 runs (or 7 days)
-             - Extract run status, duration, errors
-             - Calculate success rate
-          
-          5. **Analyze errors:**
-             - Group errors by type and pattern
-             - Identify workflows with recurring issues
-             - Detect systemic problems affecting multiple workflows
-          
-          6. **Calculate health scores:**
-             - For each workflow, compute reliability score
-             - Identify workflows in each category:
-               - Healthy (score ≥ 80)
-               - Warning (score 60-79)
-               - Critical (score < 60)
-               - Inactive (no recent runs)
-          
-          ### Phase 3: Dependency Analysis (3 minutes)
-          
-          7. **Map dependencies:**
-             - Identify workflows that call other workflows
-             - Find shared resource usage
-             - Detect potential conflicts
-          
-          8. **Analyze interactions:**
-             - Find workflows operating on same areas
-             - Identify coordination opportunities
-             - Flag redundant or conflicting workflows
-          
-          ### Phase 4: Decision Making (3 minutes)
-          
-          9. **Generate recommendations:**
-             - **Immediate fixes:** Workflows that need urgent attention
-             - **Maintenance tasks:** Workflows that need updates
-             - **Optimizations:** Workflows that could be improved
-             - **Deprecations:** Workflows that should be removed
-          
-          10. **Prioritize actions:**
-              - P0 (Critical): Workflows completely broken or causing cascading failures
-              - P1 (High): Workflows with high failure rates or affecting important operations
-              - P2 (Medium): Workflows with occasional issues or optimization opportunities
-              - P3 (Low): Minor improvements or documentation updates
-          
-          ### Phase 5: Execution (2 minutes)
-          
-          11. **Create maintenance issues:**
-              - For P0/P1 workflows: Create detailed issue with:
-                - Workflow name and description
-                - Failure pattern and frequency
-                - Error messages and logs
-                - Suggested fixes
-                - Impact assessment
-              - Label with: `workflow-health`, `priority-{p0|p1|p2}`, `type-{failure|optimization|maintenance}`
-          
-          12. **Update existing issues:**
-              - If issue already exists for a workflow:
-                - Add comment with latest status
-                - Update priority if situation changed
-                - Close if issue is resolved
-          
-          13. **Generate health report:**
-              - Create/update pinned issue with workflow health dashboard
-              - Include summary metrics and trends
-              - List top issues and recommendations
-          
-          ## Output Format
-          
-          ### Workflow Health Dashboard Issue
-          
-          Create or update a pinned issue with this structure:
-          
-          ```markdown
-          # Workflow Health Dashboard - [DATE]
-          
-          ## Overview
-          - Total workflows: XXX
-          - Healthy: XXX (XX%)
-          - Warning: XXX (XX%)
-          - Critical: XXX (XX%)
-          - Inactive: XXX (XX%)
-          
-          ## Critical Issues 🚨
-          
-          ### Workflow Name 1 (Score: XX/100)
-          - **Status:** Failing consistently (X/10 recent runs failed)
-          - **Error:** Permission denied when accessing GitHub API
-          - **Impact:** Unable to create issues for campaign tracking
-          - **Action:** Issue #XXX created for investigation
-          - **Priority:** P0
-          
-          ### Workflow Name 2 (Score: XX/100)
-          - **Status:** Timeout on every run
-          - **Error:** Operation exceeds 10 minute timeout
-          - **Impact:** Campaign metrics not being updated
-          - **Action:** Issue #XXX created with optimization suggestions
-          - **Priority:** P1
-          
-          ## Warnings ⚠️
-          
-          ### Workflow Name 3 (Score: XX/100)
-          - **Issue:** Compilation warnings about deprecated syntax
-          - **Recommendation:** Update to use new safe-outputs format
-          - **Action:** Issue #XXX created with migration guide
-          
-          ### Workflow Name 4 (Score: XX/100)
-          - **Issue:** High resource usage (15 min average run time)
-          - **Recommendation:** Consider splitting into smaller workflows
-          - **Action:** Tracked for future optimization
-          
-          ## Healthy Workflows ✅
-          
-          XXX workflows operating normally with no issues detected.
-          
-          ## Systemic Issues
-          
-          ### Issue: API Rate Limiting
-          - **Affected workflows:** XX workflows
-          - **Pattern:** Workflows running simultaneously hitting rate limits
-          - **Recommendation:** Stagger schedule times across workflows
-          - **Action:** Issue #XXX created with scheduling optimization plan
-          
-          ### Issue: Deprecated Tool Versions
-          - **Affected workflows:** XX workflows
-          - **Pattern:** Using MCP tools with outdated versions
-          - **Recommendation:** Update to latest MCP server versions
-          - **Action:** Issue #XXX created with upgrade plan
-          
-          ## Recommendations
-          
-          ### High Priority
-          1. Fix workflow X (P0 - completely broken)
-          2. Optimize workflow Y scheduling (P1 - causing rate limits)
-          3. Update workflow Z to use safe outputs (P1 - security concern)
-          
-          ### Medium Priority
-          1. Consolidate workflows A and B (similar functionality)
-          2. Add timeout configs to XX workflows
-          3. Update documentation for YY workflows
-          
-          ### Low Priority
-          1. Modernize workflow syntax in legacy workflows
-          2. Add better error handling to XX workflows
-          
-          ## Trends
-          
-          - Overall health score: XX/100 (↑/↓/→ from last week)
-          - New failures this week: X
-          - Fixed issues this week: X
-          - Average workflow success rate: XX%
-          - Workflows needing recompilation: X
-          
-          ## Actions Taken This Run
-          
-          - Created X new issues for critical workflows
-          - Updated X existing issues with status
-          - Closed X resolved issues
-          - Recommended X optimizations
-          
-          ---
-          > Last updated: [TIMESTAMP]
-          > Next check: [TIMESTAMP]
+          
+          
+          
+          # Campaign Orchestrator
+          
+          This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 67)' campaign.
+          
+          - Tracker label: `campaign:docs-quality-maintenance-project67`
+          - Objective: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
+          - KPIs:
+            - Documentation coverage of features (primary): baseline 85 → target 95 over 90 days percent
+            - Documentation accessibility score (supporting): baseline 90 → target 98 over 30 days percent
+            - User-reported documentation issues (supporting): baseline 15 → target 5 over 30 days count
+          - Associated workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
+          - Memory paths: memory/campaigns/docs-quality-maintenance-project67/**
+          - Metrics glob: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
+          - Cursor glob: `memory/campaigns/docs-quality-maintenance-project67/cursor.json`
+          - Project URL: https://github.com/orgs/githubnext/projects/67
+          - Governance: max new items per run: 8
+          - Governance: max discovery items per run: 100
+          - Governance: max discovery pages per run: 10
+          - Governance: max project updates per run: 15
+          - Governance: max comments per run: 10
+          
+          ## Campaign Orchestrator Rules
+          
+          This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with the campaign's tracker label.
+          
+          ### Traffic and rate limits (required)
+          
+          - Minimize API calls: avoid full rescans when possible and avoid repeated reads of the same data in a single run.
+          - Prefer incremental processing: use deterministic ordering (e.g., by updated time) and process a bounded slice each run.
+          - Use strict pagination budgets: if a query would require many pages, stop early and continue next run.
+          - Use a durable cursor/checkpoint: persist the last processed boundary (e.g., updatedAt cutoff + last seen ID) so the next run can continue without rescanning.
+          - On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
+          
+          
+          **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project67/cursor.json`
+          
+          You must treat this file as the source of truth for incremental discovery:
+          - If it exists, read it first and continue from that boundary.
+          - If it does not exist yet, create it by the end of the run.
+          - Always write the updated cursor back to the same path.
+          
+          
+          
+          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
+          
+          You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
+          
+          **Required JSON schema** for each metrics file:
+          ```json
+          {
+            "campaign_id": "docs-quality-maintenance-project67",
+            "date": "YYYY-MM-DD",
+            "tasks_total": 0,
+            "tasks_completed": 0,
+            "tasks_in_progress": 0,
+            "tasks_blocked": 0,
+            "velocity_per_day": 0.0,
+            "estimated_completion": "YYYY-MM-DD",
+            "kpi_trends": [
+              {"name": "KPI Name", "trend": "Improving|Flat|Regressing", "value": 0.0}
+            ]
+          }
           ```
           
-          ## Important Guidelines
+          **Required fields** (must be present):
+          - `campaign_id` (string): Must be exactly "docs-quality-maintenance-project67"
+          - `date` (string): ISO date in YYYY-MM-DD format (use UTC)
+          - `tasks_total` (integer): Total number of campaign tasks (≥0)
+          - `tasks_completed` (integer): Number of completed tasks (≥0)
           
-          **Systematic monitoring:**
-          - Check ALL workflows, not just obviously failing ones
-          - Track trends over time to catch degradation early
-          - Be proactive about maintenance before workflows break
-          - Consider workflow interdependencies when assessing health
+          **Optional fields** (omit or set to null if not applicable):
+          - `tasks_in_progress` (integer): Tasks currently being worked on (≥0)
+          - `tasks_blocked` (integer): Tasks that are blocked (≥0)
+          - `velocity_per_day` (number): Average tasks completed per day (≥0)
+          - `estimated_completion` (string): Estimated completion date in YYYY-MM-DD format
+          - `kpi_trends` (array): KPI trend information with name, trend status, and current value
           
-          **Evidence-based assessment:**
-          - Base health scores on concrete metrics (run success rate, error patterns)
-          - Cite specific workflow runs when reporting issues
-          - Include error messages and logs in issue reports
-          - Compare current state with historical data
+          Guidance:
+          - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
+          - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
+          - If a KPI is present, record its computed value and trend (Improving/Flat/Regressing) in the kpi_trends array.
+          - Count tasks from all sources: tracker-labeled issues, worker-created issues, and project board items.
+          - Set tasks_total to the total number of unique tasks discovered in this run.
+          - Set tasks_completed to the count of tasks with state "Done" or closed status.
           
-          **Actionable recommendations:**
-          - Provide specific, implementable fixes for each issue
-          - Include code examples or configuration changes when possible
-          - Link to relevant documentation or migration guides
-          - Estimate effort/complexity for recommended fixes
           
-          **Prioritization:**
-          - Focus on workflows critical to campaign operations
-          - Consider blast radius when prioritizing fixes
-          - Address systemic issues affecting multiple workflows first
-          - Balance urgent fixes with long-term improvements
+          **Read budget**: max discovery items per run: 100
           
-          **Issue hygiene:**
-          - Don't create duplicate issues for the same workflow
-          - Update existing issues rather than creating new ones
-          - Close issues when workflows are fixed
-          - Use consistent labels for tracking and filtering
           
-          ## Success Metrics
+          **Read budget**: max discovery pages per run: 10
           
-          Your effectiveness is measured by:
-          - Overall workflow health score improving over time
-          - Reduction in workflow failure rates
-          - Faster detection and resolution of issues
-          - Fewer cascading failures
-          - Improved resource utilization
-          - Higher workflow reliability scores
           
-          Execute all phases systematically and maintain a proactive approach to workflow health management.
+          ### Core Principles
+          
+          1. **Workers are immutable** - Worker workflows never change based on campaign state
+          2. **Workers are campaign-agnostic** - Workers execute the same way regardless of campaign context
+          3. **Campaign logic is external** - All orchestration, sequencing, and decision-making happens here
+          4. **Workers only execute work** - No progress tracking or campaign-aware decisions in workers
+          5. **Campaign owns all coordination** - Sequencing, retries, continuation, and termination are campaign responsibilities
+          6. **State is external** - Campaign state lives in GitHub Projects, not in worker execution
+          7. **Single source of truth** - The GitHub Project board is the authoritative campaign state
+          8. **Correlation is explicit** - All work shares the campaign's tracker-id for correlation
+          9. **Separation of concerns** - State reads and state writes are separate operations
+          10. **Predefined fields only** - Only update explicitly defined project board fields
+          11. **Explicit outcomes** - Record actual outcomes, never infer status
+          12. **Idempotent operations** - Re-execution produces the same result without corruption
+          13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
+          
+          ### Objective and KPIs (first-class)
+          
+          
+          **Objective**: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
+          
+          
+          
+          **KPIs** (max 3):
+          
+          - Documentation coverage of features (primary): baseline 85 → target 95 over 90 days (unit: percent) (direction: increase) (source: custom)
+          
+          - Documentation accessibility score (supporting): baseline 90 → target 98 over 30 days (unit: percent) (direction: increase) (source: custom)
+          
+          - User-reported documentation issues (supporting): baseline 15 → target 5 over 30 days (unit: count) (direction: decrease) (source: pull_requests)
+          
+          
+          
+          If objective/KPIs are present, you must:
+          - Compute a per-run KPI snapshot (as-of now) using GitHub signals.
+          - Determine trend status for each KPI: Improving / Flat / Regressing (use the KPI direction when present).
+          - Tie all decisions to the primary KPI first.
+          
+          ### Default signals (built-in)
+          
+          Collect these signals every run (bounded by the read budgets above):
+          - **CI health**: recent check/workflow outcomes relevant to the repo(s) in scope.
+          - **PR cycle time**: recent PR open→merge latency and backlog size.
+          - **Security alerts**: open code scanning / Dependabot / secret scanning items (as available).
+          
+          If a signal cannot be retrieved (permissions/tooling), explicitly report it as unavailable and proceed with the remaining signals.
+          
+          ### Orchestration Workflow
+          
+          Execute these steps in sequence each time this orchestrator runs:
+          
+          #### Phase 1: Read State (Discovery)
+          
+          1. **Query tracker-labeled items** - Search for issues and PRs matching the campaign's tracker label
+             - Search: `repo:OWNER/REPO label:TRACKER_LABEL` for all open and closed items
+             - If governance opt-out labels are configured, exclude items with those labels
+             - Collect all matching issue/PR URLs
+             - Record metadata: number, title, state (open/closed), created date, updated date
+          
+          2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
+             - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
+             - Collect all matching issue URLs
+             - Record issue metadata: number, title, state (open/closed), created date, updated date
+          
+          3. **Query current project state** - Read the GitHub Project board
+             - Retrieve all items currently on the project board
+             - For each item, record: issue URL, status field value, other predefined field values
+             - Create a snapshot of current board state
+          
+          4. **Compare and identify gaps** - Determine what needs updating
+             - Items from step 1 or 2 not on board = **new work to add**
+             - Items on board with state mismatch = **status to update**
+             - Items on board but no longer found = **check if archived/deleted**
+          
+          #### Phase 2: Make Decisions (Planning)
+          
+          4.5 **Deterministic planner step (required when objective/KPIs are present)**
+          
+          Before choosing additions/updates, produce a small, bounded plan that is rule-based and reproducible from the discovered state:
+          - Output at most **3** planned actions.
+          - Prefer actions that are directly connected to improving the **primary** KPI.
+          - If signals indicate risk or uncertainty, prefer smaller, reversible actions.
+          
+          Plan format (keep under 2KB):
+          ```json
+          {
+             "objective": "...",
+             "primary_kpi": "...",
+             "kpi_trends": [{"name": "...", "trend": "Improving|Flat|Regressing"}],
+             "actions": [
+                {"type": "add_to_project|update_status|comment", "why": "...", "target_url": "..."}
+             ]
+          }
+          ```
+          
+          5. **Decide additions (with pacing)** - For each new item discovered:
+             - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)
+             - If `governance.max-new-items-per-run` is set, add at most that many new items
+             - Prefer adding oldest (or least recently updated) missing items first
+             - Determine initial status field value based on item state:
+               - Open issue/PR → "Todo" status
+               - Closed issue/PR → "Done" status
+          
+          6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
+             - Decision: Update status field? (Default: yes if item state changed)
+             - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
+             - Determine new status field value:
+               - Open issue/PR → "In Progress" or "Todo"
+               - Closed issue/PR → "Done"
+          
+          7. **Decide completion** - Check campaign completion criteria:
+             - If all discovered issues are closed AND all board items are "Done" → Campaign complete
+             - Otherwise → Campaign in progress
+          
+          #### Phase 3: Write State (Execution)
+          
+          8. **Execute additions** - Add new items to project board
+             - Use `update-project` safe-output for each new item
+             - Set predefined fields: `status` (required), optionally `priority`, `size`
+             - Record outcome: success or failure with error details
+          
+          9. **Execute updates** - Update existing board items
+             - Use `update-project` safe-output for each status change
+             - Update only predefined fields: `status` and related metadata
+             - Record outcome: success or failure with error details
+          
+          10. **Record completion state** - If campaign is complete:
+              - Mark project metadata field `campaign_status` as "completed"
+              - Do NOT create new work or modify existing items
+              - This is a terminal state
+          
+          #### Phase 4: Report (Output)
+          
+          11. **Generate status report** - Summarize execution results:
+              - Total items discovered via tracker label and worker tracker-ids
+              - Items added to board this run (count and URLs)
+              - Items updated on board this run (count and status changes)
+              - Items skipped due to governance limits (and why)
+              - Current campaign metrics: open vs closed, progress percentage
+              - Any failures encountered during writes
+              - Campaign completion status
+          
+          ### Predefined Project Fields
+          
+          Only these fields may be updated on the project board:
+          
+          - `status` (required) - Values: "Todo", "In Progress", "Done"
+          - `priority` (optional) - Values: "High", "Medium", "Low"
+          - `size` (optional) - Values: "Small", "Medium", "Large"
+          - `campaign_status` (metadata) - Values: "active", "completed"
+          
+          Do NOT update any other fields or create custom fields.
+          
+          ### Correlation Mechanism
+          
+          Workers embed a tracker-id in all created assets via XML comment:
+          ```
+          <!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->
+          ```
+          
+          The orchestrator uses this tracker-id to discover worker output by searching issue bodies. This correlation is explicit and does not require workers to be aware of the campaign.
+          
+          ### Idempotency Guarantee
+          
+          All operations must be idempotent:
+          - Adding an issue already on the board → No-op (do not duplicate)
+          - Updating a status that matches current value → No-op (no change recorded)
+          - Marking a completed campaign as completed → No-op (terminal state preserved)
+          
+          Re-running the orchestrator produces consistent results regardless of how many times it executes.
+          
+          ### Project Board Integration
+          
+          Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
+          
+          **Project URL**: https://github.com/orgs/githubnext/projects/67
+          
+          **Campaign ID**: Extract from tracker label `campaign:docs-quality-maintenance-project67` (format: `campaign:CAMPAIGN_ID`)
+          
+          
+          #### Adding New Issues
+          
+          When adding an issue to the project board:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/67"
+            item_url: "ISSUE_URL"
+            status: "Todo"  # or "Done" if issue is already closed
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project67
+          ```
+          
+          **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
+          - `Start Date` is set from the issue's `createdAt` timestamp
+          - `End Date` is set from the issue's `closedAt` timestamp (if closed)
+          
+          No additional configuration is needed. The dates are extracted in ISO format (YYYY-MM-DD) and only populate if the fields exist and aren't already set. This enables roadmap timeline visualization.
+          
+          **Recommended Custom Fields**: To enable advanced project board features (swimlanes, "Slice by" filtering), populate these fields when available:
+          
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/67"
+            item_url: "ISSUE_URL"
+            fields:
+              status: "Todo"  # or "In Progress", "Blocked", "Done"
+              campaign_id: "CAMPAIGN_ID"  # Extract from tracker label campaign:docs-quality-maintenance-project67
+              worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+              priority: "High"  # or "Medium", "Low" - enables priority-based views
+              effort: "Medium"  # or "Small", "Large" - enables capacity planning
+              team: "TEAM_NAME"  # Optional: for team-based grouping
+              repository: "REPO_NAME"  # Optional: for cross-repository campaigns
+          ```
+          
+          **Custom Field Benefits**:
+          - `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+          - `priority`: Enables priority-based filtering and sorting
+          - `effort`: Supports capacity planning and workload distribution
+          - `team`: Enables team-based grouping for multi-team campaigns
+          - `repository`: Enables repository-based grouping for cross-repository campaigns
+          
+          **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
+          
+          Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
+          
+          #### Updating Existing Items
+          
+          When updating status for an existing board item:
+          ```
+          update-project:
+            project: "https://github.com/orgs/githubnext/projects/67"
+            item_url: "ISSUE_URL"
+            status: "Done"  # or "In Progress", "Todo"
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project67
+          ```
+          
+          #### Idempotency
+          
+          - If an issue is already on the board with matching status → Skip (no-op)
+          - If an issue is already on the board with different status → Update status field only
+          - If an issue URL is invalid or deleted → Record failure, continue with remaining items
+          
+          #### Write Operation Rules
+          
+          1. **Batch writes separately** - Do not mix reads and writes in the same operation
+          2. **Validate before writing** - Confirm issue URL exists and is accessible
+          3. **Record all outcomes** - Log success/failure for each write operation
+          4. **Never infer state** - Only update based on explicit issue state (open/closed)
+          5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
+          
+          ### Summary
+          
+          Execute all four phases in order:
+          1. **Read State** - Discover worker issues and query project board
+          2. **Make Decisions** - Determine what to add, update, or mark complete
+          3. **Write State** - Execute additions and updates via update-project
+          4. **Report** - Generate status report with execution outcomes
+          
+          Remember: Workers are immutable and campaign-agnostic. All coordination, sequencing, and state management happens in this orchestrator. The GitHub Project board is the single source of truth for campaign state.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1027,27 +914,24 @@ jobs:
           
           ---
           
-          ## Repo Memory Available
+          ## Repo Memory Locations Available
           
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch.
+          You have access to persistent repo memory folders where you can read and write files that are stored in git branches:
           
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/meta-orchestrators` branch of the current repository
+          - **campaigns**: `/tmp/gh-aw/repo-memory/campaigns/` (branch: `memory/campaigns`)
+          
+          - **Read/Write Access**: You can freely read from and write to any files in these folders
+          - **Git Branch Storage**: Each memory is stored in its own git branch
           - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
           - **Merge Strategy**: In case of conflicts, your changes (current version) win
           - **Persistence**: Files persist across workflow runs via git branch storage
           
-          **Constraints:**
-          - **Allowed Files**: Only files matching patterns: memory/meta-orchestrators/**/*
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
           Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          - `/tmp/gh-aw/repo-memory/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/history/` - organized history files
           
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1062,7 +946,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_issue, missing_tool, noop, update_issue
+          **Available tools**: add_comment, missing_tool, noop, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1267,7 +1151,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: firewall-logs-workflow-health-manager-meta-orchestrator
+          name: firewall-logs-documentation-quality-maintenance-campaign-project-67-
           path: /tmp/gh-aw/sandbox/firewall/logs/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
@@ -1287,12 +1171,12 @@ jobs:
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
+      - name: Upload repo-memory artifact (campaigns)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
           retention-days: 1
           if-no-files-found: ignore
       - name: Validate agent logs for errors
@@ -1365,7 +1249,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1378,7 +1262,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1394,7 +1278,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
+          GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -1453,8 +1337,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
-          WORKFLOW_DESCRIPTION: "Meta-orchestrator for monitoring and managing health of all agentic workflows in the repository"
+          WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
+          WORKFLOW_DESCRIPTION: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1600,36 +1484,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  pre_activation:
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /tmp/gh-aw/actions
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/tmp/gh-aw/actions/check_membership.cjs');
-            await main();
-
   push_repo_memory:
     needs:
       - agent
@@ -1665,25 +1519,26 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
+      - name: Download repo-memory artifact (campaigns)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         continue-on-error: true
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
+          name: repo-memory-campaigns
+          path: /tmp/gh-aw/repo-memory/campaigns
+      - name: Push repo-memory changes (campaigns)
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
+          MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/meta-orchestrators
+          BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "memory/meta-orchestrators/**/*"
+          FILE_GLOB_FILTER: "docs-quality-maintenance-project67/**"
+          GH_AW_CAMPAIGN_ID: docs-quality-maintenance-project67
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1705,8 +1560,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "workflow-health-manager"
-      GH_AW_WORKFLOW_NAME: "Workflow Health Manager - Meta-Orchestrator"
+      GH_AW_WORKFLOW_ID: "docs-quality-maintenance-project67.campaign.g"
+      GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
@@ -1737,12 +1592,25 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":15},\"create_issue\":{\"max\":10},\"update_issue\":{\"max\":5}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/tmp/gh-aw/actions/safe_output_handler_manager.cjs');
+            await main();
+      - name: Update Project
+        id: update_project
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'update_project'))
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/update_project.cjs');
             await main();
 
