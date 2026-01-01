@@ -17,29 +17,25 @@ type AddLabelsConfig struct {
 
 // parseAddLabelsConfig handles add-labels configuration
 func (c *Compiler) parseAddLabelsConfig(outputMap map[string]any) *AddLabelsConfig {
-	if labels, exists := outputMap["add-labels"]; exists {
-		addLabelsLog.Print("Parsing add-labels configuration")
-		if labelsMap, ok := labels.(map[string]any); ok {
-			labelConfig := &AddLabelsConfig{}
-
-			// Parse list job config (target, target-repo, allowed)
-			listJobConfig, _ := ParseListJobConfig(labelsMap, "allowed")
-			labelConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
-			labelConfig.Allowed = listJobConfig.Allowed
-
-			// Parse common base fields (github-token, max)
-			c.parseBaseSafeOutputConfig(labelsMap, &labelConfig.BaseSafeOutputConfig, 0)
-			addLabelsLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(labelConfig.Allowed), labelConfig.Target)
-
-			return labelConfig
-		} else if labels == nil {
-			// Handle null case: create empty config (allows any labels)
-			addLabelsLog.Print("Using empty configuration (allows any labels)")
-			return &AddLabelsConfig{}
-		}
+	// Check if the key exists
+	if _, exists := outputMap["add-labels"]; !exists {
+		return nil
 	}
 
-	return nil
+	addLabelsLog.Print("Parsing add-labels configuration")
+
+	// Unmarshal into typed config struct
+	var config AddLabelsConfig
+	if err := unmarshalConfig(outputMap, "add-labels", &config, addLabelsLog); err != nil {
+		addLabelsLog.Printf("Failed to unmarshal config: %v", err)
+		// Handle null case: create empty config (allows any labels)
+		addLabelsLog.Print("Using empty configuration (allows any labels)")
+		return &AddLabelsConfig{}
+	}
+
+	addLabelsLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+
+	return &config
 }
 
 // buildAddLabelsJob creates the add_labels job

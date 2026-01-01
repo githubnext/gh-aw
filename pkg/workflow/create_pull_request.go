@@ -159,67 +159,29 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	createPRLog.Print("Parsing create-pull-request configuration")
-	configData := outputMap["create-pull-request"]
-	pullRequestsConfig := &CreatePullRequestsConfig{}
 
-	if configMap, ok := configData.(map[string]any); ok {
-		// Parse title-prefix using shared helper
-		pullRequestsConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
-
-		// Parse labels using shared helper
-		pullRequestsConfig.Labels = parseLabelsFromConfig(configMap)
-
-		// Parse allowed-labels using shared helper
-		pullRequestsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
-
-		// Parse reviewers using shared helper
-		pullRequestsConfig.Reviewers = parseParticipantsFromConfig(configMap, "reviewers")
-
-		// Parse draft
-		if draft, exists := configMap["draft"]; exists {
-			if draftBool, ok := draft.(bool); ok {
-				pullRequestsConfig.Draft = &draftBool
-			}
-		}
-
-		// Parse if-no-changes
-		if ifNoChanges, exists := configMap["if-no-changes"]; exists {
-			if ifNoChangesStr, ok := ifNoChanges.(string); ok {
-				pullRequestsConfig.IfNoChanges = ifNoChangesStr
-			}
-		}
-
-		// Parse allow-empty
-		if allowEmpty, exists := configMap["allow-empty"]; exists {
-			if allowEmptyBool, ok := allowEmpty.(bool); ok {
-				pullRequestsConfig.AllowEmpty = allowEmptyBool
-			}
-		}
-
-		// Parse target-repo using shared helper with validation
-		targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-		if isInvalid {
-			return nil // Invalid configuration, return nil to cause validation error
-		}
-		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
-
-		// Parse expires field (days until PR should be closed) - only for same-repo PRs
-		pullRequestsConfig.Expires = parseExpiresFromConfig(configMap)
-		if pullRequestsConfig.Expires > 0 {
-			createPRLog.Printf("Pull request expiration configured: %d days", pullRequestsConfig.Expires)
-		}
-
-		// Parse common base fields (github-token, max if specified by user)
-		c.parseBaseSafeOutputConfig(configMap, &pullRequestsConfig.BaseSafeOutputConfig, -1)
-
-		// Note: max parameter is not supported for pull requests (always limited to 1)
-		// Override any user-specified max value to enforce the limit
-		pullRequestsConfig.Max = 1
-	} else {
-		// If configData is nil or not a map (e.g., "create-pull-request:" with no value),
-		// still set the default max (always 1 for pull requests)
-		pullRequestsConfig.Max = 1
+	// Unmarshal into typed config struct
+	var config CreatePullRequestsConfig
+	if err := unmarshalConfig(outputMap, "create-pull-request", &config, createPRLog); err != nil {
+		createPRLog.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, handle nil/empty config
+		config = CreatePullRequestsConfig{}
 	}
 
-	return pullRequestsConfig
+	// Validate target-repo (wildcard "*" is not allowed)
+	if config.TargetRepoSlug == "*" {
+		createPRLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	// Log expires if configured
+	if config.Expires > 0 {
+		createPRLog.Printf("Pull request expiration configured: %d days", config.Expires)
+	}
+
+	// Note: max parameter is not supported for pull requests (always limited to 1)
+	// Override any user-specified max value to enforce the limit
+	config.Max = 1
+
+	return &config
 }

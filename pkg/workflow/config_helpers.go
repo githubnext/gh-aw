@@ -38,6 +38,7 @@ package workflow
 import (
 	"fmt"
 
+	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -313,4 +314,53 @@ func ParseBoolFromConfig(m map[string]any, key string, log *logger.Logger) bool 
 		}
 	}
 	return false
+}
+
+// unmarshalConfig unmarshals a config value from a map into a typed struct using YAML.
+// This provides type-safe parsing by leveraging YAML struct tags on config types.
+// Returns an error if the config key doesn't exist, the value can't be marshaled, or unmarshaling fails.
+//
+// Example usage:
+//
+//	var config CreateIssuesConfig
+//	if err := unmarshalConfig(outputMap, "create-issue", &config, log); err != nil {
+//	    return nil, err
+//	}
+//
+// This function:
+// 1. Extracts the config value from the map using the provided key
+// 2. Marshals it to YAML bytes (preserving structure)
+// 3. Unmarshals the YAML into the typed struct (using struct tags for field mapping)
+// 4. Validates that all fields are properly typed
+func unmarshalConfig(m map[string]any, key string, target any, log *logger.Logger) error {
+	configData, exists := m[key]
+	if !exists {
+		return fmt.Errorf("config key %q not found", key)
+	}
+
+	// Handle nil config gracefully - unmarshal empty map
+	if configData == nil {
+		configData = map[string]any{}
+	}
+
+	if log != nil {
+		log.Printf("Unmarshaling config for key %q into typed struct", key)
+	}
+
+	// Marshal the config data back to YAML bytes
+	yamlBytes, err := yaml.Marshal(configData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config for %q: %w", key, err)
+	}
+
+	// Unmarshal into the typed struct
+	if err := yaml.Unmarshal(yamlBytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal config for %q: %w", key, err)
+	}
+
+	if log != nil {
+		log.Printf("Successfully unmarshaled config for key %q", key)
+	}
+
+	return nil
 }

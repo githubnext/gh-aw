@@ -87,51 +87,36 @@ type CloseEntityJobParams struct {
 
 // parseCloseEntityConfig is a generic function to parse close entity configurations
 func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params CloseEntityJobParams, logger *logger.Logger) *CloseEntityConfig {
-	if configData, exists := outputMap[params.ConfigKey]; exists {
-		logger.Printf("Parsing %s configuration", params.ConfigKey)
-		config := &CloseEntityConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// For discussions, parse target and filter configs separately
-			if params.EntityType == CloseEntityDiscussion {
-				logger.Printf("Parsing discussion-specific configuration for %s", params.ConfigKey)
-				// Parse target config
-				targetConfig, isInvalid := ParseTargetConfig(configMap)
-				if isInvalid {
-					logger.Print("Invalid target-repo configuration")
-					return nil
-				}
-				config.SafeOutputTargetConfig = targetConfig
-
-				// Parse discussion filter config (includes required-category)
-				config.SafeOutputDiscussionFilterConfig = ParseDiscussionFilterConfig(configMap)
-				config.SafeOutputFilterConfig = config.SafeOutputDiscussionFilterConfig.SafeOutputFilterConfig
-			} else {
-				logger.Printf("Parsing standard close job configuration for %s", params.EntityType)
-				// For issues and PRs, use the standard close job config parser
-				closeJobConfig, isInvalid := ParseCloseJobConfig(configMap)
-				if isInvalid {
-					logger.Print("Invalid target-repo configuration")
-					return nil
-				}
-				config.SafeOutputTargetConfig = closeJobConfig.SafeOutputTargetConfig
-				config.SafeOutputFilterConfig = closeJobConfig.SafeOutputFilterConfig
-			}
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
-			logger.Printf("Parsed %s configuration: max=%d, target=%s", params.ConfigKey, config.Max, config.Target)
-		} else {
-			// If configData is nil or not a map, still set the default max
-			logger.Print("Config is not a map, using default max=1")
-			config.Max = 1
-		}
-
-		return config
+	// Check if the key exists
+	if _, exists := outputMap[params.ConfigKey]; !exists {
+		logger.Printf("No configuration found for %s", params.ConfigKey)
+		return nil
 	}
 
-	logger.Printf("No configuration found for %s", params.ConfigKey)
-	return nil
+	logger.Printf("Parsing %s configuration", params.ConfigKey)
+
+	// Unmarshal into typed config struct
+	var config CloseEntityConfig
+	if err := unmarshalConfig(outputMap, params.ConfigKey, &config, logger); err != nil {
+		logger.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, handle nil/empty config
+		config = CloseEntityConfig{}
+	}
+
+	// Set default max if not specified
+	if config.Max == 0 {
+		config.Max = 1
+	}
+
+	// Validate target-repo (wildcard "*" is not allowed)
+	if config.TargetRepoSlug == "*" {
+		logger.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return nil
+	}
+
+	logger.Printf("Parsed %s configuration: max=%d, target=%s", params.ConfigKey, config.Max, config.Target)
+
+	return &config
 }
 
 // closeEntityDefinition holds all parameters for a close entity type

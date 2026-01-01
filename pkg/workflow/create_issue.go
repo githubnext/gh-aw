@@ -22,51 +22,38 @@ type CreateIssuesConfig struct {
 
 // parseIssuesConfig handles create-issue configuration
 func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
-	if configData, exists := outputMap["create-issue"]; exists {
-		createIssueLog.Print("Parsing create-issue configuration")
-		issuesConfig := &CreateIssuesConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title-prefix using shared helper
-			issuesConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
-
-			// Parse labels using shared helper
-			issuesConfig.Labels = parseLabelsFromConfig(configMap)
-
-			// Parse allowed-labels using shared helper
-			issuesConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
-
-			// Parse assignees using shared helper
-			issuesConfig.Assignees = parseParticipantsFromConfig(configMap, "assignees")
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-			if isInvalid {
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			issuesConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse allowed-repos using shared helper
-			issuesConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
-
-			// Parse expires field (days until issue should be closed)
-			issuesConfig.Expires = parseExpiresFromConfig(configMap)
-			if issuesConfig.Expires > 0 {
-				createIssueLog.Printf("Issue expiration configured: %d days", issuesConfig.Expires)
-			}
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "create-issue:" with no value),
-			// still set the default max
-			issuesConfig.Max = 1
-		}
-
-		return issuesConfig
+	// Check if the key exists
+	if _, exists := outputMap["create-issue"]; !exists {
+		return nil
 	}
 
-	return nil
+	createIssueLog.Print("Parsing create-issue configuration")
+
+	// Unmarshal into typed config struct
+	var config CreateIssuesConfig
+	if err := unmarshalConfig(outputMap, "create-issue", &config, createIssueLog); err != nil {
+		createIssueLog.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, handle nil/empty config
+		config = CreateIssuesConfig{}
+	}
+
+	// Set default max if not specified
+	if config.Max == 0 {
+		config.Max = 1
+	}
+
+	// Validate target-repo (wildcard "*" is not allowed)
+	if config.TargetRepoSlug == "*" {
+		createIssueLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	// Log expires if configured
+	if config.Expires > 0 {
+		createIssueLog.Printf("Issue expiration configured: %d days", config.Expires)
+	}
+
+	return &config
 }
 
 // hasCopilotAssignee checks if "copilot" is in the assignees list

@@ -23,91 +23,59 @@ type CreateDiscussionsConfig struct {
 
 // parseDiscussionsConfig handles create-discussion configuration
 func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
-	if configData, exists := outputMap["create-discussion"]; exists {
-		discussionLog.Print("Parsing create-discussion configuration")
-		discussionsConfig := &CreateDiscussionsConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title-prefix using shared helper
-			discussionsConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
-			if discussionsConfig.TitlePrefix != "" {
-				discussionLog.Printf("Title prefix configured: %q", discussionsConfig.TitlePrefix)
-			}
-
-			// Parse category (can be string or number)
-			if category, exists := configMap["category"]; exists {
-				switch v := category.(type) {
-				case string:
-					discussionsConfig.Category = v
-				case int:
-					discussionsConfig.Category = fmt.Sprintf("%d", v)
-				case int64:
-					discussionsConfig.Category = fmt.Sprintf("%d", v)
-				case float64:
-					discussionsConfig.Category = fmt.Sprintf("%.0f", v)
-				case uint64:
-					discussionsConfig.Expires = int(v)
-				}
-				discussionLog.Printf("Discussion category configured: %q", discussionsConfig.Category)
-			}
-
-			// Parse labels using shared helper
-			discussionsConfig.Labels = parseLabelsFromConfig(configMap)
-			if len(discussionsConfig.Labels) > 0 {
-				discussionLog.Printf("Labels configured: %v", discussionsConfig.Labels)
-			}
-
-			// Parse allowed-labels using shared helper
-			discussionsConfig.AllowedLabels = parseAllowedLabelsFromConfig(configMap)
-			if len(discussionsConfig.AllowedLabels) > 0 {
-				discussionLog.Printf("Allowed labels configured: %v", discussionsConfig.AllowedLabels)
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-			if isInvalid {
-				discussionLog.Print("Invalid target-repo configuration")
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			if targetRepoSlug != "" {
-				discussionLog.Printf("Target repository configured: %s", targetRepoSlug)
-			}
-			discussionsConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse allowed-repos using shared helper
-			discussionsConfig.AllowedRepos = parseAllowedReposFromConfig(configMap)
-			if len(discussionsConfig.AllowedRepos) > 0 {
-				discussionLog.Printf("Allowed repos configured: %v", discussionsConfig.AllowedRepos)
-			}
-
-			// Parse close-older-discussions
-			if closeOlder, exists := configMap["close-older-discussions"]; exists {
-				if val, ok := closeOlder.(bool); ok {
-					discussionsConfig.CloseOlderDiscussions = val
-					if val {
-						discussionLog.Print("Close older discussions enabled")
-					}
-				}
-			}
-
-			// Parse expires field (days until discussion should be closed)
-			discussionsConfig.Expires = parseExpiresFromConfig(configMap)
-			if discussionsConfig.Expires > 0 {
-				discussionLog.Printf("Discussion expiration configured: %d days", discussionsConfig.Expires)
-			}
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "create-discussion:" with no value),
-			// still set the default max
-			discussionsConfig.Max = 1
-		}
-
-		return discussionsConfig
+	// Check if the key exists
+	if _, exists := outputMap["create-discussion"]; !exists {
+		return nil
 	}
 
-	return nil
+	discussionLog.Print("Parsing create-discussion configuration")
+
+	// Unmarshal into typed config struct
+	var config CreateDiscussionsConfig
+	if err := unmarshalConfig(outputMap, "create-discussion", &config, discussionLog); err != nil {
+		discussionLog.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, handle nil/empty config
+		config = CreateDiscussionsConfig{}
+	}
+
+	// Set default max if not specified
+	if config.Max == 0 {
+		config.Max = 1
+	}
+
+	// Validate target-repo (wildcard "*" is not allowed)
+	if config.TargetRepoSlug == "*" {
+		discussionLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	// Log configured values
+	if config.TitlePrefix != "" {
+		discussionLog.Printf("Title prefix configured: %q", config.TitlePrefix)
+	}
+	if config.Category != "" {
+		discussionLog.Printf("Discussion category configured: %q", config.Category)
+	}
+	if len(config.Labels) > 0 {
+		discussionLog.Printf("Labels configured: %v", config.Labels)
+	}
+	if len(config.AllowedLabels) > 0 {
+		discussionLog.Printf("Allowed labels configured: %v", config.AllowedLabels)
+	}
+	if config.TargetRepoSlug != "" {
+		discussionLog.Printf("Target repository configured: %s", config.TargetRepoSlug)
+	}
+	if len(config.AllowedRepos) > 0 {
+		discussionLog.Printf("Allowed repos configured: %v", config.AllowedRepos)
+	}
+	if config.CloseOlderDiscussions {
+		discussionLog.Print("Close older discussions enabled")
+	}
+	if config.Expires > 0 {
+		discussionLog.Printf("Discussion expiration configured: %d days", config.Expires)
+	}
+
+	return &config
 }
 
 // buildCreateOutputDiscussionJob creates the create_discussion job
