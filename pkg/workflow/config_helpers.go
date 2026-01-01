@@ -21,7 +21,6 @@
 //   - ParseStringArrayFromConfig() - Generic string array extraction
 //   - parseLabelsFromConfig() - Extract labels array
 //   - parseParticipantsFromConfig() - Extract participants array
-//   - parseAllowedReposFromConfig() - Extract allowed repos array
 //   - parseAllowedLabelsFromConfig() - Extract allowed labels array
 //
 // Configuration String Parsing:
@@ -156,12 +155,6 @@ func parseParticipantsFromConfig(configMap map[string]any, participantKey string
 		}
 	}
 	return nil
-}
-
-// parseAllowedReposFromConfig extracts and validates allowed-repos from a config map.
-// Returns a slice of repository slugs (owner/repo format), or nil if not present or invalid.
-func parseAllowedReposFromConfig(configMap map[string]any) []string {
-	return ParseStringArrayFromConfig(configMap, "allowed-repos", configHelpersLog)
 }
 
 // parseAllowedLabelsFromConfig extracts and validates allowed-labels from a config map.
