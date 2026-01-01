@@ -83,6 +83,23 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_match.cjs"))
 	}
 
+	// Add skip-if-no-match check if configured
+	if data.SkipIfNoMatch != nil {
+		// Extract workflow name for the skip-if-no-match check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-if-no-match query\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipIfNoMatchStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_QUERY: %q\n", data.SkipIfNoMatch.Query))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_MIN_MATCHES: \"%d\"\n", data.SkipIfNoMatch.Min))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_no_match.cjs"))
+	}
+
 	// Add command position check if this is a command workflow
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check command position\n")
@@ -135,6 +152,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, skipCheckOk)
+	}
+
+	if data.SkipIfNoMatch != nil {
+		// Add skip-if-no-match check condition
+		skipNoMatchCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipIfNoMatchStepID, constants.SkipNoMatchCheckOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipNoMatchCheckOk)
 	}
 
 	if data.Command != "" {

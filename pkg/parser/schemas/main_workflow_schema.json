@@ -1248,6 +1248,32 @@
               ],
               "description": "Conditionally skip workflow execution when a GitHub search query has matches. Can be a string (query only, implies max=1) or an object with 'query' and optional 'max' fields."
             },
+            "skip-if-no-match": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "GitHub search query string to check before running workflow (implies min=1). If the search returns no results, the workflow will be skipped. Query is automatically scoped to the current repository. Example: 'is:pr is:open label:ready-to-deploy'"
+                },
+                {
+                  "type": "object",
+                  "required": ["query"],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "GitHub search query string to check before running workflow. Query is automatically scoped to the current repository."
+                    },
+                    "min": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Minimum number of items that must be matched for the workflow to proceed. Defaults to 1 if not specified."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Skip-if-no-match configuration object with query and minimum match count"
+                }
+              ],
+              "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query' and optional 'min' fields."
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
