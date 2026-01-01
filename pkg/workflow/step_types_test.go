@@ -492,3 +492,248 @@ func compareSteps(a, b *WorkflowStep) bool {
 
 	return true
 }
+
+func TestSliceToSteps(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []any
+		want    []*WorkflowStep
+		wantErr bool
+	}{
+		{
+			name:  "nil slice",
+			input: nil,
+			want:  nil,
+		},
+		{
+			name:  "empty slice",
+			input: []any{},
+			want:  []*WorkflowStep{},
+		},
+		{
+			name: "single uses step",
+			input: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v4",
+				},
+			},
+			want: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+				},
+			},
+		},
+		{
+			name: "multiple mixed steps",
+			input: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"fetch-depth": "0"},
+				},
+				map[string]any{
+					"name": "Run tests",
+					"run":  "npm test",
+					"env":  map[string]any{"NODE_ENV": "test"},
+				},
+			},
+			want: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+					With: map[string]any{"fetch-depth": "0"},
+				},
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+					Env:  map[string]string{"NODE_ENV": "test"},
+				},
+			},
+		},
+		{
+			name: "invalid step type",
+			input: []any{
+				"not a map",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := SliceToSteps(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SliceToSteps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("SliceToSteps() returned %d steps, want %d", len(got), len(tt.want))
+				return
+			}
+			for i := range got {
+				if !compareSteps(got[i], tt.want[i]) {
+					t.Errorf("SliceToSteps() step %d = %+v, want %+v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestStepsToSlice(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []*WorkflowStep
+		want  []any
+	}{
+		{
+			name:  "nil slice",
+			input: nil,
+			want:  nil,
+		},
+		{
+			name:  "empty slice",
+			input: []*WorkflowStep{},
+			want:  []any{},
+		},
+		{
+			name: "single uses step",
+			input: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+				},
+			},
+			want: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v4",
+				},
+			},
+		},
+		{
+			name: "multiple mixed steps",
+			input: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+					With: map[string]any{"fetch-depth": "0"},
+				},
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+					Env:  map[string]string{"NODE_ENV": "test"},
+				},
+			},
+			want: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v4",
+					"with": map[string]any{"fetch-depth": "0"},
+				},
+				map[string]any{
+					"name": "Run tests",
+					"run":  "npm test",
+					"env":  map[string]string{"NODE_ENV": "test"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := StepsToSlice(tt.input)
+			if len(got) != len(tt.want) {
+				t.Errorf("StepsToSlice() returned %d items, want %d", len(got), len(tt.want))
+				return
+			}
+			for i := range got {
+				gotMap, ok := got[i].(map[string]any)
+				if !ok {
+					t.Errorf("StepsToSlice() item %d is not a map, got %T", i, got[i])
+					continue
+				}
+				wantMap, ok := tt.want[i].(map[string]any)
+				if !ok {
+					t.Errorf("Test data item %d is not a map, got %T", i, tt.want[i])
+					continue
+				}
+				if len(gotMap) != len(wantMap) {
+					t.Errorf("StepsToSlice() item %d has %d fields, want %d", i, len(gotMap), len(wantMap))
+				}
+				for key, wantVal := range wantMap {
+					gotVal, exists := gotMap[key]
+					if !exists {
+						t.Errorf("StepsToSlice() item %d missing key %q", i, key)
+						continue
+					}
+					if !compareStepValues(gotVal, wantVal) {
+						t.Errorf("StepsToSlice() item %d key %q = %v, want %v", i, key, gotVal, wantVal)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSliceToSteps_RoundTrip(t *testing.T) {
+	// Test that converting []any -> []*WorkflowStep -> []any produces equivalent result
+	originalSlice := []any{
+		map[string]any{
+			"name": "Checkout",
+			"uses": "actions/checkout@v4",
+			"with": map[string]any{"fetch-depth": "0"},
+		},
+		map[string]any{
+			"name": "Run tests",
+			"run":  "npm test",
+			"env":  map[string]any{"NODE_ENV": "test"},
+		},
+	}
+
+	// Convert to typed steps
+	steps, err := SliceToSteps(originalSlice)
+	if err != nil {
+		t.Fatalf("SliceToSteps() failed: %v", err)
+	}
+
+	// Convert back to slice
+	resultSlice := StepsToSlice(steps)
+
+	// Compare
+	if len(resultSlice) != len(originalSlice) {
+		t.Errorf("Round trip changed slice size: got %d, want %d", len(resultSlice), len(originalSlice))
+	}
+
+	for i := range originalSlice {
+		origMap, _ := originalSlice[i].(map[string]any)
+		resultMap, _ := resultSlice[i].(map[string]any)
+
+		// Check all keys from original exist in result
+		for key, origVal := range origMap {
+			resultVal, exists := resultMap[key]
+			if !exists {
+				t.Errorf("Round trip lost key %q in step %d", key, i)
+				continue
+			}
+			// Special handling for env field which converts map[string]any to map[string]string
+			if key == "env" {
+				origEnv, _ := origVal.(map[string]any)
+				resultEnv, _ := resultVal.(map[string]string)
+				for k, v := range origEnv {
+					if vStr, ok := v.(string); ok {
+						if resultEnv[k] != vStr {
+							t.Errorf("Round trip changed env[%q] in step %d: got %q, want %q", k, i, resultEnv[k], vStr)
+						}
+					}
+				}
+			} else if !compareStepValues(resultVal, origVal) {
+				t.Errorf("Round trip changed value for key %q in step %d: got %v, want %v", key, i, resultVal, origVal)
+			}
+		}
+	}
+}

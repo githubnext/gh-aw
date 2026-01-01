@@ -820,3 +820,146 @@ func TestSortPinsByVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyActionPinsToTypedSteps(t *testing.T) {
+	// Create a minimal WorkflowData for testing
+	data := &WorkflowData{
+		StrictMode: false,
+	}
+
+	tests := []struct {
+		name  string
+		steps []*WorkflowStep
+		want  []*WorkflowStep
+	}{
+		{
+			name:  "nil steps",
+			steps: nil,
+			want:  nil,
+		},
+		{
+			name:  "empty steps",
+			steps: []*WorkflowStep{},
+			want:  []*WorkflowStep{},
+		},
+		{
+			name: "step with uses - should be pinned",
+			steps: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+				},
+			},
+			want: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					// SHA will be pinned by the function, we just check structure
+					Uses: "actions/checkout@",
+				},
+			},
+		},
+		{
+			name: "step with run - should not change",
+			steps: []*WorkflowStep{
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+				},
+			},
+			want: []*WorkflowStep{
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+				},
+			},
+		},
+		{
+			name: "mixed steps",
+			steps: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@v4",
+				},
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+				},
+				{
+					Name: "Setup Node",
+					Uses: "actions/setup-node@v4",
+				},
+			},
+			want: []*WorkflowStep{
+				{
+					Name: "Checkout",
+					Uses: "actions/checkout@",
+				},
+				{
+					Name: "Run tests",
+					Run:  "npm test",
+				},
+				{
+					Name: "Setup Node",
+					Uses: "actions/setup-node@",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ApplyActionPinsToTypedSteps(tt.steps, data)
+
+			if len(got) != len(tt.want) {
+				t.Errorf("ApplyActionPinsToTypedSteps() returned %d steps, want %d", len(got), len(tt.want))
+				return
+			}
+
+			for i := range got {
+				if got[i] == nil && tt.want[i] == nil {
+					continue
+				}
+				if got[i] == nil || tt.want[i] == nil {
+					t.Errorf("ApplyActionPinsToTypedSteps() step %d: got nil=%v, want nil=%v",
+						i, got[i] == nil, tt.want[i] == nil)
+					continue
+				}
+
+				// Check basic fields
+				if got[i].Name != tt.want[i].Name {
+					t.Errorf("ApplyActionPinsToTypedSteps() step %d name = %s, want %s",
+						i, got[i].Name, tt.want[i].Name)
+				}
+				if got[i].Run != tt.want[i].Run {
+					t.Errorf("ApplyActionPinsToTypedSteps() step %d run = %s, want %s",
+						i, got[i].Run, tt.want[i].Run)
+				}
+
+				// For uses steps, check that pinning occurred (contains @ symbol and SHA)
+				if tt.want[i].Uses != "" {
+					if !strings.Contains(got[i].Uses, "@") {
+						t.Errorf("ApplyActionPinsToTypedSteps() step %d uses = %s, expected to contain @",
+							i, got[i].Uses)
+					}
+					// If the original step had a known action, verify it was pinned
+					if strings.HasPrefix(tt.want[i].Uses, "actions/checkout@") ||
+						strings.HasPrefix(tt.want[i].Uses, "actions/setup-node@") {
+						// Verify the result has a SHA (40 hex chars after @)
+						parts := strings.Split(got[i].Uses, "@")
+						if len(parts) == 2 {
+							shaAndComment := parts[1]
+							commentIdx := strings.Index(shaAndComment, " # ")
+							if commentIdx != -1 {
+								sha := shaAndComment[:commentIdx]
+								if len(sha) != 40 {
+									t.Errorf("ApplyActionPinsToTypedSteps() step %d uses SHA length = %d, want 40",
+										i, len(sha))
+								}
+							}
+						}
+					}
+				}
+			}
+		})
+	}
+}

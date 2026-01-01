@@ -326,6 +326,30 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	return result
 }
 
+// ApplyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers
+// Returns a new slice with pinned references - this is the type-safe version
+func ApplyActionPinsToTypedSteps(steps []*WorkflowStep, data *WorkflowData) []*WorkflowStep {
+	actionPinsLog.Printf("Applying action pins to %d typed steps", len(steps))
+	if steps == nil {
+		return nil
+	}
+
+	result := make([]*WorkflowStep, 0, len(steps))
+	for i, step := range steps {
+		if step == nil {
+			actionPinsLog.Printf("Skipping nil step at index %d", i)
+			result = append(result, nil)
+			continue
+		}
+
+		pinnedStep := ApplyActionPinToTypedStep(step, data)
+		result = append(result, pinnedStep)
+	}
+
+	actionPinsLog.Printf("Successfully applied pins to %d typed steps", len(result))
+	return result
+}
+
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 // When multiple versions exist for the same repo, it returns the latest version by semver
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
