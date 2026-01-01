@@ -213,7 +213,7 @@ Before returning to create the pull request, **you MUST complete all these valid
    cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
    npm run format:cjs
    ```
-   This ensures consistent code formatting using Prettier.
+   This will ensure consistent formatting using prettier.
 
 2. **Lint the JavaScript code**:
    ```bash
@@ -227,14 +227,14 @@ Before returning to create the pull request, **you MUST complete all these valid
    cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
    npm run typecheck
    ```
-   This ensures there are no type errors. The code must pass type checking without errors.
+   This will verify no type errors and ensures type safety. The code must pass type checking without errors.
 
 4. **Run impacted tests**:
    ```bash
    cd /home/runner/work/gh-aw/gh-aw
    make test-js
    ```
-   This runs the JavaScript test suite. All tests must pass.
+   This runs the JavaScript test suite to verify all tests pass. All tests must pass.
 
 **CRITICAL**: The code must pass ALL four checks above (format, lint, typecheck, and tests) before you create the pull request. If any check fails, fix the issues and re-run all checks until they all pass.
 
