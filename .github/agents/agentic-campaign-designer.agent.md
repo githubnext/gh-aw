@@ -153,8 +153,9 @@ Alternatively, use the github-issue-query skill (from the repository root):
 ```
 
 **If no project is assigned:**
-- Inform the user that they need to add the issue to a project board first
-- Wait for them to assign the project, then retry
+- Inform the user that a project board assignment is required
+- Provide clear instructions: "Please assign this issue to a GitHub Project board using the project selector in the issue sidebar, then mention me again to continue."
+- Explain they can also recreate the issue from the project board directly (which auto-assigns the project)
 - Do not proceed with campaign creation without a valid project URL
 
 ### Step 2: Design the Campaign Specification

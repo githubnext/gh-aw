@@ -8,13 +8,26 @@ body:
       value: |
         ## Start an Agentic Campaign
         
-        Fill out the form below and **assign it to a GitHub Project board** using the project selector at the bottom of this form before submitting.
+        **📌 Important: Project Board Assignment**
+        
+        This campaign must be assigned to a GitHub Project board. You have two options:
+        
+        **Option A (Recommended):** Create this issue from your project board:
+        1. Open your GitHub Project board
+        2. Click "Add item" → "Create new issue"
+        3. Select this repository and choose this template
+        4. The project will be automatically assigned ✅
+        
+        **Option B:** Create from issues page (assign project before submitting):
+        1. Fill out the form below
+        2. **Scroll down and use the project selector at the bottom** to assign a project board
+        3. Submit the issue
         
         The AI will automatically detect the project board assignment and generate the campaign specification with the correct project URL.
         
         **Process:**
         1. Fill out the campaign goal and context fields below
-        2. **Assign to a project board** using the selector at the bottom of this form
+        2. **Ensure a project board is assigned** (see options above)
         3. Submit the issue
         4. AI analyzes goal and generates campaign spec with project tracking
         5. PR created with spec and orchestrator files
