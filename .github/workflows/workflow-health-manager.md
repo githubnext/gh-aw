@@ -8,8 +8,9 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  bash: [":*"]
+  edit:
   github:
-    mode: remote
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators

@@ -29,6 +29,8 @@ type SafeInputsConfigJSON struct {
 
 // generateSafeInputsToolsConfig generates the tools.json configuration for the safe-inputs MCP server
 func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
+	safeInputsLog.Printf("Generating safe-inputs tools.json config: tool_count=%d", len(safeInputs.Tools))
+
 	config := SafeInputsConfigJSON{
 		ServerName: "safeinputs",
 		Version:    constants.SafeInputsMCPVersion,
@@ -127,12 +129,14 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 		safeInputsLog.Printf("Error marshaling tools config: %v", err)
 		return "{}"
 	}
+	safeInputsLog.Printf("Generated tools.json config: size=%d bytes", len(jsonBytes))
 	return string(jsonBytes)
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
 // This script uses HTTP transport exclusively
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
+	safeInputsLog.Print("Generating safe-inputs MCP server entry point script")
 	var sb strings.Builder
 
 	// HTTP transport - server started in separate step
@@ -169,6 +173,7 @@ startHttpServer(configPath, {
 // so users can write simple code without worrying about exports.
 // Input parameters are destructured and available as local variables.
 func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) string {
+	safeInputsLog.Printf("Generating JavaScript tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
 	var sb strings.Builder
 
 	sb.WriteString("// @ts-check\n")
@@ -216,6 +221,7 @@ func generateSafeInputJavaScriptToolScript(toolConfig *SafeInputToolConfig) stri
 
 // generateSafeInputShellToolScript generates the shell script for a safe-input tool
 func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
+	safeInputsLog.Printf("Generating shell tool script: tool=%s", toolConfig.Name)
 	var sb strings.Builder
 
 	sb.WriteString("#!/bin/bash\n")
@@ -234,6 +240,7 @@ func generateSafeInputShellToolScript(toolConfig *SafeInputToolConfig) string {
 // - Outputs are printed to stdout as JSON
 // - Environment variables from env: field are available via os.environ
 func generateSafeInputPythonToolScript(toolConfig *SafeInputToolConfig) string {
+	safeInputsLog.Printf("Generating Python tool script: tool=%s, input_count=%d", toolConfig.Name, len(toolConfig.Inputs))
 	var sb strings.Builder
 
 	sb.WriteString("#!/usr/bin/env python3\n")

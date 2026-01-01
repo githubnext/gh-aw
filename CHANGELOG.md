@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Breaking Changes
+
+#### Remove `githubActionsStep` as top-level workflow property
+
+The `githubActionsStep` field has been removed from the top-level properties in the workflow schema. This field was dead code that was never referenced by user workflows or parser/compiler code. It has been moved to the internal `$defs` section where it continues to be used for schema validation purposes.
+
+**Impact**: This is a breaking change only if workflows explicitly set `githubActionsStep:` as a top-level field (which was never a documented or intended use case). No production workflows were found using this field.
+
+**Migration**: If any workflows are using `githubActionsStep` as a top-level field, remove it from the frontmatter as it was never functional.
+
+Related to: #8374
+
 ## v0.33.12 - 2025-12-22
 
 ### Bug Fixes

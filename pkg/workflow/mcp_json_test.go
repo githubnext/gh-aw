@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/types"
 )
 
 func TestGetMCPConfig(t *testing.T) {
@@ -22,12 +23,14 @@ func TestGetMCPConfig(t *testing.T) {
 				"args":    []any{"-m", "test"},
 			},
 			expected: &parser.MCPServerConfig{
-				Name:    "test",
-				Type:    "stdio",
-				Command: "python",
-				Args:    []string{"-m", "test"},
-				Env:     make(map[string]string),
-				Headers: make(map[string]string),
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "stdio",
+					Command: "python",
+					Args:    []string{"-m", "test"},
+					Env:     make(map[string]string),
+					Headers: make(map[string]string),
+				},
+				Name: "test",
 			},
 			wantErr: false,
 		},
@@ -38,12 +41,14 @@ func TestGetMCPConfig(t *testing.T) {
 				"args":    []any{"-m", "test"},
 			},
 			expected: &parser.MCPServerConfig{
-				Name:    "test",
-				Type:    "stdio",
-				Command: "python",
-				Args:    []string{"-m", "test"},
-				Env:     make(map[string]string),
-				Headers: make(map[string]string),
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "stdio",
+					Command: "python",
+					Args:    []string{"-m", "test"},
+					Env:     make(map[string]string),
+					Headers: make(map[string]string),
+				},
+				Name: "test",
 			},
 			wantErr: false,
 		},
@@ -53,11 +58,13 @@ func TestGetMCPConfig(t *testing.T) {
 				"url": "https://example.com",
 			},
 			expected: &parser.MCPServerConfig{
-				Name:    "test",
-				Type:    "http",
-				URL:     "https://example.com",
-				Env:     make(map[string]string),
-				Headers: make(map[string]string),
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "http",
+					URL:     "https://example.com",
+					Env:     make(map[string]string),
+					Headers: make(map[string]string),
+				},
+				Name: "test",
 			},
 			wantErr: false,
 		},

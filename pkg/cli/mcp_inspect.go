@@ -15,6 +15,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/types"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -552,10 +553,12 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 
 	// Create MCP server config for the safe-inputs server
 	config := &parser.MCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type: "http",
+			URL:  fmt.Sprintf("http://localhost:%d", port),
+			Env:  make(map[string]string),
+		},
 		Name: "safeinputs",
-		Type: "http",
-		URL:  fmt.Sprintf("http://localhost:%d", port),
-		Env:  make(map[string]string),
 	}
 
 	return config, serverCmd, tmpDir, nil
@@ -666,10 +669,12 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 
 	// Create MCP server config for the safe-inputs server
 	safeInputsMCPConfig := parser.MCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Type: "http",
+			URL:  fmt.Sprintf("http://localhost:%d", port),
+			Env:  make(map[string]string),
+		},
 		Name: "safeinputs",
-		Type: "http",
-		URL:  fmt.Sprintf("http://localhost:%d", port),
-		Env:  make(map[string]string),
 	}
 
 	// Inspect the safe-inputs MCP server using the Go SDK (like other MCP servers)

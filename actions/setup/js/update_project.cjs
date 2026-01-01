@@ -456,13 +456,11 @@ async function updateProject(output) {
       const contentType = "pull_request" === output.content_type ? "PullRequest" : "issue" === output.content_type || output.issue ? "Issue" : "PullRequest",
         contentQuery =
           "Issue" === contentType
-            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }"
-            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n                createdAt\n                closedAt\n              }\n            }\n          }",
+            ? "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              issue(number: $number) {\n                id\n              }\n            }\n          }"
+            : "query($owner: String!, $repo: String!, $number: Int!) {\n            repository(owner: $owner, name: $repo) {\n              pullRequest(number: $number) {\n                id\n              }\n            }\n          }",
         contentResult = await github.graphql(contentQuery, { owner, repo, number: contentNumber }),
         contentData = "Issue" === contentType ? contentResult.repository.issue : contentResult.repository.pullRequest,
         contentId = contentData.id,
-        createdAt = contentData.createdAt,
-        closedAt = contentData.closedAt,
         existingItem = await (async function (projectId, contentId) {
           let hasNextPage = !0,
             endCursor = null;
@@ -569,6 +567,7 @@ async function updateProject(output) {
           );
         }
       }
+
       core.setOutput("item-id", itemId);
     }
   } catch (error) {

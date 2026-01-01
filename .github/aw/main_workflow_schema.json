@@ -4368,7 +4368,7 @@
                   "type": "array",
                   "description": "Array of extra job steps to run after detection",
                   "items": {
-                    "$ref": "#/properties/githubActionsStep"
+                    "$ref": "#/$defs/githubActionsStep"
                   }
                 }
               },
@@ -4490,7 +4490,7 @@
                   "type": "array",
                   "description": "Custom steps to execute in the safe job",
                   "items": {
-                    "$ref": "#/properties/githubActionsStep"
+                    "$ref": "#/$defs/githubActionsStep"
                   }
                 }
               },
@@ -4601,7 +4601,7 @@
           "type": "array",
           "description": "Additional secret redaction steps to inject after the built-in secret redaction. Use this to mask secrets in generated files using custom patterns.",
           "items": {
-            "$ref": "#/properties/githubActionsStep"
+            "$ref": "#/$defs/githubActionsStep"
           },
           "examples": [
             [
@@ -4643,72 +4643,6 @@
         "minLength": 1,
         "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
       }
-    },
-    "githubActionsStep": {
-      "type": "object",
-      "description": "GitHub Actions workflow step",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "A name for your step to display on GitHub"
-        },
-        "id": {
-          "type": "string",
-          "description": "A unique identifier for the step"
-        },
-        "if": {
-          "type": "string",
-          "description": "Conditional expression to determine if step should run"
-        },
-        "uses": {
-          "type": "string",
-          "description": "Selects an action to run as part of a step in your job"
-        },
-        "run": {
-          "type": "string",
-          "description": "Runs command-line programs using the operating system's shell"
-        },
-        "with": {
-          "type": "object",
-          "description": "Input parameters defined by the action",
-          "additionalProperties": true
-        },
-        "env": {
-          "type": "object",
-          "description": "Environment variables for the step",
-          "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*$": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        "continue-on-error": {
-          "type": "boolean",
-          "description": "Prevents a job from failing when a step fails"
-        },
-        "timeout-minutes": {
-          "type": "number",
-          "description": "The maximum number of minutes to run the step before killing the process"
-        },
-        "working-directory": {
-          "type": "string",
-          "description": "Working directory for the step"
-        },
-        "shell": {
-          "type": "string",
-          "description": "Shell to use for the run command"
-        }
-      },
-      "additionalProperties": false,
-      "anyOf": [
-        {
-          "required": ["uses"]
-        },
-        {
-          "required": ["run"]
-        }
-      ]
     },
     "strict": {
       "type": "boolean",
@@ -5306,6 +5240,72 @@
       "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
       "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
       "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
+    },
+    "githubActionsStep": {
+      "type": "object",
+      "description": "GitHub Actions workflow step",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name for your step to display on GitHub"
+        },
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the step"
+        },
+        "if": {
+          "type": "string",
+          "description": "Conditional expression to determine if step should run"
+        },
+        "uses": {
+          "type": "string",
+          "description": "Selects an action to run as part of a step in your job"
+        },
+        "run": {
+          "type": "string",
+          "description": "Runs command-line programs using the operating system's shell"
+        },
+        "with": {
+          "type": "object",
+          "description": "Input parameters defined by the action",
+          "additionalProperties": true
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the step",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "continue-on-error": {
+          "type": "boolean",
+          "description": "Prevents a job from failing when a step fails"
+        },
+        "timeout-minutes": {
+          "type": "number",
+          "description": "The maximum number of minutes to run the step before killing the process"
+        },
+        "working-directory": {
+          "type": "string",
+          "description": "Working directory for the step"
+        },
+        "shell": {
+          "type": "string",
+          "description": "Shell to use for the run command"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": ["uses"]
+        },
+        {
+          "required": ["run"]
+        }
+      ]
     }
   }
 }

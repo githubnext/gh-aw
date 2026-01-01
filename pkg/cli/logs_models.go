@@ -4,8 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var logsModelsLog = logger.New("cli:logs_models")
 
 const (
 	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
@@ -221,5 +224,9 @@ func (a *AwInfo) GetFirewallVersion() string {
 // isFailureConclusion returns true if the conclusion represents a failure state
 // (timed_out, failure, or cancelled) that should be counted as an error
 func isFailureConclusion(conclusion string) bool {
-	return conclusion == "timed_out" || conclusion == "failure" || conclusion == "cancelled"
+	isFailure := conclusion == "timed_out" || conclusion == "failure" || conclusion == "cancelled"
+	if logsModelsLog.Enabled() {
+		logsModelsLog.Printf("Checking failure conclusion: conclusion=%s, is_failure=%t", conclusion, isFailure)
+	}
+	return isFailure
 }
