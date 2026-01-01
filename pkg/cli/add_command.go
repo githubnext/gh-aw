@@ -725,8 +725,8 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			}
 		}
 
-		// Write the file
-		if err := os.WriteFile(destFile, []byte(content), 0644); err != nil {
+		// Write the file with restrictive permissions (0600) to follow security best practices
+		if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
 			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 		}
 
