@@ -1,9 +1,9 @@
 ---
 id: docs-quality-maintenance-project65
-name: "Documentation Quality & Maintenance Campaign (Project 65)"
+name: "Documentation Quality & Maintenance Campaign (Project 67)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
 version: v1
-project-url: "https://github.com/orgs/githubnext/projects/65"
+project-url: "https://github.com/orgs/githubnext/projects/67"
 project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 workflows:
   - daily-doc-updater
@@ -65,7 +65,7 @@ governance:
   max-discovery-pages-per-run: 10
 ---
 
-# Documentation Quality & Maintenance Campaign (Project 65)
+# Documentation Quality & Maintenance Campaign (Project 67)
 
 ## Overview
 
@@ -180,7 +180,7 @@ This campaign coordinates six complementary documentation workflows:
 
 ## Project Board
 
-**URL**: https://github.com/orgs/githubnext/projects/65
+**URL**: https://github.com/orgs/githubnext/projects/67
 
 The project board serves as the campaign dashboard, tracking:
 - Documentation gaps and coverage

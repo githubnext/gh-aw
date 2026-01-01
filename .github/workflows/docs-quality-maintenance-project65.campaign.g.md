@@ -1,5 +1,5 @@
 ---
-name: "Documentation Quality & Maintenance Campaign (Project 65)"
+name: "Documentation Quality & Maintenance Campaign (Project 67)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
 on:
   schedule:
@@ -42,7 +42,7 @@ tools:
 
 # Campaign Orchestrator
 
-This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 65)' campaign.
+This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 67)' campaign.
 
 - Tracker label: `campaign:docs-quality-maintenance-project65`
 - Objective: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
@@ -54,7 +54,7 @@ This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Pr
 - Memory paths: memory/campaigns/docs-quality-maintenance-project65/**
 - Metrics glob: `memory/campaigns/docs-quality-maintenance-project65/metrics/*.json`
 - Cursor glob: `memory/campaigns/docs-quality-maintenance-project65/cursor.json`
-- Project URL: https://github.com/orgs/githubnext/projects/65
+- Project URL: https://github.com/orgs/githubnext/projects/67
 - Governance: max new items per run: 8
 - Governance: max discovery items per run: 100
 - Governance: max discovery pages per run: 10
@@ -307,7 +307,7 @@ Re-running the orchestrator produces consistent results regardless of how many t
 
 Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
 
-**Project URL**: https://github.com/orgs/githubnext/projects/65
+**Project URL**: https://github.com/orgs/githubnext/projects/67
 
 **Campaign ID**: Extract from tracker label `campaign:docs-quality-maintenance-project65` (format: `campaign:CAMPAIGN_ID`)
 
@@ -317,7 +317,7 @@ Execute state writes using the `update-project` safe-output. All writes must tar
 When adding an issue to the project board:
 ```
 update-project:
-  project: "https://github.com/orgs/githubnext/projects/65"
+  project: "https://github.com/orgs/githubnext/projects/67"
   item_url: "ISSUE_URL"
   status: "Todo"  # or "Done" if issue is already closed
   campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project65
@@ -334,7 +334,7 @@ No additional configuration is needed. The dates are extracted in ISO format (YY
 When updating status for an existing board item:
 ```
 update-project:
-  project: "https://github.com/orgs/githubnext/projects/65"
+  project: "https://github.com/orgs/githubnext/projects/67"
   item_url: "ISSUE_URL"
   status: "Done"  # or "In Progress", "Todo"
   campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project65
