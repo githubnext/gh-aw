@@ -1,9 +1,5 @@
 package cli
 
-import "github.com/githubnext/gh-aw/pkg/logger"
-
-var mcpRegistryTypesLog = logger.New("cli:mcp_registry_types")
-
 // Local types inferred from GitHub MCP Registry API structure
 // This replaces the dependency on github.com/modelcontextprotocol/registry
 
