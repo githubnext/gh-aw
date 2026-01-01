@@ -24,23 +24,34 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var featuresValidationLog = logger.New("workflow:features_validation")
 
 var shaRegex = regexp.MustCompile("^[0-9a-f]{40}$")
 
 // validateFeatures validates all feature flags in the workflow data
 func validateFeatures(data *WorkflowData) error {
 	if data == nil || data.Features == nil {
+		featuresValidationLog.Print("No features to validate")
 		return nil
 	}
 
+	featuresValidationLog.Printf("Validating features: count=%d", len(data.Features))
+
 	// Validate action-tag if present
 	if actionTagVal, exists := data.Features["action-tag"]; exists {
+		featuresValidationLog.Print("Validating action-tag feature")
 		if err := validateActionTag(actionTagVal); err != nil {
+			featuresValidationLog.Printf("Action-tag validation failed: %v", err)
 			return err
 		}
+		featuresValidationLog.Print("Action-tag validation passed")
 	}
 
+	featuresValidationLog.Print("Features validation completed successfully")
 	return nil
 }
 
