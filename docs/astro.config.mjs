@@ -117,6 +117,7 @@ export default defineConfig({
 				{
 					label: 'Guides',
 					items: [
+						{ label: 'Your First Workflow', link: '/guides/your-first-workflow/' },
 						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
 						{ label: 'Security Best Practices', link: '/guides/security/' },
