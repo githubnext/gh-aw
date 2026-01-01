@@ -225,3 +225,36 @@ func (e *CopilotEngine) GetLogParserScriptId() string {
 func (e *CopilotEngine) GetLogFileForParsing() string {
 	return "/tmp/gh-aw/sandbox/agent/logs/"
 }
+
+// GetFirewallLogsCollectionStep returns empty steps as firewall logs are at a known location
+func (e *CopilotEngine) GetFirewallLogsCollectionStep(workflowData *WorkflowData) []GitHubActionStep {
+	// Collection step removed - firewall logs are now at a known location
+	return []GitHubActionStep{}
+}
+
+// GetSquidLogsSteps returns the steps for uploading and parsing Squid logs (after secret redaction)
+func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Only add upload and parsing steps if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		copilotLogsLog.Printf("Adding Squid logs upload and parsing steps for workflow: %s", workflowData.Name)
+
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		steps = append(steps, squidLogsUpload)
+
+		// Add firewall log parsing step to create step summary
+		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
+		steps = append(steps, firewallLogParsing)
+	} else {
+		copilotLogsLog.Print("Firewall disabled, skipping Squid logs upload")
+	}
+
+	return steps
+}
+
+// GetCleanupStep returns the post-execution cleanup step (currently empty)
+func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
+	// Return empty step - cleanup steps have been removed
+	return GitHubActionStep([]string{})
+}
