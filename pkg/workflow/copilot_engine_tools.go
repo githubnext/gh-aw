@@ -2,19 +2,19 @@
 //
 // This file handles three key responsibilities:
 //
-// 1. Tool Permission Arguments (computeCopilotToolArguments):
-//    Converts workflow tool configurations into --allow-tool flags for Copilot CLI.
-//    Handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP servers.
-//    Supports granular permissions (e.g., "github(get_file)") and server-level wildcards.
+//  1. Tool Permission Arguments (computeCopilotToolArguments):
+//     Converts workflow tool configurations into --allow-tool flags for Copilot CLI.
+//     Handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP servers.
+//     Supports granular permissions (e.g., "github(get_file)") and server-level wildcards.
 //
-// 2. Tool Argument Comments (generateCopilotToolArgumentsComment):
-//    Generates human-readable comments documenting which tool permissions are granted.
-//    Used in compiled workflows for transparency and debugging.
+//  2. Tool Argument Comments (generateCopilotToolArgumentsComment):
+//     Generates human-readable comments documenting which tool permissions are granted.
+//     Used in compiled workflows for transparency and debugging.
 //
-// 3. Error Patterns (GetErrorPatterns):
-//    Defines regex patterns for extracting error messages from Copilot CLI logs.
-//    Includes timestamped log formats, command failures, module errors, and permission issues.
-//    Used by log parsers to detect and categorize errors.
+//  3. Error Patterns (GetErrorPatterns):
+//     Defines regex patterns for extracting error messages from Copilot CLI logs.
+//     Includes timestamped log formats, command failures, module errors, and permission issues.
+//     Used by log parsers to detect and categorize errors.
 //
 // These functions are grouped together because they all relate to tool configuration
 // and error handling in the Copilot engine.

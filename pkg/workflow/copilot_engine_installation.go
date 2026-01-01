@@ -10,9 +10,9 @@
 //  4. Copilot CLI installation
 //
 // The installation strategy differs based on sandbox mode:
-//  - Standard mode: Global installation using official installer script
-//  - SRT mode: Local npm installation for offline compatibility
-//  - AWF mode: Global installation + AWF binary
+//   - Standard mode: Global installation using official installer script
+//   - SRT mode: Local npm installation for offline compatibility
+//   - AWF mode: Global installation + AWF binary
 package workflow
 
 import (

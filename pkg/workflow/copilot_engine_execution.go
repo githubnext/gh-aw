@@ -4,17 +4,17 @@
 // GitHub Actions workflow for executing GitHub Copilot CLI. This is the largest
 // and most complex function in the Copilot engine, handling:
 //
-//  - Copilot CLI argument construction based on sandbox mode (AWF, SRT, or standard)
-//  - Tool permission configuration (--allow-tool flags)
-//  - MCP server configuration and environment setup
-//  - Sandbox wrapping (AWF or SRT)
-//  - Environment variable handling for model selection and secrets
-//  - Log file configuration and output collection
+//   - Copilot CLI argument construction based on sandbox mode (AWF, SRT, or standard)
+//   - Tool permission configuration (--allow-tool flags)
+//   - MCP server configuration and environment setup
+//   - Sandbox wrapping (AWF or SRT)
+//   - Environment variable handling for model selection and secrets
+//   - Log file configuration and output collection
 //
 // The execution strategy varies significantly based on sandbox mode:
-//  - Standard mode: Direct copilot CLI execution
-//  - AWF mode: Wrapped with awf binary for network firewalling
-//  - SRT mode: Wrapped with Sandbox Runtime for process isolation
+//   - Standard mode: Direct copilot CLI execution
+//   - AWF mode: Wrapped with awf binary for network firewalling
+//   - SRT mode: Wrapped with Sandbox Runtime for process isolation
 //
 // This function is intentionally kept in a separate file due to its size (~430 lines)
 // and complexity. Future refactoring may split it further if needed.

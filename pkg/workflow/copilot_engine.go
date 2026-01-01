@@ -100,7 +100,6 @@ func extractAddDirPaths(args []string) []string {
 
 // generateAWFInstallationStep is implemented in copilot_engine_installation.go
 
-
 // GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the official installer script
 // Parameters:
 //   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
