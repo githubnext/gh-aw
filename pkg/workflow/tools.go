@@ -160,7 +160,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		// The agent job in dev mode will add contents: read if needed for local actions
 		return nil
 	}
-	
+
 	if data.Permissions == "" {
 		// ============================================================================
 		// PERMISSIONS DEFAULTS
