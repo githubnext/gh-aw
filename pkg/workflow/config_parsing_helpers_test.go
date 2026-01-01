@@ -764,7 +764,7 @@ func TestParseIntFromConfig(t *testing.T) {
 		{
 			name: "uint64 overflow - should return 0",
 			input: map[string]any{
-				"my-key": uint64(^uint64(0)), // Max uint64 value
+				"my-key": ^uint64(0), // Max uint64 value
 			},
 			key:      "my-key",
 			expected: 0,
