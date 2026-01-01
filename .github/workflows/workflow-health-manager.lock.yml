@@ -167,6 +167,8 @@ jobs:
           script: |
             const detectRepoVisibility = require('/tmp/gh-aw/actions/detect_repo_visibility.cjs');
             await detectRepoVisibility(github, context, core);
+      - name: Downloading container images
+        run: bash /tmp/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.26.3
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -437,14 +439,22 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "type": "http",
-                "url": "https://api.githubcopilot.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}",
-                  "X-MCP-Lockdown": "${{ steps.detect-repo-visibility.outputs.lockdown }}",
-                  "X-MCP-Readonly": "true",
-                  "X-MCP-Toolsets": "context,repos,issues,pull_requests,actions"
-                },
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_LOCKDOWN_MODE=${{ steps.detect-repo-visibility.outputs.lockdown == 'true' && '1' || '0' }}",
+                  "-e",
+                  "GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions",
+                  "ghcr.io/github/github-mcp-server:v0.26.3"
+                ],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -994,6 +1004,21 @@ jobs:
           </temporary-files>
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <file-editing>
+          <description>File Editing Access Permissions</description>
+          <allowed-paths>
+            <path name="workspace">$GITHUB_WORKSPACE</path>
+            <path name="temporary">/tmp/gh-aw/</path>
+          </allowed-paths>
+          <restriction>Do NOT attempt to edit files outside these directories as you do not have the necessary permissions.</restriction>
+          </file-editing>
+          
+          PROMPT_EOF
       - name: Append repo memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1146,13 +1171,11 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
         timeout-minutes: 20
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --image-tag 0.7.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
