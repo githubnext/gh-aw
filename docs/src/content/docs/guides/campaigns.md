@@ -23,7 +23,9 @@ Use a campaign when you need to manage an initiative—scope, progress, and outc
 
 A campaign gives you a dashboard (GitHub Project), a coordinating orchestrator workflow that keeps it in sync, and a spec file that captures the objective, KPIs, governance, and wiring. In the repo, the spec lives at `.github/workflows/<id>.campaign.md` and is the source of truth.
 
-When the spec includes orchestration, the tooling generates `.github/workflows/<id>.campaign.g.md` and compiles it into a locked `.lock.yml` workflow. The spec defines what success means (objective), how progress is measured (KPIs, with exactly one marked primary), where progress is shown (GitHub Project URL), what participates (workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
+When the spec includes orchestration, the tooling generates an orchestrator workflow and compiles it into a locked `.campaign.g.lock.yml` workflow. The spec defines what success means (objective), how progress is measured (KPIs, with exactly one marked primary), where progress is shown (GitHub Project URL), what participates (workflows), and what is tracked (the label applied to issues and pull requests, commonly `campaign:<id>`).
+
+**Note:** During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the source `.campaign.md` and compiled `.campaign.g.lock.yml` are tracked.
 
 ## How it works
 

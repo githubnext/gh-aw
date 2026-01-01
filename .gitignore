@@ -114,6 +114,11 @@ pkg/cli/workflows/*.yml
 .github/workflows/test-timestamp-js.lock.yml
 examples/*.lock.yml
 
+# Campaign orchestrator markdown files (generated from .campaign.md specs)
+# These are debug artifacts that help developers understand the generated workflow
+# Only the source (.campaign.md) and compiled (.campaign.g.lock.yml) files are committed
+*.campaign.g.md
+
 # Large test data files
 pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/

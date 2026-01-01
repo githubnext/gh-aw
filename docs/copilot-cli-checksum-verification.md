@@ -118,7 +118,7 @@ The following 74 workflows now use checksum-verified Copilot CLI installation:
 27. firewall-escape.md
 28. firewall.md
 29. glossary-maintainer.md
-30. go-file-size-reduction-project64.campaign.g.md
+30. go-file-size-reduction-project64.campaign.md
 31. grumpy-reviewer.md
 32. hourly-ci-cleaner.md
 33. human-ai-collaboration.md

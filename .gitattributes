@@ -7,5 +7,3 @@ pkg/workflow/js/*.js linguist-generated=true
 pkg/workflow/js/*.cjs linguist-generated=true
 pkg/workflow/sh/*.sh linguist-generated=true
 actions/*/index.js linguist-generated=true
-
-.github/workflows/*.campaign.g.md linguist-generated=true merge=ours

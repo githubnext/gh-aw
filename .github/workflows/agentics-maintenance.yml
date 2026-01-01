@@ -33,7 +33,7 @@ name: Agentics Maintenance
 
 on:
   schedule:
-    - cron: "37 */2 * * *"  # Every 2 hours (based on minimum expires: 1 days)
+    - cron: "37 * * * *"  # Every hour (based on minimum expires: 2 hours)
   workflow_dispatch:
 
 permissions: {}
