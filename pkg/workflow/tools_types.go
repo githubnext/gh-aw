@@ -291,7 +291,7 @@ type CacheMemoryToolConfig struct {
 // while maintaining flexibility for truly dynamic configurations.
 type MCPServerConfig struct {
 	types.BaseMCPServerConfig
-	
+
 	// Workflow-specific fields
 	Mode     string   `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
 	Toolsets []string `yaml:"toolsets,omitempty"` // Toolsets to enable

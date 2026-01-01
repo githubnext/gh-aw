@@ -2,9 +2,10 @@ package parser
 
 import (
 	"encoding/json"
-	"github.com/githubnext/gh-aw/pkg/types"
 	"reflect"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/types"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )

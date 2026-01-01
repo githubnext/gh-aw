@@ -1,9 +1,10 @@
 package cli
 
 import (
-"github.com/githubnext/gh-aw/pkg/types"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/types"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"

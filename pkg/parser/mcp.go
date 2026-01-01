@@ -83,7 +83,7 @@ func EnsureLocalhostDomains(domains []string) []string {
 // It embeds BaseMCPServerConfig for common fields and adds parser-specific fields.
 type MCPServerConfig struct {
 	types.BaseMCPServerConfig
-	
+
 	// Parser-specific fields
 	Name      string   `json:"name"`       // Server name/identifier
 	Registry  string   `json:"registry"`   // URI to installation location from registry

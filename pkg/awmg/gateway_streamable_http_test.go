@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/types"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

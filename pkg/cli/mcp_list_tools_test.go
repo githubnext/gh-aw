@@ -1,11 +1,12 @@
 package cli
 
 import (
-"github.com/githubnext/gh-aw/pkg/types"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/types"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 
