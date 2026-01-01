@@ -74,6 +74,8 @@ type RunData struct {
 	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
 	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing"`
 	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
+	StartedAt        time.Time `json:"started_at,omitempty" console:"-"`
+	UpdatedAt        time.Time `json:"updated_at,omitempty" console:"-"`
 	URL              string    `json:"url" console:"-"`
 	LogsPath         string    `json:"logs_path" console:"header:Logs Path"`
 	Event            string    `json:"event" console:"-"`
@@ -171,6 +173,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			WarningCount:     run.WarningCount,
 			MissingToolCount: run.MissingToolCount,
 			CreatedAt:        run.CreatedAt,
+			StartedAt:        run.StartedAt,
+			UpdatedAt:        run.UpdatedAt,
 			URL:              run.URL,
 			LogsPath:         run.LogsPath,
 			Event:            run.Event,
