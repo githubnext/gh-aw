@@ -31,6 +31,29 @@ const HANDLER_MAP = {
 };
 
 /**
+ * Message types handled by standalone steps (not through the handler manager)
+ * These types should not trigger warnings when skipped by the handler manager
+ */
+const STANDALONE_STEP_TYPES = new Set([
+  "create_pull_request",
+  "close_pull_request",
+  "create_pull_request_review_comment",
+  "create_code_scanning_alert",
+  "add_reviewer",
+  "assign_milestone",
+  "assign_to_agent",
+  "assign_to_user",
+  "update_pull_request",
+  "push_to_pull_request_branch",
+  "hide_comment",
+  "create_agent_task",
+  "update_project",
+  "upload_asset",
+  "noop",
+  "missing_tool",
+]);
+
+/**
  * Load configuration for safe outputs
  * Reads configuration from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable
  * @returns {Object} Safe outputs configuration
@@ -145,6 +168,21 @@ async function processMessages(messageHandlers, messages) {
     const messageHandler = messageHandlers.get(messageType);
 
     if (!messageHandler) {
+      // Check if this message type is handled by a standalone step
+      if (STANDALONE_STEP_TYPES.has(messageType)) {
+        // Silently skip - this is handled by a dedicated step
+        core.debug(`Message ${i + 1} (${messageType}) will be handled by a standalone step`);
+        results.push({
+          type: messageType,
+          messageIndex: i,
+          success: false,
+          skipped: true,
+          reason: "Handled by standalone step",
+        });
+        continue;
+      }
+
+      // Unknown message type - warn the user
       core.warning(
         `⚠️ No handler loaded for message type '${messageType}' (message ${i + 1}/${messages.length}). The message will be skipped. This may happen if the safe output type is not configured in the workflow's safe-outputs section.`
       );
@@ -575,9 +613,10 @@ async function main() {
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
-    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred).length;
+    const failureCount = processingResult.results.filter(r => !r.success && !r.deferred && !r.skipped).length;
     const deferredCount = processingResult.results.filter(r => r.deferred).length;
-    const skippedCount = processingResult.results.filter(r => !r.success && r.error?.includes("No handler loaded")).length;
+    const skippedStandaloneCount = processingResult.results.filter(r => r.skipped && r.reason === "Handled by standalone step").length;
+    const skippedNoHandlerCount = processingResult.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded")).length;
 
     core.info(`\n=== Processing Summary ===`);
     core.info(`Total messages: ${processingResult.results.length}`);
@@ -586,8 +625,11 @@ async function main() {
     if (deferredCount > 0) {
       core.info(`Deferred: ${deferredCount}`);
     }
-    if (skippedCount > 0) {
-      core.warning(`Skipped (no handler): ${skippedCount}`);
+    if (skippedStandaloneCount > 0) {
+      core.info(`Skipped (standalone step): ${skippedStandaloneCount}`);
+    }
+    if (skippedNoHandlerCount > 0) {
+      core.warning(`Skipped (no handler): ${skippedNoHandlerCount}`);
     }
     core.info(`Temporary IDs registered: ${Object.keys(processingResult.temporaryIdMap).length}`);
     core.info(`Synthetic updates: ${syntheticUpdateCount}`);
@@ -595,8 +637,8 @@ async function main() {
     if (failureCount > 0) {
       core.warning(`${failureCount} message(s) failed to process`);
     }
-    if (skippedCount > 0) {
-      core.warning(`${skippedCount} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
+    if (skippedNoHandlerCount > 0) {
+      core.warning(`${skippedNoHandlerCount} message(s) were skipped because no handler was loaded. Check your workflow's safe-outputs configuration.`);
     }
 
     core.info("Safe Output Handler Manager completed");
