@@ -5,6 +5,7 @@ let parseProjectInput;
 let generateCampaignId;
 let extractDateFromTimestamp;
 let extractWorkerWorkflowFromBody;
+let hasExistingFieldValue;
 
 const mockCore = {
   debug: vi.fn(),
@@ -56,6 +57,7 @@ beforeAll(async () => {
   generateCampaignId = exports.generateCampaignId;
   extractDateFromTimestamp = exports.extractDateFromTimestamp;
   extractWorkerWorkflowFromBody = exports.extractWorkerWorkflowFromBody;
+  hasExistingFieldValue = exports.hasExistingFieldValue;
   // Call main to execute the module
   if (exports.main) {
     await exports.main();
@@ -998,5 +1000,417 @@ describe("updateProject", () => {
 
     // Verify skip message
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No workflow name found in issue/PR body"));
+  });
+
+  it("does not auto-populate Start Date when existing item already has it set", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 300,
+      campaign_id: "test-campaign",
+    };
+
+    const issueWithTimestamps = {
+      repository: {
+        issue: {
+          id: "issue-id-300",
+          createdAt: "2025-12-25T10:00:00Z",
+          closedAt: null,
+          body: "Issue with existing Start Date",
+        },
+      },
+    };
+
+    // Existing item with Start Date already set
+    const existingItemWithStartDate = {
+      node: {
+        items: {
+          nodes: [
+            {
+              id: "existing-item-300",
+              content: { id: "issue-id-300" },
+              fieldValues: {
+                nodes: [
+                  {
+                    field: { id: "field-start", name: "Start Date" },
+                    date: "2025-12-20",
+                  },
+                ],
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-existing-start"),
+      issueWithTimestamps,
+      existingItemWithStartDate,
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-end", name: "End Date", dataType: "DATE" },
+      ]),
+    ]);
+
+    await updateProject(output);
+
+    // Verify skip message for existing Start Date
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Start Date already set on existing item, skipping auto-population"));
+
+    // Verify no Start Date update call was made
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(0);
+  });
+
+  it("does not auto-populate End Date when existing item already has it set", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 301,
+      campaign_id: "test-campaign",
+    };
+
+    const issueWithTimestamps = {
+      repository: {
+        issue: {
+          id: "issue-id-301",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: "2025-12-25T16:00:00Z",
+          body: "Issue with existing End Date",
+        },
+      },
+    };
+
+    // Existing item with End Date already set
+    const existingItemWithEndDate = {
+      node: {
+        items: {
+          nodes: [
+            {
+              id: "existing-item-301",
+              content: { id: "issue-id-301" },
+              fieldValues: {
+                nodes: [
+                  {
+                    field: { id: "field-end", name: "End Date" },
+                    date: "2025-12-26",
+                  },
+                ],
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-existing-end"),
+      issueWithTimestamps,
+      existingItemWithEndDate,
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-end", name: "End Date", dataType: "DATE" },
+      ]),
+      updateFieldValueResponse(), // Start Date update only
+    ]);
+
+    await updateProject(output);
+
+    // Verify skip message for existing End Date
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("End Date already set on existing item, skipping auto-population"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Start Date: 2025-12-20"));
+
+    // Verify only Start Date update call was made
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-20" });
+  });
+
+  it("does not auto-populate Worker Workflow when existing item already has it set", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 302,
+      campaign_id: "test-campaign",
+    };
+
+    const issueWithWorkerWorkflow = {
+      repository: {
+        issue: {
+          id: "issue-id-302",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: null,
+          body: "<!-- agentic-workflow: WorkflowA, run 123 -->\nIssue with worker workflow",
+        },
+      },
+    };
+
+    // Existing item with Worker Workflow already set
+    const existingItemWithWorkerWorkflow = {
+      node: {
+        items: {
+          nodes: [
+            {
+              id: "existing-item-302",
+              content: { id: "issue-id-302" },
+              fieldValues: {
+                nodes: [
+                  {
+                    field: { id: "field-worker", name: "Worker Workflow" },
+                    name: "WorkflowB",
+                  },
+                ],
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-existing-worker"),
+      issueWithWorkerWorkflow,
+      existingItemWithWorkerWorkflow,
+      fieldsResponse([{ id: "field-start", name: "Start Date", dataType: "DATE" }]),
+      updateFieldValueResponse(), // Start Date update only
+    ]);
+
+    await updateProject(output);
+
+    // Verify skip message for existing Worker Workflow
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Worker Workflow already set on existing item, skipping auto-population"));
+
+    // Verify no Worker Workflow update call was made (only Start Date)
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-20" });
+  });
+
+  it("auto-populates empty date and workflow fields on existing items", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 303,
+      campaign_id: "test-campaign",
+    };
+
+    const issueWithTimestamps = {
+      repository: {
+        issue: {
+          id: "issue-id-303",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: "2025-12-25T16:00:00Z",
+          body: "<!-- agentic-workflow: WorkflowC, run 456 -->\nIssue with empty fields",
+        },
+      },
+    };
+
+    // Existing item with no field values set
+    const existingItemWithNoFields = {
+      node: {
+        items: {
+          nodes: [
+            {
+              id: "existing-item-303",
+              content: { id: "issue-id-303" },
+              fieldValues: {
+                nodes: [],
+              },
+            },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-empty-fields"),
+      issueWithTimestamps,
+      existingItemWithNoFields,
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-end", name: "End Date", dataType: "DATE" },
+      ]),
+      updateFieldValueResponse(), // Start Date update
+      updateFieldValueResponse(), // End Date update
+      fieldsResponse([{ id: "field-worker", name: "Worker Workflow", dataType: "SINGLE_SELECT", options: [] }]),
+      {
+        updateProjectV2Field: {
+          projectV2Field: {
+            id: "field-worker",
+            options: [{ id: "option-workflowc", name: "WorkflowC" }],
+          },
+        },
+      },
+      updateFieldValueResponse(), // Worker Workflow update
+    ]);
+
+    await updateProject(output);
+
+    // Verify auto-population messages
+    expect(mockCore.info).toHaveBeenCalledWith("✓ Item already on board");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Start Date: 2025-12-20"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating End Date: 2025-12-25"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Worker Workflow: WorkflowC"));
+
+    // Verify all three field updates were made
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls).toHaveLength(3);
+    expect(updateCalls[0][1].value).toEqual({ date: "2025-12-20" });
+    expect(updateCalls[1][1].value).toEqual({ date: "2025-12-25" });
+    expect(updateCalls[2][1].value).toEqual({ singleSelectOptionId: "option-workflowc" });
+  });
+});
+
+describe("hasExistingFieldValue", () => {
+  it("returns false when existingItem is null", () => {
+    expect(hasExistingFieldValue(null, "Start Date")).toBe(false);
+  });
+
+  it("returns false when existingItem has no fieldValues", () => {
+    const item = { id: "item-1", content: { id: "content-1" } };
+    expect(hasExistingFieldValue(item, "Start Date")).toBe(false);
+  });
+
+  it("returns false when fieldValues.nodes is not an array", () => {
+    const item = { id: "item-1", fieldValues: { nodes: null } };
+    expect(hasExistingFieldValue(item, "Start Date")).toBe(false);
+  });
+
+  it("returns false when fieldValues.nodes is empty", () => {
+    const item = { id: "item-1", fieldValues: { nodes: [] } };
+    expect(hasExistingFieldValue(item, "Start Date")).toBe(false);
+  });
+
+  it("returns true when date field has a value", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Start Date" },
+            date: "2025-12-20",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "Start Date")).toBe(true);
+  });
+
+  it("returns true when single-select field has a value", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Worker Workflow" },
+            name: "WorkflowA",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "Worker Workflow")).toBe(true);
+  });
+
+  it("returns true when text field has a non-empty value", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Status" },
+            text: "In Progress",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "Status")).toBe(true);
+  });
+
+  it("returns false when text field has an empty value", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Status" },
+            text: "   ",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "Status")).toBe(false);
+  });
+
+  it("performs case-insensitive field name matching", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Start Date" },
+            date: "2025-12-20",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "start date")).toBe(true);
+    expect(hasExistingFieldValue(item, "START DATE")).toBe(true);
+  });
+
+  it("returns false when field name does not match", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          {
+            field: { id: "field-1", name: "Start Date" },
+            date: "2025-12-20",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "End Date")).toBe(false);
+  });
+
+  it("skips nodes with missing field data", () => {
+    const item = {
+      id: "item-1",
+      fieldValues: {
+        nodes: [
+          null,
+          { field: null },
+          { field: { name: null } },
+          {
+            field: { id: "field-1", name: "Start Date" },
+            date: "2025-12-20",
+          },
+        ],
+      },
+    };
+    expect(hasExistingFieldValue(item, "Start Date")).toBe(true);
   });
 });

@@ -280,6 +280,33 @@ function extractWorkerWorkflowFromBody(body) {
   return null;
 }
 /**
+ * Check if a field with a specific name has a value in the existing item's field values
+ * @param {any} existingItem - Existing project item (may include fieldValues)
+ * @param {string} fieldName - Field name to check (case-insensitive)
+ * @returns {boolean} True if the field has a non-empty value
+ */
+function hasExistingFieldValue(existingItem, fieldName) {
+  if (!existingItem || !existingItem.fieldValues || !Array.isArray(existingItem.fieldValues.nodes)) {
+    return false;
+  }
+
+  const normalizedFieldName = fieldName.toLowerCase();
+  for (const fieldValue of existingItem.fieldValues.nodes) {
+    if (!fieldValue || !fieldValue.field || !fieldValue.field.name) {
+      continue;
+    }
+
+    if (fieldValue.field.name.toLowerCase() === normalizedFieldName) {
+      // Check if the field has a non-null, non-empty value
+      if (fieldValue.date) return true;
+      if (fieldValue.name) return true;
+      if (fieldValue.text && fieldValue.text.trim()) return true;
+    }
+  }
+
+  return false;
+}
+/**
  * Update a GitHub Project v2
  * @param {any} output - Safe output configuration
  * @returns {Promise<void>}
@@ -498,7 +525,7 @@ async function updateProject(output) {
             endCursor = null;
           for (; hasNextPage; ) {
             const result = await github.graphql(
-                "query($projectId: ID!, $after: String) {\n              node(id: $projectId) {\n                ... on ProjectV2 {\n                  items(first: 100, after: $after) {\n                    nodes {\n                      id\n                      content {\n                        ... on Issue {\n                          id\n                        }\n                        ... on PullRequest {\n                          id\n                        }\n                      }\n                    }\n                    pageInfo {\n                      hasNextPage\n                      endCursor\n                    }\n                  }\n                }\n              }\n            }",
+                "query($projectId: ID!, $after: String) {\n              node(id: $projectId) {\n                ... on ProjectV2 {\n                  items(first: 100, after: $after) {\n                    nodes {\n                      id\n                      content {\n                        ... on Issue {\n                          id\n                        }\n                        ... on PullRequest {\n                          id\n                        }\n                      }\n                      fieldValues(first: 20) {\n                        nodes {\n                          ... on ProjectV2ItemFieldDateValue {\n                            field {\n                              ... on ProjectV2Field {\n                                id\n                                name\n                              }\n                            }\n                            date\n                          }\n                          ... on ProjectV2ItemFieldSingleSelectValue {\n                            field {\n                              ... on ProjectV2SingleSelectField {\n                                id\n                                name\n                              }\n                            }\n                            name\n                          }\n                          ... on ProjectV2ItemFieldTextValue {\n                            field {\n                              ... on ProjectV2Field {\n                                id\n                                name\n                              }\n                            }\n                            text\n                          }\n                        }\n                      }\n                    }\n                    pageInfo {\n                      hasNextPage\n                      endCursor\n                    }\n                  }\n                }\n              }\n            }",
                 { projectId, after: endCursor }
               ),
               found = result.node.items.nodes.find(item => item.content && item.content.id === contentId);
@@ -646,7 +673,8 @@ async function updateProject(output) {
 
           // Auto-populate Start Date field if it exists and wasn't explicitly provided
           const startDateField = projectFields.find(f => f.name === "Start Date" && f.dataType === "DATE");
-          if (startDateField && startDate && !userProvidedStartDate) {
+          const hasExistingStartDate = hasExistingFieldValue(existingItem, "Start Date");
+          if (startDateField && startDate && !userProvidedStartDate && !hasExistingStartDate) {
             try {
               core.info(`✓ Auto-populating Start Date: ${startDate}`);
               await github.graphql(
@@ -669,11 +697,14 @@ async function updateProject(output) {
             }
           } else if (userProvidedStartDate) {
             core.info("ℹ Start Date was explicitly provided, skipping auto-population");
+          } else if (hasExistingStartDate) {
+            core.info("ℹ Start Date already set on existing item, skipping auto-population");
           }
 
           // Auto-populate End Date field if it exists, issue/PR is closed, and wasn't explicitly provided
           const endDateField = projectFields.find(f => f.name === "End Date" && f.dataType === "DATE");
-          if (endDateField && endDate && !userProvidedEndDate) {
+          const hasExistingEndDate = hasExistingFieldValue(existingItem, "End Date");
+          if (endDateField && endDate && !userProvidedEndDate && !hasExistingEndDate) {
             try {
               core.info(`✓ Auto-populating End Date: ${endDate}`);
               await github.graphql(
@@ -696,6 +727,8 @@ async function updateProject(output) {
             }
           } else if (userProvidedEndDate) {
             core.info("ℹ End Date was explicitly provided, skipping auto-population");
+          } else if (hasExistingEndDate) {
+            core.info("ℹ End Date already set on existing item, skipping auto-population");
           }
 
           if (!startDateField && !endDateField) {
@@ -709,8 +742,9 @@ async function updateProject(output) {
         // This enables discovering which worker created the item for campaign tracking
         const workerWorkflow = extractWorkerWorkflowFromBody(body);
         const userProvidedWorkerWorkflow = userProvidedFields.includes("Worker Workflow");
+        const hasExistingWorkerWorkflow = hasExistingFieldValue(existingItem, "Worker Workflow");
 
-        if (workerWorkflow && !userProvidedWorkerWorkflow) {
+        if (workerWorkflow && !userProvidedWorkerWorkflow && !hasExistingWorkerWorkflow) {
           core.info(`[5/5] Auto-populating Worker Workflow field if present...`);
 
           // Fetch project fields to check if Worker Workflow exists
@@ -821,6 +855,8 @@ async function updateProject(output) {
           }
         } else if (userProvidedWorkerWorkflow) {
           core.info("ℹ Worker Workflow was explicitly provided, skipping auto-population");
+        } else if (hasExistingWorkerWorkflow) {
+          core.info("ℹ Worker Workflow already set on existing item, skipping auto-population");
         } else if (!workerWorkflow) {
           core.info("ℹ No workflow name found in issue/PR body, skipping Worker Workflow auto-population");
         }
@@ -865,4 +901,4 @@ async function main() {
   }
 }
 
-module.exports = { updateProject, parseProjectInput, generateCampaignId, extractDateFromTimestamp, extractWorkerWorkflowFromBody, main };
+module.exports = { updateProject, parseProjectInput, generateCampaignId, extractDateFromTimestamp, extractWorkerWorkflowFromBody, hasExistingFieldValue, main };
