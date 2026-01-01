@@ -26,8 +26,8 @@ func addOutputFlag(cmd *cobra.Command, defaultValue string) {
 	cmd.Flags().StringP("output", "o", defaultValue, "Output directory for generated files")
 }
 
-// addJSONFlag adds the --json flag to a command.
+// addJSONFlag adds the --json/-j flag to a command.
 // This flag enables JSON output format.
 func addJSONFlag(cmd *cobra.Command) {
-	cmd.Flags().Bool("json", false, "Output results in JSON format")
+	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 }

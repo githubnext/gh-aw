@@ -454,7 +454,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	initCmd := cli.NewInitCommand()
 
 	// Add flags to new command
-	newCmd.Flags().Bool("force", false, "Overwrite existing files without confirmation")
+	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
 
 	// Add AI flag to compile and add commands
@@ -463,7 +463,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().String("action-tag", "", "Override action SHA or tag for actions/setup (overrides action-mode to release). Accepts full SHA or tag name")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
-	compileCmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
+	compileCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
@@ -478,7 +478,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
-	compileCmd.Flags().Bool("json", false, "Output results in JSON format")
+	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by file size (shows jobs, steps, scripts, and shells)")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
@@ -510,7 +510,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
-	runCmd.Flags().StringArrayP("raw-field", "f", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
+	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)
