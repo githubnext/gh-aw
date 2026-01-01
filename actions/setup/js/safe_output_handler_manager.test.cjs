@@ -343,5 +343,48 @@ describe("Safe Output Handler Manager", () => {
       // Temp ID should be registered
       expect(result.temporaryIdMap["aw_aabbcc111111"]).toBeDefined();
     });
+
+    it("should silently skip message types handled by standalone steps", async () => {
+      const messages = [
+        { type: "create_issue", title: "Issue" },
+        { type: "update_project", project: "https://github.com/orgs/myorg/projects/42" },
+        { type: "create_agent_task", title: "Task" },
+      ];
+
+      const mockHandler = vi.fn().mockResolvedValue({ success: true });
+
+      // Only create_issue handler is available
+      // update_project and create_agent_task are handled by standalone steps
+      const handlers = new Map([["create_issue", mockHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+      expect(result.results).toHaveLength(3);
+
+      // First message should succeed
+      expect(result.results[0].success).toBe(true);
+      expect(result.results[0].type).toBe("create_issue");
+
+      // Second message should be skipped (standalone step)
+      expect(result.results[1].success).toBe(false);
+      expect(result.results[1].type).toBe("update_project");
+      expect(result.results[1].skipped).toBe(true);
+      expect(result.results[1].reason).toBe("Handled by standalone step");
+
+      // Third message should also be skipped (standalone step)
+      expect(result.results[2].success).toBe(false);
+      expect(result.results[2].type).toBe("create_agent_task");
+      expect(result.results[2].skipped).toBe(true);
+      expect(result.results[2].reason).toBe("Handled by standalone step");
+
+      // Should NOT have logged warnings for standalone step types
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'update_project'"));
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'create_agent_task'"));
+
+      // Should have logged debug messages
+      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("update_project"));
+      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
+    });
   });
 });
