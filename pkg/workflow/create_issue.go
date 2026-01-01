@@ -32,6 +32,19 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-issue"].(map[string]any)
 
+	// Pre-process the expires field if it's a string (convert to int before unmarshaling)
+	if configData != nil {
+		if expires, exists := configData["expires"]; exists {
+			if _, ok := expires.(string); ok {
+				// Parse the string format and replace with int
+				expiresInt := parseExpiresFromConfig(configData)
+				if expiresInt > 0 {
+					configData["expires"] = expiresInt
+				}
+			}
+		}
+	}
+
 	// Unmarshal into typed config struct
 	var config CreateIssuesConfig
 	if err := unmarshalConfig(outputMap, "create-issue", &config, createIssueLog); err != nil {
