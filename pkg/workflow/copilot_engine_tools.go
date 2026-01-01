@@ -26,10 +26,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var copilotToolsLog = logger.New("workflow:copilot_engine_tools")
 
 // computeCopilotToolArguments computes the --allow-tool arguments for Copilot CLI based on tool configurations.
 // It handles bash/shell tools, edit tools, safe outputs, safe inputs, and MCP server tools.
