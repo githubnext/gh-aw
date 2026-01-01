@@ -103,7 +103,7 @@ async function main(config = {}) {
   const titlePrefix = config.title_prefix || "";
   const configCategory = config.category || "";
   const maxCount = config.max || 10;
-  const expiresDays = config.expires ? parseInt(String(config.expires), 10) : 0;
+  const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
 
   // Parse labels from config
   const labelsConfig = config.labels || [];
@@ -241,9 +241,9 @@ async function main(config = {}) {
     }
 
     // Add expiration if configured
-    if (expiresDays > 0) {
+    if (expiresHours > 0) {
       const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + expiresDays);
+      expirationDate.setHours(expirationDate.getHours() + expiresHours);
       const expirationISO = expirationDate.toISOString();
       bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
     }

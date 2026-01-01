@@ -25,7 +25,7 @@ async function main(config = {}) {
   // Extract configuration
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
   const titlePrefix = config.title_prefix || "";
-  const expiresDays = config.expires ? parseInt(String(config.expires), 10) : 0;
+  const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 10;
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo(config);
@@ -40,8 +40,8 @@ async function main(config = {}) {
   if (titlePrefix) {
     core.info(`Title prefix: ${titlePrefix}`);
   }
-  if (expiresDays > 0) {
-    core.info(`Issues expire after: ${expiresDays} days`);
+  if (expiresHours > 0) {
+    core.info(`Issues expire after: ${expiresHours} hours`);
   }
   core.info(`Max count: ${maxCount}`);
 
@@ -208,12 +208,12 @@ async function main(config = {}) {
     }
 
     // Add expiration comment if expires is set in config
-    if (expiresDays > 0) {
+    if (expiresHours > 0) {
       const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + expiresDays);
+      expirationDate.setHours(expirationDate.getHours() + expiresHours);
       const expirationISO = expirationDate.toISOString();
       bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-      core.info(`Issue will expire on ${expirationISO} (${expiresDays} days)`);
+      core.info(`Issue will expire on ${expirationISO} (${expiresHours} hours)`);
     }
 
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
