@@ -28,7 +28,6 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "compile command in development group", commandName: "compile", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "mcp command in development group", commandName: "mcp", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "status command in development group", commandName: "status", expectedGroup: "development", shouldHaveGroup: true},
-		{name: "mcp-server command in development group", commandName: "mcp-server", expectedGroup: "development", shouldHaveGroup: true},
 		{name: "fix command in development group", commandName: "fix", expectedGroup: "development", shouldHaveGroup: true},
 
 		// Execution Commands
@@ -43,6 +42,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "campaign command in analysis group", commandName: "campaign", expectedGroup: "analysis", shouldHaveGroup: true},
 
 		// Utilities
+		{name: "mcp-server command in utilities group", commandName: "mcp-server", expectedGroup: "utilities", shouldHaveGroup: true},
 		{name: "pr command in utilities group", commandName: "pr", expectedGroup: "utilities", shouldHaveGroup: true},
 
 		// Commands without groups (intentionally)
