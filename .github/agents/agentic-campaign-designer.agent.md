@@ -143,13 +143,13 @@ Should allow creating issues and PRs
 The user adds the issue to a GitHub Project board via the UI after creating the issue. You must query this assignment using GitHub CLI:
 
 ```bash
-gh issue view <issue_number> --json projectItems --jq '.projectItems.nodes[0].project.url'
+gh issue view <issue_number> --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
 ```
 
 Alternatively, use the github-issue-query skill (from the repository root):
 
 ```bash
-./skills/github-issue-query/query-issues.sh --jq '.[] | select(.number == <issue_number>) | .projectItems.nodes[0].project.url'
+./skills/github-issue-query/query-issues.sh --jq '.[] | select(.number == <issue_number>) | .projectItems.nodes[0]?.project?.url // empty'
 ```
 
 **If no project is assigned:**
