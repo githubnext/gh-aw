@@ -44,6 +44,39 @@ Before configuring views, set up custom fields that provide valuable filtering a
    - Values: Frontend, Backend, DevOps, Documentation, etc.
    - Purpose: Track which team or area owns the work
 
+8. **Repository** (Single select - optional, for cross-repository campaigns)
+   - Values: Repository names (e.g., "gh-aw", "docs-site", "api-server")
+   - Purpose: Track which repository an item belongs to
+   - Enables filtering and grouping by repository in multi-repo campaigns
+
+### Cross-Repository and Cross-Organization Campaigns
+
+For campaigns that span multiple repositories or organizations:
+
+1. **Use Organization-level Projects**: Create the GitHub Project at the organization level to track items across all repositories
+2. **Add Repository field**: Create a "Repository" single-select field with values for each repository in scope
+3. **Configure orchestrator**: Ensure the orchestrator can discover items across repositories using the campaign tracker label
+4. **Filter by repository**: Use "Slice by Repository" to focus on specific repositories
+5. **Group by repository**: In Roadmap views, group by Repository to see timeline per repository
+
+**Example cross-repo configuration**:
+```yaml
+update-project:
+  project: "https://github.com/orgs/myorg/projects/42"
+  item_url: "https://github.com/myorg/repo-a/issues/123"
+  fields:
+    status: "In Progress"
+    repository: "repo-a"  # Track which repo this item belongs to
+    worker_workflow: "migration-worker"
+    priority: "High"
+```
+
+**Benefits**:
+- **Multi-repo visibility**: See all campaign work across repositories in one view
+- **Repository-specific filtering**: Slice by repository to focus on specific codebases
+- **Cross-repo coordination**: Identify dependencies between repositories
+- **Workload distribution**: Balance work across repositories and teams
+
 ### Setting Up Custom Fields
 
 To add custom fields to your project:
@@ -199,6 +232,8 @@ update-project:
 
 **Best practice**: Use the workflow's ID (from `.github/workflows/<id>.md`) as the Worker/Workflow field value for consistency.
 
+**Important**: Worker workflows themselves remain **campaign-agnostic** and do not need to know about custom fields or campaigns. The orchestrator discovers which worker created an item (via tracker-id in issue body) and populates the Worker/Workflow field accordingly. Workers continue to execute their tasks independently, and all campaign coordination happens in the orchestrator.
+
 ### Alternative Groupings
 
 Roadmap views can group by any single-select field. Other useful groupings for campaigns:
@@ -207,6 +242,7 @@ Roadmap views can group by any single-select field. Other useful groupings for c
 - **Team**: Swimlanes for different teams (Frontend, Backend, DevOps)
 - **Status**: Swimlanes for Todo, In Progress, Blocked, Done
 - **Effort**: Swimlanes for Small, Medium, Large work items
+- **Repository**: Swimlanes per repository (for cross-repo campaigns)
 
 Experiment with different groupings to find the visualization that best supports your campaign's needs.
 

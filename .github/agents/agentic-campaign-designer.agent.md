@@ -176,6 +176,7 @@ Based on the parsed requirements and project assignment, determine:
    - `Status` (single-select): Todo/In Progress/Blocked/Done
    - `Start Date`/`End Date` (date): For timeline visualization
    - `Effort` (single-select): Small/Medium/Large for capacity planning
+   - `Repository` (single-select): For cross-repository campaigns (optional)
 
 ### Step 3: Create the Campaign File
 
@@ -262,6 +263,11 @@ Agents in this campaign should:
 
 6. **Team** (Single select): Optional, for multi-team campaigns
    - Enables team-based grouping
+
+7. **Repository** (Single select): Optional, for cross-repository campaigns
+   - Enables repository-based grouping and filtering across multiple repositories
+
+**Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic and don't need to know about these fields. The orchestrator discovers which worker created an item (via tracker-id) and populates the Worker/Workflow field automatically.
 
 The orchestrator will automatically populate these fields when available. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for detailed setup instructions.
 ```
