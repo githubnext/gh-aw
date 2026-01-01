@@ -8,21 +8,16 @@ body:
       value: |
         ## Start an Agentic Campaign
         
-        Provide project board URL and campaign goal. The AI generates technical specs, best practices, and governance policies.
+        Describe your campaign goal below. After creating the issue, **add it to a GitHub Project board** using the project selector in the issue sidebar.
+        
+        The AI will automatically detect the project board assignment and generate the campaign specification with the correct project URL.
         
         **Process:**
-        1. AI analyzes goal and generates campaign spec
-        2. PR created with spec and orchestrator files
-        3. Review and merge to activate
-
-  - type: input
-    id: project_url
-    attributes:
-      label: Project Board URL
-      description: URL of your GitHub Project board for tracking this agentic campaign
-      placeholder: https://github.com/orgs/your-org/projects/123
-    validations:
-      required: true
+        1. Fill out the form and submit the issue
+        2. **Add the issue to a project board** via the UI (bottom of the issue page)
+        3. AI analyzes goal and generates campaign spec with project tracking
+        4. PR created with spec and orchestrator files
+        5. Review and merge to activate
 
   - type: textarea
     id: campaign_goal

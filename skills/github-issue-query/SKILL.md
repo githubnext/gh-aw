@@ -88,6 +88,11 @@ Use the `--jq` argument to filter and transform the output:
 ./query-issues.sh --jq '.[] | {number, title, labels: [.labels[].name]}'
 ```
 
+**Get project board assignments:**
+```bash
+./query-issues.sh --jq '.[] | {number, title, projects: [.projectItems.nodes[]? | .project.url]}'
+```
+
 **Find old issues (created over 30 days ago):**
 ```bash
 ./query-issues.sh --jq '.[] | select(.createdAt < (now - 2592000 | strftime("%Y-%m-%dT%H:%M:%SZ")))'

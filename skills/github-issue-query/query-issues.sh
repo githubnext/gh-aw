@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # JSON fields to fetch
-JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url"
+JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url,projectItems"
 
 # Build and execute gh command with proper quoting
 if [[ -n "$REPO" ]]; then
@@ -93,7 +93,8 @@ else
       "assignees": "array - Array of assignee objects with login field",
       "comments": "object - Comments info with totalCount field",
       "milestone": "object|null - Milestone info with title field",
-      "url": "string - Issue URL"
+      "url": "string - Issue URL",
+      "projectItems": "object - Project assignments with totalCount and nodes array containing project info"
     }
   },
   "suggested_queries": [
@@ -104,6 +105,7 @@ else
     {"description": "Get issues with label", "query": ".[] | select(.labels | map(.name) | index(\"bug\"))"},
     {"description": "Get issues with many comments", "query": ".[] | select(.comments.totalCount > 5) | {number, title, comments: .comments.totalCount}"},
     {"description": "Get issues with labels", "query": ".[] | {number, title, labels: [.labels[].name]}"},
+    {"description": "Get issues with project assignments", "query": ".[] | {number, title, projects: [.projectItems.nodes[]? | .project.url]}"},
     {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
   ]
 }
