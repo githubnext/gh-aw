@@ -15,28 +15,30 @@ type AssignToUserConfig struct {
 
 // parseAssignToUserConfig handles assign-to-user configuration
 func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUserConfig {
-	if configData, exists := outputMap["assign-to-user"]; exists {
-		assignToUserLog.Print("Parsing assign-to-user configuration")
-		assignToUserConfig := &AssignToUserConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse list job config (target, target-repo, allowed)
-			listJobConfig, _ := ParseListJobConfig(configMap, "allowed")
-			assignToUserConfig.SafeOutputTargetConfig = listJobConfig.SafeOutputTargetConfig
-			assignToUserConfig.Allowed = listJobConfig.Allowed
-
-			// Parse common base fields (github-token, max) with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &assignToUserConfig.BaseSafeOutputConfig, 1)
-			assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(assignToUserConfig.Allowed), assignToUserConfig.Target)
-		} else {
-			// If configData is nil or not a map (e.g., "assign-to-user:" with no value),
-			// use defaults
-			assignToUserLog.Print("Using default configuration")
-			assignToUserConfig.Max = 1
-		}
-
-		return assignToUserConfig
+	// Check if the key exists
+	if _, exists := outputMap["assign-to-user"]; !exists {
+		return nil
 	}
 
-	return nil
+	assignToUserLog.Print("Parsing assign-to-user configuration")
+
+	// Unmarshal into typed config struct
+	var config AssignToUserConfig
+	if err := unmarshalConfig(outputMap, "assign-to-user", &config, assignToUserLog); err != nil {
+		assignToUserLog.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, use defaults
+		assignToUserLog.Print("Using default configuration")
+		config = AssignToUserConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+		}
+	}
+
+	// Set default max if not specified
+	if config.Max == 0 {
+		config.Max = 1
+	}
+
+	assignToUserLog.Printf("Parsed configuration: allowed_count=%d, target=%s", len(config.Allowed), config.Target)
+
+	return &config
 }

@@ -949,3 +949,146 @@ func TestParseBoolFromConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestUnmarshalConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputMap    map[string]any
+		key         string
+		expectError bool
+		validate    func(*testing.T, *CreateIssuesConfig)
+	}{
+		{
+			name: "valid config with all fields",
+			inputMap: map[string]any{
+				"create-issue": map[string]any{
+					"title-prefix":   "[bot] ",
+					"labels":         []any{"bug", "enhancement"},
+					"allowed-labels": []any{"bug", "feature"},
+					"assignees":      []any{"user1", "user2"},
+					"target-repo":    "owner/repo",
+					"allowed-repos":  []any{"owner/repo1", "owner/repo2"},
+					"expires":        7,
+					"max":            5,
+					"github-token":   "${{ secrets.TOKEN }}",
+				},
+			},
+			key:         "create-issue",
+			expectError: false,
+			validate: func(t *testing.T, config *CreateIssuesConfig) {
+				if config.TitlePrefix != "[bot] " {
+					t.Errorf("expected title-prefix '[bot] ', got %q", config.TitlePrefix)
+				}
+				if len(config.Labels) != 2 || config.Labels[0] != "bug" || config.Labels[1] != "enhancement" {
+					t.Errorf("expected labels [bug, enhancement], got %v", config.Labels)
+				}
+				if len(config.AllowedLabels) != 2 {
+					t.Errorf("expected 2 allowed-labels, got %d", len(config.AllowedLabels))
+				}
+				if len(config.Assignees) != 2 {
+					t.Errorf("expected 2 assignees, got %d", len(config.Assignees))
+				}
+				if config.TargetRepoSlug != "owner/repo" {
+					t.Errorf("expected target-repo 'owner/repo', got %q", config.TargetRepoSlug)
+				}
+				if len(config.AllowedRepos) != 2 {
+					t.Errorf("expected 2 allowed-repos, got %d", len(config.AllowedRepos))
+				}
+				if config.Expires != 7 {
+					t.Errorf("expected expires 7, got %d", config.Expires)
+				}
+				if config.Max != 5 {
+					t.Errorf("expected max 5, got %d", config.Max)
+				}
+				if config.GitHubToken != "${{ secrets.TOKEN }}" {
+					t.Errorf("expected github-token, got %q", config.GitHubToken)
+				}
+			},
+		},
+		{
+			name: "empty config (nil value)",
+			inputMap: map[string]any{
+				"create-issue": nil,
+			},
+			key:         "create-issue",
+			expectError: false,
+			validate: func(t *testing.T, config *CreateIssuesConfig) {
+				// All fields should be zero values
+				if config.TitlePrefix != "" {
+					t.Errorf("expected empty title-prefix, got %q", config.TitlePrefix)
+				}
+				if len(config.Labels) != 0 {
+					t.Errorf("expected no labels, got %v", config.Labels)
+				}
+			},
+		},
+		{
+			name: "partial config",
+			inputMap: map[string]any{
+				"create-issue": map[string]any{
+					"title-prefix": "[auto] ",
+					"max":          3,
+				},
+			},
+			key:         "create-issue",
+			expectError: false,
+			validate: func(t *testing.T, config *CreateIssuesConfig) {
+				if config.TitlePrefix != "[auto] " {
+					t.Errorf("expected title-prefix '[auto] ', got %q", config.TitlePrefix)
+				}
+				if config.Max != 3 {
+					t.Errorf("expected max 3, got %d", config.Max)
+				}
+				// Other fields should be zero values
+				if len(config.Labels) != 0 {
+					t.Errorf("expected no labels, got %v", config.Labels)
+				}
+			},
+		},
+		{
+			name: "missing key",
+			inputMap: map[string]any{
+				"other-key": map[string]any{},
+			},
+			key:         "create-issue",
+			expectError: true,
+		},
+		{
+			name: "empty map",
+			inputMap: map[string]any{
+				"create-issue": map[string]any{},
+			},
+			key:         "create-issue",
+			expectError: false,
+			validate: func(t *testing.T, config *CreateIssuesConfig) {
+				// All fields should be zero values
+				if config.Max != 0 {
+					t.Errorf("expected max 0, got %d", config.Max)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var config CreateIssuesConfig
+			err := unmarshalConfig(tt.inputMap, tt.key, &config, nil)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, &config)
+			}
+		})
+	}
+}

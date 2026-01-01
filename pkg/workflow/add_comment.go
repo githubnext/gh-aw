@@ -132,64 +132,37 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 // parseCommentsConfig handles add-comment configuration
 func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsConfig {
-	if configData, exists := outputMap["add-comment"]; exists {
-		addCommentLog.Print("Parsing add-comment configuration")
-		commentsConfig := &AddCommentsConfig{}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target
-			if target, exists := configMap["target"]; exists {
-				if targetStr, ok := target.(string); ok {
-					commentsConfig.Target = targetStr
-				}
-			}
-
-			// Parse target-repo using shared helper with validation
-			targetRepoSlug, isInvalid := parseTargetRepoWithValidation(configMap)
-			if isInvalid {
-				return nil // Invalid configuration, return nil to cause validation error
-			}
-			commentsConfig.TargetRepoSlug = targetRepoSlug
-
-			// Parse discussion
-			if discussion, exists := configMap["discussion"]; exists {
-				if discussionBool, ok := discussion.(bool); ok {
-					// Validate that discussion must be true if present
-					if !discussionBool {
-						return nil // Invalid configuration, return nil to cause validation error
-					}
-					commentsConfig.Discussion = &discussionBool
-				}
-			}
-
-			// Parse hide-older-comments
-			if hideOlder, exists := configMap["hide-older-comments"]; exists {
-				if hideOlderBool, ok := hideOlder.(bool); ok {
-					commentsConfig.HideOlderComments = hideOlderBool
-				}
-			}
-
-			// Parse allowed-reasons
-			if allowedReasons, exists := configMap["allowed-reasons"]; exists {
-				if reasonsArray, ok := allowedReasons.([]any); ok {
-					for _, reason := range reasonsArray {
-						if reasonStr, ok := reason.(string); ok {
-							commentsConfig.AllowedReasons = append(commentsConfig.AllowedReasons, reasonStr)
-						}
-					}
-				}
-			}
-
-			// Parse common base fields with default max of 1
-			c.parseBaseSafeOutputConfig(configMap, &commentsConfig.BaseSafeOutputConfig, 1)
-		} else {
-			// If configData is nil or not a map (e.g., "add-comment:" with no value),
-			// still set the default max
-			commentsConfig.Max = 1
-		}
-
-		return commentsConfig
+	// Check if the key exists
+	if _, exists := outputMap["add-comment"]; !exists {
+		return nil
 	}
 
-	return nil
+	addCommentLog.Print("Parsing add-comment configuration")
+
+	// Unmarshal into typed config struct
+	var config AddCommentsConfig
+	if err := unmarshalConfig(outputMap, "add-comment", &config, addCommentLog); err != nil {
+		addCommentLog.Printf("Failed to unmarshal config: %v", err)
+		// For backward compatibility, handle nil/empty config
+		config = AddCommentsConfig{}
+	}
+
+	// Set default max if not specified
+	if config.Max == 0 {
+		config.Max = 1
+	}
+
+	// Validate target-repo (wildcard "*" is not allowed)
+	if config.TargetRepoSlug == "*" {
+		addCommentLog.Print("Invalid target-repo: wildcard '*' is not allowed")
+		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	// Validate discussion field - must be true if present
+	if config.Discussion != nil && !*config.Discussion {
+		addCommentLog.Print("Invalid discussion: must be true if present")
+		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	return &config
 }
