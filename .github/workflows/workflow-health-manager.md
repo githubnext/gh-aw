@@ -18,6 +18,7 @@ tools:
 safe-outputs:
   create-issue:
     max: 10
+    expires: 1d
   add-comment:
     max: 15
   update-issue:
