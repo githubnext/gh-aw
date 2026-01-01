@@ -29,14 +29,8 @@ function getAgentName(assignee) {
   // Normalize: remove @ prefix if present
   const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
 
-  const { getErrorMessage } = require("./error_helpers.cjs");
-
   // Check if it's a known agent
-  if (AGENT_LOGIN_NAMES[normalized]) {
-    return normalized;
-  }
-
-  return null;
+  return AGENT_LOGIN_NAMES[normalized] || null;
 }
 
 /**
@@ -60,11 +54,12 @@ async function getAvailableAgentLogins(owner, repo) {
     const response = await github.graphql(query, { owner, repo });
     const actors = response.repository?.suggestedActors?.nodes || [];
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
-    const available = actors.filter(actor => actor?.login && knownValues.includes(actor.login)).map(actor => actor.login);
-    return available.sort();
+    return actors
+      .filter(actor => actor?.login && knownValues.includes(actor.login))
+      .map(actor => actor.login)
+      .sort();
   } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    core.debug(`Failed to list available agent logins: ${errorMessage}`);
+    core.debug(`Failed to list available agent logins: ${getErrorMessage(e)}`);
     return [];
   }
 }
@@ -95,7 +90,7 @@ async function findAgent(owner, repo, agentName) {
 
   try {
     const response = await github.graphql(query, { owner, repo });
-    const actors = response.repository.suggestedActors.nodes;
+    const actors = response.repository?.suggestedActors?.nodes || [];
 
     const loginName = AGENT_LOGIN_NAMES[agentName];
     if (!loginName) {
@@ -103,13 +98,15 @@ async function findAgent(owner, repo, agentName) {
       return null;
     }
 
-    const agent = actors.find(actor => actor.login === loginName);
-    if (agent) {
+    const agent = actors.find(actor => actor?.login === loginName);
+    if (agent?.id) {
       return agent.id;
     }
 
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
-    const available = actors.filter(a => a?.login && knownValues.includes(a.login)).map(a => a.login);
+    const available = actors
+      .filter(a => a?.login && knownValues.includes(a.login))
+      .map(a => a.login);
 
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
     if (available.length > 0) {
@@ -153,18 +150,16 @@ async function getIssueDetails(owner, repo, issueNumber) {
 
   try {
     const response = await github.graphql(query, { owner, repo, issueNumber });
-    const issue = response.repository.issue;
+    const issue = response.repository?.issue;
 
-    if (!issue || !issue.id) {
+    if (!issue?.id) {
       core.error("Could not get issue data");
       return null;
     }
 
-    const currentAssignees = issue.assignees.nodes.map(assignee => assignee.id);
-
     return {
       issueId: issue.id,
-      currentAssignees,
+      currentAssignees: issue.assignees?.nodes?.map(assignee => assignee.id) || [],
     };
   } catch (error) {
     const errorMessage = getErrorMessage(error);
@@ -225,11 +220,8 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
           ...(err.errors && { errors: err.errors }),
           ...(err.response && { response: err.response }),
           ...(err.data && { data: err.data }),
+          ...(Array.isArray(err.errors) && { compactMessages: err.errors.map(e => e.message).filter(Boolean) }),
         };
-        // If GitHub returns an array of errors with 'type'/'message'
-        if (Array.isArray(err.errors)) {
-          details.compactMessages = err.errors.map(e => e.message).filter(Boolean);
-        }
         const serialized = JSON.stringify(details, null, 2);
         if (serialized !== "{}") {
           core.debug(`Raw GraphQL error details: ${serialized}`);
@@ -243,8 +235,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
       }
     } catch (loggingErr) {
       // Never fail assignment because of debug logging
-      const loggingErrMsg = loggingErr instanceof Error ? loggingErr.message : String(loggingErr);
-      core.debug(`Failed to serialize GraphQL error details: ${loggingErrMsg}`);
+      core.debug(`Failed to serialize GraphQL error details: ${getErrorMessage(loggingErr)}`);
     }
 
     // Check for permission-related errors
@@ -274,8 +265,7 @@ async function assignAgentToIssue(issueId, agentId, currentAssignees, agentName)
         }
         core.warning("Fallback mutation returned unexpected response; proceeding with permission guidance.");
       } catch (fallbackError) {
-        const fallbackErrMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-        core.error(`Fallback addAssigneesToAssignable failed: ${fallbackErrMsg}`);
+        core.error(`Fallback addAssigneesToAssignable failed: ${getErrorMessage(fallbackError)}`);
       }
       logPermissionError(agentName);
     } else {
