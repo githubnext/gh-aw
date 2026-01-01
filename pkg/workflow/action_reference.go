@@ -133,7 +133,7 @@ func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData
 	// 2. WorkflowData.Features["action-tag"] (from frontmatter)
 	// 3. Compiler version
 	var tag string
-	
+
 	// Check compiler actionTag first (highest priority)
 	if c.actionTag != "" {
 		tag = c.actionTag
