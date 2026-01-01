@@ -7,6 +7,10 @@ sidebar:
 
 This glossary provides definitions for key technical terms and concepts used in GitHub Agentic Workflows.
 
+:::tip[New to GitHub Agentic Workflows?]
+Technical terms throughout the documentation link to their definitions here. Click any glossary link to understand unfamiliar concepts. Bookmark this page for quick reference!
+:::
+
 ## Core Concepts
 
 ### Agentic
@@ -125,8 +129,11 @@ safe-outputs:
 ## Workflow Components
 
 ### Engine
-The AI system that powers the agentic workflow. GitHub Agentic Workflows supports multiple engines:
+
+The AI system that powers the [agentic workflow](#agentic-workflow). GitHub Agentic Workflows supports multiple engines:
 - **GitHub Copilot** (default): Uses GitHub's coding assistant
+
+An engine is essentially "which AI to use"—think of it as choosing between different AI assistants (like Copilot, Claude, or others) to execute your workflow instructions.
 
 ### Triggers
 Events that cause a workflow to run. Defined in the `on:` section of frontmatter. Includes issue events (`issues:`), pull request events (`pull_request:`), scheduled runs (`schedule:`), manual runs (`workflow_dispatch:`), and comment commands (`slash_command:`).
