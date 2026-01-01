@@ -290,13 +290,17 @@ This workflow should get default permissions applied automatically.
 		t.Fatal("Permissions section not found in main job")
 	}
 
-	// Verify permissions is a map
-	permissionsValue, ok := permissions.(string)
+	// Verify permissions is a map with contents: read
+	permissionsMap, ok := permissions.(map[string]any)
 	if !ok {
-		t.Fatal("Permissions section is not a string")
+		t.Fatalf("Permissions section is not a map, got type: %T", permissions)
 	}
-	if permissionsValue != "read-all" {
-		t.Fatal("Default permissions not read-all")
+	contentsPermission, exists := permissionsMap["contents"]
+	if !exists {
+		t.Fatal("Contents permission not found in agent job")
+	}
+	if contentsPermission != "read" {
+		t.Fatalf("Expected contents: read permission, got: %v", contentsPermission)
 	}
 }
 

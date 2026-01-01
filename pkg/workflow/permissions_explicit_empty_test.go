@@ -55,9 +55,9 @@ engine: copilot
 # Test workflow
 Test content`,
 			actionMode:            ActionModeDev,
-			expectedAgentPerms:    "permissions:\n      contents: read", // Dev mode needs contents: read for local actions
-			expectedTopLevelPerms: "permissions: {}",                   // Default top-level empty
-			description:           "Dev mode with no permissions should add contents: read to agent job for local actions",
+			expectedAgentPerms:    "permissions:\n      contents: read",     // Dev mode needs contents: read for local actions
+			expectedTopLevelPerms: "permissions:\n  contents: read",         // Default is now contents: read
+			description:           "Dev mode with no permissions should set default contents: read at workflow level",
 		},
 		{
 			name: "explicit read-all permissions in dev mode",
@@ -69,8 +69,8 @@ permissions: read-all
 # Test workflow
 Test content`,
 			actionMode:            ActionModeDev,
-			expectedAgentPerms:    "permissions: read-all", // Should stay read-all
-			expectedTopLevelPerms: "permissions: {}",       // Top-level empty
+			expectedAgentPerms:    "permissions: read-all",    // Should stay read-all
+			expectedTopLevelPerms: "permissions: read-all",    // Top-level has read-all
 			description:           "Dev mode with read-all permissions should keep read-all on agent job",
 		},
 	}

@@ -43,7 +43,9 @@ name: "Campaign Intelligence System"
         required: false
         type: choice
 
-permissions: {}
+permissions:
+  contents: read
+  issues: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

@@ -47,7 +47,11 @@ name: "MCP Inspector Agent"
     # Friendly format: weekly on monday at 18:00
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

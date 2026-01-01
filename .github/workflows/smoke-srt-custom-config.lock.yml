@@ -25,7 +25,10 @@ name: "Smoke SRT Custom Config"
 "on":
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
