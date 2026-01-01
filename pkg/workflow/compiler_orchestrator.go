@@ -732,7 +732,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Apply defaults
-	c.applyDefaults(workflowData, cleanPath)
+	if err := c.applyDefaults(workflowData, cleanPath); err != nil {
+		return nil, err
+	}
 
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)

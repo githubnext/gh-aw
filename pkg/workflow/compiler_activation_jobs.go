@@ -563,7 +563,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// Build step content using the generateMainJobSteps helper method
 	// but capture it into a string instead of writing directly
 	var stepBuilder strings.Builder
-	c.generateMainJobSteps(&stepBuilder, data)
+	if err := c.generateMainJobSteps(&stepBuilder, data); err != nil {
+		return nil, err
+	}
 
 	// Split the steps content into individual step entries
 	stepsContent := stepBuilder.String()

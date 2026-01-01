@@ -10,9 +10,9 @@ import (
 var compilerYamlArtifactsLog = logger.New("workflow:compiler_yaml_artifacts")
 
 // generateUploadAgentLogs generates a step that uploads the agent's stdout/stderr logs
-func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
+func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) error {
 	compilerYamlArtifactsLog.Printf("Generating agent logs upload step: %s", logFileFull)
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload Agent Stdio",
 		ArtifactName:   "agent-stdio.log",
 		UploadPaths:    []string{logFileFull},
@@ -21,9 +21,9 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 }
 
 // generateUploadAssets generates a step that uploads safe outputs assets
-func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
+func (c *Compiler) generateUploadAssets(yaml *strings.Builder) error {
 	compilerYamlArtifactsLog.Print("Generating safe outputs assets upload step")
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload safe outputs assets",
 		ArtifactName:   "safe-outputs-assets",
 		UploadPaths:    []string{"/tmp/gh-aw/safeoutputs/assets/"},
@@ -32,8 +32,8 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 }
 
 // generateUploadAwInfo generates a step that uploads the aw_info.json file
-func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) error {
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload agentic run info",
 		ArtifactName:   "aw_info.json",
 		UploadPaths:    []string{"/tmp/gh-aw/aw_info.json"},
@@ -42,8 +42,8 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 }
 
 // generateUploadPrompt generates a step that uploads the prompt file
-func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) error {
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload prompt",
 		ArtifactName:   "prompt.txt",
 		UploadPaths:    []string{"/tmp/gh-aw/aw-prompts/prompt.txt"},
@@ -64,8 +64,8 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 }
 
 // generateUploadMCPLogs generates a step that uploads MCP server logs
-func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) error {
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload MCP logs",
 		ArtifactName:   "mcp-logs",
 		UploadPaths:    []string{"/tmp/gh-aw/mcp-logs/"},
@@ -74,8 +74,8 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 }
 
 // generateUploadSafeInputsLogs generates a step that uploads SafeInputs logs
-func (c *Compiler) generateUploadSafeInputsLogs(yaml *strings.Builder) {
-	c.generateArtifactUpload(yaml, ArtifactUploadConfig{
+func (c *Compiler) generateUploadSafeInputsLogs(yaml *strings.Builder) error {
+	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload SafeInputs logs",
 		ArtifactName:   "safeinputs",
 		UploadPaths:    []string{"/tmp/gh-aw/safe-inputs/logs/"},

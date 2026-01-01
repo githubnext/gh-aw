@@ -7,7 +7,7 @@ import (
 
 // generateMainJobSteps generates the complete sequence of steps for the main agent execution job
 // This is the heart of the workflow, orchestrating all steps from checkout through AI execution to artifact upload
-func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) error {
 	compilerYamlLog.Printf("Generating main job steps for workflow: %s", data.Name)
 
 	// Determine if we need to add a checkout step
@@ -128,7 +128,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	engine, err := c.getAgenticEngine(data.AI)
 
 	if err != nil {
-		return
+		return err
 	}
 
 	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)
@@ -162,13 +162,17 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generatePrompt(yaml, data)
 
 	// Upload prompt to artifact
-	c.generateUploadPrompt(yaml)
+	if err := c.generateUploadPrompt(yaml); err != nil {
+		return err
+	}
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
 	// Upload info to artifact
-	c.generateUploadAwInfo(yaml)
+	if err := c.generateUploadAwInfo(yaml); err != nil {
+		return err
+	}
 
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
@@ -229,11 +233,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
 	// upload MCP logs (if any MCP tools were used)
-	c.generateUploadMCPLogs(yaml)
+	if err := c.generateUploadMCPLogs(yaml); err != nil {
+		return err
+	}
 
 	// upload SafeInputs logs (if safe-inputs is enabled)
 	if IsSafeInputsEnabled(data.SafeInputs, data) {
-		c.generateUploadSafeInputsLogs(yaml)
+		if err := c.generateUploadSafeInputsLogs(yaml); err != nil {
+			return err
+		}
 	}
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
@@ -273,7 +281,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// upload agent logs
 	var _ = logFile
-	c.generateUploadAgentLogs(yaml, logFileFull)
+	if err := c.generateUploadAgentLogs(yaml, logFileFull); err != nil {
+		return err
+	}
 
 	// Add post-execution cleanup step for Copilot engine
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
@@ -292,7 +302,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
-		c.generateUploadAssets(yaml)
+		if err := c.generateUploadAssets(yaml); err != nil {
+			return err
+		}
 	}
 
 	// Add error validation for AI execution logs
@@ -312,8 +324,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
 		// This is a compiler bug if validation fails
-		panic(err)
+		return fmt.Errorf("step ordering validation failed: %w", err)
 	}
+	return nil
 }
 
 // addCustomStepsAsIs adds custom steps without modification

@@ -300,7 +300,10 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 // docsURL: URL to the documentation page for setting up the secret
 func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string) GitHubActionStep {
 	if len(secretNames) == 0 {
-		panic("GenerateMultiSecretValidationStep requires at least one secret name")
+		// This is a programming error - engine configurations should always provide secrets
+		// Log the error and return empty step to avoid breaking compilation
+		agenticEngineLog.Printf("ERROR: GenerateMultiSecretValidationStep called with empty secretNames for engine %s", engineName)
+		return GitHubActionStep{}
 	}
 
 	// Build the step name

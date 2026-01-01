@@ -15,7 +15,7 @@ import (
 var toolsLog = logger.New("workflow:tools")
 
 // applyDefaults applies default values for missing workflow sections
-func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
+func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error {
 	toolsLog.Printf("Applying defaults to workflow: name=%s, path=%s", data.Name, markdownPath)
 
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
@@ -100,7 +100,10 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			// Use event-aware condition that only applies command checks to comment-related events
 			// Pass the filtered events to buildEventAwareCommandCondition
 			hasOtherEvents := len(data.CommandOtherEvents) > 0
-			commandConditionTree := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
+			commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
+			if err != nil {
+				return fmt.Errorf("failed to build command condition: %w", err)
+			}
 
 			if data.If == "" {
 				data.If = commandConditionTree.Render()
@@ -205,6 +208,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			data.Permissions = NewPermissionsReadAll().RenderToYAML()
 		}
 	}
+	return nil
 }
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
