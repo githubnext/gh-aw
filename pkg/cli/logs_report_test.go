@@ -794,3 +794,54 @@ func TestBuildFirewallLogSummaryWithSharedHelper(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildLogsDataIncludesDateFields tests that RunData includes all date fields
+func TestBuildLogsDataIncludesDateFields(t *testing.T) {
+	// Create test times
+	createdAt := time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC)
+	startedAt := time.Date(2024, 1, 1, 10, 1, 0, 0, time.UTC)
+	updatedAt := time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC)
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   12345,
+				WorkflowName: "test-workflow",
+				CreatedAt:    createdAt,
+				StartedAt:    startedAt,
+				UpdatedAt:    updatedAt,
+				Duration:     5 * time.Minute,
+			},
+		},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if len(data.Runs) != 1 {
+		t.Fatalf("Expected 1 run, got %d", len(data.Runs))
+	}
+
+	run := data.Runs[0]
+
+	// Verify all date fields are populated
+	if run.CreatedAt.IsZero() {
+		t.Error("CreatedAt should not be zero")
+	}
+	if !run.CreatedAt.Equal(createdAt) {
+		t.Errorf("Expected CreatedAt = %v, got %v", createdAt, run.CreatedAt)
+	}
+
+	if run.StartedAt.IsZero() {
+		t.Error("StartedAt should not be zero")
+	}
+	if !run.StartedAt.Equal(startedAt) {
+		t.Errorf("Expected StartedAt = %v, got %v", startedAt, run.StartedAt)
+	}
+
+	if run.UpdatedAt.IsZero() {
+		t.Error("UpdatedAt should not be zero")
+	}
+	if !run.UpdatedAt.Equal(updatedAt) {
+		t.Errorf("Expected UpdatedAt = %v, got %v", updatedAt, run.UpdatedAt)
+	}
+}
