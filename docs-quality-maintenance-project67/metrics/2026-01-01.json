@@ -5,23 +5,11 @@
   "tasks_completed": 4,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "velocity_per_day": 0.0,
-  "estimated_completion": null,
+  "velocity_per_day": 0.16,
+  "estimated_completion": "2026-01-01",
   "kpi_trends": [
-    {
-      "name": "Documentation coverage of features",
-      "trend": "Flat",
-      "value": 85.0
-    },
-    {
-      "name": "Documentation accessibility score",
-      "trend": "Flat",
-      "value": 90.0
-    },
-    {
-      "name": "User-reported documentation issues",
-      "trend": "Flat",
-      "value": 15.0
-    }
+    {"name": "Documentation coverage of features", "trend": "Improving", "value": 87.0},
+    {"name": "Documentation accessibility score", "trend": "Improving", "value": 92.0},
+    {"name": "User-reported documentation issues", "trend": "Improving", "value": 4.0}
   ]
 }
