@@ -274,8 +274,8 @@ This workflow should generate a step to upload the prompt as an artifact.
 	}
 
 	// Verify the upload step has the correct artifact name
-	if !strings.Contains(lockYAML, "name: prompt.txt") {
-		t.Error("Expected artifact name to be 'prompt.txt'")
+	if !strings.Contains(lockYAML, "name: prompt") {
+		t.Error("Expected artifact name to be 'prompt'")
 	}
 
 	// Verify the upload step has the correct path

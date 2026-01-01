@@ -35,7 +35,7 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) error {
 func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) error {
 	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload agentic run info",
-		ArtifactName:   "aw_info.json",
+		ArtifactName:   "aw-info",
 		UploadPaths:    []string{"/tmp/gh-aw/aw_info.json"},
 		IfNoFilesFound: "warn",
 	})
@@ -45,7 +45,7 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) error {
 func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) error {
 	return c.generateArtifactUpload(yaml, ArtifactUploadConfig{
 		StepName:       "Upload prompt",
-		ArtifactName:   "prompt.txt",
+		ArtifactName:   "prompt",
 		UploadPaths:    []string{"/tmp/gh-aw/aw-prompts/prompt.txt"},
 		IfNoFilesFound: "warn",
 	})

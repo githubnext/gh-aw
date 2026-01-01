@@ -172,12 +172,14 @@ func TestFlattenSingleFileArtifactsInvalidDirectory(t *testing.T) {
 
 func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 	// Test that flattening works correctly for typical audit artifact files
+	// This test uses NEW artifact names (upload-artifact@v5 compliant)
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create artifact structure as it would be downloaded by gh run download
+	// Using NEW artifact names: aw-info, safe-output, agent-output, prompt
 	artifacts := map[string]string{
-		"aw_info/aw_info.json":             `{"engine_id":"claude","workflow_name":"test"}`,
-		"safe_output/safe_output.jsonl":    `{"action":"create_issue","title":"test"}`,
+		"aw-info/aw_info.json":             `{"engine_id":"claude","workflow_name":"test"}`,
+		"safe-output/safe_output.jsonl":    `{"action":"create_issue","title":"test"}`,
 		"aw-patch/aw.patch":                "diff --git a/test.txt b/test.txt\n",
 		"agent_outputs/output1.txt":        "log output 1",
 		"agent_outputs/output2.txt":        "log output 2",
@@ -244,7 +246,7 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 	}
 
 	// Verify original artifact directories are removed
-	removedDirs := []string{"aw_info", "safe_output", "aw-patch"}
+	removedDirs := []string{"aw-info", "safe-output", "aw-patch"}
 	for _, dir := range removedDirs {
 		path := filepath.Join(tmpDir, dir)
 		if _, err := os.Stat(path); err == nil {
@@ -255,12 +257,14 @@ func TestFlattenSingleFileArtifactsWithAuditFiles(t *testing.T) {
 
 func TestAuditCanFindFlattenedArtifacts(t *testing.T) {
 	// Simulate what the audit command does - check that it can find artifacts after flattening
+	// This test uses NEW artifact names (upload-artifact@v5 compliant)
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create realistic artifact structure before flattening
+	// Using NEW artifact names: aw-info, safe-output
 	testArtifacts := map[string]string{
-		"aw_info/aw_info.json":          `{"engine_id":"claude","workflow_name":"github-mcp-tools-report","run_id":123456}`,
-		"safe_output/safe_output.jsonl": `{"action":"create_discussion","title":"GitHub MCP Tools Report"}`,
+		"aw-info/aw_info.json":          `{"engine_id":"claude","workflow_name":"github-mcp-tools-report","run_id":123456}`,
+		"safe-output/safe_output.jsonl": `{"action":"create_discussion","title":"GitHub MCP Tools Report"}`,
 		"aw-patch/aw.patch":             "diff --git a/report.md b/report.md\nnew file mode 100644\n",
 	}
 
