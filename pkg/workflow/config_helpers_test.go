@@ -10,9 +10,14 @@ func TestParseRelativeTimeSpec(t *testing.T) {
 		input    string
 		expected int
 	}{
-		// Hours - should convert to days (minimum 1 day)
+		// Hours - minimum 2 hours required
 		{
-			name:     "2 hours",
+			name:     "1 hour - below minimum",
+			input:    "1h",
+			expected: 0, // Rejected: less than 2h minimum
+		},
+		{
+			name:     "2 hours - at minimum",
 			input:    "2h",
 			expected: 1, // 2 hours = 1 day (minimum)
 		},
@@ -42,9 +47,14 @@ func TestParseRelativeTimeSpec(t *testing.T) {
 			expected: 3, // 72 hours = 3 days
 		},
 		{
-			name:     "uppercase hours",
+			name:     "uppercase hours - at minimum",
 			input:    "2H",
 			expected: 1,
+		},
+		{
+			name:     "uppercase hours - below minimum",
+			input:    "1H",
+			expected: 0,
 		},
 		// Days
 		{
@@ -177,7 +187,12 @@ func TestParseExpiresFromConfig(t *testing.T) {
 		},
 		// String formats with hours
 		{
-			name:     "2 hours string",
+			name:     "1 hour string - below minimum",
+			config:   map[string]any{"expires": "1h"},
+			expected: 0, // Rejected: less than 2h minimum
+		},
+		{
+			name:     "2 hours string - at minimum",
 			config:   map[string]any{"expires": "2h"},
 			expected: 1, // 2 hours = 1 day (minimum)
 		},

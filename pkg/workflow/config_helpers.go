@@ -198,7 +198,7 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 // parseRelativeTimeSpec parses a relative time specification string
 // Supports: h (hours), d (days), w (weeks), m (months ~30 days), y (years ~365 days)
 // Examples: "2h" = 0 days (treated as 1 day min), "7d" = 7 days, "2w" = 14 days, "1m" = 30 days, "1y" = 365 days
-// Returns 0 if the format is invalid
+// Returns 0 if the format is invalid or if the duration is less than 2 hours
 // Note: Hours less than 24 are treated as 1 day minimum since maintenance runs daily
 func parseRelativeTimeSpec(spec string) int {
 	configHelpersLog.Printf("DEBUG: parseRelativeTimeSpec called with spec: %s", spec)
@@ -222,6 +222,11 @@ func parseRelativeTimeSpec(spec string) int {
 	// Convert to days based on unit
 	switch unit {
 	case "h", "H":
+		// Reject durations less than 2 hours
+		if num < 2 {
+			configHelpersLog.Printf("Invalid expires duration: %d hours is less than the minimum 2 hours", num)
+			return 0
+		}
 		// Convert hours to days
 		// Since maintenance workflow runs daily, treat any hours < 24 as 1 day
 		days := num / 24
