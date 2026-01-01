@@ -60,6 +60,45 @@ func runBatchActionlint(lockFiles []string, verbose bool, strict bool) error {
 	return nil
 }
 
+// runBatchZizmor runs zizmor security scanner on all lock files in batch
+func runBatchZizmor(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		compileBatchOperationsLog.Print("No lock files to scan with zizmor")
+		return nil
+	}
+
+	compileBatchOperationsLog.Printf("Running batch zizmor on %d lock files", len(lockFiles))
+
+	if err := RunZizmorOnFiles(lockFiles, verbose, strict); err != nil {
+		if strict {
+			return fmt.Errorf("zizmor security scan failed: %w", err)
+		}
+		// In non-strict mode, zizmor errors are warnings
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("zizmor warnings: %v", err)))
+		}
+	}
+
+	return nil
+}
+
+// runBatchPoutine runs poutine security scanner once for the entire directory
+func runBatchPoutine(workflowDir string, verbose bool, strict bool) error {
+	compileBatchOperationsLog.Printf("Running batch poutine on directory: %s", workflowDir)
+
+	if err := RunPoutineOnDirectory(workflowDir, verbose, strict); err != nil {
+		if strict {
+			return fmt.Errorf("poutine security scan failed: %w", err)
+		}
+		// In non-strict mode, poutine errors are warnings
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("poutine warnings: %v", err)))
+		}
+	}
+
+	return nil
+}
+
 // purgeOrphanedLockFiles removes orphaned .lock.yml files
 // These are lock files that exist but don't have a corresponding .md file
 func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, verbose bool) error {
