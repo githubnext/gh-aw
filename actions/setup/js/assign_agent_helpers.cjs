@@ -104,9 +104,7 @@ async function findAgent(owner, repo, agentName) {
     }
 
     const knownValues = Object.values(AGENT_LOGIN_NAMES);
-    const available = actors
-      .filter(a => a?.login && knownValues.includes(a.login))
-      .map(a => a.login);
+    const available = actors.filter(a => a?.login && knownValues.includes(a.login)).map(a => a.login);
 
     core.warning(`${agentName} coding agent (${loginName}) is not available as an assignee for this repository`);
     if (available.length > 0) {
