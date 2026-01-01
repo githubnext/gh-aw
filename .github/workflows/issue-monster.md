@@ -7,6 +7,7 @@ on:
   skip-if-match:
     query: "is:pr is:open is:draft author:app/copilot-swe-agent"
     max: 9
+  skip-if-no-match: "is:issue is:open"
 
 permissions:
   contents: read
