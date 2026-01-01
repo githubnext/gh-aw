@@ -62,8 +62,6 @@ jobs:
           retention-days: 14
 
   integration:
-    needs: [lint-go, lint-js]  # Integration tests run independently (have their own checkout/setup)
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -224,7 +222,6 @@ jobs:
           retention-days: 14
 
   update:
-    needs: [lint-go, lint-js]  # Run in parallel with integration tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -267,7 +264,6 @@ jobs:
           echo "✅ Update command executed successfully" >> $GITHUB_STEP_SUMMARY
 
   build:
-    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -315,7 +311,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   js:
-    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -344,7 +339,6 @@ jobs:
       - name: Run tests
         run: cd actions/setup/js && npm test
   bench:
-    needs: [lint-go, lint-js]
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -502,7 +496,6 @@ jobs:
         run: make fmt-check-json
 
   audit:
-    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -574,7 +567,6 @@ jobs:
           retention-days: 30
 
   actions-build:
-    needs: [lint-go, lint-js]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -610,7 +602,6 @@ jobs:
         run: make actions-validate
 
   fuzz:
-    needs: [lint-go, lint-js]
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -658,7 +649,6 @@ jobs:
           go test -run='^$' -fuzz=FuzzSafeJobConfig -fuzztime=10s ./pkg/workflow/
 
   security:
-    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -691,7 +681,6 @@ jobs:
         run: make test-security
 
   security-scan:
-    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -738,7 +727,6 @@ jobs:
         run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }}
 
   logs-token-check:
-    needs: [lint-go, lint-js]  # Run in parallel with test to reduce critical path
     runs-on: ubuntu-latest
     permissions:
       contents: read
