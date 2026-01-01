@@ -322,9 +322,31 @@ type Version string
 type FeatureFlag string
 
 const MaxExpressionLineLength LineLength = 120
-const DefaultCopilotVersion Version = "0.0.369"
+const DefaultCopilotVersion Version = "0.0.373"
 const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+
+// All semantic types in pkg/constants provide String() and IsValid() methods
+if MaxExpressionLineLength.IsValid() {
+    fmt.Println(MaxExpressionLineLength.String()) // "120"
+}
 ```
+
+**When to create semantic type aliases**:
+- ✅ **DO use** for domain concepts that are frequently used (versions, URLs, model names, job names)
+- ✅ **DO use** when mixing different string/int types could cause bugs (prevents `JobName` being used as `StepID`)
+- ✅ **DO use** when the type name adds clarity that a comment alone wouldn't provide
+- ❌ **DON'T use** for one-off values or when the primitive type is already clear from context
+- ❌ **DON'T use** when it adds ceremony without clarity (e.g., `type String string` is too generic)
+
+**Available semantic types in `pkg/constants`**:
+- `LineLength` - Character counts for formatting (e.g., `MaxExpressionLineLength`)
+- `Version` - Software version strings (e.g., `DefaultCopilotVersion`)
+- `FeatureFlag` - Feature flag identifiers (e.g., `SafeInputsFeatureFlag`)
+- `URL` - URL strings (e.g., `DefaultMCPRegistryURL`)
+- `ModelName` - AI model names (e.g., `DefaultCopilotDetectionModel`)
+- `JobName` - GitHub Actions job identifiers (e.g., `AgentJobName`)
+- `StepID` - GitHub Actions step identifiers (e.g., `CheckMembershipStepID`)
+- `CommandPrefix` - CLI command prefixes (e.g., `CLIExtensionPrefix`)
 
 **Dynamic Types** - Use `map[string]any` for truly dynamic data:
 ```go

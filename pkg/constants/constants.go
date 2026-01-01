@@ -1,6 +1,7 @@
 package constants
 
 import (
+	"fmt"
 	"path/filepath"
 	"time"
 )
@@ -33,6 +34,16 @@ const CLIExtensionPrefix CommandPrefix = "gh aw"
 //	}
 type LineLength int
 
+// String returns the string representation of the line length
+func (l LineLength) String() string {
+	return fmt.Sprintf("%d", l)
+}
+
+// IsValid returns true if the line length is positive
+func (l LineLength) IsValid() bool {
+	return l > 0
+}
+
 // Version represents a software version string.
 // This semantic type distinguishes version strings from arbitrary strings,
 // enabling future validation logic (e.g., semver parsing) and making
@@ -44,8 +55,35 @@ type LineLength int
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
+// String returns the string representation of the version
+func (v Version) String() string {
+	return string(v)
+}
+
+// IsValid returns true if the version is non-empty
+func (v Version) IsValid() bool {
+	return len(v) > 0
+}
+
 // FeatureFlag represents a feature flag identifier.
+// This semantic type distinguishes feature flag names from arbitrary strings,
+// making feature flag operations explicit and type-safe.
+//
+// Example usage:
+//
+//	const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
+//	func IsFeatureEnabled(flag FeatureFlag) bool { ... }
 type FeatureFlag string
+
+// String returns the string representation of the feature flag
+func (f FeatureFlag) String() string {
+	return string(f)
+}
+
+// IsValid returns true if the feature flag is non-empty
+func (f FeatureFlag) IsValid() bool {
+	return len(f) > 0
+}
 
 // URL represents a URL string.
 // This semantic type distinguishes URLs from arbitrary strings,
@@ -57,6 +95,16 @@ type FeatureFlag string
 //	func FetchFromRegistry(url URL) error { ... }
 type URL string
 
+// String returns the string representation of the URL
+func (u URL) String() string {
+	return string(u)
+}
+
+// IsValid returns true if the URL is non-empty
+func (u URL) IsValid() bool {
+	return len(u) > 0
+}
+
 // ModelName represents an AI model name identifier.
 // This semantic type distinguishes model names from arbitrary strings,
 // making model selection explicit in function signatures.
@@ -66,6 +114,16 @@ type URL string
 //	const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
 //	func ExecuteWithModel(model ModelName) error { ... }
 type ModelName string
+
+// String returns the string representation of the model name
+func (m ModelName) String() string {
+	return string(m)
+}
+
+// IsValid returns true if the model name is non-empty
+func (m ModelName) IsValid() bool {
+	return len(m) > 0
+}
 
 // JobName represents a GitHub Actions job identifier.
 // This semantic type distinguishes job names from arbitrary strings,
@@ -77,6 +135,16 @@ type ModelName string
 //	func GetJob(name JobName) (*Job, error) { ... }
 type JobName string
 
+// String returns the string representation of the job name
+func (j JobName) String() string {
+	return string(j)
+}
+
+// IsValid returns true if the job name is non-empty
+func (j JobName) IsValid() bool {
+	return len(j) > 0
+}
+
 // StepID represents a GitHub Actions step identifier.
 // This semantic type distinguishes step IDs from arbitrary strings,
 // preventing mixing of step identifiers with job names or other strings.
@@ -87,6 +155,16 @@ type JobName string
 //	func GetStep(id StepID) (*Step, error) { ... }
 type StepID string
 
+// String returns the string representation of the step ID
+func (s StepID) String() string {
+	return string(s)
+}
+
+// IsValid returns true if the step ID is non-empty
+func (s StepID) IsValid() bool {
+	return len(s) > 0
+}
+
 // CommandPrefix represents a CLI command prefix.
 // This semantic type distinguishes command prefixes from arbitrary strings,
 // making command-related operations explicit.
@@ -96,6 +174,16 @@ type StepID string
 //	const CLIExtensionPrefix CommandPrefix = "gh aw"
 //	func FormatCommand(prefix CommandPrefix, cmd string) string { ... }
 type CommandPrefix string
+
+// String returns the string representation of the command prefix
+func (c CommandPrefix) String() string {
+	return string(c)
+}
+
+// IsValid returns true if the command prefix is non-empty
+func (c CommandPrefix) IsValid() bool {
+	return len(c) > 0
+}
 
 // MaxExpressionLineLength is the maximum length for a single line expression before breaking into multiline.
 const MaxExpressionLineLength LineLength = 120
