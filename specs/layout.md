@@ -39,15 +39,17 @@ Common GitHub Actions used across workflows, pinned to specific commit SHAs for 
 
 Core artifacts uploaded/downloaded between workflow jobs:
 
-| Name | Type | Description | Context |
-|------|------|-------------|---------|
-| `agent_output.json` | File | AI agent execution output | Contains the agent's response and analysis. Constant: `constants.AgentOutputArtifactName` |
-| `safe_output.jsonl` | File | Safe outputs configuration | Passed from agent to safe-output jobs. Constant: `constants.SafeOutputArtifactName` |
-| `aw.patch` | File | Git patch file for changes | Used by create-pull-request safe-output |
-| `prompt.txt` | File | Agent prompt content | Stored for debugging and audit purposes |
-| `mcp-logs` | Directory | MCP server logs | Debug logs from Model Context Protocol servers |
-| `agent-stdio.log` | File | Agent standard I/O logs | Captures agent execution console output |
-| `aw_info.json` | File | Workflow metadata | Information about workflow execution |
+| Artifact Name | File Inside | Type | Description | Context |
+|---------------|-------------|------|-------------|---------|
+| `agent-output` | `agent_output.json` | File | AI agent execution output | Contains the agent's response and analysis. Constant: `constants.AgentOutputArtifactName` |
+| `safe-output` | `safe_output.jsonl` | File | Safe outputs configuration | Passed from agent to safe-output jobs. Constant: `constants.SafeOutputArtifactName` |
+| `aw.patch` | `aw.patch` | File | Git patch file for changes | Used by create-pull-request safe-output |
+| `prompt` | `prompt.txt` | File | Agent prompt content | Stored for debugging and audit purposes |
+| `mcp-logs` | (multiple) | Directory | MCP server logs | Debug logs from Model Context Protocol servers |
+| `agent-stdio.log` | `agent-stdio.log` | File | Agent standard I/O logs | Captures agent execution console output |
+| `aw-info` | `aw_info.json` | File | Workflow metadata | Information about workflow execution |
+
+**Note**: Artifact names use hyphens (upload-artifact@v5 requirement), while file names inside artifacts preserve original naming (underscores/dots for backward compatibility).
 
 ### Memory and Cache Artifacts
 
@@ -206,8 +208,8 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 
 | Constant | Type | Value | Description |
 |----------|------|-------|-------------|
-| `SafeOutputArtifactName` | `string` | `"safe_output.jsonl"` | Safe outputs artifact filename |
-| `AgentOutputArtifactName` | `string` | `"agent_output.json"` | Agent output artifact filename |
+| `SafeOutputArtifactName` | `string` | `"safe-output"` | Safe outputs artifact name (file inside: `safe_output.jsonl`) |
+| `AgentOutputArtifactName` | `string` | `"agent-output"` | Agent output artifact name (file inside: `agent_output.json`) |
 
 #### Job Name Constants
 
@@ -274,8 +276,8 @@ const path = await import("path");
 
 | Variable | Description | Usage |
 |----------|-------------|-------|
-| `GH_AW_AGENT_OUTPUT` | Path to agent output artifact | Points to agent_output.json location |
-| `GH_AW_SAFE_OUTPUTS` | Path to safe outputs artifact | Points to safe_output.jsonl location |
+| `GH_AW_AGENT_OUTPUT` | Path to agent output file | Points to `/tmp/gh-aw/safeoutputs/agent-output/agent_output.json` (accounts for artifact subdirectory) |
+| `GH_AW_SAFE_OUTPUTS` | Path to safe outputs file | Points to safe_output.jsonl location |
 | `GITHUB_WORKSPACE` | GitHub Actions workspace path | Root directory of the repository |
 | `GITHUB_TOKEN` | GitHub API authentication token | Used for API calls |
 
