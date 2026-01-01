@@ -1,0 +1,136 @@
+name: Monitor Schema Field Adoption
+
+on:
+  schedule:
+    # Run quarterly: January 1, April 1, July 1, October 1 at 00:00 UTC
+    - cron: '0 0 1 1,4,7,10 *'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write  # To commit metrics file
+  issues: write    # To create alerts
+
+jobs:
+  monitor-adoption:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for metrics
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+      
+      - name: Run adoption monitor
+        id: monitor
+        continue-on-error: true
+        run: |
+          chmod +x scripts/monitor-adoption.sh
+          ./scripts/monitor-adoption.sh
+      
+      - name: Commit metrics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/adoption-metrics.json
+          git diff --cached --quiet || git commit -m "Update adoption metrics (quarterly)"
+          git push
+      
+      - name: Create alert issue if below threshold
+        if: steps.monitor.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const metricsData = JSON.parse(fs.readFileSync('.github/adoption-metrics.json', 'utf8'));
+            const latestMetrics = metricsData[metricsData.length - 1];
+            
+            // Find fields below threshold
+            const belowThreshold = [];
+            const threshold = latestMetrics.threshold_percent;
+            
+            for (const [field, data] of Object.entries(latestMetrics.fields)) {
+              if (data.percentage < threshold) {
+                belowThreshold.push({
+                  field: field,
+                  count: data.count,
+                  percentage: data.percentage
+                });
+              }
+            }
+            
+            // Create issue body
+            let body = `## Schema Field Adoption Alert\n\n`;
+            body += `**Date:** ${latestMetrics.timestamp}\n`;
+            body += `**Total Workflows:** ${latestMetrics.total_workflows}\n`;
+            body += `**Threshold:** ${threshold}%\n\n`;
+            body += `### Fields Below Threshold\n\n`;
+            body += `| Field | Count | Percentage | Status |\n`;
+            body += `|-------|-------|------------|--------|\n`;
+            
+            for (const item of belowThreshold) {
+              body += `| \`${item.field}\` | ${item.count} | ${item.percentage}% | ⚠️ Below threshold |\n`;
+            }
+            
+            body += `\n### Action Required\n\n`;
+            body += `${belowThreshold.length} field(s) remain below the ${threshold}% adoption threshold. `;
+            body += `Consider initiating deprecation discussion for fields with sustained low adoption.\n\n`;
+            
+            // Show trend if available
+            if (metricsData.length >= 2) {
+              const previousMetrics = metricsData[metricsData.length - 2];
+              body += `### Trend Analysis\n\n`;
+              body += `| Field | Previous | Current | Change |\n`;
+              body += `|-------|----------|---------|--------|\n`;
+              
+              for (const item of belowThreshold) {
+                const prevCount = previousMetrics.fields[item.field]?.count || 0;
+                const change = item.count - prevCount;
+                const changeStr = change > 0 ? `+${change}` : (change < 0 ? `${change}` : '±0');
+                body += `| \`${item.field}\` | ${prevCount} | ${item.count} | ${changeStr} |\n`;
+              }
+            }
+            
+            body += `\n### Next Steps\n\n`;
+            body += `1. Review adoption metrics in \`.github/adoption-metrics.json\`\n`;
+            body += `2. Analyze why these fields have low adoption\n`;
+            body += `3. Decide whether to:\n`;
+            body += `   - Improve documentation and examples\n`;
+            body += `   - Simplify the API\n`;
+            body += `   - Initiate deprecation discussion\n\n`;
+            body += `---\n`;
+            body += `> Automated alert from [Monitor Schema Field Adoption](${context.payload.repository.html_url}/actions/runs/${context.runId})\n`;
+            
+            // Check if there's an open issue already
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'adoption-monitoring',
+              per_page: 1
+            });
+            
+            if (issues.data.length > 0) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: body
+              });
+              console.log(`Updated existing issue #${issues.data[0].number}`);
+            } else {
+              // Create new issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[Adoption Alert] ${belowThreshold.length} schema field(s) below ${threshold}% threshold`,
+                body: body,
+                labels: ['adoption-monitoring', 'needs-decision']
+              });
+              console.log(`Created new issue #${issue.data.number}`);
+            }
