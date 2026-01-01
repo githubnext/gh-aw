@@ -96,17 +96,17 @@ Examples:
 	}
 
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
-	cmd.Flags().Bool("force", false, "Force update even if no changes are detected")
+	cmd.Flags().BoolP("force", "f", false, "Force update even if no changes are detected")
 	addEngineFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
-	cmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 	cmd.Flags().Bool("merge", false, "Merge local changes with upstream updates instead of overriding")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 	cmd.Flags().Bool("audit", false, "Check dependency health without performing updates (implies --dry-run)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
-	cmd.Flags().Bool("json", false, "Output audit results in JSON format (only with --audit)")
+	cmd.Flags().BoolP("json", "j", false, "Output audit results in JSON format (only with --audit)")
 
 	// Register completions for update command
 	cmd.ValidArgsFunction = CompleteWorkflowNames
