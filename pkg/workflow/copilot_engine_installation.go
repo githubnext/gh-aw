@@ -1,3 +1,18 @@
+// Package workflow provides Copilot engine installation logic.
+//
+// This file contains functions for generating GitHub Actions steps to install
+// the GitHub Copilot CLI and related sandbox infrastructure (AWF or SRT).
+//
+// Installation order:
+//  1. Secret validation (COPILOT_GITHUB_TOKEN)
+//  2. Node.js setup
+//  3. Sandbox installation (SRT or AWF, if needed)
+//  4. Copilot CLI installation
+//
+// The installation strategy differs based on sandbox mode:
+//  - Standard mode: Global installation using official installer script
+//  - SRT mode: Local npm installation for offline compatibility
+//  - AWF mode: Global installation + AWF binary
 package workflow
 
 import (
