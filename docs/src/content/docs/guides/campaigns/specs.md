@@ -19,12 +19,12 @@ In a typical setup:
 
 ```
   .github/workflows/<id>.campaign.md
-  (specification / contract)
+  (specification / contract - tracked in git)
       |
       |  gh aw compile
       v
-  .github/workflows/<id>.campaign.g.md  ->  <id>.campaign.lock.yml
-  (generated orchestrator source)           (compiled workflow)
+  .github/workflows/<id>.campaign.g.md  ->  <id>.campaign.g.lock.yml
+  (debug artifact - not tracked)            (compiled workflow - tracked in git)
       |
       |  discovers items via tracker-label (e.g. campaign:<id>)
       |  updates Project dashboard
@@ -50,6 +50,8 @@ In a typical setup:
   memory/campaigns/<id>/cursor.json
   memory/campaigns/<id>/metrics/<date>.json
 ```
+
+**Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.g.lock.yml` are version controlled.
 
 Editable diagram (draw.io): `docs/src/content/docs/guides/campaigns/agentic-campaign.drawio`
 
@@ -140,6 +142,8 @@ governance:
 
 ## Compilation and orchestrators
 
-`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator `.github/workflows/<id>.campaign.g.md` and compiles it to `.lock.yml`.
+`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator and compiles it to `.campaign.g.lock.yml`.
+
+During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.g.lock.yml` is tracked.
 
 See [Agentic campaign specs and orchestrators](/gh-aw/setup/cli/#compile).

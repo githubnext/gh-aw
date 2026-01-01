@@ -64,7 +64,9 @@ Run:
 gh aw compile
 ```
 
-This validates the spec. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `compile` also generates an orchestrator `.campaign.g.md` and compiles it to `.lock.yml`.
+This validates the spec. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), `compile` also generates an orchestrator and compiles it to `.campaign.g.lock.yml`.
+
+**Note:** A `.campaign.g.md` file is generated locally as a debug artifact to help you understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.g.lock.yml` is tracked.
 
 ## 4) Run the orchestrator
 

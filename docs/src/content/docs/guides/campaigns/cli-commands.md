@@ -89,7 +89,9 @@ gh aw campaign validate --no-strict
 
 ## Compilation and Orchestrators
 
-**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details (e.g., `go-file-size-reduction-project64.campaign.md` → `go-file-size-reduction-project64.campaign.g.md`) and compiles it to a corresponding `.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob. 
+**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details and compiles it to a corresponding `.campaign.g.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob.
+
+During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers review the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.g.lock.yml` is tracked.
 
 See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
 
