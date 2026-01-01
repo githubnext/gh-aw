@@ -562,7 +562,6 @@ describe("updateProject", () => {
     expect(mockCore.error).not.toHaveBeenCalled();
   });
 
-
   it("correctly identifies DATE fields and uses date format (not singleSelectOptionId)", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = {
