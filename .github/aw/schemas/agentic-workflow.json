@@ -3476,10 +3476,10 @@
                     {
                       "type": "string",
                       "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y')"
+                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
                     }
                   ],
-                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. When set, a maintenance workflow will be generated."
+                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -3634,10 +3634,10 @@
                     {
                       "type": "string",
                       "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y')"
+                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
                     }
                   ],
-                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). When set, a maintenance workflow will be generated."
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
                 }
               },
               "additionalProperties": false,
@@ -4004,10 +4004,10 @@
                     {
                       "type": "string",
                       "pattern": "^[0-9]+[hHdDwWmMyY]$",
-                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y')"
+                      "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
                     }
                   ],
-                  "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format."
+                  "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format. Minimum duration: 2 hours."
                 }
               },
               "additionalProperties": false,
