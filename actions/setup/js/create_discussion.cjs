@@ -99,7 +99,7 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
 async function main(config = {}) {
   // Extract configuration
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo();
+  const defaultTargetRepo = getDefaultTargetRepo(config);
   const titlePrefix = config.title_prefix || "";
   const configCategory = config.category || "";
   const maxCount = config.max || 10;

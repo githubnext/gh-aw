@@ -28,7 +28,7 @@ async function main(config = {}) {
   const expiresDays = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 10;
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
-  const defaultTargetRepo = getDefaultTargetRepo();
+  const defaultTargetRepo = getDefaultTargetRepo(config);
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {

@@ -30,10 +30,15 @@ function parseAllowedRepos(allowedReposValue) {
 
 /**
  * Get the default target repository
+ * @param {Object} [config] - Optional config object with target-repo field
  * @returns {string} Repository slug in "owner/repo" format
  */
-function getDefaultTargetRepo() {
-  // First check if there's a target-repo override
+function getDefaultTargetRepo(config) {
+  // First check if there's a target-repo in config
+  if (config && config["target-repo"]) {
+    return config["target-repo"];
+  }
+  // Fall back to env var for backward compatibility
   const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
   if (targetRepoSlug) {
     return targetRepoSlug;

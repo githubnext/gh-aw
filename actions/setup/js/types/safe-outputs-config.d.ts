@@ -14,6 +14,8 @@ interface SafeOutputConfig {
 interface CreateIssueConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   labels?: string[];
+  "target-repo"?: string;
+  "allowed-repos"?: string[];
 }
 
 /**
@@ -22,6 +24,8 @@ interface CreateIssueConfig extends SafeOutputConfig {
 interface CreateDiscussionConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   "category-id"?: string;
+  "target-repo"?: string;
+  "allowed-repos"?: string[];
 }
 
 /**
@@ -57,6 +61,7 @@ interface ClosePullRequestConfig extends SafeOutputConfig {
  */
 interface AddCommentConfig extends SafeOutputConfig {
   target?: string;
+  "target-repo"?: string;
 }
 
 /**
