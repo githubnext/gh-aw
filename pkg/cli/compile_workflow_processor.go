@@ -98,6 +98,22 @@ func compileWorkflowFile(
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 	if err != nil {
+		// Check if this is a shared workflow (not an error, just info)
+		if sharedErr, ok := err.(*workflow.SharedWorkflowError); ok {
+			if !jsonOutput {
+				// Print info message instead of error
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(sharedErr.Error()))
+			}
+			// Mark as valid but skipped
+			result.validationResult.Valid = true
+			result.validationResult.Warnings = append(result.validationResult.Warnings, ValidationError{
+				Type:    "shared_workflow",
+				Message: "Skipped: Shared workflow component (missing 'on' field)",
+			})
+			result.success = true // Consider it successful, just skipped
+			return result
+		}
+		
 		errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
 		if !jsonOutput {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
