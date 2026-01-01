@@ -121,9 +121,13 @@ async function main(config = {}) {
     let effectiveParentIssueNumber;
     let effectiveParentRepo = itemRepo; // Default to same repo
     if (createIssueItem.parent !== undefined) {
-      if (isTemporaryId(createIssueItem.parent)) {
+      // Strip # prefix if present to allow flexible temporary ID format
+      const parentStr = String(createIssueItem.parent).trim();
+      const parentWithoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
+
+      if (isTemporaryId(parentWithoutHash)) {
         // It's a temporary ID, look it up in the map
-        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(createIssueItem.parent));
+        const resolvedParent = temporaryIdMap.get(normalizeTemporaryId(parentWithoutHash));
         if (resolvedParent !== undefined) {
           effectiveParentIssueNumber = resolvedParent.number;
           effectiveParentRepo = resolvedParent.repo;
@@ -133,13 +137,17 @@ async function main(config = {}) {
           effectiveParentIssueNumber = undefined;
         }
       } else {
-        // It's a real issue number (may have # prefix)
-        const parentStr = String(createIssueItem.parent).trim();
-        const parentWithoutHash = parentStr.startsWith("#") ? parentStr.substring(1) : parentStr;
-        effectiveParentIssueNumber = parseInt(parentWithoutHash, 10);
-        if (isNaN(effectiveParentIssueNumber)) {
-          core.warning(`Invalid parent value: ${createIssueItem.parent}`);
+        // Check if it looks like a malformed temporary ID
+        if (parentWithoutHash.startsWith("aw_")) {
+          core.warning(`Invalid temporary ID format for parent: '${createIssueItem.parent}'. Temporary IDs must be in format 'aw_' followed by exactly 12 hexadecimal characters (0-9, a-f). Example: 'aw_abc123def456'`);
           effectiveParentIssueNumber = undefined;
+        } else {
+          // It's a real issue number
+          effectiveParentIssueNumber = parseInt(parentWithoutHash, 10);
+          if (isNaN(effectiveParentIssueNumber)) {
+            core.warning(`Invalid parent value: ${createIssueItem.parent}. Expected either a valid temporary ID (format: aw_XXXXXXXXXXXX where X is a hex digit) or a numeric issue number.`);
+            effectiveParentIssueNumber = undefined;
+          }
         }
       }
     } else {
