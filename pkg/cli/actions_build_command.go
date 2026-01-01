@@ -259,8 +259,8 @@ func buildAction(actionsDir, actionName string) error {
 	filesRegex := regexp.MustCompile(`(?s)const FILES = \{[^}]*\};`)
 	outputContent := filesRegex.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
 
-	// Write output file
-	if err := os.WriteFile(outputPath, []byte(outputContent), 0644); err != nil {
+	// Write output file with restrictive permissions (0600 for security)
+	if err := os.WriteFile(outputPath, []byte(outputContent), 0600); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
