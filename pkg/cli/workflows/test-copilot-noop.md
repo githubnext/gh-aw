@@ -6,13 +6,12 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
-  pull-requests: write
 engine: copilot
 safe-outputs:
   noop:
     max: 5
 timeout-minutes: 5
+strict: false
 ---
 
 # Test No-Op Safe Output

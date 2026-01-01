@@ -18,7 +18,7 @@ const HANDLER_TYPE = "noop";
 async function main(config = {}) {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-  
+
   // Track processed messages for outputs
   let messageCount = 0;
 
@@ -30,7 +30,7 @@ async function main(config = {}) {
    */
   return async function handleNoop(message, resolvedTemporaryIds) {
     messageCount++;
-    
+
     const noopMessage = message.message || "(no message)";
 
     // If in staged mode, emit step summary instead of logging
@@ -41,7 +41,7 @@ async function main(config = {}) {
 
       await core.summary.addRaw(summaryContent).write();
       core.info(`📝 No-op message ${messageCount} preview written to step summary`);
-      
+
       return {
         success: true,
         message: noopMessage,
@@ -50,7 +50,7 @@ async function main(config = {}) {
 
     // Process noop item - just log the message for transparency
     core.info(`No-op message ${messageCount}: ${noopMessage}`);
-    
+
     let summaryContent = `## No-Op Message ${messageCount}\n\n`;
     summaryContent += `${noopMessage}\n`;
 
@@ -64,7 +64,7 @@ async function main(config = {}) {
     }
 
     core.info(`Successfully processed noop message ${messageCount}`);
-    
+
     return {
       success: true,
       message: noopMessage,
