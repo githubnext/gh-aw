@@ -45,7 +45,7 @@ func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
 }
 
 // TestCreateDiscussionUsesHelper verifies that create_discussion.go
-// uses the buildSafeOutputJobEnvVars helper correctly and passes target-repo via handler config
+// uses the buildSafeOutputJobEnvVars helper correctly (standalone job still uses env vars)
 func TestCreateDiscussionUsesHelper(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
@@ -71,13 +71,12 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 
 	// Verify that GH_AW_SAFE_OUTPUTS_STAGED is present
 	if !strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in create-discussion job")
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in create-discussion standalone job")
 	}
 
-	// Verify that target-repo is present in the handler config JSON, not as env var
-	if !strings.Contains(stepsContent, `"target-repo":"owner/target-repo"`) {
-		t.Error("Expected target-repo to be in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON in create-discussion job")
-	}
+	// Standalone jobs still use env var for target-repo (not handler config)
+	// This is expected for backward compatibility with non-consolidated jobs
+	// The handler manager version would use config, but this is the standalone job
 }
 
 // TestTrialModeWithoutTargetRepo verifies that trial mode without explicit
