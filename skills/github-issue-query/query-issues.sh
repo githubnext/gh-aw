@@ -105,7 +105,7 @@ else
     {"description": "Get issues with label", "query": ".[] | select(.labels | map(.name) | index(\"bug\"))"},
     {"description": "Get issues with many comments", "query": ".[] | select(.comments.totalCount > 5) | {number, title, comments: .comments.totalCount}"},
     {"description": "Get issues with labels", "query": ".[] | {number, title, labels: [.labels[].name]}"},
-    {"description": "Get issues with project assignments", "query": ".[] | {number, title, projects: [.projectItems.nodes[]? | .project.url]}"},
+    {"description": "Get issues with project assignments", "query": ".[] | {number, title, projects: [.projectItems.nodes[]? | .project?.url]}"},
     {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
   ]
 }

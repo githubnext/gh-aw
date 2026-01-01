@@ -90,7 +90,7 @@ Use the `--jq` argument to filter and transform the output:
 
 **Get project board assignments:**
 ```bash
-./query-issues.sh --jq '.[] | {number, title, projects: [.projectItems.nodes[]? | .project.url]}'
+./query-issues.sh --jq '.[] | {number, title, projects: [.projectItems.nodes[]? | .project?.url]}'
 ```
 
 **Find old issues (created over 30 days ago):**
