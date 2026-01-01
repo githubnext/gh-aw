@@ -17,7 +17,18 @@ func NewMCPCommand() *cobra.Command {
 
 MCP enables AI workflows to connect to external tools and data sources through
 standardized servers. This command provides tools for inspecting and managing
-MCP server configurations in your agentic workflows.`,
+MCP server configurations in your agentic workflows.
+
+Available subcommands:
+  • list    - List workflows with MCP servers and their configurations
+  • inspect - Inspect MCP server capabilities (tools, resources, roots)
+  • add     - Add MCP servers from the registry to workflows
+
+Examples:
+  gh aw mcp list                              # List all workflows with MCP servers
+  gh aw mcp inspect weekly-research           # Inspect MCP servers in workflow
+  gh aw mcp add my-workflow tavily            # Add Tavily MCP server to workflow
+  gh aw mcp inspect weekly-research --server github --tool create_issue  # Inspect specific tool`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
