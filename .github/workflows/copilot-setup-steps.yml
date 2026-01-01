@@ -38,6 +38,8 @@ jobs:
       run: make build
     - name: Recompile workflows
       run: make recompile
+      env:
+        GH_TOKEN: ${{ github.token }}
     - name: Install UV (Python package manager)
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
     - name: Install Go language server (gopls)
