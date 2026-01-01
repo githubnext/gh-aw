@@ -97,9 +97,9 @@ func hasEditTool(parsedTools *Tools) bool {
 // generateEditToolPromptStep generates a separate step for edit tool accessibility instructions
 // Only generates the step if edit tool is enabled in the workflow
 func (c *Compiler) generateEditToolPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	generateStaticPromptStep(yaml,
+	generateStaticPromptStepFromFile(yaml,
 		"Append edit tool accessibility instructions to prompt",
-		editToolPromptText,
+		editToolPromptFile,
 		hasEditTool(data.ParsedTools))
 }
 
@@ -118,9 +118,9 @@ func hasPlaywrightTool(parsedTools *Tools) bool {
 // generatePlaywrightPromptStep generates a separate step for playwright output directory instructions
 // Only generates the step if playwright tool is enabled in the workflow
 func (c *Compiler) generatePlaywrightPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	generateStaticPromptStep(yaml,
+	generateStaticPromptStepFromFile(yaml,
 		"Append playwright output directory instructions to prompt",
-		playwrightPromptText,
+		playwrightPromptFile,
 		hasPlaywrightTool(data.ParsedTools))
 }
 
@@ -163,7 +163,7 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
+	WritePromptFileToYAML(yaml, prContextPromptFile, "          ")
 }
 
 // hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
@@ -194,9 +194,9 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 
 // generateXPIAPromptStep generates a separate step for XPIA security warnings
 func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	generateStaticPromptStep(yaml,
+	generateStaticPromptStepFromFile(yaml,
 		"Append XPIA security instructions to prompt",
-		xpiaPromptText,
+		xpiaPromptFile,
 		data.SafetyPrompt)
 }
 
@@ -206,9 +206,9 @@ func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowD
 
 // generateTempFolderPromptStep generates a separate step for temporary folder usage instructions
 func (c *Compiler) generateTempFolderPromptStep(yaml *strings.Builder) {
-	generateStaticPromptStep(yaml,
+	generateStaticPromptStepFromFile(yaml,
 		"Append temporary folder instructions to prompt",
-		tempFolderPromptText,
+		tempFolderPromptFile,
 		true) // Always include temp folder instructions
 }
 

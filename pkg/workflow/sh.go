@@ -10,23 +10,30 @@ import (
 
 var shLog = logger.New("workflow:sh")
 
-//go:embed prompts/pr_context_prompt.md
-var prContextPromptText string
+// Prompt file paths at runtime (copied by setup action)
+const (
+	promptsDir           = "/tmp/gh-aw/prompts"
+	prContextPromptFile  = "pr_context_prompt.md"
+	xpiaPromptFile       = "xpia_prompt.md"
+	tempFolderPromptFile = "temp_folder_prompt.md"
+	playwrightPromptFile = "playwright_prompt.md"
+	editToolPromptFile   = "edit_tool_prompt.md"
+)
 
-//go:embed prompts/xpia_prompt.md
-var xpiaPromptText string
-
-//go:embed prompts/temp_folder_prompt.md
-var tempFolderPromptText string
-
+// GitHub context prompt is kept embedded because it contains GitHub Actions expressions
+// that need to be extracted at compile time. Moving this to a runtime file would require
+// reading and parsing the file during compilation, which is more complex.
+//
 //go:embed prompts/github_context_prompt.md
 var githubContextPromptText string
 
-//go:embed prompts/playwright_prompt.md
-var playwrightPromptText string
-
-//go:embed prompts/edit_tool_prompt.md
-var editToolPromptText string
+// WritePromptFileToYAML writes a shell command to cat a prompt file from /tmp/gh-aw/prompts/
+// This replaces the previous approach of embedding prompt text in the binary.
+func WritePromptFileToYAML(yaml *strings.Builder, filename string, indent string) {
+	shLog.Printf("Writing prompt file reference to YAML: file=%s", filename)
+	promptPath := fmt.Sprintf("%s/%s", promptsDir, filename)
+	yaml.WriteString(indent + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+}
 
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {

@@ -294,24 +294,9 @@ This is a test workflow with edit tool enabled.
 		t.Error("Expected 'Append edit tool accessibility instructions to prompt' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction text contains the workspace path
-	if !strings.Contains(lockStr, "$GITHUB_WORKSPACE") {
-		t.Error("Expected $GITHUB_WORKSPACE reference in generated workflow")
-	}
-
-	// Test 3: Verify the instruction text contains the /tmp/gh-aw/ path
-	if !strings.Contains(lockStr, "/tmp/gh-aw/") {
-		t.Error("Expected /tmp/gh-aw/ reference in generated workflow")
-	}
-
-	// Test 4: Verify the instruction mentions file-editing section
-	if !strings.Contains(lockStr, "<file-editing>") {
-		t.Error("Expected '<file-editing>' XML tag in generated workflow")
-	}
-
-	// Test 5: Verify the instruction mentions allowed paths
-	if !strings.Contains(lockStr, "<allowed-paths>") {
-		t.Error("Expected '<allowed-paths>' XML tag in generated workflow")
+	// Test 2: Verify the cat command for edit tool prompt file is included
+	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/edit_tool_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+		t.Error("Expected cat command for edit tool prompt file in generated workflow")
 	}
 
 	t.Logf("Successfully verified edit tool accessibility instructions are included in generated workflow")
@@ -482,14 +467,9 @@ This is a test workflow with playwright enabled.
 		t.Error("Expected 'Append playwright output directory instructions to prompt' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction text contains the output directory path
-	if !strings.Contains(lockStr, "/tmp/gh-aw/mcp-logs/playwright/") {
-		t.Error("Expected playwright output directory path /tmp/gh-aw/mcp-logs/playwright/ in generated workflow")
-	}
-
-	// Test 3: Verify the instruction contains playwright-output XML tag
-	if !strings.Contains(lockStr, "<playwright-output>") {
-		t.Error("Expected '<playwright-output>' XML tag in generated workflow")
+	// Test 2: Verify the cat command for playwright prompt file is included
+	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/playwright_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+		t.Error("Expected cat command for playwright prompt file in generated workflow")
 	}
 
 	t.Logf("Successfully verified playwright output directory instructions are included in generated workflow")
@@ -661,9 +641,9 @@ This is a test workflow with issue_comment trigger.
 		t.Error("Expected 'Append PR context instructions to prompt' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction mentions PR branch checkout
-	if !strings.Contains(lockStr, "pull request") {
-		t.Error("Expected 'pull request' reference in generated workflow")
+	// Test 2: Verify the cat command for PR context prompt file is included
+	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/pr_context_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+		t.Error("Expected cat command for PR context prompt file in generated workflow")
 	}
 
 	t.Logf("Successfully verified PR context instructions are included for issue_comment trigger")

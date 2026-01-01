@@ -93,6 +93,28 @@ fi
 
 echo "::notice::Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
+# Copy prompt markdown files to their expected directory
+PROMPTS_DEST="/tmp/gh-aw/prompts"
+echo "::notice::Copying prompt markdown files to ${PROMPTS_DEST}"
+mkdir -p "${PROMPTS_DEST}"
+
+MD_SOURCE_DIR="${SCRIPT_DIR}/md"
+PROMPT_COUNT=0
+if [ -d "${MD_SOURCE_DIR}" ]; then
+  echo "::debug::Found markdown prompts directory: ${MD_SOURCE_DIR}"
+  for file in "${MD_SOURCE_DIR}"/*.md; do
+    if [ -f "$file" ]; then
+      filename=$(basename "$file")
+      cp "$file" "${PROMPTS_DEST}/${filename}"
+      echo "::notice::Copied prompt: ${filename}"
+      PROMPT_COUNT=$((PROMPT_COUNT + 1))
+    fi
+  done
+  echo "::notice::Successfully copied ${PROMPT_COUNT} prompt files to ${PROMPTS_DEST}"
+else
+  echo "::warning::No markdown prompts directory found at ${MD_SOURCE_DIR}"
+fi
+
 # Copy safe-inputs files to their expected directory
 SAFE_INPUTS_DEST="/tmp/gh-aw/safe-inputs"
 echo "::notice::Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
@@ -223,6 +245,7 @@ if [ -n "${GITHUB_OUTPUT}" ]; then
   echo "files_copied=${FILE_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "safe_inputs_files_copied=${SAFE_INPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
   echo "safe_outputs_files_copied=${SAFE_OUTPUTS_COUNT}" >> "${GITHUB_OUTPUT}"
+  echo "prompt_files_copied=${PROMPT_COUNT}" >> "${GITHUB_OUTPUT}"
 else
   echo "::debug::GITHUB_OUTPUT not set, skipping output"
 fi
