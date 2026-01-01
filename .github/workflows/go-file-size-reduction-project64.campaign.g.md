@@ -326,6 +326,33 @@ update-project:
 
 No additional configuration is needed. The dates are extracted in ISO format (YYYY-MM-DD) and only populate if the fields exist and aren't already set. This enables roadmap timeline visualization.
 
+**Recommended Custom Fields**: To enable advanced project board features (swimlanes, "Slice by" filtering), populate these fields when available:
+
+```
+update-project:
+  project: "https://github.com/orgs/githubnext/projects/64"
+  item_url: "ISSUE_URL"
+  fields:
+    status: "Todo"  # or "In Progress", "Blocked", "Done"
+    campaign_id: "CAMPAIGN_ID"  # Extract from tracker label campaign:go-file-size-reduction-project64
+    worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+    priority: "High"  # or "Medium", "Low" - enables priority-based views
+    effort: "Medium"  # or "Small", "Large" - enables capacity planning
+    team: "TEAM_NAME"  # Optional: for team-based grouping
+    repository: "REPO_NAME"  # Optional: for cross-repository campaigns
+```
+
+**Custom Field Benefits**:
+- `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+- `priority`: Enables priority-based filtering and sorting
+- `effort`: Supports capacity planning and workload distribution
+- `team`: Enables team-based grouping for multi-team campaigns
+- `repository`: Enables repository-based grouping for cross-repository campaigns
+
+**Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
+
+Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
+
 #### Updating Existing Items
 
 When updating status for an existing board item:

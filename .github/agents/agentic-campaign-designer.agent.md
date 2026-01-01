@@ -170,6 +170,13 @@ Based on the parsed requirements and project assignment, determine:
 6. **Risk Level**: Assess the risk level based on the campaign's scope
 7. **Safe Outputs**: Determine which safe outputs should be allowed
 8. **Approval Policy**: Define approval requirements based on risk level
+9. **Project Board Setup**: If the campaign uses a GitHub Project, recommend setting up custom fields:
+   - `Worker/Workflow` (single-select): Workflow names for swimlane grouping
+   - `Priority` (single-select): High/Medium/Low for filtering
+   - `Status` (single-select): Todo/In Progress/Blocked/Done
+   - `Start Date`/`End Date` (date): For timeline visualization
+   - `Effort` (single-select): Small/Medium/Large for capacity planning
+   - `Repository` (single-select): For cross-repository campaigns (optional)
 
 ### Step 3: Create the Campaign File
 
@@ -233,6 +240,36 @@ Agents in this campaign should:
 - Prioritize critical vulnerabilities
 - Create clear, actionable issues and PRs
 - Update the project dashboard with progress
+
+## Project Board Custom Fields
+
+**Recommended Setup**: Configure these custom fields in your GitHub Project to enable advanced campaign tracking:
+
+1. **Worker/Workflow** (Single select): Values should match workflow IDs (e.g., "security-scanner", "vulnerability-fixer")
+   - Enables swimlane grouping in Roadmap views
+   - Enables "Slice by" filtering in Table views
+
+2. **Priority** (Single select): High, Medium, Low
+   - Enables priority-based filtering and sorting
+
+3. **Status** (Single select): Todo, In Progress, Blocked, Done
+   - Tracks work state (may already exist in project templates)
+
+4. **Start Date** / **End Date** (Date): Auto-populated from issue timestamps
+   - Enables timeline visualization in Roadmap views
+
+5. **Effort** (Single select): Small (1-3 days), Medium (1 week), Large (2+ weeks)
+   - Supports capacity planning and workload distribution
+
+6. **Team** (Single select): Optional, for multi-team campaigns
+   - Enables team-based grouping
+
+7. **Repository** (Single select): Optional, for cross-repository campaigns
+   - Enables repository-based grouping and filtering across multiple repositories
+
+**Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic and don't need to know about these fields. The orchestrator discovers which worker created an item (via tracker-id) and populates the Worker/Workflow field automatically.
+
+The orchestrator will automatically populate these fields when available. See the [Project Management guide](https://github.com/githubnext/gh-aw/blob/main/docs/src/content/docs/guides/campaigns/project-management.md) for detailed setup instructions.
 ```
 
 ### Step 4: Compile the Campaign
