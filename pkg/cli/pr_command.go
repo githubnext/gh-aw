@@ -40,7 +40,16 @@ func NewPRCommand() *cobra.Command {
 		Long: `Pull request management utilities for transferring PRs between repositories.
 
 This command provides tools for transferring pull requests from one repository
-to another, including the code changes, title, and description.`,
+to another, including the code changes, title, and description. Useful for
+migrating work from trial repositories to production repositories.
+
+Available subcommands:
+  • transfer - Transfer a PR from one repository to another
+
+Examples:
+  gh aw pr transfer https://github.com/trial/repo/pull/234
+  gh aw pr transfer https://github.com/source/repo/pull/123 --repo owner/target
+  gh aw pr transfer https://github.com/gh-aw-trial/repo/pull/5 --repo owner/prod-repo`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

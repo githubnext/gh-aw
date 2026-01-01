@@ -37,10 +37,17 @@ Each file describes a campaign pattern (ID, name, owners, associated
 workflows, repo-memory paths, and risk level). This command provides a
 single place to see all campaigns configured for the repo.
 
+Available subcommands:
+  • status   - Show live status for campaigns (compiled workflows, issues, PRs)
+  • new      - Create a new campaign spec file
+  • validate - Validate campaign spec files for common issues
+
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` campaign             # List all campaigns
-  ` + string(constants.CLIExtensionPrefix) + ` campaign security    # Filter campaigns by ID or name
-  ` + string(constants.CLIExtensionPrefix) + ` campaign --json      # Output campaign definitions as JSON
+  ` + string(constants.CLIExtensionPrefix) + ` campaign                      # List all campaigns
+  ` + string(constants.CLIExtensionPrefix) + ` campaign security             # Filter campaigns by ID or name
+  ` + string(constants.CLIExtensionPrefix) + ` campaign --json               # Output campaign definitions as JSON
+  ` + string(constants.CLIExtensionPrefix) + ` campaign status               # Show live campaign status with issue/PR counts
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 # Create new campaign spec
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -15,8 +15,19 @@ func NewSecretsCommand() *cobra.Command {
 		Short: "Manage repository secrets and GitHub tokens",
 		Long: `Manage GitHub Actions secrets and tokens for GitHub Agentic Workflows.
 
-Use this command to set secrets for workflows and check which recommended
-token secrets are configured for your repository.`,
+This command provides tools for managing secrets required by agentic workflows, including
+AI API keys (Anthropic, OpenAI, GitHub Copilot) and GitHub tokens for workflow execution.
+
+Available subcommands:
+  • set       - Create or update individual secrets
+  • bootstrap - Validate and configure all required secrets for workflows
+
+Use 'gh aw init --tokens' to check which secrets are configured for your repository.
+
+Examples:
+  gh aw secrets set MY_SECRET --value "secret123"    # Set a secret directly
+  gh aw secrets bootstrap                             # Check all required secrets
+  gh aw init --tokens --engine copilot                # Validate Copilot tokens`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},

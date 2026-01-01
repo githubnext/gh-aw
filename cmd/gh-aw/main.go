@@ -115,9 +115,13 @@ var removeCmd = &cobra.Command{
 The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a workflow-id prefix to remove multiple workflows, or a specific workflow-id.
 
+By default, this command also removes orphaned include files that are no longer referenced
+by any workflow. Use --keep-orphans to skip this cleanup.
+
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow       # Remove specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` remove test-             # Remove all workflows starting with 'test-'`,
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-             # Remove all workflows starting with 'test-'
+  ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans  # Remove workflows but keep orphaned includes`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var pattern string
 		if len(args) > 0 {
