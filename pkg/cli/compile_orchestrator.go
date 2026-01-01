@@ -48,6 +48,11 @@ func getRepositoryRelativePath(absPath string) (string, error) {
 func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, sourceCampaignPath string) string {
 	// Produce a conventional gh-aw workflow markdown file so users can review
 	// the generated orchestrator and recompile it like any other workflow.
+	//
+	// NOTE: The generated .campaign.g.md file is a debug artifact that is NOT
+	// committed to git (it's in .gitignore). Users can review it locally to
+	// understand the generated workflow structure. Only the source .campaign.md
+	// and the compiled .campaign.g.lock.yml files are committed.
 	b := &strings.Builder{}
 	b.WriteString("---\n")
 	if strings.TrimSpace(data.Name) != "" {
