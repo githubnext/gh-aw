@@ -113,7 +113,7 @@ func compileWorkflowFile(
 			result.success = true // Consider it successful, just skipped
 			return result
 		}
-		
+
 		errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
 		if !jsonOutput {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))

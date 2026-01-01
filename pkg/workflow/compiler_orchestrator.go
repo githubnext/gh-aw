@@ -58,12 +58,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	_, hasOnField := frontmatterForValidation["on"]
 	if !hasOnField {
 		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
-		
+
 		// Validate as an included/shared workflow (uses included_file_schema)
 		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
 			return nil, err
 		}
-		
+
 		// Return a special error to signal that this is a shared workflow
 		// and compilation should be skipped with an info message
 		// Note: Markdown content is optional for shared workflows (they may be just config)
