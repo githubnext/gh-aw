@@ -18,7 +18,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 		expectedTargetRepoValue  string
 	}{
 		{
-			name: "target-repo configuration should set GH_AW_TARGET_REPO_SLUG",
+			name: "target-repo configuration should be in handler config",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -51,7 +51,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 			expectedTargetRepoValue: "github/customer-feedback", // Should prefer config over trial
 		},
 		{
-			name: "no target-repo should fall back to trial target repo",
+			name: "no target-repo should fall back to trial target repo (via env var)",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -63,11 +63,11 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 				},
 			},
 			trialLogicalRepoSlug:    "trial/repo",
-			shouldHaveTargetRepo:    true,
-			expectedTargetRepoValue: "trial/repo",
+			shouldHaveTargetRepo:    false, // Trial mode sets env var, not config
+			expectedTargetRepoValue: "",    // Not checked
 		},
 		{
-			name: "no target-repo and no trial should not set GH_AW_TARGET_REPO_SLUG",
+			name: "no target-repo and no trial should not have target-repo in handler config",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -117,24 +117,26 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 				t.Fatal("Expected AddComments configuration to be parsed")
 			}
 
-			// Build the add comment job
-			job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main", "", "", "")
+			// Build the consolidated safe outputs job (handler manager)
+			job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "main", "")
 			if err != nil {
-				t.Fatalf("Failed to build add comment job: %v", err)
+				t.Fatalf("Failed to build consolidated safe outputs job: %v", err)
 			}
 
-			// Convert steps to string to check for GH_AW_TARGET_REPO_SLUG
+			// Convert steps to string to check for target-repo in handler config
 			jobYAML := strings.Join(job.Steps, "")
 
 			if tt.shouldHaveTargetRepo {
-				expectedEnvVar := "GH_AW_TARGET_REPO_SLUG: \"" + tt.expectedTargetRepoValue + "\""
-				if !strings.Contains(jobYAML, expectedEnvVar) {
-					t.Errorf("Expected to find %s in job YAML, but didn't.\nActual job YAML:\n%s", expectedEnvVar, jobYAML)
+				// Check that target-repo is in the handler config JSON
+				// Format: GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{...\"target-repo\":\"value\"...}"
+				expectedConfigField := `\"target-repo\":\"` + tt.expectedTargetRepoValue + `\"`
+				if !strings.Contains(jobYAML, expectedConfigField) {
+					t.Errorf("Expected to find target-repo in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON: %s\nActual job YAML:\n%s", expectedConfigField, jobYAML)
 				}
 			} else {
-				// Check specifically for the environment variable declaration, not the JavaScript reference
-				if strings.Contains(jobYAML, "GH_AW_TARGET_REPO_SLUG: \"") {
-					t.Errorf("Expected not to find GH_AW_TARGET_REPO_SLUG environment variable declaration in job YAML when no target-repo is configured.\nActual job YAML:\n%s", jobYAML)
+				// Check that target-repo is not in the handler config JSON
+				if strings.Contains(jobYAML, `\"target-repo\"`) {
+					t.Errorf("Expected not to find target-repo in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON when no target-repo is configured.\nActual job YAML:\n%s", jobYAML)
 				}
 			}
 		})

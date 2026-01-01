@@ -45,7 +45,7 @@ func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
 }
 
 // TestCreateDiscussionUsesHelper verifies that create_discussion.go
-// uses the buildSafeOutputJobEnvVars helper correctly
+// uses the buildSafeOutputJobEnvVars helper correctly and passes target-repo via handler config
 func TestCreateDiscussionUsesHelper(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
@@ -74,9 +74,9 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in create-discussion job")
 	}
 
-	// Verify that GH_AW_TARGET_REPO_SLUG is present with the correct value
-	if !strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n") {
-		t.Error("Expected GH_AW_TARGET_REPO_SLUG to be set correctly in create-discussion job")
+	// Verify that target-repo is present in the handler config JSON, not as env var
+	if !strings.Contains(stepsContent, `"target-repo":"owner/target-repo"`) {
+		t.Error("Expected target-repo to be in GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG JSON in create-discussion job")
 	}
 }
 
