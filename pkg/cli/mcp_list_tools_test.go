@@ -1,6 +1,7 @@
 package cli
 
 import (
+"github.com/githubnext/gh-aw/pkg/types"
 	"os"
 	"path/filepath"
 	"strings"

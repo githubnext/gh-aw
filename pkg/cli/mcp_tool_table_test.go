@@ -1,6 +1,7 @@
 package cli
 
 import (
+"github.com/githubnext/gh-aw/pkg/types"
 	"strings"
 	"testing"
 
@@ -256,13 +257,17 @@ func TestRenderMCPHierarchyTree(t *testing.T) {
 	// Create test configs
 	configs := []parser.MCPServerConfig{
 		{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "stdio",
+			},
 			Name:    "github",
-			Type:    "stdio",
 			Allowed: []string{"list_issues", "create_issue"},
 		},
 		{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "stdio",
+			},
 			Name:    "filesystem",
-			Type:    "stdio",
 			Allowed: []string{"*"},
 		},
 	}
@@ -341,8 +346,10 @@ func TestRenderMCPHierarchyTree_EmptyConfigs(t *testing.T) {
 func TestRenderMCPHierarchyTree_MissingServerInfo(t *testing.T) {
 	configs := []parser.MCPServerConfig{
 		{
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "stdio",
+			},
 			Name: "missing-server",
-			Type: "stdio",
 		},
 	}
 	serverInfos := map[string]*parser.MCPServerInfo{}

@@ -1,7 +1,7 @@
 package cli
 
 import (
-"github.com/githubnext/gh-aw/pkg/types"
+	"github.com/githubnext/gh-aw/pkg/types"
 	"strings"
 	"testing"
 
@@ -286,31 +286,31 @@ func TestFilterOutSafeOutputs(t *testing.T) {
 		{
 			name: "only safe-outputs",
 			input: []parser.MCPServerConfig{
-				{Name: constants.SafeOutputsMCPServerID, Type: "stdio"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: constants.SafeOutputsMCPServerID},
 			},
 			expected: []parser.MCPServerConfig{},
 		},
 		{
 			name: "mixed servers",
 			input: []parser.MCPServerConfig{
-				{Name: constants.SafeOutputsMCPServerID, Type: "stdio"},
-				{Name: "github", Type: "docker"},
-				{Name: "playwright", Type: "docker"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: constants.SafeOutputsMCPServerID},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "playwright"},
 			},
 			expected: []parser.MCPServerConfig{
-				{Name: "github", Type: "docker"},
-				{Name: "playwright", Type: "docker"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "playwright"},
 			},
 		},
 		{
 			name: "no safe-outputs",
 			input: []parser.MCPServerConfig{
-				{Name: "github", Type: "docker"},
-				{Name: "custom-server", Type: "stdio"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "custom-server"},
 			},
 			expected: []parser.MCPServerConfig{
-				{Name: "github", Type: "docker"},
-				{Name: "custom-server", Type: "stdio"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker"}, Name: "github"},
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio"}, Name: "custom-server"},
 			},
 		},
 	}

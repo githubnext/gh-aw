@@ -1,8 +1,8 @@
 package parser
 
 import (
-"github.com/githubnext/gh-aw/pkg/types"
 	"encoding/json"
+	"github.com/githubnext/gh-aw/pkg/types"
 	"reflect"
 	"testing"
 
@@ -86,9 +86,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -97,7 +95,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -112,9 +111,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -122,7 +119,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -135,9 +133,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
@@ -145,7 +141,8 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
-					},
+					}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -172,15 +169,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -196,15 +192,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:latest",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{"issue_create", "pull_request_list"},
 				},
 			},
@@ -219,15 +214,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:20",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -242,15 +236,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:3.11",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},
@@ -265,16 +258,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -289,16 +280,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:v1.41.0",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -310,16 +299,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"}}, Name: "playwright",
 				},
 			},
 		},
@@ -334,16 +321,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:20",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -358,16 +343,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:1.41",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -382,16 +365,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				},
 			},
 			expected: []MCPServerConfig{
-				{
-					Name:    "playwright",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
 						"mcr.microsoft.com/playwright:142",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"}}, Name: "playwright",
 				},
 			},
 		},
@@ -411,15 +392,14 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 			serverFilter: "github",
 			expected: []MCPServerConfig{
-				{
-					Name:    "github",
-					Type:    "docker",
+				{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "docker",
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env: map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"}}, Name: "github",
+
 					Allowed: []string{},
 				},
 			},

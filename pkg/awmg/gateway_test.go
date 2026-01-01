@@ -1,8 +1,8 @@
 package awmg
 
 import (
-"github.com/githubnext/gh-aw/pkg/types"
 	"encoding/json"
+	"github.com/githubnext/gh-aw/pkg/types"
 	"os"
 	"path/filepath"
 	"testing"
@@ -346,12 +346,8 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 func TestMergeConfigs(t *testing.T) {
 	base := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
-			"server1": {
-				Command: "cmd1",
-			},
-			"server2": {
-				Command: "cmd2",
-			},
+			"server1": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "cmd1"}},
+			"server2": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "cmd2"}},
 		},
 		Gateway: GatewaySettings{
 			Port:   8080,
@@ -361,12 +357,8 @@ func TestMergeConfigs(t *testing.T) {
 
 	override := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
-			"server2": {
-				Command: "override-cmd2",
-			},
-			"server3": {
-				Command: "cmd3",
-			},
+			"server2": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "override-cmd2"}},
+			"server3": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "cmd3"}},
 		},
 		Gateway: GatewaySettings{
 			Port: 9090,
@@ -406,9 +398,7 @@ func TestMergeConfigs(t *testing.T) {
 func TestMergeConfigs_EmptyOverride(t *testing.T) {
 	base := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
-			"server1": {
-				Command: "cmd1",
-			},
+			"server1": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "cmd1"}},
 		},
 		Gateway: GatewaySettings{
 			Port: 8080,
@@ -543,13 +533,11 @@ func TestRewriteMCPConfigForGateway(t *testing.T) {
 	// Create a gateway config (after filtering)
 	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
-			"github": {
-				Command: "gh",
-				Args:    []string{"aw", "mcp-server"},
+			"github": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "gh",
+				Args: []string{"aw", "mcp-server"}},
 			},
-			"custom": {
-				Command: "node",
-				Args:    []string{"server.js"},
+			"custom": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "node",
+				Args: []string{"server.js"}},
 			},
 		},
 		Gateway: GatewaySettings{
@@ -644,9 +632,8 @@ func TestRewriteMCPConfigForGateway_WithAPIKey(t *testing.T) {
 	// Create a gateway config with API key
 	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
-			"github": {
-				Command: "gh",
-				Args:    []string{"aw", "mcp-server"},
+			"github": {BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "gh",
+				Args: []string{"aw", "mcp-server"}},
 			},
 		},
 		Gateway: GatewaySettings{
