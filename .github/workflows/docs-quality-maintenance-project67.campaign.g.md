@@ -192,6 +192,7 @@ Execute these steps in sequence each time this orchestrator runs:
    - Record metadata: number, title, state (open/closed), created date, updated date
 
 2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
+   - Worker workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
    - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
    - Collect all matching issue URLs
    - Record issue metadata: number, title, state (open/closed), created date, updated date

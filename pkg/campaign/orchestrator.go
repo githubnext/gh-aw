@@ -216,6 +216,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		TrackerLabel: strings.TrimSpace(spec.TrackerLabel),
 		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
 		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
+		Workflows:    spec.Workflows,
 	}
 	if len(spec.KPIs) > 0 {
 		promptData.KPIs = spec.KPIs

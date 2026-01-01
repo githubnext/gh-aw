@@ -125,7 +125,8 @@ Execute these steps in sequence each time this orchestrator runs:
    - Record metadata: number, title, state (open/closed), created date, updated date
 
 2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
-   - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
+{{ if .Workflows }}   - Worker workflows: {{ range $i, $w := .Workflows }}{{ if $i }}, {{ end }}{{ $w }}{{ end }}
+{{ end }}   - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
    - Collect all matching issue URLs
    - Record issue metadata: number, title, state (open/closed), created date, updated date
 
