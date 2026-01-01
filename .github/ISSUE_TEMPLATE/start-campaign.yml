@@ -1,5 +1,5 @@
 name: 🚀 Start an Agentic Campaign
-description: Create a new agentic campaign with AI assistance - just tell us your goal and we'll generate the details
+description: Create a new agentic campaign with AI assistance - describe your goal and we'll generate the details
 title: "[Agentic Campaign] "
 labels: ["campaign", "campaign-tracker"]
 body:
@@ -8,30 +8,16 @@ body:
       value: |
         ## Start an Agentic Campaign
         
-        **📌 Important: Project Board Assignment**
+        **Project Board Required:** Campaigns must be assigned to a GitHub Project for tracking.
         
-        This campaign must be assigned to a GitHub Project board. You have two options:
-        
-        **Option A (Recommended):** Create this issue from your project board:
-        1. Open your GitHub Project board
+        **Create from project board** (recommended):
+        1. Open your Project board
         2. Click "Add item" → "Create new issue"
-        3. Select this repository and choose this template
-        4. The project will be automatically assigned ✅
+        3. Select this repository and template
         
-        **Option B:** Create from issues page (assign project before submitting):
-        1. Fill out the form below
-        2. **Scroll down and use the project selector at the bottom** to assign a project board
-        3. Submit the issue
+        **Create from issues page:** Use the project selector at bottom to assign a project board before submitting.
         
-        The AI will automatically detect the project board assignment and generate the campaign specification with the correct project URL.
-        
-        **Process:**
-        1. Fill out the campaign goal and context fields below
-        2. **Ensure a project board is assigned** (see options above)
-        3. Submit the issue
-        4. AI analyzes goal and generates campaign spec with project tracking
-        5. PR created with spec and orchestrator files
-        6. Review and merge to activate
+        The AI detects the assigned project and generates campaign spec with correct project URL.
 
   - type: textarea
     id: campaign_goal
