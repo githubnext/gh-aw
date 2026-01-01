@@ -108,13 +108,13 @@ Body: "${{ github.event.issue.body }}"
 
 ## Reactions
 
-Command workflows automatically add the "eyes" (👀) emoji reaction to triggering comments and edit them with workflow run links, providing immediate feedback. Customize the reaction:
+Command workflows automatically add the "rocket" (🚀) emoji reaction to triggering comments and edit them with workflow run links, providing immediate feedback. Customize the reaction:
 
 ```yaml wrap
 on:
   slash_command:
     name: my-bot
-  reaction: "rocket"  # Override default "eyes"
+  reaction: "eyes"  # Override default "rocket"
 ```
 
 See [Reactions](/gh-aw/reference/frontmatter/) for available reactions and detailed behavior.

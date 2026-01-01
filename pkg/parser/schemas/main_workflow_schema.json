@@ -1264,8 +1264,8 @@
                   "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
                 }
               ],
-              "default": "eyes",
-              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
+              "default": "rocket",
+              "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'rocket' if not specified.",
               "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
             }
           },

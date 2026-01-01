@@ -120,7 +120,7 @@ safe-outputs:
 
 # Command Bot with Default Reaction
 
-Test command workflow with default (eyes) reaction.
+Test command workflow with default (rocket) reaction.
 `
 
 	testFile := filepath.Join(tmpDir, "test-command-bot-default.md")
@@ -141,9 +141,9 @@ Test command workflow with default (eyes) reaction.
 		t.Errorf("Expected Command to be 'test-bot', got '%s'", workflowData.Command)
 	}
 
-	// Verify AIReaction defaults to "eyes" for command workflows
-	if workflowData.AIReaction != "eyes" {
-		t.Errorf("Expected AIReaction to default to 'eyes' for command workflows, got '%s'", workflowData.AIReaction)
+	// Verify AIReaction defaults to "rocket" for command workflows
+	if workflowData.AIReaction != "rocket" {
+		t.Errorf("Expected AIReaction to default to 'rocket' for command workflows, got '%s'", workflowData.AIReaction)
 	}
 
 	// Compile the workflow
@@ -160,8 +160,8 @@ Test command workflow with default (eyes) reaction.
 	compiled := string(compiledBytes)
 
 	// Verify that activation job HAS reaction step
-	if !strings.Contains(compiled, "Add eyes reaction to the triggering item") {
-		t.Error("Activation job should have reaction step when reaction defaults to 'eyes'")
+	if !strings.Contains(compiled, "Add rocket reaction to the triggering item") {
+		t.Error("Activation job should have reaction step when reaction defaults to 'rocket'")
 	}
 
 	// Verify that activation job HAS reaction permissions
