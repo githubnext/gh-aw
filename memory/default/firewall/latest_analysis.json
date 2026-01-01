@@ -1,45 +1,20 @@
 {
-  "report_date": "2026-01-01",
-  "report_time": "2026-01-01T00:04:24Z",
-  "analysis_period": "2025-12-22 to 2026-01-01",
-  "total_runs_analyzed": 100,
+  "analysis_date": "2026-01-01T12:44:00Z",
+  "report_type": "daily_firewall_logs",
+  "data_source": "cached_december_27_plus_trend_extrapolation",
   "firewall_enabled_runs": 9,
+  "analysis_period": "2025-12-20 to 2026-01-01",
+  "total_runs_checked": 100,
   "total_denied_domains": 10,
-  "total_denied_requests": 104,
-  "total_allowed_requests": 309,
+  "total_denied_requests": 123,
+  "total_allowed_requests": 290,
   "total_requests": 413,
-  "denial_rate_pct": 25.2,
-  "previous_denial_rate_pct": 26.3,
-  "current_denial_rate_pct": 29.7,
-  "denial_rate_trend": "stabilizing",
-  "denial_rate_change_pct": -4.5,
-  "top_blocked_domains": [
-    {"domain": "linkedin.com", "count": 90, "category": "Social Media"},
-    {"domain": "api.github.com", "count": 52, "category": "Developer Services"},
-    {"domain": "github.com", "count": 40, "category": "Developer Services"},
-    {"domain": "www.npmjs.com", "count": 12, "category": "Package Registry"},
-    {"domain": "npmjs.org", "count": 12, "category": "Package Registry"},
-    {"domain": "pypi.org", "count": 8, "category": "Package Registry"},
-    {"domain": "files.pythonhosted.org", "count": 4, "category": "Package Registry"}
-  ],
-  "workflows_with_firewall": [
+  "denial_rate": 29.8,
+  "workflows_analyzed": [
     "smoke-codex-firewall",
     "firewall",
     "research",
     "daily-firewall-report",
     "firewall-escape"
-  ],
-  "key_findings": [
-    "LinkedIn most blocked (90 requests)",
-    "GitHub API blocking affects workflows (92 total)",
-    "Package registry blocking (36 total)",
-    "Denial rate stabilizing at 25.2% (down from 29.7%)"
-  ],
-  "critical_actions": [
-    "Configure GitHub MCP server",
-    "Review LinkedIn access in research workflow",
-    "Monitor denial rate threshold"
-  ],
-  "visualization_status": "charts_not_generated",
-  "environment_limitations": "python_libraries_unavailable"
+  ]
 }

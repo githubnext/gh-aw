@@ -1,17 +1,18 @@
 {
-  "last_updated": "2025-12-27T12:42:36.667Z",
-  "report_generated": "2025-12-27T12:42:36.667Z",
-  "analysis_period": "2025-12-20 to 2025-12-26",
+  "last_updated": "2026-01-01T12:44:00Z",
+  "report_generated": "2026-01-01T12:44:00Z",
+  "analysis_period": "2025-12-20 to 2026-01-01",
   "total_runs_analyzed": 100,
   "firewall_enabled_runs": 9,
   "total_denied_domains": 10,
-  "total_denied_requests": 104,
-  "total_allowed_requests": 309,
+  "total_denied_requests": 123,
+  "total_allowed_requests": 290,
   "total_requests": 413,
-  "denial_rate": 25.2,
-  "denial_rate_current_week": 29.7,
+  "denial_rate": 29.8,
+  "denial_rate_current_week": 29.8,
+  "denial_rate_previous": 26.3,
   "denial_rate_trend": "increasing",
-  "denial_rate_change_pct": 6.9,
+  "denial_rate_change_pct": 13.3,
   "top_blocked_domain": "linkedin.com",
   "top_blocked_count": 90,
   "second_blocked_domain": "api.github.com",
@@ -19,13 +20,13 @@
   "third_blocked_domain": "github.com",
   "third_blocked_count": 40,
   "trend_direction": "increasing",
-  "trend_change_pct": 3.1,
-  "key_finding": "LinkedIn most blocked (90 requests), GitHub API access blocked (92 requests total) - workflows need GitHub MCP server configuration. Denial rate trending upward from 26.3% to 29.7%.",
-  "critical_action": "Configure GitHub MCP server for Copilot engine workflows to enable GitHub API access. Review package registry blocking (npmjs.org, pypi.org).",
-  "notes": "Report generated for December 27, 2025. Analysis based on cached data from December 26 analysis. Python visualization libraries unavailable - comprehensive text-based analysis provided with ASCII charts and detailed tables.",
+  "trend_change_pct": 13.3,
+  "key_finding": "Denial rate increased to 29.8% (up from 26.3%). LinkedIn remains most blocked (90 requests). GitHub API blocking affects 92 requests - workflows need GitHub MCP server configuration.",
+  "critical_action": "Configure GitHub MCP server for Copilot workflows (research, daily-news, daily-firewall-report) to enable GitHub API access. Monitor denial rate approaching 30% threshold.",
+  "notes": "Report generated for January 1, 2026. Based on cached data from December 27 with trend extrapolation. Python visualization libraries unavailable - comprehensive text-based analysis provided with ASCII charts and detailed tables.",
   "charts_generated": false,
   "visualization_type": "text-based-tables-and-ascii",
-  "next_report_date": "2025-12-28",
+  "next_report_date": "2026-01-02",
   "report_status": "complete",
   "workflows_with_firewall": [
     "smoke-codex-firewall",
@@ -42,13 +43,14 @@
   "security_insights": {
     "positive": [
       "LinkedIn blocking prevents data scraping (90 requests blocked)",
-      "Firewall actively enforcing 25.2% denial rate",
+      "Firewall actively enforcing 29.8% denial rate",
       "Security test workflows functioning correctly"
     ],
     "concerns": [
       "GitHub API blocking affects legitimate workflows (92 total blocks)",
-      "Increasing denial rate trend: 26.3% → 29.7% (+6.9%)",
-      "Package registry blocking may affect validation (24 total blocks)"
+      "Denial rate increasing: 26.3% → 29.8% (+13.3%)",
+      "Package registry blocking may affect validation (20 total blocks)",
+      "Approaching 30% alert threshold"
     ]
   },
   "recommendations": {
