@@ -11,7 +11,7 @@ var commandLog = logger.New("workflow:command")
 
 // buildEventAwareCommandCondition creates a condition that only applies command checks to comment-related events
 // commandEvents: list of event identifiers where command should be active (nil = all events)
-func buildEventAwareCommandCondition(commandName string, commandEvents []string, hasOtherEvents bool) ConditionNode {
+func buildEventAwareCommandCondition(commandName string, commandEvents []string, hasOtherEvents bool) (ConditionNode, error) {
 	commandLog.Printf("Building event-aware command condition: command=%s, event_count=%d, has_other_events=%t",
 		commandName, len(commandEvents), hasOtherEvents)
 
@@ -137,15 +137,14 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	var commandCondition ConditionNode
 	if len(commandChecks) == 0 {
 		// No events enabled - this indicates a configuration error
-		panic(fmt.Sprintf("No valid comment events specified for command '%s'. At least one event must be enabled.", commandName))
-	} else {
-		// BuildDisjunction handles arrays of size 1 or more correctly
-		commandCondition = BuildDisjunction(false, commandChecks...)
+		return nil, fmt.Errorf("no valid comment events specified for command '%s' - at least one event must be enabled", commandName)
 	}
+	// BuildDisjunction handles arrays of size 1 or more correctly
+	commandCondition = BuildDisjunction(false, commandChecks...)
 
 	if !hasOtherEvents {
 		// If there are no other events, just use the simple command condition
-		return commandCondition
+		return commandCondition, nil
 	}
 
 	// Define which events should be checked for command using expression nodes
@@ -175,5 +174,5 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	return &OrNode{
 		Left:  commentEventCheck,
 		Right: nonCommentEvents,
-	}
+	}, nil
 }

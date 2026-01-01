@@ -74,7 +74,7 @@ type ArtifactUploadConfig struct {
 
 // generateArtifactUpload creates a YAML step to upload a GitHub Actions artifact
 // This is a generalized helper that eliminates duplication across different upload functions
-func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config ArtifactUploadConfig) {
+func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config ArtifactUploadConfig) error {
 	artifactsLog.Printf("Generating artifact upload: step=%s, artifact=%s, paths=%v",
 		config.StepName, config.ArtifactName, config.UploadPaths)
 
@@ -96,14 +96,15 @@ func (c *Compiler) generateArtifactUpload(yaml *strings.Builder, config Artifact
 
 	// Write path (only single-path is supported)
 	if len(config.UploadPaths) == 0 {
-		panic(fmt.Sprintf("generateArtifactUpload: no upload paths specified for artifact %s", config.ArtifactName))
+		return fmt.Errorf("no upload paths specified for artifact %s", config.ArtifactName)
 	}
 	if len(config.UploadPaths) > 1 {
-		panic(fmt.Sprintf("generateArtifactUpload: multiple paths not supported (got %d paths for artifact %s)", len(config.UploadPaths), config.ArtifactName))
+		return fmt.Errorf("multiple paths not supported (got %d paths for artifact %s)", len(config.UploadPaths), config.ArtifactName)
 	}
 	fmt.Fprintf(yaml, "          path: %s\n", config.UploadPaths[0])
 
 	fmt.Fprintf(yaml, "          if-no-files-found: %s\n", ifNoFilesFound)
 
 	artifactsLog.Printf("Generated artifact upload step for %s", config.ArtifactName)
+	return nil
 }
