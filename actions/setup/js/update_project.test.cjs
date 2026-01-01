@@ -4,6 +4,7 @@ let updateProject;
 let parseProjectInput;
 let generateCampaignId;
 let extractDateFromTimestamp;
+let extractWorkerWorkflowFromBody;
 
 const mockCore = {
   debug: vi.fn(),
@@ -54,6 +55,7 @@ beforeAll(async () => {
   parseProjectInput = exports.parseProjectInput;
   generateCampaignId = exports.generateCampaignId;
   extractDateFromTimestamp = exports.extractDateFromTimestamp;
+  extractWorkerWorkflowFromBody = exports.extractWorkerWorkflowFromBody;
   // Call main to execute the module
   if (exports.main) {
     await exports.main();
@@ -134,9 +136,9 @@ const userProjectV2Response = (url, number = 60, id = "project123", userLogin = 
 const orgProjectNullResponse = () => ({ organization: { projectV2: null } });
 const userProjectNullResponse = () => ({ user: { projectV2: null } });
 
-const issueResponse = id => ({ repository: { issue: { id } } });
+const issueResponse = (id, body = null) => ({ repository: { issue: { id, body } } });
 
-const pullRequestResponse = id => ({ repository: { pullRequest: { id } } });
+const pullRequestResponse = (id, body = null) => ({ repository: { pullRequest: { id, body } } });
 
 const emptyItemsResponse = () => ({
   node: {
@@ -231,6 +233,42 @@ describe("extractDateFromTimestamp", () => {
     expect(extractDateFromTimestamp(123)).toBe(null);
     expect(extractDateFromTimestamp({})).toBe(null);
     expect(extractDateFromTimestamp([])).toBe(null);
+  });
+});
+
+describe("extractWorkerWorkflowFromBody", () => {
+  it("extracts workflow name from XML comment", () => {
+    const body = "Some issue text\n\n<!-- agentic-workflow: Daily Updater, tracker-id: abc123 -->\n\nMore text";
+    expect(extractWorkerWorkflowFromBody(body)).toBe("Daily Updater");
+  });
+
+  it("extracts workflow name with special characters", () => {
+    const body = "<!-- agentic-workflow: Test-Workflow_2024, tracker-id: xyz -->";
+    expect(extractWorkerWorkflowFromBody(body)).toBe("Test-Workflow_2024");
+  });
+
+  it("handles XML comment at start of body", () => {
+    const body = "<!-- agentic-workflow: First Workflow, run: https://example.com -->\nIssue content";
+    expect(extractWorkerWorkflowFromBody(body)).toBe("First Workflow");
+  });
+
+  it("extracts workflow name without tracker-id", () => {
+    const body = "Text\n<!-- agentic-workflow: Simple Workflow -->\nMore text";
+    expect(extractWorkerWorkflowFromBody(body)).toBe("Simple Workflow");
+  });
+
+  it("returns null for invalid or missing XML comment", () => {
+    expect(extractWorkerWorkflowFromBody("No XML comment here")).toBe(null);
+    expect(extractWorkerWorkflowFromBody("<!-- other-comment: value -->")).toBe(null);
+    expect(extractWorkerWorkflowFromBody(null)).toBe(null);
+    expect(extractWorkerWorkflowFromBody(undefined)).toBe(null);
+    expect(extractWorkerWorkflowFromBody("")).toBe(null);
+  });
+
+  it("returns null for non-string values", () => {
+    expect(extractWorkerWorkflowFromBody(123)).toBe(null);
+    expect(extractWorkerWorkflowFromBody({})).toBe(null);
+    expect(extractWorkerWorkflowFromBody([])).toBe(null);
   });
 });
 
@@ -820,5 +858,138 @@ describe("updateProject", () => {
     expect(updateCalls).toHaveLength(2);
     expect(updateCalls[0][1].value).toEqual({ date: "2025-11-01" });
     expect(updateCalls[1][1].value).toEqual({ date: "2025-11-30" });
+  });
+
+  it("auto-populates Worker Workflow field from issue body", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 200,
+    };
+
+    const issueWithWorkerWorkflow = {
+      repository: {
+        issue: {
+          id: "issue-id-200",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: null,
+          body: "Issue description\n\n<!-- agentic-workflow: Daily Updater, tracker-id: daily-123 -->\n\nMore content",
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-worker"),
+      issueWithWorkerWorkflow,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-worker" } } },
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-worker", name: "Worker Workflow", dataType: "SINGLE_SELECT", options: [] },
+      ]),
+      updateFieldValueResponse(), // Start Date update
+      fieldsResponse([
+        { id: "field-start", name: "Start Date", dataType: "DATE" },
+        { id: "field-worker", name: "Worker Workflow", dataType: "SINGLE_SELECT", options: [] },
+      ]),
+      // Worker Workflow option creation
+      {
+        updateProjectV2Field: {
+          projectV2Field: {
+            id: "field-worker",
+            options: [{ id: "option-daily", name: "Daily Updater" }],
+          },
+        },
+      },
+      updateFieldValueResponse(), // Worker Workflow update
+    ]);
+
+    await updateProject(output);
+
+    // Verify Worker Workflow auto-population message
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Auto-populating Worker Workflow: Daily Updater"));
+
+    // Verify the field was updated
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBeGreaterThanOrEqual(2); // At least Start Date and Worker Workflow
+  });
+
+  it("skips Worker Workflow auto-population when field doesn't exist", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 201,
+    };
+
+    const issueWithWorkerWorkflow = {
+      repository: {
+        issue: {
+          id: "issue-id-201",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: null,
+          body: "<!-- agentic-workflow: Test Workflow, tracker-id: test-123 -->",
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-no-worker"),
+      issueWithWorkerWorkflow,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-no-worker" } } },
+      fieldsResponse([{ id: "field-start", name: "Start Date", dataType: "DATE" }]),
+      updateFieldValueResponse(), // Start Date update
+      fieldsResponse([{ id: "field-start", name: "Start Date", dataType: "DATE" }]), // No Worker Workflow field
+    ]);
+
+    await updateProject(output);
+
+    // Verify no Worker Workflow field message
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No Worker Workflow field found on project board"));
+  });
+
+  it("skips Worker Workflow when no XML comment in body", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 202,
+    };
+
+    const issueWithoutWorkerWorkflow = {
+      repository: {
+        issue: {
+          id: "issue-id-202",
+          createdAt: "2025-12-20T10:00:00Z",
+          closedAt: null,
+          body: "Regular issue with no workflow marker",
+        },
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-no-marker"),
+      issueWithoutWorkerWorkflow,
+      emptyItemsResponse(),
+      { addProjectV2ItemById: { item: { id: "item-no-marker" } } },
+      fieldsResponse([{ id: "field-start", name: "Start Date", dataType: "DATE" }]),
+      updateFieldValueResponse(), // Start Date update
+    ]);
+
+    await updateProject(output);
+
+    // Verify skip message
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No workflow name found in issue/PR body"));
   });
 });
