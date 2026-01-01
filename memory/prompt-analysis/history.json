@@ -1,0 +1,93 @@
+{
+  "daily_analysis": [
+    {
+      "date": "2026-01-01",
+      "total_prs": 1000,
+      "merged": 744,
+      "closed": 247,
+      "open": 9,
+      "merged_rate": 75.1,
+      "prompt_patterns": {
+        "testing": {
+          "total": 613,
+          "merged": 456,
+          "rate": 74.4
+        },
+        "bug_fix": {
+          "total": 272,
+          "merged": 217,
+          "rate": 79.8
+        },
+        "feature": {
+          "total": 65,
+          "merged": 46,
+          "rate": 70.8
+        },
+        "documentation": {
+          "total": 18,
+          "merged": 12,
+          "rate": 66.7
+        },
+        "dependency": {
+          "total": 9,
+          "merged": 5,
+          "rate": 55.6
+        },
+        "refactor": {
+          "total": 8,
+          "merged": 4,
+          "rate": 50
+        },
+        "other": {
+          "total": 4,
+          "merged": 2,
+          "rate": 50
+        },
+        "removal": {
+          "total": 2,
+          "merged": 2,
+          "rate": 100
+        }
+      },
+      "successful_keywords": [
+        "changes",
+        "from",
+        "test",
+        "added",
+        "campaign",
+        "file",
+        "updated",
+        "json",
+        "error",
+        "lock"
+      ],
+      "top_categories": [
+        {
+          "name": "testing",
+          "total": 613,
+          "success_rate": 74.4
+        },
+        {
+          "name": "bug_fix",
+          "total": 272,
+          "success_rate": 79.8
+        },
+        {
+          "name": "feature",
+          "total": 65,
+          "success_rate": 70.8
+        },
+        {
+          "name": "documentation",
+          "total": 18,
+          "success_rate": 66.7
+        },
+        {
+          "name": "dependency",
+          "total": 9,
+          "success_rate": 55.6
+        }
+      ]
+    }
+  ]
+}
