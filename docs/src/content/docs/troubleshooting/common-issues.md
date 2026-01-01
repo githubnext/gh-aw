@@ -48,6 +48,28 @@ If `.lock.yml` isn't created, fix compilation errors first (`gh aw compile 2>&1 
 
 Remove old `.lock.yml` files after deleting `.md` files with `gh aw compile --purge`.
 
+### Workflow File in Wrong Location
+
+If workflows aren't being recognized by GitHub Actions, verify they're in the correct directory:
+
+**Required location**: All workflow files must be in `.github/workflows/` from your repository root:
+```
+your-repository/
+└── .github/
+    └── workflows/
+        ├── your-workflow.md
+        └── your-workflow.lock.yml
+```
+
+**Create the directory if needed**:
+```bash
+mkdir -p .github/workflows
+```
+
+**Common mistake**: Placing files in the repository root, a `workflows/` folder without `.github/`, or other locations will prevent GitHub Actions from detecting them.
+
+**Resolution**: Move the files to `.github/workflows/` and run `gh aw compile` to regenerate the lock file.
+
 ## Import and Include Issues
 
 ### Import File Not Found

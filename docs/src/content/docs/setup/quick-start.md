@@ -90,6 +90,10 @@ gh aw add githubnext/agentics/daily-team-status --create-pull-request
 
 This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
+:::note[File Location]
+All workflow files are placed in `.github/workflows/` directory. If creating workflows manually, ensure they're saved in this location - files elsewhere won't be recognized by GitHub Actions.
+:::
+
 ### Step 3 — Add an AI secret
 
 Agentic workflows need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).

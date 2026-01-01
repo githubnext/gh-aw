@@ -26,6 +26,26 @@ This creates:
 Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
 :::
 
+:::caution[File Location Requirements]
+**All workflow files MUST be saved in the `.github/workflows/` directory.**
+
+From your repository root:
+```
+your-repository/
+└── .github/
+    └── workflows/
+        ├── your-workflow.md
+        └── your-workflow.lock.yml
+```
+
+**Create the directory if it doesn't exist**:
+```bash
+mkdir -p .github/workflows
+```
+
+Files placed elsewhere will not be recognized by GitHub Actions.
+:::
+
 ## What is the `create-agentic-workflow` agent?
 
 `.github/agents/create-agentic-workflow.agent.md` is an agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. An [agent file](/gh-aw/reference/glossary/#agent-files) is a specialized instruction set that customizes AI behavior for specific tasks.
