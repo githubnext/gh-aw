@@ -39,6 +39,33 @@ Workflow instructions here...
 {{#import shared/common-tools.md}}
 ```
 
+## Shared Workflow Components
+
+Workflows without an `on` field are automatically detected as shared workflow components. These files are validated but not compiled into GitHub Actions, as they are meant to be imported by other workflows. When you attempt to compile a shared workflow directly, the compiler displays an informative message and skips compilation:
+
+```bash wrap
+$ gh aw compile shared/mcp/deepwiki.md
+ℹ️  Shared agentic workflow detected: deepwiki.md
+
+This workflow is missing the 'on' field and will be treated as a shared workflow component.
+Shared workflows are reusable components meant to be imported by other workflows.
+
+To use this shared workflow:
+  1. Import it in another workflow's frontmatter:
+     ---
+     on: issues
+     imports:
+       - shared/mcp/deepwiki.md
+     ---
+
+  2. Compile the workflow that imports it
+
+Skipping compilation.
+✓ Compiled 1 workflow(s): 0 error(s), 0 warning(s)
+```
+
+This allows you to organize reusable components in your repository without generating unnecessary lock files.
+
 ## Path Formats
 
 Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown.
