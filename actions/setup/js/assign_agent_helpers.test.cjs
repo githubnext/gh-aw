@@ -41,6 +41,14 @@ describe("assign_agent_helpers.cjs", () => {
       expect(getAgentName("copilot")).toBe("copilot");
     });
 
+    it("should return copilot for copilot-swe-agent (login name)", () => {
+      expect(getAgentName("copilot-swe-agent")).toBe("copilot");
+    });
+
+    it("should return copilot for @copilot-swe-agent (login name with @)", () => {
+      expect(getAgentName("@copilot-swe-agent")).toBe("copilot");
+    });
+
     it("should return null for unknown users", () => {
       expect(getAgentName("@some-user")).toBeNull();
       expect(getAgentName("some-user")).toBeNull();

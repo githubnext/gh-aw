@@ -29,8 +29,19 @@ function getAgentName(assignee) {
   // Normalize: remove @ prefix if present
   const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
 
-  // Check if it's a known agent - return the key (agent name), not the value (login name)
-  return normalized in AGENT_LOGIN_NAMES ? normalized : null;
+  // Check if it's a known agent by key (e.g., "copilot")
+  if (normalized in AGENT_LOGIN_NAMES) {
+    return normalized;
+  }
+
+  // Check if it's a known agent by login name value (e.g., "copilot-swe-agent")
+  for (const [agentName, loginName] of Object.entries(AGENT_LOGIN_NAMES)) {
+    if (loginName === normalized) {
+      return agentName;
+    }
+  }
+
+  return null;
 }
 
 /**
