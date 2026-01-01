@@ -23,6 +23,8 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	actionPath := DefaultScriptRegistry.GetActionPath(scriptName)
 	if actionPath == "" {
 		safeOutputsStepsLog.Printf("WARNING: No action path found for script %s, falling back to inline mode", scriptName)
+		// Set ScriptFile for inline mode fallback
+		config.ScriptFile = scriptName + ".cjs"
 		return c.buildGitHubScriptStep(data, config)
 	}
 
@@ -30,6 +32,8 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	actionRef := c.resolveActionReference(actionPath, data)
 	if actionRef == "" {
 		safeOutputsStepsLog.Printf("WARNING: Could not resolve action reference for %s, falling back to inline mode", actionPath)
+		// Set ScriptFile for inline mode fallback
+		config.ScriptFile = scriptName + ".cjs"
 		return c.buildGitHubScriptStep(data, config)
 	}
 
@@ -166,9 +170,17 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	steps = append(steps, "          script: |\n")
 
-	// Add the formatted JavaScript script
-	formattedScript := FormatJavaScriptForYAML(config.Script)
-	steps = append(steps, formattedScript...)
+	// Use require() if ScriptFile is specified, otherwise inline the script
+	if config.ScriptFile != "" {
+		steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
+		steps = append(steps, "            setupGlobals(core, github, context, exec, io);\n")
+		steps = append(steps, fmt.Sprintf("            const { main } = require('"+SetupActionDestination+"/%s');\n", config.ScriptFile))
+		steps = append(steps, "            await main();\n")
+	} else {
+		// Add the formatted JavaScript script (inline)
+		formattedScript := FormatJavaScriptForYAML(config.Script)
+		steps = append(steps, formattedScript...)
+	}
 
 	return steps
 }
