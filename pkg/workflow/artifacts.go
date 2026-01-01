@@ -50,15 +50,16 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add environment variable setup if requested
 	if config.SetupEnvStep {
-		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s/%s",
-			config.EnvVarName, config.DownloadPath, config.ArtifactName, config.ArtifactFilename)
+		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s",
+			config.EnvVarName, config.DownloadPath, config.ArtifactFilename)
 		steps = append(steps, "      - name: Setup agent output environment variable\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
 		steps = append(steps, fmt.Sprintf("          find \"%s\" -type f -print\n", config.DownloadPath))
-		// artifacts are extracted to {download-path}/{artifact-name}/
+		// When downloading a single artifact by name with download-artifact@v4,
+		// artifacts are extracted directly to {download-path}, not {download-path}/{artifact-name}/
 		// The actual filename is specified in ArtifactFilename
-		artifactPath := fmt.Sprintf("%s%s/%s", config.DownloadPath, config.ArtifactName, config.ArtifactFilename)
+		artifactPath := fmt.Sprintf("%s%s", config.DownloadPath, config.ArtifactFilename)
 		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 

@@ -707,7 +707,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"- name: Setup agent output environment variable",
 		"mkdir -p /tmp/gh-aw/safeoutputs/",
 		"find \"/tmp/gh-aw/safeoutputs/\" -type f -print",
-		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent-output/agent_output.json",
+		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
 	}
 
 	for _, expected := range expectedComponents {
