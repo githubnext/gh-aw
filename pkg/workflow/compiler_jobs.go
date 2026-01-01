@@ -133,7 +133,8 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
 	hasSkipIfMatch := data.SkipIfMatch != nil
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, data.Command != "")
+	hasSkipIfNoMatch := data.SkipIfNoMatch != nil
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
 	// Add the check if the agentic workflow declares a workflow_run trigger
@@ -147,10 +148,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Extract lock filename for timestamp check
 	lockFilename := filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
 
-	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, and command position check)
+	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasCommandTrigger {
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasCommandTrigger {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {

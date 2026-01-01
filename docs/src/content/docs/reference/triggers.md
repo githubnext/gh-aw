@@ -492,6 +492,62 @@ on:
 
 The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
 
+### Skip-If-No-Match Condition (`skip-if-no-match:`)
+
+Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match` and is useful for waiting for prerequisites before running a workflow.
+
+**Basic Usage (String Format):**
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  skip-if-no-match: 'is:pr is:open label:ready-to-deploy'
+```
+
+**Advanced Usage (Object Format with Minimum Threshold):**
+```yaml wrap
+on:
+  workflow_dispatch:
+  skip-if-no-match:
+    query: "is:issue is:open label:urgent"
+    min: 3  # Only run if 3 or more issues match
+```
+
+**How it works:**
+1. A pre-activation check runs the search query against the current repository
+2. If the number of matches is less than the minimum threshold, the workflow is skipped
+3. The query is automatically scoped to the current repository
+4. String format implies `min: 1` (skip if no matches found)
+
+**Common Use Cases:**
+
+Wait for deployment PRs to be ready:
+```yaml wrap
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  skip-if-no-match: 'is:pr is:open label:ready-to-deploy'
+```
+
+Run only when multiple issues require attention:
+```yaml wrap
+on:
+  workflow_dispatch:
+  skip-if-no-match:
+    query: "is:issue is:open label:needs-review"
+    min: 5
+```
+
+Combined with skip-if-match for complex conditions:
+```yaml wrap
+on:
+  workflow_dispatch:
+  skip-if-match: "is:issue is:open label:blocked"
+  skip-if-no-match: "is:pr is:open label:ready"
+```
+
+The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
+
 ## Related Documentation
 
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text

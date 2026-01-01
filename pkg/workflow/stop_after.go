@@ -219,6 +219,76 @@ func (c *Compiler) extractSkipIfMatchFromOn(frontmatter map[string]any) (*SkipIf
 	}
 }
 
+// extractSkipIfNoMatchFromOn extracts the skip-if-no-match value from the on: section
+func (c *Compiler) extractSkipIfNoMatchFromOn(frontmatter map[string]any) (*SkipIfNoMatchConfig, error) {
+	onSection, exists := frontmatter["on"]
+	if !exists {
+		return nil, nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onSection.(type) {
+	case string:
+		// Simple string format like "on: push" - no skip-if-no-match possible
+		return nil, nil
+	case map[string]any:
+		// Complex object format - look for skip-if-no-match
+		if skipIfNoMatch, exists := on["skip-if-no-match"]; exists {
+			// Handle both string and object formats
+			switch skip := skipIfNoMatch.(type) {
+			case string:
+				// Simple string format: skip-if-no-match: "query" (implies min=1)
+				return &SkipIfNoMatchConfig{
+					Query: skip,
+					Min:   1,
+				}, nil
+			case map[string]any:
+				// Object format: skip-if-no-match: { query: "...", min: 3 }
+				queryVal, hasQuery := skip["query"]
+				if !hasQuery {
+					return nil, fmt.Errorf("skip-if-no-match object must have a 'query' field. Example:\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3")
+				}
+
+				queryStr, ok := queryVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("skip-if-no-match 'query' field must be a string, got %T", queryVal)
+				}
+
+				// Extract min value (optional, defaults to 1)
+				minVal := 1
+				if minRaw, hasMin := skip["min"]; hasMin {
+					switch m := minRaw.(type) {
+					case int:
+						minVal = m
+					case int64:
+						minVal = int(m)
+					case uint64:
+						minVal = int(m)
+					case float64:
+						minVal = int(m)
+					default:
+						return nil, fmt.Errorf("skip-if-no-match 'min' field must be an integer, got %T. Example: min: 3", minRaw)
+					}
+
+					if minVal < 1 {
+						return nil, fmt.Errorf("skip-if-no-match 'min' field must be at least 1, got %d", minVal)
+					}
+				}
+
+				return &SkipIfNoMatchConfig{
+					Query: queryStr,
+					Min:   minVal,
+				}, nil
+			default:
+				return nil, fmt.Errorf("skip-if-no-match value must be a string or object, got %T. Examples:\n  skip-if-no-match: \"is:pr is:open\"\n  skip-if-no-match:\n    query: \"is:pr is:open\"\n    min: 3", skipIfNoMatch)
+			}
+		}
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("invalid on: section format")
+	}
+}
+
 // processSkipIfMatchConfiguration extracts and processes skip-if-match configuration from frontmatter
 func (c *Compiler) processSkipIfMatchConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
 	// Extract skip-if-match from the on: section
@@ -233,6 +303,26 @@ func (c *Compiler) processSkipIfMatchConfiguration(frontmatter map[string]any, w
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: 1 match)", workflowData.SkipIfMatch.Query)))
 		} else {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: %d matches)", workflowData.SkipIfMatch.Query, workflowData.SkipIfMatch.Max)))
+		}
+	}
+
+	return nil
+}
+
+// processSkipIfNoMatchConfiguration extracts and processes skip-if-no-match configuration from frontmatter
+func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+	// Extract skip-if-no-match from the on: section
+	skipIfNoMatchConfig, err := c.extractSkipIfNoMatchFromOn(frontmatter)
+	if err != nil {
+		return err
+	}
+	workflowData.SkipIfNoMatch = skipIfNoMatchConfig
+
+	if c.verbose && workflowData.SkipIfNoMatch != nil {
+		if workflowData.SkipIfNoMatch.Min == 1 {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-no-match query configured: %s (min: 1 match)", workflowData.SkipIfNoMatch.Query)))
+		} else {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Skip-if-no-match query configured: %s (min: %d matches)", workflowData.SkipIfNoMatch.Query, workflowData.SkipIfNoMatch.Min)))
 		}
 	}
 

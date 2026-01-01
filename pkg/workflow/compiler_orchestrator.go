@@ -658,6 +658,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Process skip-if-no-match configuration from the on: section
+	err = c.processSkipIfNoMatchConfiguration(result.Frontmatter, workflowData)
+	if err != nil {
+		return nil, err
+	}
+
 	// Process manual-approval configuration from the on: section
 	err = c.processManualApprovalConfiguration(result.Frontmatter, workflowData)
 	if err != nil {

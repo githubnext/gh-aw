@@ -221,6 +221,12 @@ type SkipIfMatchConfig struct {
 	Max   int    // Maximum number of matches before skipping (defaults to 1)
 }
 
+// SkipIfNoMatchConfig holds the configuration for skip-if-no-match conditions
+type SkipIfNoMatchConfig struct {
+	Query string // GitHub search query to check before running workflow
+	Min   int    // Minimum number of matches required to proceed (defaults to 1)
+}
+
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
@@ -256,6 +262,7 @@ type WorkflowData struct {
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
 	SkipIfMatch         *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
+	SkipIfNoMatch       *SkipIfNoMatchConfig // skip-if-no-match configuration with query and min threshold
 	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)
