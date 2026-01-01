@@ -82,7 +82,7 @@ The MCP server provides:
 - **status**: List workflows with pattern filter
 - **compile**: Generate GitHub Actions YAML
 - **logs**: Download with timeout handling and continuation
-- **audit**: Generate report to `/tmp/gh-aw/aw-mcp/logs`
+- **audit**: Generate report to `/tmp/gh-aw/aw-mcp/logs`. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs for precise failure analysis
 - **update**: Update workflows with support for major version updates and force flag
 - **add**: Install workflows from remote repositories
 - **mcp-inspect**: Inspect servers and validate secrets

@@ -40,7 +40,7 @@ gh aw logs my-workflow          # Download and analyze execution logs
 ```bash wrap
 gh aw status                    # Check workflow state and configuration
 gh aw logs my-workflow          # Review execution logs (AI decisions, tool usage, errors)
-gh aw audit (run-id)            # Analyze specific run in detail
+gh aw audit (run-id-or-url)     # Analyze specific run in detail
 
 # Fix issues
 gh aw secrets bootstrap --engine copilot   # Check token configuration
@@ -48,7 +48,11 @@ gh aw compile my-workflow --validate       # Detailed validation
 gh aw fix my-workflow --write              # Auto-fix deprecated fields
 ```
 
-Run-id is in the URL: `github.com/owner/repo/actions/runs/12345678` → `12345678`
+The audit command accepts run IDs, workflow URLs, job URLs, or step URLs:
+- Run ID from URL: `github.com/owner/repo/actions/runs/12345678` → `12345678`
+- Or use the full URL: `https://github.com/owner/repo/actions/runs/12345678`
+- Job URL: `https://github.com/owner/repo/actions/runs/123/job/456` (extracts first failing step)
+- Step URL: `https://github.com/owner/repo/actions/runs/123/job/456#step:7:1` (extracts specific step)
 
 ## Installation
 
@@ -266,13 +270,19 @@ gh aw logs --campaign                      # Campaign orchestrators only
 
 #### `audit`
 
-Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs or URLs. Auto-detects Copilot agent runs for specialized parsing.
+Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot agent runs for specialized parsing.
+
+When provided with a job URL, automatically extracts logs for the specific job. When a step fragment is included, extracts only that step's output. If no step is specified, automatically identifies and extracts the first failing step.
 
 ```bash wrap
 gh aw audit 12345678                                      # By run ID
-gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
+gh aw audit https://github.com/owner/repo/actions/runs/123 # By workflow run URL
+gh aw audit https://github.com/owner/repo/actions/runs/123/job/456 # By job URL (extracts first failing step)
+gh aw audit https://github.com/owner/repo/actions/runs/123/job/456#step:7:1 # By step URL (extracts specific step)
 gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
+
+Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level (job logs, specific step, or first failing step).
 
 ### Agentic campaigns
 
