@@ -190,3 +190,149 @@ func TestResolveActionReference(t *testing.T) {
 		})
 	}
 }
+
+func TestCompilerActionTag(t *testing.T) {
+	t.Run("compiler actionTag overrides frontmatter action-tag", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler.SetActionMode(ActionModeRelease)
+		compiler.SetActionTag("v2.0.0")
+
+		// Frontmatter has action-tag but compiler actionTag should take precedence
+		data := &WorkflowData{Features: map[string]any{"action-tag": "v1.5.0"}}
+		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@v2.0.0"
+		if ref != expected {
+			t.Errorf("Expected compiler actionTag to take precedence: got %q, want %q", ref, expected)
+		}
+	})
+
+	t.Run("compiler actionTag overrides version", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler.SetActionMode(ActionModeRelease)
+		compiler.SetActionTag("abc123def456")
+
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
+		expected := "githubnext/gh-aw/actions/create-issue@abc123def456"
+		if ref != expected {
+			t.Errorf("Expected %q, got %q", expected, ref)
+		}
+	})
+
+	t.Run("compiler actionTag with dev mode forces release behavior", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		// When actionTag is set via --action-tag flag, setupActionMode sets mode to release
+		// So this test should reflect that behavior
+		compiler.SetActionTag("v2.0.0")
+		compiler.SetActionMode(ActionModeRelease) // This is what setupActionMode does
+
+		data := &WorkflowData{}
+		ref := compiler.resolveActionReference("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@v2.0.0"
+		if ref != expected {
+			t.Errorf("Expected compiler actionTag with release mode: got %q, want %q", ref, expected)
+		}
+	})
+
+	t.Run("empty compiler actionTag falls back to frontmatter", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler.SetActionMode(ActionModeRelease)
+		// Don't set compiler actionTag
+
+		data := &WorkflowData{Features: map[string]any{"action-tag": "v1.5.0"}}
+		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@v1.5.0"
+		if ref != expected {
+			t.Errorf("Expected frontmatter action-tag to be used: got %q, want %q", ref, expected)
+		}
+	})
+
+	t.Run("empty compiler actionTag and no frontmatter uses version", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "v1.2.3")
+		compiler.SetActionMode(ActionModeRelease)
+
+		data := &WorkflowData{}
+		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
+		expected := "githubnext/gh-aw/actions/setup@v1.2.3"
+		if ref != expected {
+			t.Errorf("Expected compiler version to be used: got %q, want %q", ref, expected)
+		}
+	})
+}
+
+func TestResolveSetupActionReference(t *testing.T) {
+	tests := []struct {
+		name        string
+		actionMode  ActionMode
+		version     string
+		actionTag   string
+		expectedRef string
+		description string
+	}{
+		{
+			name:        "dev mode returns local path",
+			actionMode:  ActionModeDev,
+			version:     "v1.0.0",
+			actionTag:   "",
+			expectedRef: "./actions/setup",
+			description: "Dev mode should return local path",
+		},
+		{
+			name:        "release mode with version",
+			actionMode:  ActionModeRelease,
+			version:     "v1.0.0",
+			actionTag:   "",
+			expectedRef: "githubnext/gh-aw/actions/setup@v1.0.0",
+			description: "Release mode should return remote reference with version",
+		},
+		{
+			name:        "release mode with actionTag overrides version",
+			actionMode:  ActionModeRelease,
+			version:     "v1.0.0",
+			actionTag:   "v2.5.0",
+			expectedRef: "githubnext/gh-aw/actions/setup@v2.5.0",
+			description: "Release mode with actionTag should use actionTag instead of version",
+		},
+		{
+			name:        "release mode with SHA actionTag",
+			actionMode:  ActionModeRelease,
+			version:     "v1.0.0",
+			actionTag:   "abc123def456789012345678901234567890abcd",
+			expectedRef: "githubnext/gh-aw/actions/setup@abc123def456789012345678901234567890abcd",
+			description: "Release mode with SHA actionTag should use the SHA",
+		},
+		{
+			name:        "release mode with dev version falls back to local",
+			actionMode:  ActionModeRelease,
+			version:     "dev",
+			actionTag:   "",
+			expectedRef: "./actions/setup",
+			description: "Release mode with 'dev' version should fall back to local path",
+		},
+		{
+			name:        "release mode with dev version but actionTag specified",
+			actionMode:  ActionModeRelease,
+			version:     "dev",
+			actionTag:   "v2.0.0",
+			expectedRef: "githubnext/gh-aw/actions/setup@v2.0.0",
+			description: "Release mode with actionTag should work even with 'dev' version",
+		},
+		{
+			name:        "dev mode with actionTag uses local path (actionTag not checked here)",
+			actionMode:  ActionModeDev,
+			version:     "v1.0.0",
+			actionTag:   "v2.0.0",
+			expectedRef: "./actions/setup",
+			description: "Dev mode should return local path even if actionTag is specified",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref := ResolveSetupActionReference(tt.actionMode, tt.version, tt.actionTag)
+			if ref != tt.expectedRef {
+				t.Errorf("%s: expected %q, got %q", tt.description, tt.expectedRef, ref)
+			}
+		})
+	}
+}

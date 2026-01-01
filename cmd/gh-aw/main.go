@@ -197,6 +197,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		actionMode, _ := cmd.Flags().GetString("action-mode")
+		actionTag, _ := cmd.Flags().GetString("action-tag")
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
 		dir, _ := cmd.Flags().GetString("dir")
@@ -246,6 +247,7 @@ Examples:
 			Verbose:              verbose,
 			EngineOverride:       engineOverride,
 			ActionMode:           actionMode,
+			ActionTag:            actionTag,
 			Validate:             validate,
 			Watch:                watch,
 			WorkflowDir:          workflowDir,
@@ -454,6 +456,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	compileCmd.Flags().String("action-mode", "", "Action script inlining mode (inline, dev, release). Auto-detected if not specified")
+	compileCmd.Flags().String("action-tag", "", "Override action SHA or tag for actions/setup (overrides action-mode to release). Accepts full SHA or tag name")
 	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("dir", "", "Workflow directory (default: .github/workflows)")

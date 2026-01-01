@@ -27,6 +27,7 @@ type Compiler struct {
 	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
 	actionMode           ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
+	actionTag            string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
 	jobManager           *JobManager         // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry     // Registry of available agentic engines
 	fileTracker          FileTracker         // Optional file tracker for tracking created files
@@ -116,6 +117,16 @@ func (c *Compiler) SetActionMode(mode ActionMode) {
 // GetActionMode returns the current action mode
 func (c *Compiler) GetActionMode() ActionMode {
 	return c.actionMode
+}
+
+// SetActionTag sets the action tag override for actions/setup
+func (c *Compiler) SetActionTag(tag string) {
+	c.actionTag = tag
+}
+
+// GetActionTag returns the action tag override (empty if not set)
+func (c *Compiler) GetActionTag() string {
+	return c.actionTag
 }
 
 // GetVersion returns the version string used by the compiler
