@@ -7,7 +7,7 @@ sidebar:
 
 > [!WARNING]
 > **GitHub Agentic Workflows** is a *research demonstrator* in early development and may change significantly.
-> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
+> Using [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows that can make autonomous decisions) means giving AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems) the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
 ## Prerequisites
@@ -52,9 +52,9 @@ Before installing anything, it helps to understand the workflow lifecycle:
 ```
 
 **Why two files?**
-- **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML configuration. This is what you write and edit.
+- **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML [frontmatter](/gh-aw/reference/glossary/#frontmatter) (configuration at the top between `---` markers). This is what you write and edit.
 - **[`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
-- **Compilation**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
+- **[Compilation](/gh-aw/reference/glossary/#compilation)**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
 
 Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
 
@@ -88,11 +88,11 @@ Add a sample from the [agentics](https://github.com/githubnext/agentics) collect
 gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
+This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). Review and merge the PR into your repo.
 
 ### Step 3 — Add an AI secret
 
-Agentic workflows need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
+[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the [coding agent](/gh-aw/reference/glossary/#agent) (the AI system that executes your instructions).
 
 To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
 
@@ -166,7 +166,7 @@ Once complete, a new issue will be created in your repository with daily news! T
 ## Understanding Your First Workflow
 
 The daily team status workflow creates a status report every weekday and posts it as an issue. The workflow file has two parts:
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section) — The section between `---` markers that configures when the workflow runs and what it can do
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section between `---` markers) — Configures when the workflow runs and what it can do
 - **Markdown instructions** — Natural language task descriptions for the AI
 
 ```aw wrap
@@ -201,8 +201,8 @@ Create an upbeat daily status report for the team as a GitHub issue.
 ```
 
 **Key configuration elements:**
-- **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (GitHub API access)
-- **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (validated GitHub API operations) — Allows creating issues without giving the AI write permissions
+- **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (like GitHub API access)
+- **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (pre-approved GitHub operations) — Allows creating issues without giving the AI write permissions
 
 ## Customize Your Workflow
 

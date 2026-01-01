@@ -5,7 +5,7 @@ sidebar:
   order: 600
 ---
 
-GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (AI model/provider) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
+GitHub Agentic Workflows support multiple AI [engines](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 :::note[Experimental Engines]
 Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
@@ -13,7 +13,7 @@ Claude and Codex engines are available but marked as experimental. They are not 
 
 ### GitHub Copilot CLI
 
-GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) server support and is designed for conversational AI workflows.
+GitHub Copilot is the default and recommended AI [engine](/gh-aw/reference/glossary/#engine) (which AI model/provider to use) for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP, the standardized protocol for connecting AI agents to tools) server support and is designed for conversational AI workflows.
 
 ```yaml wrap
 engine: copilot
@@ -33,7 +33,7 @@ Configuration options: `model` (gpt-5 or claude-sonnet-4), `version` (CLI versio
 
 #### Required Secrets
 
-**`COPILOT_GITHUB_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission. **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions).
+**`COPILOT_GITHUB_TOKEN`**: GitHub [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) (PAT, a token that authenticates you to GitHub's APIs) with "Copilot Requests" permission. **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#modes-and-restrictions).
 
 #### Authenticating with a Personal Access Token (PAT)
 

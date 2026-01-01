@@ -5,11 +5,11 @@ sidebar:
   order: 2
 ---
 
-GitHub Agentic Workflows enable AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can make decisions) to perform complex, multi-step tasks automatically with your team. Built on [GitHub Actions](https://docs.github.com/en/actions), they use [**GitHub Copilot**](/gh-aw/reference/engines/#github-copilot-cli) (or experimental engines like Claude and Codex) to interpret natural language instructions and enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — systematic, automated application of AI to software collaboration.
+GitHub Agentic Workflows enable AI [agents](/gh-aw/reference/glossary/#agent) (autonomous AI systems that can make decisions) to perform complex, multi-step tasks automatically with your team. Built on [GitHub Actions](https://docs.github.com/en/actions), they use [**GitHub Copilot**](/gh-aw/reference/engines/#github-copilot-cli) (or experimental [engines](/gh-aw/reference/glossary/#engine), which are AI models/providers like Claude and Codex) to interpret natural language instructions and enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — systematic, automated application of AI to software collaboration.
 
 ## Workflow Structure
 
-Each workflow contains [frontmatter](/gh-aw/reference/glossary/#frontmatter) (YAML configuration section) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/), [permissions](/gh-aw/reference/permissions/), and [tools](/gh-aw/reference/tools/), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
+Each workflow contains [frontmatter](/gh-aw/reference/glossary/#frontmatter) (the YAML configuration section between `---` markers) and markdown instructions. The frontmatter defines [triggers](/gh-aw/reference/triggers/) (when the workflow runs), [permissions](/gh-aw/reference/permissions/) (what it can access), and [tools](/gh-aw/reference/tools/) (what capabilities the AI has), while the markdown contains natural language task descriptions. This declarative structure enables reliable, secure agentic programming by sandboxing AI capabilities and triggering at the right moments.
 
 ```aw warp
 ---
@@ -27,13 +27,13 @@ Workflows support **GitHub Copilot** (default), **Claude Code**, and **Codex**. 
 
 ## Tools and Model Context Protocol (MCP)
 
-Workflows use [tools](/gh-aw/reference/tools/) through the **[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol)** (MCP, a standard for AI tool integration) — a standardized protocol for connecting AI agents to external tools and services — for GitHub operations, external APIs, file operations, and custom integrations.
+Workflows use [tools](/gh-aw/reference/tools/) through the **[Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol)** (MCP, a standardized protocol for connecting AI agents to external tools and services) for GitHub operations, external APIs, file operations, and custom integrations.
 
 ## Agentic vs. Traditional Workflows
 
 **Traditional workflows** execute pre-programmed steps with fixed if/then logic. They do exactly what you tell them, every time, in the same way.
 
-**[Agentic workflows](/gh-aw/reference/glossary/#agentic)** use AI to understand context, make decisions, and generate content by interpreting natural language instructions flexibly. They combine deterministic GitHub Actions infrastructure with AI-driven decision-making, adapting their behavior based on the specific situation they encounter.
+**[Agentic workflows](/gh-aw/reference/glossary/#agentic)** (workflows that have agency—the ability to make autonomous decisions) use AI to understand context, make decisions, and generate content by interpreting natural language instructions flexibly. They combine deterministic GitHub Actions infrastructure with AI-driven decision-making, adapting their behavior based on the specific situation they encounter.
 
 ## Security Design
 
@@ -57,7 +57,7 @@ Workflows run with minimal permissions (no write access by default), use tool al
 
 ## Compilation
 
-Use `gh aw compile` to generate `.lock.yml` files (compiled GitHub Actions workflow files) from workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
+Use `gh aw compile` to generate [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) (compiled GitHub Actions workflow files) from workflow `.md` files. The `.md` file is the editable source of truth, while `.lock.yml` is the compiled GitHub Actions workflow with security hardening. Commit both files.
 
 ## Continuous AI Patterns
 
@@ -65,4 +65,4 @@ Enable [Continuous AI](https://githubnext.com/projects/continuous-ai) patterns l
 
 ## Best Practices
 
-Start simple and iterate with clear, specific instructions. Test workflows using `gh aw compile --watch` and `gh aw run`, monitor costs with `gh aw logs`, and review AI-generated content before merging. Use [`safe outputs`](/gh-aw/reference/safe-outputs/) (validated GitHub operations) for controlled creation of issues, comments, and PRs.
+Start simple and iterate with clear, specific instructions. Test workflows using `gh aw compile --watch` and `gh aw run`, monitor costs with `gh aw logs`, and review AI-generated content before merging. Use [`safe outputs`](/gh-aw/reference/safe-outputs/) (pre-approved GitHub operations) for controlled creation of issues, comments, and PRs.
