@@ -38,8 +38,8 @@ package workflow
 import (
 	"fmt"
 
-	"github.com/goccy/go-yaml"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var configHelpersLog = logger.New("workflow:config_helpers")
