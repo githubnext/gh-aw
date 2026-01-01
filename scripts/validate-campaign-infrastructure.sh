@@ -75,6 +75,7 @@ validate_campaign_orchestrators() {
     fi
     
     # Check scheduling
+    # Note: Asterisks are escaped (\*) to match literal asterisks in the cron pattern
     if grep -q 'cron: "0 18 \* \* \*"' ".github/workflows/docs-quality-maintenance-project67.campaign.g.lock.yml" 2>/dev/null; then
         check_pass "Project 67 orchestrator scheduled for 18:00 UTC daily"
     else
