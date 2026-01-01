@@ -29,6 +29,7 @@ type CompileConfig struct {
 	JSONOutput           bool     // Output validation results as JSON
 	RefreshStopTime      bool     // Force regeneration of stop-after times instead of preserving existing ones
 	ActionMode           string   // Action script inlining mode: inline, dev, or release
+	ActionTag            string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
 	Stats                bool     // Display statistics table sorted by file size
 }
 

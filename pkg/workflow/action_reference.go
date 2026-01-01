@@ -21,12 +21,13 @@ const (
 // Parameters:
 //   - actionMode: The action mode (dev or release)
 //   - version: The version string to use for release mode
+//   - actionTag: Optional override tag/SHA (takes precedence over version when in release mode)
 //
 // Returns:
 //   - For dev mode: "./actions/setup" (local path)
-//   - For release mode: "githubnext/gh-aw/actions/setup@<version>" (remote reference)
+//   - For release mode: "githubnext/gh-aw/actions/setup@<version>" or "@<actionTag>" (remote reference)
 //   - Falls back to local path if version is invalid in release mode
-func ResolveSetupActionReference(actionMode ActionMode, version string) string {
+func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string) string {
 	localPath := "./actions/setup"
 
 	// Dev mode - return local path
@@ -39,15 +40,21 @@ func ResolveSetupActionReference(actionMode ActionMode, version string) string {
 	if actionMode == ActionModeRelease {
 		actionPath := strings.TrimPrefix(localPath, "./")
 
-		// Check if version is valid for release mode
-		if version == "" || version == "dev" {
+		// Use actionTag if provided, otherwise fall back to version
+		tag := actionTag
+		if tag == "" {
+			tag = version
+		}
+
+		// Check if tag is valid for release mode
+		if tag == "" || tag == "dev" {
 			actionRefLog.Print("WARNING: No release tag available in binary version (version is 'dev' or empty), falling back to local path")
 			return localPath
 		}
 
 		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
 		// The SHA will be resolved later by action pinning infrastructure
-		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, version)
+		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, tag)
 		actionRefLog.Printf("Release mode: using remote action reference: %s (SHA will be resolved via action pins)", remoteRef)
 		return remoteRef
 	}
@@ -74,9 +81,15 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 		}
 	}
 
-	// For ./actions/setup without action-tag override, use the shared helper
-	if localActionPath == "./actions/setup" && !hasActionTag {
-		return ResolveSetupActionReference(c.actionMode, c.version)
+	// For ./actions/setup, check for compiler-level actionTag override first
+	if localActionPath == "./actions/setup" {
+		// Use compiler actionTag if available, otherwise check features
+		if c.actionTag != "" {
+			return ResolveSetupActionReference(c.actionMode, c.version, c.actionTag)
+		}
+		if !hasActionTag {
+			return ResolveSetupActionReference(c.actionMode, c.version, "")
+		}
 	}
 
 	// Use release mode if either actionMode is release OR action-tag is specified
@@ -109,14 +122,24 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 // convertToRemoteActionRef converts a local action path to a tag-based remote reference
 // that will be resolved to a SHA later in the release pipeline using action pins.
 // Uses the action-tag from WorkflowData.Features if specified (for testing), otherwise uses the version stored in the compiler binary.
+// If compiler has actionTag set, it takes priority over both.
 // Example: "./actions/create-issue" -> "githubnext/gh-aw/actions/create-issue@v1.0.0"
 func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData) string {
 	// Strip the leading "./" if present
 	actionPath := strings.TrimPrefix(localPath, "./")
 
-	// Use action-tag from WorkflowData.Features if specified, otherwise fall back to compiler version
+	// Priority order for tag selection:
+	// 1. Compiler actionTag (from --action-tag flag)
+	// 2. WorkflowData.Features["action-tag"] (from frontmatter)
+	// 3. Compiler version
 	var tag string
-	if data != nil && data.Features != nil {
+	
+	// Check compiler actionTag first (highest priority)
+	if c.actionTag != "" {
+		tag = c.actionTag
+		actionRefLog.Printf("Using action-tag from compiler: %s", tag)
+	} else if data != nil && data.Features != nil {
+		// Check WorkflowData.Features for action-tag
 		if actionTagVal, exists := data.Features["action-tag"]; exists {
 			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
 				tag = actionTagStr
@@ -125,6 +148,7 @@ func (c *Compiler) convertToRemoteActionRef(localPath string, data *WorkflowData
 		}
 	}
 
+	// Fall back to compiler version if no tag specified
 	if tag == "" {
 		tag = c.version
 		if tag == "" || tag == "dev" {

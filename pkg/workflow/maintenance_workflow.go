@@ -117,7 +117,7 @@ jobs:
 `)
 
 	// Get the setup action reference (local or remote based on mode)
-	setupActionRef := ResolveSetupActionReference(actionMode, version)
+	setupActionRef := ResolveSetupActionReference(actionMode, version, "")
 
 	// Add checkout step only in dev mode (for local action paths)
 	if actionMode == ActionModeDev {

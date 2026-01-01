@@ -49,7 +49,7 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	configureCompilerFlags(compiler, config)
 
 	// Set up action mode
-	setupActionMode(compiler, config.ActionMode)
+	setupActionMode(compiler, config.ActionMode, config.ActionTag)
 
 	// Set up repository context
 	setupRepositoryContext(compiler)
@@ -91,8 +91,17 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 }
 
 // setupActionMode configures the action script inlining mode
-func setupActionMode(compiler *workflow.Compiler, actionMode string) {
-	compileCompilerSetupLog.Printf("Setting up action mode: %s", actionMode)
+func setupActionMode(compiler *workflow.Compiler, actionMode string, actionTag string) {
+	compileCompilerSetupLog.Printf("Setting up action mode: %s, actionTag: %s", actionMode, actionTag)
+
+	// If actionTag is specified, override to release mode
+	if actionTag != "" {
+		compileCompilerSetupLog.Printf("--action-tag specified (%s), overriding to release mode", actionTag)
+		compiler.SetActionMode(workflow.ActionModeRelease)
+		compiler.SetActionTag(actionTag)
+		compileCompilerSetupLog.Printf("Action mode set to: release with tag/SHA: %s", actionTag)
+		return
+	}
 
 	if actionMode != "" {
 		mode := workflow.ActionMode(actionMode)
