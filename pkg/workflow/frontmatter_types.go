@@ -9,6 +9,46 @@ import (
 
 var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 
+// RuntimeConfig represents the configuration for a single runtime
+type RuntimeConfig struct {
+	Version string `json:"version,omitempty"` // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
+}
+
+// RuntimesConfig represents the configuration for all runtime environments
+// This provides type-safe access to runtime version overrides
+type RuntimesConfig struct {
+	Node   *RuntimeConfig `json:"node,omitempty"`   // Node.js runtime
+	Python *RuntimeConfig `json:"python,omitempty"` // Python runtime
+	Go     *RuntimeConfig `json:"go,omitempty"`     // Go runtime
+	UV     *RuntimeConfig `json:"uv,omitempty"`     // uv package installer
+	Bun    *RuntimeConfig `json:"bun,omitempty"`    // Bun runtime
+	Deno   *RuntimeConfig `json:"deno,omitempty"`   // Deno runtime
+}
+
+// PermissionsConfig represents GitHub Actions permissions configuration
+// Supports both shorthand (read-all, write-all) and detailed scope-based permissions
+type PermissionsConfig struct {
+	// Shorthand permission (read-all, write-all, read, write, none)
+	Shorthand string `json:"-"` // Not in JSON, set when parsing shorthand format
+
+	// Detailed permissions by scope
+	Actions              string `json:"actions,omitempty"`
+	Checks               string `json:"checks,omitempty"`
+	Contents             string `json:"contents,omitempty"`
+	Deployments          string `json:"deployments,omitempty"`
+	IDToken              string `json:"id-token,omitempty"`
+	Issues               string `json:"issues,omitempty"`
+	Discussions          string `json:"discussions,omitempty"`
+	Packages             string `json:"packages,omitempty"`
+	Pages                string `json:"pages,omitempty"`
+	PullRequests         string `json:"pull-requests,omitempty"`
+	RepositoryProjects   string `json:"repository-projects,omitempty"`
+	SecurityEvents       string `json:"security-events,omitempty"`
+	Statuses             string `json:"statuses,omitempty"`
+	OrganizationProjects string `json:"organization-projects,omitempty"`
+	OrganizationPackages string `json:"organization-packages,omitempty"`
+}
+
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
 // This provides compile-time type safety and clearer error messages compared to map[string]any
 type FrontmatterConfig struct {
@@ -23,17 +63,19 @@ type FrontmatterConfig struct {
 	Strict         *bool  `json:"strict,omitempty"` // Pointer to distinguish unset from false
 
 	// Configuration sections - using strongly-typed structs
-	Tools       *ToolsConfig       `json:"tools,omitempty"`
-	MCPServers  map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
-	Runtimes    map[string]any     `json:"runtimes,omitempty"`
-	Jobs        map[string]any     `json:"jobs,omitempty"` // Custom workflow jobs
-	SafeOutputs *SafeOutputsConfig `json:"safe-outputs,omitempty"`
-	SafeJobs    map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
-	SafeInputs  *SafeInputsConfig  `json:"safe-inputs,omitempty"`
+	Tools            *ToolsConfig       `json:"tools,omitempty"`
+	MCPServers       map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
+	RuntimesTyped    *RuntimesConfig    `json:"-"`                     // New typed field (not in JSON to avoid conflict)
+	Runtimes         map[string]any     `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
+	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
+	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
+	SafeJobs         map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
+	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
+	PermissionsTyped *PermissionsConfig `json:"-"` // New typed field (not in JSON to avoid conflict)
 
 	// Event and trigger configuration
-	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants
-	Permissions map[string]any `json:"permissions,omitempty"` // Can be string or map
+	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)
+	Permissions map[string]any `json:"permissions,omitempty"` // Deprecated: use PermissionsTyped (can be string or map)
 	Concurrency map[string]any `json:"concurrency,omitempty"`
 	If          string         `json:"if,omitempty"`
 
@@ -131,8 +173,167 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		return nil, fmt.Errorf("failed to unmarshal frontmatter into config: %w", err)
 	}
 
+	// Parse typed Runtimes field if runtimes exist
+	if len(config.Runtimes) > 0 {
+		runtimesTyped, err := parseRuntimesConfig(config.Runtimes)
+		if err == nil {
+			config.RuntimesTyped = runtimesTyped
+			frontmatterTypesLog.Printf("Parsed typed runtimes config with %d runtimes", countRuntimes(runtimesTyped))
+		}
+	}
+
+	// Parse typed Permissions field if permissions exist
+	if len(config.Permissions) > 0 {
+		permissionsTyped, err := parsePermissionsConfig(config.Permissions)
+		if err == nil {
+			config.PermissionsTyped = permissionsTyped
+			frontmatterTypesLog.Print("Parsed typed permissions config")
+		}
+	}
+
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%s", config.Name, config.Engine)
 	return &config, nil
+}
+
+// parseRuntimesConfig converts a map[string]any to RuntimesConfig
+func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
+	config := &RuntimesConfig{}
+
+	for runtimeID, configAny := range runtimes {
+		configMap, ok := configAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		versionAny, hasVersion := configMap["version"]
+		if !hasVersion {
+			continue
+		}
+
+		// Convert version to string
+		var version string
+		switch v := versionAny.(type) {
+		case string:
+			version = v
+		case int:
+			version = fmt.Sprintf("%d", v)
+		case float64:
+			if v == float64(int(v)) {
+				version = fmt.Sprintf("%d", int(v))
+			} else {
+				version = fmt.Sprintf("%g", v)
+			}
+		default:
+			continue
+		}
+
+		runtimeConfig := &RuntimeConfig{Version: version}
+
+		// Map to specific runtime field
+		switch runtimeID {
+		case "node":
+			config.Node = runtimeConfig
+		case "python":
+			config.Python = runtimeConfig
+		case "go":
+			config.Go = runtimeConfig
+		case "uv":
+			config.UV = runtimeConfig
+		case "bun":
+			config.Bun = runtimeConfig
+		case "deno":
+			config.Deno = runtimeConfig
+		}
+	}
+
+	return config, nil
+}
+
+// parsePermissionsConfig converts a map[string]any to PermissionsConfig
+func parsePermissionsConfig(permissions map[string]any) (*PermissionsConfig, error) {
+	config := &PermissionsConfig{}
+
+	// Check if it's a shorthand permission (single string value)
+	if len(permissions) == 1 {
+		for key, value := range permissions {
+			if strValue, ok := value.(string); ok {
+				shorthandPerms := []string{"read-all", "write-all", "read", "write", "none"}
+				for _, shorthand := range shorthandPerms {
+					if key == shorthand || strValue == shorthand {
+						config.Shorthand = shorthand
+						return config, nil
+					}
+				}
+			}
+		}
+	}
+
+	// Parse detailed permissions
+	for scope, level := range permissions {
+		if levelStr, ok := level.(string); ok {
+			switch scope {
+			case "actions":
+				config.Actions = levelStr
+			case "checks":
+				config.Checks = levelStr
+			case "contents":
+				config.Contents = levelStr
+			case "deployments":
+				config.Deployments = levelStr
+			case "id-token":
+				config.IDToken = levelStr
+			case "issues":
+				config.Issues = levelStr
+			case "discussions":
+				config.Discussions = levelStr
+			case "packages":
+				config.Packages = levelStr
+			case "pages":
+				config.Pages = levelStr
+			case "pull-requests":
+				config.PullRequests = levelStr
+			case "repository-projects":
+				config.RepositoryProjects = levelStr
+			case "security-events":
+				config.SecurityEvents = levelStr
+			case "statuses":
+				config.Statuses = levelStr
+			case "organization-projects":
+				config.OrganizationProjects = levelStr
+			case "organization-packages":
+				config.OrganizationPackages = levelStr
+			}
+		}
+	}
+
+	return config, nil
+}
+
+// countRuntimes counts the number of non-nil runtimes in RuntimesConfig
+func countRuntimes(config *RuntimesConfig) int {
+	if config == nil {
+		return 0
+	}
+	count := 0
+	if config.Node != nil {
+		count++
+	}
+	if config.Python != nil {
+		count++
+	}
+	if config.Go != nil {
+		count++
+	}
+	if config.UV != nil {
+		count++
+	}
+	if config.Bun != nil {
+		count++
+	}
+	if config.Deno != nil {
+		count++
+	}
+	return count
 }
 
 // ExtractMapField is a convenience wrapper for extracting map[string]any fields
@@ -221,7 +422,10 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.MCPServers != nil {
 		result["mcp-servers"] = fc.MCPServers
 	}
-	if fc.Runtimes != nil {
+	// Prefer RuntimesTyped over Runtimes for conversion
+	if fc.RuntimesTyped != nil {
+		result["runtimes"] = runtimesConfigToMap(fc.RuntimesTyped)
+	} else if fc.Runtimes != nil {
 		result["runtimes"] = fc.Runtimes
 	}
 	if fc.Jobs != nil {
@@ -243,7 +447,10 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.On != nil {
 		result["on"] = fc.On
 	}
-	if fc.Permissions != nil {
+	// Prefer PermissionsTyped over Permissions for conversion
+	if fc.PermissionsTyped != nil {
+		result["permissions"] = permissionsConfigToMap(fc.PermissionsTyped)
+	} else if fc.Permissions != nil {
 		result["permissions"] = fc.Permissions
 	}
 	if fc.Concurrency != nil {
@@ -338,6 +545,106 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 	if fc.Bots != nil {
 		result["bots"] = fc.Bots
+	}
+
+	return result
+}
+
+// runtimesConfigToMap converts RuntimesConfig back to map[string]any
+func runtimesConfigToMap(config *RuntimesConfig) map[string]any {
+	if config == nil {
+		return nil
+	}
+
+	result := make(map[string]any)
+
+	if config.Node != nil {
+		result["node"] = map[string]any{"version": config.Node.Version}
+	}
+	if config.Python != nil {
+		result["python"] = map[string]any{"version": config.Python.Version}
+	}
+	if config.Go != nil {
+		result["go"] = map[string]any{"version": config.Go.Version}
+	}
+	if config.UV != nil {
+		result["uv"] = map[string]any{"version": config.UV.Version}
+	}
+	if config.Bun != nil {
+		result["bun"] = map[string]any{"version": config.Bun.Version}
+	}
+	if config.Deno != nil {
+		result["deno"] = map[string]any{"version": config.Deno.Version}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+
+	return result
+}
+
+// permissionsConfigToMap converts PermissionsConfig back to map[string]any
+func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
+	if config == nil {
+		return nil
+	}
+
+	// If shorthand is set, return it directly
+	if config.Shorthand != "" {
+		return map[string]any{config.Shorthand: config.Shorthand}
+	}
+
+	result := make(map[string]any)
+
+	if config.Actions != "" {
+		result["actions"] = config.Actions
+	}
+	if config.Checks != "" {
+		result["checks"] = config.Checks
+	}
+	if config.Contents != "" {
+		result["contents"] = config.Contents
+	}
+	if config.Deployments != "" {
+		result["deployments"] = config.Deployments
+	}
+	if config.IDToken != "" {
+		result["id-token"] = config.IDToken
+	}
+	if config.Issues != "" {
+		result["issues"] = config.Issues
+	}
+	if config.Discussions != "" {
+		result["discussions"] = config.Discussions
+	}
+	if config.Packages != "" {
+		result["packages"] = config.Packages
+	}
+	if config.Pages != "" {
+		result["pages"] = config.Pages
+	}
+	if config.PullRequests != "" {
+		result["pull-requests"] = config.PullRequests
+	}
+	if config.RepositoryProjects != "" {
+		result["repository-projects"] = config.RepositoryProjects
+	}
+	if config.SecurityEvents != "" {
+		result["security-events"] = config.SecurityEvents
+	}
+	if config.Statuses != "" {
+		result["statuses"] = config.Statuses
+	}
+	if config.OrganizationProjects != "" {
+		result["organization-projects"] = config.OrganizationProjects
+	}
+	if config.OrganizationPackages != "" {
+		result["organization-packages"] = config.OrganizationPackages
+	}
+
+	if len(result) == 0 {
+		return nil
 	}
 
 	return result

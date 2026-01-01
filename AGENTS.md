@@ -375,6 +375,72 @@ func ValidatePermissions(permissions *Permissions, githubTool any)
 
 **See**: <a>specs/go-type-patterns.md</a> for detailed guidance and examples
 
+### Frontmatter Configuration Types
+
+The `FrontmatterConfig` struct in `pkg/workflow/frontmatter_types.go` is gradually migrating from `map[string]any` to strongly-typed fields:
+
+**Typed Configuration Fields:**
+- `Tools *ToolsConfig` - Tool and MCP server configurations
+- `Network *NetworkPermissions` - Network access permissions
+- `SafeOutputs *SafeOutputsConfig` - Safe output configurations
+- `SafeInputs *SafeInputsConfig` - Safe input configurations
+- `Sandbox *SandboxConfig` - Sandbox environment configuration
+- `RuntimesTyped *RuntimesConfig` - Runtime version overrides (node, python, go, uv, bun, deno)
+- `PermissionsTyped *PermissionsConfig` - GitHub Actions permissions (shorthand + detailed)
+
+**Legacy Map Fields (Deprecated but still supported):**
+- `MCPServers map[string]any` - Use `Tools` instead
+- `Runtimes map[string]any` - Use `RuntimesTyped` instead
+- `Permissions map[string]any` - Use `PermissionsTyped` instead
+- `Jobs map[string]any` - Too dynamic to type (GitHub Actions job format)
+- `On map[string]any` - Too complex to type (many trigger variants)
+- `Features map[string]any` - Intentionally dynamic for feature flags
+
+**Example: Using Typed Runtimes**
+```go
+// Parsing frontmatter with runtimes
+frontmatter := map[string]any{
+    "runtimes": map[string]any{
+        "node": map[string]any{"version": "20"},
+        "python": map[string]any{"version": "3.11"},
+    },
+}
+config, _ := ParseFrontmatterConfig(frontmatter)
+
+// Access typed fields (no type assertions needed)
+if config.RuntimesTyped != nil && config.RuntimesTyped.Node != nil {
+    version := config.RuntimesTyped.Node.Version // Direct access
+}
+
+// Legacy field still works
+if nodeRuntime, ok := config.Runtimes["node"].(map[string]any); ok {
+    version := nodeRuntime["version"] // Requires type assertion
+}
+```
+
+**Example: Using Typed Permissions**
+```go
+frontmatter := map[string]any{
+    "permissions": map[string]any{
+        "contents": "read",
+        "issues": "write",
+    },
+}
+config, _ := ParseFrontmatterConfig(frontmatter)
+
+// Access typed fields
+if config.PermissionsTyped != nil {
+    contents := config.PermissionsTyped.Contents // "read"
+    issues := config.PermissionsTyped.Issues     // "write"
+}
+```
+
+**Backward Compatibility:**
+- Both typed and legacy fields are populated during parsing
+- `ToMap()` prefers typed fields when converting back to map[string]any
+- Existing code using legacy fields continues to work
+- New code should prefer typed fields for compile-time safety
+
 ### GitHub Actions Integration  
 For JavaScript files in `pkg/workflow/js/*.cjs`:
 - Use `core.info`, `core.warning`, `core.error` (not console.log)
