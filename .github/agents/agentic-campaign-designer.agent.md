@@ -140,16 +140,16 @@ Should allow creating issues and PRs
 
 **Important: Retrieve the Project Board URL from Issue Assignments**
 
-The user adds the issue to a GitHub Project board via the UI after creating the issue. You must query this assignment using GitHub CLI:
+The user adds the issue to a GitHub Project board via the UI after creating the issue. You must query this assignment using GitHub CLI (replace `ISSUE_NUMBER` with the actual issue number from `github.event.issue.number`):
 
 ```bash
-gh issue view <issue_number> --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
+gh issue view ISSUE_NUMBER --json projectItems --jq '.projectItems.nodes[0]?.project?.url // empty'
 ```
 
 Alternatively, use the github-issue-query skill (from the repository root):
 
 ```bash
-./skills/github-issue-query/query-issues.sh --jq '.[] | select(.number == <issue_number>) | .projectItems.nodes[0]?.project?.url // empty'
+./skills/github-issue-query/query-issues.sh --jq '.[] | select(.number == ISSUE_NUMBER) | .projectItems.nodes[0]?.project?.url // empty'
 ```
 
 **If no project is assigned:**
