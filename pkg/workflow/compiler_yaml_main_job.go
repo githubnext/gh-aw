@@ -128,7 +128,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	engine, err := c.getAgenticEngine(data.AI)
 
 	if err != nil {
-		return
+		return err
 	}
 
 	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)

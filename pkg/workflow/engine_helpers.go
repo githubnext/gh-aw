@@ -67,7 +67,6 @@ type EngineInstallConfig struct {
 // Parameters:
 //   - config: Engine-specific configuration for installation
 //   - workflowData: The workflow data containing engine configuration
-//
 // Returns:
 //   - []GitHubActionStep: The base installation steps (secret validation + npm install)
 func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *WorkflowData) []GitHubActionStep {
