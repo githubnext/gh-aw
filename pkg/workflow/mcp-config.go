@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/types"
 )
 
 var mcpLog = logger.New("workflow:mcp-config")
@@ -779,9 +780,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
-		Name:    toolName,
-		Env:     make(map[string]string),
-		Headers: make(map[string]string),
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Env:     make(map[string]string),
+			Headers: make(map[string]string),
+		},
+		Name: toolName,
 	}
 
 	// Validate known properties - fail if unknown properties are found

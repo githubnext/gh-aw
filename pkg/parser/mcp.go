@@ -9,6 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/githubnext/gh-aw/pkg/types"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -78,21 +79,16 @@ func EnsureLocalhostDomains(domains []string) []string {
 	return result
 }
 
-// MCPServerConfig represents a parsed MCP server configuration
+// MCPServerConfig represents a parsed MCP server configuration.
+// It embeds BaseMCPServerConfig for common fields and adds parser-specific fields.
 type MCPServerConfig struct {
-	Name           string            `json:"name"`
-	Type           string            `json:"type"`           // stdio, http, docker
-	Registry       string            `json:"registry"`       // URI to installation location from registry
-	Command        string            `json:"command"`        // for stdio
-	Args           []string          `json:"args"`           // for stdio
-	Container      string            `json:"container"`      // for docker
-	Version        string            `json:"version"`        // optional version/tag for container
-	EntrypointArgs []string          `json:"entrypointArgs"` // arguments to add after container image
-	URL            string            `json:"url"`            // for http
-	Headers        map[string]string `json:"headers"`        // for http
-	Env            map[string]string `json:"env"`            // environment variables
-	ProxyArgs      []string          `json:"proxy-args"`     // custom proxy arguments for container-based tools
-	Allowed        []string          `json:"allowed"`        // allowed tools
+	types.BaseMCPServerConfig
+
+	// Parser-specific fields
+	Name      string   `json:"name"`       // Server name/identifier
+	Registry  string   `json:"registry"`   // URI to installation location from registry
+	ProxyArgs []string `json:"proxy-args"` // custom proxy arguments for container-based tools
+	Allowed   []string `json:"allowed"`    // allowed tools
 }
 
 // MCPServerInfo contains the inspection results for an MCP server
@@ -116,11 +112,13 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		// Apply server filter if specified
 		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "stdio",
+					Command: "node",
+					Env:     make(map[string]string),
+				},
 				Name: constants.SafeOutputsMCPServerID,
-				Type: "stdio",
 				// Command and args will be set up dynamically when the server is started
-				Command: "node",
-				Env:     make(map[string]string),
 			}
 
 			// Parse safe-outputs configuration to determine enabled tools
@@ -173,10 +171,12 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 			if config == nil {
 				newConfig := MCPServerConfig{
-					Name:    constants.SafeOutputsMCPServerID,
-					Type:    "stdio",
-					Command: "node",
-					Env:     make(map[string]string),
+					BaseMCPServerConfig: types.BaseMCPServerConfig{
+						Type:    "stdio",
+						Command: "node",
+						Env:     make(map[string]string),
+					},
+					Name: constants.SafeOutputsMCPServerID,
 				}
 				configs = append(configs, newConfig)
 				config = &configs[len(configs)-1]
@@ -310,11 +310,13 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		if useRemote {
 			// Handle GitHub MCP server in remote mode (hosted)
 			config = MCPServerConfig{
-				Name:    "github",
-				Type:    "http",
-				URL:     "https://api.githubcopilot.com/mcp/",
-				Headers: make(map[string]string),
-				Env:     make(map[string]string),
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "http",
+					URL:     "https://api.githubcopilot.com/mcp/",
+					Headers: make(map[string]string),
+					Env:     make(map[string]string),
+				},
+				Name: "github",
 			}
 
 			// Store custom token for later use in workflow generation
@@ -329,14 +331,16 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		} else {
 			// Handle GitHub MCP server - use local/Docker by default
 			config = MCPServerConfig{
-				Name:    "github",
-				Type:    "docker", // GitHub defaults to Docker (local containerized)
-				Command: "docker",
-				Args: []string{
-					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-					"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "docker", // GitHub defaults to Docker (local containerized)
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:" + string(constants.DefaultGitHubMCPServerVersion),
+					},
+					Env: make(map[string]string),
 				},
-				Env: make(map[string]string),
+				Name: "github",
 			}
 
 			// Try to get GitHub token, but don't fail if it's not available
@@ -404,15 +408,17 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	} else if toolName == "playwright" {
 		// Handle Playwright MCP server - always use Docker by default
 		config := MCPServerConfig{
-			Name:    "playwright",
-			Type:    "docker", // Playwright defaults to Docker (containerized)
-			Command: "docker",
-			Args: []string{
-				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-				"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-				"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type:    "docker", // Playwright defaults to Docker (containerized)
+				Command: "docker",
+				Args: []string{
+					"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
+					"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
+					"mcr.microsoft.com/playwright:" + string(constants.DefaultPlaywrightBrowserVersion),
+				},
+				Env: make(map[string]string),
 			},
-			Env: make(map[string]string),
+			Name: "playwright",
 		}
 
 		// Set default allowed domains to localhost with all port variations (matches implementation)
@@ -483,16 +489,18 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	} else if toolName == "serena" {
 		// Handle Serena MCP server - uses uvx to install and run from GitHub
 		config := MCPServerConfig{
-			Name:    "serena",
-			Type:    "stdio",
-			Command: "uvx",
-			Args: []string{
-				"--from", "git+https://github.com/oraios/serena",
-				"serena", "start-mcp-server",
-				"--context", "codex",
-				"--project", "${GITHUB_WORKSPACE}",
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type:    "stdio",
+				Command: "uvx",
+				Args: []string{
+					"--from", "git+https://github.com/oraios/serena",
+					"serena", "start-mcp-server",
+					"--context", "codex",
+					"--project", "${GITHUB_WORKSPACE}",
+				},
+				Env: make(map[string]string),
 			},
-			Env: make(map[string]string),
+			Name: "serena",
 		}
 
 		// Check for custom Serena configuration
@@ -540,9 +548,11 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
 	mcpLog.Printf("Parsing MCP configuration for tool: %s", toolName)
 	config := MCPServerConfig{
-		Name:    toolName,
-		Env:     make(map[string]string),
-		Headers: make(map[string]string),
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Env:     make(map[string]string),
+			Headers: make(map[string]string),
+		},
+		Name: toolName,
 	}
 
 	// Parse allowed tools

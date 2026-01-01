@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/types"
 )
 
 func TestNewTools(t *testing.T) {
@@ -731,13 +733,15 @@ func TestParseMCPServerConfig(t *testing.T) {
 func TestMCPServerConfigToMap(t *testing.T) {
 	t.Run("converts MCPServerConfig to map", func(t *testing.T) {
 		config := MCPServerConfig{
-			Command: "node",
-			Args:    []string{"server.js"},
-			Env: map[string]string{
-				"NODE_ENV": "production",
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Command: "node",
+				Args:    []string{"server.js"},
+				Env: map[string]string{
+					"NODE_ENV": "production",
+				},
+				Version: "1.0.0",
 			},
 			Mode:     "stdio",
-			Version:  "1.0.0",
 			Toolsets: []string{"default"},
 		}
 
@@ -761,10 +765,12 @@ func TestMCPServerConfigToMap(t *testing.T) {
 
 	t.Run("includes HTTP fields when set", func(t *testing.T) {
 		config := MCPServerConfig{
-			Type: "http",
-			URL:  "http://localhost:8080",
-			Headers: map[string]string{
-				"Authorization": "Bearer token",
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Type: "http",
+				URL:  "http://localhost:8080",
+				Headers: map[string]string{
+					"Authorization": "Bearer token",
+				},
 			},
 		}
 
@@ -786,7 +792,9 @@ func TestMCPServerConfigToMap(t *testing.T) {
 
 	t.Run("includes custom fields", func(t *testing.T) {
 		config := MCPServerConfig{
-			Command: "node",
+			BaseMCPServerConfig: types.BaseMCPServerConfig{
+				Command: "node",
+			},
 			CustomFields: map[string]any{
 				"customField": "customValue",
 			},

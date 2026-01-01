@@ -1,5 +1,9 @@
 package workflow
 
+import (
+	"github.com/githubnext/gh-aw/pkg/types"
+)
+
 // ToolsConfig represents the unified configuration for all tools in a workflow.
 // This type provides a structured alternative to the pervasive map[string]any pattern.
 // It includes strongly-typed fields for built-in tools and a flexible Custom map for
@@ -282,25 +286,15 @@ type CacheMemoryToolConfig struct {
 }
 
 // MCPServerConfig represents the configuration for a custom MCP server.
+// It embeds BaseMCPServerConfig for common fields and adds workflow-specific fields.
 // This provides partial type safety for common MCP configuration fields
 // while maintaining flexibility for truly dynamic configurations.
 type MCPServerConfig struct {
-	// Common MCP server fields
-	Command  string            `yaml:"command,omitempty"`  // Command to execute (for stdio mode)
-	Args     []string          `yaml:"args,omitempty"`     // Arguments for the command
-	Env      map[string]string `yaml:"env,omitempty"`      // Environment variables
-	Mode     string            `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
-	Type     string            `yaml:"type,omitempty"`     // MCP server type (stdio, http, remote, local)
-	Version  string            `yaml:"version,omitempty"`  // Version of the MCP server
-	Toolsets []string          `yaml:"toolsets,omitempty"` // Toolsets to enable
+	types.BaseMCPServerConfig
 
-	// HTTP-specific fields
-	URL     string            `yaml:"url,omitempty"`     // URL for HTTP mode MCP servers
-	Headers map[string]string `yaml:"headers,omitempty"` // HTTP headers for HTTP mode
-
-	// Container-specific fields
-	Container      string   `yaml:"container,omitempty"`      // Container image for the MCP server
-	EntrypointArgs []string `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
+	// Workflow-specific fields
+	Mode     string   `yaml:"mode,omitempty"`     // MCP server mode (stdio, http, remote, local)
+	Toolsets []string `yaml:"toolsets,omitempty"` // Toolsets to enable
 
 	// For truly dynamic configuration (server-specific fields not covered above)
 	CustomFields map[string]any `yaml:",inline"`
