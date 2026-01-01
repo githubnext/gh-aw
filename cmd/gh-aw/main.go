@@ -541,7 +541,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.GroupID = "development"
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
-	mcpServerCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
 
 	// Execution Commands
@@ -556,6 +555,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	campaignCmd.GroupID = "analysis"
 
 	// Utilities
+	mcpServerCmd.GroupID = "utilities"
 	prCmd.GroupID = "utilities"
 
 	// version command is intentionally left without a group (common practice)
