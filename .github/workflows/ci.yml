@@ -255,7 +255,7 @@ jobs:
 
       - name: Test update command (dry-run)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Testing update command to ensure it runs without issues..."
           # Run update with verbose flag to check for updates without making changes
@@ -309,7 +309,7 @@ jobs:
       - name: Rebuild lock files
         run: make recompile
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
   js:
     runs-on: ubuntu-latest
     permissions:
@@ -776,4 +776,4 @@ jobs:
             exit 1
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}

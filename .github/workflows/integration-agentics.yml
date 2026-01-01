@@ -44,7 +44,7 @@ jobs:
 
       - name: Install workflows from agentics repository
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Installing workflows from githubnext/agentics..."
           ./gh-aw add githubnext/agentics/weekly-research
@@ -70,6 +70,8 @@ jobs:
           ./gh-aw mcp inspect --help
 
       - name: Recompile all workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Recompiling all installed workflows..."
           make recompile
