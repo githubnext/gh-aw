@@ -45,10 +45,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("no frontmatter found")
 	}
 
-	if result.Markdown == "" {
-		return nil, fmt.Errorf("no markdown content found")
-	}
-
 	// Preprocess schedule fields to convert human-friendly format to cron expressions
 	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
 		return nil, err
@@ -58,20 +54,31 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Keep the original frontmatter with markers for YAML generation
 	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
 
+	// Check if "on" field is missing - if so, treat as a shared/imported workflow
+	_, hasOnField := frontmatterForValidation["on"]
+	if !hasOnField {
+		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
+
+		// Validate as an included/shared workflow (uses included_file_schema)
+		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+			return nil, err
+		}
+
+		// Return a special error to signal that this is a shared workflow
+		// and compilation should be skipped with an info message
+		// Note: Markdown content is optional for shared workflows (they may be just config)
+		return nil, &SharedWorkflowError{
+			Path: cleanPath,
+		}
+	}
+
+	// For main workflows (with 'on' field), markdown content is required
+	if result.Markdown == "" {
+		return nil, fmt.Errorf("no markdown content found")
+	}
+
 	// Validate main workflow frontmatter contains only expected entries
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-		// Check if this is a shared workflow component (missing 'on' trigger)
-		// Provide a more helpful error message for this common case
-		if strings.Contains(err.Error(), "missing property 'on'") {
-			isSharedWorkflow := strings.Contains(cleanPath, "/shared/")
-
-			if isSharedWorkflow {
-				return nil, fmt.Errorf("%w\n\nℹ️  This appears to be a shared workflow component in the 'shared/' directory.\nShared workflows are reusable components meant to be imported by other workflows using the 'imports:' field.\nThey should not be compiled directly.\n\nTo use this shared workflow:\n1. Import it in another workflow with: imports: [%s]\n2. Compile the workflow that imports it instead", err, cleanPath)
-			}
-
-			// Not in shared/ directory but still missing 'on'
-			return nil, fmt.Errorf("%w\n\nℹ️  Main workflows require an 'on:' trigger to define when they should run\n\nExample:\n  on:\n    issues:\n      types: [opened]\n\nIf this is a reusable component, consider moving it to a 'shared/' directory and importing it in other workflows", err)
-		}
 		return nil, err
 	}
 
