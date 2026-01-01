@@ -28,6 +28,10 @@ run-*/
 *.swo
 *~
 
+# Merge artifacts - prevent accidental commit
+*.orig
+*.rej
+
 # OS generated files
 .DS_Store
 .DS_Store?
