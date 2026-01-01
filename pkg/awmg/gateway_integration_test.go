@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/types"
 )
 
 func TestMCPGateway_BasicStartup(t *testing.T) {
@@ -28,8 +29,10 @@ func TestMCPGateway_BasicStartup(t *testing.T) {
 	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"gh-aw": {
-				Command: binaryPath,
-				Args:    []string{"mcp-server"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: binaryPath,
+					Args:    []string{"mcp-server"},
+				},
 			},
 		},
 		Gateway: GatewaySettings{
