@@ -28,7 +28,8 @@ async function main(templateContent) {
       promptFileInfo = promptPath + " (" + stats.size + " bytes)";
       core.info("Prompt file found: " + promptFileInfo);
     } catch (error) {
-      core.warning("Failed to stat prompt file: " + error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning("Failed to stat prompt file: " + message);
     }
   } else {
     core.info("No prompt file found at: " + promptPath);
@@ -43,7 +44,8 @@ async function main(templateContent) {
       agentOutputFileInfo = agentOutputPath + " (" + stats.size + " bytes)";
       core.info("Agent output file found: " + agentOutputFileInfo);
     } catch (error) {
-      core.warning("Failed to stat agent output file: " + error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning("Failed to stat agent output file: " + message);
     }
   } else {
     core.info("No agent output file found at: " + agentOutputPath);
@@ -58,7 +60,8 @@ async function main(templateContent) {
       patchFileInfo = patchPath + " (" + stats.size + " bytes)";
       core.info("Patch file found: " + patchFileInfo);
     } catch (error) {
-      core.warning("Failed to stat patch file: " + error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning("Failed to stat patch file: " + message);
     }
   } else {
     core.info("No patch file found at: " + patchPath);
