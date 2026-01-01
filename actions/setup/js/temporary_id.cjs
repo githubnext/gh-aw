@@ -136,10 +136,13 @@ function resolveIssueNumber(value, temporaryIdMap) {
     return { resolved: null, wasTemporaryId: false, errorMessage: "Issue number is missing" };
   }
 
+  // Strip # prefix if present to allow flexible temporary ID format
+  const valueStr = String(value).trim();
+  const valueWithoutHash = valueStr.startsWith("#") ? valueStr.substring(1) : valueStr;
+
   // Check if it's a temporary ID
-  const valueStr = String(value);
-  if (isTemporaryId(valueStr)) {
-    const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueStr));
+  if (isTemporaryId(valueWithoutHash)) {
+    const resolvedPair = temporaryIdMap.get(normalizeTemporaryId(valueWithoutHash));
     if (resolvedPair !== undefined) {
       return { resolved: resolvedPair, wasTemporaryId: true, errorMessage: null };
     }
@@ -150,10 +153,19 @@ function resolveIssueNumber(value, temporaryIdMap) {
     };
   }
 
+  // Check if it looks like a malformed temporary ID
+  if (valueWithoutHash.startsWith("aw_")) {
+    return {
+      resolved: null,
+      wasTemporaryId: false,
+      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by exactly 12 hexadecimal characters (0-9, a-f). Example: 'aw_abc123def456'`,
+    };
+  }
+
   // It's a real issue number - use context repo as default
-  const issueNumber = typeof value === "number" ? value : parseInt(valueStr, 10);
+  const issueNumber = typeof value === "number" ? value : parseInt(valueWithoutHash, 10);
   if (isNaN(issueNumber) || issueNumber <= 0) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}` };
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_XXXXXXXXXXXX where X is a hex digit) or a numeric issue number.` };
   }
 
   const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
