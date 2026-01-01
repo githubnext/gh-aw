@@ -122,6 +122,32 @@
       "required": ["image"],
       "additionalProperties": false
     },
+    "snapshot": {
+      "$comment": "https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idsnapshot",
+      "description": "Specifies a custom image to generate for GitHub Actions workflows. This can be a simple image name string or a detailed mapping with version information.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "A simple image name string for the snapshot"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "image-name": {
+              "type": "string",
+              "description": "The name of the image to generate"
+            },
+            "version": {
+              "type": "string",
+              "description": "The version of the image",
+              "pattern": "^[a-zA-Z0-9._-]+$"
+            }
+          },
+          "required": ["image-name"],
+          "additionalProperties": false
+        }
+      ]
+    },
     "defaults": {
       "type": "object",
       "properties": {
@@ -805,6 +831,9 @@
               "$ref": "#/definitions/concurrency"
             }
           ]
+        },
+        "snapshot": {
+          "$ref": "#/definitions/snapshot"
         }
       },
       "required": ["runs-on"],

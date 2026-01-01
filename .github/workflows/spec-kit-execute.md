@@ -24,7 +24,25 @@ safe-outputs:
 
 tools:
   cache-memory: true
-  repo-memory: true
+  repo-memory:
+    - id: default
+      max-file-size: 102400  # 100KB per file
+      max-file-count: 50     # Reduced from 100 to prevent excessive files
+      file-glob:
+        # Allow common documentation and data files at root or in subdirectories
+        - "*.md"
+        - "*.json"
+        - "*.jsonl"
+        - "*.txt"
+        - "*.yaml"
+        - "*.yml"
+        # Allow subdirectories EXCEPT nested memory/* paths
+        - "reports/**"
+        - "status/**"
+        - "findings/**"
+        - "history/**"
+        # IMPORTANT: Do not add patterns like "memory/**" or "**" without additional filtering
+        # to prevent recursive nesting of memory/* directories
   github:
     mode: remote
     toolsets: [default]

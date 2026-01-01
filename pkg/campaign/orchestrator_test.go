@@ -99,6 +99,49 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	}
 }
 
+func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:          "test-campaign",
+		Name:        "Test Campaign",
+		Description: "A test campaign",
+		ProjectURL:  "https://github.com/orgs/test/projects/1",
+		Workflows: []string{
+			"daily-doc-updater",
+			"docs-noob-tester",
+			"daily-multi-device-docs-tester",
+		},
+		TrackerLabel: "campaign:test",
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	// Verify that the workflows are explicitly listed in the discovery instructions
+	if !strings.Contains(data.MarkdownContent, "Worker workflows:") {
+		t.Errorf("expected markdown to list worker workflows, got: %q", data.MarkdownContent)
+	}
+
+	// Verify each workflow is mentioned
+	for _, workflow := range spec.Workflows {
+		if !strings.Contains(data.MarkdownContent, workflow) {
+			t.Errorf("expected markdown to mention workflow %q, got: %q", workflow, data.MarkdownContent)
+		}
+	}
+
+	// Verify the worker discovery step is present
+	if !strings.Contains(data.MarkdownContent, "Query worker-created issues") {
+		t.Errorf("expected markdown to include worker discovery step, got: %q", data.MarkdownContent)
+	}
+
+	if !strings.Contains(data.MarkdownContent, "tracker-id:") {
+		t.Errorf("expected markdown to mention tracker-id search, got: %q", data.MarkdownContent)
+	}
+}
+
 func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",

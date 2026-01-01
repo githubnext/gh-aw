@@ -906,8 +906,9 @@ jobs:
           - **Persistence**: Files persist across workflow runs via git branch storage
           
           **Constraints:**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
+          - **Allowed Files**: Only files matching patterns: *.md, *.json, *.jsonl, *.txt, *.yaml, *.yml, reports/**, status/**, findings/**, history/**
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
+          - **Max File Count**: 50 files per commit
           
           Examples of what you can store:
           - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
@@ -1571,8 +1572,9 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}
           BRANCH_NAME: memory/default
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
+          MAX_FILE_SIZE: 102400
+          MAX_FILE_COUNT: 50
+          FILE_GLOB_FILTER: "*.md *.json *.jsonl *.txt *.yaml *.yml reports/** status/** findings/** history/**"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');

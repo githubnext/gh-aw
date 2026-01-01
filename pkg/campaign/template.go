@@ -48,6 +48,9 @@ type CampaignPromptData struct {
 
 	// MaxDiscoveryPagesPerRun caps how many pages may be fetched during discovery.
 	MaxDiscoveryPagesPerRun int
+
+	// Workflows is the list of worker workflow IDs associated with this campaign.
+	Workflows []string
 }
 
 // renderTemplate renders a template string with the given data.

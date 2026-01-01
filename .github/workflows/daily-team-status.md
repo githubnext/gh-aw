@@ -16,7 +16,7 @@ imports:
 - githubnext/agentics/workflows/shared/reporting.md@d3422bf940923ef1d43db5559652b8e1e71869f3
 safe-outputs:
   create-issue:
-    expires: 3d
+    expires: 1d
     title-prefix: "[team-status] "
 description: |
   This workflow created daily team status reporter creating upbeat activity summaries.
