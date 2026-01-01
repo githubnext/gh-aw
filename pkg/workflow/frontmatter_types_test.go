@@ -836,433 +836,433 @@ func TestFrontmatterConfigIntegration(t *testing.T) {
 
 // TestRuntimesConfigTyping tests the new typed RuntimesConfig field
 func TestRuntimesConfigTyping(t *testing.T) {
-t.Run("parses node runtime with string version", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"node": map[string]any{
-"version": "20",
-},
-},
-}
+	t.Run("parses node runtime with string version", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Check that RuntimesTyped is populated
-if config.RuntimesTyped == nil {
-t.Fatal("RuntimesTyped should not be nil")
-}
+		// Check that RuntimesTyped is populated
+		if config.RuntimesTyped == nil {
+			t.Fatal("RuntimesTyped should not be nil")
+		}
 
-if config.RuntimesTyped.Node == nil {
-t.Fatal("RuntimesTyped.Node should not be nil")
-}
+		if config.RuntimesTyped.Node == nil {
+			t.Fatal("RuntimesTyped.Node should not be nil")
+		}
 
-if config.RuntimesTyped.Node.Version != "20" {
-t.Errorf("Node version = %s, want 20", config.RuntimesTyped.Node.Version)
-}
+		if config.RuntimesTyped.Node.Version != "20" {
+			t.Errorf("Node version = %s, want 20", config.RuntimesTyped.Node.Version)
+		}
 
-// Legacy field should still be populated
-if config.Runtimes == nil {
-t.Error("Legacy Runtimes field should still be populated")
-}
-})
+		// Legacy field should still be populated
+		if config.Runtimes == nil {
+			t.Error("Legacy Runtimes field should still be populated")
+		}
+	})
 
-t.Run("parses python runtime with numeric version", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"python": map[string]any{
-"version": 3.11,
-},
-},
-}
+	t.Run("parses python runtime with numeric version", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"python": map[string]any{
+					"version": 3.11,
+				},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-if config.RuntimesTyped == nil {
-t.Fatal("RuntimesTyped should not be nil")
-}
+		if config.RuntimesTyped == nil {
+			t.Fatal("RuntimesTyped should not be nil")
+		}
 
-if config.RuntimesTyped.Python == nil {
-t.Fatal("RuntimesTyped.Python should not be nil")
-}
+		if config.RuntimesTyped.Python == nil {
+			t.Fatal("RuntimesTyped.Python should not be nil")
+		}
 
-if config.RuntimesTyped.Python.Version != "3.11" {
-t.Errorf("Python version = %s, want 3.11", config.RuntimesTyped.Python.Version)
-}
-})
+		if config.RuntimesTyped.Python.Version != "3.11" {
+			t.Errorf("Python version = %s, want 3.11", config.RuntimesTyped.Python.Version)
+		}
+	})
 
-t.Run("parses multiple runtimes", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"node": map[string]any{
-"version": "20",
-},
-"python": map[string]any{
-"version": "3.11",
-},
-"go": map[string]any{
-"version": "1.21",
-},
-},
-}
+	t.Run("parses multiple runtimes", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+				"python": map[string]any{
+					"version": "3.11",
+				},
+				"go": map[string]any{
+					"version": "1.21",
+				},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-if config.RuntimesTyped == nil {
-t.Fatal("RuntimesTyped should not be nil")
-}
+		if config.RuntimesTyped == nil {
+			t.Fatal("RuntimesTyped should not be nil")
+		}
 
-if config.RuntimesTyped.Node == nil {
-t.Error("Node runtime should be set")
-}
-if config.RuntimesTyped.Python == nil {
-t.Error("Python runtime should be set")
-}
-if config.RuntimesTyped.Go == nil {
-t.Error("Go runtime should be set")
-}
-})
+		if config.RuntimesTyped.Node == nil {
+			t.Error("Node runtime should be set")
+		}
+		if config.RuntimesTyped.Python == nil {
+			t.Error("Python runtime should be set")
+		}
+		if config.RuntimesTyped.Go == nil {
+			t.Error("Go runtime should be set")
+		}
+	})
 
-t.Run("converts RuntimesTyped back to map", func(t *testing.T) {
-frontmatter := map[string]any{
-"name": "test-workflow",
-"runtimes": map[string]any{
-"node": map[string]any{
-"version": "20",
-},
-},
-}
+	t.Run("converts RuntimesTyped back to map", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "test-workflow",
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Convert back to map
-reconstructed := config.ToMap()
+		// Convert back to map
+		reconstructed := config.ToMap()
 
-// Check that runtimes is preserved
-runtimes, ok := reconstructed["runtimes"].(map[string]any)
-if !ok {
-t.Fatal("runtimes should be in reconstructed map")
-}
+		// Check that runtimes is preserved
+		runtimes, ok := reconstructed["runtimes"].(map[string]any)
+		if !ok {
+			t.Fatal("runtimes should be in reconstructed map")
+		}
 
-node, ok := runtimes["node"].(map[string]any)
-if !ok {
-t.Fatal("node runtime should be in runtimes map")
-}
+		node, ok := runtimes["node"].(map[string]any)
+		if !ok {
+			t.Fatal("node runtime should be in runtimes map")
+		}
 
-if node["version"] != "20" {
-t.Errorf("node version = %v, want 20", node["version"])
-}
-})
+		if node["version"] != "20" {
+			t.Errorf("node version = %v, want 20", node["version"])
+		}
+	})
 
-t.Run("handles all runtime types", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"node":   map[string]any{"version": "20"},
-"python": map[string]any{"version": "3.11"},
-"go":     map[string]any{"version": "1.21"},
-"uv":     map[string]any{"version": "0.1.0"},
-"bun":    map[string]any{"version": "1.0.0"},
-"deno":   map[string]any{"version": "1.40"},
-},
-}
+	t.Run("handles all runtime types", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"node":   map[string]any{"version": "20"},
+				"python": map[string]any{"version": "3.11"},
+				"go":     map[string]any{"version": "1.21"},
+				"uv":     map[string]any{"version": "0.1.0"},
+				"bun":    map[string]any{"version": "1.0.0"},
+				"deno":   map[string]any{"version": "1.40"},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-if config.RuntimesTyped == nil {
-t.Fatal("RuntimesTyped should not be nil")
-}
+		if config.RuntimesTyped == nil {
+			t.Fatal("RuntimesTyped should not be nil")
+		}
 
-// Check all runtimes are parsed
-if config.RuntimesTyped.Node == nil {
-t.Error("Node should be set")
-}
-if config.RuntimesTyped.Python == nil {
-t.Error("Python should be set")
-}
-if config.RuntimesTyped.Go == nil {
-t.Error("Go should be set")
-}
-if config.RuntimesTyped.UV == nil {
-t.Error("UV should be set")
-}
-if config.RuntimesTyped.Bun == nil {
-t.Error("Bun should be set")
-}
-if config.RuntimesTyped.Deno == nil {
-t.Error("Deno should be set")
-}
-})
+		// Check all runtimes are parsed
+		if config.RuntimesTyped.Node == nil {
+			t.Error("Node should be set")
+		}
+		if config.RuntimesTyped.Python == nil {
+			t.Error("Python should be set")
+		}
+		if config.RuntimesTyped.Go == nil {
+			t.Error("Go should be set")
+		}
+		if config.RuntimesTyped.UV == nil {
+			t.Error("UV should be set")
+		}
+		if config.RuntimesTyped.Bun == nil {
+			t.Error("Bun should be set")
+		}
+		if config.RuntimesTyped.Deno == nil {
+			t.Error("Deno should be set")
+		}
+	})
 }
 
 // TestPermissionsConfigTyping tests the new typed PermissionsConfig field
 func TestPermissionsConfigTyping(t *testing.T) {
-t.Run("parses shorthand read-all permission", func(t *testing.T) {
-frontmatter := map[string]any{
-"permissions": map[string]any{
-"read-all": "read-all",
-},
-}
+	t.Run("parses shorthand read-all permission", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"permissions": map[string]any{
+				"read-all": "read-all",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Check that PermissionsTyped is populated
-if config.PermissionsTyped == nil {
-t.Fatal("PermissionsTyped should not be nil")
-}
+		// Check that PermissionsTyped is populated
+		if config.PermissionsTyped == nil {
+			t.Fatal("PermissionsTyped should not be nil")
+		}
 
-if config.PermissionsTyped.Shorthand != "read-all" {
-t.Errorf("Shorthand = %s, want read-all", config.PermissionsTyped.Shorthand)
-}
+		if config.PermissionsTyped.Shorthand != "read-all" {
+			t.Errorf("Shorthand = %s, want read-all", config.PermissionsTyped.Shorthand)
+		}
 
-// Legacy field should still be populated
-if config.Permissions == nil {
-t.Error("Legacy Permissions field should still be populated")
-}
-})
+		// Legacy field should still be populated
+		if config.Permissions == nil {
+			t.Error("Legacy Permissions field should still be populated")
+		}
+	})
 
-t.Run("parses detailed permissions", func(t *testing.T) {
-frontmatter := map[string]any{
-"permissions": map[string]any{
-"contents":      "read",
-"issues":        "write",
-"pull-requests": "write",
-},
-}
+	t.Run("parses detailed permissions", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"permissions": map[string]any{
+				"contents":      "read",
+				"issues":        "write",
+				"pull-requests": "write",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-if config.PermissionsTyped == nil {
-t.Fatal("PermissionsTyped should not be nil")
-}
+		if config.PermissionsTyped == nil {
+			t.Fatal("PermissionsTyped should not be nil")
+		}
 
-if config.PermissionsTyped.Contents != "read" {
-t.Errorf("Contents = %s, want read", config.PermissionsTyped.Contents)
-}
-if config.PermissionsTyped.Issues != "write" {
-t.Errorf("Issues = %s, want write", config.PermissionsTyped.Issues)
-}
-if config.PermissionsTyped.PullRequests != "write" {
-t.Errorf("PullRequests = %s, want write", config.PermissionsTyped.PullRequests)
-}
-})
+		if config.PermissionsTyped.Contents != "read" {
+			t.Errorf("Contents = %s, want read", config.PermissionsTyped.Contents)
+		}
+		if config.PermissionsTyped.Issues != "write" {
+			t.Errorf("Issues = %s, want write", config.PermissionsTyped.Issues)
+		}
+		if config.PermissionsTyped.PullRequests != "write" {
+			t.Errorf("PullRequests = %s, want write", config.PermissionsTyped.PullRequests)
+		}
+	})
 
-t.Run("parses all permission scopes", func(t *testing.T) {
-frontmatter := map[string]any{
-"permissions": map[string]any{
-"actions":               "read",
-"checks":                "write",
-"contents":              "write",
-"deployments":           "read",
-"id-token":              "write",
-"issues":                "write",
-"discussions":           "write",
-"packages":              "read",
-"pages":                 "write",
-"pull-requests":         "write",
-"repository-projects":   "write",
-"security-events":       "read",
-"statuses":              "write",
-"organization-projects": "read",
-"organization-packages": "read",
-},
-}
+	t.Run("parses all permission scopes", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"permissions": map[string]any{
+				"actions":               "read",
+				"checks":                "write",
+				"contents":              "write",
+				"deployments":           "read",
+				"id-token":              "write",
+				"issues":                "write",
+				"discussions":           "write",
+				"packages":              "read",
+				"pages":                 "write",
+				"pull-requests":         "write",
+				"repository-projects":   "write",
+				"security-events":       "read",
+				"statuses":              "write",
+				"organization-projects": "read",
+				"organization-packages": "read",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-if config.PermissionsTyped == nil {
-t.Fatal("PermissionsTyped should not be nil")
-}
+		if config.PermissionsTyped == nil {
+			t.Fatal("PermissionsTyped should not be nil")
+		}
 
-// Check all scopes are parsed
-if config.PermissionsTyped.Actions != "read" {
-t.Error("Actions should be read")
-}
-if config.PermissionsTyped.Checks != "write" {
-t.Error("Checks should be write")
-}
-if config.PermissionsTyped.Contents != "write" {
-t.Error("Contents should be write")
-}
-if config.PermissionsTyped.Deployments != "read" {
-t.Error("Deployments should be read")
-}
-if config.PermissionsTyped.IDToken != "write" {
-t.Error("IDToken should be write")
-}
-})
+		// Check all scopes are parsed
+		if config.PermissionsTyped.Actions != "read" {
+			t.Error("Actions should be read")
+		}
+		if config.PermissionsTyped.Checks != "write" {
+			t.Error("Checks should be write")
+		}
+		if config.PermissionsTyped.Contents != "write" {
+			t.Error("Contents should be write")
+		}
+		if config.PermissionsTyped.Deployments != "read" {
+			t.Error("Deployments should be read")
+		}
+		if config.PermissionsTyped.IDToken != "write" {
+			t.Error("IDToken should be write")
+		}
+	})
 
-t.Run("converts PermissionsTyped back to map", func(t *testing.T) {
-frontmatter := map[string]any{
-"name": "test-workflow",
-"permissions": map[string]any{
-"contents": "read",
-"issues":   "write",
-},
-}
+	t.Run("converts PermissionsTyped back to map", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name": "test-workflow",
+			"permissions": map[string]any{
+				"contents": "read",
+				"issues":   "write",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Convert back to map
-reconstructed := config.ToMap()
+		// Convert back to map
+		reconstructed := config.ToMap()
 
-// Check that permissions is preserved
-permissions, ok := reconstructed["permissions"].(map[string]any)
-if !ok {
-t.Fatal("permissions should be in reconstructed map")
-}
+		// Check that permissions is preserved
+		permissions, ok := reconstructed["permissions"].(map[string]any)
+		if !ok {
+			t.Fatal("permissions should be in reconstructed map")
+		}
 
-if permissions["contents"] != "read" {
-t.Errorf("contents = %v, want read", permissions["contents"])
-}
-if permissions["issues"] != "write" {
-t.Errorf("issues = %v, want write", permissions["issues"])
-}
-})
+		if permissions["contents"] != "read" {
+			t.Errorf("contents = %v, want read", permissions["contents"])
+		}
+		if permissions["issues"] != "write" {
+			t.Errorf("issues = %v, want write", permissions["issues"])
+		}
+	})
 
-t.Run("converts shorthand permissions back to map", func(t *testing.T) {
-frontmatter := map[string]any{
-"permissions": map[string]any{
-"write-all": "write-all",
-},
-}
+	t.Run("converts shorthand permissions back to map", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"permissions": map[string]any{
+				"write-all": "write-all",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Convert back to map
-reconstructed := config.ToMap()
+		// Convert back to map
+		reconstructed := config.ToMap()
 
-// Check that shorthand is preserved
-permissions, ok := reconstructed["permissions"].(map[string]any)
-if !ok {
-t.Fatal("permissions should be in reconstructed map")
-}
+		// Check that shorthand is preserved
+		permissions, ok := reconstructed["permissions"].(map[string]any)
+		if !ok {
+			t.Fatal("permissions should be in reconstructed map")
+		}
 
-if permissions["write-all"] != "write-all" {
-t.Errorf("shorthand permission not preserved correctly: %v", permissions)
-}
-})
+		if permissions["write-all"] != "write-all" {
+			t.Errorf("shorthand permission not preserved correctly: %v", permissions)
+		}
+	})
 }
 
 // TestTypedConfigsBackwardCompatibility tests backward compatibility of typed configs
 func TestTypedConfigsBackwardCompatibility(t *testing.T) {
-t.Run("legacy Runtimes field still accessible", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"node": map[string]any{
-"version": "20",
-},
-},
-}
+	t.Run("legacy Runtimes field still accessible", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Both typed and legacy fields should be accessible
-if config.RuntimesTyped == nil {
-t.Error("RuntimesTyped should be set")
-}
-if config.Runtimes == nil {
-t.Error("Legacy Runtimes should still be set")
-}
+		// Both typed and legacy fields should be accessible
+		if config.RuntimesTyped == nil {
+			t.Error("RuntimesTyped should be set")
+		}
+		if config.Runtimes == nil {
+			t.Error("Legacy Runtimes should still be set")
+		}
 
-// Legacy field should have the same data
-if node, ok := config.Runtimes["node"].(map[string]any); ok {
-if node["version"] != "20" {
-t.Error("Legacy Runtimes field should have version 20")
-}
-} else {
-t.Error("Legacy Runtimes should have node entry")
-}
-})
+		// Legacy field should have the same data
+		if node, ok := config.Runtimes["node"].(map[string]any); ok {
+			if node["version"] != "20" {
+				t.Error("Legacy Runtimes field should have version 20")
+			}
+		} else {
+			t.Error("Legacy Runtimes should have node entry")
+		}
+	})
 
-t.Run("legacy Permissions field still accessible", func(t *testing.T) {
-frontmatter := map[string]any{
-"permissions": map[string]any{
-"contents": "read",
-"issues":   "write",
-},
-}
+	t.Run("legacy Permissions field still accessible", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"permissions": map[string]any{
+				"contents": "read",
+				"issues":   "write",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Both typed and legacy fields should be accessible
-if config.PermissionsTyped == nil {
-t.Error("PermissionsTyped should be set")
-}
-if config.Permissions == nil {
-t.Error("Legacy Permissions should still be set")
-}
+		// Both typed and legacy fields should be accessible
+		if config.PermissionsTyped == nil {
+			t.Error("PermissionsTyped should be set")
+		}
+		if config.Permissions == nil {
+			t.Error("Legacy Permissions should still be set")
+		}
 
-// Legacy field should have the same data
-if contents, ok := config.Permissions["contents"].(string); ok {
-if contents != "read" {
-t.Error("Legacy Permissions should have contents: read")
-}
-} else {
-t.Error("Legacy Permissions should have contents entry")
-}
-})
+		// Legacy field should have the same data
+		if contents, ok := config.Permissions["contents"].(string); ok {
+			if contents != "read" {
+				t.Error("Legacy Permissions should have contents: read")
+			}
+		} else {
+			t.Error("Legacy Permissions should have contents entry")
+		}
+	})
 
-t.Run("ToMap prefers typed fields over legacy", func(t *testing.T) {
-frontmatter := map[string]any{
-"runtimes": map[string]any{
-"node": map[string]any{
-"version": "20",
-},
-},
-"permissions": map[string]any{
-"contents": "read",
-},
-}
+	t.Run("ToMap prefers typed fields over legacy", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+			"permissions": map[string]any{
+				"contents": "read",
+			},
+		}
 
-config, err := ParseFrontmatterConfig(frontmatter)
-if err != nil {
-t.Fatalf("parse error: %v", err)
-}
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
 
-// Convert to map
-reconstructed := config.ToMap()
+		// Convert to map
+		reconstructed := config.ToMap()
 
-// Check that runtimes and permissions are present
-if reconstructed["runtimes"] == nil {
-t.Error("runtimes should be in reconstructed map")
-}
-if reconstructed["permissions"] == nil {
-t.Error("permissions should be in reconstructed map")
-}
-})
+		// Check that runtimes and permissions are present
+		if reconstructed["runtimes"] == nil {
+			t.Error("runtimes should be in reconstructed map")
+		}
+		if reconstructed["permissions"] == nil {
+			t.Error("permissions should be in reconstructed map")
+		}
+	})
 }

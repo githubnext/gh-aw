@@ -63,15 +63,15 @@ type FrontmatterConfig struct {
 	Strict         *bool  `json:"strict,omitempty"` // Pointer to distinguish unset from false
 
 	// Configuration sections - using strongly-typed structs
-	Tools            *ToolsConfig        `json:"tools,omitempty"`
-	MCPServers       map[string]any      `json:"mcp-servers,omitempty"`  // Legacy field, use Tools instead
-	RuntimesTyped    *RuntimesConfig     `json:"-"`                      // New typed field (not in JSON to avoid conflict)
-	Runtimes         map[string]any      `json:"runtimes,omitempty"`     // Deprecated: use RuntimesTyped
-	Jobs             map[string]any      `json:"jobs,omitempty"`         // Custom workflow jobs (too dynamic to type)
-	SafeOutputs      *SafeOutputsConfig  `json:"safe-outputs,omitempty"`
-	SafeJobs         map[string]any      `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
-	SafeInputs       *SafeInputsConfig   `json:"safe-inputs,omitempty"`
-	PermissionsTyped *PermissionsConfig  `json:"-"` // New typed field (not in JSON to avoid conflict)
+	Tools            *ToolsConfig       `json:"tools,omitempty"`
+	MCPServers       map[string]any     `json:"mcp-servers,omitempty"` // Legacy field, use Tools instead
+	RuntimesTyped    *RuntimesConfig    `json:"-"`                     // New typed field (not in JSON to avoid conflict)
+	Runtimes         map[string]any     `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
+	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
+	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
+	SafeJobs         map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
+	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
+	PermissionsTyped *PermissionsConfig `json:"-"` // New typed field (not in JSON to avoid conflict)
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)
@@ -174,7 +174,7 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	}
 
 	// Parse typed Runtimes field if runtimes exist
-	if config.Runtimes != nil && len(config.Runtimes) > 0 {
+	if len(config.Runtimes) > 0 {
 		runtimesTyped, err := parseRuntimesConfig(config.Runtimes)
 		if err == nil {
 			config.RuntimesTyped = runtimesTyped
@@ -183,7 +183,7 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	}
 
 	// Parse typed Permissions field if permissions exist
-	if config.Permissions != nil && len(config.Permissions) > 0 {
+	if len(config.Permissions) > 0 {
 		permissionsTyped, err := parsePermissionsConfig(config.Permissions)
 		if err == nil {
 			config.PermissionsTyped = permissionsTyped
@@ -552,100 +552,100 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 
 // runtimesConfigToMap converts RuntimesConfig back to map[string]any
 func runtimesConfigToMap(config *RuntimesConfig) map[string]any {
-if config == nil {
-return nil
-}
+	if config == nil {
+		return nil
+	}
 
-result := make(map[string]any)
+	result := make(map[string]any)
 
-if config.Node != nil {
-result["node"] = map[string]any{"version": config.Node.Version}
-}
-if config.Python != nil {
-result["python"] = map[string]any{"version": config.Python.Version}
-}
-if config.Go != nil {
-result["go"] = map[string]any{"version": config.Go.Version}
-}
-if config.UV != nil {
-result["uv"] = map[string]any{"version": config.UV.Version}
-}
-if config.Bun != nil {
-result["bun"] = map[string]any{"version": config.Bun.Version}
-}
-if config.Deno != nil {
-result["deno"] = map[string]any{"version": config.Deno.Version}
-}
+	if config.Node != nil {
+		result["node"] = map[string]any{"version": config.Node.Version}
+	}
+	if config.Python != nil {
+		result["python"] = map[string]any{"version": config.Python.Version}
+	}
+	if config.Go != nil {
+		result["go"] = map[string]any{"version": config.Go.Version}
+	}
+	if config.UV != nil {
+		result["uv"] = map[string]any{"version": config.UV.Version}
+	}
+	if config.Bun != nil {
+		result["bun"] = map[string]any{"version": config.Bun.Version}
+	}
+	if config.Deno != nil {
+		result["deno"] = map[string]any{"version": config.Deno.Version}
+	}
 
-if len(result) == 0 {
-return nil
-}
+	if len(result) == 0 {
+		return nil
+	}
 
-return result
+	return result
 }
 
 // permissionsConfigToMap converts PermissionsConfig back to map[string]any
 func permissionsConfigToMap(config *PermissionsConfig) map[string]any {
-if config == nil {
-return nil
-}
+	if config == nil {
+		return nil
+	}
 
-// If shorthand is set, return it directly
-if config.Shorthand != "" {
-return map[string]any{config.Shorthand: config.Shorthand}
-}
+	// If shorthand is set, return it directly
+	if config.Shorthand != "" {
+		return map[string]any{config.Shorthand: config.Shorthand}
+	}
 
-result := make(map[string]any)
+	result := make(map[string]any)
 
-if config.Actions != "" {
-result["actions"] = config.Actions
-}
-if config.Checks != "" {
-result["checks"] = config.Checks
-}
-if config.Contents != "" {
-result["contents"] = config.Contents
-}
-if config.Deployments != "" {
-result["deployments"] = config.Deployments
-}
-if config.IDToken != "" {
-result["id-token"] = config.IDToken
-}
-if config.Issues != "" {
-result["issues"] = config.Issues
-}
-if config.Discussions != "" {
-result["discussions"] = config.Discussions
-}
-if config.Packages != "" {
-result["packages"] = config.Packages
-}
-if config.Pages != "" {
-result["pages"] = config.Pages
-}
-if config.PullRequests != "" {
-result["pull-requests"] = config.PullRequests
-}
-if config.RepositoryProjects != "" {
-result["repository-projects"] = config.RepositoryProjects
-}
-if config.SecurityEvents != "" {
-result["security-events"] = config.SecurityEvents
-}
-if config.Statuses != "" {
-result["statuses"] = config.Statuses
-}
-if config.OrganizationProjects != "" {
-result["organization-projects"] = config.OrganizationProjects
-}
-if config.OrganizationPackages != "" {
-result["organization-packages"] = config.OrganizationPackages
-}
+	if config.Actions != "" {
+		result["actions"] = config.Actions
+	}
+	if config.Checks != "" {
+		result["checks"] = config.Checks
+	}
+	if config.Contents != "" {
+		result["contents"] = config.Contents
+	}
+	if config.Deployments != "" {
+		result["deployments"] = config.Deployments
+	}
+	if config.IDToken != "" {
+		result["id-token"] = config.IDToken
+	}
+	if config.Issues != "" {
+		result["issues"] = config.Issues
+	}
+	if config.Discussions != "" {
+		result["discussions"] = config.Discussions
+	}
+	if config.Packages != "" {
+		result["packages"] = config.Packages
+	}
+	if config.Pages != "" {
+		result["pages"] = config.Pages
+	}
+	if config.PullRequests != "" {
+		result["pull-requests"] = config.PullRequests
+	}
+	if config.RepositoryProjects != "" {
+		result["repository-projects"] = config.RepositoryProjects
+	}
+	if config.SecurityEvents != "" {
+		result["security-events"] = config.SecurityEvents
+	}
+	if config.Statuses != "" {
+		result["statuses"] = config.Statuses
+	}
+	if config.OrganizationProjects != "" {
+		result["organization-projects"] = config.OrganizationProjects
+	}
+	if config.OrganizationPackages != "" {
+		result["organization-packages"] = config.OrganizationPackages
+	}
 
-if len(result) == 0 {
-return nil
-}
+	if len(result) == 0 {
+		return nil
+	}
 
-return result
+	return result
 }
