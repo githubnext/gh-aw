@@ -25,32 +25,5 @@
         "percentage": 0.6
       }
     }
-  },
-  {
-    "timestamp": "2026-01-01T04:20:32Z",
-    "total_workflows": 176,
-    "threshold_percent": 3,
-    "fields": {
-      "run-name": {
-        "count": 0,
-        "percentage": 0.0
-      },
-      "runtimes": {
-        "count": 1,
-        "percentage": 0.6
-      },
-      "runs-on": {
-        "count": 1,
-        "percentage": 0.6
-      },
-      "post-steps": {
-        "count": 1,
-        "percentage": 0.6
-      },
-      "bots": {
-        "count": 1,
-        "percentage": 0.6
-      }
-    }
   }
 ]
