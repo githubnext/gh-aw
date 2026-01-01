@@ -630,6 +630,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 50,
+      campaign_id: "test-campaign",
       fields: {
         start_date: "2025-12-01",
         end_date: "2025-12-20",
@@ -720,6 +721,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 100,
+      campaign_id: "test-campaign",
     };
 
     const issueWithTimestamps = {
@@ -767,6 +769,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 101,
+      campaign_id: "test-campaign",
     };
 
     const openIssue = {
@@ -812,6 +815,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 102,
+      campaign_id: "test-campaign",
       fields: {
         start_date: "2025-11-01",
         end_date: "2025-11-30",
@@ -867,6 +871,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 200,
+      campaign_id: "test-campaign",
     };
 
     const issueWithWorkerWorkflow = {
@@ -925,6 +930,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 201,
+      campaign_id: "test-campaign",
     };
 
     const issueWithWorkerWorkflow = {
@@ -963,6 +969,7 @@ describe("updateProject", () => {
       project: projectUrl,
       content_type: "issue",
       content_number: 202,
+      campaign_id: "test-campaign",
     };
 
     const issueWithoutWorkerWorkflow = {
