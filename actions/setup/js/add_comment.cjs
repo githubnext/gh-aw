@@ -16,17 +16,16 @@ const HANDLER_TYPE = "add_comment";
 
 // Copy helper functions from original file
 async function minimizeComment(github, nodeId, reason = "outdated") {
-  const query = /* GraphQL */ `
-    mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
-      minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
-        minimizedComment {
-          isMinimized
+  const result = await github.graphql(
+    /* GraphQL */ `
+      mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
+        minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
+          minimizedComment { isMinimized }
         }
       }
-    }
-  `;
-
-  const result = await github.graphql(query, { nodeId, classifier: reason });
+    `,
+    { nodeId, classifier: reason }
+  );
 
   return {
     id: nodeId,
@@ -63,7 +62,12 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
     }
 
     // Filter comments that contain the workflow-id and are NOT reaction comments
-    const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data
+      .filter(comment => 
+        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && 
+        !comment.body.includes(`<!-- comment-type: reaction -->`)
+      )
+      .map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -117,7 +121,10 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
+      .filter(comment => 
+        comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && 
+        !comment.body.includes(`<!-- comment-type: reaction -->`)
+      )
       .map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
@@ -230,26 +237,18 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   const mutation = replyToId
     ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-          comment { 
-            id 
-            body 
-            createdAt 
-            url
-          }
+          comment { id, body, createdAt, url }
         }
       }`
     : `mutation($dId: ID!, $body: String!) {
         addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-          comment { 
-            id 
-            body 
-            createdAt 
-            url
-          }
+          comment { id, body, createdAt, url }
         }
       }`;
 
-  const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
+  const variables = replyToId 
+    ? { dId: discussionId, body: message, replyToId } 
+    : { dId: discussionId, body: message };
 
   const result = await github.graphql(mutation, variables);
 
@@ -329,17 +328,11 @@ async function main(config = {}) {
         };
       }
     } else {
-      // Use context
-      const contextIssue = context.payload?.issue?.number;
-      const contextPR = context.payload?.pull_request?.number;
-      const contextDiscussion = context.payload?.discussion?.number;
-
-      if (context.eventName === "discussion" || context.eventName === "discussion_comment") {
-        isDiscussion = true;
-        itemNumber = contextDiscussion;
-      } else {
-        itemNumber = contextIssue || contextPR;
-      }
+      // Use context to determine item number
+      isDiscussion = context.eventName === "discussion" || context.eventName === "discussion_comment";
+      itemNumber = isDiscussion 
+        ? context.payload?.discussion?.number
+        : (context.payload?.issue?.number || context.payload?.pull_request?.number);
 
       if (!itemNumber) {
         core.warning("No item_number provided and not in issue/PR/discussion context");
@@ -350,19 +343,19 @@ async function main(config = {}) {
       }
     }
 
-    // Replace temporary ID references in body
-    let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, `${context.repo.owner}/${context.repo.repo}`);
-
-    // Add tracker ID and footer
+    // Replace temporary ID references in body and add tracker ID + footer
+    const repoFullName = `${context.repo.owner}/${context.repo.repo}`;
     const trackerIDComment = getTrackerID("markdown");
-    if (trackerIDComment) {
-      processedBody += "\n\n" + trackerIDComment;
-    }
-
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const runId = context.runId;
-    const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-    processedBody += `\n\n> AI generated by [${workflowName}](${runUrl})`;
+    const runUrl = `https://github.com/${repoFullName}/actions/runs/${context.runId}`;
+
+    const processedBody = [
+      replaceTemporaryIdReferences(item.body || "", temporaryIdMap, repoFullName),
+      trackerIDComment,
+      `> AI generated by [${workflowName}](${runUrl})`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     core.info(`Adding comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber}`);
 
@@ -373,40 +366,14 @@ async function main(config = {}) {
       }
 
       /** @type {{ id: string | number, html_url: string }} */
-      let comment;
-      if (isDiscussion) {
-        // Use GraphQL for discussions
-        const discussionQuery = `
-          query($owner: String!, $repo: String!, $number: Int!) {
-            repository(owner: $owner, name: $repo) {
-              discussion(number: $number) {
-                id
-              }
-            }
-          }
-        `;
-        const queryResult = await github.graphql(discussionQuery, {
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          number: itemNumber,
-        });
-
-        const discussionId = queryResult?.repository?.discussion?.id;
-        if (!discussionId) {
-          throw new Error(`Discussion #${itemNumber} not found`);
-        }
-
-        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, processedBody, null);
-      } else {
-        // Use REST API for issues/PRs
-        const { data } = await github.rest.issues.createComment({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          issue_number: itemNumber,
-          body: processedBody,
-        });
-        comment = data;
-      }
+      const comment = isDiscussion
+        ? await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, processedBody, null)
+        : (await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: itemNumber,
+            body: processedBody,
+          })).data;
 
       core.info(`Created comment: ${comment.html_url}`);
 
