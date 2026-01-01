@@ -217,8 +217,8 @@ Before returning to create the pull request, **you MUST complete all these valid
 
 2. **Lint the JavaScript code**:
    ```bash
-   cd /home/runner/work/gh-aw/gh-aw
-   make lint-cjs
+   cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
+   npm run lint:cjs
    ```
    This validates that the code follows formatting standards. The code must pass this check.
 
@@ -231,8 +231,8 @@ Before returning to create the pull request, **you MUST complete all these valid
 
 4. **Run impacted tests**:
    ```bash
-   cd /home/runner/work/gh-aw/gh-aw
-   make test-js
+   cd /home/runner/work/gh-aw/gh-aw/actions/setup/js
+   npm run test:js -- --no-file-parallelism
    ```
    This runs the JavaScript test suite to verify all tests pass. All tests must pass.
 
@@ -252,9 +252,9 @@ After cleaning the file, adding/improving tests, and **successfully passing all 
    - Test improvements (number of tests added, coverage improvements)
    - ✅ Confirmation that ALL validation checks passed:
      - Formatting: `npm run format:cjs` ✓
-     - Linting: `make lint-cjs` ✓
+     - Linting: `npm run lint:cjs` ✓
      - Type checking: `npm run typecheck` ✓
-     - Tests: `make test-js` ✓
+     - Tests: `npm run test:js` ✓
 
 ## Important Constraints
 
@@ -265,9 +265,9 @@ After cleaning the file, adding/improving tests, and **successfully passing all 
 - **One file per run** - focus on quality over quantity
 - **Before creating the PR, you MUST complete ALL validation checks**:
   1. Format the code: `cd actions/setup/js && npm run format:cjs`
-  2. Lint the code: `make lint-cjs` (from repo root)
+  2. Lint the code: `cd actions/setup/js && npm run lint:cjs`
   3. Type check: `cd actions/setup/js && npm run typecheck`
-  4. Run impacted tests: `make test-js` (from repo root)
+  4. Run impacted tests: `cd actions/setup/js && npm run test:js -- --no-file-parallelism`
   - **ALL checks must pass** - if any fail, fix the issues and re-run all checks
   - If the file had `@ts-nocheck`, it MUST pass typecheck after removing it
 - **Document your changes** in the PR description, including:
