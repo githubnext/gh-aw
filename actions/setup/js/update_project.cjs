@@ -586,17 +586,22 @@ async function updateProject(output) {
       // Auto-populate Start Date and End Date fields from issue/PR timestamps
       // This enables roadmap timeline visualization for campaign project boards
       core.info("[4/4] Auto-populating Start Date and End Date fields if present...");
-      
+
       const startDate = extractDateFromTimestamp(createdAt);
       const endDate = extractDateFromTimestamp(closedAt);
-      
+
       // Check if user explicitly provided Start Date or End Date fields
-      const userProvidedFields = output.fields ? Object.keys(output.fields).map(k => 
-        k.split(/[\s_-]+/).map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ")
-      ) : [];
+      const userProvidedFields = output.fields
+        ? Object.keys(output.fields).map(k =>
+            k
+              .split(/[\s_-]+/)
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(" ")
+          )
+        : [];
       const userProvidedStartDate = userProvidedFields.includes("Start Date");
       const userProvidedEndDate = userProvidedFields.includes("End Date");
-      
+
       if (startDate || endDate) {
         // Fetch project fields to check if Start Date and End Date exist
         const projectFields = (
