@@ -204,8 +204,8 @@ Test workflow with permissions but checkout should be conditional.
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// Check for PR context prompt using XML tag
-			hasPRPrompt := strings.Contains(lockStr, "<branch-context")
+			// Check for PR context prompt using cat command
+			hasPRPrompt := strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/pr_context_prompt.md\"")
 			if hasPRPrompt != tt.expectPRPrompt {
 				t.Errorf("Expected PR context prompt: %v, got: %v", tt.expectPRPrompt, hasPRPrompt)
 			}
@@ -224,13 +224,10 @@ Test workflow with permissions but checkout should be conditional.
 				}
 			}
 
-			// If PR prompt is expected, verify key content
+			// If PR prompt is expected, verify the cat command references the correct file
 			if tt.expectPRPrompt {
-				if !strings.Contains(lockStr, "pull request branch") {
-					t.Error("PR context prompt should explain the branch context")
-				}
-				if !strings.Contains(lockStr, "<branch-context") {
-					t.Error("PR context prompt should include branch-context XML tag")
+				if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/pr_context_prompt.md\"") {
+					t.Error("PR context prompt should reference pr_context_prompt.md file")
 				}
 			}
 		})

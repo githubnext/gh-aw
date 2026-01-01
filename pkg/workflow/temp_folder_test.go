@@ -51,14 +51,9 @@ This is a test workflow to verify temp folder instructions are included.
 		t.Error("Expected 'Append temporary folder instructions to prompt' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction text contains the temporary-files XML tag
-	if !strings.Contains(lockStr, "<temporary-files>") {
-		t.Error("Expected <temporary-files> XML tag in generated workflow")
-	}
-
-	// Test 3: Verify the instruction text contains the path
-	if !strings.Contains(lockStr, "/tmp/gh-aw/agent/") {
-		t.Error("Expected temp folder path /tmp/gh-aw/agent/ in generated workflow")
+	// Test 2: Verify the cat command for temp folder prompt file is included
+	if !strings.Contains(lockStr, "cat \"/tmp/gh-aw/prompts/temp_folder_prompt.md\" >> \"$GH_AW_PROMPT\"") {
+		t.Error("Expected cat command for temp folder prompt file in generated workflow")
 	}
 
 	t.Logf("Successfully verified temporary folder instructions are included in generated workflow")

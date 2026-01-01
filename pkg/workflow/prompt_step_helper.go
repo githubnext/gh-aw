@@ -85,7 +85,7 @@ var promptStepHelperLog = logger.New("workflow:prompt_step_helper")
 // Parameters:
 //   - yaml: The string builder to write the YAML to
 //   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
-//   - promptText: The static text content to append to the prompt
+//   - promptText: The static text content to append to the prompt (used for backward compatibility)
 //   - shouldInclude: Whether to generate the step (false means skip generation entirely)
 //
 // Example usage:
@@ -94,6 +94,9 @@ var promptStepHelperLog = logger.New("workflow:prompt_step_helper")
 //	    "Append XPIA security instructions to prompt",
 //	    xpiaPromptText,
 //	    data.SafetyPrompt)
+//
+// Deprecated: This function is kept for backward compatibility with inline prompts.
+// Use generateStaticPromptStepFromFile for new code.
 func generateStaticPromptStep(yaml *strings.Builder, description string, promptText string, shouldInclude bool) {
 	promptStepHelperLog.Printf("Generating static prompt step: description=%s, shouldInclude=%t", description, shouldInclude)
 	// Skip generation if guard condition is false
@@ -106,6 +109,32 @@ func generateStaticPromptStep(yaml *strings.Builder, description string, promptT
 		description,
 		func(y *strings.Builder, indent string) {
 			WritePromptTextToYAML(y, promptText, indent)
+		},
+		"", // no condition
+		"          ")
+}
+
+// generateStaticPromptStepFromFile generates a workflow step for appending a prompt file
+// from /tmp/gh-aw/prompts/ to the prompt file. This is the preferred approach as it
+// keeps prompt content in markdown files instead of embedding in the binary.
+//
+// Parameters:
+//   - yaml: The string builder to write the YAML to
+//   - description: The name of the workflow step (e.g., "Append XPIA security instructions to prompt")
+//   - promptFilename: The filename of the prompt in /tmp/gh-aw/prompts/ (e.g., "xpia_prompt.md")
+//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
+func generateStaticPromptStepFromFile(yaml *strings.Builder, description string, promptFilename string, shouldInclude bool) {
+	promptStepHelperLog.Printf("Generating static prompt step from file: description=%s, file=%s, shouldInclude=%t", description, promptFilename, shouldInclude)
+	// Skip generation if guard condition is false
+	if !shouldInclude {
+		return
+	}
+
+	// Use the existing appendPromptStep helper with a renderer that cats the file
+	appendPromptStep(yaml,
+		description,
+		func(y *strings.Builder, indent string) {
+			WritePromptFileToYAML(y, promptFilename, indent)
 		},
 		"", // no condition
 		"          ")
@@ -162,4 +191,28 @@ func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description 
 
 	// Generate JavaScript-based placeholder substitution step
 	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
+}
+
+// generateStaticPromptStepFromFileWithExpressions generates a workflow step for appending a prompt file
+// that contains GitHub Actions expressions (${{ ... }}). It reads the file at runtime, extracts expressions,
+// and uses shell variable expansion in the heredoc for security.
+//
+// This prevents template injection vulnerabilities by ensuring expressions are evaluated
+// in the env: section (controlled context) rather than inline in shell scripts.
+//
+// Parameters:
+//   - yaml: The string builder to write the YAML to
+//   - description: The name of the workflow step
+//   - promptFilename: The filename of the prompt in /tmp/gh-aw/prompts/ (e.g., "github_context_prompt.md")
+//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
+//
+// Note: For prompts with expressions, we need to read the file content at compile time
+// to extract expressions, then generate the appropriate env vars and substitution logic.
+// This is more complex than simple file copying, so we keep the text-based approach for now.
+func generateStaticPromptStepFromFileWithExpressions(yaml *strings.Builder, description string, promptFilename string, shouldInclude bool) {
+	promptStepHelperLog.Printf("Generating static prompt step from file with expressions: description=%s, file=%s, shouldInclude=%t", description, promptFilename, shouldInclude)
+	// For now, this is not implemented as it requires reading the file at compile time
+	// to extract expressions. We'll keep using the text-based approach for prompts with expressions.
+	// TODO: Implement file-based approach for prompts with expressions if needed
+	promptStepHelperLog.Print("File-based prompts with expressions not yet implemented, skipping")
 }
