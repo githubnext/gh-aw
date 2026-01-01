@@ -293,6 +293,34 @@ describe("temporary_id.cjs", () => {
       expect(result.errorMessage).toContain("Invalid temporary ID format");
       expect(result.errorMessage).toContain("aw_abc123def4567890");
     });
+
+    it("should handle temporary ID with # prefix", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", { repo: "owner/repo", number: 100 }]]);
+      const result = resolveIssueNumber("#aw_abc123def456", map);
+      expect(result.resolved).toEqual({ repo: "owner/repo", number: 100 });
+      expect(result.wasTemporaryId).toBe(true);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should handle issue number with # prefix", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("#123", map);
+      expect(result.resolved).toEqual({ repo: "testowner/testrepo", number: 123 });
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toBe(null);
+    });
+
+    it("should handle malformed temporary ID with # prefix", async () => {
+      const { resolveIssueNumber } = await import("./temporary_id.cjs");
+      const map = new Map();
+      const result = resolveIssueNumber("#aw_d0c5b3e1n3r5", map);
+      expect(result.resolved).toBe(null);
+      expect(result.wasTemporaryId).toBe(false);
+      expect(result.errorMessage).toContain("Invalid temporary ID format");
+      expect(result.errorMessage).toContain("#aw_d0c5b3e1n3r5");
+    });
   });
 
   describe("serializeTemporaryIdMap", () => {
