@@ -11,27 +11,33 @@ import (
 
 var maintenanceLog = logger.New("workflow:maintenance_workflow")
 
-// generateMaintenanceCron generates a cron schedule based on the minimum expires value
-// Schedule runs at minimum required frequency (every 1-24 days) at a non-obvious minute
-// to avoid load spikes. Returns cron expression and description.
-func generateMaintenanceCron(minExpiresDays int) (string, string) {
+// generateMaintenanceCron generates a cron schedule based on the minimum expires value in hours
+// Schedule runs at minimum required frequency to check expirations at appropriate intervals
+// Returns cron expression and description.
+func generateMaintenanceCron(minExpiresHours int) (string, string) {
 	// Use a pseudo-random but deterministic minute (37) to avoid load spikes at :00
 	minute := 37
 
-	// Determine frequency based on minimum expires value
-	// Run at least as often as the shortest expiration, but max daily
-	if minExpiresDays <= 1 {
-		// For 1 day or less, run every 2 hours
+	// Determine frequency based on minimum expires value (in hours)
+	// Run at least as often as the shortest expiration would need
+	if minExpiresHours <= 2 {
+		// For 2 hours or less, run every hour
+		return fmt.Sprintf("%d * * * *", minute), "Every hour"
+	} else if minExpiresHours <= 4 {
+		// For 3-4 hours, run every 2 hours
 		return fmt.Sprintf("%d */2 * * *", minute), "Every 2 hours"
-	} else if minExpiresDays <= 2 {
-		// For 2 days, run every 6 hours
+	} else if minExpiresHours <= 12 {
+		// For 5-12 hours, run every 4 hours
+		return fmt.Sprintf("%d */4 * * *", minute), "Every 4 hours"
+	} else if minExpiresHours <= 24 {
+		// For 13-24 hours, run every 6 hours
 		return fmt.Sprintf("%d */6 * * *", minute), "Every 6 hours"
-	} else if minExpiresDays <= 4 {
-		// For 3-4 days, run every 12 hours
+	} else if minExpiresHours <= 48 {
+		// For 25-48 hours, run every 12 hours
 		return fmt.Sprintf("%d */12 * * *", minute), "Every 12 hours"
 	}
 
-	// For 5+ days, run daily
+	// For more than 48 hours, run daily
 	return fmt.Sprintf("%d %d * * *", minute, 0), "Daily"
 }
 
@@ -43,7 +49,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 	// Check if any workflow uses expires field for discussions or issues
 	// and track the minimum expires value to determine schedule frequency
 	hasExpires := false
-	minExpires := 0 // Track minimum expires value in days
+	minExpires := 0 // Track minimum expires value in hours
 	for _, workflowData := range workflowDataList {
 		if workflowData.SafeOutputs != nil {
 			// Check for expired discussions
@@ -51,7 +57,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 				if workflowData.SafeOutputs.CreateDiscussions.Expires > 0 {
 					hasExpires = true
 					expires := workflowData.SafeOutputs.CreateDiscussions.Expires
-					maintenanceLog.Printf("Workflow %s has expires field set to %d days for discussions", workflowData.Name, expires)
+					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for discussions", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
 					}
@@ -62,7 +68,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 				if workflowData.SafeOutputs.CreateIssues.Expires > 0 {
 					hasExpires = true
 					expires := workflowData.SafeOutputs.CreateIssues.Expires
-					maintenanceLog.Printf("Workflow %s has expires field set to %d days for issues", workflowData.Name, expires)
+					maintenanceLog.Printf("Workflow %s has expires field set to %d hours for issues", workflowData.Name, expires)
 					if minExpires == 0 || expires < minExpires {
 						minExpires = expires
 					}
@@ -76,7 +82,7 @@ func GenerateMaintenanceWorkflow(workflowDataList []*WorkflowData, workflowDir s
 		return nil
 	}
 
-	maintenanceLog.Printf("Generating maintenance workflow for expired discussions and issues (minimum expires: %d days)", minExpires)
+	maintenanceLog.Printf("Generating maintenance workflow for expired discussions and issues (minimum expires: %d hours)", minExpires)
 
 	// Generate cron schedule based on minimum expires value
 	cronSchedule, scheduleDesc := generateMaintenanceCron(minExpires)
@@ -103,7 +109,7 @@ Schedule frequency is automatically determined by the shortest expiration time.`
 
 on:
   schedule:
-    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + fmt.Sprintf("%d", minExpires) + ` days)
+    - cron: "` + cronSchedule + `"  # ` + scheduleDesc + ` (based on minimum expires: ` + fmt.Sprintf("%d", minExpires) + ` hours)
   workflow_dispatch:
 
 permissions: {}

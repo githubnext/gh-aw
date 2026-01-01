@@ -17,7 +17,7 @@ type CreateIssuesConfig struct {
 	Assignees            []string `yaml:"assignees,omitempty"`      // List of users/bots to assign the issue to
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
-	Expires              int      `yaml:"expires,omitempty"`        // Days until the issue expires and should be automatically closed
+	Expires              int      `yaml:"expires,omitempty"`        // Hours until the issue expires and should be automatically closed
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -76,7 +76,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 	// Log expires if configured
 	if config.Expires > 0 {
-		createIssueLog.Printf("Issue expiration configured: %d days", config.Expires)
+		createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
 	}
 
 	return &config

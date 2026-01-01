@@ -164,29 +164,30 @@ func parseAllowedLabelsFromConfig(configMap map[string]any) []string {
 }
 
 // parseExpiresFromConfig parses expires value from config map
-// Supports both integer (days) and string formats like "2h", "7d", "2w", "1m", "1y"
-// Returns the number of days, or 0 if invalid or not present
+// Supports both integer (hours or days) and string formats like "2h", "7d", "2w", "1m", "1y"
+// Returns the number of hours, or 0 if invalid or not present
 // Note: For uint64 values, returns 0 if the value would overflow int.
-// Note: Hours less than 24 are treated as 1 day minimum since maintenance runs daily
+// Note: Integer values without units are treated as days and converted to hours (for backward compatibility)
 func parseExpiresFromConfig(configMap map[string]any) int {
 	configHelpersLog.Printf("DEBUG: parseExpiresFromConfig called with configMap: %+v", configMap)
 	if expires, exists := configMap["expires"]; exists {
 		// Try numeric types first
 		switch v := expires.(type) {
 		case int:
-			return v
+			// Integer values without units are treated as days for backward compatibility
+			return v * 24
 		case int64:
-			return int(v)
+			return int(v) * 24
 		case float64:
-			return int(v)
+			return int(v) * 24
 		case uint64:
 			// Check for overflow before converting uint64 to int
 			const maxInt = int(^uint(0) >> 1)
-			if v > uint64(maxInt) {
+			if v > uint64(maxInt/24) {
 				configHelpersLog.Printf("uint64 value %d for expires exceeds max int value, returning 0", v)
 				return 0
 			}
-			return int(v)
+			return int(v) * 24
 		case string:
 			// Parse relative time specification like "2h", "7d", "2w", "1m", "1y"
 			return parseRelativeTimeSpec(v)
@@ -197,9 +198,8 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 
 // parseRelativeTimeSpec parses a relative time specification string
 // Supports: h (hours), d (days), w (weeks), m (months ~30 days), y (years ~365 days)
-// Examples: "2h" = 0 days (treated as 1 day min), "7d" = 7 days, "2w" = 14 days, "1m" = 30 days, "1y" = 365 days
-// Returns 0 if the format is invalid
-// Note: Hours less than 24 are treated as 1 day minimum since maintenance runs daily
+// Examples: "2h" = 2 hours, "7d" = 168 hours, "2w" = 336 hours, "1m" = 720 hours, "1y" = 8760 hours
+// Returns 0 if the format is invalid or if the duration is less than 2 hours
 func parseRelativeTimeSpec(spec string) int {
 	configHelpersLog.Printf("DEBUG: parseRelativeTimeSpec called with spec: %s", spec)
 	if spec == "" {
@@ -219,27 +219,32 @@ func parseRelativeTimeSpec(spec string) int {
 		return 0
 	}
 
-	// Convert to days based on unit
+	// Convert to hours based on unit
 	switch unit {
 	case "h", "H":
-		// Convert hours to days
-		// Since maintenance workflow runs daily, treat any hours < 24 as 1 day
-		days := num / 24
-		if days < 1 {
-			days = 1
-			configHelpersLog.Printf("Converted %d hours to 1 day (minimum for daily maintenance)", num)
-		} else {
-			configHelpersLog.Printf("Converted %d hours to %d days", num, days)
+		// Reject durations less than 2 hours
+		if num < 2 {
+			configHelpersLog.Printf("Invalid expires duration: %d hours is less than the minimum 2 hours", num)
+			return 0
 		}
-		return days
+		configHelpersLog.Printf("Parsed %d hours from spec: %s", num, spec)
+		return num
 	case "d", "D":
-		return num // days
+		hours := num * 24
+		configHelpersLog.Printf("Converted %d days to %d hours", num, hours)
+		return hours
 	case "w", "W":
-		return num * 7 // weeks to days
+		hours := num * 7 * 24
+		configHelpersLog.Printf("Converted %d weeks to %d hours", num, hours)
+		return hours
 	case "m", "M":
-		return num * 30 // months to days (approximate)
+		hours := num * 30 * 24 // months to hours (approximate)
+		configHelpersLog.Printf("Converted %d months to %d hours", num, hours)
+		return hours
 	case "y", "Y":
-		return num * 365 // years to days (approximate)
+		hours := num * 365 * 24 // years to hours (approximate)
+		configHelpersLog.Printf("Converted %d years to %d hours", num, hours)
+		return hours
 	default:
 		configHelpersLog.Printf("Invalid expires time spec unit: %s", spec)
 		return 0

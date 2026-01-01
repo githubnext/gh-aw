@@ -20,7 +20,7 @@ type CreatePullRequestsConfig struct {
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty           bool     `yaml:"allow-empty,omitempty"`    // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
-	Expires              int      `yaml:"expires,omitempty"`        // Days until the pull request expires and should be automatically closed (only for same-repo PRs)
+	Expires              int      `yaml:"expires,omitempty"`        // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -202,7 +202,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 	// Log expires if configured
 	if config.Expires > 0 {
-		createPRLog.Printf("Pull request expiration configured: %d days", config.Expires)
+		createPRLog.Printf("Pull request expiration configured: %d hours", config.Expires)
 	}
 
 	// Note: max parameter is not supported for pull requests (always limited to 1)
