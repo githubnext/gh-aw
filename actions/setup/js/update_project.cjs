@@ -710,7 +710,7 @@ async function updateProject(output) {
 
       if (workerWorkflow && !userProvidedWorkerWorkflow) {
         core.info(`[5/5] Auto-populating Worker Workflow field if present...`);
-        
+
         // Fetch project fields to check if Worker Workflow exists
         const projectFields = (
           await github.graphql(
@@ -744,11 +744,11 @@ async function updateProject(output) {
         ).node.fields.nodes;
 
         const workerWorkflowField = projectFields.find(f => f.name === "Worker Workflow");
-        
+
         if (workerWorkflowField) {
           try {
             core.info(`✓ Auto-populating Worker Workflow: ${workerWorkflow}`);
-            
+
             let valueToSet;
             if (workerWorkflowField.dataType === "DATE") {
               valueToSet = { date: String(workerWorkflow) };
@@ -758,10 +758,7 @@ async function updateProject(output) {
               if (!option) {
                 // Create new option
                 try {
-                  const allOptions = [
-                    ...workerWorkflowField.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })),
-                    { name: String(workerWorkflow), description: "", color: "GRAY" }
-                  ];
+                  const allOptions = [...workerWorkflowField.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(workerWorkflow), description: "", color: "GRAY" }];
                   const updatedField = (
                     await github.graphql(
                       `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
