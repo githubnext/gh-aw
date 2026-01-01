@@ -82,13 +82,21 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		}, config.ScriptName)
 	} else {
 		// Use inline mode (default behavior)
-		safeOutputsJobsLog.Printf("Using inline mode (actions/github-script)")
+		// If ScriptName is provided, convert it to ScriptFile (.cjs extension)
+		scriptFile := ""
+		if config.ScriptName != "" {
+			scriptFile = config.ScriptName + ".cjs"
+			safeOutputsJobsLog.Printf("Using inline mode with external script: %s", scriptFile)
+		} else {
+			safeOutputsJobsLog.Printf("Using inline mode (actions/github-script)")
+		}
 		scriptSteps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
 			StepName:        config.StepName,
 			StepID:          config.StepID,
 			MainJobName:     config.MainJobName,
 			CustomEnvVars:   config.CustomEnvVars,
 			Script:          config.Script,
+			ScriptFile:      scriptFile,
 			Token:           config.Token,
 			UseCopilotToken: config.UseCopilotToken,
 			UseAgentToken:   config.UseAgentToken,

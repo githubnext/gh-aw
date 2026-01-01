@@ -48,6 +48,7 @@ func compileSpecificFiles(
 	var errorCount int
 	var errorMessages []string
 	var lockFilesForActionlint []string
+	var lockFilesForZizmor []string
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -89,7 +90,7 @@ func compileSpecificFiles(
 		if strings.HasSuffix(resolvedFile, ".campaign.md") {
 			campaignResult, success := processCampaignSpec(
 				compiler, resolvedFile, config.Verbose, config.JSONOutput,
-				config.NoEmit, config.Zizmor, config.Poutine, config.Actionlint,
+				config.NoEmit, false, false, false, // Disable per-file security tools
 				config.Strict, config.Validate,
 			)
 			if !success {
@@ -102,10 +103,10 @@ func compileSpecificFiles(
 			continue
 		}
 
-		// Compile regular workflow file
+		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
 			compiler, resolvedFile, config.Verbose, config.JSONOutput,
-			config.NoEmit, config.Zizmor, config.Poutine, config.Actionlint,
+			config.NoEmit, false, false, false, // Disable per-file security tools
 			config.Strict, config.Validate,
 		)
 
@@ -118,10 +119,15 @@ func compileSpecificFiles(
 			compiledCount++
 			workflowDataList = append(workflowDataList, fileResult.workflowData)
 
-			// Collect lock file for batch actionlint
-			if config.Actionlint && !config.NoEmit && fileResult.lockFile != "" {
+			// Collect lock files for batch security tools
+			if !config.NoEmit && fileResult.lockFile != "" {
 				if _, err := os.Stat(fileResult.lockFile); err == nil {
-					lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
+					if config.Actionlint {
+						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
+					}
+					if config.Zizmor {
+						lockFilesForZizmor = append(lockFilesForZizmor, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -132,6 +138,26 @@ func compileSpecificFiles(
 	// Run batch actionlint on all collected lock files
 	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
 		if err := runBatchActionlint(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run batch zizmor on all collected lock files
+	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
+		if err := runBatchZizmor(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run batch poutine once on the workflow directory
+	// Get the directory from the first lock file (all should be in same directory)
+	if config.Poutine && !config.NoEmit && len(lockFilesForZizmor) > 0 {
+		workflowDir := filepath.Dir(lockFilesForZizmor[0])
+		if err := runBatchPoutine(workflowDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -217,6 +243,7 @@ func compileAllFilesInDirectory(
 	var successCount int
 	var errorCount int
 	var lockFilesForActionlint []string
+	var lockFilesForZizmor []string
 
 	for _, file := range mdFiles {
 		stats.Total++
@@ -225,7 +252,7 @@ func compileAllFilesInDirectory(
 		if strings.HasSuffix(file, ".campaign.md") {
 			campaignResult, success := processCampaignSpec(
 				compiler, file, config.Verbose, config.JSONOutput,
-				config.NoEmit, config.Zizmor, config.Poutine, config.Actionlint,
+				config.NoEmit, false, false, false, // Disable per-file security tools
 				config.Strict, config.Validate,
 			)
 			if !success {
@@ -237,10 +264,10 @@ func compileAllFilesInDirectory(
 			continue
 		}
 
-		// Compile regular workflow file
+		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
 			compiler, file, config.Verbose, config.JSONOutput,
-			config.NoEmit, config.Zizmor, config.Poutine, config.Actionlint,
+			config.NoEmit, false, false, false, // Disable per-file security tools
 			config.Strict, config.Validate,
 		)
 
@@ -252,10 +279,15 @@ func compileAllFilesInDirectory(
 			successCount++
 			workflowDataList = append(workflowDataList, fileResult.workflowData)
 
-			// Collect lock file for batch actionlint
-			if config.Actionlint && !config.NoEmit && fileResult.lockFile != "" {
+			// Collect lock files for batch security tools
+			if !config.NoEmit && fileResult.lockFile != "" {
 				if _, err := os.Stat(fileResult.lockFile); err == nil {
-					lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
+					if config.Actionlint {
+						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
+					}
+					if config.Zizmor {
+						lockFilesForZizmor = append(lockFilesForZizmor, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -266,6 +298,24 @@ func compileAllFilesInDirectory(
 	// Run batch actionlint
 	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
 		if err := runBatchActionlint(lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run batch zizmor
+	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
+		if err := runBatchZizmor(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run batch poutine once on the workflow directory
+	if config.Poutine && !config.NoEmit && len(lockFilesForZizmor) > 0 {
+		if err := runBatchPoutine(workflowsDir, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

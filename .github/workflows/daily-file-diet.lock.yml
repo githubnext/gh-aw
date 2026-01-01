@@ -2300,6 +2300,10 @@ jobs:
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/upload_assets.cjs');
+            await main();
       - name: Invalidate GitHub App token
         if: always() && steps.app-token.outputs.token != ''
         env:

@@ -68,7 +68,94 @@ rulesConfig:
 	return nil
 }
 
+// runPoutineOnDirectory runs the poutine security scanner on a directory containing workflows
+func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error {
+	poutineLog.Printf("Running poutine security scanner on directory: %s", workflowDir)
+
+	// Find git root to get the absolute path for Docker volume mount
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Ensure poutine config exists with custom runner configuration
+	if err := ensurePoutineConfig(gitRoot); err != nil {
+		return fmt.Errorf("failed to ensure poutine config: %w", err)
+	}
+
+	// Build the Docker command with JSON output for easier parsing
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
+	cmd := exec.Command(
+		"docker",
+		"run",
+		"--rm",
+		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-w", "/workdir",
+		"ghcr.io/boostsecurityio/poutine:latest",
+		"analyze_local",
+		".",
+		"--format", "json",
+		"--quiet", // Disable progress output
+	)
+
+	// Always show that poutine is running (regular verbosity)
+	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running poutine security scanner"))
+
+	// In verbose mode, also show the command that users can run directly
+	if verbose {
+		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
+			gitRoot)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run poutine directly: "+dockerCmd))
+	}
+
+	// Capture output
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Run the command
+	err = cmd.Run()
+
+	// Parse and display output for all files (no filtering)
+	totalWarnings, parseErr := parseAndDisplayPoutineOutputForDirectory(stdout.String(), verbose)
+	if parseErr != nil {
+		poutineLog.Printf("Failed to parse poutine output: %v", parseErr)
+		// Fall back to showing raw output
+		if stdout.Len() > 0 {
+			fmt.Fprint(os.Stderr, stdout.String())
+		}
+		if stderr.Len() > 0 {
+			fmt.Fprint(os.Stderr, stderr.String())
+		}
+	}
+
+	// Check if the error is due to findings or actual failure
+	if err != nil {
+		// poutine exits with non-zero code when findings are present
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+			poutineLog.Printf("Poutine exited with code %d (warnings=%d)", exitCode, totalWarnings)
+			// Exit code 1 typically indicates findings in the repository
+			if exitCode == 1 {
+				// In strict mode, any findings in the scan are treated as errors
+				if strict && totalWarnings > 0 {
+					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode", totalWarnings)
+				}
+				// In non-strict mode, findings are logged but not treated as errors
+				return nil
+			}
+			// Other exit codes are actual errors
+			return fmt.Errorf("poutine failed with exit code %d", exitCode)
+		}
+		// Non-ExitError errors (e.g., command not found)
+		return fmt.Errorf("poutine failed: %w", err)
+	}
+
+	return nil
+}
+
 // runPoutineOnFile runs the poutine security scanner on a single .lock.yml file using Docker
+// This is a wrapper that filters the directory scan results to a single file for backward compatibility
 func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	poutineLog.Printf("Running poutine security scanner: file=%s, strict=%v", lockFile, strict)
 
@@ -267,6 +354,118 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 		}
 
 		fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+	}
+
+	return totalWarnings, nil
+}
+
+// parseAndDisplayPoutineOutputForDirectory parses poutine JSON output and displays all findings
+// Returns the total number of warnings found across all files
+func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool) (int, error) {
+	// Parse JSON output from stdout
+	var output poutineOutput
+	if stdout == "" {
+		return 0, nil // No output means no findings
+	}
+
+	trimmed := strings.TrimSpace(stdout)
+	if !strings.HasPrefix(trimmed, "{") {
+		// Non-JSON output, likely an error
+		if len(trimmed) > 0 {
+			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
+		}
+		return 0, nil
+	}
+
+	if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+		return 0, fmt.Errorf("failed to parse poutine JSON output: %w", err)
+	}
+
+	// Display all findings (no filtering by file)
+	totalWarnings := len(output.Findings)
+
+	// Skip if no warnings
+	if totalWarnings == 0 {
+		return 0, nil
+	}
+
+	// Group findings by file for better readability
+	findingsByFile := make(map[string][]poutineFinding)
+	for _, finding := range output.Findings {
+		findingsByFile[finding.Meta.Path] = append(findingsByFile[finding.Meta.Path], finding)
+	}
+
+	// Display findings for each file
+	for filePath, findings := range findingsByFile {
+		// Read file content for context display
+		fileContent, err := os.ReadFile(filePath)
+		var fileLines []string
+		if err == nil {
+			fileLines = strings.Split(string(fileContent), "\n")
+		}
+
+		// Display detailed findings using CompilerError format
+		for _, finding := range findings {
+			// Get rule details
+			ruleInfo := output.Rules[finding.RuleID]
+			severity := ruleInfo.Level
+			if severity == "" {
+				severity = "warning" // Default to warning if not specified
+			}
+
+			title := ruleInfo.Title
+			if title == "" {
+				title = finding.RuleID
+			}
+
+			// Get line number (poutine uses 1-based indexing)
+			lineNum := finding.Meta.Line
+			if lineNum == 0 {
+				lineNum = 1 // Default to line 1 if not specified
+			}
+
+			// Create context lines around the error
+			var context []string
+			if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
+				startLine := max(1, lineNum-2)
+				endLine := min(len(fileLines), lineNum+2)
+
+				for i := startLine; i <= endLine; i++ {
+					if i-1 < len(fileLines) {
+						context = append(context, fileLines[i-1])
+					}
+				}
+			}
+
+			// Map severity to error type
+			errorType := "warning"
+			switch severity {
+			case "error":
+				errorType = "error"
+			case "note":
+				errorType = "info"
+			}
+
+			// Build message with details
+			message := fmt.Sprintf("[%s] %s: %s", severity, finding.RuleID, title)
+			if finding.Meta.Details != "" {
+				message = fmt.Sprintf("%s - %s", message, finding.Meta.Details)
+			}
+
+			// Create and format CompilerError
+			compilerErr := console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   finding.Meta.Path,
+					Line:   lineNum,
+					Column: 1, // poutine doesn't provide column info
+				},
+				Type:    errorType,
+				Message: message,
+				Context: context,
+			}
+
+			fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+		}
 	}
 
 	return totalWarnings, nil

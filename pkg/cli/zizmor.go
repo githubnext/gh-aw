@@ -44,9 +44,13 @@ type zizmorFinding struct {
 	} `json:"locations"`
 }
 
-// runZizmorOnFile runs the zizmor security scanner on a single .lock.yml file using Docker
-func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
-	zizmorLog.Printf("Running zizmor security scanner: file=%s, strict=%v", lockFile, strict)
+// runZizmorOnFiles runs the zizmor security scanner on one or more .lock.yml files using Docker
+func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+
+	zizmorLog.Printf("Running zizmor security scanner on %d file(s): %v (verbose=%t, strict=%t)", len(lockFiles), lockFiles, verbose, strict)
 
 	// Find git root to get the absolute path for Docker volume mount
 	gitRoot, err := findGitRoot()
@@ -54,32 +58,41 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// Get the relative path from git root
-	relPath, err := filepath.Rel(gitRoot, lockFile)
-	if err != nil {
-		return fmt.Errorf("failed to get relative path: %w", err)
+	// Get relative paths from git root for all files
+	var relPaths []string
+	for _, lockFile := range lockFiles {
+		relPath, err := filepath.Rel(gitRoot, lockFile)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
+		}
+		relPaths = append(relPaths, relPath)
 	}
 
 	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json <file>
-	cmd := exec.Command(
-		"docker",
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json <file1> <file2> ...
+	dockerArgs := []string{
 		"run",
 		"--rm",
 		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
 		"-w", "/workdir",
 		"ghcr.io/zizmorcore/zizmor:latest",
 		"--format", "json",
-		relPath,
-	)
+	}
+	dockerArgs = append(dockerArgs, relPaths...)
+
+	cmd := exec.Command("docker", dockerArgs...)
 
 	// Always show that zizmor is running (regular verbosity)
-	fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %s", relPath)))
+	if len(lockFiles) == 1 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %s", relPaths[0])))
+	} else {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %d files", len(lockFiles))))
+	}
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json %s",
-			gitRoot, relPath)
+			gitRoot, strings.Join(relPaths, " "))
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
 	}
 
@@ -118,19 +131,34 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 			if exitCode >= 10 && exitCode <= 14 {
 				// In strict mode, findings are treated as errors
 				if strict {
-					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, filepath.Base(lockFile))
+					fileDescription := "workflows"
+					if len(lockFiles) == 1 {
+						fileDescription = filepath.Base(lockFiles[0])
+					}
+					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s - workflows must have no zizmor findings in strict mode", totalWarnings, fileDescription)
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
 			}
 			// Other exit codes are actual errors
-			return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, filepath.Base(lockFile))
+			fileDescription := "workflows"
+			if len(lockFiles) == 1 {
+				fileDescription = filepath.Base(lockFiles[0])
+			}
+			return fmt.Errorf("zizmor failed with exit code %d on %s", exitCode, fileDescription)
 		}
 		// Non-ExitError errors (e.g., command not found)
-		return fmt.Errorf("zizmor failed on %s: %w", filepath.Base(lockFile), err)
+		return fmt.Errorf("zizmor failed: %w", err)
 	}
 
 	return nil
+}
+
+// runZizmorOnFile runs the zizmor security scanner on a single .lock.yml file using Docker
+// This is a wrapper around runZizmorOnFiles for backward compatibility
+func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
+	zizmorLog.Printf("Running zizmor security scanner: file=%s, strict=%v", lockFile, strict)
+	return runZizmorOnFiles([]string{lockFile}, verbose, strict)
 }
 
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
