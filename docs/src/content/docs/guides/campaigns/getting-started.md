@@ -17,10 +17,18 @@ This guide is the shortest path from “we want a campaign” to a working dashb
 
 In GitHub: your org → **Projects** → **New project**.
 
-- Keep it simple: a Table view is enough.
-- If you want lanes, create a Board view and group by a single-select field (commonly `Status`).
+**Quick start setup**:
+- Start with a **Table** view (simplest option)
+- Add a **Board** view grouped by `Status` for kanban-style tracking
+- Consider a **Roadmap** view for timeline visualization (requires Start Date/End Date fields)
 
-Copy the Project URL (it must be a full URL).
+**Recommended custom fields** (see [Project Management](/gh-aw/guides/campaigns/project-management/) for details):
+- **Status** (Single select): Todo, In Progress, Blocked, Done
+- **Worker/Workflow** (Single select): Names of your worker workflows
+- **Priority** (Single select): High, Medium, Low
+- **Start Date** / **End Date** (Date): For roadmap timeline views
+
+Copy the Project URL (it must be a full URL like `https://github.com/orgs/myorg/projects/42`).
 
 ## 2) Create the campaign spec
 
