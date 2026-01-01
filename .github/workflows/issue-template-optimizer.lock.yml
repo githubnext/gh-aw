@@ -27,7 +27,11 @@ name: "Issue Template Optimizer"
   - cron: "0 9 * * 1"
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
