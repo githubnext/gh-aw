@@ -97,9 +97,9 @@ module.exports = async function test(input1, required_input) {
 
 func TestExtractDescription(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		shouldMatch string
+		name          string
+		content       string
+		shouldMatch   string
 		shouldBeEmpty bool
 	}{
 		{
@@ -173,9 +173,9 @@ func TestGenerateHumanReadableName(t *testing.T) {
 
 func TestExtractInputs(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		minInputs   int
+		name      string
+		content   string
+		minInputs int
 	}{
 		{
 			name: "action with inputs",
@@ -206,9 +206,9 @@ module.exports = async function test() {};`,
 
 func TestExtractOutputs(t *testing.T) {
 	tests := []struct {
-		name         string
-		content      string
-		minOutputs   int
+		name       string
+		content    string
+		minOutputs int
 	}{
 		{
 			name: "action with outputs",
@@ -240,16 +240,16 @@ module.exports = async function test() {
 
 func TestExtractDependencies(t *testing.T) {
 	tests := []struct {
-		name        string
-		content     string
-		minDeps     int
+		name    string
+		content string
+		minDeps int
 	}{
 		{
 			name: "action with require statements",
 			content: `const core = require('@actions/core');
 const github = require('@actions/github');
 module.exports = async function test() {};`,
-			minDeps:    0, // extractDependencies may not parse these, accept whatever it returns
+			minDeps: 0, // extractDependencies may not parse these, accept whatever it returns
 		},
 		{
 			name: "action without dependencies",
@@ -315,16 +315,16 @@ func TestGenerateActionYml(t *testing.T) {
 				assert.Error(t, err, "Expected an error")
 			} else {
 				assert.NoError(t, err, "Should not error")
-				
+
 				// Verify action.yml was created
 				ymlPath := filepath.Join(actionDir, "action.yml")
 				assert.FileExists(t, ymlPath, "action.yml should be created")
-				
+
 				// Verify file has content
 				content, err := os.ReadFile(ymlPath)
 				require.NoError(t, err, "Should be able to read action.yml")
 				assert.NotEmpty(t, content, "action.yml should have content")
-				
+
 				// Verify required fields are present
 				contentStr := string(content)
 				assert.Contains(t, contentStr, "name:", "Should contain name field")
@@ -366,16 +366,16 @@ func TestGenerateReadme(t *testing.T) {
 				assert.Error(t, err, "Expected an error")
 			} else {
 				assert.NoError(t, err, "Should not error")
-				
+
 				// Verify README.md was created
 				readmePath := filepath.Join(actionDir, "README.md")
 				assert.FileExists(t, readmePath, "README.md should be created")
-				
+
 				// Verify file has content
 				content, err := os.ReadFile(readmePath)
 				require.NoError(t, err, "Should be able to read README.md")
 				assert.NotEmpty(t, content, "README.md should have content")
-				
+
 				// Verify it contains the action name
 				contentStr := string(content)
 				assert.Contains(t, contentStr, tt.metadata.Name, "Should contain action name")
