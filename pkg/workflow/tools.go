@@ -153,11 +153,39 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	// Update ParsedTools to reflect changes made by applyDefaultTools
 	data.ParsedTools = NewTools(data.Tools)
 
+	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
+	// In this case, we should NOT apply default read-all
+	if data.Permissions == "permissions: {}" {
+		// Explicitly empty permissions - preserve the empty state
+		// The agent job in dev mode will add contents: read if needed for local actions
+		return nil
+	}
+	
 	if data.Permissions == "" {
 		// ============================================================================
 		// PERMISSIONS DEFAULTS
 		// ============================================================================
-		// Default behavior: keep existing workflows stable with read-all permissions.
+		// In dev mode with local actions, we don't apply read-all default.
+		// Instead, we leave permissions empty at workflow level and let individual
+		// jobs (agent, activation, etc.) add the minimal permissions they need.
+		// This allows the agent job to add only contents: read for local actions.
+		//
+		// In release mode, workflows work with remote actions that don't need
+		// repository checkout, so we leave permissions empty and let individual
+		// jobs add the minimal permissions they need (typically none for remote actions).
+		// ============================================================================
+		if c.actionMode == ActionModeDev {
+			// Leave data.Permissions as "" - jobs will add their own permissions
+			// The agent job will add contents: read if it needs local actions
+			return nil
+		}
+		
+		// ============================================================================
+		// Default behavior for release mode: keep existing workflows stable with read-all permissions.
+		//
+		// IMPORTANT: For workflows without explicit permissions, we now leave them empty
+		// and let individual jobs add the minimal permissions they need. This prevents
+		// unnecessary permission escalation and follows the principle of least privilege.
 		//
 		// CAMPAIGN-SPECIFIC HANDLING:
 		// Campaign orchestrator workflows (.campaign.g.md files) are auto-generated
@@ -205,7 +233,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 			}
 			data.Permissions = strings.Join(lines, "\n")
 		} else {
-			data.Permissions = NewPermissionsReadAll().RenderToYAML()
+			// For non-campaign workflows in release mode, also leave permissions empty
+			// Individual jobs will add the minimal permissions they need
+			return nil
 		}
 	}
 	return nil
