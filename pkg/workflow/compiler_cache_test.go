@@ -235,9 +235,10 @@ This workflow should get default permissions applied automatically.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that default permissions are present in the generated workflow
+	// Verify that default permissions are applied (contents:read for agent job in dev mode)
+	// With the new behavior, workflows without explicit permissions get minimal job-level permissions
 	expectedDefaultPermissions := []string{
-		"read-all",
+		"contents: read", // Agent job gets contents:read in dev mode for local actions
 	}
 
 	for _, expectedPerm := range expectedDefaultPermissions {
