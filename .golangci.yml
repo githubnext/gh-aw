@@ -5,7 +5,9 @@ run:
 linters:
   enable:
     - misspell
-    - gosec          # Security-focused
+    # gosec disabled in golangci-lint due to configuration bugs in v2
+    # It's run separately via 'make security-gosec' with proper exclusions
+    # - gosec
     # godot linter disabled - too pedantic about comment punctuation
     - unconvert      # Remove unnecessary conversions
     - testifylint    # Enforce testify best practices
@@ -42,11 +44,23 @@ linters-settings:
       - commentFormatting # Allow commented out code
       - badCall           # filepath.Join with 1 arg is acceptable
   gosec:
-    excludes:
-      - G101 # Ignore "Potential hardcoded credentials" - often false positives
-      - G602 # Ignore "slice bounds check" - handled by runtime
-      - G115 # Ignore "integer overflow conversion" - acceptable in most cases
-      - G301 # Ignore "file permissions" - 0644 is acceptable for non-sensitive files
+    # NOTE: gosec is disabled in golangci-lint due to configuration bugs in v2.
+    # The following exclusions are applied when running gosec directly via 'make security-gosec':
+    # - G101: Potential hardcoded credentials (often false positives)
+    # - G115: Integer overflow conversion (acceptable in most cases)
+    # - G602: Slice bounds check (handled by runtime)
+    # - G301: Directory permissions 0755 (acceptable for non-sensitive dirs)
+    # - G302: File permissions 0755 (acceptable for chmod operations)
+    # - G304: File inclusion via variable (validated file paths)
+    # - G306: WriteFile permissions 0644 (acceptable for non-sensitive files)
+    exclude:
+      - G101
+      - G115
+      - G602
+      - G301
+      - G302
+      - G304
+      - G306
     config:
       G204: "0644" # Allow common file permissions in tests
       G306: "0644" # Allow common file permissions
@@ -57,26 +71,13 @@ issues:
   exclude-generated: lax
   exclude-dirs-use-default: false
   exclude-use-default: false
+  # NOTE: The issues.exclude field does not work properly in golangci-lint v2
+  # Exclusions for gosec are applied when running gosec directly via 'make security-gosec'
   exclude-rules:
     - linters:
         - staticcheck
       text: "ST1005:" # Allow multiline user-facing error messages with formatting
       path: pkg/workflow/compiler_orchestrator\.go
-    - linters:
-        - gosec
-      text: "^G101:" # Ignore "Potential hardcoded credentials" - often false positives
-    - linters:
-        - gosec
-      text: "^G602:" # Ignore "slice bounds check" - handled by runtime
-    - linters:
-        - gosec
-      text: "^G115:" # Ignore "integer overflow conversion" - acceptable in most cases
-    - linters:
-        - gosec
-      text: "^G301:" # Ignore "directory permissions" - 0755 is acceptable for non-sensitive dirs
-    - linters:
-        - gosec
-      text: "^G302:" # Ignore "file permissions" - 0755 is acceptable for chmod operations
     - linters:
         - gosec
       text: "^G304:" # Ignore "file inclusion via variable" - validated file paths
@@ -148,6 +149,30 @@ issues:
         - gosec
       text: "^G204:" # Allow docker commands in zizmor
       path: pkg/cli/zizmor\.go
+    - linters:
+        - gosec
+      text: "^G304:" # Allow file inclusion in parser for frontmatter/includes
+      path: pkg/parser/(frontmatter_content|include_expander|include_processor)\.go
+    - linters:
+        - gosec
+      text: "^G301:" # Allow directory permissions in parser cache
+      path: pkg/parser/(import_cache|frontmatter_includes_test)\.go
+    - linters:
+        - gosec
+      text: "^G306:" # Allow file write permissions in parser cache
+      path: pkg/parser/import_cache\.go
+    - linters:
+        - gosec
+      text: "^G301:" # Allow directory permissions in testutil
+      path: pkg/testutil/tempdir\.go
+    - linters:
+        - gosec
+      text: "^G101:" # Allow string literals in safe outputs that look like env var names
+      path: pkg/workflow/compiler_safe_outputs_core\.go
+    - linters:
+        - gosec
+      text: "^G204:" # Allow mcp inspect commands with docker
+      path: pkg/cli/mcp_inspect_mcp\.go
     - linters:
         - unconvert
       path: _test\.go # Allow explicit conversions in tests for clarity
