@@ -537,3 +537,131 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 	_ = stepStr // Used for demonstration
 	// Different semantic types prevent accidental mixing even if string values match
 }
+
+// TestHelperMethods tests the helper methods on semantic types
+func TestHelperMethods(t *testing.T) {
+	t.Run("LineLength", func(t *testing.T) {
+		length := LineLength(120)
+		if length.String() != "120" {
+			t.Errorf("LineLength.String() = %q, want %q", length.String(), "120")
+		}
+		if !length.IsValid() {
+			t.Error("LineLength.IsValid() = false, want true for positive value")
+		}
+
+		invalidLength := LineLength(0)
+		if invalidLength.IsValid() {
+			t.Error("LineLength.IsValid() = true, want false for zero value")
+		}
+
+		negativeLength := LineLength(-1)
+		if negativeLength.IsValid() {
+			t.Error("LineLength.IsValid() = true, want false for negative value")
+		}
+	})
+
+	t.Run("Version", func(t *testing.T) {
+		version := Version("1.0.0")
+		if version.String() != "1.0.0" {
+			t.Errorf("Version.String() = %q, want %q", version.String(), "1.0.0")
+		}
+		if !version.IsValid() {
+			t.Error("Version.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyVersion := Version("")
+		if emptyVersion.IsValid() {
+			t.Error("Version.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("FeatureFlag", func(t *testing.T) {
+		flag := FeatureFlag("test-flag")
+		if flag.String() != "test-flag" {
+			t.Errorf("FeatureFlag.String() = %q, want %q", flag.String(), "test-flag")
+		}
+		if !flag.IsValid() {
+			t.Error("FeatureFlag.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyFlag := FeatureFlag("")
+		if emptyFlag.IsValid() {
+			t.Error("FeatureFlag.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("URL", func(t *testing.T) {
+		url := URL("https://example.com")
+		if url.String() != "https://example.com" {
+			t.Errorf("URL.String() = %q, want %q", url.String(), "https://example.com")
+		}
+		if !url.IsValid() {
+			t.Error("URL.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyURL := URL("")
+		if emptyURL.IsValid() {
+			t.Error("URL.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("ModelName", func(t *testing.T) {
+		model := ModelName("gpt-5-mini")
+		if model.String() != "gpt-5-mini" {
+			t.Errorf("ModelName.String() = %q, want %q", model.String(), "gpt-5-mini")
+		}
+		if !model.IsValid() {
+			t.Error("ModelName.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyModel := ModelName("")
+		if emptyModel.IsValid() {
+			t.Error("ModelName.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("JobName", func(t *testing.T) {
+		job := JobName("agent")
+		if job.String() != "agent" {
+			t.Errorf("JobName.String() = %q, want %q", job.String(), "agent")
+		}
+		if !job.IsValid() {
+			t.Error("JobName.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyJob := JobName("")
+		if emptyJob.IsValid() {
+			t.Error("JobName.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("StepID", func(t *testing.T) {
+		step := StepID("check_membership")
+		if step.String() != "check_membership" {
+			t.Errorf("StepID.String() = %q, want %q", step.String(), "check_membership")
+		}
+		if !step.IsValid() {
+			t.Error("StepID.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyStep := StepID("")
+		if emptyStep.IsValid() {
+			t.Error("StepID.IsValid() = true, want false for empty value")
+		}
+	})
+
+	t.Run("CommandPrefix", func(t *testing.T) {
+		prefix := CommandPrefix("gh aw")
+		if prefix.String() != "gh aw" {
+			t.Errorf("CommandPrefix.String() = %q, want %q", prefix.String(), "gh aw")
+		}
+		if !prefix.IsValid() {
+			t.Error("CommandPrefix.IsValid() = false, want true for non-empty value")
+		}
+
+		emptyPrefix := CommandPrefix("")
+		if emptyPrefix.IsValid() {
+			t.Error("CommandPrefix.IsValid() = true, want false for empty value")
+		}
+	})
+}

@@ -51,12 +51,22 @@ type Version string
 // LineLength represents a line length in characters for expression formatting
 type LineLength int
 
+// String returns the string representation of the line length
+func (l LineLength) String() string {
+	return fmt.Sprintf("%d", l)
+}
+
+// IsValid returns true if the line length is positive
+func (l LineLength) IsValid() bool {
+	return l > 0
+}
+
 // MaxExpressionLineLength is the maximum length for a single line expression
 const MaxExpressionLineLength LineLength = 120
 
 // ExpressionBreakThreshold is the threshold for breaking long lines
 const ExpressionBreakThreshold LineLength = 100
-```text
+```
 
 **Usage**:
 ```go
@@ -64,7 +74,12 @@ const ExpressionBreakThreshold LineLength = 100
 if len(expression) > int(constants.MaxExpressionLineLength) {
     // Break into multiple lines
 }
-```text
+
+// Helper methods provide validation and string conversion
+if constants.MaxExpressionLineLength.IsValid() {
+    fmt.Println(constants.MaxExpressionLineLength.String()) // "120"
+}
+```
 
 #### Version Type
 
@@ -76,17 +91,28 @@ if len(expression) > int(constants.MaxExpressionLineLength) {
 // Version represents a software version string
 type Version string
 
+// String returns the string representation of the version
+func (v Version) String() string {
+	return string(v)
+}
+
+// IsValid returns true if the version is non-empty
+func (v Version) IsValid() bool {
+	return len(v) > 0
+}
+
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion Version = "0.0.369"
+const DefaultCopilotVersion Version = "0.0.373"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion Version = "2.0.71"
-```text
+const DefaultClaudeCodeVersion Version = "2.0.76"
+```
 
 **Benefits**:
 - Distinguishes version strings from arbitrary strings
 - Makes version requirements explicit in function signatures
 - Enables future validation logic (e.g., semver parsing)
+- Provides helper methods for validation and string conversion
 
 #### Feature Flag Constants
 
@@ -135,7 +161,7 @@ type LineLength int
 
 // ❌ BAD - No explanation
 type LineLength int
-```text
+```
 
 2. **Use descriptive names**: The name should indicate both what it is and how it's used
 
@@ -147,7 +173,7 @@ type LineLength int
 // ❌ BAD - Too generic
 type String string
 type Number int
-```text
+```
 
 3. **Provide constants with the type**: Define common values using the type
 
@@ -157,9 +183,27 @@ const MaxExpressionLineLength LineLength = 120
 
 // ❌ BAD - Constants use primitive type
 const MaxExpressionLineLength = 120  // type: int, should be LineLength
-```text
+```
 
-4. **Convert explicitly**: Make type conversions explicit in code
+4. **Add helper methods where useful**: Provide String() and IsValid() methods for common operations
+
+```go
+// ✅ GOOD - Helper methods for common operations
+func (v Version) String() string {
+	return string(v)
+}
+
+func (v Version) IsValid() bool {
+	return len(v) > 0
+}
+
+// Usage
+if version.IsValid() {
+	fmt.Println(version.String())
+}
+```
+
+5. **Convert explicitly**: Make type conversions explicit in code
 
 ```go
 // ✅ GOOD - Explicit conversion
@@ -171,7 +215,7 @@ if len(line) > int(constants.MaxExpressionLineLength) {
 if len(line) > constants.MaxExpressionLineLength {  // Type mismatch
     // ...
 }
-```yaml
+```
 
 ---
 
