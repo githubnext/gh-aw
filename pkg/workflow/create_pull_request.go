@@ -160,12 +160,25 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 	createPRLog.Print("Parsing create-pull-request configuration")
 
+	// Get the config data to check for special cases before unmarshaling
+	configData, _ := outputMap["create-pull-request"].(map[string]any)
+
 	// Unmarshal into typed config struct
 	var config CreatePullRequestsConfig
 	if err := unmarshalConfig(outputMap, "create-pull-request", &config, createPRLog); err != nil {
 		createPRLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
 		config = CreatePullRequestsConfig{}
+	}
+
+	// Handle single string reviewer (YAML unmarshaling won't convert string to []string)
+	if len(config.Reviewers) == 0 && configData != nil {
+		if reviewers, exists := configData["reviewers"]; exists {
+			if reviewerStr, ok := reviewers.(string); ok {
+				config.Reviewers = []string{reviewerStr}
+				createPRLog.Printf("Converted single reviewer string to array: %v", config.Reviewers)
+			}
+		}
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)

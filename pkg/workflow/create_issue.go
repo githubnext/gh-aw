@@ -29,12 +29,25 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 	createIssueLog.Print("Parsing create-issue configuration")
 
+	// Get the config data to check for special cases before unmarshaling
+	configData, _ := outputMap["create-issue"].(map[string]any)
+
 	// Unmarshal into typed config struct
 	var config CreateIssuesConfig
 	if err := unmarshalConfig(outputMap, "create-issue", &config, createIssueLog); err != nil {
 		createIssueLog.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
 		config = CreateIssuesConfig{}
+	}
+
+	// Handle single string assignee (YAML unmarshaling won't convert string to []string)
+	if len(config.Assignees) == 0 && configData != nil {
+		if assignees, exists := configData["assignees"]; exists {
+			if assigneeStr, ok := assignees.(string); ok {
+				config.Assignees = []string{assigneeStr}
+				createIssueLog.Printf("Converted single assignee string to array: %v", config.Assignees)
+			}
+		}
 	}
 
 	// Set default max if not specified
