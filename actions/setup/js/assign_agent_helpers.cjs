@@ -30,18 +30,15 @@ function getAgentName(assignee) {
   const normalized = assignee.startsWith("@") ? assignee.slice(1) : assignee;
 
   // Check if it's a known agent by key (e.g., "copilot")
+  // Using pattern: if normalized is in map as key, return it; otherwise check if it's a value
   if (normalized in AGENT_LOGIN_NAMES) {
     return normalized;
   }
 
-  // Check if it's a known agent by login name value (e.g., "copilot-swe-agent")
-  for (const [agentName, loginName] of Object.entries(AGENT_LOGIN_NAMES)) {
-    if (loginName === normalized) {
-      return agentName;
-    }
-  }
-
-  return null;
+  // Check if normalized is a login name value by finding the corresponding key
+  // Pattern: Object.entries(A).find(([k, v]) => v === normalized)?.[0] || null
+  const entry = Object.entries(AGENT_LOGIN_NAMES).find(([, loginName]) => loginName === normalized);
+  return entry?.[0] || null;
 }
 
 /**
