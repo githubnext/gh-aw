@@ -138,6 +138,7 @@ Execute these steps in sequence each time this orchestrator runs:
 4. **Compare and identify gaps** - Determine what needs updating
    - Items from step 1 or 2 not on board = **new work to add**
    - Items on board with state mismatch = **status to update**
+   - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate**
    - Items on board but no longer found = **check if archived/deleted**
 
 #### Phase 2: Make Decisions (Planning)
@@ -176,6 +177,13 @@ Plan format (keep under 2KB):
      - Open issue/PR → "In Progress" or "Todo"
      - Closed issue/PR → "Done"
 
+6.5 **Decide field updates** - For each existing board item, check for missing custom fields:
+   - If item is missing `worker_workflow` field:
+     - Search issue body for tracker-id (e.g., `<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->`)
+     - If tracker-id matches a worker in `workflows`, populate `worker_workflow` field with that worker ID
+   - Only update fields that exist on the project board
+   - Skip items that already have all required fields populated
+
 7. **Decide completion** - Check campaign completion criteria:
    - If all discovered issues are closed AND all board items are "Done" → Campaign complete
    - Otherwise → Campaign in progress
@@ -185,11 +193,17 @@ Plan format (keep under 2KB):
 8. **Execute additions** - Add new items to project board
    - Use `update-project` safe-output for each new item
    - Set predefined fields: `status` (required), optionally `priority`, `size`
+   - If worker tracker-id is found in issue body, populate `worker_workflow` field
    - Record outcome: success or failure with error details
 
-9. **Execute updates** - Update existing board items
+9. **Execute status updates** - Update existing board items with status changes
    - Use `update-project` safe-output for each status change
    - Update only predefined fields: `status` and related metadata
+   - Record outcome: success or failure with error details
+
+9.5 **Execute field updates** - Update existing board items with missing custom fields
+   - Use `update-project` safe-output for each item with missing fields
+   - Populate missing fields identified in step 6.5 (e.g., `worker_workflow`)
    - Record outcome: success or failure with error details
 
 10. **Record completion state** - If campaign is complete:
@@ -203,6 +217,7 @@ Plan format (keep under 2KB):
     - Total items discovered via tracker label and worker tracker-ids
     - Items added to board this run (count and URLs)
     - Items updated on board this run (count and status changes)
+    - Items with fields populated this run (count and which fields, e.g., worker_workflow)
     - Items skipped due to governance limits (and why)
     - Current campaign metrics: open vs closed, progress percentage
     - Any failures encountered during writes
