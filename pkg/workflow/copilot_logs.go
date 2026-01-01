@@ -221,9 +221,7 @@ func (e *CopilotEngine) GetLogParserScriptId() string {
 }
 
 // GetLogFileForParsing returns the log directory for Copilot CLI logs
-// Copilot writes detailed debug logs to /tmp/gh-aw/.copilot/logs/ which should be parsed
-// instead of the agent-stdio.log file
+// Copilot writes detailed debug logs to /tmp/gh-aw/sandbox/agent/logs/
 func (e *CopilotEngine) GetLogFileForParsing() string {
-	// Use the logsFolder constant from copilot_engine.go
 	return "/tmp/gh-aw/sandbox/agent/logs/"
 }
