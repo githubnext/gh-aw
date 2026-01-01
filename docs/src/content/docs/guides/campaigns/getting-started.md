@@ -82,12 +82,27 @@ Campaign tooling enforces that a campaign repo-memory write includes a cursor an
 
 ## Start an agentic campaign with GitHub Issue Forms
 
-This repo also includes a “🚀 Start an Agentic Campaign” issue form. Use it when you want to capture intent first and let an agent scaffold the spec in a PR.
+This repo also includes a "🚀 Start an Agentic Campaign" issue form. Use it when you want to capture intent first and let an agent scaffold the spec in a PR.
+
+### Creating the Campaign Issue
+
+**Option A (Recommended):** Create from your project board:
+1. Open your GitHub Project board
+2. Click "Add item" → "Create new issue"  
+3. Select this repository and choose the "🚀 Start an Agentic Campaign" template
+4. The project will be automatically assigned to the issue ✅
+
+**Option B:** Create from the repository's Issues page:
+1. Navigate to Issues → New Issue
+2. Select "🚀 Start an Agentic Campaign"
+3. **Important:** Before submitting, scroll down and use the project selector to assign the issue to your project board
+
+Creating the issue from the project board (Option A) is recommended as it ensures the project is automatically assigned and reduces the chance of forgetting this required step.
 
 When you submit the issue form:
 
 1. **an agentic campaign issue is created** - This becomes your campaign's central hub with the `campaign` and `campaign-tracker` labels
-2. **An agent validates your project board** - Ensures the URL is accessible and properly configured
+2. **An agent validates your project board** - Ensures the project assignment exists and is accessible
 3. **an agentic campaign spec is generated** - Creates `.github/workflows/<id>.campaign.md` with your inputs as a PR
 4. **The spec is linked to the issue** - So you can track the technical implementation
 5. **Your project board is configured** - The agent sets up tracking labels and fields
@@ -101,3 +116,4 @@ You manage the agentic campaign from the issue. The generated workflow files are
 - **Lower barrier to entry**: No need to understand campaign spec file format
 - **Traceable**: Issue serves as the agentic campaign's command center with full history
 - **Agent-assisted scaffolding**: Automated generation of spec files and workflows
+- **Automatic project assignment**: When created from project board, the project is automatically linked
