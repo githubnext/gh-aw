@@ -1,6 +1,7 @@
 package awmg
 
 import (
+"github.com/githubnext/gh-aw/pkg/types"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -46,8 +47,10 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
-				Command: "docker",
-				Args:    []string{"run", "-i", "--rm", "ghcr.io/github-mcp-server"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "docker",
+					Args:    []string{"run", "-i", "--rm", "ghcr.io/github-mcp-server"},
+				},
 			},
 		},
 		Gateway: GatewaySettings{
@@ -188,8 +191,10 @@ func TestRewriteMCPConfigForGateway_NoGatewaySection(t *testing.T) {
 	gatewayConfig := &MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"github": {
-				Command: "gh",
-				Args:    []string{"aw", "mcp-server"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "gh",
+					Args:    []string{"aw", "mcp-server"},
+				},
 			},
 		},
 		Gateway: GatewaySettings{

@@ -1,6 +1,7 @@
 package awmg
 
 import (
+"github.com/githubnext/gh-aw/pkg/types"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -17,10 +18,12 @@ func TestReadGatewayConfig_FromFile(t *testing.T) {
 	config := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"test-server": {
-				Command: "test-command",
-				Args:    []string{"arg1", "arg2"},
-				Env: map[string]string{
-					"KEY": "value",
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "test-command",
+					Args:    []string{"arg1", "arg2"},
+					Env: map[string]string{
+						"KEY": "value",
+					},
 				},
 			},
 		},
@@ -97,12 +100,11 @@ func TestMCPGatewayConfig_EmptyServers(t *testing.T) {
 }
 
 func TestMCPServerConfig_CommandType(t *testing.T) {
-	config := parser.MCPServerConfig{
-		Command: "gh",
-		Args:    []string{"aw", "mcp-server"},
+	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Command: "gh",
+		Args: []string{"aw", "mcp-server"},
 		Env: map[string]string{
 			"DEBUG": "cli:*",
-		},
+		}},
 	}
 
 	if config.Command != "gh" {
@@ -119,9 +121,7 @@ func TestMCPServerConfig_CommandType(t *testing.T) {
 }
 
 func TestMCPServerConfig_URLType(t *testing.T) {
-	config := parser.MCPServerConfig{
-		URL: "http://localhost:3000",
-	}
+	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{URL: "http://localhost:3000"}}
 
 	if config.URL != "http://localhost:3000" {
 		t.Errorf("Expected URL 'http://localhost:3000', got '%s'", config.URL)
@@ -133,12 +133,11 @@ func TestMCPServerConfig_URLType(t *testing.T) {
 }
 
 func TestMCPServerConfig_ContainerType(t *testing.T) {
-	config := parser.MCPServerConfig{
-		Container: "mcp-server:latest",
-		Args:      []string{"--verbose"},
+	config := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Container: "mcp-server:latest",
+		Args: []string{"--verbose"},
 		Env: map[string]string{
 			"LOG_LEVEL": "debug",
-		},
+		}},
 	}
 
 	if config.Container != "mcp-server:latest" {
@@ -241,12 +240,16 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 	baseConfigData := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server1": {
-				Command: "command1",
-				Args:    []string{"arg1"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "command1",
+					Args:    []string{"arg1"},
+				},
 			},
 			"server2": {
-				Command: "command2",
-				Args:    []string{"arg2"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "command2",
+					Args:    []string{"arg2"},
+				},
 			},
 		},
 		Gateway: GatewaySettings{
@@ -267,12 +270,16 @@ func TestReadGatewayConfig_MultipleFiles(t *testing.T) {
 	overrideConfigData := MCPGatewayServiceConfig{
 		MCPServers: map[string]parser.MCPServerConfig{
 			"server2": {
-				Command: "override-command2",
-				Args:    []string{"override-arg2"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "override-command2",
+					Args:    []string{"override-arg2"},
+				},
 			},
 			"server3": {
-				Command: "command3",
-				Args:    []string{"arg3"},
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "command3",
+					Args:    []string{"arg3"},
+				},
 			},
 		},
 		Gateway: GatewaySettings{

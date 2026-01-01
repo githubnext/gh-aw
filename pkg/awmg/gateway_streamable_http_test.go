@@ -338,9 +338,7 @@ func TestStreamableHTTPTransport_URLConfigured(t *testing.T) {
 	}
 
 	// Create a session with URL configuration
-	serverConfig := parser.MCPServerConfig{
-		URL: mockServer.URL,
-	}
+	serverConfig := parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{URL: mockServer.URL}}
 
 	session, err := gateway.createMCPSession("test-url-server", serverConfig)
 	if err != nil {

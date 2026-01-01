@@ -229,10 +229,9 @@ func TestDisplayToolsList(t *testing.T) {
 	// Create mock data using parser types
 	// Create a mock MCPServerInfo with sample tools
 	mockInfo := &parser.MCPServerInfo{
-		Config: parser.MCPServerConfig{
-			Name:    "test-server",
-			Type:    "stdio",
-			Command: "test",
+		Config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+			Command: "test"}, Name: "test-server",
+
 			Allowed: []string{"tool1", "tool3"}, // Only tool1 and tool3 are allowed
 		},
 		Tools: []*mcp.Tool{
@@ -275,10 +274,9 @@ func TestDisplayToolsList(t *testing.T) {
 
 	t.Run("no_allowed_tools_means_all_allowed", func(t *testing.T) {
 		noAllowedInfo := &parser.MCPServerInfo{
-			Config: parser.MCPServerConfig{
-				Name:    "no-allowed-server",
-				Type:    "stdio",
-				Command: "test",
+			Config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+				Command: "test"}, Name: "no-allowed-server",
+
 				Allowed: []string{}, // Empty allowed list means all tools allowed
 			},
 			Tools: []*mcp.Tool{
@@ -294,10 +292,9 @@ func TestDisplayToolsList(t *testing.T) {
 
 	t.Run("workflow_config_with_wildcard", func(t *testing.T) {
 		wildcardInfo := &parser.MCPServerInfo{
-			Config: parser.MCPServerConfig{
-				Name:    "wildcard-server",
-				Type:    "stdio",
-				Command: "test",
+			Config: parser.MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{Type: "stdio",
+				Command: "test"}, Name: "wildcard-server",
+
 				Allowed: []string{"*"}, // Wildcard in workflow config
 			},
 			Tools: []*mcp.Tool{
