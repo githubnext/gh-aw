@@ -193,26 +193,7 @@ func generateStaticPromptStepWithExpressions(yaml *strings.Builder, description 
 	generatePlaceholderSubstitutionStep(yaml, expressionMappings, "      ")
 }
 
-// generateStaticPromptStepFromFileWithExpressions generates a workflow step for appending a prompt file
-// that contains GitHub Actions expressions (${{ ... }}). It reads the file at runtime, extracts expressions,
-// and uses shell variable expansion in the heredoc for security.
-//
-// This prevents template injection vulnerabilities by ensuring expressions are evaluated
-// in the env: section (controlled context) rather than inline in shell scripts.
-//
-// Parameters:
-//   - yaml: The string builder to write the YAML to
-//   - description: The name of the workflow step
-//   - promptFilename: The filename of the prompt in /tmp/gh-aw/prompts/ (e.g., "github_context_prompt.md")
-//   - shouldInclude: Whether to generate the step (false means skip generation entirely)
-//
-// Note: For prompts with expressions, we need to read the file content at compile time
-// to extract expressions, then generate the appropriate env vars and substitution logic.
-// This is more complex than simple file copying, so we keep the text-based approach for now.
-func generateStaticPromptStepFromFileWithExpressions(yaml *strings.Builder, description string, promptFilename string, shouldInclude bool) {
-	promptStepHelperLog.Printf("Generating static prompt step from file with expressions: description=%s, file=%s, shouldInclude=%t", description, promptFilename, shouldInclude)
-	// For now, this is not implemented as it requires reading the file at compile time
-	// to extract expressions. We'll keep using the text-based approach for prompts with expressions.
-	// TODO: Implement file-based approach for prompts with expressions if needed
-	promptStepHelperLog.Print("File-based prompts with expressions not yet implemented, skipping")
-}
+// TODO: generateStaticPromptStepFromFileWithExpressions could be implemented in the future
+// to generate workflow steps for appending prompt files that contain GitHub Actions expressions.
+// For now, we use the text-based approach with generateStaticPromptStepWithExpressions instead.
+// See commit history if this needs to be restored.

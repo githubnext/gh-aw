@@ -11,12 +11,12 @@ import (
 // are correctly handled in dev mode - should be set to contents: read for local actions
 func TestExplicitEmptyPermissionsInDevMode(t *testing.T) {
 	tests := []struct {
-		name                    string
-		frontmatter             string
-		actionMode              ActionMode
-		expectedAgentPerms      string
-		expectedTopLevelPerms   string
-		description             string
+		name                  string
+		frontmatter           string
+		actionMode            ActionMode
+		expectedAgentPerms    string
+		expectedTopLevelPerms string
+		description           string
 	}{
 		{
 			name: "explicit empty permissions in dev mode",
@@ -29,7 +29,7 @@ permissions: {}
 Test content`,
 			actionMode:            ActionModeDev,
 			expectedAgentPerms:    "permissions:\n      contents: read", // Dev mode needs contents: read for local actions
-			expectedTopLevelPerms: "permissions: {}",                   // Top-level should stay empty
+			expectedTopLevelPerms: "permissions: {}",                    // Top-level should stay empty
 			description:           "Dev mode with explicit empty permissions should add contents: read to agent job for local actions",
 		},
 		{
@@ -55,8 +55,8 @@ engine: copilot
 # Test workflow
 Test content`,
 			actionMode:            ActionModeDev,
-			expectedAgentPerms:    "permissions:\n      contents: read",     // Dev mode needs contents: read for local actions
-			expectedTopLevelPerms: "permissions:\n  contents: read",         // Default is now contents: read
+			expectedAgentPerms:    "permissions:\n      contents: read", // Dev mode needs contents: read for local actions
+			expectedTopLevelPerms: "permissions:\n  contents: read",     // Default is now contents: read
 			description:           "Dev mode with no permissions should set default contents: read at workflow level",
 		},
 		{
@@ -69,8 +69,8 @@ permissions: read-all
 # Test workflow
 Test content`,
 			actionMode:            ActionModeDev,
-			expectedAgentPerms:    "permissions: read-all",    // Should stay read-all
-			expectedTopLevelPerms: "permissions: read-all",    // Top-level has read-all
+			expectedAgentPerms:    "permissions: read-all", // Should stay read-all
+			expectedTopLevelPerms: "permissions: read-all", // Top-level has read-all
 			description:           "Dev mode with read-all permissions should keep read-all on agent job",
 		},
 	}
@@ -112,14 +112,14 @@ Test content`,
 			lines := strings.Split(yaml, "\n")
 			inAgentJob := false
 			agentJobPerms := ""
-			
+
 			for i, line := range lines {
 				// Look for agent job
 				if strings.Contains(line, "agent:") && !strings.HasPrefix(strings.TrimSpace(line), "#") {
 					inAgentJob = true
 					continue
 				}
-				
+
 				// If we're in agent job, look for permissions
 				if inAgentJob {
 					// Check if we've moved to another job (new job starts with same indentation as "agent:")
@@ -127,7 +127,7 @@ Test content`,
 						// Another job started
 						break
 					}
-					
+
 					// Look for permissions in agent job
 					if strings.Contains(line, "permissions:") {
 						// Capture this line and the next few lines for permissions
@@ -157,7 +157,7 @@ Test content`,
 				normalizedPerms = strings.ReplaceAll(normalizedPerms, "    ", "")
 				normalizedExpected := strings.ReplaceAll(tt.expectedAgentPerms, "      ", "")
 				normalizedExpected = strings.ReplaceAll(normalizedExpected, "    ", "")
-				
+
 				if !strings.Contains(normalizedPerms, normalizedExpected) {
 					t.Errorf("%s\nExpected agent job permissions to contain:\n%s\n\nBut got:\n%s\n\nFull YAML:\n%s",
 						tt.description, tt.expectedAgentPerms, agentJobPerms, yaml)
