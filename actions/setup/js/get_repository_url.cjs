@@ -10,7 +10,7 @@
 function getRepositoryUrl(config) {
   // For trial mode, use target repository for issue/PR URLs but execution context for action runs
   let targetRepoSlug;
-  
+
   // First check if there's a target-repo in config
   if (config && config["target-repo"]) {
     targetRepoSlug = config["target-repo"];
