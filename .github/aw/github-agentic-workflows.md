@@ -289,11 +289,11 @@ The YAML frontmatter supports these fields:
         labels: [automation, agentic]    # Optional: labels to attach to issues
         assignees: [user1, copilot]     # Optional: assignees (use 'copilot' for bot)
         max: 5                          # Optional: maximum number of issues (default: 1)
-        expires: 7                      # Optional: auto-close after 7 days (supports: 7d, 2w, 1m, 1y)
+        expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
-    **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
+    **Auto-Expiration**: The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats (2h, 7d, 2w, 1m, 1y). Generates `agentics-maintenance.yml` workflow that runs at minimum required frequency based on shortest expiration time: 1 day or less → every 2 hours, 2 days → every 6 hours, 3-4 days → every 12 hours, 5+ days → daily.
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
 
     **Temporary IDs and Sub-Issues:**
