@@ -760,10 +760,7 @@ async function updateProject(output) {
                 if (!option) {
                   // Create new option
                   try {
-                    const allOptions = [
-                      ...workerWorkflowField.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })),
-                      { name: String(workerWorkflow), description: "", color: "GRAY" }
-                    ];
+                    const allOptions = [...workerWorkflowField.options.map(o => ({ name: o.name, description: "", color: o.color || "GRAY" })), { name: String(workerWorkflow), description: "", color: "GRAY" }];
                     const updatedField = (
                       await github.graphql(
                         `mutation($fieldId: ID!, $fieldName: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
@@ -827,8 +824,6 @@ async function updateProject(output) {
         } else if (!workerWorkflow) {
           core.info("ℹ No workflow name found in issue/PR body, skipping Worker Workflow auto-population");
         }
-      } else {
-        core.info("[4/4] Skipping auto-population (campaign_id not provided)");
       }
 
       core.setOutput("item-id", itemId);
