@@ -71,7 +71,7 @@ We welcome contributions to GitHub Agentic Workflows! Here's how you can help:
   - **Quick Start**: See [Common Development Tasks](DEVGUIDE.md#common-development-tasks) for scenario-based command reference
 - **Share ideas** in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord)
 
-For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md). For information about feature deprecation and breaking changes, see [DEPRECATION_POLICY.md](DEPRECATION_POLICY.md).
 
 ## Share Feedback
 

@@ -181,8 +181,9 @@ For breaking changes, the agent:
 - Uses `major` changeset type
 - Provides migration guidance
 - Documents in CHANGELOG.md
+- Follows deprecation policy guidelines
 
-See [Breaking CLI Rules](specs/breaking-cli-rules.md) for details.
+See [Breaking CLI Rules](specs/breaking-cli-rules.md) and [Deprecation Policy](DEPRECATION_POLICY.md) for details.
 
 ## 🔄 Pull Request Process via GitHub Copilot Agent
 
@@ -288,6 +289,16 @@ Quick reference:
 - `make test-unit` - Fast unit tests (~25s)
 - `make test` - Full test suite (~30s)
 - `make agent-finish` - Complete validation before committing
+
+## 📋 Deprecation Policy
+
+GitHub Agentic Workflows has a formal deprecation policy for managing low-adoption features and breaking changes. See **[DEPRECATION_POLICY.md](DEPRECATION_POLICY.md)** for:
+
+- Criteria for deprecating features (usage thresholds, maintenance burden)
+- Deprecation process and timeline
+- Communication requirements
+- Grace period guidelines
+- Major version release planning (v2.0)
 
 ## 🤝 Community
 
