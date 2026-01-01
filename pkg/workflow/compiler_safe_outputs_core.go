@@ -871,6 +871,26 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["update_release"] = handlerConfig
 	}
 
+	// Add noop configuration
+	if data.SafeOutputs.NoOp != nil {
+		cfg := data.SafeOutputs.NoOp
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		config["noop"] = handlerConfig
+	}
+
+	// Add missing_tool configuration
+	if data.SafeOutputs.MissingTool != nil {
+		cfg := data.SafeOutputs.MissingTool
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		config["missing_tool"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
