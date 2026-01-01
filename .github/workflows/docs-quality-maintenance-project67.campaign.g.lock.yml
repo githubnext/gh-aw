@@ -31,7 +31,7 @@ permissions: {}
 
 concurrency:
   cancel-in-progress: false
-  group: campaign-docs-quality-maintenance-project65-orchestrator-${{ github.ref }}
+  group: campaign-docs-quality-maintenance-project67-orchestrator-${{ github.ref }}
 
 run-name: "Documentation Quality & Maintenance Campaign (Project 67)"
 
@@ -57,7 +57,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "docs-quality-maintenance-project65.campaign.g.lock.yml"
+          GH_AW_WORKFLOW_FILE: "docs-quality-maintenance-project67.campaign.g.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -510,16 +510,16 @@ jobs:
           
           This workflow orchestrates the 'Documentation Quality & Maintenance Campaign (Project 67)' campaign.
           
-          - Tracker label: `campaign:docs-quality-maintenance-project65`
+          - Tracker label: `campaign:docs-quality-maintenance-project67`
           - Objective: Maintain high-quality, accessible, and consistent documentation following the Diátaxis framework while ensuring all docs are accurate, complete, and user-friendly
           - KPIs:
             - Documentation coverage of features (primary): baseline 85 → target 95 over 90 days percent
             - Documentation accessibility score (supporting): baseline 90 → target 98 over 30 days percent
             - User-reported documentation issues (supporting): baseline 15 → target 5 over 30 days count
           - Associated workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
-          - Memory paths: memory/campaigns/docs-quality-maintenance-project65/**
-          - Metrics glob: `memory/campaigns/docs-quality-maintenance-project65/metrics/*.json`
-          - Cursor glob: `memory/campaigns/docs-quality-maintenance-project65/cursor.json`
+          - Memory paths: memory/campaigns/docs-quality-maintenance-project67/**
+          - Metrics glob: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
+          - Cursor glob: `memory/campaigns/docs-quality-maintenance-project67/cursor.json`
           - Project URL: https://github.com/orgs/githubnext/projects/67
           - Governance: max new items per run: 8
           - Governance: max discovery items per run: 100
@@ -540,7 +540,7 @@ jobs:
           - On throttling (HTTP 429 / rate limit 403), do not retry aggressively. Use backoff and end the run after reporting what remains.
           
           
-          **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project65/cursor.json`
+          **Cursor file (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project67/cursor.json`
           
           You must treat this file as the source of truth for incremental discovery:
           - If it exists, read it first and continue from that boundary.
@@ -549,14 +549,14 @@ jobs:
           
           
           
-          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project65/metrics/*.json`
+          **Metrics/KPI snapshots (repo-memory)**: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
           
           You must persist a per-run metrics snapshot (including KPI values and trends) as a JSON file stored in the metrics directory implied by the glob above.
           
           **Required JSON schema** for each metrics file:
           ```json
           {
-            "campaign_id": "docs-quality-maintenance-project65",
+            "campaign_id": "docs-quality-maintenance-project67",
             "date": "YYYY-MM-DD",
             "tasks_total": 0,
             "tasks_completed": 0,
@@ -571,7 +571,7 @@ jobs:
           ```
           
           **Required fields** (must be present):
-          - `campaign_id` (string): Must be exactly "docs-quality-maintenance-project65"
+          - `campaign_id` (string): Must be exactly "docs-quality-maintenance-project67"
           - `date` (string): ISO date in YYYY-MM-DD format (use UTC)
           - `tasks_total` (integer): Total number of campaign tasks (≥0)
           - `tasks_completed` (integer): Number of completed tasks (≥0)
@@ -775,7 +775,7 @@ jobs:
           
           **Project URL**: https://github.com/orgs/githubnext/projects/67
           
-          **Campaign ID**: Extract from tracker label `campaign:docs-quality-maintenance-project65` (format: `campaign:CAMPAIGN_ID`)
+          **Campaign ID**: Extract from tracker label `campaign:docs-quality-maintenance-project67` (format: `campaign:CAMPAIGN_ID`)
           
           
           #### Adding New Issues
@@ -786,7 +786,7 @@ jobs:
             project: "https://github.com/orgs/githubnext/projects/67"
             item_url: "ISSUE_URL"
             status: "Todo"  # or "Done" if issue is already closed
-            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project65
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project67
           ```
           
           **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
@@ -803,7 +803,7 @@ jobs:
             project: "https://github.com/orgs/githubnext/projects/67"
             item_url: "ISSUE_URL"
             status: "Done"  # or "In Progress", "Todo"
-            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project65
+            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project67
           ```
           
           #### Idempotency
@@ -1510,8 +1510,8 @@ jobs:
           BRANCH_NAME: memory/campaigns
           MAX_FILE_SIZE: 10240
           MAX_FILE_COUNT: 100
-          FILE_GLOB_FILTER: "docs-quality-maintenance-project65/**"
-          GH_AW_CAMPAIGN_ID: docs-quality-maintenance-project65
+          FILE_GLOB_FILTER: "docs-quality-maintenance-project67/**"
+          GH_AW_CAMPAIGN_ID: docs-quality-maintenance-project67
         with:
           script: |
             const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
@@ -1533,7 +1533,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "docs-quality-maintenance-project65.campaign.g"
+      GH_AW_WORKFLOW_ID: "docs-quality-maintenance-project67.campaign.g"
       GH_AW_WORKFLOW_NAME: "Documentation Quality & Maintenance Campaign (Project 67)"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}

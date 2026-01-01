@@ -1,5 +1,5 @@
 ---
-id: docs-quality-maintenance-project65
+id: docs-quality-maintenance-project67
 name: "Documentation Quality & Maintenance Campaign (Project 67)"
 description: "Systematically improve documentation quality, consistency, and maintainability. Success: all docs follow Diátaxis framework, maintain accessibility standards, and pass quality checks."
 version: v1
@@ -12,11 +12,11 @@ workflows:
   - unbloat-docs
   - developer-docs-consolidator
   - technical-doc-writer
-tracker-label: "campaign:docs-quality-maintenance-project65"
+tracker-label: "campaign:docs-quality-maintenance-project67"
 memory-paths:
-  - "memory/campaigns/docs-quality-maintenance-project65/**"
-metrics-glob: "memory/campaigns/docs-quality-maintenance-project65/metrics/*.json"
-cursor-glob: "memory/campaigns/docs-quality-maintenance-project65/cursor.json"
+  - "memory/campaigns/docs-quality-maintenance-project67/**"
+metrics-glob: "memory/campaigns/docs-quality-maintenance-project67/metrics/*.json"
+cursor-glob: "memory/campaigns/docs-quality-maintenance-project67/cursor.json"
 state: active
 tags:
   - documentation
@@ -193,14 +193,14 @@ The project board serves as the campaign dashboard, tracking:
 
 ## Tracker Label
 
-All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project65`
+All campaign-related issues and PRs are tagged with: `campaign:docs-quality-maintenance-project67`
 
 ## Memory Paths
 
 Campaign state and metrics are stored in:
-- `memory/campaigns/docs-quality-maintenance-project65/**`
+- `memory/campaigns/docs-quality-maintenance-project67/**`
 
-Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project65/metrics/*.json`
+Metrics snapshots: `memory/campaigns/docs-quality-maintenance-project67/metrics/*.json`
 
 ## Governance Policies
 
@@ -283,7 +283,7 @@ This campaign:
 ## Orchestrator
 
 This campaign uses an automatically generated orchestrator workflow:
-- **File**: `.github/workflows/docs-quality-maintenance-project65.campaign.g.md`
+- **File**: `.github/workflows/docs-quality-maintenance-project67.campaign.g.md`
 - **Schedule**: Daily at 18:00 UTC (cron: `0 18 * * *`)
 - **Purpose**: Coordinate worker outputs and update project board
 
@@ -413,7 +413,7 @@ To activate this campaign:
 
 **Owner**: Documentation Team
 **Reviewers**: All team members contributing to documentation
-**Escalation**: Create issue with `campaign:docs-quality-maintenance-project65` label
+**Escalation**: Create issue with `campaign:docs-quality-maintenance-project67` label
 
 ---
 
