@@ -11,12 +11,13 @@ var artifactsLog = logger.New("workflow:artifacts")
 
 // ArtifactDownloadConfig holds configuration for building artifact download steps
 type ArtifactDownloadConfig struct {
-	ArtifactName string // Name of the artifact to download (e.g., "agent_output.json", "prompt.txt")
-	DownloadPath string // Path where artifact will be downloaded (e.g., "/tmp/gh-aw/safeoutputs/")
-	SetupEnvStep bool   // Whether to add environment variable setup step
-	EnvVarName   string // Environment variable name to set (e.g., "GH_AW_AGENT_OUTPUT")
-	StepName     string // Optional custom step name (defaults to "Download {artifact} artifact")
-	IfCondition  string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
+	ArtifactName     string // Name of the artifact to download (e.g., "agent-output", "prompt")
+	ArtifactFilename string // Filename inside the artifact directory (e.g., "agent_output.json", "prompt.txt")
+	DownloadPath     string // Path where artifact will be downloaded (e.g., "/tmp/gh-aw/safeoutputs/")
+	SetupEnvStep     bool   // Whether to add environment variable setup step
+	EnvVarName       string // Environment variable name to set (e.g., "GH_AW_AGENT_OUTPUT")
+	StepName         string // Optional custom step name (defaults to "Download {artifact} artifact")
+	IfCondition      string // Optional conditional expression for the step (e.g., "needs.agent.outputs.has_patch == 'true'")
 }
 
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact
@@ -49,15 +50,15 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add environment variable setup if requested
 	if config.SetupEnvStep {
-		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s",
-			config.EnvVarName, config.DownloadPath, config.ArtifactName)
+		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s/%s",
+			config.EnvVarName, config.DownloadPath, config.ArtifactName, config.ArtifactFilename)
 		steps = append(steps, "      - name: Setup agent output environment variable\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
 		steps = append(steps, fmt.Sprintf("          find \"%s\" -type f -print\n", config.DownloadPath))
 		// artifacts are extracted to {download-path}/{artifact-name}/
-		// The actual file is agent_output.json inside that directory
-		artifactPath := fmt.Sprintf("%s%s/agent_output.json", config.DownloadPath, config.ArtifactName)
+		// The actual filename is specified in ArtifactFilename
+		artifactPath := fmt.Sprintf("%s%s/%s", config.DownloadPath, config.ArtifactName, config.ArtifactFilename)
 		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 
