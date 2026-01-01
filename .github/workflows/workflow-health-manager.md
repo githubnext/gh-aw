@@ -8,6 +8,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  bash: [":*"]
   github:
     mode: remote
     toolsets: [default, actions]
