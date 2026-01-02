@@ -366,7 +366,13 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewaye
 			gatewayLog.Printf("Adding validation for gatewayed server: %s", serverName)
 			stepLines = append(stepLines,
 				fmt.Sprintf("          # Validate %s server", serverName),
-				fmt.Sprintf("          /tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\" \"%s\" \"%s\"", serverName, mcpConfigPath, gatewayURL),
+				fmt.Sprintf("          if ! /tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\" \"%s\" \"%s\"; then", serverName, mcpConfigPath, gatewayURL),
+				"            echo 'ERROR: Server validation failed'",
+				"            echo ''",
+				"            echo 'Gateway logs:'",
+				fmt.Sprintf("            cat %s/gateway.log 2>/dev/null || echo 'No gateway logs found'", MCPGatewayLogsFolder),
+				"            exit 1",
+				"          fi",
 				"          ",
 			)
 		}
