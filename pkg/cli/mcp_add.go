@@ -300,6 +300,7 @@ func NewMCPAddSubcommand() *cobra.Command {
 	var registryURL string
 	var transportType string
 	var customToolID string
+	var interactive bool
 
 	cmd := &cobra.Command{
 		Use:   "add [workflow] [server]",
@@ -311,12 +312,16 @@ and automatically compiles the workflow. If the tool already exists, the command
 
 When called with no arguments, it will show a list of available MCP servers from the registry.
 
+When called with --interactive flag, it will launch an interactive form to guide you through
+the server selection and configuration process.
+
 The workflow-id-or-file can be:
 - A workflow ID (basename without .md extension, e.g., "weekly-research")
 - A file path (e.g., "weekly-research.md" or ".github/workflows/weekly-research.md")
 
 Examples:
   gh aw mcp add                                          # List available MCP servers
+  gh aw mcp add weekly-research --interactive            # Interactive configuration
   gh aw mcp add weekly-research makenotion/notion-mcp-server  # Add Notion MCP server to weekly-research.md
   gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio  # Prefer stdio transport
   gh aw mcp add weekly-research makenotion/notion-mcp-server --registry https://custom.registry.com/v1  # Use custom registry
@@ -342,12 +347,21 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 				return listAvailableServers(registryURL, verbose)
 			}
 
-			// If only workflow ID/file is provided, show error (need both workflow and server)
-			if len(args) == 1 {
-				return fmt.Errorf("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers")
+			// If only workflow ID/file is provided with interactive flag, launch interactive mode
+			if len(args) == 1 && interactive {
+				workflowFile := args[0]
+				if registryURL == "" {
+					registryURL = string(constants.DefaultMCPRegistryURL)
+				}
+				return AddMCPToolInteractively(workflowFile, registryURL, verbose)
 			}
 
-			// If both arguments are provided, add the MCP tool
+			// If only workflow ID/file is provided without interactive flag, show error
+			if len(args) == 1 {
+				return fmt.Errorf("both workflow ID/file and server name are required to add an MCP tool\nUse 'gh aw mcp add' to list available servers or 'gh aw mcp add <workflow> --interactive' for guided configuration")
+			}
+
+			// If both arguments are provided, add the MCP tool using flag-based approach
 			workflowFile := args[0]
 			mcpServerID := args[1]
 
@@ -358,6 +372,7 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://api.mcp.github.com/v0)")
 	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, http, docker)")
 	cmd.Flags().StringVar(&customToolID, "tool-id", "", "Custom tool ID to use in the workflow (default: uses server ID)")
+	cmd.Flags().BoolVar(&interactive, "interactive", false, "Use interactive form mode for configuration")
 
 	return cmd
 }
