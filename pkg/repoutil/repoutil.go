@@ -41,6 +41,22 @@ func ParseGitHubURL(url string) (owner, repo string, err error) {
 	return SplitRepoSlug(repoPath)
 }
 
+// ExtractBaseRepo extracts the base repository (owner/repo) from an action path
+// that may include subfolders.
+// Examples:
+//   - "actions/checkout" -> "actions/checkout"
+//   - "actions/cache/restore" -> "actions/cache"
+//   - "github/codeql-action/upload-sarif" -> "github/codeql-action"
+func ExtractBaseRepo(actionPath string) string {
+	parts := strings.Split(actionPath, "/")
+	if len(parts) >= 2 {
+		// Return owner/repo (first two segments)
+		return parts[0] + "/" + parts[1]
+	}
+	// If less than 2 parts, return as-is (shouldn't happen in practice)
+	return actionPath
+}
+
 // SanitizeForFilename converts a repository slug (owner/repo) to a filename-safe string.
 // Replaces "/" with "-". Returns "clone-mode" if the slug is empty.
 func SanitizeForFilename(slug string) string {

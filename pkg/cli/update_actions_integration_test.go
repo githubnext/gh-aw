@@ -2,10 +2,12 @@ package cli
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 )
 
 func TestExtractBaseRepo_Integration(t *testing.T) {
-	// Test that extractBaseRepo correctly handles real-world action paths
+	// Test that repoutil.ExtractBaseRepo correctly handles real-world action paths
 	// from actions-lock.json
 	realWorldCases := map[string]string{
 		// Actions with subfolders (the problematic cases)
@@ -27,9 +29,9 @@ func TestExtractBaseRepo_Integration(t *testing.T) {
 
 	for actionPath, expectedBase := range realWorldCases {
 		t.Run(actionPath, func(t *testing.T) {
-			got := extractBaseRepo(actionPath)
+			got := repoutil.ExtractBaseRepo(actionPath)
 			if got != expectedBase {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", actionPath, got, expectedBase)
+				t.Errorf("repoutil.ExtractBaseRepo(%q) = %q, want %q", actionPath, got, expectedBase)
 			}
 		})
 	}
@@ -54,11 +56,11 @@ func TestExtractBaseRepoAPICompatibility(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.actionPath, func(t *testing.T) {
-			baseRepo := extractBaseRepo(tc.actionPath)
+			baseRepo := repoutil.ExtractBaseRepo(tc.actionPath)
 
 			// Verify the base repo matches expected format
 			if baseRepo != tc.wantRepoPath {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tc.actionPath, baseRepo, tc.wantRepoPath)
+				t.Errorf("repoutil.ExtractBaseRepo(%q) = %q, want %q", tc.actionPath, baseRepo, tc.wantRepoPath)
 			}
 
 			// Verify it can be used to construct a valid API path

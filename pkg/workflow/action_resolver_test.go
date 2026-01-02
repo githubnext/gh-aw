@@ -3,6 +3,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -36,9 +37,9 @@ func TestExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractBaseRepo(tt.repo)
+			result := repoutil.ExtractBaseRepo(tt.repo)
 			if result != tt.expected {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tt.repo, result, tt.expected)
+				t.Errorf("repoutil.ExtractBaseRepo(%q) = %q, want %q", tt.repo, result, tt.expected)
 			}
 		})
 	}

@@ -61,35 +61,16 @@ func getCurrentRepoSlugUncached() (string, error) {
 	remoteURL := strings.TrimSpace(string(output))
 	repoLog.Printf("Parsing git remote URL: %s", remoteURL)
 
-	// Parse GitHub repository from remote URL
-	// Handle both SSH and HTTPS formats
-	var repoPath string
-
-	// SSH format: git@github.com:owner/repo.git
-	if strings.HasPrefix(remoteURL, "git@github.com:") {
-		repoPath = strings.TrimPrefix(remoteURL, "git@github.com:")
-	} else if strings.Contains(remoteURL, "github.com/") {
-		// HTTPS format: https://github.com/owner/repo.git
-		parts := strings.Split(remoteURL, "github.com/")
-		if len(parts) >= 2 {
-			repoPath = parts[1]
-		}
-	} else {
-		return "", fmt.Errorf("remote URL does not appear to be a GitHub repository: %s", remoteURL)
+	// Parse GitHub repository from remote URL using repoutil
+	owner, repo, err := repoutil.ParseGitHubURL(remoteURL)
+	if err != nil {
+		repoLog.Printf("Failed to parse git remote URL: %v", err)
+		return "", fmt.Errorf("failed to parse git remote URL: %w. Expected format: owner/repo. Example: githubnext/gh-aw", err)
 	}
 
-	// Remove .git suffix if present
-	repoPath = strings.TrimSuffix(repoPath, ".git")
-
-	// Validate format (should be owner/repo)
-	parts := strings.Split(repoPath, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		repoLog.Printf("Invalid repository format: %s", repoPath)
-		return "", fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: githubnext/gh-aw", repoPath)
-	}
-
-	repoLog.Printf("Successfully parsed repository slug from git remote: %s", repoPath)
-	return repoPath, nil
+	repoSlug := owner + "/" + repo
+	repoLog.Printf("Successfully parsed repository slug from git remote: %s", repoSlug)
+	return repoSlug, nil
 }
 
 // GetCurrentRepoSlug gets the current repository slug with caching using sync.Once

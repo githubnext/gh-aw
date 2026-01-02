@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 )
 
 func TestActionKeyVersionConsistency(t *testing.T) {
@@ -144,9 +146,9 @@ func TestExtractBaseRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractBaseRepo(tt.actionPath)
+			got := repoutil.ExtractBaseRepo(tt.actionPath)
 			if got != tt.want {
-				t.Errorf("extractBaseRepo(%q) = %q, want %q", tt.actionPath, got, tt.want)
+				t.Errorf("repoutil.ExtractBaseRepo(%q) = %q, want %q", tt.actionPath, got, tt.want)
 			}
 		})
 	}

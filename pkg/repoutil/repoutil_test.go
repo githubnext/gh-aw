@@ -470,3 +470,51 @@ func BenchmarkParseGitHubURL_HTTPS(b *testing.B) {
 		_, _, _ = ParseGitHubURL(url)
 	}
 }
+
+func TestExtractBaseRepo(t *testing.T) {
+	tests := []struct {
+		name       string
+		actionPath string
+		expected   string
+	}{
+		{
+			name:       "simple action path",
+			actionPath: "actions/checkout",
+			expected:   "actions/checkout",
+		},
+		{
+			name:       "action with subfolder",
+			actionPath: "actions/cache/restore",
+			expected:   "actions/cache",
+		},
+		{
+			name:       "codeql action with subfolder",
+			actionPath: "github/codeql-action/upload-sarif",
+			expected:   "github/codeql-action",
+		},
+		{
+			name:       "action with multiple subfolders",
+			actionPath: "owner/repo/path/to/action",
+			expected:   "owner/repo",
+		},
+		{
+			name:       "single segment (edge case)",
+			actionPath: "actions",
+			expected:   "actions",
+		},
+		{
+			name:       "empty path (edge case)",
+			actionPath: "",
+			expected:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractBaseRepo(tt.actionPath)
+			if result != tt.expected {
+				t.Errorf("ExtractBaseRepo(%q) = %q, want %q", tt.actionPath, result, tt.expected)
+			}
+		})
+	}
+}

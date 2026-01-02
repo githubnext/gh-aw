@@ -12,20 +12,9 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/gitutil"
+	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
-
-// extractBaseRepo extracts the base repository (owner/repo) from an action path
-// that may include subfolders (e.g., "actions/cache/restore" -> "actions/cache")
-func extractBaseRepo(actionPath string) string {
-	parts := strings.Split(actionPath, "/")
-	if len(parts) >= 2 {
-		// Return owner/repo (first two segments)
-		return parts[0] + "/" + parts[1]
-	}
-	// If less than 2 parts, return as-is (shouldn't happen in practice)
-	return actionPath
-}
 
 // UpdateActions updates GitHub Actions versions in .github/aw/actions-lock.json
 // It checks each action for newer releases and updates the SHA if a newer version is found
@@ -158,7 +147,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
 	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
-	baseRepo := extractBaseRepo(repo)
+	baseRepo := repoutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
@@ -247,7 +236,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	}
 
 	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
-	baseRepo := extractBaseRepo(repo)
+	baseRepo := repoutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s (git fallback)", baseRepo, repo)
 
 	repoURL := fmt.Sprintf("https://github.com/%s.git", baseRepo)
