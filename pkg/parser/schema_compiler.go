@@ -1,21 +1,21 @@
 package parser
 
 import (
-	_ "embed"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"sort"
-	"strings"
-	"sync"
+_ "embed"
+"encoding/json"
+"errors"
+"fmt"
+"os"
+"sort"
+"strings"
+"sync"
 
-	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/santhosh-tekuri/jsonschema/v6"
+"github.com/githubnext/gh-aw/pkg/console"
+"github.com/githubnext/gh-aw/pkg/logger"
+"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-var schemaLog = logger.New("parser:schema")
+var schemaCompilerLog = logger.New("parser:schema_compiler")
 
 //go:embed schemas/main_workflow_schema.json
 var mainWorkflowSchema string
@@ -25,85 +25,6 @@ var includedFileSchema string
 
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
-
-// ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
-func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
-	schemaLog.Print("Validating main workflow frontmatter with schema")
-
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First run custom validation for command trigger conflicts (provides better error messages)
-	if err := validateCommandTriggerConflicts(filtered); err != nil {
-		schemaLog.Printf("Command trigger validation failed: %v", err)
-		return err
-	}
-
-	// Then run the standard schema validation
-	if err := validateWithSchema(filtered, mainWorkflowSchema, "main workflow file"); err != nil {
-		schemaLog.Printf("Schema validation failed for main workflow: %v", err)
-		return err
-	}
-
-	// Finally run other custom validation rules
-	return validateEngineSpecificRules(filtered)
-}
-
-// ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
-func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First run custom validation for command trigger conflicts (provides better error messages)
-	if err := validateCommandTriggerConflicts(filtered); err != nil {
-		return err
-	}
-
-	// Then run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "main workflow file", filePath); err != nil {
-		return err
-	}
-
-	// Finally run other custom validation rules
-	return validateEngineSpecificRules(filtered)
-}
-
-// ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
-func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error {
-	schemaLog.Print("Validating included file frontmatter with schema")
-
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First run the standard schema validation
-	if err := validateWithSchema(filtered, includedFileSchema, "included file"); err != nil {
-		schemaLog.Printf("Schema validation failed for included file: %v", err)
-		return err
-	}
-
-	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(filtered)
-}
-
-// ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
-func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
-	// Filter out ignored fields before validation
-	filtered := filterIgnoredFields(frontmatter)
-
-	// First run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(filtered, includedFileSchema, "included file", filePath); err != nil {
-		return err
-	}
-
-	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(filtered)
-}
-
-// ValidateMCPConfigWithSchema validates MCP configuration using JSON schema
-func ValidateMCPConfigWithSchema(mcpConfig map[string]any, toolName string) error {
-	schemaLog.Printf("Validating MCP configuration for tool: %s", toolName)
-	return validateWithSchema(mcpConfig, mcpConfigSchema, fmt.Sprintf("MCP configuration for tool '%s'", toolName))
-}
 
 // validateWithSchema validates frontmatter against a JSON schema
 // Cached compiled schemas to avoid recompiling on every validation
@@ -147,7 +68,7 @@ func getCompiledMcpConfigSchema() (*jsonschema.Schema, error) {
 
 // compileSchema compiles a JSON schema from a JSON string
 func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
-	schemaLog.Printf("Compiling JSON schema: %s", schemaURL)
+	schemaCompilerLog.Printf("Compiling JSON schema: %s", schemaURL)
 
 	// Create a new compiler
 	compiler := jsonschema.NewCompiler()
@@ -190,7 +111,7 @@ var safeOutputMetaFields = map[string]bool{
 // These are the keys under safe-outputs that define actual safe output operations (like create-issue, add-comment, etc.)
 // Meta-configuration fields (like allowed-domains, staged, env, etc.) are excluded.
 func GetSafeOutputTypeKeys() ([]string, error) {
-	schemaLog.Print("Extracting safe output type keys from main workflow schema")
+	schemaCompilerLog.Print("Extracting safe output type keys from main workflow schema")
 
 	// Parse the embedded schema JSON
 	var schemaDoc map[string]any
