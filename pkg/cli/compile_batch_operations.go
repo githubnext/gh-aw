@@ -128,6 +128,10 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	// Find lock files that should be deleted (exist but aren't expected)
 	var orphanedFiles []string
 	for _, existing := range existingLockFiles {
+		// Skip .campaign.g.lock.yml files - they're handled by purgeOrphanedCampaignOrchestratorLockFiles
+		if strings.HasSuffix(existing, ".campaign.g.lock.yml") {
+			continue
+		}
 		if !expectedLockFileSet[existing] {
 			orphanedFiles = append(orphanedFiles, existing)
 		}
