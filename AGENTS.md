@@ -300,6 +300,176 @@ DEBUG_COLORS=0 DEBUG=* gh aw compile
 - Success/warning messages (use console formatting)
 - Final output or results (use stdout/console formatting)
 
+## CLI Command Patterns
+
+For developing new CLI commands, follow these patterns and conventions. See **[specs/cli-command-patterns.md](specs/cli-command-patterns.md)** for comprehensive guidance.
+
+### Command Structure
+
+```go
+package cli
+
+import (
+    "github.com/githubnext/gh-aw/pkg/console"
+    "github.com/githubnext/gh-aw/pkg/logger"
+    "github.com/spf13/cobra"
+)
+
+var commandLog = logger.New("cli:command_name")
+
+// NewCommandNameCommand creates the command-name command
+func NewCommandNameCommand() *cobra.Command { ... }
+
+// RunCommandName executes the command logic (testable)
+func RunCommandName(config Config) error { ... }
+
+// Internal implementation
+func validateInputs(...) error { ... }
+```
+
+### Naming Conventions
+
+| Element | Pattern | Example |
+|---------|---------|---------|
+| **Command file** | `*_command.go` | `audit_command.go` |
+| **Test file** | `*_command_test.go` | `audit_command_test.go` |
+| **Logger** | `cli:command_name` | `logger.New("cli:audit")` |
+| **Functions** | `NewXCommand()`, `RunX()` | `NewAuditCommand()`, `RunAuditWorkflowRun()` |
+| **Config struct** | `XConfig` | `AuditConfig`, `CompileConfig` |
+
+### Standard Flags
+
+Common flags with helper functions (defined in `flags.go`):
+
+```go
+addEngineFlag(cmd)          // --engine/-e (Override AI engine)
+addRepoFlag(cmd)            // --repo/-r (Target repository)
+addOutputFlag(cmd, dir)     // --output/-o (Output directory)
+addJSONFlag(cmd)            // --json/-j (JSON output)
+```
+
+**Reserved Short Flags**: `-v` (verbose), `-e` (engine), `-r` (repo), `-o` (output), `-j` (json), `-f` (force/file), `-w` (watch)
+
+### Error Handling
+
+```go
+// ✅ CORRECT - Console formatted, error wrapping
+if err != nil {
+    fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+    return fmt.Errorf("failed to process workflow: %w", err)
+}
+
+// ❌ INCORRECT - Plain error, no wrapping
+if err != nil {
+    fmt.Fprintln(os.Stderr, err)
+    return err
+}
+```
+
+### Console Output Requirements
+
+```go
+// ✅ CORRECT - All output to stderr with console formatting
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Compiled successfully"))
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Processing workflow..."))
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage("File has changes"))
+fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+
+// ❌ INCORRECT - stdout, no formatting
+fmt.Println("Success")
+fmt.Printf("Status: %s\n", status)
+```
+
+**Exception**: JSON output goes to stdout, all other output to stderr
+
+### Help Text Standards
+
+```go
+cmd := &cobra.Command{
+    Use:   "command-name <arg>",
+    Short: "Brief one-line description under 80 chars",  // No period
+    Long: `Detailed description with context and examples.
+
+This command:
+- Validates workflow files
+- Checks GitHub Actions compatibility
+- Reports errors with suggestions
+
+` + WorkflowIDExplanation + `
+
+Examples:
+  gh aw command arg                  # Basic usage
+  gh aw command arg -v               # Verbose output
+  gh aw command arg --option value   # With options`,
+    Args: cobra.ExactArgs(1),
+    RunE: func(cmd *cobra.Command, args []string) error { ... },
+}
+```
+
+**Minimum 3 examples**: Basic usage, common options, advanced usage
+
+### Testing Requirements
+
+Every command needs comprehensive tests:
+
+```go
+func TestRunCommand(t *testing.T) {
+    tests := []struct {
+        name      string
+        input     string
+        expected  string
+        shouldErr bool
+    }{
+        {
+            name:      "valid input",
+            input:     "test-workflow",
+            expected:  "Success",
+            shouldErr: false,
+        },
+        {
+            name:      "empty input",
+            input:     "",
+            shouldErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result, err := RunCommand(tt.input)
+            
+            if tt.shouldErr {
+                assert.Error(t, err)
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.expected, result)
+            }
+        })
+    }
+}
+```
+
+**Test coverage**: Valid inputs, invalid inputs, edge cases, flag handling, error paths
+
+### Command Development Checklist
+
+When developing a new command:
+
+- [ ] File named `*_command.go`
+- [ ] Logger: `logger.New("cli:command_name")`
+- [ ] `NewXCommand()` and `RunX()` functions defined
+- [ ] Short description < 80 chars, no period
+- [ ] Long description with context and 3+ examples
+- [ ] Flags use standard short flags where applicable
+- [ ] Input validation implemented early
+- [ ] Console formatting for all user output
+- [ ] All output to stderr (except JSON)
+- [ ] Error messages actionable with suggestions
+- [ ] Test file `*_command_test.go` created
+- [ ] Table-driven tests for multiple scenarios
+- [ ] Valid, invalid, and edge case tests
+
+**See**: [specs/cli-command-patterns.md](specs/cli-command-patterns.md) for complete specification with examples and anti-patterns
+
 ## Development Guidelines
 
 ### Code Organization
