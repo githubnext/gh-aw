@@ -978,7 +978,7 @@ This orchestrator has no source .campaign.md file.`
 	}
 
 	// Create orphaned campaign orchestrator lock file
-	orphanedOrchestratorLockYml := filepath.Join(workflowsDir, "orphaned-campaign.campaign.g.lock.yml")
+	orphanedOrchestratorLockYml := filepath.Join(workflowsDir, "orphaned-campaign.campaign.lock.yml")
 	orphanedOrchestratorLockContent := `name: Orphaned Campaign Orchestrator
 on:
   schedule:
