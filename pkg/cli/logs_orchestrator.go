@@ -495,10 +495,17 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	// Use atomic counter for thread-safe progress tracking
 	var completedCount int64
 
-	// Use conc pool for controlled concurrency with results
+	// Configure concurrent download pool with bounded parallelism.
+	// MaxConcurrentDownloads (10) balances:
+	// - GitHub API rate limits (5000 requests/hour for authenticated users)
+	// - Network bandwidth (parallel HTTP requests for artifact downloads)
+	// - System memory (artifact buffering and decompression)
+	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
 	p := pool.NewWithResults[DownloadResult]().WithMaxGoroutines(MaxConcurrentDownloads)
 
-	// Process each run concurrently
+	// Each download task runs concurrently. Panics are automatically recovered
+	// by the pool and re-raised with full stack traces after all tasks complete.
+	// This ensures one failing download doesn't break others.
 	for _, run := range actualRuns {
 		run := run // capture loop variable
 		p.Go(func() DownloadResult {
@@ -679,7 +686,10 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		})
 	}
 
-	// Wait for all downloads to complete and collect results
+	// Wait blocks until all downloads complete or panic. The pool guarantees:
+	// - All goroutines finish (no leaks)
+	// - Panics are propagated with stack traces
+	// - Results are collected in submission order
 	results := p.Wait()
 
 	// Stop spinner with final success message

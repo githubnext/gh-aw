@@ -295,6 +295,10 @@ async function processMessages(messageHandlers, messages) {
   }
 
   // Retry deferred messages now that more temporary IDs may have been resolved
+  // This retry loop mirrors the main processing loop but operates on messages that were
+  // deferred during the first pass (e.g., link_sub_issue waiting for parent/sub creation).
+  // IMPORTANT: Like the main loop, this must register temporary IDs and track outputs
+  // with unresolved IDs to enable full synthetic update resolution.
   if (deferredMessages.length > 0) {
     core.info(`\n=== Retrying Deferred Messages ===`);
     core.info(`Found ${deferredMessages.length} deferred message(s) to retry`);
@@ -305,6 +309,9 @@ async function processMessages(messageHandlers, messages) {
 
         // Convert Map to plain object for handler
         const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
+
+        // Record the temp ID map size before processing to detect new IDs
+        const tempIdMapSizeBefore = temporaryIdMap.size;
 
         // Call the handler again with updated temp ID map
         const result = await deferred.handler(deferred.message, resolvedTemporaryIds);
@@ -319,6 +326,35 @@ async function processMessages(messageHandlers, messages) {
           }
         } else {
           core.info(`✓ Message ${deferred.messageIndex + 1} (${deferred.type}) completed on retry`);
+
+          // If handler returned a temp ID mapping, add it to our map
+          // This ensures that sub-issues created during deferred retry have their temporary IDs
+          // registered so parent issues can reference them in synthetic updates
+          if (result && result.temporaryId && result.repo && result.number) {
+            const normalizedTempId = normalizeTemporaryId(result.temporaryId);
+            temporaryIdMap.set(normalizedTempId, {
+              repo: result.repo,
+              number: result.number,
+            });
+            core.info(`Registered temporary ID: ${result.temporaryId} -> ${result.repo}#${result.number}`);
+          }
+
+          // Check if this output was created with unresolved temporary IDs
+          // For create_issue, create_discussion - check if body has unresolved IDs
+          // This enables synthetic updates to resolve references after all items are created
+          if (result && result.number && result.repo) {
+            const contentToCheck = getContentToCheck(deferred.type, deferred.message);
+            if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
+              core.info(`Output ${result.repo}#${result.number} was created with unresolved temporary IDs - tracking for update`);
+              outputsWithUnresolvedIds.push({
+                type: deferred.type,
+                message: deferred.message,
+                result: result,
+                originalTempIdMapSize: tempIdMapSizeBefore,
+              });
+            }
+          }
+
           // Update the result to success
           const resultIndex = results.findIndex(r => r.messageIndex === deferred.messageIndex);
           if (resultIndex >= 0) {
