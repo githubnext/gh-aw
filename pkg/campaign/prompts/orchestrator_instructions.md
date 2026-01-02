@@ -124,13 +124,17 @@ Execute these steps in sequence each time this orchestrator runs:
    - Collect all matching issue/PR URLs
    - Record metadata: number, title, state (open/closed), created date, updated date
 
-2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
+2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
 {{ if .Workflows }}   - Worker workflows: {{ range $i, $w := .Workflows }}{{ if $i }}, {{ end }}{{ $w }}{{ end }}
-   - **IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow listed above
-   - Perform these searches (one per worker):
-{{ range .Workflows }}     - Search for `{{ . }}`: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body`
-{{ end }}{{ end }}   - For each search, collect all matching issue URLs
-   - Record issue metadata for each: number, title, state (open/closed), created date, updated date
+   - **IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow listed above
+   - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions). Search ALL content types to discover all worker outputs.
+   - Perform these searches (one per worker, searching issues, PRs, and discussions):
+{{ range .Workflows }}     - Search for `{{ . }}`: 
+       - Issues: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body type:issue`
+       - Pull Requests: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body type:pr`
+       - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+{{ end }}{{ end }}   - For each search, collect all matching URLs (issues, PRs, discussions)
+   - Record metadata for each item: number, title, state (open/closed/merged), created date, updated date, content type (issue/pr/discussion)
    - Combine results from all worker searches into a single list of discovered items
 
 3. **Query current project state** - Read the GitHub Project board
@@ -170,25 +174,27 @@ Plan format (keep under 2KB):
    - If `governance.max-new-items-per-run` is set, add at most that many new items
    - Prefer adding oldest (or least recently updated) missing items first
    - Determine initial status field value based on item state:
-     - Open issue/PR → "Todo" status
-     - Closed issue/PR → "Done" status
+     - Open issue/PR/discussion → "Todo" status
+     - Closed issue/discussion → "Done" status
+     - Merged PR → "Done" status
 
 6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
    - Decision: Update status field? (Default: yes if item state changed)
    - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
    - Determine new status field value:
-     - Open issue/PR → "In Progress" or "Todo"
-     - Closed issue/PR → "Done"
+     - Open issue/PR/discussion → "In Progress" or "Todo"
+     - Closed issue/discussion → "Done"
+     - Merged PR → "Done"
 
 6.5 **Decide field updates** - For each existing board item, check for missing custom fields:
    - If item is missing `worker_workflow` field:
-     - Search issue body for tracker-id (e.g., `<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->`)
+     - Search item body (issue/PR/discussion) for tracker-id (e.g., `<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->`)
      - If tracker-id matches a worker in `workflows`, populate `worker_workflow` field with that worker ID
    - Only update fields that exist on the project board
    - Skip items that already have all required fields populated
 
 7. **Decide completion** - Check campaign completion criteria:
-   - If all discovered issues are closed AND all board items are "Done" → Campaign complete
+   - If all discovered items (issues/PRs/discussions) are closed/merged AND all board items are "Done" → Campaign complete
    - Otherwise → Campaign in progress
 
 #### Phase 3: Write State (Execution)
@@ -196,7 +202,7 @@ Plan format (keep under 2KB):
 8. **Execute additions** - Add new items to project board
    - Use `update-project` safe-output for each new item
    - Set predefined fields: `status` (required), optionally `priority`, `size`
-   - If worker tracker-id is found in issue body, populate `worker_workflow` field
+   - If worker tracker-id is found in item body (issue/PR/discussion), populate `worker_workflow` field
    - Record outcome: success or failure with error details
 
 9. **Execute status updates** - Update existing board items with status changes
@@ -217,8 +223,8 @@ Plan format (keep under 2KB):
 #### Phase 4: Report (Output)
 
 11. **Generate status report** - Summarize execution results:
-    - Total items discovered via tracker label and worker tracker-ids
-    - Items added to board this run (count and URLs)
+    - Total items discovered via tracker label and worker tracker-ids (by type: issues, PRs, discussions)
+    - Items added to board this run (count and URLs, by type)
     - Items updated on board this run (count and status changes)
     - Items with fields populated this run (count and which fields, e.g., worker_workflow)
     - Items skipped due to governance limits (and why)
@@ -244,12 +250,12 @@ Workers embed a tracker-id in all created assets via XML comment:
 <!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->
 ```
 
-The orchestrator uses this tracker-id to discover worker output by searching issue bodies. This correlation is explicit and does not require workers to be aware of the campaign.
+The orchestrator uses this tracker-id to discover worker output by searching bodies of issues, pull requests, and discussions. This correlation is explicit and does not require workers to be aware of the campaign.
 
 ### Idempotency Guarantee
 
 All operations must be idempotent:
-- Adding an issue already on the board → No-op (do not duplicate)
+- Adding an item (issue/PR/discussion) already on the board → No-op (do not duplicate)
 - Updating a status that matches current value → No-op (no change recorded)
 - Marking a completed campaign as completed → No-op (terminal state preserved)
 

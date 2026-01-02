@@ -94,7 +94,7 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	}
 
 	// Verify explicit completion criteria
-	if !strings.Contains(data.MarkdownContent, "all discovered issues are closed") {
+	if !strings.Contains(data.MarkdownContent, "all discovered items") {
 		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
 	}
 }
@@ -133,7 +133,7 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	}
 
 	// Verify the worker discovery step is present
-	if !strings.Contains(data.MarkdownContent, "Query worker-created issues") {
+	if !strings.Contains(data.MarkdownContent, "Query worker-created content") {
 		t.Errorf("expected markdown to include worker discovery step, got: %q", data.MarkdownContent)
 	}
 
@@ -142,7 +142,7 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	}
 
 	// Verify that IMPORTANT notice is present
-	if !strings.Contains(data.MarkdownContent, "**IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow") {
+	if !strings.Contains(data.MarkdownContent, "**IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow") {
 		t.Errorf("expected markdown to have IMPORTANT notice about separate searches, got: %q", data.MarkdownContent)
 	}
 
@@ -156,6 +156,17 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 		if !strings.Contains(data.MarkdownContent, expectedTrackerID) {
 			t.Errorf("expected markdown to have tracker-id for %q, got: %q", workflow, data.MarkdownContent)
 		}
+	}
+	
+	// Verify that all three search types are mentioned (issues, PRs, discussions)
+	if !strings.Contains(data.MarkdownContent, "type:issue") {
+		t.Errorf("expected markdown to include issue search type, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "type:pr") {
+		t.Errorf("expected markdown to include PR search type, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "Discussions:") {
+		t.Errorf("expected markdown to include discussion search, got: %q", data.MarkdownContent)
 	}
 
 	// Verify instructions to combine results
