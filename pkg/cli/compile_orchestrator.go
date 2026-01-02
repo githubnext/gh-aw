@@ -173,7 +173,8 @@ func generateAndCompileCampaignOrchestrator(
 
 	if !noEmit {
 		content := renderGeneratedCampaignOrchestratorMarkdown(data, campaignSpecPath)
-		if err := os.WriteFile(orchestratorPath, []byte(content), 0644); err != nil {
+		// Write with restrictive permissions (0600) to follow security best practices
+		if err := os.WriteFile(orchestratorPath, []byte(content), 0600); err != nil {
 			return "", fmt.Errorf("failed to write generated campaign orchestrator %s: %w", orchestratorPath, err)
 		}
 		if verbose {
