@@ -20,7 +20,7 @@
 //   - purgeOrphanedLockFiles() - Remove orphaned .lock.yml files
 //   - purgeInvalidFiles() - Remove .invalid.yml files
 //   - purgeOrphanedCampaignOrchestrators() - No-op (deprecated, .campaign.g.md files are debug artifacts)
-//   - purgeOrphanedCampaignOrchestratorLockFiles() - Remove orphaned .campaign.g.lock.yml files
+//   - purgeOrphanedCampaignOrchestratorLockFiles() - Remove orphaned .campaign.lock.yml files
 //
 // These functions abstract batch operations, allowing the main compile
 // orchestrator to focus on coordination while these handle batch processing.
@@ -128,8 +128,8 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	// Find lock files that should be deleted (exist but aren't expected)
 	var orphanedFiles []string
 	for _, existing := range existingLockFiles {
-		// Skip .campaign.g.lock.yml files - they're handled by purgeOrphanedCampaignOrchestratorLockFiles
-		if strings.HasSuffix(existing, ".campaign.g.lock.yml") {
+		// Skip .campaign.lock.yml files - they're handled by purgeOrphanedCampaignOrchestratorLockFiles
+		if strings.HasSuffix(existing, ".campaign.lock.yml") {
 			continue
 		}
 		if !expectedLockFileSet[existing] {
@@ -205,13 +205,13 @@ func purgeOrphanedCampaignOrchestrators(workflowsDir string, expectedCampaignDef
 	return nil
 }
 
-// purgeOrphanedCampaignOrchestratorLockFiles removes orphaned .campaign.g.lock.yml files
+// purgeOrphanedCampaignOrchestratorLockFiles removes orphaned .campaign.lock.yml files
 // These are compiled from .campaign.g.md files, which are generated from .campaign.md source files
 func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCampaignDefinitions []string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purging orphaned campaign orchestrator lock files in %s", workflowsDir)
 
-	// Find all existing campaign orchestrator lock files (.campaign.g.lock.yml)
-	existingCampaignOrchestratorLockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.lock.yml"))
+	// Find all existing campaign orchestrator lock files (.campaign.lock.yml)
+	existingCampaignOrchestratorLockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.campaign.lock.yml"))
 	if err != nil {
 		return fmt.Errorf("failed to find existing campaign orchestrator lock files: %w", err)
 	}
@@ -222,7 +222,7 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .campaign.g.lock.yml files", len(existingCampaignOrchestratorLockFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .campaign.lock.yml files", len(existingCampaignOrchestratorLockFiles))))
 	}
 
 	// Build a set of expected campaign definition files
@@ -235,9 +235,9 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 	var orphanedLockFiles []string
 	for _, lockFile := range existingCampaignOrchestratorLockFiles {
 		// Derive the expected source campaign definition file name
-		// e.g., "example.campaign.g.lock.yml" -> "example.campaign.md"
+		// e.g., "example.campaign.lock.yml" -> "example.campaign.md"
 		baseName := filepath.Base(lockFile)
-		sourceName := strings.TrimSuffix(strings.TrimSuffix(baseName, ".g.lock.yml"), ".campaign") + ".campaign.md"
+		sourceName := strings.TrimSuffix(baseName, ".lock.yml") + ".md"
 		sourcePath := filepath.Join(workflowsDir, sourceName)
 
 		// Check if the source campaign definition exists
@@ -256,10 +256,10 @@ func purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir string, expectedCam
 			}
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .campaign.g.lock.yml files", len(orphanedLockFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .campaign.lock.yml files", len(orphanedLockFiles))))
 		}
 	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .campaign.g.lock.yml files found to purge"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No orphaned .campaign.lock.yml files found to purge"))
 	}
 
 	compileBatchOperationsLog.Printf("Purged %d orphaned campaign orchestrator lock files", len(orphanedLockFiles))

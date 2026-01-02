@@ -3,6 +3,7 @@
 package cli
 
 import (
+"context"
 	"bytes"
 	"io"
 	"os"

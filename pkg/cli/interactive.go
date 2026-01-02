@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -500,7 +501,7 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 		TrialLogicalRepoSlug: "",
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 
 	if err != nil {
 		spinner.Stop()

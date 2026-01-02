@@ -366,7 +366,7 @@ func handleFileDeleted(mdFile string, verbose bool) {
 		}
 
 		// Remove the orchestrator's lock file
-		orchestratorLockFile := strings.TrimSuffix(mdFile, ".campaign.md") + ".campaign.g.lock.yml"
+		orchestratorLockFile := strings.TrimSuffix(mdFile, ".campaign.md") + ".campaign.lock.yml"
 		if _, err := os.Stat(orchestratorLockFile); err == nil {
 			if err := os.Remove(orchestratorLockFile); err != nil {
 				if verbose {

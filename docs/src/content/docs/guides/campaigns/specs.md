@@ -15,45 +15,43 @@ In a typical setup:
 - A generated orchestrator workflow keeps the campaign coherent over time. It discovers items tagged with your tracker label, updates the Project board, and produces ongoing progress reporting.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
 
-### Mental model (ASCII)
+### Mental model
 
+```mermaid
+flowchart TB
+    spec["fa:fa-file-code .github/workflows/&lt;id&gt;.campaign.md<br/><small>specification / contract<br/>(tracked in git)</small>"]
+    compile["fa:fa-cogs gh aw compile"]
+    debug["fa:fa-file .campaign.g.md<br/><small>debug artifact<br/>(not tracked)</small>"]
+    lock["fa:fa-lock .campaign.lock.yml<br/><small>compiled workflow<br/>(tracked in git)</small>"]
+    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items via tracker-label<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
+    worker1["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
+    worker2["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
+    project["fa:fa-table GitHub Project board<br/><small>campaign dashboard</small>"]
+    memory["fa:fa-code-branch repo-memory branch<br/><small>memory/campaigns/&lt;id&gt;/cursor.json<br/>memory/campaigns/&lt;id&gt;/metrics/&lt;date&gt;.json</small>"]
+
+    spec --> compile
+    compile --> debug
+    compile --> lock
+    lock --> orchestrator
+    orchestrator -->|triggers/coordinates| worker1
+    orchestrator -->|triggers/coordinates| worker2
+    worker1 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
+    worker2 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
+    orchestrator -.->|reads/writes| memory
+    project -.->|dashboard view| orchestrator
+
+    classDef tracked fill:#d4edda,stroke:#28a745,stroke-width:2px
+    classDef notTracked fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    classDef workflow fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
+    classDef external fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+
+    class spec,lock tracked
+    class debug notTracked
+    class orchestrator,worker1,worker2 workflow
+    class project,memory external
 ```
-  .github/workflows/<id>.campaign.md
-  (specification / contract - tracked in git)
-      |
-      |  gh aw compile
-      v
-  .github/workflows/<id>.campaign.g.md  ->  <id>.campaign.g.lock.yml
-  (debug artifact - not tracked)            (compiled workflow - tracked in git)
-      |
-      |  discovers items via tracker-label (e.g. campaign:<id>)
-      |  updates Project dashboard
-      |  reads/writes repo-memory (cursor + metrics)
-      v
-  +---------------------------+
-  | Orchestrator workflow     |
-  +---------------------------+
-    |                  |
-    | triggers/coordinates |
-    v                  v
-  +----------------+   +----------------+
-  | Worker workflow |   | Worker workflow |
-  | (agent +        |   | (agent +        |
-  | safe-outputs)   |   | safe-outputs)   |
-  +----------------+   +----------------+
-    |
-    | creates/updates Issues/PRs with tracker-label
-    v
-  GitHub Project board  <---  "campaign dashboard"
 
-  repo-memory branch:
-  memory/campaigns/<id>/cursor.json
-  memory/campaigns/<id>/metrics/<date>.json
-```
-
-**Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.g.lock.yml` are version controlled.
-
-Editable diagram (draw.io): `docs/src/content/docs/guides/campaigns/agentic-campaign.drawio`
+**Note:** The `.campaign.g.md` file is a local debug artifact generated during compilation to help developers review the orchestrator structure. It is not committed to git (it's in `.gitignore`). Only the source `.campaign.md` and the compiled `.campaign.lock.yml` are version controlled.
 
 This is why campaigns feel like “delegation over time”: you are defining success, scope, and reporting, not just describing a single run.
 
@@ -142,8 +140,8 @@ governance:
 
 ## Compilation and orchestrators
 
-`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator and compiles it to `.campaign.g.lock.yml`.
+`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator and compiles it to `.campaign.lock.yml`.
 
-During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.g.lock.yml` is tracked.
+During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 
 See [Agentic campaign specs and orchestrators](/gh-aw/setup/cli/#compile).

@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,7 +87,7 @@ This is a test workflow for compilation.
 		Strict:               false,
 	}
 
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -191,7 +192,7 @@ This is a test workflow for compilation.
 		Strict: false,
 	}
 
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Failed to compile workflows: %v", err)
 	}

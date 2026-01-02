@@ -270,7 +270,7 @@ Examples:
 			JSONOutput:           jsonOutput,
 			Stats:                stats,
 		}
-		if _, err := cli.CompileWorkflows(config); err != nil {
+		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			errMsg := err.Error()
 			// Check if error is already formatted (contains suggestions or starts with ✗)
 			if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
@@ -320,7 +320,7 @@ Examples:
 			return err
 		}
 
-		return cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, inputs, verboseFlag)
+		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, inputs, verboseFlag)
 	},
 }
 

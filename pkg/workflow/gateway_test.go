@@ -195,18 +195,16 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 
 func TestGenerateMCPGatewaySteps(t *testing.T) {
 	tests := []struct {
-		name             string
-		data             *WorkflowData
-		mcpServers       map[string]any
-		gatewayedServers []string
-		expectSteps      int
+		name        string
+		data        *WorkflowData
+		mcpServers  map[string]any
+		expectSteps int
 	}{
 		{
-			name:             "gateway disabled returns no steps",
-			data:             &WorkflowData{},
-			mcpServers:       map[string]any{},
-			gatewayedServers: []string{},
-			expectSteps:      0,
+			name:        "gateway disabled returns no steps",
+			data:        &WorkflowData{},
+			mcpServers:  map[string]any{},
+			expectSteps: 0,
 		},
 		{
 			name: "gateway enabled returns two steps",
@@ -223,8 +221,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			mcpServers: map[string]any{
 				"github": map[string]any{},
 			},
-			gatewayedServers: []string{"github"},
-			expectSteps:      2,
+			expectSteps: 2,
 		},
 	}
 
@@ -270,7 +267,7 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_UsesCorrectPort(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
@@ -284,7 +281,7 @@ func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.
 	assert.Contains(t, stepStr, "http://localhost:8080")
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_IncludesMCPConfig(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
@@ -297,7 +294,7 @@ func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
 	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_GeneratesValidStep(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}

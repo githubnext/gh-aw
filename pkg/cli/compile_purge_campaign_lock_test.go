@@ -3,6 +3,7 @@
 package cli
 
 import (
+"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,7 +77,7 @@ This is a regular workflow.`
 	}
 
 	// Create a campaign orchestrator lock file (generated from .campaign.md)
-	campaignLockYml := filepath.Join(workflowsDir, "test-campaign.campaign.g.lock.yml")
+	campaignLockYml := filepath.Join(workflowsDir, "test-campaign.campaign.lock.yml")
 	campaignLockContent := `name: Test Campaign Orchestrator
 on:
   schedule:
@@ -145,7 +146,7 @@ jobs:
 	}
 
 	// Compile workflows with purge enabled
-	result, err := CompileWorkflows(config)
+	result, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Logf("Compilation error (expected): %v", err)
 	}
