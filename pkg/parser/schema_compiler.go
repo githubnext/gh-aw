@@ -1,18 +1,18 @@
 package parser
 
 import (
-_ "embed"
-"encoding/json"
-"errors"
-"fmt"
-"os"
-"sort"
-"strings"
-"sync"
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"sync"
 
-"github.com/githubnext/gh-aw/pkg/console"
-"github.com/githubnext/gh-aw/pkg/logger"
-"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var schemaCompilerLog = logger.New("parser:schema_compiler")
@@ -344,7 +344,6 @@ func validateWithSchemaAndLocation(frontmatter map[string]any, schemaJSON, conte
 	// Fallback to the original error if we can't format it nicely
 	return err
 }
-
 
 // GetMainWorkflowSchema returns the embedded main workflow schema JSON
 func GetMainWorkflowSchema() string {

@@ -27,21 +27,21 @@ func TestCommandProviderInterface(t *testing.T) {
 	t.Run("GenBashCompletion", func(t *testing.T) {
 		var buf bytes.Buffer
 		err := provider.GenBashCompletion(&buf)
-		assert.NoError(t, err, "GenBashCompletion should not error")
+		require.NoError(t, err, "GenBashCompletion should not error")
 		assert.NotEmpty(t, buf.String(), "GenBashCompletion should generate content")
 	})
 
 	t.Run("GenZshCompletion", func(t *testing.T) {
 		var buf bytes.Buffer
 		err := provider.GenZshCompletion(&buf)
-		assert.NoError(t, err, "GenZshCompletion should not error")
+		require.NoError(t, err, "GenZshCompletion should not error")
 		assert.NotEmpty(t, buf.String(), "GenZshCompletion should generate content")
 	})
 
 	t.Run("GenFishCompletion", func(t *testing.T) {
 		var buf bytes.Buffer
 		err := provider.GenFishCompletion(&buf, true)
-		assert.NoError(t, err, "GenFishCompletion should not error")
+		require.NoError(t, err, "GenFishCompletion should not error")
 		assert.NotEmpty(t, buf.String(), "GenFishCompletion should generate content")
 	})
 }

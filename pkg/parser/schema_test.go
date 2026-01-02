@@ -1693,7 +1693,6 @@ timeout_minu tes: 10
 	}
 }
 
-
 func TestValidateMCPConfigWithSchema(t *testing.T) {
 	tests := []struct {
 		name        string
