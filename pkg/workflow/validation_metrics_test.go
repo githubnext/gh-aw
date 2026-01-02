@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -371,29 +372,34 @@ func TestConcurrentAccess(t *testing.T) {
 	metrics := NewValidationMetrics(true)
 
 	// Simulate concurrent validator execution
-	done := make(chan bool)
+	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		go func(id int) {
+			defer wg.Done()
 			validatorName := "validator_" + string(rune('A'+id))
-			defer metrics.StartValidator(validatorName)()
+			stopTimer := metrics.StartValidator(validatorName)
 			time.Sleep(time.Millisecond)
 			metrics.RecordAPICall("Test Service", id%2 == 0, time.Millisecond, false)
-			done <- true
+			stopTimer()
 		}(i)
 	}
 
-	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
-		<-done
-	}
+	// Wait for all goroutines to complete
+	wg.Wait()
 
 	metrics.Complete()
 
-	// Verify all validators were recorded
-	assert.Len(t, metrics.validatorTimings, 10, "All validators should be recorded")
+	// Verify all validators were recorded (need to lock when reading)
+	metrics.mu.Lock()
+	timingsCount := len(metrics.validatorTimings)
+	metrics.mu.Unlock()
+	assert.Equal(t, 10, timingsCount, "All validators should be recorded")
 
-	// Verify API calls were recorded
+	// Verify API calls were recorded (need to lock when reading)
+	metrics.mu.Lock()
 	stats := metrics.externalAPICalls["Test Service"]
+	metrics.mu.Unlock()
 	require.NotNil(t, stats)
 	assert.Equal(t, 10, stats.Attempts)
 	assert.Equal(t, 5, stats.CacheHits)
