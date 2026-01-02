@@ -747,8 +747,8 @@ func TestValidEngineNamesConsistency(t *testing.T) {
 	thirdCall := ValidEngineNames()
 
 	// Verify same length across calls
-	assert.Equal(t, len(firstCall), len(secondCall), "Engine names list length should be consistent")
-	assert.Equal(t, len(secondCall), len(thirdCall), "Engine names list length should be consistent")
+	assert.Len(t, secondCall, len(firstCall), "Engine names list length should be consistent")
+	assert.Len(t, thirdCall, len(secondCall), "Engine names list length should be consistent")
 
 	// Verify all expected engines are present in all calls
 	expectedEngines := []string{"copilot", "claude", "codex", "custom"}

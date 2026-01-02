@@ -154,6 +154,11 @@ engine: copilot
 on: push
 timeout-minutes: 10
 engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+tools:
+  github: false
 ---
 
 # Test Workflow`,
