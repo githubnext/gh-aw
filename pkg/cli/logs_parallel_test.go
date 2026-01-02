@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,7 +10,7 @@ import (
 
 func TestDownloadRunArtifactsParallel(t *testing.T) {
 	// Test with empty runs slice
-	results := downloadRunArtifactsConcurrent([]WorkflowRun{}, "./test-logs", false, 5)
+	results := downloadRunArtifactsConcurrent(context.Background(), []WorkflowRun{}, "./test-logs", false, 5)
 	if len(results) != 0 {
 		t.Errorf("Expected 0 results for empty runs, got %d", len(results))
 	}
@@ -40,7 +41,7 @@ func TestDownloadRunArtifactsParallel(t *testing.T) {
 
 	// This will fail since we don't have real GitHub CLI access,
 	// but we can verify the structure and that no panics occur
-	results = downloadRunArtifactsConcurrent(runs, "./test-logs", false, 5)
+	results = downloadRunArtifactsConcurrent(context.Background(), runs, "./test-logs", false, 5)
 
 	// We expect 2 results even if they fail
 	if len(results) != 2 {
@@ -80,7 +81,7 @@ func TestDownloadRunArtifactsParallelMaxRuns(t *testing.T) {
 	}
 
 	// Pass maxRuns=3 as a hint that we need 3 results, but all runs should be processed
-	results := downloadRunArtifactsConcurrent(runs, "./test-logs", false, 3)
+	results := downloadRunArtifactsConcurrent(context.Background(), runs, "./test-logs", false, 3)
 
 	// All runs should be processed to account for potential caching/filtering
 	if len(results) != 5 {
@@ -165,5 +166,48 @@ func TestMaxConcurrentDownloads(t *testing.T) {
 
 	if MaxConcurrentDownloads > 20 {
 		t.Errorf("MaxConcurrentDownloads should be reasonable (<=20), got %d", MaxConcurrentDownloads)
+	}
+}
+
+// TestDownloadRunArtifactsParallelWithCancellation tests context cancellation during concurrent downloads
+func TestDownloadRunArtifactsParallelWithCancellation(t *testing.T) {
+	// Create a context that's already cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Test with mock runs
+	runs := []WorkflowRun{
+		{
+			DatabaseID:   12345,
+			Number:       1,
+			Status:       "completed",
+			Conclusion:   "success",
+			WorkflowName: "Test Workflow",
+		},
+		{
+			DatabaseID:   12346,
+			Number:       2,
+			Status:       "completed",
+			Conclusion:   "failure",
+			WorkflowName: "Test Workflow",
+		},
+	}
+
+	// Download with cancelled context
+	results := downloadRunArtifactsConcurrent(ctx, runs, "./test-logs", false, 5)
+
+	// Should get results for all runs
+	if len(results) != 2 {
+		t.Errorf("Expected 2 results even with cancelled context, got %d", len(results))
+	}
+
+	// All results should be skipped due to context cancellation
+	for _, result := range results {
+		if !result.Skipped {
+			t.Errorf("Expected result for run %d to be skipped due to cancelled context", result.Run.DatabaseID)
+		}
+		if result.Error != context.Canceled {
+			t.Errorf("Expected error to be context.Canceled for run %d, got %v", result.Run.DatabaseID, result.Error)
+		}
 	}
 }
