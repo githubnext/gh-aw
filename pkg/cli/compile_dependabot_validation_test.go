@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"testing"
 )
 
@@ -54,7 +55,7 @@ func TestCompileDependabotValidation(t *testing.T) {
 
 			// For tests that should error, we expect them to fail early
 			if tt.expectError {
-				_, err := CompileWorkflows(tt.config)
+				_, err := CompileWorkflows(context.Background(), tt.config)
 				if err == nil {
 					t.Errorf("expected error but got none")
 				} else if err.Error() != tt.errorMsg {

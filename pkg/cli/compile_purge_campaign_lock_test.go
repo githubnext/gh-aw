@@ -3,6 +3,7 @@
 package cli
 
 import (
+"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -145,7 +146,7 @@ jobs:
 	}
 
 	// Compile workflows with purge enabled
-	result, err := CompileWorkflows(config)
+	result, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Logf("Compilation error (expected): %v", err)
 	}
