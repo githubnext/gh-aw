@@ -3,6 +3,6 @@ package workflow
 
 import "testing"
 
-func TestDeprecated(t *testing.T) {
+func TestDeprecatedFirewallField(t *testing.T) {
 t.Skip("Tests disabled - network.firewall field has been deprecated")
 }
