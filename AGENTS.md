@@ -553,7 +553,7 @@ type Version string
 type FeatureFlag string
 
 const MaxExpressionLineLength LineLength = 120
-const DefaultCopilotVersion Version = "0.0.373"
+const DefaultCopilotVersion Version = "0.0.374"
 const MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
 
 // All semantic types in pkg/constants provide String() and IsValid() methods
