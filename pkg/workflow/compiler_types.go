@@ -39,6 +39,8 @@ type Compiler struct {
 	workflowIdentifier   string              // Identifier for the current workflow being compiled (for schedule scattering)
 	scheduleWarnings     []string            // Accumulated schedule warnings for this compiler instance
 	repositorySlug       string              // Repository slug (owner/repo) used as seed for scattering
+	profileEnabled       bool                // If true, collect validation performance metrics
+	validationMetrics    *ValidationMetrics  // Performance metrics for validation operations
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -147,6 +149,25 @@ func (c *Compiler) GetWarningCount() int {
 // ResetWarningCount resets the warning counter to zero
 func (c *Compiler) ResetWarningCount() {
 	c.warningCount = 0
+}
+
+// SetProfileEnabled configures whether to collect validation performance metrics
+func (c *Compiler) SetProfileEnabled(enabled bool) {
+	c.profileEnabled = enabled
+	if enabled && c.validationMetrics == nil {
+		c.validationMetrics = NewValidationMetrics(true)
+	}
+}
+
+// IsProfileEnabled returns whether profiling is enabled
+func (c *Compiler) IsProfileEnabled() bool {
+	return c.profileEnabled
+}
+
+// GetValidationMetrics returns the validation metrics collector
+// Returns nil if profiling is not enabled
+func (c *Compiler) GetValidationMetrics() *ValidationMetrics {
+	return c.validationMetrics
 }
 
 // SetWorkflowIdentifier sets the identifier for the current workflow being compiled

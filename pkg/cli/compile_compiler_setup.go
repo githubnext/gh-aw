@@ -88,6 +88,12 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	if config.RefreshStopTime {
 		compileCompilerSetupLog.Print("Stop time refresh enabled: will regenerate stop-after times")
 	}
+
+	// Set profile flag to enable validation performance metrics
+	compiler.SetProfileEnabled(config.Profile)
+	if config.Profile {
+		compileCompilerSetupLog.Print("Performance profiling enabled: will collect validation metrics")
+	}
 }
 
 // setupActionMode configures the action script inlining mode

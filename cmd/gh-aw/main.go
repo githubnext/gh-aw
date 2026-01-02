@@ -220,6 +220,7 @@ Examples:
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		fix, _ := cmd.Flags().GetBool("fix")
 		stats, _ := cmd.Flags().GetBool("stats")
+		profile, _ := cmd.Flags().GetBool("profile")
 		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
@@ -269,6 +270,7 @@ Examples:
 			Actionlint:           actionlint,
 			JSONOutput:           jsonOutput,
 			Stats:                stats,
+			Profile:              profile,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			errMsg := err.Error()
@@ -480,6 +482,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	compileCmd.Flags().Bool("stats", false, "Display statistics table sorted by file size (shows jobs, steps, scripts, and shells)")
+	compileCmd.Flags().Bool("profile", false, "Enable validation performance profiling (shows timing, cache hit rates, and API call statistics)")
 	compileCmd.Flags().Bool("no-check-update", false, "Skip checking for gh-aw updates")
 	compileCmd.MarkFlagsMutuallyExclusive("dir", "workflows-dir")
 

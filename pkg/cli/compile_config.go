@@ -31,6 +31,7 @@ type CompileConfig struct {
 	ActionMode           string   // Action script inlining mode: inline, dev, or release
 	ActionTag            string   // Override action SHA or tag for actions/setup (overrides action-mode to release)
 	Stats                bool     // Display statistics table sorted by file size
+	Profile              bool     // Enable validation performance profiling
 }
 
 // WorkflowFailure represents a failed workflow with its error count
