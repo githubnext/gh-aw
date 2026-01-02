@@ -307,7 +307,7 @@ type AWFConfig struct {
 func buildAWFArgs(workflowData *WorkflowData, config AWFConfig) ([]string, string) {
 	firewallConfig := getFirewallConfig(workflowData)
 	agentConfig := getAgentConfig(workflowData)
-	
+
 	// Determine log level
 	var awfLogLevel = "info"
 	if firewallConfig != nil && firewallConfig.LogLevel != "" {

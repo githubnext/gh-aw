@@ -350,12 +350,12 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 // TestBuildAWFArgs tests the AWF argument builder helper function
 func TestBuildAWFArgs(t *testing.T) {
 	tests := []struct {
-		name           string
-		workflowData   *WorkflowData
-		config         AWFConfig
-		expectTTY      bool
-		expectDomains  string
-		expectMounts   int // Expected number of mount arguments (not counting --mount flag)
+		name          string
+		workflowData  *WorkflowData
+		config        AWFConfig
+		expectTTY     bool
+		expectDomains string
+		expectMounts  int // Expected number of mount arguments (not counting --mount flag)
 	}{
 		{
 			name: "basic configuration without TTY",
