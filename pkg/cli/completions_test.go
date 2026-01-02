@@ -142,15 +142,7 @@ No description workflow
 		f.Close()
 	}
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	tests := []struct {
 		name       string
@@ -290,15 +282,7 @@ func TestCompleteWorkflowNames(t *testing.T) {
 		f.Close()
 	}
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	tests := []struct {
 		name       string
@@ -340,15 +324,7 @@ func TestCompleteWorkflowNamesNoWorkflowsDir(t *testing.T) {
 	// Create a temporary directory without .github/workflows
 	tmpDir := t.TempDir()
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: filepath.Join(tmpDir, ".github", "workflows")}}
 
 	completions, directive := CompleteWorkflowNames(cmd, nil, "")
 	assert.Empty(t, completions)
@@ -401,15 +377,7 @@ func TestCompleteWorkflowNamesWithSpecialCharacters(t *testing.T) {
 		f.Close()
 	}
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	tests := []struct {
 		name           string
@@ -506,15 +474,7 @@ func TestCompleteWorkflowNamesWithInvalidFiles(t *testing.T) {
 	err = os.WriteFile(invalidMd, []byte("not valid yaml frontmatter"), 0644)
 	require.NoError(t, err)
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	completions, directive := CompleteWorkflowNames(cmd, nil, "")
 
@@ -538,73 +498,58 @@ func TestCompleteWorkflowNamesWithInvalidFiles(t *testing.T) {
 
 // TestCompleteWorkflowNamesCaseSensitivity tests prefix matching is case-sensitive
 func TestCompleteWorkflowNamesCaseSensitivity(t *testing.T) {
-	// Create a temporary directory structure
-	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
-
-	// Create test workflow files with different cases
-	testWorkflows := []string{
-		"test-workflow.md",
-		"Test-Workflow.md",
-		"TEST-WORKFLOW.md",
-		"other-workflow.md",
-	}
-	for _, wf := range testWorkflows {
-		f, err := os.Create(filepath.Join(workflowsDir, wf))
-		require.NoError(t, err)
-		f.Close()
-	}
-
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
-
-	tests := []struct {
-		name           string
-		toComplete     string
-		expectContains []string
-		expectMissing  []string
+	// Note: macOS filesystems are commonly case-insensitive. To keep this test reliable across
+	// environments, run each case-variant in its own temp directory.
+	variants := []struct {
+		name     string
+		fileName string
+		matches  []string
+		misses   []string
 	}{
 		{
-			name:           "lowercase test prefix",
-			toComplete:     "test",
-			expectContains: []string{"test-workflow"},
-			expectMissing:  []string{"Test-Workflow", "TEST-WORKFLOW"},
+			name:     "lowercase workflow name",
+			fileName: "test-workflow.md",
+			matches:  []string{"test"},
+			misses:   []string{"Test", "TEST"},
 		},
 		{
-			name:           "capitalized Test prefix",
-			toComplete:     "Test",
-			expectContains: []string{"Test-Workflow"},
-			expectMissing:  []string{"test-workflow", "TEST-WORKFLOW"},
+			name:     "capitalized workflow name",
+			fileName: "Test-Workflow.md",
+			matches:  []string{"Test"},
+			misses:   []string{"test", "TEST"},
 		},
 		{
-			name:           "uppercase TEST prefix",
-			toComplete:     "TEST",
-			expectContains: []string{"TEST-WORKFLOW"},
-			expectMissing:  []string{"test-workflow", "Test-Workflow"},
+			name:     "uppercase workflow name",
+			fileName: "TEST-WORKFLOW.md",
+			matches:  []string{"TEST"},
+			misses:   []string{"test", "Test"},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			completions, directive := CompleteWorkflowNames(cmd, nil, tt.toComplete)
-			assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	for _, v := range variants {
+		t.Run(v.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+			require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+			require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, v.fileName), []byte("# test\n"), 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "other-workflow.md"), []byte("# other\n"), 0644))
 
-			// Verify expected completions are present
-			for _, expected := range tt.expectContains {
-				assert.Contains(t, completions, expected, "Expected completion '%s' not found", expected)
+			cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
+
+			for _, prefix := range v.matches {
+				t.Run("matches_"+prefix, func(t *testing.T) {
+					completions, directive := CompleteWorkflowNames(cmd, nil, prefix)
+					assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+					assert.Contains(t, completions, strings.TrimSuffix(v.fileName, ".md"), "Expected workflow not found")
+				})
 			}
 
-			// Verify unwanted completions are not present
-			for _, missing := range tt.expectMissing {
-				assert.NotContains(t, completions, missing, "Unexpected completion '%s' found", missing)
+			for _, prefix := range v.misses {
+				t.Run("misses_"+prefix, func(t *testing.T) {
+					completions, directive := CompleteWorkflowNames(cmd, nil, prefix)
+					assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+					assert.NotContains(t, completions, strings.TrimSuffix(v.fileName, ".md"), "Unexpected workflow found")
+				})
 			}
 		})
 	}
@@ -629,15 +574,7 @@ func TestCompleteWorkflowNamesExactMatch(t *testing.T) {
 		f.Close()
 	}
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	// Test exact match - should still return the match and any others with same prefix
 	completions, directive := CompleteWorkflowNames(cmd, nil, "test")
@@ -668,15 +605,7 @@ func TestCompleteWorkflowNamesLongNames(t *testing.T) {
 	require.NoError(t, err)
 	f.Close()
 
-	// Change to the temp directory
-	originalDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	defer func() {
-		_ = os.Chdir(originalDir)
-	}()
-
-	cmd := &cobra.Command{}
+	cmd := &cobra.Command{Annotations: map[string]string{workflowsDirAnnotationKey: workflowsDir}}
 
 	// Test completion with empty prefix should include both
 	completions, directive := CompleteWorkflowNames(cmd, nil, "")

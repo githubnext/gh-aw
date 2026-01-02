@@ -13,6 +13,8 @@ import (
 
 var completionsLog = logger.New("cli:completions")
 
+const workflowsDirAnnotationKey = "gh-aw-workflows-dir"
+
 // getWorkflowDescription extracts the description field from a workflow's frontmatter
 // Returns empty string if the description is not found or if there's an error reading the file
 func getWorkflowDescription(filePath string) string {
@@ -77,7 +79,14 @@ func ValidEngineNames() []string {
 func CompleteWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	completionsLog.Printf("Completing workflow names with prefix: %s", toComplete)
 
-	mdFiles, err := getMarkdownWorkflowFiles()
+	workflowsDir := getWorkflowsDir()
+	if cmd != nil && cmd.Annotations != nil {
+		if overrideDir, ok := cmd.Annotations[workflowsDirAnnotationKey]; ok && overrideDir != "" {
+			workflowsDir = overrideDir
+		}
+	}
+
+	mdFiles, err := getMarkdownWorkflowFilesInDir(workflowsDir)
 	if err != nil {
 		completionsLog.Printf("Failed to get workflow files: %v", err)
 		return nil, cobra.ShellCompDirectiveNoFileComp

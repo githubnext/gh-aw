@@ -369,8 +369,13 @@ func calculateTimeRemaining(stopTimeStr string) string {
 // StatusWorkflows shows status of workflows
 // getMarkdownWorkflowFiles finds all markdown files in .github/workflows directory
 func getMarkdownWorkflowFiles() ([]string, error) {
-	workflowsDir := getWorkflowsDir()
+	return getMarkdownWorkflowFilesInDir(getWorkflowsDir())
+}
 
+
+// getMarkdownWorkflowFilesInDir finds all markdown workflow files in the provided directory.
+// This is primarily used for shell completions and tests to avoid relying on process-wide cwd.
+func getMarkdownWorkflowFilesInDir(workflowsDir string) ([]string, error) {
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("no .github/workflows directory found")
 	}
