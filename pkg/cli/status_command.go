@@ -372,7 +372,6 @@ func getMarkdownWorkflowFiles() ([]string, error) {
 	return getMarkdownWorkflowFilesInDir(getWorkflowsDir())
 }
 
-
 // getMarkdownWorkflowFilesInDir finds all markdown workflow files in the provided directory.
 // This is primarily used for shell completions and tests to avoid relying on process-wide cwd.
 func getMarkdownWorkflowFilesInDir(workflowsDir string) ([]string, error) {

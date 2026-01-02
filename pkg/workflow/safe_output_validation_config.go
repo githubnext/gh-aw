@@ -230,7 +230,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		},
 	},
 	"update_project": {
-		DefaultMax: 10,
+		DefaultMax:       10,
 		CustomValidation: "updateProjectValidTarget",
 		Fields: map[string]FieldValidation{
 			"project": {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
