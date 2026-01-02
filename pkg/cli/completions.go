@@ -1,15 +1,60 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
 var completionsLog = logger.New("cli:completions")
+
+// getWorkflowDescription extracts the description field from a workflow's frontmatter
+// Returns empty string if the description is not found or if there's an error reading the file
+func getWorkflowDescription(filepath string) string {
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		completionsLog.Printf("Failed to read workflow file %s: %v", filepath, err)
+		return ""
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		completionsLog.Printf("Failed to parse frontmatter from %s: %v", filepath, err)
+		return ""
+	}
+
+	if result.Frontmatter == nil {
+		return ""
+	}
+
+	// Look for description field
+	if desc, ok := result.Frontmatter["description"]; ok {
+		if descStr, ok := desc.(string); ok {
+			// Truncate to 60 characters for better display
+			if len(descStr) > 60 {
+				return descStr[:57] + "..."
+			}
+			return descStr
+		}
+	}
+
+	// Fallback to name field if description not found
+	if name, ok := result.Frontmatter["name"]; ok {
+		if nameStr, ok := name.(string); ok {
+			if len(nameStr) > 60 {
+				return nameStr[:57] + "..."
+			}
+			return nameStr
+		}
+	}
+
+	return ""
+}
 
 // ValidEngineNames returns the list of valid AI engine names for shell completion
 func ValidEngineNames() []string {
@@ -19,6 +64,7 @@ func ValidEngineNames() []string {
 
 // CompleteWorkflowNames provides shell completion for workflow names
 // It returns workflow IDs (basenames without .md extension) from .github/workflows/
+// with tab-separated descriptions for Cobra v1.9.0+ CompletionWithDesc support
 func CompleteWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	completionsLog.Printf("Completing workflow names with prefix: %s", toComplete)
 
@@ -34,7 +80,14 @@ func CompleteWorkflowNames(cmd *cobra.Command, args []string, toComplete string)
 		name := strings.TrimSuffix(base, ".md")
 		// Filter by prefix if toComplete is provided
 		if toComplete == "" || strings.HasPrefix(name, toComplete) {
-			workflows = append(workflows, name)
+			desc := getWorkflowDescription(file)
+			if desc != "" {
+				// Format: "completion\tdescription" for shell completion with descriptions
+				workflows = append(workflows, name+"\t"+desc)
+			} else {
+				// No description available, just add the workflow name
+				workflows = append(workflows, name)
+			}
 		}
 	}
 
