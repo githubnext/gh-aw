@@ -14,8 +14,8 @@
 // # Design Rationale
 //
 // The script content validation enforces two key constraints:
-//   1. GitHub Script mode: Should not use execSync (use async exec from @actions/exec instead)
-//   2. Node.js mode: Should not use GitHub Actions globals (core.*, exec.*, github.*)
+//  1. GitHub Script mode: Should not use execSync (use async exec from @actions/exec instead)
+//  2. Node.js mode: Should not use GitHub Actions globals (core.*, exec.*, github.*)
 //
 // These rules ensure that scripts follow platform conventions:
 //   - GitHub Script mode runs inline in GitHub Actions YAML with GitHub-specific globals available
