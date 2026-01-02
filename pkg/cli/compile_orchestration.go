@@ -373,7 +373,7 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 	data.existingLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 	data.existingInvalidFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
 	data.existingCampaignOrchestratorFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.md"))
-	data.existingCampaignOrchestratorLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.lock.yml"))
+	data.existingCampaignOrchestratorLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.campaign.lock.yml"))
 
 	// Create expected files list
 	for _, mdFile := range mdFiles {
