@@ -56,7 +56,7 @@ func ResolveSetupActionReference(actionMode ActionMode, version string, actionTa
 
 		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
 		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, tag)
-		
+
 		// If WorkflowData is available, try to resolve the SHA
 		if data != nil {
 			actionRepo := fmt.Sprintf("%s/%s", GitHubOrgRepo, actionPath)
@@ -72,7 +72,7 @@ func ResolveSetupActionReference(actionMode ActionMode, version string, actionTa
 				return pinnedRef
 			}
 		}
-		
+
 		// If WorkflowData is not available or SHA resolution failed, return tag-based reference
 		// This is for backward compatibility with standalone workflow generators
 		actionRefLog.Printf("Release mode: using tag-based remote action reference: %s (SHA will be resolved later)", remoteRef)
@@ -120,12 +120,12 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 			actionRefLog.Printf("WARNING: Could not resolve remote reference for %s", localActionPath)
 			return ""
 		}
-		
+
 		// Now resolve the tag to a SHA using action pins
 		// Extract repo and version from the remote reference (format: "repo/path@version")
 		actionRepo := extractActionRepo(remoteRef)
 		version := extractActionVersion(remoteRef)
-		
+
 		if actionRepo != "" && version != "" {
 			// Resolve the SHA using action pins
 			pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
@@ -144,7 +144,7 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 				return pinnedRef
 			}
 		}
-		
+
 		// If we couldn't resolve to SHA, return the tag-based reference
 		// This happens in non-strict mode when no pin is available
 		if hasActionTag {
