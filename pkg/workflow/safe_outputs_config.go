@@ -62,6 +62,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.ClosePullRequests = closePullRequestsConfig
 			}
 
+			// Handle mark-pull-request-as-ready-for-review
+			markPRReadyConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap)
+			if markPRReadyConfig != nil {
+				config.MarkPullRequestAsReadyForReview = markPRReadyConfig
+			}
+
 			// Handle add-comment
 			commentsConfig := c.parseCommentsConfig(outputMap)
 			if commentsConfig != nil {

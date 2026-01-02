@@ -90,6 +90,17 @@ interface ClosePullRequestItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for marking a draft pull request as ready for review
+ */
+interface MarkPullRequestAsReadyForReviewItem extends BaseSafeOutputItem {
+  type: "mark_pull_request_as_ready_for_review";
+  /** Comment explaining why the PR is ready for review */
+  reason: string;
+  /** Optional pull request number (uses triggering PR if not provided) */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
@@ -310,6 +321,7 @@ type SafeOutputItem =
   | CloseDiscussionItem
   | CloseIssueItem
   | ClosePullRequestItem
+  | MarkPullRequestAsReadyForReviewItem
   | AddCommentItem
   | CreatePullRequestItem
   | CreatePullRequestReviewCommentItem
@@ -345,6 +357,7 @@ export {
   CloseDiscussionItem,
   CloseIssueItem,
   ClosePullRequestItem,
+  MarkPullRequestAsReadyForReviewItem,
   AddCommentItem,
   CreatePullRequestItem,
   CreatePullRequestReviewCommentItem,

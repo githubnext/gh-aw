@@ -41,6 +41,7 @@
         { "$ref": "#/$defs/CloseDiscussionOutput" },
         { "$ref": "#/$defs/CloseIssueOutput" },
         { "$ref": "#/$defs/ClosePullRequestOutput" },
+        { "$ref": "#/$defs/MarkPullRequestAsReadyForReviewOutput" },
         { "$ref": "#/$defs/MissingToolOutput" },
         { "$ref": "#/$defs/CreateCodeScanningAlertOutput" },
         { "$ref": "#/$defs/UpdateProjectOutput" },
@@ -413,6 +414,27 @@
         }
       },
       "required": ["type", "body"],
+      "additionalProperties": false
+    },
+    "MarkPullRequestAsReadyForReviewOutput": {
+      "title": "Mark Pull Request as Ready for Review Output",
+      "description": "Output for marking a draft pull request as ready for review with a comment",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "mark_pull_request_as_ready_for_review"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Comment explaining why the PR is ready for review",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
+          "description": "Pull request number to mark as ready (optional - uses triggering PR if not provided)"
+        }
+      },
+      "required": ["type", "reason"],
       "additionalProperties": false
     },
     "MissingToolOutput": {
