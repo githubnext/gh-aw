@@ -84,10 +84,11 @@ func DetectShell() ShellType {
 }
 
 // InstallShellCompletion installs shell completion for the detected shell
-func InstallShellCompletion(verbose bool, rootCmd interface{}) error {
+func InstallShellCompletion(verbose bool, rootCmd CommandProvider) error {
 	shellCompletionLog.Print("Starting shell completion installation")
 
-	// Type assert rootCmd to *cobra.Command
+	// Type assert rootCmd to *cobra.Command to access additional methods if needed
+	// For now, we only use the CommandProvider interface methods
 	cmd, ok := rootCmd.(*cobra.Command)
 	if !ok {
 		return fmt.Errorf("rootCmd must be a *cobra.Command")
