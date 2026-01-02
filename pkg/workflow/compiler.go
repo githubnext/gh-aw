@@ -76,8 +76,15 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
-	// replace the .md extension by .lock.yml
+	// Generate lock file name, handling campaign orchestrators specially
+	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
+	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
+		// For campaign orchestrators: example.campaign.g.md -> example.campaign.lock.yml
+		baseName := strings.TrimSuffix(markdownPath, ".campaign.g.md")
+		lockFile = baseName + ".campaign.lock.yml"
+	}
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 

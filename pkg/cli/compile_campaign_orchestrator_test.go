@@ -54,9 +54,10 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		t.Fatalf("expected orchestrator markdown to exist, stat error: %v", statErr)
 	}
 
-	lockPath := strings.TrimSuffix(orchestratorPath, ".md") + ".lock.yml"
+	// For campaign orchestrators (*.campaign.g.md), the lock file should be *.campaign.lock.yml
+	lockPath := strings.TrimSuffix(campaignSpecPath, ".campaign.md") + ".campaign.lock.yml"
 	if _, statErr := os.Stat(lockPath); statErr != nil {
-		t.Fatalf("expected orchestrator lock file to exist, stat error: %v", statErr)
+		t.Fatalf("expected orchestrator lock file to exist at %s, stat error: %v", lockPath, statErr)
 	}
 
 	// Verify that the generated orchestrator has the required permissions

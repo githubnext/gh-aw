@@ -76,7 +76,7 @@ This is a regular workflow.`
 	}
 
 	// Create a campaign orchestrator lock file (generated from .campaign.md)
-	campaignLockYml := filepath.Join(workflowsDir, "test-campaign.campaign.g.lock.yml")
+	campaignLockYml := filepath.Join(workflowsDir, "test-campaign.campaign.lock.yml")
 	campaignLockContent := `name: Test Campaign Orchestrator
 on:
   schedule:
