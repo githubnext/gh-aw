@@ -750,16 +750,24 @@ A PR is ready to be marked "ready for review" when ALL of the following are true
 
 ### Marking PR as Ready
 
-**DO NOT use `gh pr ready`** - agents don't have access to the `gh` CLI command.
+**Use safe outputs to mark PRs as ready for review.**
 
-Instead, use the GitHub MCP server's `update_pull_request` tool:
+Agents should use the `update_pull_request` safe output tool to change the draft status:
 
 ```
-mcp__github__update_pull_request with:
-- owner: "githubnext"
-- repo: "gh-aw"  
-- pull_number: <PR number from context>
+update_pull_request with:
 - draft: false
+- pull_request_number: <PR number from context>
+```
+
+This safe output approach provides:
+- **Security**: Operates through controlled safe output jobs with minimal permissions
+- **Auditability**: All PR status changes are logged and trackable
+- **Validation**: Ensures proper permissions and context before execution
+
+**Example NDJSON output**:
+```json
+{"type": "update_pull_request", "draft": false}
 ```
 
 **When to mark ready:**
@@ -784,11 +792,11 @@ git diff
 # 2. Validate everything
 make agent-finish  # Runs build, test, recompile, fmt, lint
 
-# 3. If all validations pass, mark PR as ready via GitHub MCP
-# Use mcp__github__update_pull_request tool with draft: false
+# 3. If all validations pass, output safe output to mark PR as ready
+# The agent outputs NDJSON with type: "update_pull_request" and draft: false
 ```
 
-**Note**: The PR will remain in draft status until you explicitly mark it ready. This is intentional - it prevents premature review requests while work is in progress.
+**Note**: The PR will remain in draft status until you explicitly mark it ready using the safe output. This is intentional - it prevents premature review requests while work is in progress.
 
 ## Available Skills Reference
 
