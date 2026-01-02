@@ -1227,40 +1227,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const fs = require('fs');
-            let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
-            try {
-              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
-              if (fs.existsSync(outputPath)) {
-                const outputContent = fs.readFileSync(outputPath, 'utf8');
-                const lines = outputContent.split('\n');
-                for (const line of lines) {
-                  const trimmedLine = line.trim();
-                  if (trimmedLine.startsWith('THREAT_DETECTION_RESULT:')) {
-                    const jsonPart = trimmedLine.substring('THREAT_DETECTION_RESULT:'.length);
-                    verdict = { ...verdict, ...JSON.parse(jsonPart) };
-                    break;
-                  }
-                }
-              }
-            } catch (error) {
-              core.warning('Failed to parse threat detection results: ' + error.message);
-            }
-            core.info('Threat detection verdict: ' + JSON.stringify(verdict));
-            if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) {
-              const threats = [];
-              if (verdict.prompt_injection) threats.push('prompt injection');
-              if (verdict.secret_leak) threats.push('secret leak');
-              if (verdict.malicious_patch) threats.push('malicious patch');
-              const reasonsText = verdict.reasons && verdict.reasons.length > 0 
-                ? '\\nReasons: ' + verdict.reasons.join('; ')
-                : '';
-              core.setOutput('success', 'false');
-              core.setFailed('❌ Security threats detected: ' + threats.join(', ') + reasonsText);
-            } else {
-              core.info('✅ No security threats detected. Safe outputs may proceed.');
-              core.setOutput('success', 'true');
-            }
+            const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/tmp/gh-aw/actions/parse_threat_detection_results.cjs');
+            await main();
       - name: Upload threat detection log
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0

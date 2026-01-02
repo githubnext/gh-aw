@@ -60,13 +60,19 @@ Create an issue.
 		t.Error("Parse results step missing ID")
 	}
 
-	// Check that success is set in the script
-	if !strings.Contains(yaml, "core.setOutput('success', 'true')") {
-		t.Error("Parse results step doesn't set success to true")
+	// Check that the script uses require to load the parse_threat_detection_results.cjs file
+	if !strings.Contains(yaml, "require('/tmp/gh-aw/actions/parse_threat_detection_results.cjs')") {
+		t.Error("Parse results step doesn't use require to load parse_threat_detection_results.cjs")
 	}
 
-	if !strings.Contains(yaml, "core.setOutput('success', 'false')") {
-		t.Error("Parse results step doesn't set success to false")
+	// Check that setupGlobals is called
+	if !strings.Contains(yaml, "setupGlobals(core, github, context, exec, io)") {
+		t.Error("Parse results step doesn't call setupGlobals")
+	}
+
+	// Check that main() is awaited
+	if !strings.Contains(yaml, "await main()") {
+		t.Error("Parse results step doesn't await main()")
 	}
 }
 
