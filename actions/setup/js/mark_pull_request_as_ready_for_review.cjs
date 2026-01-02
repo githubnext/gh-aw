@@ -146,13 +146,7 @@ async function main() {
     }
 
     try {
-      await markPullRequestAsReadyForReview(
-        github,
-        context.repo.owner,
-        context.repo.repo,
-        prNumber,
-        item.reason
-      );
+      await markPullRequestAsReadyForReview(github, context.repo.owner, context.repo.repo, prNumber, item.reason);
     } catch (error) {
       core.error(`Failed to mark PR #${prNumber} as ready for review: ${error.message}`);
       core.setFailed(`Failed to mark PR #${prNumber} as ready for review: ${error.message}`);

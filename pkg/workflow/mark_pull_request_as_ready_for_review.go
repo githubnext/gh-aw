@@ -23,6 +23,17 @@ func (c *Compiler) parseMarkPullRequestAsReadyForReviewConfig(outputMap map[stri
 
 	markPullRequestAsReadyForReviewLog.Print("Parsing mark-pull-request-as-ready-for-review configuration")
 
+	// Get the configuration map
+	var configMap map[string]any
+	if configVal, exists := outputMap["mark-pull-request-as-ready-for-review"]; exists {
+		if cfgMap, ok := configVal.(map[string]any); ok {
+			configMap = cfgMap
+		} else {
+			// Handle null case - use empty config
+			configMap = make(map[string]any)
+		}
+	}
+
 	// Unmarshal into typed config struct
 	var config MarkPullRequestAsReadyForReviewConfig
 	if err := unmarshalConfig(outputMap, "mark-pull-request-as-ready-for-review", &config, markPullRequestAsReadyForReviewLog); err != nil {
@@ -30,10 +41,12 @@ func (c *Compiler) parseMarkPullRequestAsReadyForReviewConfig(outputMap map[stri
 	}
 
 	// Parse common target configuration (target, target-repo)
-	ParseTargetConfig(&config.SafeOutputTargetConfig, outputMap, "mark-pull-request-as-ready-for-review", markPullRequestAsReadyForReviewLog)
+	targetConfig, _ := ParseTargetConfig(configMap)
+	config.SafeOutputTargetConfig = targetConfig
 
 	// Parse filter configuration (required-labels, required-title-prefix)
-	ParseFilterConfig(&config.SafeOutputFilterConfig, outputMap, "mark-pull-request-as-ready-for-review", markPullRequestAsReadyForReviewLog)
+	filterConfig := ParseFilterConfig(configMap)
+	config.SafeOutputFilterConfig = filterConfig
 
 	return &config
 }
