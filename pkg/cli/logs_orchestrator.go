@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -34,24 +33,7 @@ var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 // It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
 // validates the value is between 1 and 100, and falls back to the default if invalid.
 func getMaxConcurrentDownloads() int {
-	envValue := os.Getenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
-	if envValue == "" {
-		return MaxConcurrentDownloads
-	}
-
-	val, err := strconv.Atoi(envValue)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid GH_AW_MAX_CONCURRENT_DOWNLOADS value '%s' (must be a number), using default %d", envValue, MaxConcurrentDownloads)))
-		return MaxConcurrentDownloads
-	}
-
-	if val < 1 || val > 100 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GH_AW_MAX_CONCURRENT_DOWNLOADS value %d is out of bounds (must be 1-100), using default %d", val, MaxConcurrentDownloads)))
-		return MaxConcurrentDownloads
-	}
-
-	logsOrchestratorLog.Printf("Using GH_AW_MAX_CONCURRENT_DOWNLOADS=%d", val)
-	return val
+	return getIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
