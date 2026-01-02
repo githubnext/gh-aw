@@ -194,7 +194,7 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 		params := &mcp.CallToolParams{
 			Name: "audit",
 			Arguments: map[string]any{
-				"run_id": int64(1), // Invalid run ID
+				"run_id_or_url": "1", // Invalid run ID (as string)
 			},
 		}
 

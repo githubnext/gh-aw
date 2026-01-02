@@ -453,7 +453,7 @@ func TestMCPServer_AllToolsReturnContent(t *testing.T) {
 			name:     "audit",
 			toolName: "audit",
 			args: map[string]any{
-				"run_id": int64(1),
+				"run_id_or_url": "1",
 			},
 			expectJSON:    false, // May return error message
 			mayFailInTest: true,  // Expected to fail with invalid run ID
