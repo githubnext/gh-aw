@@ -192,9 +192,16 @@ If you encounter network access denied errors, verify that required domains or e
 
 Use `gh aw logs --run-id <run-id>` to view firewall activity and identify denied domains. See the [Network Configuration Guide](/gh-aw/guides/network-configuration/#troubleshooting-firewall-denials) for detailed troubleshooting steps and common solutions.
 
+## MCP Network Configuration
+
+Container-based MCP servers have their own network configuration separate from the top-level AI engine network permissions. MCP network restrictions apply only to containerized stdio servers and use a Squid proxy to enforce domain-based access controls.
+
+See the [MCP Guide](/gh-aw/guides/mcps/#network-egress-permissions) for details on configuring network access for containerized MCP servers, including examples and implementation specifics.
+
 ## Related Documentation
 
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical examples and common patterns
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Tools](/gh-aw/reference/tools/) - Tool-specific network access configuration
 - [Security Notes](/gh-aw/guides/security/) - Comprehensive security guidance
+- [MCP Guide](/gh-aw/guides/mcps/) - Using MCP servers with agentic workflows
