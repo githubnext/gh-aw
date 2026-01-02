@@ -295,6 +295,10 @@ async function processMessages(messageHandlers, messages) {
   }
 
   // Retry deferred messages now that more temporary IDs may have been resolved
+  // This retry loop mirrors the main processing loop but operates on messages that were
+  // deferred during the first pass (e.g., link_sub_issue waiting for parent/sub creation).
+  // IMPORTANT: Like the main loop, this must register temporary IDs and track outputs
+  // with unresolved IDs to enable full synthetic update resolution.
   if (deferredMessages.length > 0) {
     core.info(`\n=== Retrying Deferred Messages ===`);
     core.info(`Found ${deferredMessages.length} deferred message(s) to retry`);
@@ -324,6 +328,8 @@ async function processMessages(messageHandlers, messages) {
           core.info(`✓ Message ${deferred.messageIndex + 1} (${deferred.type}) completed on retry`);
 
           // If handler returned a temp ID mapping, add it to our map
+          // This ensures that sub-issues created during deferred retry have their temporary IDs
+          // registered so parent issues can reference them in synthetic updates
           if (result && result.temporaryId && result.repo && result.number) {
             const normalizedTempId = normalizeTemporaryId(result.temporaryId);
             temporaryIdMap.set(normalizedTempId, {
@@ -335,6 +341,7 @@ async function processMessages(messageHandlers, messages) {
 
           // Check if this output was created with unresolved temporary IDs
           // For create_issue, create_discussion - check if body has unresolved IDs
+          // This enables synthetic updates to resolve references after all items are created
           if (result && result.number && result.repo) {
             const contentToCheck = getContentToCheck(deferred.type, deferred.message);
             if (contentToCheck && hasUnresolvedTemporaryIds(contentToCheck, temporaryIdMap)) {
