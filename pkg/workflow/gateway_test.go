@@ -267,6 +267,54 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
+func TestGenerateMCPGatewayHealthCheckStep_UsesCorrectPort(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+
+	// Test that the health check uses the configured port
+	step := generateMCPGatewayHealthCheckStep(config)
+	stepStr := strings.Join(step, "\n")
+
+	// Should include health check with correct port
+	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "http://localhost:8080")
+	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
+}
+
+func TestGenerateMCPGatewayHealthCheckStep_IncludesMCPConfig(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+
+	// Test that health check includes MCP config path
+	step := generateMCPGatewayHealthCheckStep(config)
+	stepStr := strings.Join(step, "\n")
+
+	// Should include MCP config path
+	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
+	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
+
+	// Should still have basic health check
+	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
+}
+
+func TestGenerateMCPGatewayHealthCheckStep_GeneratesValidStep(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+
+	// Test that a valid step is generated
+	step := generateMCPGatewayHealthCheckStep(config)
+	stepStr := strings.Join(step, "\n")
+
+	// Should generate a valid GitHub Actions step
+	assert.Contains(t, stepStr, "- name: Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
+	assert.Contains(t, stepStr, "http://localhost:8080")
+}
+
 func TestGetMCPGatewayURL(t *testing.T) {
 	tests := []struct {
 		name     string
