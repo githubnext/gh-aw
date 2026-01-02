@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -27,39 +26,6 @@ var includedFileSchema string
 
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
-
-// filterIgnoredFields removes ignored fields from frontmatter without warnings
-// NOTE: This function is kept for backward compatibility but currently does nothing
-// as all previously ignored fields (description, applyTo) are now validated by the schema
-func filterIgnoredFields(frontmatter map[string]any) map[string]any {
-	if frontmatter == nil {
-		return nil
-	}
-
-	// Check if there are any ignored fields configured
-	if len(constants.IgnoredFrontmatterFields) == 0 {
-		// No fields to filter, return as-is
-		return frontmatter
-	}
-
-	// Create a copy of the frontmatter map without ignored fields
-	filtered := make(map[string]any)
-	for key, value := range frontmatter {
-		// Skip ignored fields
-		ignored := false
-		for _, ignoredField := range constants.IgnoredFrontmatterFields {
-			if key == ignoredField {
-				ignored = true
-				break
-			}
-		}
-		if !ignored {
-			filtered[key] = value
-		}
-	}
-
-	return filtered
-}
 
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
@@ -491,14 +457,6 @@ func cleanJSONSchemaErrorMessage(errorMsg string) string {
 	}
 
 	return result
-}
-
-// min returns the smaller of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
@@ -1016,21 +974,6 @@ func generateExampleFromSchema(schema map[string]any) any {
 	}
 
 	return nil
-}
-
-// removeDuplicates removes duplicate strings from a slice
-func removeDuplicates(strings []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-
-	for _, str := range strings {
-		if !seen[str] {
-			seen[str] = true
-			result = append(result, str)
-		}
-	}
-
-	return result
 }
 
 // rewriteAdditionalPropertiesError rewrites "additional properties not allowed" errors to be more user-friendly
