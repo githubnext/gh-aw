@@ -73,10 +73,12 @@ async function markPullRequestAsReadyForReview(github, owner, repo, prNumber, re
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-  
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-  const triggeringPRNumber = prNumber;
+  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   const sanitizedReason = sanitizeContent(reason);
@@ -156,7 +158,7 @@ async function main() {
     try {
       await markPullRequestAsReadyForReview(github, context.repo.owner, context.repo.repo, prNumber, item.reason);
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       core.error(`Failed to mark PR #${prNumber} as ready for review: ${errorMessage}`);
       core.setFailed(`Failed to mark PR #${prNumber} as ready for review: ${errorMessage}`);
     }
