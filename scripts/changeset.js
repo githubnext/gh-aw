@@ -719,7 +719,6 @@ async function main() {
         
         await runRelease(releaseType, skipConfirmation);
         break;
-        break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));
         console.log('');
@@ -732,4 +731,4 @@ async function main() {
   }
 }
 
-module.exports = { main };
+await main()
