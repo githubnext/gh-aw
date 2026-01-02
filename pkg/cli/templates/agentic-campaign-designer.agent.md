@@ -258,7 +258,7 @@ Run `gh aw compile <campaign-id>` to generate the campaign orchestrator workflow
 Create a PR with the campaign spec and generated files:
 - `.github/workflows/<campaign-id>.campaign.md` (campaign spec)
 - `.github/workflows/<campaign-id>.campaign.g.md` (generated orchestrator)
-- `.github/workflows/<campaign-id>.campaign.g.lock.yml` (compiled orchestrator)
+- `.github/workflows/<campaign-id>.campaign.lock.yml` (compiled orchestrator)
 
 Include in the PR description:
 - What the campaign does
