@@ -115,6 +115,9 @@ The YAML frontmatter supports these fields:
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
   - Available roles: `admin`, `maintainer`, `write`, `read`, `all`
+- **`bots:`** - Bot identifiers allowed to trigger workflow regardless of role permissions (array)
+  - Example: `bots: [dependabot[bot], renovate[bot], github-actions[bot]]`
+  - Bot must be active (installed) on repository to trigger workflow
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`)
   - When omitted, workflows enforce strict mode security constraints
   - Set to `false` to explicitly disable strict mode for development/testing
@@ -251,6 +254,43 @@ The YAML frontmatter supports these fields:
         args: ["--custom-arg", "value"]   # Optional: additional AWF arguments
     ```
   
+- **`sandbox:`** - Sandbox configuration for AI engines (string or object)
+  - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall), `"srt"` or `"sandbox-runtime"` (Anthropic Sandbox Runtime)
+  - Object format for full configuration:
+    ```yaml
+    sandbox:
+      agent: awf                      # or "srt", or false to disable
+      mcp:                            # MCP Gateway configuration (requires mcp-gateway feature flag)
+        container: ghcr.io/githubnext/mcp-gateway
+        port: 8080
+        api-key: ${{ secrets.MCP_GATEWAY_API_KEY }}
+    ```
+  - **Agent sandbox options**:
+    - `awf`: Agent Workflow Firewall for domain-based access control
+    - `srt`: Anthropic Sandbox Runtime for filesystem and command sandboxing
+    - `false`: Disable agent firewall
+  - **AWF configuration**:
+    ```yaml
+    sandbox:
+      agent:
+        id: awf
+        mounts:
+          - "/host/data:/data:ro"
+          - "/host/bin/tool:/usr/local/bin/tool:ro"
+    ```
+  - **SRT configuration**:
+    ```yaml
+    sandbox:
+      agent:
+        id: srt
+        config:
+          filesystem:
+            allowWrite: [".", "/tmp"]
+            denyRead: ["/etc/secrets"]
+          enableWeakerNestedSandbox: true
+    ```
+  - **MCP Gateway**: Routes MCP server calls through unified HTTP gateway (experimental)
+
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
     - `allowed:` - Array of allowed GitHub API functions
@@ -577,6 +617,43 @@ The YAML frontmatter supports these fields:
       github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
     ```
     Useful when you need additional permissions or want to perform actions across repositories.
+
+- **`safe-inputs:`** - Define custom lightweight MCP tools as JavaScript, shell, or Python scripts (object)
+  - Tools mounted in MCP server with access to specified secrets
+  - Each tool requires `description` and one of: `script` (JavaScript), `run` (shell), or `py` (Python)
+  - Tool configuration properties:
+    - `description:` - Tool description (required)
+    - `inputs:` - Input parameters with type and description (object)
+    - `script:` - JavaScript implementation (CommonJS format)
+    - `run:` - Shell script implementation
+    - `py:` - Python script implementation
+    - `env:` - Environment variables for secrets (supports `${{ secrets.* }}`)
+    - `timeout:` - Execution timeout in seconds (default: 60)
+  - Example:
+    ```yaml
+    safe-inputs:
+      search-issues:
+        description: "Search GitHub issues using API"
+        inputs:
+          query:
+            type: string
+            description: "Search query"
+            required: true
+          limit:
+            type: number
+            description: "Max results"
+            default: 10
+        script: |
+          const { Octokit } = require('@octokit/rest');
+          const octokit = new Octokit({ auth: process.env.GH_TOKEN });
+          const result = await octokit.search.issuesAndPullRequests({
+            q: inputs.query,
+            per_page: inputs.limit
+          });
+          return result.data.items;
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    ```
 
 - **`slash_command:`** - Command trigger configuration for /mention workflows (replaces deprecated `command:`)
 - **`cache:`** - Cache configuration for workflow dependencies (object or array)
