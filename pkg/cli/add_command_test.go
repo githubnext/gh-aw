@@ -29,7 +29,7 @@ func TestNewAddCommand(t *testing.T) {
 	// Check number flag
 	numberFlag := flags.Lookup("number")
 	assert.NotNil(t, numberFlag, "Should have 'number' flag")
-	assert.Equal(t, "", numberFlag.Shorthand, "Number flag should not have shorthand (conflicts with logs -c)")
+	assert.Empty(t, numberFlag.Shorthand, "Number flag should not have shorthand (conflicts with logs -c)")
 
 	// Check name flag
 	nameFlag := flags.Lookup("name")
