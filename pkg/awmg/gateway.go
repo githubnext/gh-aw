@@ -374,8 +374,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	if port == 0 {
 		port = 8080
 	}
-	// Use host.docker.internal instead of localhost to allow Docker containers to reach the gateway
-	gatewayURL := fmt.Sprintf("http://host.docker.internal:%d", port)
+	// Use localhost since the rewritten config is consumed by Copilot CLI running on the host
+	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
 
 	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))

@@ -583,7 +583,7 @@ func TestRewriteMCPConfigForGateway(t *testing.T) {
 		t.Fatal("github server missing url")
 	}
 
-	expectedURL := "http://host.docker.internal:8080/mcp/github"
+	expectedURL := "http://localhost:8080/mcp/github"
 	if githubURL != expectedURL {
 		t.Errorf("Expected github URL %s, got %s", expectedURL, githubURL)
 	}
@@ -599,7 +599,7 @@ func TestRewriteMCPConfigForGateway(t *testing.T) {
 		t.Fatal("custom server missing url")
 	}
 
-	expectedCustomURL := "http://host.docker.internal:8080/mcp/custom"
+	expectedCustomURL := "http://localhost:8080/mcp/custom"
 	if customURL != expectedCustomURL {
 		t.Errorf("Expected custom URL %s, got %s", expectedCustomURL, customURL)
 	}
