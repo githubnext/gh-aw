@@ -601,6 +601,20 @@ jobs:
           fi
           echo 'Verified: safeinputs and safeoutputs are present in configuration'
           
+          # Verify gatewayed servers (external MCP servers proxied through gateway)
+          echo 'Validating gatewayed servers...'
+          
+          # Validate github server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "github" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
+          
+          # Validate playwright server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "playwright" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
+          
+          # Validate serena server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "serena" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
+          
+          echo 'All gatewayed servers validated successfully'
+          
           max_retries=30
           retry_count=0
           gateway_url="http://localhost:8080"

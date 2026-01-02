@@ -156,7 +156,7 @@ func TestRemoveWorkflows_PatternMatching(t *testing.T) {
 			// Note: We can't fully test removal without mocking stdin for confirmation
 			// This test just verifies the pattern matching logic doesn't error
 			err = RemoveWorkflows(tt.pattern, false)
-			
+
 			// The function will either find matches or not, but shouldn't error
 			assert.NoError(t, err, "RemoveWorkflows should not error for pattern: %s", tt.pattern)
 		})

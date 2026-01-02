@@ -44,7 +44,7 @@ func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 }
 
 // generateMCPGatewaySteps generates the steps to start and verify the MCP gateway
-func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any) []GitHubActionStep {
+func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any, gatewayedServers []string) []GitHubActionStep {
 	if !isMCPGatewayEnabled(workflowData) {
 		return nil
 	}
@@ -54,8 +54,8 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 		return nil
 	}
 
-	gatewayLog.Printf("Generating MCP gateway steps: port=%d, container=%s, command=%s, servers=%d",
-		config.Port, config.Container, config.Command, len(mcpServersConfig))
+	gatewayLog.Printf("Generating MCP gateway steps: port=%d, container=%s, command=%s, servers=%d, gatewayed=%v",
+		config.Port, config.Container, config.Command, len(mcpServersConfig), gatewayedServers)
 
 	var steps []GitHubActionStep
 
@@ -64,7 +64,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	steps = append(steps, startStep)
 
 	// Step 2: Health check to verify gateway is running
-	healthCheckStep := generateMCPGatewayHealthCheckStep(config)
+	healthCheckStep := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
 	steps = append(steps, healthCheckStep)
 
 	return steps
@@ -312,8 +312,8 @@ func generateDefaultAWMGCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath 
 }
 
 // generateMCPGatewayHealthCheckStep generates the step that pings the gateway to verify it's running
-func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig) GitHubActionStep {
-	gatewayLog.Print("Generating MCP gateway health check step")
+func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewayedServers []string) GitHubActionStep {
+	gatewayLog.Printf("Generating MCP gateway health check step with %d gatewayed servers", len(gatewayedServers))
 
 	port, err := validateAndNormalizePort(config.Port)
 	if err != nil {
@@ -349,6 +349,34 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig) GitHubAc
 		"          fi",
 		"          echo 'Verified: safeinputs and safeoutputs are present in configuration'",
 		"          ",
+	}
+
+	// Add validation for gatewayed servers (external MCP servers proxied through gateway)
+	if len(gatewayedServers) > 0 {
+		stepLines = append(stepLines,
+			"          # Verify gatewayed servers (external MCP servers proxied through gateway)",
+			"          echo 'Validating gatewayed servers...'",
+			"          ",
+		)
+		for _, serverName := range gatewayedServers {
+			// Skip internal servers (safeinputs/safeoutputs) as they're not proxied
+			if serverName == "safe-inputs" || serverName == "safe-outputs" {
+				continue
+			}
+			gatewayLog.Printf("Adding validation for gatewayed server: %s", serverName)
+			stepLines = append(stepLines,
+				fmt.Sprintf("          # Validate %s server", serverName),
+				fmt.Sprintf("          /tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\" \"%s\" \"%s\"", serverName, mcpConfigPath, gatewayURL),
+				"          ",
+			)
+		}
+		stepLines = append(stepLines,
+			"          echo 'All gatewayed servers validated successfully'",
+			"          ",
+		)
+	}
+
+	stepLines = append(stepLines,
 		"          max_retries=30",
 		"          retry_count=0",
 		fmt.Sprintf("          gateway_url=\"%s\"", gatewayURL),
@@ -400,7 +428,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig) GitHubAc
 		"          echo 'Gateway logs:'",
 		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
 		"          exit 1",
-	}
+	)
 
 	return GitHubActionStep(stepLines)
 }
