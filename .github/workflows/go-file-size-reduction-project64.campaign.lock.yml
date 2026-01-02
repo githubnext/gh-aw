@@ -365,8 +365,19 @@ jobs:
                   "type": "string",
                   "enum": [
                     "issue",
-                    "pull_request"
+                    "pull_request",
+                    "draft_issue"
                   ]
+                },
+                "draft_body": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "draft_title": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 256
                 },
                 "fields": {
                   "type": "object"
@@ -385,7 +396,8 @@ jobs:
                 "pull_request": {
                   "optionalPositiveInteger": true
                 }
-              }
+              },
+              "customValidation": "updateProjectValidTarget"
             }
           }
           EOF
@@ -515,7 +527,7 @@ jobs:
           
           This workflow orchestrates the 'Go File Size Reduction Campaign (Project 64)' campaign.
           
-          - Tracker label: `campaign:go-file-size-reduction-project64`
+          - Tracker label (optional ingestion): `campaign:go-file-size-reduction-project64`
           - Objective: Reduce all Go files to ≤800 lines of code while maintaining test coverage and preventing regressions
           - KPIs:
             - Files reduced to target size (primary): baseline 0 → target 100 over 90 days percent
@@ -533,7 +545,7 @@ jobs:
           
           ## Campaign Orchestrator Rules
           
-          This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. It also maintains the campaign dashboard by ensuring the GitHub Project stays in sync with the campaign's tracker label.
+          This orchestrator follows system-agnostic rules that enforce clean separation between workers and campaign coordination. The GitHub Project is the single source of truth for campaign membership and state.
           
           ### Traffic and rate limits (required)
           
@@ -591,7 +603,7 @@ jobs:
           - Use an ISO date (UTC) filename, for example: `metrics/2025-12-22.json`.
           - Keep snapshots append-only: write a new file per run; do not rewrite historical snapshots.
           - If a KPI is present, record its computed value and trend (Improving/Flat/Regressing) in the kpi_trends array.
-          - Count tasks from all sources: tracker-labeled issues, worker-created issues, and project board items.
+          - Count tasks from all sources: project board items (canonical), plus any newly discovered tracker-labeled or worker-created items that will be added.
           - Set tasks_total to the total number of unique tasks discovered in this run.
           - Set tasks_completed to the count of tasks with state "Done" or closed status.
           
@@ -616,7 +628,7 @@ jobs:
           10. **Predefined fields only** - Only update explicitly defined project board fields
           11. **Explicit outcomes** - Record actual outcomes, never infer status
           12. **Idempotent operations** - Re-execution produces the same result without corruption
-          13. **Dashboard synchronization** - Keep Project items in sync with tracker-labeled issues/PRs
+          13. **Dashboard synchronization** - Keep the Project board in sync with discovered work (Project items are canonical; tracker labels are optional ingestion)
           
           ### Objective and KPIs (first-class)
           
@@ -653,13 +665,18 @@ jobs:
           
           #### Phase 1: Read State (Discovery)
           
-          1. **Query tracker-labeled items** - Search for issues and PRs matching the campaign's tracker label
+          1. **Query current project state (canonical)** - Read the GitHub Project board
+             - Retrieve all items currently on the project board
+             - For each item, record: content type, URL (if present), draft title (if present), status field value, and other predefined field values
+             - Create a snapshot of current board state
+          
+          2. **Query tracker-labeled items (optional ingestion)** - If a tracker label is configured, search for issues and PRs matching it
              - Search: `repo:OWNER/REPO label:TRACKER_LABEL` for all open and closed items
              - If governance opt-out labels are configured, exclude items with those labels
              - Collect all matching issue/PR URLs
              - Record metadata: number, title, state (open/closed), created date, updated date
           
-          2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
+          3. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
              - Worker workflows: daily-file-diet
              - **IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow listed above
              - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions, comments). Search ALL content types to discover all worker outputs.
@@ -674,16 +691,28 @@ jobs:
              - Combine results from all worker searches into a single list of discovered items
              - Note: Comments are discovered via their parent issue/PR - the issue/PR is what gets added to the board
           
-          3. **Query current project state** - Read the GitHub Project board
-             - Retrieve all items currently on the project board
-             - For each item, record: issue URL, status field value, other predefined field values
-             - Create a snapshot of current board state
+          4. **Merge and identify gaps** - Analyze current state (for reporting only - do NOT use this to filter items in Phase 3)
+             - Items on the board are **in scope** by definition (canonical membership)
+             - Items from steps 2-3 not on board = **new work discovered** (report count)
+             - Items on board with state mismatch vs issue/PR state = **status updates needed** (report count)
+             - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate** (report count)
+             - Items on board but no longer accessible = **check if archived/deleted** (report count)
+             - **CRITICAL**: This comparison is for reporting and planning only. In Phase 3, you MUST send ALL discovered items to update-project regardless of whether they appear to be on the board. The update-project tool handles duplicate detection automatically.
           
-          4. **Compare and identify gaps** - Determine what needs updating
-             - Items from step 1 or 2 not on board = **new work to add**
-             - Items on board with state mismatch = **status to update**
-             - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate**
-             - Items on board but no longer found = **check if archived/deleted**
+          4.8 **Locate the campaign hub issue (optional but recommended)**
+          
+          If you have permission and comment writes are allowed, attempt to locate the campaign hub (“epic”) issue for posting per-run summaries.
+          
+          Deterministic matching rules:
+          - Prefer an issue that has BOTH labels: `campaign-tracker` AND `campaign:go-file-size-reduction-project64`.
+          - If none found, do NOT guess. Proceed without an epic issue comment.
+          - If multiple matches, treat as ambiguous and proceed without commenting (report ambiguity).
+          
+          If a single hub issue is found, treat it as an in-scope item for synchronization:
+          - Include it in the Phase 3 `update-project` operations so it is present on the Project board (idempotent).
+          - When updating the hub issue item, set (when the fields exist):
+             - `worker_workflow = "orchestrator"`
+             - `human_oversight_required = "Yes"`
           
           #### Phase 2: Make Decisions (Planning)
           
@@ -707,32 +736,34 @@ jobs:
           }
           ```
           
-          5. **Decide additions (with pacing)** - For each new item discovered:
-             - **CRITICAL**: All discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be added to the board to maintain synchronization between the campaign state and the project board.
-             - Decision: Add to board? (Default: **YES** for all items with tracker label or worker tracker-id)
-             - If `governance.max-new-items-per-run` is set, add at most that many new items in this single run (remaining items will be added in subsequent runs)
+          5. **Decide processing order (with pacing)** - For items discovered in steps 1-3:
+              - **CRITICAL**: ALL discovered items (project items from step 1, tracker-labeled from step 2, and worker-created from step 3) MUST be sent to update-project in Phase 3, regardless of whether they appear to already be on the board. The update-project tool handles idempotency automatically.
+             - If `governance.max-new-items-per-run` is set, process at most that many items in this single run (remaining items will be processed in subsequent runs)
              - When applying the governance limit, prioritize in this order:
-               1. Tracker-labeled items (campaign tasks) - add oldest first
-               2. Worker-created items (worker outputs) - add oldest first
-             - Determine initial status field value based on item state:
+                 1. Project board items (canonical scope) - process oldest first
+                 2. Tracker-labeled items (optional ingestion) - process oldest first
+                 3. Worker-created items (worker outputs) - process oldest first
+             - Determine appropriate status field value based on item state:
                - Open issue/PR/discussion → "Todo" status
                - Closed issue/discussion → "Done" status
                - Merged PR → "Done" status
+             - **IMPORTANT**: Do NOT skip items that appear to be on the board already. Step 4 comparison is for reporting only. In Phase 3, send ALL items to update-project.
           
-          6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
-             - Decision: Update status field? (Default: yes if item state changed)
-             - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
-             - Determine new status field value:
+          6. **Decide updates (no downgrade)** - For status field value determination:
+             - Determine appropriate status based on item state (open/closed/merged)
+             - If `governance.do-not-downgrade-done-items` is true, preserve "Done" status for items that are already marked as done on the board
+             - Status field mapping:
                - Open issue/PR/discussion → "In Progress" or "Todo"
                - Closed issue/discussion → "Done"
                - Merged PR → "Done"
+             - **IMPORTANT**: This is for determining what status value to send to update-project, not for deciding whether to send the request. Send ALL discovered items to update-project in Phase 3.
           
-          6.5 **Decide field updates** - For each existing board item, check for missing custom fields:
-             - If item is missing `worker_workflow` field:
-               - Search item body (issue/PR/discussion) for tracker-id (e.g., ``)
-               - If tracker-id matches a worker in `workflows`, populate `worker_workflow` field with that worker ID
-             - Only update fields that exist on the project board
-             - Skip items that already have all required fields populated
+          6.5 **Decide field values** - For custom field population:
+             - Determine which custom fields should be populated based on item metadata
+             - If item has a worker tracker-id in its body (e.g., ``):
+               - Extract the worker ID and prepare to populate `worker_workflow` field
+             - Prepare other custom field values based on item properties
+             - **IMPORTANT**: This is for determining field values to send, not for filtering items. Send ALL discovered items to update-project in Phase 3.
           
           7. **Decide completion** - Check campaign completion criteria:
              - If all discovered items (issues/PRs/discussions) are closed/merged AND all board items are "Done" → Campaign complete
@@ -740,49 +771,65 @@ jobs:
           
           #### Phase 3: Write State (Execution)
           
-          8. **Execute additions** - Add new items to project board
-             - Add ALL items identified in step 5 (both tracker-labeled and worker-created), up to the governance limit if set
-             - Use `update-project` safe-output for each new item
-             - Set predefined fields: `status` (required), optionally `priority`, `size`
-             - If worker tracker-id is found in item body (issue/PR/discussion), populate `worker_workflow` field
+          **CRITICAL RULE**: In this phase, you MUST send update-project requests for ALL discovered items from steps 1-3, regardless of whether they appear to already be on the board. The update-project tool handles duplicate detection and idempotency automatically. Do NOT pre-filter items based on board state.
+          
+          8. **Execute project updates** - Send update-project for ALL discovered items
+             - Process ALL items from steps 1-3 (project items, tracker-labeled, and worker-created), up to the governance limit if set
+             - Use `update-project` safe-output for EVERY discovered item
+             - Include fields from steps 5-6.5: `status`, `worker_workflow`, `human_oversight_required`, `priority`, `size`, etc.
+             - **The update-project tool will automatically**:
+               - Skip adding items that are already on the board (idempotent add)
+               - Update fields for items already on the board
+               - Add new items that are not yet on the board
              - Record outcome: success or failure with error details
              - If governance limit is reached, log remaining items and note they will be processed in the next run
+             - **DO NOT**: Check if items are already on the board before sending requests - this causes synchronization bugs
+             - **DO NOT**: Skip items that appear to be on the board - send them all and let the tool handle idempotency
           
-          9. **Execute status updates** - Update existing board items with status changes
-             - Use `update-project` safe-output for each status change
-             - Update only predefined fields: `status` and related metadata
-             - Record outcome: success or failure with error details
-          
-          9.5 **Execute field updates** - Update existing board items with missing custom fields
-             - Use `update-project` safe-output for each item with missing fields
-             - Populate missing fields identified in step 6.5 (e.g., `worker_workflow`)
-             - Record outcome: success or failure with error details
-          
-          10. **Record completion state** - If campaign is complete:
+          9. **Record completion state** - If campaign is complete:
               - Mark project metadata field `campaign_status` as "completed"
               - Do NOT create new work or modify existing items
               - This is a terminal state
           
           #### Phase 4: Report (Output)
           
-          11. **Generate status report** - Summarize execution results:
-              - Total items discovered via tracker label (by type: issues, PRs)
-              - Total items discovered via worker tracker-ids (by type: issues, PRs, discussions)
-              - Items added to board this run (count and URLs, broken down by: tracker-labeled vs worker-created)
-              - Items updated on board this run (count and status changes)
-              - Items with fields populated this run (count and which fields, e.g., worker_workflow)
-              - Items skipped due to governance limits (count, type, and why - noting they will be added in next run)
+          10. **Generate status report** - Summarize execution results:
+             - Total items currently on the project board (canonical)
+             - Total items discovered via tracker label (optional ingestion, by type: issues, PRs)
+             - Total items discovered via worker tracker-ids (by type: issues, PRs, discussions)
+             - Items processed with update-project this run (count and URLs, broken down by: project-board vs tracker-labeled vs worker-created)
+              - Items skipped due to governance limits (count, type, and why - noting they will be processed in next run)
               - Current campaign metrics: open vs closed, progress percentage
-              - Any failures encountered during writes
+              - Any failures encountered during update-project operations
               - Campaign completion status
+          
+          11. **Post a hub issue comment (if hub issue was found and add-comment is allowed)**
+          
+          Post a short comment to the campaign hub issue that includes:
+          - Link to the Project board
+          - What was processed this run (counts + a few representative URLs)
+          - The current “Needs human” queue size (items with `human_oversight_required = Yes` if that field is used)
+          - If repo-memory metrics are enabled, include the path to the latest metrics snapshot written this run
+          
+          Do not paste large JSON blobs. Keep the comment concise and human-scannable.
           
           ### Predefined Project Fields
           
           Only these fields may be updated on the project board:
           
-          - `status` (required) - Values: "Todo", "In Progress", "Done"
+          - `status` (required) - Values: "Todo", "In Progress", "Blocked", "Done"
+          - `worker_workflow` (optional) - String (recommended: the worker workflow ID/name)
+          - `human_oversight_required` (optional) - Values: "Yes", "No" (powers a dedicated human review queue)
           - `priority` (optional) - Values: "High", "Medium", "Low"
           - `size` (optional) - Values: "Small", "Medium", "Large"
+          - `start_date` (optional) - ISO date YYYY-MM-DD (if the project has a matching field)
+          - `end_date` (optional) - ISO date YYYY-MM-DD (if the project has a matching field)
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - `campaign_status` (metadata) - Values: "active", "completed"
           
           Do NOT update any other fields or create custom fields.
@@ -798,21 +845,21 @@ jobs:
           
           ### Idempotency Guarantee
           
-          All operations must be idempotent:
-          - Adding an item (issue/PR/discussion) already on the board → No-op (do not duplicate)
-          - Updating a status that matches current value → No-op (no change recorded)
+          **The update-project tool handles idempotency automatically.** You MUST send update-project requests for ALL discovered items. The tool will:
+          - Adding an item already on the board → Skips the add operation, but still updates fields (handled by tool)
+          - Updating a status that matches current value → No-op (handled by tool)
           - Marking a completed campaign as completed → No-op (terminal state preserved)
           
-          Re-running the orchestrator produces consistent results regardless of how many times it executes.
+          **CRITICAL**: Do NOT try to implement idempotency in your orchestrator logic by checking if items are already on the board before sending requests. This causes synchronization bugs where items are discovered but not processed. Always send ALL discovered items to update-project and let the tool handle duplicate detection.
+          
+          Re-running the orchestrator produces consistent results regardless of how many times it executes, because the update-project tool is idempotent.
           
           ### Project Board Integration
           
           Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
           
           **Project URL**: https://github.com/orgs/githubnext/projects/64
-          
-          **Campaign ID**: Extract from tracker label `campaign:go-file-size-reduction-project64` (format: `campaign:CAMPAIGN_ID`)
-          
+          **Campaign ID**: `go-file-size-reduction-project64` (recommended to tag items via the optional `campaign_id` field)
           
           #### Adding New Issues/PRs
           
@@ -822,7 +869,7 @@ jobs:
             project: "https://github.com/orgs/githubnext/projects/64"
             content_type: "issue"  # or "pull_request"
             content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
-            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
+            campaign_id: "go-file-size-reduction-project64"  # Optional: tags items for this campaign
             fields:
               status: "Todo"  # or "Done" if issue/PR is already closed/merged
           ```
@@ -842,18 +889,13 @@ jobs:
           ```
           update-project:
             project: "https://github.com/orgs/githubnext/projects/64"
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
             content_type: "issue"  # or "pull_request"
             content_number: 123  # Extract from URL
             fields:
               status: "Todo"  # or "In Progress", "Blocked", "Done"
-              campaign_id: "CAMPAIGN_ID"  # Extract from tracker label campaign:go-file-size-reduction-project64
+              campaign_id: "go-file-size-reduction-project64"  # Optional: tags items for this campaign
               worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+              human_oversight_required: "No"  # or "Yes" - powers a dedicated human review queue
               priority: "High"  # or "Medium", "Low" - enables priority-based views
               effort: "Medium"  # or "Small", "Large" - enables capacity planning
               team: "TEAM_NAME"  # Optional: for team-based grouping
@@ -862,6 +904,7 @@ jobs:
           
           **Custom Field Benefits**:
           - `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+          - `human_oversight_required`: Creates an explicit human review queue; use a "Needs human" view filtered to "Yes"
           - `priority`: Enables priority-based filtering and sorting
           - `effort`: Supports capacity planning and workload distribution
           - `team`: Enables team-based grouping for multi-team campaigns
@@ -879,7 +922,7 @@ jobs:
             project: "https://github.com/orgs/githubnext/projects/64"
             content_type: "issue"  # or "pull_request"
             content_number: 123  # Extract from URL
-            campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
+            campaign_id: "go-file-size-reduction-project64"  # Optional: tags items for this campaign
             fields:
               status: "Done"  # or "In Progress", "Todo"
           ```
