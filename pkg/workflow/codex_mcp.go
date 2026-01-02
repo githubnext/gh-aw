@@ -64,7 +64,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			// Add safe-inputs MCP server if safe-inputs are configured and feature flag is enabled
 			hasSafeInputs := workflowData != nil && IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
 			if hasSafeInputs {
-				renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs)
+				renderer.RenderSafeInputsMCP(yaml, workflowData.SafeInputs, workflowData)
 			}
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)

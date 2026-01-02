@@ -314,7 +314,11 @@ func TestGenerateActionYml(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected an error")
 			} else {
+<<<<<<< HEAD
+				assert.NoError(t, err, "Should not error")
+=======
 				require.NoError(t, err, "Should not error")
+>>>>>>> f6e31cb
 
 				// Verify action.yml was created
 				ymlPath := filepath.Join(actionDir, "action.yml")
@@ -365,7 +369,11 @@ func TestGenerateReadme(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected an error")
 			} else {
+<<<<<<< HEAD
+				assert.NoError(t, err, "Should not error")
+=======
 				require.NoError(t, err, "Should not error")
+>>>>>>> f6e31cb
 
 				// Verify README.md was created
 				readmePath := filepath.Join(actionDir, "README.md")
