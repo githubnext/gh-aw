@@ -274,12 +274,12 @@ func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
 
 	// Should have env block
 	assert.Contains(t, stepStr, "env:")
-	
+
 	// Should contain all environment variables in sorted order
 	assert.Contains(t, stepStr, "API_KEY: ${{ secrets.API_KEY }}")
 	assert.Contains(t, stepStr, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
 	assert.Contains(t, stepStr, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
-	
+
 	// Verify env block comes before run block
 	envIdx := strings.Index(stepStr, "env:")
 	runIdx := strings.Index(stepStr, "run:")
@@ -300,7 +300,7 @@ func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
 
 	// Should NOT have env block when no env vars provided
 	assert.NotContains(t, stepStr, "env:")
-	
+
 	// Should still have the step name and run block
 	assert.Contains(t, stepStr, "Start MCP Gateway")
 	assert.Contains(t, stepStr, "run:")

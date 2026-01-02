@@ -94,7 +94,7 @@ func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConf
 	// These are the same secrets/variables used in Setup MCPs step
 	if len(mcpEnvVars) > 0 {
 		stepLines = append(stepLines, "        env:")
-		
+
 		// Sort keys for consistent output
 		envKeys := make([]string, 0, len(mcpEnvVars))
 		for key := range mcpEnvVars {
