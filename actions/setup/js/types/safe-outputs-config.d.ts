@@ -57,6 +57,15 @@ interface ClosePullRequestConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for marking pull requests as ready for review
+ */
+interface MarkPullRequestAsReadyForReviewConfig extends SafeOutputConfig {
+  "required-labels"?: string[];
+  "required-title-prefix"?: string;
+  target?: string;
+}
+
+/**
  * Configuration for adding comments to issues or PRs
  */
 interface AddCommentConfig extends SafeOutputConfig {
@@ -241,6 +250,7 @@ type SpecificSafeOutputConfig =
   | CloseDiscussionConfig
   | CloseIssueConfig
   | ClosePullRequestConfig
+  | MarkPullRequestAsReadyForReviewConfig
   | AddCommentConfig
   | CreatePullRequestConfig
   | CreatePullRequestReviewCommentConfig
@@ -271,6 +281,7 @@ export {
   CloseDiscussionConfig,
   CloseIssueConfig,
   ClosePullRequestConfig,
+  MarkPullRequestAsReadyForReviewConfig,
   AddCommentConfig,
   CreatePullRequestConfig,
   CreatePullRequestReviewCommentConfig,

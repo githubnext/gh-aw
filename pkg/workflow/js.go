@@ -21,26 +21,27 @@ func init() {
 
 // All getter functions return empty strings since embedded scripts were removed
 
-func getAddCommentScript() string              { return "" }
-func getAddLabelsScript() string               { return "" }
-func getAddReviewerScript() string             { return "" }
-func getAssignMilestoneScript() string         { return "" }
-func getAssignToAgentScript() string           { return "" }
-func getAssignToUserScript() string            { return "" }
-func getCloseDiscussionScript() string         { return "" }
-func getCloseIssueScript() string              { return "" }
-func getClosePullRequestScript() string        { return "" }
-func getCreateCodeScanningAlertScript() string { return "" }
-func getCreateDiscussionScript() string        { return "" }
-func getCreateIssueScript() string             { return "" }
-func getCreatePRReviewCommentScript() string   { return "" }
-func getCreatePullRequestScript() string       { return "" }
-func getNoOpScript() string                    { return "" }
-func getNotifyCommentErrorScript() string      { return "" }
-func getPushToPullRequestBranchScript() string { return "" }
-func getUpdateProjectScript() string           { return "" }
-func getUpdatePullRequestScript() string       { return "" }
-func getUploadAssetsScript() string            { return "" }
+func getAddCommentScript() string                      { return "" }
+func getAddLabelsScript() string                       { return "" }
+func getAddReviewerScript() string                     { return "" }
+func getAssignMilestoneScript() string                 { return "" }
+func getAssignToAgentScript() string                   { return "" }
+func getAssignToUserScript() string                    { return "" }
+func getCloseDiscussionScript() string                 { return "" }
+func getCloseIssueScript() string                      { return "" }
+func getClosePullRequestScript() string                { return "" }
+func getMarkPullRequestAsReadyForReviewScript() string { return "" }
+func getCreateCodeScanningAlertScript() string         { return "" }
+func getCreateDiscussionScript() string                { return "" }
+func getCreateIssueScript() string                     { return "" }
+func getCreatePRReviewCommentScript() string           { return "" }
+func getCreatePullRequestScript() string               { return "" }
+func getNoOpScript() string                            { return "" }
+func getNotifyCommentErrorScript() string              { return "" }
+func getPushToPullRequestBranchScript() string         { return "" }
+func getUpdateProjectScript() string                   { return "" }
+func getUpdatePullRequestScript() string               { return "" }
+func getUploadAssetsScript() string                    { return "" }
 
 // Public Get* functions return empty strings since embedded scripts were removed
 

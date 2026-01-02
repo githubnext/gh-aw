@@ -156,6 +156,25 @@
     }
   },
   {
+    "name": "mark_pull_request_as_ready_for_review",
+    "description": "Mark a draft pull request as ready for review by setting draft=false and adding a comment. Use this when a draft PR has reached a state where it's ready for team review. The comment should explain what was completed and why the PR is now ready.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Comment explaining why the PR is ready for review (e.g., 'All tests passing and documentation updated', 'Feature implementation complete and ready for feedback')."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to mark as ready. This is the numeric ID from the GitHub URL (e.g., 432 in github.com/owner/repo/pull/432). If omitted, marks the PR that triggered this workflow (requires a pull_request event trigger)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "add_comment",
     "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
     "inputSchema": {
