@@ -574,7 +574,7 @@
     }
   },
   {
-    "name": "pull_request_ready_for_review",
+    "name": "mark_pull_request_as_ready_for_review",
     "description": "Mark a pull request as ready for review by setting draft to false. Use this when a draft PR is complete and ready for team review. A comment with the reason will be posted to the PR to explain why it's ready.",
     "inputSchema": {
       "type": "object",

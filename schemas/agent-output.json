@@ -50,7 +50,7 @@
         { "$ref": "#/$defs/NoOpOutput" },
         { "$ref": "#/$defs/LinkSubIssueOutput" },
         { "$ref": "#/$defs/HideCommentOutput" },
-        { "$ref": "#/$defs/PullRequestReadyForReviewOutput" }
+        { "$ref": "#/$defs/MarkPullRequestAsReadyForReviewOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -635,13 +635,13 @@
       "required": ["type", "comment_id"],
       "additionalProperties": false
     },
-    "PullRequestReadyForReviewOutput": {
-      "title": "Pull Request Ready for Review Output",
+    "MarkPullRequestAsReadyForReviewOutput": {
+      "title": "Mark Pull Request as Ready for Review Output",
       "description": "Output for marking a pull request as ready for review by setting draft to false",
       "type": "object",
       "properties": {
         "type": {
-          "const": "pull_request_ready_for_review"
+          "const": "mark_pull_request_as_ready_for_review"
         },
         "reason": {
           "type": "string",

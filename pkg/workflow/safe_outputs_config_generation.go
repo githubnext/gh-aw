@@ -319,24 +319,24 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["hide_comment"] = hideCommentConfig
 		}
-		if data.SafeOutputs.PullRequestReadyForReview != nil {
+		if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
 			prReadyConfig := map[string]any{}
 			// Always include max (use configured value or default)
 			maxValue := 1 // default
-			if data.SafeOutputs.PullRequestReadyForReview.Max > 0 {
-				maxValue = data.SafeOutputs.PullRequestReadyForReview.Max
+			if data.SafeOutputs.MarkPullRequestAsReadyForReview.Max > 0 {
+				maxValue = data.SafeOutputs.MarkPullRequestAsReadyForReview.Max
 			}
 			prReadyConfig["max"] = maxValue
-			if data.SafeOutputs.PullRequestReadyForReview.Target != "" {
-				prReadyConfig["target"] = data.SafeOutputs.PullRequestReadyForReview.Target
+			if data.SafeOutputs.MarkPullRequestAsReadyForReview.Target != "" {
+				prReadyConfig["target"] = data.SafeOutputs.MarkPullRequestAsReadyForReview.Target
 			}
-			if len(data.SafeOutputs.PullRequestReadyForReview.RequiredLabels) > 0 {
-				prReadyConfig["required_labels"] = data.SafeOutputs.PullRequestReadyForReview.RequiredLabels
+			if len(data.SafeOutputs.MarkPullRequestAsReadyForReview.RequiredLabels) > 0 {
+				prReadyConfig["required_labels"] = data.SafeOutputs.MarkPullRequestAsReadyForReview.RequiredLabels
 			}
-			if data.SafeOutputs.PullRequestReadyForReview.RequiredTitlePrefix != "" {
-				prReadyConfig["required_title_prefix"] = data.SafeOutputs.PullRequestReadyForReview.RequiredTitlePrefix
+			if data.SafeOutputs.MarkPullRequestAsReadyForReview.RequiredTitlePrefix != "" {
+				prReadyConfig["required_title_prefix"] = data.SafeOutputs.MarkPullRequestAsReadyForReview.RequiredTitlePrefix
 			}
-			safeOutputsConfig["pull_request_ready_for_review"] = prReadyConfig
+			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = prReadyConfig
 		}
 	}
 
@@ -605,8 +605,8 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.HideComment != nil {
 		enabledTools["hide_comment"] = true
 	}
-	if data.SafeOutputs.PullRequestReadyForReview != nil {
-		enabledTools["pull_request_ready_for_review"] = true
+	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
+		enabledTools["mark_pull_request_as_ready_for_review"] = true
 	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true

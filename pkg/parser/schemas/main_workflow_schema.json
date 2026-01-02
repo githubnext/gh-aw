@@ -3443,7 +3443,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, pull-request-ready-for-review, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, mark-pull-request-as-ready-for-review, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -4560,11 +4560,11 @@
             }
           ]
         },
-        "pull-request-ready-for-review": {
+        "mark-pull-request-as-ready-for-review": {
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable pull request ready for review with default configuration"
+              "description": "Enable mark pull request as ready for review with default configuration"
             },
             {
               "type": "object",

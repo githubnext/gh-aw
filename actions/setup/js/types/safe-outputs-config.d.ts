@@ -197,9 +197,9 @@ interface LinkSubIssueConfig extends SafeOutputConfig {
 }
 
 /**
- * Configuration for pull-request-ready-for-review output
+ * Configuration for mark-pull-request-as-ready-for-review output
  */
-interface PullRequestReadyForReviewConfig extends SafeOutputConfig {
+interface MarkPullRequestAsReadyForReviewConfig extends SafeOutputConfig {
   target?: string;
   "required-labels"?: string[];
   "required-title-prefix"?: string;
@@ -266,7 +266,7 @@ type SpecificSafeOutputConfig =
   | NoOpConfig
   | MissingToolConfig
   | LinkSubIssueConfig
-  | PullRequestReadyForReviewConfig
+  | MarkPullRequestAsReadyForReviewConfig
   | ThreatDetectionConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -297,7 +297,7 @@ export {
   NoOpConfig,
   MissingToolConfig,
   LinkSubIssueConfig,
-  PullRequestReadyForReviewConfig,
+  MarkPullRequestAsReadyForReviewConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types

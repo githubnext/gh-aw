@@ -177,10 +177,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.HideComment = hideCommentConfig
 			}
 
-			// Handle pull-request-ready-for-review
-			pullRequestReadyForReviewConfig := c.parsePullRequestReadyForReviewConfig(outputMap)
-			if pullRequestReadyForReviewConfig != nil {
-				config.PullRequestReadyForReview = pullRequestReadyForReviewConfig
+			// Handle mark-pull-request-as-ready-for-review
+			markPullRequestAsReadyForReviewConfig := c.parseMarkPullRequestAsReadyForReviewConfig(outputMap)
+			if markPullRequestAsReadyForReviewConfig != nil {
+				config.MarkPullRequestAsReadyForReview = markPullRequestAsReadyForReviewConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)

@@ -35,18 +35,18 @@ async function main() {
     return;
   }
 
-  // Find all pull_request_ready_for_review items
-  const items = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "pull_request_ready_for_review");
+  // Find all mark_pull_request_as_ready_for_review items
+  const items = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "mark_pull_request_as_ready_for_review");
   if (items.length === 0) {
-    core.info("No pull_request_ready_for_review items found in agent output");
+    core.info("No mark_pull_request_as_ready_for_review items found in agent output");
     return;
   }
 
-  core.info(`Found ${items.length} pull_request_ready_for_review item(s)`);
+  core.info(`Found ${items.length} mark_pull_request_as_ready_for_review item(s)`);
 
   // If in staged mode, emit step summary instead of performing actions
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Pull Request Ready for Review Preview\n\n";
+    let summaryContent = "## 🎭 Staged Mode: Mark Pull Request as Ready for Review Preview\n\n";
     summaryContent += "The following actions would be performed if staged mode was disabled:\n\n";
 
     for (let i = 0; i < items.length; i++) {
@@ -91,7 +91,7 @@ async function main() {
         }
       }
 
-      core.info(`Processing pull_request_ready_for_review for PR #${prNumber}`);
+      core.info(`Processing mark_pull_request_as_ready_for_review for PR #${prNumber}`);
 
       // First, check if the PR is actually a draft
       const { data: pr } = await github.rest.pulls.get({
