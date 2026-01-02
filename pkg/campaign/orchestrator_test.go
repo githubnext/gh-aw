@@ -140,6 +140,28 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	if !strings.Contains(data.MarkdownContent, "tracker-id:") {
 		t.Errorf("expected markdown to mention tracker-id search, got: %q", data.MarkdownContent)
 	}
+
+	// Verify that IMPORTANT notice is present
+	if !strings.Contains(data.MarkdownContent, "**IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow") {
+		t.Errorf("expected markdown to have IMPORTANT notice about separate searches, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that each workflow has an explicit search query enumerated
+	for _, workflow := range spec.Workflows {
+		expectedSearchLine := "Search for `" + workflow + "`:"
+		if !strings.Contains(data.MarkdownContent, expectedSearchLine) {
+			t.Errorf("expected markdown to have explicit search query for %q, got: %q", workflow, data.MarkdownContent)
+		}
+		expectedTrackerID := "tracker-id: " + workflow
+		if !strings.Contains(data.MarkdownContent, expectedTrackerID) {
+			t.Errorf("expected markdown to have tracker-id for %q, got: %q", workflow, data.MarkdownContent)
+		}
+	}
+
+	// Verify instructions to combine results
+	if !strings.Contains(data.MarkdownContent, "Combine results from all worker searches") {
+		t.Errorf("expected markdown to mention combining results from all searches, got: %q", data.MarkdownContent)
+	}
 }
 
 func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
