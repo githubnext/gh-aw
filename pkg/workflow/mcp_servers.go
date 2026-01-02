@@ -50,6 +50,86 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	return false
 }
 
+// collectMCPEnvironmentVariables collects all MCP-related environment variables
+// that need to be passed to MCP servers and the gateway
+func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, workflowData *WorkflowData, hasAgenticWorkflows bool) map[string]string {
+	envVars := make(map[string]string)
+
+	// Determine which tools are present
+	hasGitHub := false
+	hasSafeOutputs := false
+	hasSafeInputs := false
+	hasPlaywright := false
+
+	for _, toolName := range mcpTools {
+		if toolName == "github" {
+			hasGitHub = true
+		}
+		if toolName == "safe-outputs" {
+			hasSafeOutputs = true
+		}
+		if toolName == "safe-inputs" {
+			hasSafeInputs = true
+		}
+		if toolName == "playwright" {
+			hasPlaywright = true
+		}
+	}
+
+	// Add GitHub token env var if GitHub tool is present
+	if hasGitHub {
+		githubTool := tools["github"]
+		customGitHubToken := getGitHubToken(githubTool)
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+	}
+
+	// Add safe-outputs env vars if present
+	if hasSafeOutputs {
+		envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+		// Only add upload-assets env vars if upload-assets is configured
+		if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
+			envVars["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
+			envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}"
+			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+		}
+	}
+
+	// Add safe-inputs env vars if present
+	if hasSafeInputs {
+		// Add server configuration env vars from step outputs
+		envVars["GH_AW_SAFE_INPUTS_PORT"] = "${{ steps.safe-inputs-start.outputs.port }}"
+		envVars["GH_AW_SAFE_INPUTS_API_KEY"] = "${{ steps.safe-inputs-start.outputs.api_key }}"
+
+		// Add tool-specific env vars (secrets passthrough)
+		if workflowData.SafeInputs != nil {
+			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
+			for envVarName, secretExpr := range safeInputsSecrets {
+				envVars[envVarName] = secretExpr
+			}
+		}
+	}
+
+	// Add GITHUB_TOKEN for agentic-workflows if present
+	if hasAgenticWorkflows {
+		envVars["GITHUB_TOKEN"] = "${{ secrets.GITHUB_TOKEN }}"
+	}
+
+	// Add Playwright expression environment variables if present
+	if hasPlaywright {
+		if playwrightTool, ok := tools["playwright"]; ok {
+			allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
+			customArgs := getPlaywrightCustomArgs(playwrightTool)
+			playwrightAllowedDomainsSecrets := extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
+			for envVarName, originalExpr := range playwrightAllowedDomainsSecrets {
+				envVars[envVarName] = originalExpr
+			}
+		}
+	}
+
+	return envVars
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	mcpServersLog.Print("Generating MCP server configuration setup")
@@ -328,112 +408,26 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
+	// Collect MCP environment variables once to avoid duplicate computation
+	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
+
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
 
 	// Add env block for environment variables to prevent template injection
-	needsEnvBlock := false
-	hasGitHub := false
-	hasSafeOutputs := false
-	hasSafeInputs := false
-	hasPlaywright := false
-	var playwrightAllowedDomainsSecrets map[string]string
-	// Note: hasAgenticWorkflows is already declared earlier in this function
-
-	for _, toolName := range mcpTools {
-		if toolName == "github" {
-			hasGitHub = true
-			needsEnvBlock = true
-		}
-		if toolName == "safe-outputs" {
-			hasSafeOutputs = true
-			needsEnvBlock = true
-		}
-		if toolName == "safe-inputs" {
-			hasSafeInputs = true
-			// Safe-inputs now always needs env block for port and API key
-			needsEnvBlock = true
-		}
-		if toolName == "agentic-workflows" {
-			needsEnvBlock = true
-		}
-		if toolName == "playwright" {
-			hasPlaywright = true
-			// Extract all expressions from playwright arguments using ExpressionExtractor
-			if playwrightTool, ok := tools["playwright"]; ok {
-				allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
-				customArgs := getPlaywrightCustomArgs(playwrightTool)
-				playwrightAllowedDomainsSecrets = extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
-				if len(playwrightAllowedDomainsSecrets) > 0 {
-					needsEnvBlock = true
-				}
-			}
-		}
-	}
-
-	if needsEnvBlock {
+	if len(mcpEnvVars) > 0 {
 		yaml.WriteString("        env:\n")
 
-		// Add GitHub token env var if GitHub tool is present
-		if hasGitHub {
-			githubTool := tools["github"]
-			customGitHubToken := getGitHubToken(githubTool)
-			effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-			yaml.WriteString("          GITHUB_MCP_SERVER_TOKEN: " + effectiveToken + "\n")
+		// Sort env var names for consistent output
+		envVarNames := make([]string, 0, len(mcpEnvVars))
+		for envVarName := range mcpEnvVars {
+			envVarNames = append(envVarNames, envVarName)
 		}
+		sort.Strings(envVarNames)
 
-		// Add safe-outputs env vars if present
-		if hasSafeOutputs {
-			yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-			// Only add upload-assets env vars if upload-assets is configured
-			if workflowData.SafeOutputs.UploadAssets != nil {
-				yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
-				yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
-				yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
-			}
-		}
-
-		// Add safe-inputs env vars if present
-		if hasSafeInputs {
-			// Add server configuration env vars from step outputs
-			yaml.WriteString("          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}\n")
-			yaml.WriteString("          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}\n")
-
-			// Add tool-specific env vars (secrets passthrough)
-			safeInputsSecrets := collectSafeInputsSecrets(workflowData.SafeInputs)
-			if len(safeInputsSecrets) > 0 {
-				// Sort env var names for consistent output
-				envVarNames := make([]string, 0, len(safeInputsSecrets))
-				for envVarName := range safeInputsSecrets {
-					envVarNames = append(envVarNames, envVarName)
-				}
-				sort.Strings(envVarNames)
-
-				for _, envVarName := range envVarNames {
-					secretExpr := safeInputsSecrets[envVarName]
-					fmt.Fprintf(yaml, "          %s: %s\n", envVarName, secretExpr)
-				}
-			}
-		}
-
-		// Add GITHUB_TOKEN for agentic-workflows if present
-		if hasAgenticWorkflows {
-			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
-		}
-
-		// Add Playwright expression environment variables if present
-		if hasPlaywright && len(playwrightAllowedDomainsSecrets) > 0 {
-			// Sort env var names for consistent output
-			envVarNames := make([]string, 0, len(playwrightAllowedDomainsSecrets))
-			for envVarName := range playwrightAllowedDomainsSecrets {
-				envVarNames = append(envVarNames, envVarName)
-			}
-			sort.Strings(envVarNames)
-
-			for _, envVarName := range envVarNames {
-				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
-				fmt.Fprintf(yaml, "          %s: %s\n", envVarName, originalExpr)
-			}
+		for _, envVarName := range envVarNames {
+			envVarValue := mcpEnvVars[envVarName]
+			fmt.Fprintf(yaml, "          %s: %s\n", envVarName, envVarValue)
 		}
 	}
 
@@ -442,15 +436,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 
 	// Generate MCP gateway steps if configured (after Setup MCPs completes)
-	// Filter out internal servers (safe-inputs, safe-outputs) from gatewayed servers
-	// as they are not proxied through the gateway
-	gatewayedServers := make([]string, 0, len(mcpTools))
-	for _, toolName := range mcpTools {
-		if toolName != "safe-inputs" && toolName != "safe-outputs" {
-			gatewayedServers = append(gatewayedServers, toolName)
-		}
-	}
-	gatewaySteps := generateMCPGatewaySteps(workflowData, nil)
+	// Pass the collected env vars to the gateway so it has access to secrets
+	gatewaySteps := generateMCPGatewaySteps(workflowData, nil, mcpEnvVars)
 	for _, step := range gatewaySteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")

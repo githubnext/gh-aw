@@ -227,7 +227,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers)
+			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers, map[string]string{})
 			assert.Len(t, steps, tt.expectSteps)
 		})
 	}
@@ -241,7 +241,7 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 		"github": map[string]any{},
 	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, map[string]string{})
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
@@ -533,7 +533,7 @@ func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
 		"github": map[string]any{},
 	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, map[string]string{})
 	stepStr := strings.Join(step, "\n")
 
 	// Should use container mode
@@ -553,7 +553,7 @@ func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
 		"github": map[string]any{},
 	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, map[string]string{})
 	stepStr := strings.Join(step, "\n")
 
 	// Should use command mode
@@ -571,7 +571,7 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 		"github": map[string]any{},
 	}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, map[string]string{})
 	stepStr := strings.Join(step, "\n")
 
 	// Should use default awmg mode
@@ -680,7 +680,7 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 				"github": map[string]any{},
 			}
 
-			step := generateMCPGatewayStartStep(config, mcpServers)
+			step := generateMCPGatewayStartStep(config, mcpServers, map[string]string{})
 			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port
@@ -763,3 +763,69 @@ func TestGetMCPGatewayURLWithInvalidPort(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+	mcpEnvVars := map[string]string{
+		"GITHUB_MCP_SERVER_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+		"GH_AW_SAFE_OUTPUTS":      "${{ env.GH_AW_SAFE_OUTPUTS }}",
+		"GITHUB_TOKEN":            "${{ secrets.GITHUB_TOKEN }}",
+	}
+
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
+	stepStr := strings.Join(step, "\n")
+
+	// Should include env block
+	assert.Contains(t, stepStr, "env:")
+	assert.Contains(t, stepStr, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
+	assert.Contains(t, stepStr, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
+	assert.Contains(t, stepStr, "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
+
+	// Verify alphabetical sorting
+	lines := strings.Split(stepStr, "\n")
+	var envLines []string
+	inEnvBlock := false
+	for _, line := range lines {
+		if strings.Contains(line, "env:") {
+			inEnvBlock = true
+			continue
+		}
+		if inEnvBlock && strings.HasPrefix(strings.TrimSpace(line), "run:") {
+			break
+		}
+		if inEnvBlock && strings.Contains(line, ":") {
+			envLines = append(envLines, strings.TrimSpace(line))
+		}
+	}
+
+	// Check that env vars are sorted alphabetically
+	require.Len(t, envLines, 3)
+	assert.Equal(t, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}", envLines[0])
+	assert.Equal(t, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}", envLines[1])
+	assert.Equal(t, "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}", envLines[2])
+}
+
+func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+	mcpEnvVars := map[string]string{} // Empty env vars
+
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
+	stepStr := strings.Join(step, "\n")
+
+	// Should NOT include env block
+	assert.NotContains(t, stepStr, "env:")
+	// But should still have the basic step structure
+	assert.Contains(t, stepStr, "Start MCP Gateway")
+	assert.Contains(t, stepStr, "run: |")
+}
+
