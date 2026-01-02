@@ -70,9 +70,16 @@ async function markPullRequestAsReadyForReview(github, owner, repo, prNumber, re
   // Add comment with reason
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
   const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+  const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+
+  // Extract triggering context for footer generation
+  const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+  const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+  const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
   const sanitizedReason = sanitizeContent(reason);
-  const footer = generateFooter(workflowName, runUrl);
+  const footer = generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber);
   const commentBody = `${sanitizedReason}\n\n${footer}`;
 
   await github.rest.issues.createComment({
@@ -148,8 +155,9 @@ async function main() {
     try {
       await markPullRequestAsReadyForReview(github, context.repo.owner, context.repo.repo, prNumber, item.reason);
     } catch (error) {
-      core.error(`Failed to mark PR #${prNumber} as ready for review: ${error.message}`);
-      core.setFailed(`Failed to mark PR #${prNumber} as ready for review: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.error(`Failed to mark PR #${prNumber} as ready for review: ${errorMessage}`);
+      core.setFailed(`Failed to mark PR #${prNumber} as ready for review: ${errorMessage}`);
     }
   }
 }
