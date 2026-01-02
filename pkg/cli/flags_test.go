@@ -237,11 +237,6 @@ func TestShortFlagConsistency(t *testing.T) {
 	}
 }
 
-// Helper function to validate engine (stub for testing)
-func validateEngineStub(engine string) error {
-	return nil
-}
-
 // Stub command creation functions that match main.go structure
 func createCompileCommandStub() *cobra.Command {
 	cmd := &cobra.Command{Use: "compile"}
