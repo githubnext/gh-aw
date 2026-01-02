@@ -776,8 +776,8 @@ func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
 	ghAwPos := strings.Index(stepStr, "GH_AW_SAFE_OUTPUTS")
 	githubMcpPos := strings.Index(stepStr, "GITHUB_MCP_SERVER_TOKEN")
 	githubTokenPos := strings.Index(stepStr, "GITHUB_TOKEN")
-	assert.True(t, ghAwPos < githubMcpPos, "GH_AW_SAFE_OUTPUTS should come before GITHUB_MCP_SERVER_TOKEN")
-	assert.True(t, githubMcpPos < githubTokenPos, "GITHUB_MCP_SERVER_TOKEN should come before GITHUB_TOKEN")
+	assert.Less(t, ghAwPos, githubMcpPos, "GH_AW_SAFE_OUTPUTS should come before GITHUB_MCP_SERVER_TOKEN")
+	assert.Less(t, githubMcpPos, githubTokenPos, "GITHUB_MCP_SERVER_TOKEN should come before GITHUB_TOKEN")
 }
 
 func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
