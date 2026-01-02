@@ -151,8 +151,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	// Create the template content
 	template := createWorkflowTemplate(workflowName)
 
-	// Write the template to file
-	if err := os.WriteFile(destFile, []byte(template), 0644); err != nil {
+	// Write the template to file with restrictive permissions (owner-only)
+	if err := os.WriteFile(destFile, []byte(template), 0600); err != nil {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
