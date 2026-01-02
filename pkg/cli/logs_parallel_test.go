@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +11,7 @@ import (
 
 func TestDownloadRunArtifactsParallel(t *testing.T) {
 	// Test with empty runs slice
-	results := downloadRunArtifactsConcurrent([]WorkflowRun{}, "./test-logs", false, 5)
+	results := downloadRunArtifactsConcurrent(context.Background(), []WorkflowRun{}, "./test-logs", false, 5)
 	if len(results) != 0 {
 		t.Errorf("Expected 0 results for empty runs, got %d", len(results))
 	}
@@ -40,7 +42,7 @@ func TestDownloadRunArtifactsParallel(t *testing.T) {
 
 	// This will fail since we don't have real GitHub CLI access,
 	// but we can verify the structure and that no panics occur
-	results = downloadRunArtifactsConcurrent(runs, "./test-logs", false, 5)
+	results = downloadRunArtifactsConcurrent(context.Background(), runs, "./test-logs", false, 5)
 
 	// We expect 2 results even if they fail
 	if len(results) != 2 {
@@ -80,7 +82,7 @@ func TestDownloadRunArtifactsParallelMaxRuns(t *testing.T) {
 	}
 
 	// Pass maxRuns=3 as a hint that we need 3 results, but all runs should be processed
-	results := downloadRunArtifactsConcurrent(runs, "./test-logs", false, 3)
+	results := downloadRunArtifactsConcurrent(context.Background(), runs, "./test-logs", false, 3)
 
 	// All runs should be processed to account for potential caching/filtering
 	if len(results) != 5 {
@@ -165,5 +167,134 @@ func TestMaxConcurrentDownloads(t *testing.T) {
 
 	if MaxConcurrentDownloads > 20 {
 		t.Errorf("MaxConcurrentDownloads should be reasonable (<=20), got %d", MaxConcurrentDownloads)
+	}
+}
+
+func TestGetMaxConcurrentDownloads(t *testing.T) {
+	// Save original env value
+	originalValue := os.Getenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+	defer func() {
+		if originalValue != "" {
+			os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", originalValue)
+		} else {
+			os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+		}
+	}()
+
+	tests := []struct {
+		name     string
+		envValue string
+		expected int
+	}{
+		{
+			name:     "default when env var not set",
+			envValue: "",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "valid value 5",
+			envValue: "5",
+			expected: 5,
+		},
+		{
+			name:     "valid value 1 (minimum)",
+			envValue: "1",
+			expected: 1,
+		},
+		{
+			name:     "valid value 100 (maximum)",
+			envValue: "100",
+			expected: 100,
+		},
+		{
+			name:     "valid value 50",
+			envValue: "50",
+			expected: 50,
+		},
+		{
+			name:     "invalid non-numeric value",
+			envValue: "invalid",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid zero value",
+			envValue: "0",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid negative value",
+			envValue: "-5",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid too large value",
+			envValue: "101",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid extremely large value",
+			envValue: "1000",
+			expected: MaxConcurrentDownloads,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue != "" {
+				os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", tt.envValue)
+			} else {
+				os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+			}
+
+			// Test the function
+			result := getMaxConcurrentDownloads()
+			if result != tt.expected {
+				t.Errorf("Expected %d, got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestDownloadRunArtifactsParallelWithCancellation tests context cancellation during concurrent downloads
+func TestDownloadRunArtifactsParallelWithCancellation(t *testing.T) {
+	// Create a context that's already cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Test with mock runs
+	runs := []WorkflowRun{
+		{
+			DatabaseID:   12345,
+			Number:       1,
+			Status:       "completed",
+			Conclusion:   "success",
+			WorkflowName: "Test Workflow",
+		},
+		{
+			DatabaseID:   12346,
+			Number:       2,
+			Status:       "completed",
+			Conclusion:   "failure",
+			WorkflowName: "Test Workflow",
+		},
+	}
+
+	// Download with cancelled context
+	results := downloadRunArtifactsConcurrent(ctx, runs, "./test-logs", false, 5)
+
+	// Should get results for all runs
+	if len(results) != 2 {
+		t.Errorf("Expected 2 results even with cancelled context, got %d", len(results))
+	}
+
+	// All results should be skipped due to context cancellation
+	for _, result := range results {
+		if !result.Skipped {
+			t.Errorf("Expected result for run %d to be skipped due to cancelled context", result.Run.DatabaseID)
+		}
+		if result.Error != context.Canceled {
+			t.Errorf("Expected error to be context.Canceled for run %d, got %v", result.Run.DatabaseID, result.Error)
+		}
 	}
 }

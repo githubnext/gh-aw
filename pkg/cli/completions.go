@@ -22,6 +22,16 @@ func getWorkflowDescription(workflowPath string) string {
 	// Verify the path is absolute to prevent relative path traversal
 	if !filepath.IsAbs(cleanPath) {
 		completionsLog.Printf("Invalid workflow file path (not absolute): %s", workflowPath)
+    
+}
+  
+func getWorkflowDescription(filePath string) string {
+	// Sanitize the filepath to prevent path traversal attacks
+	cleanPath := filepath.Clean(filePath)
+
+	// Verify the path is absolute to prevent relative path traversal
+	if !filepath.IsAbs(cleanPath) {
+		completionsLog.Printf("Invalid workflow file path (not absolute): %s", filePath)
 		return ""
 	}
 
@@ -33,7 +43,7 @@ func getWorkflowDescription(workflowPath string) string {
 
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		completionsLog.Printf("Failed to parse frontmatter from %s: %v", workflowPath, err)
+		completionsLog.Printf("Failed to parse frontmatter from %s: %v", filePath, err)
 		return ""
 	}
 

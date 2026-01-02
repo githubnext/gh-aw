@@ -46,9 +46,11 @@ async function main() {
     core.info(`Successfully added Copilot as reviewer to PR #${prNumber}`);
 
     await core.summary
-      .addRaw(`## Copilot Reviewer Added
+      .addRaw(
+        `## Copilot Reviewer Added
 
-Successfully added Copilot as a reviewer to PR #${prNumber}.`)
+Successfully added Copilot as a reviewer to PR #${prNumber}.`
+      )
       .write();
   } catch (error) {
     const errorMessage = getErrorMessage(error);

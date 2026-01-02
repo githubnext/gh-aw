@@ -22,12 +22,20 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/envutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/sourcegraph/conc/pool"
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
+
+// getMaxConcurrentDownloads returns the maximum number of concurrent downloads.
+// It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
+// validates the value is between 1 and 100, and falls back to the default if invalid.
+func getMaxConcurrentDownloads() int {
+	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
+}
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
@@ -162,7 +170,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			chunk := runsRemaining[:chunkSize]
 			runsRemaining = runsRemaining[chunkSize:]
 
-			downloadResults := downloadRunArtifactsConcurrent(chunk, outputDir, verbose, remainingNeeded)
+			downloadResults := downloadRunArtifactsConcurrent(ctx, chunk, outputDir, verbose, remainingNeeded)
 
 			for _, result := range downloadResults {
 				if result.Skipped {
@@ -462,7 +470,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 }
 
 // downloadRunArtifactsConcurrent downloads artifacts for multiple workflow runs concurrently
-func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
+func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, outputDir string, verbose bool, maxRuns int) []DownloadResult {
 	logsOrchestratorLog.Printf("Starting concurrent artifact download: runs=%d, outputDir=%s, maxRuns=%d", len(runs), outputDir, maxRuns)
 	if len(runs) == 0 {
 		return []DownloadResult{}
@@ -495,20 +503,33 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	// Use atomic counter for thread-safe progress tracking
 	var completedCount int64
 
-	// Configure concurrent download pool with bounded parallelism.
-	// MaxConcurrentDownloads (10) balances:
-	// - GitHub API rate limits (5000 requests/hour for authenticated users)
-	// - Network bandwidth (parallel HTTP requests for artifact downloads)
-	// - System memory (artifact buffering and decompression)
-	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
-	p := pool.NewWithResults[DownloadResult]().WithMaxGoroutines(MaxConcurrentDownloads)
+	// Get configured max concurrent downloads (default or from environment variable)
+	maxConcurrent := getMaxConcurrentDownloads()
 
-	// Each download task runs concurrently. Panics are automatically recovered
-	// by the pool and re-raised with full stack traces after all tasks complete.
-	// This ensures one failing download doesn't break others.
+	// Configure concurrent download pool with bounded parallelism and context cancellation.
+	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
+	// WithContext enables graceful cancellation via Ctrl+C.
+	p := pool.NewWithResults[DownloadResult]().
+		WithContext(ctx).
+		WithMaxGoroutines(maxConcurrent)
+
+	// Each download task runs concurrently with context awareness.
+	// Context cancellation (e.g., via Ctrl+C) will stop all in-flight downloads gracefully.
+	// Panics are automatically recovered by the pool and re-raised with full stack traces
+	// after all tasks complete. This ensures one failing download doesn't break others.
 	for _, run := range actualRuns {
 		run := run // capture loop variable
-		p.Go(func() DownloadResult {
+		p.Go(func(ctx context.Context) (DownloadResult, error) {
+			// Check for context cancellation before starting download
+			select {
+			case <-ctx.Done():
+				return DownloadResult{
+					Run:     run,
+					Skipped: true,
+					Error:   ctx.Err(),
+				}, nil
+			default:
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing run %d (%s)...", run.DatabaseID, run.Status)))
 			}
@@ -537,7 +558,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				if spinner != nil {
 					spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
 				}
-				return result
+				return result, nil
 			}
 
 			// No cached summary or version mismatch - download and process
@@ -682,15 +703,22 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				spinner.UpdateMessage(fmt.Sprintf("Downloading artifacts... (%d/%d completed)", completed, totalRuns))
 			}
 
-			return result
+			return result, nil
 		})
 	}
 
-	// Wait blocks until all downloads complete or panic. The pool guarantees:
-	// - All goroutines finish (no leaks)
+	// Wait blocks until all downloads complete, context is cancelled, or panic occurs.
+	// With context support, the pool guarantees:
+	// - All goroutines finish gracefully on cancellation (no leaks)
 	// - Panics are propagated with stack traces
+	// - Partial results are returned when context is cancelled
 	// - Results are collected in submission order
-	results := p.Wait()
+	results, err := p.Wait()
+
+	// Handle context cancellation
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
+	}
 
 	// Stop spinner with final success message
 	if spinner != nil {
