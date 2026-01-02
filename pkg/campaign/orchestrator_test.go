@@ -158,7 +158,7 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 		}
 	}
 	
-	// Verify that all three search types are mentioned (issues, PRs, discussions)
+	// Verify that all four search types are mentioned (issues, PRs, discussions, comments)
 	if !strings.Contains(data.MarkdownContent, "type:issue") {
 		t.Errorf("expected markdown to include issue search type, got: %q", data.MarkdownContent)
 	}
@@ -167,6 +167,9 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	}
 	if !strings.Contains(data.MarkdownContent, "Discussions:") {
 		t.Errorf("expected markdown to include discussion search, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "in:comments") {
+		t.Errorf("expected markdown to include comment search, got: %q", data.MarkdownContent)
 	}
 
 	// Verify instructions to combine results

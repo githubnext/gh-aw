@@ -662,15 +662,17 @@ jobs:
           2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
              - Worker workflows: daily-file-diet
              - **IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow listed above
-             - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions). Search ALL content types to discover all worker outputs.
-             - Perform these searches (one per worker, searching issues, PRs, and discussions):
+             - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions, comments). Search ALL content types to discover all worker outputs.
+             - Perform these searches (one per worker, searching issues, PRs, discussions, and comments):
                - Search for `daily-file-diet`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: daily-file-diet" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: daily-file-diet" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: daily-file-diet" in:comments` (finds issues/PRs with comments containing tracker-id)
              - For each search, collect all matching URLs (issues, PRs, discussions)
              - Record metadata for each item: number, title, state (open/closed/merged), created date, updated date, content type (issue/pr/discussion)
              - Combine results from all worker searches into a single list of discovered items
+             - Note: Comments are discovered via their parent issue/PR - the issue/PR is what gets added to the board
           
           3. **Query current project state** - Read the GitHub Project board
              - Retrieve all items currently on the project board
@@ -847,6 +849,12 @@ jobs:
           
           **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
           
           #### Updating Existing Items
@@ -855,12 +863,6 @@ jobs:
           ```
           update-project:
             project: "https://github.com/orgs/githubnext/projects/64"
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
             item_url: "ISSUE_URL"
             status: "Done"  # or "In Progress", "Todo"
             campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64

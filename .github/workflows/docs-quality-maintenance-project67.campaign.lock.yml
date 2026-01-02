@@ -665,35 +665,42 @@ jobs:
           2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
              - Worker workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
              - **IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow listed above
-             - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions). Search ALL content types to discover all worker outputs.
-             - Perform these searches (one per worker, searching issues, PRs, and discussions):
+             - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions, comments). Search ALL content types to discover all worker outputs.
+             - Perform these searches (one per worker, searching issues, PRs, discussions, and comments):
                - Search for `daily-doc-updater`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: daily-doc-updater" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: daily-doc-updater" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: daily-doc-updater" in:comments` (finds issues/PRs with comments containing tracker-id)
                - Search for `docs-noob-tester`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: docs-noob-tester" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: docs-noob-tester" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: docs-noob-tester" in:comments` (finds issues/PRs with comments containing tracker-id)
                - Search for `daily-multi-device-docs-tester`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: daily-multi-device-docs-tester" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: daily-multi-device-docs-tester" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: daily-multi-device-docs-tester" in:comments` (finds issues/PRs with comments containing tracker-id)
                - Search for `unbloat-docs`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: unbloat-docs" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: unbloat-docs" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: unbloat-docs" in:comments` (finds issues/PRs with comments containing tracker-id)
                - Search for `developer-docs-consolidator`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: developer-docs-consolidator" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: developer-docs-consolidator" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: developer-docs-consolidator" in:comments` (finds issues/PRs with comments containing tracker-id)
                - Search for `technical-doc-writer`: 
                  - Issues: `repo:OWNER/REPO "tracker-id: technical-doc-writer" in:body type:issue`
                  - Pull Requests: `repo:OWNER/REPO "tracker-id: technical-doc-writer" in:body type:pr`
                  - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+                 - Comments: `repo:OWNER/REPO "tracker-id: technical-doc-writer" in:comments` (finds issues/PRs with comments containing tracker-id)
              - For each search, collect all matching URLs (issues, PRs, discussions)
              - Record metadata for each item: number, title, state (open/closed/merged), created date, updated date, content type (issue/pr/discussion)
              - Combine results from all worker searches into a single list of discovered items
+             - Note: Comments are discovered via their parent issue/PR - the issue/PR is what gets added to the board
           
           3. **Query current project state** - Read the GitHub Project board
              - Retrieve all items currently on the project board
@@ -817,6 +824,12 @@ jobs:
           - Updating a status that matches current value → No-op (no change recorded)
           - Marking a completed campaign as completed → No-op (terminal state preserved)
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           Re-running the orchestrator produces consistent results regardless of how many times it executes.
           
           ### Project Board Integration
@@ -839,12 +852,6 @@ jobs:
             campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:docs-quality-maintenance-project67
           ```
           
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
           - `Start Date` is set from the issue's `createdAt` timestamp
           - `End Date` is set from the issue's `closedAt` timestamp (if closed)

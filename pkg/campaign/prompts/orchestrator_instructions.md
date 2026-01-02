@@ -127,15 +127,17 @@ Execute these steps in sequence each time this orchestrator runs:
 2. **Query worker-created content** (if workers are configured) - Search for issues, PRs, and discussions containing worker tracker-ids
 {{ if .Workflows }}   - Worker workflows: {{ range $i, $w := .Workflows }}{{ if $i }}, {{ end }}{{ $w }}{{ end }}
    - **IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow listed above
-   - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions). Search ALL content types to discover all worker outputs.
-   - Perform these searches (one per worker, searching issues, PRs, and discussions):
+   - **IMPORTANT**: Workers may create different types of content (issues, PRs, discussions, comments). Search ALL content types to discover all worker outputs.
+   - Perform these searches (one per worker, searching issues, PRs, discussions, and comments):
 {{ range .Workflows }}     - Search for `{{ . }}`: 
        - Issues: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body type:issue`
        - Pull Requests: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body type:pr`
        - Discussions: Search discussions (no GitHub search API) by browsing recent discussions in the repository
+       - Comments: `repo:OWNER/REPO "tracker-id: {{ . }}" in:comments` (finds issues/PRs with comments containing tracker-id)
 {{ end }}{{ end }}   - For each search, collect all matching URLs (issues, PRs, discussions)
    - Record metadata for each item: number, title, state (open/closed/merged), created date, updated date, content type (issue/pr/discussion)
    - Combine results from all worker searches into a single list of discovered items
+   - Note: Comments are discovered via their parent issue/PR - the issue/PR is what gets added to the board
 
 3. **Query current project state** - Read the GitHub Project board
    - Retrieve all items currently on the project board
