@@ -664,9 +664,17 @@ jobs:
           
           2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
              - Worker workflows: daily-doc-updater, docs-noob-tester, daily-multi-device-docs-tester, unbloat-docs, developer-docs-consolidator, technical-doc-writer
-             - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
-             - Collect all matching issue URLs
-             - Record issue metadata: number, title, state (open/closed), created date, updated date
+             - **IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow listed above
+             - Perform these searches (one per worker):
+               - Search for `daily-doc-updater`: `repo:OWNER/REPO "tracker-id: daily-doc-updater" in:body`
+               - Search for `docs-noob-tester`: `repo:OWNER/REPO "tracker-id: docs-noob-tester" in:body`
+               - Search for `daily-multi-device-docs-tester`: `repo:OWNER/REPO "tracker-id: daily-multi-device-docs-tester" in:body`
+               - Search for `unbloat-docs`: `repo:OWNER/REPO "tracker-id: unbloat-docs" in:body`
+               - Search for `developer-docs-consolidator`: `repo:OWNER/REPO "tracker-id: developer-docs-consolidator" in:body`
+               - Search for `technical-doc-writer`: `repo:OWNER/REPO "tracker-id: technical-doc-writer" in:body`
+             - For each search, collect all matching issue URLs
+             - Record issue metadata for each: number, title, state (open/closed), created date, updated date
+             - Combine results from all worker searches into a single list of discovered items
           
           3. **Query current project state** - Read the GitHub Project board
              - Retrieve all items currently on the project board
@@ -839,6 +847,12 @@ jobs:
           - `team`: Enables team-based grouping for multi-team campaigns
           - `repository`: Enables repository-based grouping for cross-repository campaigns
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
           
           Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
@@ -857,12 +871,6 @@ jobs:
           #### Idempotency
           
           - If an issue is already on the board with matching status → Skip (no-op)
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - If an issue is already on the board with different status → Update status field only
           - If an issue URL is invalid or deleted → Record failure, continue with remaining items
           

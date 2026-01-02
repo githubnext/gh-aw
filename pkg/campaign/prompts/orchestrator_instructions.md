@@ -126,9 +126,12 @@ Execute these steps in sequence each time this orchestrator runs:
 
 2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
 {{ if .Workflows }}   - Worker workflows: {{ range $i, $w := .Workflows }}{{ if $i }}, {{ end }}{{ $w }}{{ end }}
-{{ end }}   - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
-   - Collect all matching issue URLs
-   - Record issue metadata: number, title, state (open/closed), created date, updated date
+   - **IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow listed above
+   - Perform these searches (one per worker):
+{{ range .Workflows }}     - Search for `{{ . }}`: `repo:OWNER/REPO "tracker-id: {{ . }}" in:body`
+{{ end }}{{ end }}   - For each search, collect all matching issue URLs
+   - Record issue metadata for each: number, title, state (open/closed), created date, updated date
+   - Combine results from all worker searches into a single list of discovered items
 
 3. **Query current project state** - Read the GitHub Project board
    - Retrieve all items currently on the project board

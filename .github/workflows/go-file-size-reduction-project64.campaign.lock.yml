@@ -661,9 +661,12 @@ jobs:
           
           2. **Query worker-created issues** (if workers are configured) - Search for issues containing worker tracker-ids
              - Worker workflows: daily-file-diet
-             - For each worker in `workflows`, search: `repo:OWNER/REPO "tracker-id: WORKER_ID" in:body`
-             - Collect all matching issue URLs
-             - Record issue metadata: number, title, state (open/closed), created date, updated date
+             - **IMPORTANT**: You MUST perform a SEPARATE search for EACH worker workflow listed above
+             - Perform these searches (one per worker):
+               - Search for `daily-file-diet`: `repo:OWNER/REPO "tracker-id: daily-file-diet" in:body`
+             - For each search, collect all matching issue URLs
+             - Record issue metadata for each: number, title, state (open/closed), created date, updated date
+             - Combine results from all worker searches into a single list of discovered items
           
           3. **Query current project state** - Read the GitHub Project board
              - Retrieve all items currently on the project board
@@ -861,18 +864,18 @@ jobs:
           
           1. **Batch writes separately** - Do not mix reads and writes in the same operation
           2. **Validate before writing** - Confirm issue URL exists and is accessible
-          3. **Record all outcomes** - Log success/failure for each write operation
-          4. **Never infer state** - Only update based on explicit issue state (open/closed)
-          5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
-          
-          ### Summary
-          
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          3. **Record all outcomes** - Log success/failure for each write operation
+          4. **Never infer state** - Only update based on explicit issue state (open/closed)
+          5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
+          
+          ### Summary
+          
           Execute all four phases in order:
           1. **Read State** - Discover worker issues and query project board
           2. **Make Decisions** - Determine what to add, update, or mark complete
