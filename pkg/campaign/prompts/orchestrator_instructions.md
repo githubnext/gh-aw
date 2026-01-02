@@ -144,11 +144,12 @@ Execute these steps in sequence each time this orchestrator runs:
    - For each item, record: issue URL, status field value, other predefined field values
    - Create a snapshot of current board state
 
-4. **Compare and identify gaps** - Determine what needs updating
-   - Items from step 1 or 2 not on board = **new work to add**
-   - Items on board with state mismatch = **status to update**
-   - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate**
-   - Items on board but no longer found = **check if archived/deleted**
+4. **Compare and identify gaps** - Analyze current state (for reporting only - do NOT use this to filter items in Phase 3)
+   - Items from step 1 or 2 not on board = **new work discovered** (report count)
+   - Items on board with state mismatch = **status updates needed** (report count)
+   - Items on board with missing custom fields (e.g., worker_workflow) = **fields to populate** (report count)
+   - Items on board but no longer found = **check if archived/deleted** (report count)
+   - **CRITICAL**: This comparison is for reporting and planning only. In Phase 3, you MUST send ALL discovered items to update-project regardless of whether they appear to be on the board. The update-project tool handles duplicate detection automatically.
 
 #### Phase 2: Make Decisions (Planning)
 
@@ -172,32 +173,33 @@ Plan format (keep under 2KB):
 }
 ```
 
-5. **Decide additions (with pacing)** - For each new item discovered:
-   - **CRITICAL**: All discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be added to the board to maintain synchronization between the campaign state and the project board.
-   - Decision: Add to board? (Default: **YES** for all items with tracker label or worker tracker-id)
-   - If `governance.max-new-items-per-run` is set, add at most that many new items in this single run (remaining items will be added in subsequent runs)
+5. **Decide processing order (with pacing)** - For items discovered in steps 1-2:
+   - **CRITICAL**: ALL discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be sent to update-project in Phase 3, regardless of whether they appear to already be on the board. The update-project tool handles idempotency automatically.
+   - If `governance.max-new-items-per-run` is set, process at most that many items in this single run (remaining items will be processed in subsequent runs)
    - When applying the governance limit, prioritize in this order:
-     1. Tracker-labeled items (campaign tasks) - add oldest first
-     2. Worker-created items (worker outputs) - add oldest first
-   - Determine initial status field value based on item state:
+     1. Tracker-labeled items (campaign tasks) - process oldest first
+     2. Worker-created items (worker outputs) - process oldest first
+   - Determine appropriate status field value based on item state:
      - Open issue/PR/discussion → "Todo" status
      - Closed issue/discussion → "Done" status
      - Merged PR → "Done" status
+   - **IMPORTANT**: Do NOT skip items that appear to be on the board already. Step 4 comparison is for reporting only. In Phase 3, send ALL items to update-project.
 
-6. **Decide updates (no downgrade)** - For each existing board item with mismatched state:
-   - Decision: Update status field? (Default: yes if item state changed)
-   - If `governance.do-not-downgrade-done-items` is true, do not move items from Done back to active status
-   - Determine new status field value:
+6. **Decide updates (no downgrade)** - For status field value determination:
+   - Determine appropriate status based on item state (open/closed/merged)
+   - If `governance.do-not-downgrade-done-items` is true, preserve "Done" status for items that are already marked as done on the board
+   - Status field mapping:
      - Open issue/PR/discussion → "In Progress" or "Todo"
      - Closed issue/discussion → "Done"
      - Merged PR → "Done"
+   - **IMPORTANT**: This is for determining what status value to send to update-project, not for deciding whether to send the request. Send ALL discovered items to update-project in Phase 3.
 
-6.5 **Decide field updates** - For each existing board item, check for missing custom fields:
-   - If item is missing `worker_workflow` field:
-     - Search item body (issue/PR/discussion) for tracker-id (e.g., `<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->`)
-     - If tracker-id matches a worker in `workflows`, populate `worker_workflow` field with that worker ID
-   - Only update fields that exist on the project board
-   - Skip items that already have all required fields populated
+6.5 **Decide field values** - For custom field population:
+   - Determine which custom fields should be populated based on item metadata
+   - If item has a worker tracker-id in its body (e.g., `<!-- agentic-workflow: WorkflowName, tracker-id: WORKER_ID -->`):
+     - Extract the worker ID and prepare to populate `worker_workflow` field
+   - Prepare other custom field values based on item properties
+   - **IMPORTANT**: This is for determining field values to send, not for filtering items. Send ALL discovered items to update-project in Phase 3.
 
 7. **Decide completion** - Check campaign completion criteria:
    - If all discovered items (issues/PRs/discussions) are closed/merged AND all board items are "Done" → Campaign complete
@@ -205,40 +207,35 @@ Plan format (keep under 2KB):
 
 #### Phase 3: Write State (Execution)
 
-8. **Execute additions** - Add new items to project board
-   - Add ALL items identified in step 5 (both tracker-labeled and worker-created), up to the governance limit if set
-   - Use `update-project` safe-output for each new item
-   - Set predefined fields: `status` (required), optionally `priority`, `size`
-   - If worker tracker-id is found in item body (issue/PR/discussion), populate `worker_workflow` field
+**CRITICAL RULE**: In this phase, you MUST send update-project requests for ALL discovered items from steps 1-2, regardless of whether they appear to already be on the board. The update-project tool handles duplicate detection and idempotency automatically. Do NOT pre-filter items based on board state.
+
+8. **Execute project updates** - Send update-project for ALL discovered items
+   - Process ALL items from steps 1-2 (both tracker-labeled and worker-created), up to the governance limit if set
+   - Use `update-project` safe-output for EVERY discovered item
+   - Include fields from steps 5-6.5: `status`, `worker_workflow`, `priority`, `size`, etc.
+   - **The update-project tool will automatically**:
+     - Skip adding items that are already on the board (idempotent add)
+     - Update fields for items already on the board
+     - Add new items that are not yet on the board
    - Record outcome: success or failure with error details
    - If governance limit is reached, log remaining items and note they will be processed in the next run
+   - **DO NOT**: Check if items are already on the board before sending requests - this causes synchronization bugs
+   - **DO NOT**: Skip items that appear to be on the board - send them all and let the tool handle idempotency
 
-9. **Execute status updates** - Update existing board items with status changes
-   - Use `update-project` safe-output for each status change
-   - Update only predefined fields: `status` and related metadata
-   - Record outcome: success or failure with error details
-
-9.5 **Execute field updates** - Update existing board items with missing custom fields
-   - Use `update-project` safe-output for each item with missing fields
-   - Populate missing fields identified in step 6.5 (e.g., `worker_workflow`)
-   - Record outcome: success or failure with error details
-
-10. **Record completion state** - If campaign is complete:
+9. **Record completion state** - If campaign is complete:
     - Mark project metadata field `campaign_status` as "completed"
     - Do NOT create new work or modify existing items
     - This is a terminal state
 
 #### Phase 4: Report (Output)
 
-11. **Generate status report** - Summarize execution results:
+10. **Generate status report** - Summarize execution results:
     - Total items discovered via tracker label (by type: issues, PRs)
     - Total items discovered via worker tracker-ids (by type: issues, PRs, discussions)
-    - Items added to board this run (count and URLs, broken down by: tracker-labeled vs worker-created)
-    - Items updated on board this run (count and status changes)
-    - Items with fields populated this run (count and which fields, e.g., worker_workflow)
-    - Items skipped due to governance limits (count, type, and why - noting they will be added in next run)
+    - Items processed with update-project this run (count and URLs, broken down by: tracker-labeled vs worker-created)
+    - Items skipped due to governance limits (count, type, and why - noting they will be processed in next run)
     - Current campaign metrics: open vs closed, progress percentage
-    - Any failures encountered during writes
+    - Any failures encountered during update-project operations
     - Campaign completion status
 
 ### Predefined Project Fields
@@ -263,9 +260,11 @@ The orchestrator uses this tracker-id to discover worker output by searching bod
 
 ### Idempotency Guarantee
 
-All operations must be idempotent:
-- Adding an item (issue/PR/discussion) already on the board → No-op (do not duplicate)
-- Updating a status that matches current value → No-op (no change recorded)
+**The update-project tool handles idempotency automatically.** You MUST send update-project requests for ALL discovered items. The tool will:
+- Adding an item already on the board → Skips the add operation, but still updates fields (handled by tool)
+- Updating a status that matches current value → No-op (handled by tool)
 - Marking a completed campaign as completed → No-op (terminal state preserved)
 
-Re-running the orchestrator produces consistent results regardless of how many times it executes.
+**CRITICAL**: Do NOT try to implement idempotency in your orchestrator logic by checking if items are already on the board before sending requests. This causes synchronization bugs where items are discovered but not processed. Always send ALL discovered items to update-project and let the tool handle duplicate detection.
+
+Re-running the orchestrator produces consistent results regardless of how many times it executes, because the update-project tool is idempotent.
