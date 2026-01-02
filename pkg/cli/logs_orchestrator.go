@@ -32,14 +32,14 @@ var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
 	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
-	
+
 	// Check for cancellation before starting
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("log download cancelled: %w", ctx.Err())
 	default:
 	}
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -78,7 +78,7 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 			return fmt.Errorf("log download cancelled: %w", ctx.Err())
 		default:
 		}
-		
+
 		// Check timeout if specified
 		if timeout > 0 {
 			elapsed := time.Since(startTime).Seconds()
