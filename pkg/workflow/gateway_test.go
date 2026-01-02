@@ -218,7 +218,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 					"mcp-gateway": true,
 				},
 			},
-			mcpEnvVars: map[string]string{},
+			mcpEnvVars:  map[string]string{},
 			expectSteps: 2,
 		},
 	}
