@@ -326,24 +326,15 @@ func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.
 		Port: 8080,
 	}
 
-	// Test with multiple gatewayed servers
-	gatewayedServers := []string{"github", "playwright", "serena"}
 	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
-	// Should include gateway validation section
-	assert.Contains(t, stepStr, "Validating gatewayed servers...")
-
-	// Should validate each gatewayed server using the shell script
-	for _, serverName := range gatewayedServers {
-		// Verify the script is called with correct arguments
-		assert.Contains(t, stepStr, fmt.Sprintf("# Validate %s server", serverName))
-		assert.Contains(t, stepStr, fmt.Sprintf("/tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\"", serverName))
-		assert.Contains(t, stepStr, "http://localhost:8080")
-	}
-
-	// Should have completion message
-	assert.Contains(t, stepStr, "All gatewayed servers validated successfully")
+	// Should call the health check shell script with proper arguments
+	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
+	assert.Contains(t, stepStr, "http://localhost:8080")
+	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
+	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
@@ -351,17 +342,12 @@ func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
 		Port: 8080,
 	}
 
-	// Test with no gatewayed servers (only internal servers)
 	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
-	// Should NOT include gateway validation section
-	assert.NotContains(t, stepStr, "Validating gatewayed servers...")
-	assert.NotContains(t, stepStr, "All gatewayed servers validated successfully")
-
-	// Should still have basic health check
+	// Should call the health check shell script
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
-	assert.Contains(t, stepStr, "Waiting for MCP Gateway to be ready...")
+	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
@@ -369,17 +355,13 @@ func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
 		Port: 8080,
 	}
 
-	// Test with internal servers that should be skipped
 	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
-	// Should NOT validate safe-inputs or safe-outputs as gatewayed
-	assert.NotContains(t, stepStr, "# Validate safe-inputs server")
-	assert.NotContains(t, stepStr, "# Validate safe-outputs server")
-
-	// Should validate github as gatewayed
-	assert.Contains(t, stepStr, "# Validate github server")
-	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/validate_gatewayed_server.sh \"github\"")
+	// Should call the health check shell script
+	// The script handles all validation logic internally
+	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
