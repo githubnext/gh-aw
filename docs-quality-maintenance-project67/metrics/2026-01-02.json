@@ -1,22 +1,27 @@
 {
   "campaign_id": "docs-quality-maintenance-project67",
   "date": "2026-01-02",
-  "tasks_total": 4,
-  "tasks_completed": 4,
+  "tasks_total": 29,
+  "tasks_completed": 28,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "velocity_per_day": 0.16,
-  "estimated_completion": "2026-01-02",
+  "velocity_per_day": 1.2,
+  "estimated_completion": null,
   "kpi_trends": [
+    {
+      "name": "Documentation coverage of features",
+      "trend": "Improving",
+      "value": 90
+    },
     {
       "name": "Documentation accessibility score",
       "trend": "Improving",
-      "value": 95.0
+      "value": 95
     },
     {
       "name": "User-reported documentation issues",
       "trend": "Improving",
-      "value": 4.0
+      "value": 4
     }
   ]
 }
