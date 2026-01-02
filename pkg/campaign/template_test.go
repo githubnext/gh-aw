@@ -96,8 +96,8 @@ func TestRenderProjectUpdateInstructions(t *testing.T) {
 		{
 			name: "with project URL and campaign ID",
 			data: CampaignPromptData{
-				ProjectURL:   "https://github.com/orgs/test/projects/1",
-				CampaignID:   "my-campaign",
+				ProjectURL: "https://github.com/orgs/test/projects/1",
+				CampaignID: "my-campaign",
 			},
 			shouldContain: []string{
 				"Project Board Integration",

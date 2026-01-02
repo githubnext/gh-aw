@@ -64,10 +64,10 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 
 func TestBuildOrchestrator_NoTrackerLabelDoesNotMentionTracker(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:         "test-campaign",
-		Name:       "Test Campaign",
-		ProjectURL:  "https://github.com/orgs/test/projects/1",
-		Workflows:   []string{"test-workflow"},
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/test/projects/1",
+		Workflows:    []string{"test-workflow"},
 		TrackerLabel: "",
 	}
 
