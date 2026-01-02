@@ -29,6 +29,7 @@ const HANDLER_MAP = {
   link_sub_issue: "./link_sub_issue.cjs",
   update_release: "./update_release.cjs",
   create_pull_request_review_comment: "./create_pr_review_comment.cjs",
+  create_pull_request: "./create_pull_request.cjs",
 };
 
 /**
@@ -36,7 +37,6 @@ const HANDLER_MAP = {
  * These types should not trigger warnings when skipped by the handler manager
  */
 const STANDALONE_STEP_TYPES = new Set([
-  "create_pull_request",
   "close_pull_request",
   "create_code_scanning_alert",
   "add_reviewer",
