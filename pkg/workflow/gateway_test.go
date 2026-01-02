@@ -294,7 +294,7 @@ func TestGenerateMCPGatewayHealthCheckStep_IncludesMCPConfig(t *testing.T) {
 	// Should include MCP config path
 	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
-	
+
 	// Should still have basic health check
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
 	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
