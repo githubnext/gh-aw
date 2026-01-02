@@ -59,7 +59,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 		enableLog.Print("No specific workflows provided, processing all workflows")
 		fmt.Fprintf(os.Stderr, "No specific workflows provided. %sing all workflows...\n", strings.ToUpper(action[:1])+action[1:])
 		// Get all workflow names and process them
-		mdFiles, err := getMarkdownWorkflowFiles()
+		mdFiles, err := getMarkdownWorkflowFiles("")
 		if err != nil {
 			return fmt.Errorf("no workflow files found to %s: %v", action, err)
 		}
@@ -86,7 +86,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 	}
 
 	// Get the core set of workflows from markdown files in .github/workflows
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		return fmt.Errorf("no workflow files found to %s: %v", action, err)
 	}

@@ -164,7 +164,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 func cleanupOrphanedIncludes(verbose bool) error {
 	removeLog.Print("Cleaning up orphaned include files")
 	// Get all remaining markdown files
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		// No markdown files means we can clean up all includes
 		removeLog.Print("No markdown files found, cleaning up all includes")
@@ -251,7 +251,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 // previewOrphanedIncludes returns a list of include files that would become orphaned if the specified files were removed
 func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, error) {
 	// Get all current markdown files
-	allMdFiles, err := getMarkdownWorkflowFiles()
+	allMdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		return nil, err
 	}

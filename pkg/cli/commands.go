@@ -51,6 +51,10 @@ func isGHCLIAvailable() bool {
 // resolveWorkflowFile resolves a file or workflow name to an actual file path
 // Note: This function only looks for local workflows, not packages
 func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error) {
+	return resolveWorkflowFileInDir(fileOrWorkflowName, verbose, "")
+}
+
+func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowDir string) (string, error) {
 	// First, try to use it as a direct file path
 	if _, err := os.Stat(fileOrWorkflowName); err == nil {
 		commandsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
@@ -76,7 +80,11 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 
 	commandsLog.Printf("Looking for workflow file: %s", workflowPath)
 
-	workflowsDir := getWorkflowsDir()
+	// Use provided directory or default
+	workflowsDir := workflowDir
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
 
 	// Try to find the workflow in local sources only (not packages)
 	_, path, err := readWorkflowFile(workflowPath, workflowsDir)

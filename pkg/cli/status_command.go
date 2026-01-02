@@ -39,7 +39,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 		}
 	}
 
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		statusLog.Printf("Failed to get markdown workflow files: %v", err)
 		fmt.Println(err.Error())
@@ -368,14 +368,18 @@ func calculateTimeRemaining(stopTimeStr string) string {
 
 // StatusWorkflows shows status of workflows
 // getMarkdownWorkflowFiles finds all markdown files in .github/workflows directory
-func getMarkdownWorkflowFiles() ([]string, error) {
-	workflowsDir := getWorkflowsDir()
-
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("no .github/workflows directory found")
+func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
+	// Use provided directory or default
+	workflowsDir := workflowDir
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
 	}
 
-	// Find all markdown files in .github/workflows
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no %s directory found", workflowsDir)
+	}
+
+	// Find all markdown files in workflow directory
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find workflow files: %w", err)
