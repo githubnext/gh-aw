@@ -68,7 +68,7 @@ func TestSplitRepoSlug(t *testing.T) {
 	}
 }
 
-func TestParseGitHubURL(t *testing.T) {
+func TestParseGitHubRepoURL(t *testing.T) {
 	tests := []struct {
 		name          string
 		url           string
@@ -123,20 +123,20 @@ func TestParseGitHubURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, err := ParseGitHubURL(tt.url)
+			owner, repo, err := ParseGitHubRepoURL(tt.url)
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("ParseGitHubURL(%q) expected error, got nil", tt.url)
+					t.Errorf("ParseGitHubRepoURL(%q) expected error, got nil", tt.url)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("ParseGitHubURL(%q) unexpected error: %v", tt.url, err)
+					t.Errorf("ParseGitHubRepoURL(%q) unexpected error: %v", tt.url, err)
 				}
 				if owner != tt.expectedOwner {
-					t.Errorf("ParseGitHubURL(%q) owner = %q; want %q", tt.url, owner, tt.expectedOwner)
+					t.Errorf("ParseGitHubRepoURL(%q) owner = %q; want %q", tt.url, owner, tt.expectedOwner)
 				}
 				if repo != tt.expectedRepo {
-					t.Errorf("ParseGitHubURL(%q) repo = %q; want %q", tt.url, repo, tt.expectedRepo)
+					t.Errorf("ParseGitHubRepoURL(%q) repo = %q; want %q", tt.url, repo, tt.expectedRepo)
 				}
 			}
 		})
@@ -188,10 +188,10 @@ func BenchmarkSplitRepoSlug(b *testing.B) {
 	}
 }
 
-func BenchmarkParseGitHubURL(b *testing.B) {
+func BenchmarkParseGitHubRepoURL(b *testing.B) {
 	url := "https://github.com/githubnext/gh-aw.git"
 	for i := 0; i < b.N; i++ {
-		_, _, _ = ParseGitHubURL(url)
+		_, _, _ = ParseGitHubRepoURL(url)
 	}
 }
 
@@ -310,7 +310,7 @@ func TestSplitRepoSlug_SpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestParseGitHubURL_Variants(t *testing.T) {
+func TestParseGitHubRepoURL_Variants(t *testing.T) {
 	tests := []struct {
 		name          string
 		url           string
@@ -357,7 +357,7 @@ func TestParseGitHubURL_Variants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, err := ParseGitHubURL(tt.url)
+			owner, repo, err := ParseGitHubRepoURL(tt.url)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error for URL %q", tt.url)
@@ -368,7 +368,7 @@ func TestParseGitHubURL_Variants(t *testing.T) {
 				}
 				if err == nil && tt.expectedOwner != "" {
 					if owner != tt.expectedOwner || repo != tt.expectedRepo {
-						t.Errorf("ParseGitHubURL(%q) = (%q, %q); want (%q, %q)",
+						t.Errorf("ParseGitHubRepoURL(%q) = (%q, %q); want (%q, %q)",
 							tt.url, owner, repo, tt.expectedOwner, tt.expectedRepo)
 					}
 				}
@@ -457,17 +457,17 @@ func BenchmarkSplitRepoSlug_Invalid(b *testing.B) {
 	}
 }
 
-func BenchmarkParseGitHubURL_SSH(b *testing.B) {
+func BenchmarkParseGitHubRepoURL_SSH(b *testing.B) {
 	url := "git@github.com:githubnext/gh-aw.git"
 	for i := 0; i < b.N; i++ {
-		_, _, _ = ParseGitHubURL(url)
+		_, _, _ = ParseGitHubRepoURL(url)
 	}
 }
 
-func BenchmarkParseGitHubURL_HTTPS(b *testing.B) {
+func BenchmarkParseGitHubRepoURL_HTTPS(b *testing.B) {
 	url := "https://github.com/githubnext/gh-aw.git"
 	for i := 0; i < b.N; i++ {
-		_, _, _ = ParseGitHubURL(url)
+		_, _, _ = ParseGitHubRepoURL(url)
 	}
 }
 

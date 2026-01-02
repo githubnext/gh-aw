@@ -62,7 +62,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 	repoLog.Printf("Parsing git remote URL: %s", remoteURL)
 
 	// Parse GitHub repository from remote URL using repoutil
-	owner, repo, err := repoutil.ParseGitHubURL(remoteURL)
+	owner, repo, err := repoutil.ParseGitHubRepoURL(remoteURL)
 	if err != nil {
 		repoLog.Printf("Failed to parse git remote URL: %v", err)
 		return "", fmt.Errorf("failed to parse git remote URL: %w. Expected format: owner/repo. Example: githubnext/gh-aw", err)

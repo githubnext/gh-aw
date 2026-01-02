@@ -16,9 +16,10 @@ func SplitRepoSlug(slug string) (owner, repo string, err error) {
 	return parts[0], parts[1], nil
 }
 
-// ParseGitHubURL extracts the owner and repo from a GitHub URL.
+// ParseGitHubRepoURL extracts the owner and repo from a GitHub repository URL.
 // Handles both SSH (git@github.com:owner/repo.git) and HTTPS (https://github.com/owner/repo.git) formats.
-func ParseGitHubURL(url string) (owner, repo string, err error) {
+// This function is specifically for parsing git remote URLs to extract repository slugs.
+func ParseGitHubRepoURL(url string) (owner, repo string, err error) {
 	var repoPath string
 
 	// SSH format: git@github.com:owner/repo.git
