@@ -6,8 +6,16 @@ import (
 	"strings"
 )
 
-// extractFeatures extracts the features field from frontmatter
-// Returns a map of feature flags and configuration options (supports boolean flags and string values)
+// extractFeatures extracts the features field from frontmatter.
+// Uses map[string]any because feature flags are extensible and
+// new flags can be added without code changes. This allows users to
+// enable experimental features dynamically via workflow frontmatter.
+//
+// Returns a map of feature flags and configuration options (supports boolean flags and string values).
+// The use of 'any' here is intentional - feature flag values can be:
+//   - bool: simple on/off flags (e.g., mcp-gateway: true)
+//   - string: flags with configuration (e.g., strict-mode: "enabled")
+//   - number: numeric thresholds (e.g., max-turns: 10)
 func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]any {
 	value, exists := frontmatter["features"]
 	if !exists {

@@ -640,6 +640,78 @@ if config.PermissionsTyped != nil {
 - Existing code using legacy fields continues to work
 - New code should prefer typed fields for compile-time safety
 
+### Dynamic Type Usage Guidelines
+
+**When to use `any` or `map[string]any`:**
+
+- ✅ **Parsing YAML/JSON with unknown structure** - Frontmatter fields, GitHub Actions configurations
+- ✅ **Extensible configuration fields** - Feature flags, MCP server custom fields, tool options
+- ✅ **GitHub Actions heterogeneous structures** - Steps can be strings or maps with varying fields
+- ✅ **Runtime type checking after unmarshaling** - Extract and validate specific fields from dynamic data
+- ✅ **Intermediate representations** - Transform data between formats during compilation
+
+**When to avoid `any`:**
+
+- ❌ **Internal function parameters with known types** - Use concrete types or typed structs
+- ❌ **Return values where type is deterministic** - Return specific types, not any
+- ❌ **Struct fields that should be strongly typed** - Define typed structs when structure is stable
+- ❌ **Collections with homogeneous types** - Use `[]string`, `[]int`, etc. instead of `[]any`
+
+**Code Review Checklist:**
+
+When reviewing code with `any` usage:
+
+1. **Is the use justified?** - Check if the data structure is truly dynamic or could be typed
+2. **Is it documented?** - Look for comments explaining why `any` is necessary
+3. **Are type assertions safe?** - Verify all type assertions check the boolean return value
+4. **Can it be typed?** - Consider if a typed struct or constant would be more appropriate
+5. **Is error handling present?** - Ensure invalid types are caught and reported clearly
+
+**Example Patterns:**
+
+```go
+// ✅ GOOD - Dynamic YAML parsing with safe type assertions
+func extractFeatures(frontmatter map[string]any) map[string]any {
+    value, exists := frontmatter["features"]
+    if !exists {
+        return nil
+    }
+    
+    // Safe type assertion with error handling
+    if featuresMap, ok := value.(map[string]any); ok {
+        return featuresMap
+    }
+    
+    return nil
+}
+
+// ✅ GOOD - Documented use of any for extensible configuration
+// githubTool uses any because tool configuration structure
+// varies based on engine and toolsets
+func ValidatePermissions(permissions *Permissions, githubTool any) error {
+    // Runtime type checking...
+}
+
+// ❌ BAD - Unnecessary use of any when type is known
+func ProcessConfig(config any) error {
+    // Should use typed struct instead
+}
+```
+
+**Migration Strategy:**
+
+When you encounter `map[string]any` in the codebase:
+
+1. **Don't rush to refactor** - The use of `any` is often intentional for dynamic data
+2. **Check documentation** - Look for package-level docs (e.g., `pkg/workflow/doc.go`) explaining the rationale
+3. **Understand the context** - YAML/JSON parsing requires `any` for unknown structures
+4. **Consider typed alternatives** - Only migrate if the structure is stable and known
+5. **Preserve flexibility** - Keep `any` for extensible configurations like feature flags
+
+**See**: 
+- <a>pkg/workflow/doc.go</a> for package-level documentation on dynamic type usage
+- <a>specs/go-type-patterns.md</a> for comprehensive type pattern guidance
+
 ### GitHub Actions Integration  
 For JavaScript files in `pkg/workflow/js/*.cjs`:
 - Use `core.info`, `core.warning`, `core.error` (not console.log)

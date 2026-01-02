@@ -312,8 +312,18 @@ func extractActionVersion(uses string) string {
 	return uses[idx+1:]
 }
 
-// ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
-// Returns a new slice with pinned references
+// ApplyActionPinsToSteps processes workflow steps to pin action versions.
+// Steps use []any because GitHub Actions allows heterogeneous step types:
+//   - String references: "actions/checkout@v4"
+//   - Map objects: {uses: "actions/checkout@v4", with: {...}}
+//   - Custom actions: {run: "echo hello", shell: "bash"}
+//   - Composite actions with varying structures
+//
+// The use of 'any' is intentional - GitHub Actions YAML supports multiple
+// step formats that cannot be known at compile time. Each step is validated
+// at runtime and converted to the appropriate pinned format.
+//
+// Returns a new slice with pinned references.
 func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	result := make([]any, len(steps))
 	for i, step := range steps {
