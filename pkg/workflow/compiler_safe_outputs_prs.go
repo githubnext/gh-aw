@@ -111,6 +111,26 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	}
 }
 
+// buildMarkPullRequestAsReadyForReviewStepConfig builds the configuration for marking a PR as ready for review
+func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.MarkPullRequestAsReadyForReview
+
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
+
+	condition := BuildSafeOutputType("mark_pull_request_as_ready_for_review")
+
+	return SafeOutputStepConfig{
+		StepName:      "Mark Pull Request as Ready for Review",
+		StepID:        "mark_pull_request_as_ready_for_review",
+		ScriptName:    "mark_pull_request_as_ready_for_review",
+		Script:        getMarkPullRequestAsReadyForReviewScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
+
 // buildPushToPullRequestBranchStepConfig builds the configuration for pushing to a pull request branch
 func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.PushToPullRequestBranch

@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/testutil"
-
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/testutil"
+	"github.com/githubnext/gh-aw/pkg/types"
 )
 
 func TestListWorkflowMCP(t *testing.T) {
@@ -169,5 +170,180 @@ func TestNewMCPListSubcommand(t *testing.T) {
 	// Check that the command accepts 0 or 1 arguments
 	if cmd.Args == nil {
 		t.Error("Expected Args validation to be set")
+	}
+}
+
+// TestDetermineConfigStatus tests the configuration status determination
+func TestDetermineConfigStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   parser.MCPServerConfig
+		expected string
+	}{
+		{
+			name: "valid_stdio_config",
+			config: parser.MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Command: "npx",
+				},
+			},
+			expected: "✓ Ready",
+		},
+		{
+			name: "valid_http_config",
+			config: parser.MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					URL: "http://localhost:3000",
+				},
+			},
+			expected: "✓ Ready",
+		},
+		{
+			name: "valid_container_config",
+			config: parser.MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Container: "docker",
+				},
+			},
+			expected: "✓ Ready",
+		},
+		{
+			name:     "incomplete_config",
+			config:   parser.MCPServerConfig{},
+			expected: "⚠ Incomplete",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := determineConfigStatus(tt.config)
+			if result != tt.expected {
+				t.Errorf("Expected status %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestFormatToolsCount tests the tools count formatting
+func TestFormatToolsCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		allowed  []string
+		expected string
+	}{
+		{
+			name:     "no_restrictions",
+			allowed:  []string{},
+			expected: "All tools",
+		},
+		{
+			name:     "wildcard",
+			allowed:  []string{"*"},
+			expected: "All tools",
+		},
+		{
+			name:     "single_tool",
+			allowed:  []string{"create_issue"},
+			expected: "1 tool",
+		},
+		{
+			name:     "multiple_tools",
+			allowed:  []string{"create_issue", "create_pr", "list_issues"},
+			expected: "3 tools",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatToolsCount(tt.allowed)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestFormatNetworkAccess tests network access formatting
+func TestFormatNetworkAccess(t *testing.T) {
+	tests := []struct {
+		name      string
+		hasAccess bool
+		expected  string
+	}{
+		{
+			name:      "enabled",
+			hasAccess: true,
+			expected:  "✓ Enabled",
+		},
+		{
+			name:      "disabled",
+			hasAccess: false,
+			expected:  "✗ Disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatNetworkAccess(tt.hasAccess)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestCheckNetworkAccess tests network access detection
+func TestCheckNetworkAccess(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    bool
+	}{
+		{
+			name:        "nil_frontmatter",
+			frontmatter: nil,
+			expected:    false,
+		},
+		{
+			name:        "no_network_field",
+			frontmatter: map[string]any{},
+			expected:    false,
+		},
+		{
+			name: "network_with_allowed_domains",
+			frontmatter: map[string]any{
+				"network": map[string]any{
+					"allowed": []any{"github.com", "api.github.com"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "network_with_empty_allowed",
+			frontmatter: map[string]any{
+				"network": map[string]any{
+					"allowed": []any{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "network_with_other_config",
+			frontmatter: map[string]any{
+				"network": map[string]any{
+					"proxy": "http://proxy:8080",
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkNetworkAccess(tt.frontmatter)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
 	}
 }

@@ -532,6 +532,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	if data.SafeOutputs.ClosePullRequests != nil {
 		enabledTools["close_pull_request"] = true
 	}
+	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
+		enabledTools["mark_pull_request_as_ready_for_review"] = true
+	}
 	if data.SafeOutputs.AddComments != nil {
 		enabledTools["add_comment"] = true
 	}
