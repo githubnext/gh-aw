@@ -79,6 +79,84 @@
   animation: light-glow-move 20s ease-in-out infinite;
 }
 
+/* Campaign specs Mermaid diagram colors
+   We style Mermaid nodes by their class (tracked, notTracked, workflow, external)
+   so we can use lighter colors in light mode and darker colors in dark mode. */
+
+/* Default (dark theme): stronger fills with light text */
+.mermaid .tracked rect,
+.mermaid .tracked polygon {
+  fill: #6b46c1;
+  stroke: #5b3da3;
+}
+.mermaid .tracked text {
+  fill: #ffffff;
+}
+
+.mermaid .notTracked rect,
+.mermaid .notTracked polygon {
+  fill: #424a53;
+  stroke: #2d333b;
+}
+.mermaid .notTracked text {
+  fill: #ffffff;
+}
+
+.mermaid .workflow rect,
+.mermaid .workflow polygon {
+  fill: #0969da;
+  stroke: #0753b6;
+}
+.mermaid .workflow text {
+  fill: #ffffff;
+}
+
+.mermaid .external rect,
+.mermaid .external polygon {
+  fill: #bf3989;
+  stroke: #7d2457;
+}
+.mermaid .external text {
+  fill: #ffffff;
+}
+
+/* Light theme: pastel fills with dark text */
+:root[data-theme='light'] .mermaid .tracked rect,
+:root[data-theme='light'] .mermaid .tracked polygon {
+  fill: #e3d5ff;
+  stroke: #6b46c1;
+}
+:root[data-theme='light'] .mermaid .tracked text {
+  fill: #000000;
+}
+
+:root[data-theme='light'] .mermaid .notTracked rect,
+:root[data-theme='light'] .mermaid .notTracked polygon {
+  fill: #e1e4e8;
+  stroke: #8d96a0;
+}
+:root[data-theme='light'] .mermaid .notTracked text {
+  fill: #000000;
+}
+
+:root[data-theme='light'] .mermaid .workflow rect,
+:root[data-theme='light'] .mermaid .workflow polygon {
+  fill: #c6e6ff;
+  stroke: #0969da;
+}
+:root[data-theme='light'] .mermaid .workflow text {
+  fill: #000000;
+}
+
+:root[data-theme='light'] .mermaid .external rect,
+:root[data-theme='light'] .mermaid .external polygon {
+  fill: #ffd6e8;
+  stroke: #bf3989;
+}
+:root[data-theme='light'] .mermaid .external text {
+  fill: #000000;
+}
+
 /* Hide glow effect on pages without hero */
 :root[data-theme='light'] body:not(:has(.hero))::before {
   display: none;
