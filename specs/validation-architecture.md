@@ -183,35 +183,49 @@ Domain-specific validation is organized into separate files based on functional 
 - ✅ Include/import validation
 - ✅ Template region validation
 
-#### 9. **JavaScript Bundler Validation**: `bundler_validation.go`
+#### 9. **JavaScript Bundle Safety Validation**: `bundler_safety_validation.go`
 
-**Location**: `pkg/workflow/bundler_validation.go` (360 lines)
+**Location**: `pkg/workflow/bundler_safety_validation.go` (230 lines)
 
-**Purpose**: Validates JavaScript code for runtime mode compatibility and bundling correctness
+**Purpose**: Validates JavaScript bundle safety to prevent runtime module errors
 
 **Validation Functions**:
 - `validateNoLocalRequires()` - Ensures all local require() statements are bundled (GitHub Script mode)
 - `validateNoModuleReferences()` - Ensures no module.exports or exports remain (GitHub Script mode)
-- `validateNoExecSync()` - Ensures GitHub Script mode scripts use exec instead of execSync
-- `validateNoGitHubScriptGlobals()` - Ensures Node.js scripts don't use GitHub Actions globals (core.*, exec.*, github.*)
 - `ValidateEmbeddedResourceRequires()` - Validates embedded JavaScript dependencies exist
+- `normalizePath()` - Path normalization utility
 
-**Pattern**: Runtime mode-specific validation with compile-time checks
-
-**Validation Enforcement**:
-- Compile-time: Triggered during script registration in `RegisterWithMode()`
-- Build-time: Scripts violating rules cause panics during package initialization
-- Runtime: Bundled scripts are validated before execution
+**Pattern**: Compile-time bundle correctness validation
 
 **When to add validation here**:
-- ✅ JavaScript runtime mode compatibility checks
-- ✅ GitHub Script vs Node.js script validation
-- ✅ Module system validation (require, exports)
-- ✅ GitHub Actions API usage validation
-- ✅ Child process execution validation (exec vs execSync)
+- ✅ JavaScript bundling correctness
+- ✅ Missing module dependencies
+- ✅ CommonJS require() statement resolution
+
+#### 10. **JavaScript Script Content Validation**: `bundler_script_validation.go`
+
+**Location**: `pkg/workflow/bundler_script_validation.go` (160 lines)
+
+**Purpose**: Validates JavaScript script content for runtime mode API compatibility
+
+**Validation Functions**:
+- `validateNoExecSync()` - Ensures GitHub Script mode scripts use exec instead of execSync
+- `validateNoGitHubScriptGlobals()` - Ensures Node.js scripts don't use GitHub Actions globals (core.*, exec.*, github.*)
+
+**Pattern**: Registration-time script content validation with panic on violation
+
+**Validation Enforcement**:
+- Registration-time: Triggered during script registration in `RegisterWithMode()`
+- Scripts violating rules cause panics during package initialization
+- Catches errors during development/testing rather than at runtime
+
+**When to add validation here**:
+- ✅ JavaScript code content validation based on runtime mode
+- ✅ API usage patterns (execSync, GitHub Actions globals)
+- ✅ Script compatibility with execution environment
 
 **Design Rationale**:
-The bundler validation enforces two key constraints:
+The script content validation enforces two key constraints:
 1. **GitHub Script mode**: Should not use `execSync` (use async `exec` from `@actions/exec` instead)
 2. **Node.js mode**: Should not use GitHub Actions globals (`core.*`, `exec.*`, `github.*`)
 
@@ -219,7 +233,23 @@ These rules ensure that scripts follow platform conventions:
 - GitHub Script mode runs inline in GitHub Actions YAML with GitHub-specific globals available
 - Node.js mode runs as standalone scripts with standard Node.js APIs only
 
-Validation happens at registration time (via panic) to catch errors during development/testing rather than at runtime.
+#### 11. **JavaScript Runtime Mode Validation**: `bundler_runtime_validation.go`
+
+**Location**: `pkg/workflow/bundler_runtime_validation.go` (190 lines)
+
+**Purpose**: Validates JavaScript runtime mode compatibility to prevent mixing incompatible scripts
+
+**Validation Functions**:
+- `validateNoRuntimeMixing()` - Prevents mixing nodejs-only scripts with github-script scripts
+- `validateRuntimeModeRecursive()` - Recursively validates runtime compatibility
+- `detectRuntimeMode()` - Detects the intended runtime mode of a JavaScript file
+
+**Pattern**: Bundling-time runtime compatibility validation
+
+**When to add validation here**:
+- ✅ Runtime mode compatibility checks
+- ✅ Detecting script mixing issues
+- ✅ Runtime-specific API detection
 
 ## Decision Tree: Where to Add New Validation
 

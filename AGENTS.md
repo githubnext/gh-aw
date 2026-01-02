@@ -207,6 +207,38 @@ pkg/
 .github/workflows/   # Sample workflows (*.md + *.lock.yml)
 ```
 
+## Validation Complexity Guidelines
+
+**Target size**: 100-200 lines per validator  
+**Hard limit**: 300 lines (refactor if exceeded)
+
+**When to split a validator**:
+- File exceeds 300 lines
+- File contains 2+ unrelated validation domains
+- Complex cross-dependencies require separate testing
+- Error messages span multiple concern areas
+
+**Naming convention**: `{domain}_{subdomain}_validation.go`  
+**Documentation**: Minimum 30% comment coverage  
+**Tests**: Separate test file with integration tests for complex validators
+
+**Decision tree for splitting**:
+```text
+File > 300 lines? ──YES──> Should split
+      │
+      NO
+      │
+      ▼
+Contains 2+ distinct domains? ──YES──> Should split
+      │
+      NO
+      │
+      ▼
+Keep as-is
+```
+
+See **[specs/validation-refactoring.md](specs/validation-refactoring.md)** for step-by-step refactoring guide and examples.
+
 ## Console Message Formatting
 
 **ALWAYS use console formatting for user output:**
