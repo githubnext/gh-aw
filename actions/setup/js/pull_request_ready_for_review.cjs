@@ -36,9 +36,7 @@ async function main() {
   }
 
   // Find all pull_request_ready_for_review items
-  const items = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "pull_request_ready_for_review"
-  );
+  const items = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "pull_request_ready_for_review");
   if (items.length === 0) {
     core.info("No pull_request_ready_for_review items found in agent output");
     return;
@@ -71,7 +69,7 @@ async function main() {
     try {
       // Determine PR number
       let prNumber = item.pull_request_number;
-      
+
       if (!prNumber) {
         // Use the triggering PR if available
         if (context.payload.pull_request?.number) {

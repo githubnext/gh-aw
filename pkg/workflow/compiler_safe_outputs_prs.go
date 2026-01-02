@@ -117,19 +117,19 @@ func (c *Compiler) buildPullRequestReadyForReviewStepConfig(data *WorkflowData, 
 	prSafeOutputsLog.Print("Building pull request ready for review step config")
 
 	var customEnvVars []string
-	
+
 	// Add target configuration
 	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_PR_READY_TARGET", cfg.Target)...)
-	
+
 	// Add required labels
 	customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_PR_READY_REQUIRED_LABELS", cfg.RequiredLabels)...)
-	
+
 	// Add required title prefix
 	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_PR_READY_REQUIRED_TITLE_PREFIX", cfg.RequiredTitlePrefix)...)
-	
+
 	// Add max count
 	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_PR_READY_MAX_COUNT", cfg.Max)...)
-	
+
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("pull_request_ready_for_review")

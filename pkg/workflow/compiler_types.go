@@ -319,17 +319,17 @@ type SafeOutputsConfig struct {
 	UpdatePullRequests              *UpdatePullRequestsConfig              `yaml:"update-pull-request,omitempty"` // Update GitHub pull request title/body
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
-	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`    // Update GitHub release descriptions
-	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
-	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`    // Smart project board management (create/add/update)
+	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`                // Update GitHub release descriptions
+	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"`             // Create GitHub Copilot agent tasks
+	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`                // Smart project board management (create/add/update)
 	LinkSubIssue                    *LinkSubIssueConfig                    `yaml:"link-sub-issue,omitempty"`                // Link issues as sub-issues
 	HideComment                     *HideCommentConfig                     `yaml:"hide-comment,omitempty"`                  // Hide comments
 	PullRequestReadyForReview       *PullRequestReadyForReviewConfig       `yaml:"pull-request-ready-for-review,omitempty"` // Mark PR as ready for review
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`                  // Optional for reporting missing functionality
-	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`              // No-op output for logging only (always available as fallback)
-	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
-	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`               // GitHub App credentials for token minting
+	NoOp                            *NoOpConfig                            `yaml:"noop,omitempty"`                          // No-op output for logging only (always available as fallback)
+	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`              // Threat detection configuration
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`                          // Safe-jobs configuration (moved from top-level)
+	App                             *GitHubAppConfig                       `yaml:"app,omitempty"`                           // GitHub App credentials for token minting
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          bool                                   `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs

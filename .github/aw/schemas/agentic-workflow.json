@@ -3443,7 +3443,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-task, create-code-scanning-alert, create-discussion, create-issue, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, missing-tool, noop, pull-request-ready-for-review, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -4554,6 +4554,47 @@
                     "type": "string",
                     "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
                   }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "pull-request-ready-for-review": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable pull request ready for review with default configuration"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for marking draft pull requests as ready for review from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of pull requests to mark as ready for review (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target pull request: 'triggering' (default), '*' (any pull request), or explicit PR number",
+                  "pattern": "^(triggering|\\*|[1-9][0-9]*)$"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request operations. Takes precedence over trial target repo settings."
+                },
+                "required-labels": {
+                  "type": "array",
+                  "description": "Required labels that must be present on the pull request to mark it as ready for review.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "required-title-prefix": {
+                  "type": "string",
+                  "description": "Required title prefix that the pull request title must start with to be marked as ready for review."
                 }
               },
               "additionalProperties": false
