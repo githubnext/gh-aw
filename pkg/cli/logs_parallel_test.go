@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -166,6 +167,92 @@ func TestMaxConcurrentDownloads(t *testing.T) {
 
 	if MaxConcurrentDownloads > 20 {
 		t.Errorf("MaxConcurrentDownloads should be reasonable (<=20), got %d", MaxConcurrentDownloads)
+	}
+}
+
+func TestGetMaxConcurrentDownloads(t *testing.T) {
+	// Save original env value
+	originalValue := os.Getenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+	defer func() {
+		if originalValue != "" {
+			os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", originalValue)
+		} else {
+			os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+		}
+	}()
+
+	tests := []struct {
+		name     string
+		envValue string
+		expected int
+	}{
+		{
+			name:     "default when env var not set",
+			envValue: "",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "valid value 5",
+			envValue: "5",
+			expected: 5,
+		},
+		{
+			name:     "valid value 1 (minimum)",
+			envValue: "1",
+			expected: 1,
+		},
+		{
+			name:     "valid value 100 (maximum)",
+			envValue: "100",
+			expected: 100,
+		},
+		{
+			name:     "valid value 50",
+			envValue: "50",
+			expected: 50,
+		},
+		{
+			name:     "invalid non-numeric value",
+			envValue: "invalid",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid zero value",
+			envValue: "0",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid negative value",
+			envValue: "-5",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid too large value",
+			envValue: "101",
+			expected: MaxConcurrentDownloads,
+		},
+		{
+			name:     "invalid extremely large value",
+			envValue: "1000",
+			expected: MaxConcurrentDownloads,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue != "" {
+				os.Setenv("GH_AW_MAX_CONCURRENT_DOWNLOADS", tt.envValue)
+			} else {
+				os.Unsetenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+			}
+
+			// Test the function
+			result := getMaxConcurrentDownloads()
+			if result != tt.expected {
+				t.Errorf("Expected %d, got %d", tt.expected, result)
+			}
+		})
 	}
 }
 
