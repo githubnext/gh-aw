@@ -157,7 +157,7 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 			t.Errorf("expected markdown to have tracker-id for %q, got: %q", workflow, data.MarkdownContent)
 		}
 	}
-	
+
 	// Verify that all four search types are mentioned (issues, PRs, discussions, comments)
 	if !strings.Contains(data.MarkdownContent, "type:issue") {
 		t.Errorf("expected markdown to include issue search type, got: %q", data.MarkdownContent)
