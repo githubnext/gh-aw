@@ -717,10 +717,11 @@ jobs:
           
           4.5 **Deterministic planner step (required when objective/KPIs are present)**
           
-          Before choosing additions/updates, produce a small, bounded plan that is rule-based and reproducible from the discovered state:
-          - Output at most **3** planned actions.
-          - Prefer actions that are directly connected to improving the **primary** KPI.
-          - If signals indicate risk or uncertainty, prefer smaller, reversible actions.
+          Before executing board synchronization, produce a small strategic commentary that is rule-based and reproducible from the discovered state:
+          - Output at most **3** strategic observations or recommendations.
+          - Focus on actions that are directly connected to improving the **primary** KPI.
+          - If signals indicate risk or uncertainty, note smaller, reversible next steps.
+          - **IMPORTANT**: This planning step is for strategic commentary only. It does NOT limit the number of items added to the board in steps 5-9.5. All discovered items must still be synchronized to the board per the rules below.
           
           Plan format (keep under 2KB):
           ```json
@@ -728,16 +729,19 @@ jobs:
              "objective": "...",
              "primary_kpi": "...",
              "kpi_trends": [{"name": "...", "trend": "Improving|Flat|Regressing"}],
-             "actions": [
-                {"type": "add_to_project|update_status|comment", "why": "...", "target_url": "..."}
+             "strategic_observations": [
+                {"observation": "...", "recommendation": "..."}
              ]
           }
           ```
           
           5. **Decide additions (with pacing)** - For each new item discovered:
-             - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)
-             - If `governance.max-new-items-per-run` is set, add at most that many new items
-             - Prefer adding oldest (or least recently updated) missing items first
+             - **CRITICAL**: All discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be added to the board to maintain synchronization between the campaign state and the project board.
+             - Decision: Add to board? (Default: **YES** for all items with tracker label or worker tracker-id)
+             - If `governance.max-new-items-per-run` is set, add at most that many new items in this single run (remaining items will be added in subsequent runs)
+             - When applying the governance limit, prioritize in this order:
+               1. Tracker-labeled items (campaign tasks) - add oldest first
+               2. Worker-created items (worker outputs) - add oldest first
              - Determine initial status field value based on item state:
                - Open issue/PR/discussion → "Todo" status
                - Closed issue/discussion → "Done" status
@@ -765,10 +769,12 @@ jobs:
           #### Phase 3: Write State (Execution)
           
           8. **Execute additions** - Add new items to project board
+             - Add ALL items identified in step 5 (both tracker-labeled and worker-created), up to the governance limit if set
              - Use `update-project` safe-output for each new item
              - Set predefined fields: `status` (required), optionally `priority`, `size`
              - If worker tracker-id is found in item body (issue/PR/discussion), populate `worker_workflow` field
              - Record outcome: success or failure with error details
+             - If governance limit is reached, log remaining items and note they will be processed in the next run
           
           9. **Execute status updates** - Update existing board items with status changes
              - Use `update-project` safe-output for each status change
@@ -788,11 +794,12 @@ jobs:
           #### Phase 4: Report (Output)
           
           11. **Generate status report** - Summarize execution results:
-              - Total items discovered via tracker label and worker tracker-ids (by type: issues, PRs, discussions)
-              - Items added to board this run (count and URLs, by type)
+              - Total items discovered via tracker label (by type: issues, PRs)
+              - Total items discovered via worker tracker-ids (by type: issues, PRs, discussions)
+              - Items added to board this run (count and URLs, broken down by: tracker-labeled vs worker-created)
               - Items updated on board this run (count and status changes)
               - Items with fields populated this run (count and which fields, e.g., worker_workflow)
-              - Items skipped due to governance limits (and why)
+              - Items skipped due to governance limits (count, type, and why - noting they will be added in next run)
               - Current campaign metrics: open vs closed, progress percentage
               - Any failures encountered during writes
               - Campaign completion status
@@ -804,6 +811,12 @@ jobs:
           - `status` (required) - Values: "Todo", "In Progress", "Done"
           - `priority` (optional) - Values: "High", "Medium", "Low"
           - `size` (optional) - Values: "Small", "Medium", "Large"
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - `campaign_status` (metadata) - Values: "active", "completed"
           
           Do NOT update any other fields or create custom fields.
@@ -824,12 +837,6 @@ jobs:
           - Updating a status that matches current value → No-op (no change recorded)
           - Marking a completed campaign as completed → No-op (terminal state preserved)
           
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           Re-running the orchestrator produces consistent results regardless of how many times it executes.
           
           ### Project Board Integration
