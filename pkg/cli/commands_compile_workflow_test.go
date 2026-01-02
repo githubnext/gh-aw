@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -540,7 +541,7 @@ This is a test workflow for backward compatibility.
 				TrialMode:            false,
 				TrialLogicalRepoSlug: "",
 			}
-			_, err = CompileWorkflows(config)
+			_, err = CompileWorkflows(context.Background(), config)
 
 			if tt.expectError {
 				if err == nil {
@@ -695,7 +696,7 @@ This is a test workflow.
 				TrialMode:            false,
 				TrialLogicalRepoSlug: "",
 			}
-			_, err = CompileWorkflows(config)
+			_, err = CompileWorkflows(context.Background(), config)
 
 			// Verify error expectation
 			if tt.expectError && err == nil {

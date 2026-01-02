@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -200,9 +201,17 @@ func generateAndCompileCampaignOrchestrator(
 }
 
 // CompileWorkflows compiles workflows based on the provided configuration
-func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
+func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)
+
+	// Check context cancellation at the start
+	select {
+	case <-ctx.Done():
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+		return nil, ctx.Err()
+	default:
+	}
 
 	// Validate configuration
 	if err := validateCompileConfig(config); err != nil {

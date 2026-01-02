@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -229,7 +230,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		TrialMode:            !directTrialMode && (cloneRepoSlug == ""), // Enable trial mode in compiler unless in direct mode or clone-repo mode
 		TrialLogicalRepoSlug: logicalRepoSlug,
 	}
-	workflowDataList, err := CompileWorkflows(config)
+	workflowDataList, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		return fmt.Errorf("failed to compile workflow: %w", err)
 	}

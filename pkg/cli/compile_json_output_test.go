@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -43,7 +44,7 @@ This is a test workflow for JSON output.
 		Verbose:       false,
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 
 	// Restore stdout
 	w.Close()
@@ -119,7 +120,7 @@ This workflow has an invalid field.
 		Validate:      true,
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 
 	// Restore stdout
 	w.Close()
@@ -218,7 +219,7 @@ Test workflow
 		Verbose:       false,
 	}
 
-	_, _ = CompileWorkflows(config)
+	_, _ = CompileWorkflows(context.Background(), config)
 
 	// Restore stdout
 	w.Close()
