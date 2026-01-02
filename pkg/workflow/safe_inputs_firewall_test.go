@@ -14,7 +14,6 @@ func TestSafeInputsWithFirewallIncludesHostDockerInternal(t *testing.T) {
 			ID: "copilot",
 		},
 		NetworkPermissions: &NetworkPermissions{
-				Enabled: true,
 			},
 			Allowed: []string{"github.com"},
 		},

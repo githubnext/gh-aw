@@ -130,7 +130,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-						Enabled: true,
 					},
 				},
 			},
@@ -149,7 +148,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-						Enabled: true,
 					},
 				},
 			},
@@ -172,7 +170,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-						Enabled: true,
 					},
 				},
 			},
@@ -195,7 +192,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-						Enabled: true,
 					},
 				},
 			},
@@ -243,7 +239,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 		}
@@ -279,7 +274,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 		}
@@ -322,7 +316,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 		}

@@ -14,7 +14,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 		}
@@ -80,7 +79,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 		}
@@ -116,7 +114,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 					Args:    []string{"--custom-flag", "value"},
 				},
 			},
@@ -148,7 +145,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-					Enabled: true,
 				},
 			},
 			// Explicitly ensure SRT is not enabled
