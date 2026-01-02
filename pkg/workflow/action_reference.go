@@ -22,12 +22,14 @@ const (
 //   - actionMode: The action mode (dev or release)
 //   - version: The version string to use for release mode
 //   - actionTag: Optional override tag/SHA (takes precedence over version when in release mode)
+//   - data: Optional WorkflowData for SHA resolution (can be nil for standalone use)
 //
 // Returns:
 //   - For dev mode: "./actions/setup" (local path)
-//   - For release mode: "githubnext/gh-aw/actions/setup@<version>" or "@<actionTag>" (remote reference)
+//   - For release mode with data: "githubnext/gh-aw/actions/setup@<sha> # <version>" (SHA-pinned)
+//   - For release mode without data: "githubnext/gh-aw/actions/setup@<version>" (tag-based, SHA resolved later)
 //   - Falls back to local path if version is invalid in release mode
-func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string) string {
+func ResolveSetupActionReference(actionMode ActionMode, version string, actionTag string, data *WorkflowData) string {
 	localPath := "./actions/setup"
 
 	// Dev mode - return local path
@@ -53,9 +55,27 @@ func ResolveSetupActionReference(actionMode ActionMode, version string, actionTa
 		}
 
 		// Construct the remote reference with tag: githubnext/gh-aw/actions/setup@tag
-		// The SHA will be resolved later by action pinning infrastructure
 		remoteRef := fmt.Sprintf("%s/%s@%s", GitHubOrgRepo, actionPath, tag)
-		actionRefLog.Printf("Release mode: using remote action reference: %s (SHA will be resolved via action pins)", remoteRef)
+		
+		// If WorkflowData is available, try to resolve the SHA
+		if data != nil {
+			actionRepo := fmt.Sprintf("%s/%s", GitHubOrgRepo, actionPath)
+			pinnedRef, err := GetActionPinWithData(actionRepo, tag, data)
+			if err != nil {
+				// In strict mode, GetActionPinWithData returns an error
+				actionRefLog.Printf("Failed to pin action %s@%s: %v", actionRepo, tag, err)
+				return ""
+			}
+			if pinnedRef != "" {
+				// Successfully resolved to SHA
+				actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
+				return pinnedRef
+			}
+		}
+		
+		// If WorkflowData is not available or SHA resolution failed, return tag-based reference
+		// This is for backward compatibility with standalone workflow generators
+		actionRefLog.Printf("Release mode: using tag-based remote action reference: %s (SHA will be resolved later)", remoteRef)
 		return remoteRef
 	}
 
@@ -85,25 +105,52 @@ func (c *Compiler) resolveActionReference(localActionPath string, data *Workflow
 	if localActionPath == "./actions/setup" {
 		// Use compiler actionTag if available, otherwise check features
 		if c.actionTag != "" {
-			return ResolveSetupActionReference(c.actionMode, c.version, c.actionTag)
+			return ResolveSetupActionReference(c.actionMode, c.version, c.actionTag, data)
 		}
 		if !hasActionTag {
-			return ResolveSetupActionReference(c.actionMode, c.version, "")
+			return ResolveSetupActionReference(c.actionMode, c.version, "", data)
 		}
 	}
 
 	// Use release mode if either actionMode is release OR action-tag is specified
 	if c.actionMode == ActionModeRelease || hasActionTag {
-		// Convert to SHA-pinned remote reference for release
+		// Convert to tag-based remote reference for release
 		remoteRef := c.convertToRemoteActionRef(localActionPath, data)
 		if remoteRef == "" {
 			actionRefLog.Printf("WARNING: Could not resolve remote reference for %s", localActionPath)
 			return ""
 		}
+		
+		// Now resolve the tag to a SHA using action pins
+		// Extract repo and version from the remote reference (format: "repo/path@version")
+		actionRepo := extractActionRepo(remoteRef)
+		version := extractActionVersion(remoteRef)
+		
+		if actionRepo != "" && version != "" {
+			// Resolve the SHA using action pins
+			pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
+			if err != nil {
+				// In strict mode, GetActionPinWithData returns an error
+				actionRefLog.Printf("Failed to pin action %s@%s: %v", actionRepo, version, err)
+				return ""
+			}
+			if pinnedRef != "" {
+				// Successfully resolved to SHA
+				if hasActionTag {
+					actionRefLog.Printf("action-tag override: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
+				} else {
+					actionRefLog.Printf("Release mode: resolved %s to SHA-pinned reference: %s", remoteRef, pinnedRef)
+				}
+				return pinnedRef
+			}
+		}
+		
+		// If we couldn't resolve to SHA, return the tag-based reference
+		// This happens in non-strict mode when no pin is available
 		if hasActionTag {
-			actionRefLog.Printf("action-tag override: using remote action reference: %s", remoteRef)
+			actionRefLog.Printf("action-tag override: using tag-based remote action reference: %s", remoteRef)
 		} else {
-			actionRefLog.Printf("Release mode: using remote action reference: %s", remoteRef)
+			actionRefLog.Printf("Release mode: using tag-based remote action reference: %s", remoteRef)
 		}
 		return remoteRef
 	}
