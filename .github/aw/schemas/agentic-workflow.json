@@ -3017,7 +3017,12 @@
                 },
                 "branch-name": {
                   "type": "string",
-                  "description": "Git branch name for memory storage (default: memory/default)"
+                  "description": "Git branch name for memory storage (default: {branch-prefix}/{id} or memory/default)"
+                },
+                "branch-prefix": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]{4,64}$",
+                  "description": "Custom branch prefix for memory storage (default: memory). Must be lowercase alphanumeric [a-z0-9] and 4-64 characters long"
                 },
                 "file-glob": {
                   "oneOf": [
@@ -3087,7 +3092,12 @@
                   },
                   "branch-name": {
                     "type": "string",
-                    "description": "Git branch name for memory storage (default: memory/{id})"
+                    "description": "Git branch name for memory storage (default: {branch-prefix}/{id})"
+                  },
+                  "branch-prefix": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]{4,64}$",
+                    "description": "Custom branch prefix for memory storage (default: memory). Must be lowercase alphanumeric [a-z0-9] and 4-64 characters long"
                   },
                   "file-glob": {
                     "oneOf": [
