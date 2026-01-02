@@ -79,7 +79,7 @@ func TestNewAddCommand(t *testing.T) {
 
 func TestAddWorkflows_EmptyWorkflows(t *testing.T) {
 	err := AddWorkflows([]string{}, 1, false, "", "", false, "", false, false, "", false, "")
-	assert.Error(t, err, "Should error when no workflows are provided")
+	require.Error(t, err, "Should error when no workflows are provided")
 	assert.Contains(t, err.Error(), "at least one workflow", "Error should mention missing workflow")
 }
 
@@ -192,11 +192,11 @@ func TestAddCommandArgs(t *testing.T) {
 
 	// Verify it requires at least 1 arg
 	err := cmd.Args(cmd, []string{})
-	assert.Error(t, err, "Should error with no arguments")
+	require.Error(t, err, "Should error with no arguments")
 
 	err = cmd.Args(cmd, []string{"workflow1"})
-	assert.NoError(t, err, "Should not error with 1 argument")
+	require.NoError(t, err, "Should not error with 1 argument")
 
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
-	assert.NoError(t, err, "Should not error with multiple arguments")
+	require.NoError(t, err, "Should not error with multiple arguments")
 }
