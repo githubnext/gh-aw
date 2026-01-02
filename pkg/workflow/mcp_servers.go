@@ -444,12 +444,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Generate MCP gateway steps if configured (after Setup MCPs completes)
 	// Filter out internal servers (safe-inputs, safe-outputs) from gatewayed servers
 	// as they are not proxied through the gateway
-	gatewayedServers := make([]string, 0, len(mcpTools))
-	for _, toolName := range mcpTools {
-		if toolName != "safe-inputs" && toolName != "safe-outputs" {
-			gatewayedServers = append(gatewayedServers, toolName)
-		}
-	}
+	// Note: gatewayedServers list is no longer needed as generateMCPGatewaySteps
+	// handles server filtering internally
 	gatewaySteps := generateMCPGatewaySteps(workflowData, nil)
 	for _, step := range gatewaySteps {
 		for _, line := range step {

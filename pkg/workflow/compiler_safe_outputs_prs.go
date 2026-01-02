@@ -111,34 +111,6 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	}
 }
 
-// buildCreatePRReviewCommentStepConfig builds the configuration for creating a PR review comment
-func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.CreatePullRequestReviewComments
-
-	var customEnvVars []string
-	// Add side configuration
-	if cfg.Side != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_SIDE: %q\n", cfg.Side))
-	}
-	// Add target configuration
-	if cfg.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_TARGET: %q\n", cfg.Target))
-	}
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	condition := BuildSafeOutputType("create_pull_request_review_comment")
-
-	return SafeOutputStepConfig{
-		StepName:      "Create PR Review Comment",
-		StepID:        "create_pr_review_comment",
-		ScriptName:    "create_pr_review_comment",
-		Script:        getCreatePRReviewCommentScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
 // buildPushToPullRequestBranchStepConfig builds the configuration for pushing to a pull request branch
 func (c *Compiler) buildPushToPullRequestBranchStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.PushToPullRequestBranch
