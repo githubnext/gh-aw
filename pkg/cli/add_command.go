@@ -496,9 +496,9 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}
 
 	if len(workflows) == 1 {
-		fmt.Printf("Successfully created PR for workflow: %s\n", workflows[0].WorkflowName)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created PR for workflow: %s", workflows[0].WorkflowName)))
 	} else {
-		fmt.Printf("Successfully created PR for workflows: %s\n", joinedNames)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created PR for workflows: %s", joinedNames)))
 	}
 	return nil
 }
@@ -525,7 +525,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	workflowPath := workflow.WorkflowPath
 
 	if verbose {
-		fmt.Printf("Looking for workflow file: %s\n", workflowPath)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for workflow file: %s", workflowPath)))
 	}
 
 	// Try to read the workflow content from multiple sources
@@ -536,21 +536,22 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		// Try to list available workflows from the installed package
 		if err := displayAvailableWorkflows(workflow.RepoSlug, workflow.Version, verbose); err != nil {
 			// If we can't list workflows, provide generic help
-			fmt.Println("\nTo add workflows to your project:")
-			fmt.Println("=================================")
-			fmt.Println("Use the 'add' command with repository/workflow specifications:")
-			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add owner/repo/workflow-name")
-			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add owner/repo/workflow-name@version")
-			fmt.Println("\nExample:")
-			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add githubnext/agentics/ci-doctor")
-			fmt.Println("  " + string(constants.CLIExtensionPrefix) + " add githubnext/agentics/daily-plan@main")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To add workflows to your project:"))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Use the 'add' command with repository/workflow specifications:"))
+			fmt.Fprintf(os.Stderr, "  %s add owner/repo/workflow-name\n", string(constants.CLIExtensionPrefix))
+			fmt.Fprintf(os.Stderr, "  %s add owner/repo/workflow-name@version\n", string(constants.CLIExtensionPrefix))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Example:"))
+			fmt.Fprintf(os.Stderr, "  %s add githubnext/agentics/ci-doctor\n", string(constants.CLIExtensionPrefix))
+			fmt.Fprintf(os.Stderr, "  %s add githubnext/agentics/daily-plan@main\n", string(constants.CLIExtensionPrefix))
 		}
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
 	}
 
 	if verbose {
-		fmt.Printf("Successfully read workflow content (%d bytes)\n", len(sourceContent))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Read workflow content (%d bytes)", len(sourceContent))))
 	}
 
 	// Find git root to ensure consistent placement
@@ -730,7 +731,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 		}
 
-		fmt.Printf("Added workflow: %s\n", destFile)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
 
 		// Extract and display description if present
 		if description := ExtractWorkflowDescription(content); description != "" {
@@ -791,7 +792,7 @@ func compileWorkflowWithRefresh(filePath string, verbose bool, engineOverride st
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
-			fmt.Printf("Warning: Failed to update .gitattributes: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 		}
 	}
 
@@ -852,7 +853,7 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, engine
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
 		if verbose {
-			fmt.Printf("Warning: Failed to update .gitattributes: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 		}
 	}
 
