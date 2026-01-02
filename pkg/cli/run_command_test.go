@@ -3,10 +3,7 @@
 package cli
 
 import (
-<<<<<<< HEAD
-=======
 	"context"
->>>>>>> origin/main
 	"fmt"
 	"strings"
 	"testing"
