@@ -221,9 +221,99 @@ mcp-servers:
 
 Use `["*"]` to allow all tools from a custom MCP server.
 
-## Network Egress Permissions
+## Configuring Network Access for MCP Servers
 
-Restrict outbound access for containerized stdio MCP servers using `network.allowed` (see [Docker Container example](#2-docker-container-mcp-servers)). Enforcement uses a [Squid proxy](https://www.squid-cache.org/) with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules. Only applies to containerized stdio servers.
+Container-based MCP servers often need to access external APIs, databases, or other network resources. GitHub Agentic Workflows allows you to configure network access for containerized stdio MCP servers using the `network.allowed` field.
+
+### When Network Configuration is Needed
+
+Configure network access when your containerized MCP server needs to:
+- Call external REST APIs or GraphQL endpoints
+- Connect to cloud databases or data warehouses
+- Access third-party services (weather APIs, payment gateways, etc.)
+- Fetch data from external CDNs or file storage
+
+### Basic Network Configuration
+
+Add network permissions to containerized stdio MCP servers:
+
+```yaml wrap
+mcp-servers:
+  weather-api:
+    container: "my-org/weather-mcp:latest"
+    env:
+      API_KEY: "${{ secrets.WEATHER_API_KEY }}"
+    network:
+      allowed:
+        - api.weather.com
+        - data.openweathermap.org
+    allowed: ["*"]
+```
+
+### Multiple Domain Access
+
+Allow access to multiple services in a single MCP server:
+
+```yaml wrap
+mcp-servers:
+  data-integration:
+    container: "my-org/data-mcp:v2.0"
+    network:
+      allowed:
+        - api.stripe.com          # Payment API
+        - api.sendgrid.com        # Email service
+        - database.example.com    # External database
+    allowed: ["*"]
+```
+
+### Network Configuration vs Top-Level Network
+
+It's important to understand the difference between two types of network configuration:
+
+| Configuration | Applies To | Purpose | Example Use |
+|---------------|-----------|---------|-------------|
+| **MCP `network:`** | Containerized stdio MCP servers | Controls what domains the MCP server container can access | Allow weather MCP to access `api.weather.com` |
+| **Top-level `network:`** | AI engine (Copilot, Claude) | Controls what domains the AI agent can access | Allow agent to access `pypi.org` for Python packages |
+
+**Example showing both configurations:**
+
+```yaml wrap
+---
+on: issues
+
+engine: copilot
+
+# Top-level network: Controls AI engine access
+network:
+  allowed:
+    - defaults
+    - python
+    - node
+
+# MCP network: Controls container access
+mcp-servers:
+  analytics:
+    container: "my-org/analytics-mcp:latest"
+    network:
+      allowed:
+        - api.analytics.com    # Only this MCP can access analytics API
+    allowed: ["*"]
+---
+```
+
+:::tip
+**When to use each:**
+- Use **top-level `network:`** for package managers, development tools, and resources the AI agent needs
+- Use **MCP `network:`** for external APIs and services that your MCP server tools need to function
+:::
+
+### Network Enforcement
+
+Network restrictions for containerized stdio MCP servers are enforced using a [Squid proxy](https://www.squid-cache.org/) with `HTTP_PROXY`/`HTTPS_PROXY` environment variables and iptables rules. This ensures that containers can only reach explicitly allowed domains.
+
+:::note
+Network configuration only applies to containerized stdio servers (those using the `container:` field). Stdio servers using `command:` or HTTP-based MCP servers (`url:`) use different security models.
+:::
 
 ## Available Shared MCP Configurations
 
@@ -292,6 +382,8 @@ tools:
 
 - [Safe Inputs](/gh-aw/reference/safe-inputs/) - Define custom inline tools without external MCP servers
 - [Tools](/gh-aw/reference/tools/) - Complete tools reference
+- [Network Permissions](/gh-aw/reference/network/) - Top-level network configuration for AI engines
+- [Network Configuration Guide](/gh-aw/guides/network-configuration/) - Practical network configuration examples
 - [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
