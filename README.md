@@ -15,6 +15,7 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 ## Contents
 
 - [Quick Start](#quick-start)
+- [Shell Completion](#shell-completion)
 - [Overview](#overview)
 - [How It Works](#how-it-works)
 - [Safe Agentic Workflows](#safe-agentic-workflows)
@@ -26,6 +27,71 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 ## Quick Start
 
 Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
+
+## Shell Completion
+
+Enable tab-completion for `gh aw` commands to improve your workflow efficiency.
+
+### Bash
+
+```bash
+# System-wide installation (requires sudo)
+gh aw completion bash | sudo tee /etc/bash_completion.d/gh-aw
+
+# User-level installation
+mkdir -p ~/.bash_completion.d
+gh aw completion bash > ~/.bash_completion.d/gh-aw
+echo 'source ~/.bash_completion.d/gh-aw' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Zsh
+
+```zsh
+# Add to your shell profile
+gh aw completion zsh > "${fpath[1]}/_gh-aw"
+# Restart your shell or run:
+compinit
+```
+
+For macOS with Homebrew:
+```zsh
+gh aw completion zsh > $(brew --prefix)/share/zsh/site-functions/_gh-aw
+```
+
+### Fish
+
+```fish
+gh aw completion fish > ~/.config/fish/completions/gh-aw.fish
+# Completions will be available in new shell sessions
+```
+
+### PowerShell
+
+```powershell
+# Add to your PowerShell profile
+gh aw completion powershell | Out-String | Invoke-Expression
+
+# Or add to profile permanently:
+gh aw completion powershell >> $PROFILE
+```
+
+### Troubleshooting Completions
+
+If completions don't work after setup:
+
+1. **Verify installation location**: Check that the completion file exists in the correct directory for your shell
+2. **Restart your shell**: Completions require a new shell session to take effect
+3. **Check shell configuration**: Ensure your shell is configured to load completions
+   - **Bash**: `bash-completion` package must be installed
+   - **Zsh**: `compinit` must be called in your `.zshrc`
+   - **Fish**: Completions directory must be in `$fish_complete_path`
+4. **Test manually**: Run the completion command and verify it produces output:
+   ```bash
+   gh aw completion bash  # Should output completion script
+   ```
+
+For more details, see the [Cobra completion documentation](https://github.com/spf13/cobra/blob/main/shell_completions.md).
 
 ## Overview
 

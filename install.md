@@ -311,6 +311,30 @@ gh aw logs <workflow-name>
 
 🎉 **Congratulations!** You've successfully set up GitHub Agentic Workflows.
 
+**Optional: Enable Shell Completion**
+
+Improve your command-line experience with tab completion for `gh aw` commands:
+
+```bash
+# Bash (user-level)
+mkdir -p ~/.bash_completion.d
+gh aw completion bash > ~/.bash_completion.d/gh-aw
+echo 'source ~/.bash_completion.d/gh-aw' >> ~/.bashrc
+source ~/.bashrc
+
+# Zsh
+gh aw completion zsh > "${fpath[1]}/_gh-aw"
+compinit
+
+# Fish
+gh aw completion fish > ~/.config/fish/completions/gh-aw.fish
+
+# PowerShell
+gh aw completion powershell >> $PROFILE
+```
+
+Shell completion enables tab-completion for workflow names, engine names (copilot, claude, codex), and directory paths. Restart your shell after installation.
+
 **Learn more:**
 
 - 📖 Read `.github/aw/github-agentic-workflows.md` in your repository for comprehensive documentation

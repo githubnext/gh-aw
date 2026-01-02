@@ -385,23 +385,134 @@ gh aw version
 
 ## Shell Completions
 
-Enable tab completion for workflow names, engines, and paths.
+Enable tab completion for workflow names, engines, and paths. Completions enhance productivity by providing intelligent suggestions as you type commands.
+
+### What Gets Completed
+
+Shell completions provide smart suggestions for:
+- **Workflow names** - From `.github/workflows/*.md` files in your repository
+- **Engine names** - Valid AI engines (copilot, claude, codex, custom)
+- **Directory paths** - For flags that accept directory arguments
+- **MCP server names** - From workflows that define MCP servers
+
+### Setup Instructions
+
+#### Bash
+
+**User-level installation (recommended):**
+```bash wrap
+# Create completion directory if it doesn't exist
+mkdir -p ~/.bash_completion.d
+
+# Generate and save completion script
+gh aw completion bash > ~/.bash_completion.d/gh-aw
+
+# Add to your .bashrc (run once)
+echo 'source ~/.bash_completion.d/gh-aw' >> ~/.bashrc
+
+# Apply immediately
+source ~/.bash_completion.d/gh-aw
+```
+
+**System-wide installation:**
+```bash wrap
+# Requires sudo access
+gh aw completion bash | sudo tee /etc/bash_completion.d/gh-aw
+```
+
+**macOS with Homebrew:**
+```bash wrap
+gh aw completion bash > $(brew --prefix)/etc/bash_completion.d/gh-aw
+```
+
+**Requirements:** The `bash-completion` package must be installed. Install with your package manager:
+- Ubuntu/Debian: `sudo apt-get install bash-completion`
+- macOS: `brew install bash-completion@2`
+
+#### Zsh
+
+**Standard installation:**
+```bash wrap
+# Save to first directory in fpath
+gh aw completion zsh > "${fpath[1]}/_gh-aw"
+
+# Reload completions
+compinit
+```
+
+**macOS with Homebrew:**
+```bash wrap
+gh aw completion zsh > $(brew --prefix)/share/zsh/site-functions/_gh-aw
+```
+
+**Enable completions in Zsh (if not already enabled):**
+```bash wrap
+# Add to ~/.zshrc if not present
+echo "autoload -U compinit; compinit" >> ~/.zshrc
+```
+
+Restart your shell or run `source ~/.zshrc` to apply changes.
+
+#### Fish
+
+Fish shell automatically discovers completions from `~/.config/fish/completions/`:
 
 ```bash wrap
-# Bash
-gh aw completion bash > ~/.bash_completion.d/gh-aw && source ~/.bash_completion.d/gh-aw
-
-# Zsh
-gh aw completion zsh > "${fpath[1]}/_gh-aw" && compinit
-
-# Fish
 gh aw completion fish > ~/.config/fish/completions/gh-aw.fish
+```
 
-# PowerShell
+Completions will be available immediately in new shell sessions. No configuration needed.
+
+#### PowerShell
+
+**Current session only:**
+```powershell
 gh aw completion powershell | Out-String | Invoke-Expression
 ```
 
-Completes workflow names, engine names (copilot, claude, codex), and directory paths.
+**Persistent across sessions:**
+```powershell
+# Add to PowerShell profile
+gh aw completion powershell >> $PROFILE
+
+# Reload profile
+. $PROFILE
+```
+
+To find your profile location: `echo $PROFILE`
+
+### Troubleshooting
+
+If completions don't work after setup:
+
+| Issue | Solution |
+|-------|----------|
+| **No completions appear** | Restart your shell completely (not just `source`). Most shells require a fresh session. |
+| **Command not found: compinit** (Zsh) | Add `autoload -U compinit; compinit` to your `~/.zshrc` file |
+| **bash-completion not working** (Bash) | Install bash-completion package: `apt-get install bash-completion` (Linux) or `brew install bash-completion@2` (macOS) |
+| **Wrong file permissions** | Ensure completion file is readable: `chmod 644 <completion-file>` |
+| **Completions file not found** | Verify the file was created: `ls -la ~/.bash_completion.d/gh-aw` (or appropriate path for your shell) |
+
+**Verify completion script generation:**
+```bash wrap
+gh aw completion bash  # Should output the completion script
+```
+
+If you see script output, the command works—the issue is with shell configuration.
+
+**Check shell completion loading:**
+```bash wrap
+# Bash
+type _init_completion  # Should show "is a function"
+
+# Zsh
+echo $fpath  # Should include completion directories
+
+# Fish
+echo $fish_complete_path  # Should include ~/.config/fish/completions
+```
+
+For detailed shell completion documentation, see the [Cobra shell completion guide](https://github.com/spf13/cobra/blob/main/shell_completions.md).
 
 ## Debug Logging
 
