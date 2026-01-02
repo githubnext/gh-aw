@@ -48,6 +48,11 @@ With --codespaces flag:
 With --campaign flag:
 - Creates .github/agents/agentic-campaign-designer.agent.md with the Agentic Campaign Designer agent for gh-aw campaigns
 
+With --completions flag:
+- Automatically detects your shell (bash, zsh, fish, or PowerShell)
+- Installs shell completion configuration for the CLI
+- Provides instructions for enabling completions in your shell
+
 After running this command, you can:
 - Use GitHub Copilot Chat: type /agent and select create-agentic-workflow to create workflows interactively
 - Use GitHub Copilot Chat: type /agent and select debug-agentic-workflow to debug existing workflows
@@ -60,7 +65,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp
   ` + string(constants.CLIExtensionPrefix) + ` init --tokens --engine copilot
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2`,
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2
+  ` + string(constants.CLIExtensionPrefix) + ` init --completions`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
@@ -70,6 +76,7 @@ Examples:
 			engine, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
+			completions, _ := cmd.Flags().GetBool("completions")
 
 			// Determine MCP state: default true, unless --no-mcp is specified
 			// --mcp flag is kept for backward compatibility (hidden from help)
@@ -92,8 +99,8 @@ Examples:
 				}
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled)
-			if err := InitRepository(verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled); err != nil {
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v, completions=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions)
+			if err := InitRepository(verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions, cmd.Root()); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -110,6 +117,7 @@ Examples:
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
+	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")

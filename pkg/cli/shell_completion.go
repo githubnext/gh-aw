@@ -1,0 +1,355 @@
+package cli
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/spf13/cobra"
+)
+
+var shellCompletionLog = logger.New("cli:shell_completion")
+
+// ShellType represents the detected shell type
+type ShellType string
+
+const (
+	ShellBash       ShellType = "bash"
+	ShellZsh        ShellType = "zsh"
+	ShellFish       ShellType = "fish"
+	ShellPowerShell ShellType = "powershell"
+	ShellUnknown    ShellType = "unknown"
+)
+
+// DetectShell detects the current shell from environment variables
+func DetectShell() ShellType {
+	shellCompletionLog.Print("Detecting current shell")
+
+	// Check shell-specific version variables first (most reliable)
+	if os.Getenv("ZSH_VERSION") != "" {
+		shellCompletionLog.Print("Detected zsh from ZSH_VERSION")
+		return ShellZsh
+	}
+	if os.Getenv("BASH_VERSION") != "" {
+		shellCompletionLog.Print("Detected bash from BASH_VERSION")
+		return ShellBash
+	}
+	if os.Getenv("FISH_VERSION") != "" {
+		shellCompletionLog.Print("Detected fish from FISH_VERSION")
+		return ShellFish
+	}
+
+	// Fall back to $SHELL environment variable
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shellCompletionLog.Print("SHELL environment variable not set, checking platform")
+		// On Windows, check for PowerShell
+		if runtime.GOOS == "windows" {
+			shellCompletionLog.Print("Detected Windows, assuming PowerShell")
+			return ShellPowerShell
+		}
+		shellCompletionLog.Print("Could not detect shell")
+		return ShellUnknown
+	}
+
+	shellCompletionLog.Printf("SHELL environment variable: %s", shell)
+
+	// Extract shell name from path
+	shellName := filepath.Base(shell)
+	shellCompletionLog.Printf("Shell base name: %s", shellName)
+
+	switch {
+	case strings.Contains(shellName, "bash"):
+		shellCompletionLog.Print("Detected bash from SHELL")
+		return ShellBash
+	case strings.Contains(shellName, "zsh"):
+		shellCompletionLog.Print("Detected zsh from SHELL")
+		return ShellZsh
+	case strings.Contains(shellName, "fish"):
+		shellCompletionLog.Print("Detected fish from SHELL")
+		return ShellFish
+	case strings.Contains(shellName, "pwsh") || strings.Contains(shellName, "powershell"):
+		shellCompletionLog.Print("Detected PowerShell from SHELL")
+		return ShellPowerShell
+	default:
+		shellCompletionLog.Printf("Unknown shell: %s", shellName)
+		return ShellUnknown
+	}
+}
+
+// InstallShellCompletion installs shell completion for the detected shell
+func InstallShellCompletion(verbose bool, rootCmd interface{}) error {
+	shellCompletionLog.Print("Starting shell completion installation")
+
+	// Type assert rootCmd to *cobra.Command
+	cmd, ok := rootCmd.(*cobra.Command)
+	if !ok {
+		return fmt.Errorf("rootCmd must be a *cobra.Command")
+	}
+
+	shellType := DetectShell()
+	shellCompletionLog.Printf("Detected shell type: %s", shellType)
+
+	if shellType == ShellUnknown {
+		return fmt.Errorf("could not detect shell type. Please install completions manually using: gh aw completion <shell>")
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected shell: %s", shellType)))
+
+	switch shellType {
+	case ShellBash:
+		return installBashCompletion(verbose, cmd)
+	case ShellZsh:
+		return installZshCompletion(verbose, cmd)
+	case ShellFish:
+		return installFishCompletion(verbose, cmd)
+	case ShellPowerShell:
+		return installPowerShellCompletion(verbose, cmd)
+	default:
+		return fmt.Errorf("shell completion not supported for: %s", shellType)
+	}
+}
+
+// installBashCompletion installs bash completion
+func installBashCompletion(verbose bool, cmd *cobra.Command) error {
+	shellCompletionLog.Print("Installing bash completion")
+
+	// Generate completion script using Cobra
+	var buf bytes.Buffer
+	if err := cmd.GenBashCompletion(&buf); err != nil {
+		return fmt.Errorf("failed to generate bash completion: %w", err)
+	}
+
+	completionScript := buf.String()
+
+	// Determine installation path
+	var completionPath string
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Try to determine the best location for bash completions
+	if runtime.GOOS == "darwin" {
+		// macOS with Homebrew
+		brewPrefix := os.Getenv("HOMEBREW_PREFIX")
+		if brewPrefix == "" {
+			// Try common locations
+			for _, prefix := range []string{"/opt/homebrew", "/usr/local"} {
+				if _, err := os.Stat(filepath.Join(prefix, "etc", "bash_completion.d")); err == nil {
+					brewPrefix = prefix
+					break
+				}
+			}
+		}
+		if brewPrefix != "" {
+			completionPath = filepath.Join(brewPrefix, "etc", "bash_completion.d", "gh-aw")
+		} else {
+			completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
+		}
+	} else {
+		// Linux
+		if _, err := os.Stat("/etc/bash_completion.d"); err == nil {
+			completionPath = "/etc/bash_completion.d/gh-aw"
+		} else {
+			completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
+		}
+	}
+
+	// Create directory if needed (for user-level installations)
+	completionDir := filepath.Dir(completionPath)
+	if strings.HasPrefix(completionDir, homeDir) {
+		if err := os.MkdirAll(completionDir, 0755); err != nil {
+			return fmt.Errorf("failed to create completion directory: %w", err)
+		}
+	}
+
+	// Try to write completion file
+	err = os.WriteFile(completionPath, []byte(completionScript), 0644)
+	if err != nil && strings.HasPrefix(completionPath, "/etc") {
+		// If system-wide installation fails, fall back to user directory
+		shellCompletionLog.Printf("Failed to install system-wide, falling back to user directory: %v", err)
+		completionPath = filepath.Join(homeDir, ".bash_completion.d", "gh-aw")
+		if err := os.MkdirAll(filepath.Dir(completionPath), 0755); err != nil {
+			return fmt.Errorf("failed to create user completion directory: %w", err)
+		}
+		if err := os.WriteFile(completionPath, []byte(completionScript), 0644); err != nil {
+			return fmt.Errorf("failed to write completion file: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("failed to write completion file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed bash completion to: %s", completionPath)))
+
+	// Check if .bashrc sources completions
+	bashrcPath := filepath.Join(homeDir, ".bashrc")
+	if strings.HasPrefix(completionPath, homeDir) {
+		// For user-level installations, check if .bashrc sources the completion directory
+		bashrcContent, err := os.ReadFile(bashrcPath)
+		needsSourceLine := true
+		if err == nil {
+			if strings.Contains(string(bashrcContent), ".bash_completion.d") ||
+				strings.Contains(string(bashrcContent), completionPath) {
+				needsSourceLine = false
+			}
+		}
+
+		if needsSourceLine {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.bashrc:"))
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintf(os.Stderr, "  for f in ~/.bash_completion.d/*; do [ -f \"$f\" ] && source \"$f\"; done\n")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: source ~/.bashrc"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
+	}
+
+	return nil
+}
+
+// installZshCompletion installs zsh completion
+func installZshCompletion(verbose bool, cmd *cobra.Command) error {
+	shellCompletionLog.Print("Installing zsh completion")
+
+	// Generate completion script using Cobra
+	var buf bytes.Buffer
+	if err := cmd.GenZshCompletion(&buf); err != nil {
+		return fmt.Errorf("failed to generate zsh completion: %w", err)
+	}
+
+	completionScript := buf.String()
+
+	// Determine installation path
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Check for fpath directories
+	var completionPath string
+
+	// Try user's local completion directory first
+	userCompletionDir := filepath.Join(homeDir, ".zsh", "completions")
+	if err := os.MkdirAll(userCompletionDir, 0755); err != nil {
+		return fmt.Errorf("failed to create completion directory: %w", err)
+	}
+	completionPath = filepath.Join(userCompletionDir, "_gh-aw")
+
+	// Write completion file
+	if err := os.WriteFile(completionPath, []byte(completionScript), 0644); err != nil {
+		return fmt.Errorf("failed to write completion file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed zsh completion to: %s", completionPath)))
+
+	// Check if .zshrc configures fpath
+	zshrcPath := filepath.Join(homeDir, ".zshrc")
+	zshrcContent, err := os.ReadFile(zshrcPath)
+	needsFpath := true
+	if err == nil {
+		if strings.Contains(string(zshrcContent), userCompletionDir) {
+			needsFpath = false
+		}
+	}
+
+	if needsFpath {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your ~/.zshrc:"))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintf(os.Stderr, "  fpath=(~/.zsh/completions $fpath)\n")
+		fmt.Fprintf(os.Stderr, "  autoload -Uz compinit && compinit\n")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: source ~/.zshrc"))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please restart your shell for completions to take effect"))
+	}
+
+	return nil
+}
+
+// installFishCompletion installs fish completion
+func installFishCompletion(verbose bool, cmd *cobra.Command) error {
+	shellCompletionLog.Print("Installing fish completion")
+
+	// Generate completion script using Cobra
+	var buf bytes.Buffer
+	if err := cmd.GenFishCompletion(&buf, true); err != nil {
+		return fmt.Errorf("failed to generate fish completion: %w", err)
+	}
+
+	completionScript := buf.String()
+
+	// Determine installation path
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Fish completion directory
+	completionDir := filepath.Join(homeDir, ".config", "fish", "completions")
+	if err := os.MkdirAll(completionDir, 0755); err != nil {
+		return fmt.Errorf("failed to create completion directory: %w", err)
+	}
+
+	completionPath := filepath.Join(completionDir, "gh-aw.fish")
+
+	// Write completion file
+	if err := os.WriteFile(completionPath, []byte(completionScript), 0644); err != nil {
+		return fmt.Errorf("failed to write completion file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Installed fish completion to: %s", completionPath)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fish will automatically load completions on next shell start"))
+
+	return nil
+}
+
+// installPowerShellCompletion installs PowerShell completion
+func installPowerShellCompletion(verbose bool, cmd *cobra.Command) error {
+	shellCompletionLog.Print("Installing PowerShell completion")
+
+	// Determine PowerShell profile path
+	var profileCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		profileCmd = exec.Command("powershell", "-NoProfile", "-Command", "echo $PROFILE")
+	} else {
+		profileCmd = exec.Command("pwsh", "-NoProfile", "-Command", "echo $PROFILE")
+	}
+
+	var profileBuf bytes.Buffer
+	profileCmd.Stdout = &profileBuf
+	if err := profileCmd.Run(); err != nil {
+		return fmt.Errorf("failed to get PowerShell profile path: %w", err)
+	}
+
+	profilePath := strings.TrimSpace(profileBuf.String())
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PowerShell profile path: %s", profilePath)))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable completions, add the following to your PowerShell profile:"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  gh aw completion powershell | Out-String | Invoke-Expression")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or run the following command to append it automatically:"))
+	fmt.Fprintln(os.Stderr, "")
+	if runtime.GOOS == "windows" {
+		fmt.Fprintln(os.Stderr, "  gh aw completion powershell >> $PROFILE")
+	} else {
+		fmt.Fprintln(os.Stderr, "  echo 'gh aw completion powershell | Out-String | Invoke-Expression' >> $PROFILE")
+	}
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then restart your shell or run: . $PROFILE"))
+
+	return nil
+}

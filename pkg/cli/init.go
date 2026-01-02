@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, rootCmd interface{}) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -168,6 +168,19 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			initLog.Printf("Token validation failed: %v", err)
 			// Don't fail init if token validation has issues
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Token validation encountered an issue: %v", err)))
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	// Install shell completions if requested
+	if completions {
+		initLog.Print("Installing shell completions")
+		fmt.Fprintln(os.Stderr, "")
+
+		if err := InstallShellCompletion(verbose, rootCmd); err != nil {
+			initLog.Printf("Shell completion installation failed: %v", err)
+			// Don't fail init if completion installation has issues
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Shell completion installation encountered an issue: %v", err)))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
