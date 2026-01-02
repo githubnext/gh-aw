@@ -14,7 +14,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},
@@ -81,7 +80,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},
@@ -118,7 +116,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 					Args:    []string{"--custom-flag", "value"},
 				},
@@ -151,7 +148,6 @@ func TestGhCLIMountInAWFContainer(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},

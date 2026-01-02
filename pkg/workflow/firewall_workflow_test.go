@@ -17,7 +17,6 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 		},
 		NetworkPermissions: &NetworkPermissions{
 			Mode:     "defaults",
-			Firewall: &FirewallConfig{Enabled: true},
 		},
 		Tools: map[string]any{
 			"web-fetch": nil,

@@ -75,7 +75,6 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 		networkPerms := &NetworkPermissions{
 			Allowed:           []string{"example.com"},
 			ExplicitlyDefined: true,
-			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
 		}
@@ -392,7 +391,6 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		networkPerms := &NetworkPermissions{
 			Allowed:           []string{"example.com"},
 			ExplicitlyDefined: true,
-			Firewall: &FirewallConfig{
 				Enabled: true,
 			},
 		}

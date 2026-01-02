@@ -247,7 +247,6 @@ func TestCheckFirewallDisable(t *testing.T) {
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
-			Firewall: &FirewallConfig{
 				Enabled: true,
 			},
 		}
@@ -262,7 +261,6 @@ func TestCheckFirewallDisable(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
-			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
 		}
@@ -282,7 +280,6 @@ func TestCheckFirewallDisable(t *testing.T) {
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
-			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
 		}
@@ -303,7 +300,6 @@ func TestCheckFirewallDisable(t *testing.T) {
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
-			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
 		}
@@ -322,7 +318,6 @@ func TestCheckFirewallDisable(t *testing.T) {
 		compiler.strictMode = true
 		engine := NewCustomEngine() // Custom engine doesn't support firewall
 		perms := &NetworkPermissions{
-			Firewall: &FirewallConfig{
 				Enabled: false,
 			},
 		}

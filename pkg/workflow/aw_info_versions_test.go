@@ -203,7 +203,6 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 
 			if tt.firewallEnabled {
 				workflowData.NetworkPermissions = &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled: true,
 						Version: tt.firewallVersion,
 					},
@@ -242,7 +241,6 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{
 				Enabled: true,
 				Version: "v0.5.0",
 			},

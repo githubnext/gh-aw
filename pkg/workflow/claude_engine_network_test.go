@@ -30,7 +30,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com", "*.trusted.com"},
-				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -84,7 +83,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com"},
-				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -125,7 +123,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 		networkPermissions := &NetworkPermissions{
 			Allowed:  []string{}, // Empty list means deny all
-			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
@@ -152,7 +149,6 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 		networkPermissions := &NetworkPermissions{
 			Allowed:  []string{"example.com"},
-			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
@@ -181,7 +177,6 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 
 		networkPermissions := &NetworkPermissions{
 			Allowed:  []string{"api.github.com", "*.example.com", "trusted.org"},
-			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		// Get installation steps
@@ -242,7 +237,6 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 
 		networkPermissions := &NetworkPermissions{
 			Allowed:  []string{"example.com"},
-			Firewall: &FirewallConfig{Enabled: true},
 		}
 
 		steps1 := engine1.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})

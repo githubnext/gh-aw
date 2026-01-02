@@ -312,7 +312,6 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com", "*.trusted.com"},
-				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 
@@ -404,7 +403,6 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{}, // Empty allowed list (deny-all)
-				Firewall: &FirewallConfig{Enabled: true},
 			},
 		}
 

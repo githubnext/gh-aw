@@ -119,7 +119,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "valid log-level: debug",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "debug",
 					},
@@ -131,7 +130,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "valid log-level: info",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "info",
 					},
@@ -143,7 +141,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "valid log-level: warn",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "warn",
 					},
@@ -155,7 +152,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "valid log-level: error",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "error",
 					},
@@ -167,7 +163,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "empty log-level (allowed)",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "",
 					},
@@ -191,7 +186,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "invalid log-level: verbose",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "verbose",
 					},
@@ -204,7 +198,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "invalid log-level: trace",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "trace",
 					},
@@ -217,7 +210,6 @@ func TestValidateFirewallConfig(t *testing.T) {
 			name: "invalid log-level: DEBUG (uppercase)",
 			workflowData: &WorkflowData{
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled:  true,
 						LogLevel: "DEBUG",
 					},
@@ -288,7 +280,6 @@ func TestValidateFirewallConfigIntegration(t *testing.T) {
 	validWorkflow := &WorkflowData{
 		Name: "test-workflow",
 		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{
 				Enabled:  true,
 				LogLevel: "debug",
 			},
@@ -304,7 +295,6 @@ func TestValidateFirewallConfigIntegration(t *testing.T) {
 	invalidWorkflow := &WorkflowData{
 		Name: "test-workflow",
 		NetworkPermissions: &NetworkPermissions{
-			Firewall: &FirewallConfig{
 				Enabled:  true,
 				LogLevel: "verbose",
 			},

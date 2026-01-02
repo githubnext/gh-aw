@@ -130,7 +130,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled: true,
 					},
 				},
@@ -150,7 +149,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled: true,
 					},
 				},
@@ -174,7 +172,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled: true,
 					},
 				},
@@ -198,7 +195,6 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 					},
 				},
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{
 						Enabled: true,
 					},
 				},
@@ -247,7 +243,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},
@@ -284,7 +279,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				ID: "copilot",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},
@@ -328,7 +322,6 @@ func TestCopilotEngineWithCustomMounts(t *testing.T) {
 				},
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Firewall: &FirewallConfig{
 					Enabled: true,
 				},
 			},

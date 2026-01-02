@@ -286,7 +286,6 @@ func TestValidateSandboxConfig(t *testing.T) {
 				EngineConfig: &EngineConfig{ID: "copilot"},
 				Features:     map[string]any{"sandbox-runtime": true},
 				NetworkPermissions: &NetworkPermissions{
-					Firewall: &FirewallConfig{Enabled: true},
 				},
 			},
 			expectError: true,
