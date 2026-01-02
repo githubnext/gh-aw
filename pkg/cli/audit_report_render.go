@@ -21,150 +21,150 @@ func renderJSON(data AuditData) error {
 // renderConsole outputs the audit data as formatted console tables
 func renderConsole(data AuditData, logsPath string) {
 	auditReportLog.Print("Rendering audit report to console")
-	fmt.Println(console.FormatInfoMessage("# Workflow Run Audit Report"))
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("# Workflow Run Audit Report"))
+	fmt.Fprintln(os.Stderr, "")
 
 	// Overview Section - use new rendering system
-	fmt.Println(console.FormatInfoMessage("## Overview"))
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Overview"))
+	fmt.Fprintln(os.Stderr, "")
 	renderOverview(data.Overview)
 
 	// Key Findings Section - NEW
 	if len(data.KeyFindings) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Key Findings"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Key Findings"))
+		fmt.Fprintln(os.Stderr, "")
 		renderKeyFindings(data.KeyFindings)
 	}
 
 	// Recommendations Section - NEW
 	if len(data.Recommendations) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Recommendations"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Recommendations"))
+		fmt.Fprintln(os.Stderr, "")
 		renderRecommendations(data.Recommendations)
 	}
 
 	// Failure Analysis Section - NEW
 	if data.FailureAnalysis != nil {
-		fmt.Println(console.FormatInfoMessage("## Failure Analysis"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Failure Analysis"))
+		fmt.Fprintln(os.Stderr, "")
 		renderFailureAnalysis(data.FailureAnalysis)
 	}
 
 	// Performance Metrics Section - NEW
 	if data.PerformanceMetrics != nil {
-		fmt.Println(console.FormatInfoMessage("## Performance Metrics"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Performance Metrics"))
+		fmt.Fprintln(os.Stderr, "")
 		renderPerformanceMetrics(data.PerformanceMetrics)
 	}
 
 	// Metrics Section - use new rendering system
-	fmt.Println(console.FormatInfoMessage("## Metrics"))
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Metrics"))
+	fmt.Fprintln(os.Stderr, "")
 	renderMetrics(data.Metrics)
 
 	// Jobs Section - use new table rendering
 	if len(data.Jobs) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Jobs"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Jobs"))
+		fmt.Fprintln(os.Stderr, "")
 		renderJobsTable(data.Jobs)
 	}
 
 	// Downloaded Files Section
 	if len(data.DownloadedFiles) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Downloaded Files"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Downloaded Files"))
+		fmt.Fprintln(os.Stderr, "")
 		for _, file := range data.DownloadedFiles {
 			formattedSize := console.FormatFileSize(file.Size)
-			fmt.Printf("  • %s (%s)", file.Path, formattedSize)
+			fmt.Fprintf(os.Stderr, "  • %s (%s)", file.Path, formattedSize)
 			if file.Description != "" {
-				fmt.Printf(" - %s", file.Description)
+				fmt.Fprintf(os.Stderr, " - %s", file.Description)
 			}
-			fmt.Println()
+			fmt.Fprintln(os.Stderr, "")
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Missing Tools Section
 	if len(data.MissingTools) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Missing Tools"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Missing Tools"))
+		fmt.Fprintln(os.Stderr, "")
 		for _, tool := range data.MissingTools {
-			fmt.Printf("  • %s\n", tool.Tool)
-			fmt.Printf("    Reason: %s\n", tool.Reason)
+			fmt.Fprintf(os.Stderr, "  • %s\n", tool.Tool)
+			fmt.Fprintf(os.Stderr, "    Reason: %s\n", tool.Reason)
 			if tool.Alternatives != "" {
-				fmt.Printf("    Alternatives: %s\n", tool.Alternatives)
+				fmt.Fprintf(os.Stderr, "    Alternatives: %s\n", tool.Alternatives)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// MCP Failures Section
 	if len(data.MCPFailures) > 0 {
-		fmt.Println(console.FormatInfoMessage("## MCP Server Failures"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## MCP Server Failures"))
+		fmt.Fprintln(os.Stderr, "")
 		for _, failure := range data.MCPFailures {
-			fmt.Printf("  • %s: %s\n", failure.ServerName, failure.Status)
+			fmt.Fprintf(os.Stderr, "  • %s: %s\n", failure.ServerName, failure.Status)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Firewall Analysis Section
 	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
-		fmt.Println(console.FormatInfoMessage("## Firewall Analysis"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Firewall Analysis"))
+		fmt.Fprintln(os.Stderr, "")
 		renderFirewallAnalysis(data.FirewallAnalysis)
 	}
 
 	// Redacted Domains Section
 	if data.RedactedDomainsAnalysis != nil && data.RedactedDomainsAnalysis.TotalDomains > 0 {
-		fmt.Println(console.FormatInfoMessage("## 🔒 Redacted URL Domains"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## 🔒 Redacted URL Domains"))
+		fmt.Fprintln(os.Stderr, "")
 		renderRedactedDomainsAnalysis(data.RedactedDomainsAnalysis)
 	}
 
 	// Tool Usage Section - use new table rendering
 	if len(data.ToolUsage) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Tool Usage"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Tool Usage"))
+		fmt.Fprintln(os.Stderr, "")
 		renderToolUsageTable(data.ToolUsage)
 	}
 
 	// Errors and Warnings Section
 	if len(data.Errors) > 0 || len(data.Warnings) > 0 {
-		fmt.Println(console.FormatInfoMessage("## Errors and Warnings"))
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Errors and Warnings"))
+		fmt.Fprintln(os.Stderr, "")
 
 		if len(data.Errors) > 0 {
-			fmt.Println(console.FormatErrorMessage(fmt.Sprintf("  Errors (%d):", len(data.Errors))))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("  Errors (%d):", len(data.Errors))))
 			for _, err := range data.Errors {
 				if err.File != "" && err.Line > 0 {
-					fmt.Printf("    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
+					fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
 				} else {
-					fmt.Printf("    %s\n", err.Message)
+					fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
 				}
 			}
-			fmt.Println()
+			fmt.Fprintln(os.Stderr, "")
 		}
 
 		if len(data.Warnings) > 0 {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("  Warnings (%d):", len(data.Warnings))))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Warnings (%d):", len(data.Warnings))))
 			for _, warn := range data.Warnings {
 				if warn.File != "" && warn.Line > 0 {
-					fmt.Printf("    %s:%d: %s\n", filepath.Base(warn.File), warn.Line, warn.Message)
+					fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(warn.File), warn.Line, warn.Message)
 				} else {
-					fmt.Printf("    %s\n", warn.Message)
+					fmt.Fprintf(os.Stderr, "    %s\n", warn.Message)
 				}
 			}
-			fmt.Println()
+			fmt.Fprintln(os.Stderr, "")
 		}
 	}
 
 	// Location
-	fmt.Println(console.FormatInfoMessage("## Logs Location"))
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("## Logs Location"))
+	fmt.Fprintln(os.Stderr, "")
 	absPath, _ := filepath.Abs(logsPath)
-	fmt.Printf("  %s\n", absPath)
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // renderOverview renders the overview section using the new rendering system
@@ -186,12 +186,12 @@ func renderOverview(overview OverviewData) {
 		Files:    overview.LogsPath,
 	}
 
-	fmt.Print(console.RenderStruct(display))
+	fmt.Fprint(os.Stderr, console.RenderStruct(display))
 }
 
 // renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
-	fmt.Print(console.RenderStruct(metrics))
+	fmt.Fprint(os.Stderr, console.RenderStruct(metrics))
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable
@@ -221,7 +221,7 @@ func renderJobsTable(jobs []JobData) {
 		config.Rows = append(config.Rows, row)
 	}
 
-	fmt.Print(console.RenderTable(config))
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
 }
 
 // renderToolUsageTable renders tool usage as a table with custom formatting
@@ -256,53 +256,53 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 		config.Rows = append(config.Rows, row)
 	}
 
-	fmt.Print(console.RenderTable(config))
+	fmt.Fprint(os.Stderr, console.RenderTable(config))
 }
 
 // renderFirewallAnalysis renders firewall analysis with summary and domain breakdown
 func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 	// Summary statistics
-	fmt.Printf("  Total Requests : %d\n", analysis.TotalRequests)
-	fmt.Printf("  Allowed        : %d\n", analysis.AllowedRequests)
-	fmt.Printf("  Denied         : %d\n", analysis.DeniedRequests)
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "  Total Requests : %d\n", analysis.TotalRequests)
+	fmt.Fprintf(os.Stderr, "  Allowed        : %d\n", analysis.AllowedRequests)
+	fmt.Fprintf(os.Stderr, "  Denied         : %d\n", analysis.DeniedRequests)
+	fmt.Fprintln(os.Stderr, "")
 
 	// Allowed domains
 	if len(analysis.AllowedDomains) > 0 {
-		fmt.Println("  Allowed Domains:")
+		fmt.Fprintln(os.Stderr, "  Allowed Domains:")
 		for _, domain := range analysis.AllowedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Printf("    ✓ %s (%d requests)\n", domain, stats.Allowed)
+				fmt.Fprintf(os.Stderr, "    ✓ %s (%d requests)\n", domain, stats.Allowed)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Denied domains
 	if len(analysis.DeniedDomains) > 0 {
-		fmt.Println("  Denied Domains:")
+		fmt.Fprintln(os.Stderr, "  Denied Domains:")
 		for _, domain := range analysis.DeniedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Printf("    ✗ %s (%d requests)\n", domain, stats.Denied)
+				fmt.Fprintf(os.Stderr, "    ✗ %s (%d requests)\n", domain, stats.Denied)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 }
 
 // renderRedactedDomainsAnalysis renders redacted domains analysis
 func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
 	// Summary statistics
-	fmt.Printf("  Total Domains Redacted: %d\n", analysis.TotalDomains)
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "  Total Domains Redacted: %d\n", analysis.TotalDomains)
+	fmt.Fprintln(os.Stderr, "")
 
 	// List domains
 	if len(analysis.Domains) > 0 {
-		fmt.Println("  Redacted Domains:")
+		fmt.Fprintln(os.Stderr, "  Redacted Domains:")
 		for _, domain := range analysis.Domains {
-			fmt.Printf("    🔒 %s\n", domain)
+			fmt.Fprintf(os.Stderr, "    🔒 %s\n", domain)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 }
 
@@ -332,52 +332,52 @@ func renderKeyFindings(findings []Finding) {
 
 	// Render critical findings first
 	for _, finding := range critical {
-		fmt.Printf("  🔴 %s [%s]\n", console.FormatErrorMessage(finding.Title), finding.Category)
-		fmt.Printf("     %s\n", finding.Description)
+		fmt.Fprintf(os.Stderr, "  🔴 %s [%s]\n", console.FormatErrorMessage(finding.Title), finding.Category)
+		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
 		if finding.Impact != "" {
-			fmt.Printf("     Impact: %s\n", finding.Impact)
+			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Then high severity
 	for _, finding := range high {
-		fmt.Printf("  🟠 %s [%s]\n", console.FormatWarningMessage(finding.Title), finding.Category)
-		fmt.Printf("     %s\n", finding.Description)
+		fmt.Fprintf(os.Stderr, "  🟠 %s [%s]\n", console.FormatWarningMessage(finding.Title), finding.Category)
+		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
 		if finding.Impact != "" {
-			fmt.Printf("     Impact: %s\n", finding.Impact)
+			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Medium severity
 	for _, finding := range medium {
-		fmt.Printf("  🟡 %s [%s]\n", finding.Title, finding.Category)
-		fmt.Printf("     %s\n", finding.Description)
+		fmt.Fprintf(os.Stderr, "  🟡 %s [%s]\n", finding.Title, finding.Category)
+		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
 		if finding.Impact != "" {
-			fmt.Printf("     Impact: %s\n", finding.Impact)
+			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Low severity
 	for _, finding := range low {
-		fmt.Printf("  ℹ️  %s [%s]\n", finding.Title, finding.Category)
-		fmt.Printf("     %s\n", finding.Description)
+		fmt.Fprintf(os.Stderr, "  ℹ️  %s [%s]\n", finding.Title, finding.Category)
+		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
 		if finding.Impact != "" {
-			fmt.Printf("     Impact: %s\n", finding.Impact)
+			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Info findings
 	for _, finding := range info {
-		fmt.Printf("  ✅ %s [%s]\n", console.FormatSuccessMessage(finding.Title), finding.Category)
-		fmt.Printf("     %s\n", finding.Description)
+		fmt.Fprintf(os.Stderr, "  ✅ %s [%s]\n", console.FormatSuccessMessage(finding.Title), finding.Category)
+		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
 		if finding.Impact != "" {
-			fmt.Printf("     Impact: %s\n", finding.Impact)
+			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 }
 
@@ -401,63 +401,63 @@ func renderRecommendations(recommendations []Recommendation) {
 
 	// Render high priority first
 	for i, rec := range high {
-		fmt.Printf("  %d. [HIGH] %s\n", i+1, console.FormatWarningMessage(rec.Action))
-		fmt.Printf("     Reason: %s\n", rec.Reason)
+		fmt.Fprintf(os.Stderr, "  %d. [HIGH] %s\n", i+1, console.FormatWarningMessage(rec.Action))
+		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
 		if rec.Example != "" {
-			fmt.Printf("     Example: %s\n", rec.Example)
+			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Medium priority
 	startIdx := len(high) + 1
 	for i, rec := range medium {
-		fmt.Printf("  %d. [MEDIUM] %s\n", startIdx+i, rec.Action)
-		fmt.Printf("     Reason: %s\n", rec.Reason)
+		fmt.Fprintf(os.Stderr, "  %d. [MEDIUM] %s\n", startIdx+i, rec.Action)
+		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
 		if rec.Example != "" {
-			fmt.Printf("     Example: %s\n", rec.Example)
+			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
 	// Low priority
 	startIdx += len(medium)
 	for i, rec := range low {
-		fmt.Printf("  %d. [LOW] %s\n", startIdx+i, rec.Action)
-		fmt.Printf("     Reason: %s\n", rec.Reason)
+		fmt.Fprintf(os.Stderr, "  %d. [LOW] %s\n", startIdx+i, rec.Action)
+		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
 		if rec.Example != "" {
-			fmt.Printf("     Example: %s\n", rec.Example)
+			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 }
 
 // renderFailureAnalysis renders failure analysis information
 func renderFailureAnalysis(analysis *FailureAnalysis) {
-	fmt.Printf("  Primary Failure: %s\n", console.FormatErrorMessage(analysis.PrimaryFailure))
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "  Primary Failure: %s\n", console.FormatErrorMessage(analysis.PrimaryFailure))
+	fmt.Fprintln(os.Stderr, "")
 
 	if len(analysis.FailedJobs) > 0 {
-		fmt.Printf("  Failed Jobs:\n")
+		fmt.Fprintf(os.Stderr, "  Failed Jobs:\n")
 		for _, job := range analysis.FailedJobs {
-			fmt.Printf("    • %s\n", job)
+			fmt.Fprintf(os.Stderr, "    • %s\n", job)
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr, "")
 	}
 
-	fmt.Printf("  Error Summary: %s\n", analysis.ErrorSummary)
-	fmt.Println()
+	fmt.Fprintf(os.Stderr, "  Error Summary: %s\n", analysis.ErrorSummary)
+	fmt.Fprintln(os.Stderr, "")
 
 	if analysis.RootCause != "" {
-		fmt.Printf("  Identified Root Cause: %s\n", console.FormatWarningMessage(analysis.RootCause))
-		fmt.Println()
+		fmt.Fprintf(os.Stderr, "  Identified Root Cause: %s\n", console.FormatWarningMessage(analysis.RootCause))
+		fmt.Fprintln(os.Stderr, "")
 	}
 }
 
 // renderPerformanceMetrics renders performance metrics
 func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 	if metrics.TokensPerMinute > 0 {
-		fmt.Printf("  Tokens per Minute: %.1f\n", metrics.TokensPerMinute)
+		fmt.Fprintf(os.Stderr, "  Tokens per Minute: %.1f\n", metrics.TokensPerMinute)
 	}
 
 	if metrics.CostEfficiency != "" {
@@ -470,20 +470,20 @@ func renderPerformanceMetrics(metrics *PerformanceMetrics) {
 		case "poor":
 			efficiencyDisplay = console.FormatErrorMessage(metrics.CostEfficiency)
 		}
-		fmt.Printf("  Cost Efficiency: %s\n", efficiencyDisplay)
+		fmt.Fprintf(os.Stderr, "  Cost Efficiency: %s\n", efficiencyDisplay)
 	}
 
 	if metrics.AvgToolDuration != "" {
-		fmt.Printf("  Average Tool Duration: %s\n", metrics.AvgToolDuration)
+		fmt.Fprintf(os.Stderr, "  Average Tool Duration: %s\n", metrics.AvgToolDuration)
 	}
 
 	if metrics.MostUsedTool != "" {
-		fmt.Printf("  Most Used Tool: %s\n", metrics.MostUsedTool)
+		fmt.Fprintf(os.Stderr, "  Most Used Tool: %s\n", metrics.MostUsedTool)
 	}
 
 	if metrics.NetworkRequests > 0 {
-		fmt.Printf("  Network Requests: %d\n", metrics.NetworkRequests)
+		fmt.Fprintf(os.Stderr, "  Network Requests: %d\n", metrics.NetworkRequests)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(os.Stderr, "")
 }
