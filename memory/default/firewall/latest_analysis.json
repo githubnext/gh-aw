@@ -1,7 +1,7 @@
 {
-  "analysis_date": "2026-01-01T12:44:00Z",
+  "analysis_date": "2026-01-02T12:44:00Z",
   "report_type": "daily_firewall_logs",
-  "data_source": "cached_december_27_plus_trend_extrapolation",
+  "data_source": "cached_january_1_data",
   "firewall_enabled_runs": 9,
   "analysis_period": "2025-12-20 to 2026-01-01",
   "total_runs_checked": 100,
@@ -16,5 +16,15 @@
     "research",
     "daily-firewall-report",
     "firewall-escape"
+  ],
+  "limitations": [
+    "GitHub CLI not authenticated - could not collect fresh data",
+    "Python visualization libraries unavailable - no charts generated",
+    "Using cached data from January 1, 2026"
+  ],
+  "critical_issues": [
+    "GitHub API blocking affects 3 workflows (92 total blocks)",
+    "Workflow self-blocking prevents fresh data collection",
+    "Denial rate at 29.8% approaching 30% threshold"
   ]
 }
