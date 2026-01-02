@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -240,11 +238,6 @@ func TestDownloadRunArtifactsConcurrent_ConcurrencyLimit(t *testing.T) {
 				}
 			}
 
-			// Track concurrent executions
-			var currentConcurrent int64
-			var maxConcurrent int64
-			var mu sync.Mutex
-
 			// We can't directly test the pool's behavior without mocking,
 			// but we can verify the limit is configured correctly
 			tmpDir := testutil.TempDir(t, "test-orchestrator-*")
@@ -254,11 +247,8 @@ func TestDownloadRunArtifactsConcurrent_ConcurrencyLimit(t *testing.T) {
 
 			// The actual concurrency limit enforcement is handled by the conc pool internally
 			// We've verified the limit is set correctly via getMaxConcurrentDownloads()
-			t.Logf("Processed %d runs with limit %d, max concurrent observed: %d",
-				len(results), limit, atomic.LoadInt64(&maxConcurrent))
-
-			_ = currentConcurrent // Used in real implementation
-			_ = mu                // Used for synchronization
+			t.Logf("Processed %d runs with limit %d",
+				len(results), limit)
 		})
 	}
 }
@@ -304,7 +294,7 @@ func TestDownloadRunArtifactsConcurrent_ErrorHandling(t *testing.T) {
 	for _, result := range results {
 		// Either skipped with error or has an error set
 		if result.Skipped {
-			assert.NotNil(t, result.Error, "Skipped result should have error for run %d", result.Run.DatabaseID)
+			assert.Error(t, result.Error, "Skipped result should have error for run %d", result.Run.DatabaseID)
 		}
 		// Note: Without actual GitHub API access, we can't guarantee errors,
 		// but the structure should handle them properly
