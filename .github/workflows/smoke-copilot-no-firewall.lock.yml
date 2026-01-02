@@ -535,6 +535,10 @@ jobs:
                 "tools": ["*"]
               }
             }
+            ,
+            "gateway": {
+              "port": 8080
+            }
           }
           EOF
           echo "-------START MCP CONFIG-----------"
