@@ -22,6 +22,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/envutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/sourcegraph/conc/pool"
@@ -33,7 +34,7 @@ var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 // It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
 // validates the value is between 1 and 100, and falls back to the default if invalid.
 func getMaxConcurrentDownloads() int {
-	return getIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
+	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics

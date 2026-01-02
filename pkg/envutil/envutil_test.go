@@ -1,4 +1,4 @@
-package cli
+package envutil
 
 import (
 	"os"
@@ -119,8 +119,8 @@ func TestGetIntFromEnv(t *testing.T) {
 			}
 
 			// Test the function
-			log := logger.New("test:getIntFromEnv")
-			result := getIntFromEnv(testEnvVar, tt.defaultValue, tt.minValue, tt.maxValue, log)
+			log := logger.New("test:GetIntFromEnv")
+			result := GetIntFromEnv(testEnvVar, tt.defaultValue, tt.minValue, tt.maxValue, log)
 			if result != tt.expected {
 				t.Errorf("Expected %d, got %d", tt.expected, result)
 			}
@@ -141,7 +141,7 @@ func TestGetIntFromEnv_WithoutLogger(t *testing.T) {
 	}()
 
 	os.Setenv(testEnvVar, "42")
-	result := getIntFromEnv(testEnvVar, 10, 1, 100, nil)
+	result := GetIntFromEnv(testEnvVar, 10, 1, 100, nil)
 	if result != 42 {
 		t.Errorf("Expected 42, got %d", result)
 	}
