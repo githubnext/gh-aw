@@ -230,7 +230,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers, tt.gatewayedServers)
+			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers)
 			assert.Len(t, steps, tt.expectSteps)
 		})
 	}
@@ -260,7 +260,7 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 		Port: 8080,
 	}
 
-	step := generateMCPGatewayHealthCheckStep(config, []string{"github", "playwright"})
+	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
@@ -277,7 +277,7 @@ func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.
 
 	// Test with multiple gatewayed servers
 	gatewayedServers := []string{"github", "playwright", "serena"}
-	step := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
+	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should include gateway validation section
@@ -301,7 +301,7 @@ func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
 	}
 
 	// Test with no gatewayed servers (only internal servers)
-	step := generateMCPGatewayHealthCheckStep(config, []string{})
+	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should NOT include gateway validation section
@@ -319,8 +319,7 @@ func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
 	}
 
 	// Test with internal servers that should be skipped
-	gatewayedServers := []string{"safe-inputs", "safe-outputs", "github"}
-	step := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
+	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	// Should NOT validate safe-inputs or safe-outputs as gatewayed
@@ -731,7 +730,7 @@ func TestGenerateMCPGatewayHealthCheckStepWithInvalidPort(t *testing.T) {
 				Port: tt.port,
 			}
 
-			step := generateMCPGatewayHealthCheckStep(config, []string{})
+			step := generateMCPGatewayHealthCheckStep(config)
 			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port
