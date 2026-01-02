@@ -2,6 +2,250 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.34.0 - 2026-01-02
+
+### Features
+
+#### Add standalone `awmg` CLI for MCP server aggregation. The new CLI provides a
+
+lightweight MCP gateway and utilities to start and manage MCP servers for local
+integration and testing.
+
+This is a non-breaking tooling addition.
+
+
+### Bug Fixes
+
+#### Add mount for `/home/runner/.copilot` so the Copilot CLI inside the AWF container can
+
+access its MCP configuration. This fixes smoke-test failures where MCP tools were
+unavailable (playwright, safeinputs, github).
+
+Fixes: githubnext/gh-aw#8157
+
+#### Add importable tools: `agentic-workflows`, `serena`, and `playwright`.
+
+These tool definitions were added to the parser schema so they can be configured
+in shared workflow files and merged into consuming workflows during compilation.
+Includes tests and necessary schema updates.
+
+#### Auto-detect GitHub MCP lockdown based on repository visibility.
+
+When the GitHub tool is enabled and `lockdown` is not specified, the
+compiler inserts a detection step that sets `lockdown: true` for public
+repositories and `false` for private/internal repositories. The detection
+defaults to lockdown on API failure for safety.
+
+#### Document that MCP server capability configuration already uses v1.2.0 simplified API.
+
+Both `pkg/cli/mcp_server.go` and `pkg/awmg/gateway.go` already use the modern
+`ServerOptions.Capabilities` pattern from go-sdk v1.2.0, eliminating verbose
+capability construction code.
+
+No code changes required - this changeset documents the completion of issue #7711.
+
+#### Configure jsweep workflow to use Node.js v20 and compile JavaScript to CommonJS.
+
+This change documents that `jsweep.md` pins `runtimes.node.version: "20"` and
+updates `actions/setup/js/tsconfig.json` to emit CommonJS (`module: commonjs`) and
+target ES2020 (`target: es2020`) for the JavaScript files in `actions/setup/js/`.
+
+#### Enable MCP gateway for smoke-copilot-no-firewall workflow
+
+Enables the MCP gateway (`awmg`) so MCP server calls are routed through a centralized
+HTTP proxy for the `smoke-copilot-no-firewall` workflow. Adds `features.mcp-gateway: true`
+and a `sandbox.mcp` block with the gateway command and port.
+
+This is an internal workflow/configuration change (patch).
+
+---
+summary: "Enable MCP gateway (awmg) in smoke-copilot-no-firewall workflow"
+
+#### Refactor docker image download inline script to an external shell script at `actions/setup/sh/download_docker_images.sh`.
+
+The generated workflow now calls `bash /tmp/gh-aw/actions/download_docker_images.sh` with image arguments instead of embedding the pull-and-retry function inline. No behavior changes.
+
+#### Extract the "Setup threat detection" inline script into a reusable
+
+`actions/setup/js/setup_threat_detection.cjs` module and update the
+workflow compiler to require the module instead of embedding the
+full script. Tests were updated to assert the require pattern.
+
+#### Normalize artifact names to comply with upload-artifact@v5 and fix download path resolution.
+
+Artifact names no longer include file extensions and use consistent delimiters (e.g., `prompt.txt` → `prompt`, `safe_output.jsonl` → `safe-output`). Updated download path logic accounts for `actions/download-artifact` extracting into `{download-path}/{artifact-name}/` subdirectories. Backward-compatible flattening preserves CLI behavior for older runs.
+
+#### Fix compile timestamp handling and improve MCP gateway health check logging
+
+Fixes handling of lock file timestamps in the compile command and enhances
+gateway health check logging and validation order to check gateway readiness
+before validating configuration files. Also includes minor workflow prompt
+simplifications and safeinputs routing fixes when the sandbox agent is disabled.
+
+This is an internal tooling and workflow change (patch).
+
+#### Ensure safe-inputs MCP server start step receives tool secrets via an
+
+`env:` block so the MCP server process inherits the correct environment.
+Removes redundant `export` statements in the start script that attempted
+to export variables that were not present in the step environment.
+
+Fixes passing of secrets like `GH_AW_GH_TOKEN` to the MCP server process.
+
+#### Fix SC2155: Separate export declaration from command substitution in workflows
+
+Split variable assignment from `export PATH=...$(...)` into a separate
+assignment and `export` so that the exit status of the command substitution
+is not masked. This resolves 31 shellcheck SC2155 warnings related to PATH
+setup in generated workflows and keeps `claude_engine.go` and
+`codex_engine.go` consistent by using the `pathSetup` variable pattern.
+
+Fixes: githubnext/gh-aw#7897
+
+#### Improve visibility when safe output messages are not handled
+
+Fixed an issue where safe output messages (like create_issue) were silently skipped when no handler was loaded, with only a debug log that isn't visible by default. Now these cases produce clear warnings to help users identify configuration issues.
+
+Changes:
+- Convert debug logging to warning when message handlers are missing
+- Add detailed warning explaining the issue and suggesting fixes
+- Track skipped messages separately in processing summary
+- Add test coverage for missing handler scenario
+
+This ensures users are notified when their safe output messages aren't being processed, making it easier to diagnose configuration issues.
+
+#### Migrate safe output handlers to a centralized handler config object and remove handler-specific environment variables.
+
+All eight safe-output handlers (create_issue, add_comment, create_discussion, close_issue, close_discussion, add_labels, update_issue, update_discussion) were refactored to accept a single handler config object instead of reading many individual environment variables. This reduces the number of handler-specific env vars from 30+ down to 3 global env vars and centralizes configuration for easier testing and maintenance.
+
+Files changed: multiple JavaScript safe output handlers under `actions/setup/js/` and related Go compiler cleanup in `pkg/workflow/`.
+
+Benefits: explicit data flow, fewer environment variables, testable handlers, and simpler configuration.
+
+#### Cleaned and modernized `check_permissions_utils.cjs` and improved test coverage.
+
+This change modernizes JavaScript patterns (optional chaining, nullish coalescing,
+array shorthand), simplifies error handling, and expands unit tests to reach
+full coverage for the module.
+
+#### Mount Copilot MCP config directory into AWF container so Copilot-based workflows can access MCP servers.
+
+This exposes the Copilot config directory at `/home/runner/.copilot` to the AWF container with read-write
+permissions, allowing the Copilot CLI to read and write MCP configuration and runtime state.
+
+Fixes: githubnext/gh-aw#8157
+
+#### Pass MCP environment variables through to the MCP gateway (awmg) so the gateway process has access to the same secrets and env vars configured in the "Setup MCPs" step. This centralizes env var collection and updates gateway step generation and tests.
+
+Files changed (PR #8677):
+- pkg/workflow/mcp_servers.go
+- pkg/workflow/gateway.go
+- pkg/workflow/gateway_test.go
+
+#### Refactor multi-secret validation into a shared shell script and simplify generator.
+
+Replaced duplicated inline validation logic in compiled workflows with
+`actions/setup/sh/validate_multi_secret.sh`, updated `pkg/workflow/agentic_engine.go`
+to invoke the script, and adjusted tests and documentation accordingly.
+
+This reduces repeated validation code across compiled workflows and centralizes
+validation logic for easier maintenance and testing.
+
+#### Refactor system prompts to be file-based under `actions/setup/md/` and
+
+update runtime to read prompts from `/tmp/gh-aw/prompts/` instead of
+embedding them in the Go binary. This is an internal refactor that
+moves prompt content to runtime-managed markdown files and updates the
+setup script and prompt generation logic accordingly.
+
+#### Refactor safe output handlers to the handler factory pattern.
+
+All safe output handlers were updated to export `main(config)` which returns a
+message handler function. This is an internal refactor to improve handler
+composition, state management, and testability. No user-facing CLI behavior
+changes are expected.
+
+#### Removed redundant syncing of JavaScript and shell scripts from
+
+`actions/setup/` into `pkg/workflow/{js,sh}` and converted inline
+JavaScript to a `require()`-based runtime-loading pattern. This reduces
+binary size, eliminates duplicated generated files, consolidates setup
+script copying into `actions/setup/setup.sh`, and updates workflow
+script loading and tests to the new runtime behavior.
+
+See PR #7654 for details.
+
+#### Remove redundant JS/shell script syncing from `actions/setup` to `pkg/workflow`.
+
+Scripts previously copied into `pkg/workflow/js` and `pkg/workflow/sh` are no longer required because `actions/setup/index.js` bundles them. This changeset documents the build-system and packaging cleanup (removed sync targets, deleted generated files, and adjusted embed directives).
+
+#### Add compile step with security tools to pre-download Docker images and
+
+store compile output for inspection. This ensures security scanning Docker
+images (zizmor, poutine) are cached before the workflow analysis phase,
+reducing runtime delays during scans.
+
+#### Refactor safe outputs into a centralized handler manager using a
+
+factory pattern. Introduces a safe output handler manager and begins
+refactoring individual handlers to the factory-based interface. This is
+an internal refactor (WIP) that reorganizes handler initialization and
+message dispatching; tests and workflow recompilation are still pending.
+
+#### Add validation for safe-inputs MCP server dependencies
+
+Improves reliability of safe-inputs MCP server startup by adding comprehensive dependency validation:
+- Validates all 12 required dependency files exist before starting the server
+- Fails fast with clear error messages if files are missing
+- Changes warnings to errors in setup script to prevent silent failures
+- Adds proper shell script error handling (shebang, set -e, cd || exit patterns)
+
+This prevents cryptic Node.js module errors when dependencies are missing and makes debugging easier.
+
+#### Standardize safe output references to singular "upload-asset" across schemas,
+
+parsing, and processing logic. Includes a codemod to migrate existing workflows
+and updates to tests and documentation. This is a non-breaking internal
+standardization and tooling change.
+
+#### Track unresolved temporary IDs in safe outputs and perform synthetic
+
+updates once those IDs are resolved. This ensures outputs (issues,
+discussions, comments) created with unresolved temporary IDs are
+updated to contain final values after resolution.
+
+This is an internal fix to the safe output processing logic and does
+not introduce any breaking API changes.
+
+#### Update GitHub Copilot CLI default version to `0.0.374`.
+
+This updates the `DefaultCopilotVersion` constant, adjusts test expectations,
+updates documentation references, and recompiles workflow lock files to
+reference `0.0.374`. No functional or breaking changes are included — this is
+a cosmetic/help-output change only.
+
+PR: #8685
+
+#### Update GitHub Copilot CLI from `0.0.372` to `0.0.373`.
+
+This updates the `DefaultCopilotVersion` constant, adjusts related tests, and
+recompiles workflow lock files to use the new CLI version.
+
+#### Fail-fast validation for safe-inputs MCP server startup and stricter error handling in setup scripts.
+
+Validates that all required JavaScript dependency files for the safe-inputs MCP server are present before starting the server, lists missing files and directory contents when validation fails, and changes setup scripts to treat missing files as errors and exit immediately.
+
+This prevents the server from starting with missing dependencies and producing opaque Node.js MODULE_NOT_FOUND crashes.
+
+#### Warn when safe output messages are skipped due to missing handlers
+
+When safe output messages (for example, `create_issue`) are sent but no
+handler is loaded, they were silently skipped with only a debug log.
+This change converts those debug logs to warnings, records skipped
+messages in the processing results, and improves the processing summary
+to separately report skipped vs failed messages.
+
+
 ## Unreleased
 
 ### Breaking Changes
