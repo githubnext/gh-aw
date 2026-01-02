@@ -14,7 +14,7 @@ tools:
     toolsets: [default, actions]
   repo-memory:
     branch-name: memory/meta-orchestrators
-    file-glob: "memory/meta-orchestrators/**/*"
+    file-glob: "**"
 safe-outputs:
   create-issue:
     max: 10

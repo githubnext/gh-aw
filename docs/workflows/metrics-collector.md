@@ -58,13 +58,15 @@ Aggregated data across the entire workflow ecosystem:
 Metrics are stored in repo-memory under the meta-orchestrators branch:
 
 ```text
-/tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/
+/tmp/gh-aw/repo-memory/default/metrics/
 ├── daily/
 │   ├── 2024-12-24.json
 │   ├── 2024-12-25.json
 │   └── ... (last 30 days)
 └── latest.json (most recent snapshot)
 ```
+
+**Note**: Files written to `/tmp/gh-aw/repo-memory/default/` are automatically pushed to the `memory/meta-orchestrators` git branch by the repo-memory system.
 
 ### Storage Format
 
@@ -129,17 +131,17 @@ Meta-orchestrators and other workflows can access metrics data:
 
 ```bash
 # Read most recent metrics
-cat /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json
+cat /tmp/gh-aw/repo-memory/default/metrics/latest.json
 ```
 
 ### Historical Metrics
 
 ```bash
 # Read specific day
-cat /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/2024-12-24.json
+cat /tmp/gh-aw/repo-memory/default/metrics/daily/2024-12-24.json
 
 # List all available days
-ls /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/
+ls /tmp/gh-aw/repo-memory/default/metrics/daily/
 ```
 
 ### In Workflow Files
@@ -150,7 +152,7 @@ Meta-orchestrators automatically load metrics using the repo-memory tool:
 tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
-    file-glob: "metrics/**/*"
+    file-glob: "metrics/**"
 ```
 
 ## Integration with Meta-Orchestrators
@@ -198,17 +200,17 @@ To manually test the metrics collector:
 3. **Verify metrics were stored**:
    ```bash
    # Check if latest.json exists and is valid JSON
-   cat /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json | jq .
+   cat /tmp/gh-aw/repo-memory/default/metrics/latest.json | jq .
    
    # Check daily metrics
-   ls -lh /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/daily/
+   ls -lh /tmp/gh-aw/repo-memory/default/metrics/daily/
    ```
 
 4. **Validate data structure**:
    ```bash
    # Verify required fields exist
    jq '.timestamp, .workflows | length, .ecosystem.total_workflows' \
-     /tmp/gh-aw/repo-memory-default/memory/meta-orchestrators/metrics/latest.json
+     /tmp/gh-aw/repo-memory/default/metrics/latest.json
    ```
 
 ## Benefits
