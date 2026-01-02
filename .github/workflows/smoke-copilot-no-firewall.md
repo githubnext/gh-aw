@@ -23,7 +23,6 @@ network:
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
   mcp:
-    command: "awmg"
     port: 8080
 imports:
   - shared/gh.md
