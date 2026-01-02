@@ -63,6 +63,8 @@ async function main(config = {}) {
   const allowEmpty = config.allow_empty || false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
+  const baseBranch = config.base_branch || "";
+  const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
@@ -70,9 +72,8 @@ async function main(config = {}) {
     throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
   }
 
-  const baseBranch = process.env.GH_AW_BASE_BRANCH;
   if (!baseBranch) {
-    throw new Error("GH_AW_BASE_BRANCH environment variable is required");
+    throw new Error("base_branch configuration is required");
   }
 
   // Check if we're in staged mode
@@ -92,6 +93,7 @@ async function main(config = {}) {
     core.info(`Pull requests expire after: ${expiresHours} hours`);
   }
   core.info(`Max count: ${maxCount}`);
+  core.info(`Max patch size: ${maxSizeKb} KB`);
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -204,8 +206,7 @@ async function main(config = {}) {
 
     // Validate patch size (unless empty)
     if (!isEmpty) {
-      // Get maximum patch size from environment (default: 1MB = 1024 KB)
-      const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+      // maxSizeKb is already extracted from config at the top
       const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
       const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 

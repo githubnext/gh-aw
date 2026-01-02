@@ -910,6 +910,14 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
 		}
+		// Add base branch (required for git operations)
+		handlerConfig["base_branch"] = "${{ github.ref_name }}"
+		// Add max patch size
+		maxPatchSize := 1024 // default 1024 KB
+		if data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		handlerConfig["max_patch_size"] = maxPatchSize
 		config["create_pull_request"] = handlerConfig
 	}
 
@@ -996,15 +1004,7 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
 		}
-		// Add base branch (required by create_pull_request)
-		*steps = append(*steps, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
-		// Add max patch size
-		maxPatchSize := 1024 // default 1024 KB
-		if data.SafeOutputs.MaximumPatchSize > 0 {
-			maxPatchSize = data.SafeOutputs.MaximumPatchSize
-		}
-		*steps = append(*steps, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-		// Other configuration (title_prefix, labels, draft, if_no_changes, allow_empty, expires) is in handler config JSON
+		// Note: base_branch and max_patch_size are now in handler config JSON
 	}
 
 	if stagedFlagAdded {

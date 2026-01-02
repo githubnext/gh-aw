@@ -16,7 +16,7 @@ func TestMaximumPatchSizeEnvironmentVariable(t *testing.T) {
 	tests := []struct {
 		name                 string
 		frontmatterContent   string
-		expectedEnvValue     string
+		expectedConfigValue  string // Changed from expectedEnvValue - now in config JSON
 		shouldContainPushJob bool
 		shouldContainPRJob   bool
 	}{
@@ -32,7 +32,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests default patch size configuration.`,
-			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 1024",
+			expectedConfigValue:  `\"max_patch_size\":1024`, // Now in handler config JSON (escaped in YAML)
 			shouldContainPushJob: true,
 			shouldContainPRJob:   true,
 		},
@@ -49,7 +49,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests custom 512KB patch size configuration.`,
-			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 512",
+			expectedConfigValue:  `\"max_patch_size\":512`, // Now in handler config JSON (escaped in YAML)
 			shouldContainPushJob: true,
 			shouldContainPRJob:   true,
 		},
@@ -65,7 +65,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests custom 2MB patch size configuration.`,
-			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 2048",
+			expectedConfigValue:  `\"max_patch_size\":2048`, // Now in handler config JSON (escaped in YAML)
 			shouldContainPushJob: false,
 			shouldContainPRJob:   true,
 		},
@@ -101,8 +101,11 @@ This workflow tests custom 2MB patch size configuration.`,
 				if !strings.Contains(lockContentStr, "safe_outputs:") {
 					t.Errorf("Expected safe_outputs job to be generated")
 				}
-				if !strings.Contains(lockContentStr, tt.expectedEnvValue) {
-					t.Errorf("Expected '%s' to be found in safe_outputs job, got:\n%s", tt.expectedEnvValue, lockContentStr)
+				// For config JSON, check with flexible spacing (accounting for escaped quotes in YAML)
+				expectedFound := strings.Contains(lockContentStr, tt.expectedConfigValue) || 
+					strings.Contains(lockContentStr, strings.Replace(tt.expectedConfigValue, ":", ": ", -1))
+				if !expectedFound {
+					t.Errorf("Expected '%s' to be found in handler config, got:\n%s", tt.expectedConfigValue, lockContentStr)
 				}
 			}
 
@@ -119,9 +122,10 @@ func TestPatchSizeWithInvalidValues(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "patch-size-invalid-test")
 
 	tests := []struct {
-		name               string
-		frontmatterContent string
-		expectedEnvValue   string
+		name                string
+		frontmatterContent  string
+		expectedValue       string  // The value to look for (env var or config JSON)
+		isHandlerManagerConfig bool // If true, look in config JSON; if false, look for env var
 	}{
 		{
 			name: "very small patch size should work",
@@ -135,7 +139,8 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests very small patch size configuration.`,
-			expectedEnvValue: "GH_AW_MAX_PATCH_SIZE: 1",
+			expectedValue:       "GH_AW_MAX_PATCH_SIZE: 1", // Env var for standalone push-to-pull-request-branch
+			isHandlerManagerConfig: false,
 		},
 		{
 			name: "large valid patch size should work",
@@ -149,7 +154,8 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests large valid patch size configuration.`,
-			expectedEnvValue: "GH_AW_MAX_PATCH_SIZE: 10240",
+			expectedValue:       `\"max_patch_size\":10240`, // Config JSON for handler manager (escaped in YAML)
+			isHandlerManagerConfig: true,
 		},
 	}
 
@@ -178,9 +184,23 @@ This workflow tests large valid patch size configuration.`,
 			}
 			lockContentStr := string(lockContent)
 
-			// Check that the environment variable falls back to default
-			if !strings.Contains(lockContentStr, tt.expectedEnvValue) {
-				t.Errorf("Expected '%s' to be found in workflow, got:\n%s", tt.expectedEnvValue, lockContentStr)
+			// Check that the value is in the right format (env var or config JSON)
+			// For config JSON, we need to check with flexible spacing (accounting for escaped quotes in YAML)
+			expectedFound := false
+			if tt.isHandlerManagerConfig {
+				// Check both with and without spaces after colons
+				expectedFound = strings.Contains(lockContentStr, tt.expectedValue) || 
+					strings.Contains(lockContentStr, strings.Replace(tt.expectedValue, ":", ": ", -1))
+			} else {
+				expectedFound = strings.Contains(lockContentStr, tt.expectedValue)
+			}
+			
+			if !expectedFound {
+				context := "environment variable"
+				if tt.isHandlerManagerConfig {
+					context = "handler config JSON"
+				}
+				t.Errorf("Expected '%s' to be found in %s, got:\n%s", tt.expectedValue, context, lockContentStr)
 			}
 
 			// Cleanup
