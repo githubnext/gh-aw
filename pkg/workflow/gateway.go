@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -44,7 +45,7 @@ func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 }
 
 // generateMCPGatewaySteps generates the steps to start and verify the MCP gateway
-func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any) []GitHubActionStep {
+func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any, mcpEnvVars map[string]string) []GitHubActionStep {
 	if !isMCPGatewayEnabled(workflowData) {
 		return nil
 	}
@@ -60,7 +61,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	var steps []GitHubActionStep
 
 	// Step 1: Start MCP Gateway (background process)
-	startStep := generateMCPGatewayStartStep(config, mcpServersConfig)
+	startStep := generateMCPGatewayStartStep(config, mcpServersConfig, mcpEnvVars)
 	steps = append(steps, startStep)
 
 	// Step 2: Health check to verify gateway is running
@@ -71,7 +72,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 }
 
 // generateMCPGatewayStartStep generates the step that starts the MCP gateway
-func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConfig map[string]any) GitHubActionStep {
+func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConfig map[string]any, mcpEnvVars map[string]string) GitHubActionStep {
 	gatewayLog.Print("Generating MCP gateway start step")
 
 	port, err := validateAndNormalizePort(config.Port)
@@ -87,11 +88,31 @@ func generateMCPGatewayStartStep(config *MCPGatewayRuntimeConfig, mcpServersConf
 
 	stepLines := []string{
 		"      - name: Start MCP Gateway",
+	}
+
+	// Add environment variables if any are provided
+	// These are the same secrets/variables used in Setup MCPs step
+	if len(mcpEnvVars) > 0 {
+		stepLines = append(stepLines, "        env:")
+		
+		// Sort keys for consistent output
+		envKeys := make([]string, 0, len(mcpEnvVars))
+		for key := range mcpEnvVars {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+
+		for _, key := range envKeys {
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, mcpEnvVars[key]))
+		}
+	}
+
+	stepLines = append(stepLines,
 		"        run: |",
-		"          mkdir -p " + MCPGatewayLogsFolder,
+		"          mkdir -p "+MCPGatewayLogsFolder,
 		"          echo 'Starting MCP Gateway...'",
 		"          ",
-	}
+	)
 
 	// Check which mode to use: container, command, or default (awmg binary)
 	if config.Container != "" {

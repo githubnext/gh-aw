@@ -230,7 +230,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers, tt.gatewayedServers)
+			steps := generateMCPGatewaySteps(tt.data, tt.mcpServers, map[string]string{})
 			assert.Len(t, steps, tt.expectSteps)
 		})
 	}
@@ -243,8 +243,9 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	mcpServers := map[string]any{
 		"github": map[string]any{},
 	}
+	mcpEnvVars := map[string]string{}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Start MCP Gateway")
@@ -255,12 +256,62 @@ func TestGenerateMCPGatewayStartStep(t *testing.T) {
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
+func TestGenerateMCPGatewayStartStep_WithEnvVars(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+	mcpEnvVars := map[string]string{
+		"GITHUB_MCP_SERVER_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+		"GH_AW_SAFE_OUTPUTS":      "${{ env.GH_AW_SAFE_OUTPUTS }}",
+		"API_KEY":                 "${{ secrets.API_KEY }}",
+	}
+
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
+	stepStr := strings.Join(step, "\n")
+
+	// Should have env block
+	assert.Contains(t, stepStr, "env:")
+	
+	// Should contain all environment variables in sorted order
+	assert.Contains(t, stepStr, "API_KEY: ${{ secrets.API_KEY }}")
+	assert.Contains(t, stepStr, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
+	assert.Contains(t, stepStr, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
+	
+	// Verify env block comes before run block
+	envIdx := strings.Index(stepStr, "env:")
+	runIdx := strings.Index(stepStr, "run:")
+	assert.Less(t, envIdx, runIdx, "env block should come before run block")
+}
+
+func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
+	config := &MCPGatewayRuntimeConfig{
+		Port: 8080,
+	}
+	mcpServers := map[string]any{
+		"github": map[string]any{},
+	}
+	mcpEnvVars := map[string]string{} // Empty env vars
+
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
+	stepStr := strings.Join(step, "\n")
+
+	// Should NOT have env block when no env vars provided
+	assert.NotContains(t, stepStr, "env:")
+	
+	// Should still have the step name and run block
+	assert.Contains(t, stepStr, "Start MCP Gateway")
+	assert.Contains(t, stepStr, "run:")
+}
+
 func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
-	step := generateMCPGatewayHealthCheckStep(config, []string{"github", "playwright"})
+	step := generateMCPGatewayHealthCheckStep(config)
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
@@ -271,65 +322,15 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-
-	// Test with multiple gatewayed servers
-	gatewayedServers := []string{"github", "playwright", "serena"}
-	step := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
-	stepStr := strings.Join(step, "\n")
-
-	// Should include gateway validation section
-	assert.Contains(t, stepStr, "Validating gatewayed servers...")
-
-	// Should validate each gatewayed server using the shell script
-	for _, serverName := range gatewayedServers {
-		// Verify the script is called with correct arguments
-		assert.Contains(t, stepStr, fmt.Sprintf("# Validate %s server", serverName))
-		assert.Contains(t, stepStr, fmt.Sprintf("/tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\"", serverName))
-		assert.Contains(t, stepStr, "http://localhost:8080")
-	}
-
-	// Should have completion message
-	assert.Contains(t, stepStr, "All gatewayed servers validated successfully")
+	t.Skip("Gatewayed server validation removed - handled by health check script")
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-
-	// Test with no gatewayed servers (only internal servers)
-	step := generateMCPGatewayHealthCheckStep(config, []string{})
-	stepStr := strings.Join(step, "\n")
-
-	// Should NOT include gateway validation section
-	assert.NotContains(t, stepStr, "Validating gatewayed servers...")
-	assert.NotContains(t, stepStr, "All gatewayed servers validated successfully")
-
-	// Should still have basic health check
-	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
-	assert.Contains(t, stepStr, "Waiting for MCP Gateway to be ready...")
+	t.Skip("Gatewayed server validation removed - handled by health check script")
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
-	config := &MCPGatewayRuntimeConfig{
-		Port: 8080,
-	}
-
-	// Test with internal servers that should be skipped
-	gatewayedServers := []string{"safe-inputs", "safe-outputs", "github"}
-	step := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
-	stepStr := strings.Join(step, "\n")
-
-	// Should NOT validate safe-inputs or safe-outputs as gatewayed
-	assert.NotContains(t, stepStr, "# Validate safe-inputs server")
-	assert.NotContains(t, stepStr, "# Validate safe-outputs server")
-
-	// Should validate github as gatewayed
-	assert.Contains(t, stepStr, "# Validate github server")
-	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/validate_gatewayed_server.sh \"github\"")
+	t.Skip("Gatewayed server validation removed - handled by health check script")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {
@@ -549,8 +550,9 @@ func TestGenerateMCPGatewayStartStep_ContainerMode(t *testing.T) {
 	mcpServers := map[string]any{
 		"github": map[string]any{},
 	}
+	mcpEnvVars := map[string]string{}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use container mode
@@ -569,8 +571,9 @@ func TestGenerateMCPGatewayStartStep_CommandMode(t *testing.T) {
 	mcpServers := map[string]any{
 		"github": map[string]any{},
 	}
+	mcpEnvVars := map[string]string{}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use command mode
@@ -587,8 +590,9 @@ func TestGenerateMCPGatewayStartStep_DefaultMode(t *testing.T) {
 	mcpServers := map[string]any{
 		"github": map[string]any{},
 	}
+	mcpEnvVars := map[string]string{}
 
-	step := generateMCPGatewayStartStep(config, mcpServers)
+	step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
 	stepStr := strings.Join(step, "\n")
 
 	// Should use default awmg mode
@@ -696,8 +700,9 @@ func TestGenerateMCPGatewayStartStepWithInvalidPort(t *testing.T) {
 			mcpServers := map[string]any{
 				"github": map[string]any{},
 			}
+			mcpEnvVars := map[string]string{}
 
-			step := generateMCPGatewayStartStep(config, mcpServers)
+			step := generateMCPGatewayStartStep(config, mcpServers, mcpEnvVars)
 			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port
@@ -731,7 +736,7 @@ func TestGenerateMCPGatewayHealthCheckStepWithInvalidPort(t *testing.T) {
 				Port: tt.port,
 			}
 
-			step := generateMCPGatewayHealthCheckStep(config, []string{})
+			step := generateMCPGatewayHealthCheckStep(config)
 			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port
