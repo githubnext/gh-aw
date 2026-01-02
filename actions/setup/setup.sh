@@ -59,7 +59,7 @@ for file in "${JS_SOURCE_DIR}"/*.cjs; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
     cp "$file" "${DESTINATION}/${filename}"
-    echo "::notice::Copied: ${filename}"
+    echo "::debug::Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -69,7 +69,7 @@ for file in "${JS_SOURCE_DIR}"/*.json; do
   if [ -f "$file" ]; then
     filename=$(basename "$file")
     cp "$file" "${DESTINATION}/${filename}"
-    echo "::notice::Copied: ${filename}"
+    echo "::debug::Copied: ${filename}"
     FILE_COUNT=$((FILE_COUNT + 1))
   fi
 done
@@ -83,7 +83,7 @@ if [ -d "${SH_SOURCE_DIR}" ]; then
       filename=$(basename "$file")
       cp "$file" "${DESTINATION}/${filename}"
       chmod +x "${DESTINATION}/${filename}"
-      echo "::notice::Copied shell script: ${filename}"
+      echo "::debug::Copied shell script: ${filename}"
       FILE_COUNT=$((FILE_COUNT + 1))
     fi
   done
@@ -106,7 +106,7 @@ if [ -d "${MD_SOURCE_DIR}" ]; then
     if [ -f "$file" ]; then
       filename=$(basename "$file")
       cp "$file" "${PROMPTS_DEST}/${filename}"
-      echo "::notice::Copied prompt: ${filename}"
+      echo "::debug::Copied prompt: ${filename}"
       PROMPT_COUNT=$((PROMPT_COUNT + 1))
     fi
   done
@@ -144,7 +144,7 @@ SAFE_INPUTS_MISSING=()
 for file in "${SAFE_INPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_INPUTS_DEST}/${file}"
-    echo "::notice::Copied safe-inputs: ${file}"
+    echo "::debug::Copied safe-inputs: ${file}"
     SAFE_INPUTS_COUNT=$((SAFE_INPUTS_COUNT + 1))
   else
     echo "::error::Safe-inputs file not found: ${file}"
@@ -205,12 +205,12 @@ SAFE_OUTPUTS_MISSING=()
 for file in "${SAFE_OUTPUTS_FILES[@]}"; do
   if [ -f "${JS_SOURCE_DIR}/${file}" ]; then
     cp "${JS_SOURCE_DIR}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "::notice::Copied safe-outputs: ${file}"
+    echo "::debug::Copied safe-outputs: ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   elif [ -f "${DESTINATION}/${file}" ]; then
     # If file was already copied to main destination, copy from there
     cp "${DESTINATION}/${file}" "${SAFE_OUTPUTS_DEST}/${file}"
-    echo "::notice::Copied safe-outputs (from destination): ${file}"
+    echo "::debug::Copied safe-outputs (from destination): ${file}"
     SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
   else
     echo "::error::Safe-outputs file not found: ${file}"
@@ -232,7 +232,7 @@ fi
 if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
   cp "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
   chmod +x "${SAFE_OUTPUTS_DEST}/mcp-server.cjs"
-  echo "::notice::Copied safe-outputs MCP entry point: mcp-server.cjs"
+  echo "::debug::Copied safe-outputs MCP entry point: mcp-server.cjs"
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
 else
   echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
