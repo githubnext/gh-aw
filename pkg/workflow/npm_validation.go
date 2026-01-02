@@ -80,7 +80,7 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 
 		// Record metrics if profiling is enabled
 		if c.IsProfileEnabled() {
-			cached := err == nil // Treat successful validation as potential cache hit
+			cached := err == nil                  // Treat successful validation as potential cache hit
 			timedOut := duration > 10*time.Second // Consider >10s as timeout
 			c.GetValidationMetrics().RecordAPICall("NPM", cached, duration, timedOut)
 		}

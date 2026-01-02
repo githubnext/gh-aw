@@ -58,12 +58,12 @@ type ValidatorTiming struct {
 
 // ValidationMetrics tracks all validation performance metrics
 type ValidationMetrics struct {
-	mu               sync.Mutex                   // Protects concurrent access
-	validatorTimings []ValidatorTiming            // All validator timings
-	externalAPICalls map[string]*APICallStats     // API call stats by service
-	startTime        time.Time                    // When validation started
-	endTime          time.Time                    // When validation ended
-	enabled          bool                         // Whether profiling is enabled
+	mu               sync.Mutex               // Protects concurrent access
+	validatorTimings []ValidatorTiming        // All validator timings
+	externalAPICalls map[string]*APICallStats // API call stats by service
+	startTime        time.Time                // When validation started
+	endTime          time.Time                // When validation ended
+	enabled          bool                     // Whether profiling is enabled
 }
 
 // NewValidationMetrics creates a new metrics collector
