@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,6 +29,30 @@ import (
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
+
+// getMaxConcurrentDownloads returns the maximum number of concurrent downloads.
+// It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
+// validates the value is between 1 and 100, and falls back to the default if invalid.
+func getMaxConcurrentDownloads() int {
+	envValue := os.Getenv("GH_AW_MAX_CONCURRENT_DOWNLOADS")
+	if envValue == "" {
+		return MaxConcurrentDownloads
+	}
+
+	val, err := strconv.Atoi(envValue)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid GH_AW_MAX_CONCURRENT_DOWNLOADS value '%s' (must be a number), using default %d", envValue, MaxConcurrentDownloads)))
+		return MaxConcurrentDownloads
+	}
+
+	if val < 1 || val > 100 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("GH_AW_MAX_CONCURRENT_DOWNLOADS value %d is out of bounds (must be 1-100), using default %d", val, MaxConcurrentDownloads)))
+		return MaxConcurrentDownloads
+	}
+
+	logsOrchestratorLog.Printf("Using GH_AW_MAX_CONCURRENT_DOWNLOADS=%d", val)
+	return val
+}
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
@@ -495,16 +520,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// Use atomic counter for thread-safe progress tracking
 	var completedCount int64
 
+	// Get configured max concurrent downloads (default or from environment variable)
+	maxConcurrent := getMaxConcurrentDownloads()
+
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
-	// MaxConcurrentDownloads (10) balances:
-	// - GitHub API rate limits (5000 requests/hour for authenticated users)
-	// - Network bandwidth (parallel HTTP requests for artifact downloads)
-	// - System memory (artifact buffering and decompression)
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
 	// WithContext enables graceful cancellation via Ctrl+C.
 	p := pool.NewWithResults[DownloadResult]().
 		WithContext(ctx).
-		WithMaxGoroutines(MaxConcurrentDownloads)
+		WithMaxGoroutines(maxConcurrent)
 
 	// Each download task runs concurrently with context awareness.
 	// Context cancellation (e.g., via Ctrl+C) will stop all in-flight downloads gracefully.
