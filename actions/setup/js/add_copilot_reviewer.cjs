@@ -35,9 +35,10 @@ async function main() {
   core.info(`Adding Copilot as reviewer to PR #${prNumber}`);
 
   try {
+    const { owner, repo } = context.repo;
     await github.rest.pulls.requestReviewers({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
+      owner,
+      repo,
       pull_number: prNumber,
       reviewers: [COPILOT_REVIEWER_BOT],
     });
@@ -45,13 +46,9 @@ async function main() {
     core.info(`Successfully added Copilot as reviewer to PR #${prNumber}`);
 
     await core.summary
-      .addRaw(
-        `
-## Copilot Reviewer Added
+      .addRaw(`## Copilot Reviewer Added
 
-Successfully added Copilot as a reviewer to PR #${prNumber}.
-`
-      )
+Successfully added Copilot as a reviewer to PR #${prNumber}.`)
       .write();
   } catch (error) {
     const errorMessage = getErrorMessage(error);
