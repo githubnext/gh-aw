@@ -299,10 +299,12 @@ Examples:
   gh aw mcp list weekly-research -v  # List with detailed information
   gh aw mcp list --verbose           # List all workflows with detailed MCP server info
 
-The command will:
-- Parse workflow frontmatter to extract MCP server configurations
-- Display server names and types
-- In verbose mode, show detailed configuration including commands, URLs, and allowed tools`,
+The command displays:
+- Server Name: MCP server identifier
+- Status: Configuration status (✓ Ready or ⚠ Incomplete)
+- Tools Count: Number of allowed tools or "All tools"
+- Network Access: Whether network permissions are configured (✓ Enabled or ✗ Disabled)
+- In verbose mode: Also shows Type and Command/URL`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var workflowFile string
