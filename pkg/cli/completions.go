@@ -16,9 +16,18 @@ var completionsLog = logger.New("cli:completions")
 // getWorkflowDescription extracts the description field from a workflow's frontmatter
 // Returns empty string if the description is not found or if there's an error reading the file
 func getWorkflowDescription(filepath string) string {
-	content, err := os.ReadFile(filepath)
+	// Sanitize the filepath to prevent path traversal attacks
+	cleanPath := filepath.Clean(filepath)
+
+	// Verify the path is absolute to prevent relative path traversal
+	if !filepath.IsAbs(cleanPath) {
+		completionsLog.Printf("Invalid workflow file path (not absolute): %s", filepath)
+		return ""
+	}
+
+	content, err := os.ReadFile(cleanPath)
 	if err != nil {
-		completionsLog.Printf("Failed to read workflow file %s: %v", filepath, err)
+		completionsLog.Printf("Failed to read workflow file %s: %v", cleanPath, err)
 		return ""
 	}
 
