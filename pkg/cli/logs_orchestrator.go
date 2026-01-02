@@ -707,7 +707,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// - Partial results are returned when context is cancelled
 	// - Results are collected in submission order
 	results, err := p.Wait()
-	
+
 	// Handle context cancellation
 	if err != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Download interrupted: %v", err)))
