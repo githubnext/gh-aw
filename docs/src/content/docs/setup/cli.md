@@ -415,6 +415,32 @@ DEBUG=*,-tests gh aw compile         # All except tests
 
 Use `--verbose` flag for user-facing details instead of DEBUG.
 
+## Environment Variables
+
+Configure behavior using environment variables:
+
+| Variable | Description | Valid Values | Default |
+|----------|-------------|--------------|---------|
+| `GH_AW_MAX_CONCURRENT_DOWNLOADS` | Maximum number of parallel artifact downloads when using `gh aw logs` | 1-100 | 10 |
+| `DEBUG` | Enable debug logging with namespace filtering | Namespace patterns (e.g., `*`, `cli:*`, `*,-tests`) | (disabled) |
+| `DEBUG_COLORS` | Control color output in debug logs | `0` (disable) or `1` (enable) | auto-detected |
+| `GH_HOST` | GitHub hostname for Enterprise Server | Hostname (e.g., `github.enterprise.com`) | `github.com` |
+
+### Examples
+
+```bash wrap
+# Increase concurrent downloads for high-bandwidth environments
+GH_AW_MAX_CONCURRENT_DOWNLOADS=50 gh aw logs my-workflow
+
+# Reduce concurrent downloads to avoid rate limits
+GH_AW_MAX_CONCURRENT_DOWNLOADS=5 gh aw logs my-workflow
+
+# Combine with other options
+GH_AW_MAX_CONCURRENT_DOWNLOADS=20 gh aw logs my-workflow -c 100 --parse
+```
+
+Invalid values (non-numeric, out of bounds) are rejected with a warning and the default value is used.
+
 ## Smart Features
 
 ### Fuzzy Workflow Name Matching
