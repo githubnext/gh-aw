@@ -517,9 +517,8 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				"SHARED_VAR",
 			},
 			expectedStepNames: []string{
-				"create_issue",
-				"create_pull_request",
-				"add_comment",
+				"process_safe_outputs",  // Handler manager consolidates create_issue and add_comment
+				"create_pull_request",   // Create PR is handled separately
 				// Note: "noop" is not included in consolidated job
 			},
 		},
