@@ -116,3 +116,64 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 
 	return nil
 }
+
+// validateSandboxConfigWithContext validates the sandbox configuration using ValidationContext
+// This is the new pattern that supports error aggregation
+func validateSandboxConfigWithContext(ctx *ValidationContext, workflowData *WorkflowData) {
+	if workflowData == nil || workflowData.SandboxConfig == nil {
+		return // No sandbox config is valid
+	}
+
+	sandboxConfig := workflowData.SandboxConfig
+
+	// Validate mounts syntax if specified
+	agentConfig := getAgentConfig(workflowData)
+	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+		if err := validateMountsSyntax(agentConfig.Mounts); err != nil {
+			ctx.AddError("sandbox_validation", err)
+		}
+	}
+
+	// Validate that SRT is only used with Copilot engine
+	if isSRTEnabled(workflowData) {
+		// Check if the sandbox-runtime feature flag is enabled
+		if !isFeatureEnabled(constants.SandboxRuntimeFeatureFlag, workflowData) {
+			ctx.AddError("sandbox_validation", fmt.Errorf("sandbox-runtime feature is experimental and requires the 'sandbox-runtime' feature flag to be enabled. Set 'features: { sandbox-runtime: true }' in frontmatter or set GH_AW_FEATURES=sandbox-runtime"))
+		}
+
+		if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != "copilot" {
+			engineID := "none"
+			if workflowData.EngineConfig != nil {
+				engineID = workflowData.EngineConfig.ID
+			}
+			ctx.AddError("sandbox_validation", fmt.Errorf("sandbox-runtime is only supported with Copilot engine (current engine: %s)", engineID))
+		}
+
+		// Check for mutual exclusivity with AWF
+		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
+			ctx.AddError("sandbox_validation", fmt.Errorf("sandbox-runtime and AWF firewall cannot be used together; please use either 'sandbox: sandbox-runtime' or 'network.firewall' but not both"))
+		}
+	}
+
+	// Validate config structure if provided
+	if sandboxConfig.Config != nil {
+		if sandboxConfig.Type != SandboxTypeRuntime {
+			ctx.AddError("sandbox_validation", fmt.Errorf("custom sandbox config can only be provided when type is 'sandbox-runtime'"))
+		}
+	}
+
+	// Validate MCP gateway configuration
+	if sandboxConfig.MCP != nil {
+		mcpConfig := sandboxConfig.MCP
+
+		// Validate mutual exclusivity of command and container
+		if mcpConfig.Command != "" && mcpConfig.Container != "" {
+			ctx.AddError("sandbox_validation", fmt.Errorf("sandbox.mcp: cannot specify both 'command' and 'container', use one or the other"))
+		}
+
+		// Validate entrypointArgs is only used with container
+		if len(mcpConfig.EntrypointArgs) > 0 && mcpConfig.Container == "" {
+			ctx.AddError("sandbox_validation", fmt.Errorf("sandbox.mcp: 'entrypointArgs' can only be used with 'container'"))
+		}
+	}
+}

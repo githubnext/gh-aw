@@ -277,3 +277,36 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 	strictModeValidationLog.Printf("Firewall validation passed")
 	return nil
 }
+
+// validateStrictModeWithContext performs strict mode validations using ValidationContext
+// This is the new pattern that supports error aggregation
+func (c *Compiler) validateStrictModeWithContext(ctx *ValidationContext, frontmatter map[string]any, networkPermissions *NetworkPermissions) {
+	if !c.strictMode {
+		strictModeValidationLog.Printf("Strict mode disabled, skipping validation")
+		return
+	}
+
+	strictModeValidationLog.Printf("Starting strict mode validation with context")
+
+	// 1. Refuse write permissions
+	if err := c.validateStrictPermissions(frontmatter); err != nil {
+		ctx.AddError("strict_mode_validation", err)
+	}
+
+	// 2. Require network configuration and refuse "*" wildcard
+	if err := c.validateStrictNetwork(networkPermissions); err != nil {
+		ctx.AddError("strict_mode_validation", err)
+	}
+
+	// 3. Require network configuration on custom MCP servers
+	if err := c.validateStrictMCPNetwork(frontmatter); err != nil {
+		ctx.AddError("strict_mode_validation", err)
+	}
+
+	// 4. Refuse deprecated fields
+	if err := c.validateStrictDeprecatedFields(frontmatter); err != nil {
+		ctx.AddError("strict_mode_validation", err)
+	}
+
+	strictModeValidationLog.Printf("Strict mode validation completed")
+}

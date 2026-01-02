@@ -55,6 +55,30 @@ func validateFeatures(data *WorkflowData) error {
 	return nil
 }
 
+// validateFeaturesWithContext validates all feature flags using ValidationContext
+// This is the new pattern that supports error aggregation
+func validateFeaturesWithContext(ctx *ValidationContext, data *WorkflowData) {
+	if data == nil || data.Features == nil {
+		featuresValidationLog.Print("No features to validate")
+		return
+	}
+
+	featuresValidationLog.Printf("Validating features with context: count=%d", len(data.Features))
+
+	// Validate action-tag if present
+	if actionTagVal, exists := data.Features["action-tag"]; exists {
+		featuresValidationLog.Print("Validating action-tag feature")
+		if err := validateActionTag(actionTagVal); err != nil {
+			featuresValidationLog.Printf("Action-tag validation failed: %v", err)
+			ctx.AddError("features_validation", err)
+		} else {
+			featuresValidationLog.Print("Action-tag validation passed")
+		}
+	}
+
+	featuresValidationLog.Print("Features validation completed")
+}
+
 // validateActionTag validates that action-tag is a full 40-character SHA when specified
 func validateActionTag(value any) error {
 	// Allow empty or nil values

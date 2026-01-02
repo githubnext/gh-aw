@@ -471,6 +471,35 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	return nil
 }
 
+// runPreCompileValidations runs all pre-compile phase validations using ValidationContext
+// This demonstrates the new error aggregation pattern where all validation errors are collected
+// before compilation fails, improving developer iteration speed.
+//
+// This method shows how to migrate from the old fail-fast pattern to the new error aggregation pattern:
+//   - Old pattern: Each validation returns immediately on first error
+//   - New pattern: All validations run, errors collected, all reported together
+//
+// Example usage:
+//
+//	ctx := NewValidationContext(markdownPath, workflowData)
+//	ctx.SetPhase(PhasePreCompile)
+//	c.runPreCompileValidations(ctx, workflowData, markdownPath)
+//	if ctx.HasErrors() {
+//		return errors.New(ctx.Error())
+//	}
+func (c *Compiler) runPreCompileValidations(ctx *ValidationContext, workflowData *WorkflowData, markdownPath string) {
+	log.Printf("Running pre-compile validations with ValidationContext")
+
+	// Run all pre-compile validators - they add errors to context instead of returning
+	validateFeaturesWithContext(ctx, workflowData)
+	validateSandboxConfigWithContext(ctx, workflowData)
+
+	// Note: Strict mode validation requires frontmatter map which is not stored in WorkflowData
+	// In a full migration, this would be added to WorkflowData or passed separately
+
+	log.Printf("Pre-compile validations completed: errors=%d, warnings=%d", ctx.ErrorCount(), ctx.WarningCount())
+}
+
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
