@@ -130,54 +130,23 @@ Using explicit times like `0 0 * * *` or `daily at midnight` causes all workflow
 :::
 
 **Supported Formats:**
-- **Daily (Fuzzy)**: `daily` → Scattered time like `43 5 * * *` (compiler determines)
-- **Daily (Fuzzy Around)**: `daily around HH:MM` → Scattered time within ±1 hour of target
-  - `daily around 14:00` → `20 14 * * *` (scattered between 13:00-15:00)
-  - `daily around 9am` → `38 8 * * *` (scattered between 08:00-10:00)
-  - `daily around midnight` → `27 0 * * *` (scattered between 23:00-01:00)
-  - `daily around noon` → Scattered time between 11:00-13:00
-  - **With UTC offsets**: `daily around 3pm utc-5` → `33 19 * * *` (3 PM EST → scattered around 8 PM UTC)
-  - **With time zones**: `daily around 14:00 utc+9` → `47 5 * * *` (2 PM JST → scattered around 5 AM UTC)
-  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
-- **Daily (Fixed)**: `daily at HH:MM` or `daily at midnight/noon` or `daily at Npm/Nam`
-  - `daily at 02:00` → `0 2 * * *` (⚠️ Warning: fixed time)
-  - `daily at midnight` → `0 0 * * *` (⚠️ Warning: fixed time)
-  - `daily at 3pm` → `0 15 * * *` (⚠️ Warning: fixed time)
-  - `daily at 6am` → `0 6 * * *` (⚠️ Warning: fixed time)
-- **Weekly (Fuzzy)**: `weekly` or `weekly on <day>` or `weekly on <day> around HH:MM`
-  - `weekly` → Scattered day and time like `43 5 * * 3` (compiler determines)
-  - `weekly on monday` → Scattered time like `43 5 * * 1` (compiler determines)
-  - `weekly on friday` → Scattered time like `28 14 * * 5` (compiler determines)
-  - `weekly on monday around 09:00` → Scattered time within ±1 hour like `32 9 * * 1` (08:00-10:00)
-  - `weekly on friday around 5pm` → Scattered time within ±1 hour like `18 16 * * 5` (16:00-18:00)
-  - `weekly on sunday around midnight` → Scattered time within ±1 hour like `47 23 * * 0` (23:00-01:00)
-  - **With UTC offsets**: `weekly on monday around 08:00 utc+9` → Scattered around 11 PM UTC previous day
-  - Supports all time formats: `HH:MM`, `midnight`, `noon`, `Npm`, `Nam` with optional UTC offsets
-- **Weekly (Fixed)**: `weekly on <day> at HH:MM` or `weekly on <day> at Npm/Nam`
-  - `weekly on monday at 06:30` → `30 6 * * 1` (⚠️ Warning: fixed time)
-  - `weekly on friday at 17:00` → `0 17 * * 5` (⚠️ Warning: fixed time)
-  - `weekly on friday at 5pm` → `0 17 * * 5` (⚠️ Warning: fixed time)
-- **Monthly**: `monthly on <day>` or `monthly on <day> at HH:MM` or `monthly on <day> at Npm/Nam`
-  - `monthly on 15 at 09:00` → `0 9 15 * *`
-  - `monthly on 1` → `0 0 1 * *`
-  - `monthly on 15 at 9am` → `0 9 15 * *`
-- **Intervals**: `every N minutes/hours` or `every Nm/Nh/Nd/Nw/Nmo` (minimum 5 minutes)
-  - `every 10 minutes` → `*/10 * * * *` (minute intervals don't scatter)
-  - **Hourly (Fuzzy)**: `every 2h` → Scattered minute like `53 */2 * * *` (compiler determines)
-  - **Hourly (Fuzzy)**: `every 1h` → Scattered minute like `28 */1 * * *` (compiler determines)
-  - **Hourly (Fixed)**: `0 */2 * * *` → (⚠️ Warning: fixed minute offset)
-  - `every 1d` → `0 0 * * *`
-  - `every 1w` → `0 0 * * 0`
-  - `every 1mo` → `0 0 1 * *`
-- **UTC Offsets**: Add `utc+N` or `utc-N` or `utc+HH:MM` to convert from local time to UTC
-  - `daily at 02:00 utc+9` → `0 17 * * *` (2 AM JST → 5 PM UTC previous day)
-  - `daily at 14:00 utc-5` → `0 19 * * *` (2 PM EST → 7 PM UTC)
-  - `weekly on monday at 09:30 utc+05:30` → `0 4 * * 1` (9:30 AM IST → 4 AM UTC)
-  - `daily at 3pm utc+9` → `0 6 * * *` (3 PM JST → 6 AM UTC)
-- **Time Formats**: `HH:MM` (24-hour), `midnight`, `noon`, `Npm` (1pm-12pm), `Nam` (1am-12am)
-  - `12am` = midnight (00:00)
-  - `12pm` = noon (12:00)
-  - `1am` = 01:00, `11pm` = 23:00
+
+| Format | Example | Result | Notes |
+|--------|---------|--------|-------|
+| **Daily (Fuzzy)** | `daily` | `43 5 * * *` | Compiler assigns scattered time |
+| | `daily around 14:00` | `20 14 * * *` | Scattered within ±1 hour (13:00-15:00) |
+| | `daily around 3pm utc-5` | `33 19 * * *` | With UTC offset (3 PM EST → 8 PM UTC) |
+| **Daily (Fixed)** | `daily at 02:00` | `0 2 * * *` | ⚠️ Creates load spikes |
+| **Weekly (Fuzzy)** | `weekly` or `weekly on monday` | `43 5 * * 1` | Compiler assigns scattered time |
+| | `weekly on friday around 5pm` | `18 16 * * 5` | Scattered within ±1 hour |
+| **Weekly (Fixed)** | `weekly on monday at 06:30` | `30 6 * * 1` | ⚠️ Creates load spikes |
+| **Monthly** | `monthly on 15 at 09:00` | `0 9 15 * *` | Fixed day and time |
+| **Intervals** | `every 10 minutes` | `*/10 * * * *` | Minimum 5 minutes |
+| | `every 2h` | `53 */2 * * *` | Fuzzy: scattered minute offset |
+| | `0 */2 * * *` | `0 */2 * * *` | ⚠️ Fixed: creates load spikes |
+
+**Time formats:** `HH:MM` (24-hour), `midnight`, `noon`, `1pm`-`12pm`, `1am`-`12am`
+**UTC offsets:** Add `utc+N` or `utc-N` to any time (e.g., `daily at 14:00 utc-5`)
 
 The human-friendly format is automatically converted to standard cron expressions, with the original format preserved as a comment in the generated workflow file.
 
@@ -337,7 +306,7 @@ The `command:` trigger field is deprecated. Use `slash_command:` instead.
 
 ### Label Filtering (`names:`)
 
-An additional kind of issue and pull request trigger is available in GitHub Agentic Workflows to specific label names using the `names:` field:
+Filter issue and pull request triggers by label names using the `names:` field:
 
 ```yaml wrap
 on:
@@ -346,54 +315,21 @@ on:
     names: [bug, critical, security]
 ```
 
-This filtering is especially useful for [LabelOps workflows](/gh-aw/examples/issue-pr-events/labelops/) where specific labels trigger different automation behaviors.
+#### Shorthand Syntax
 
-#### Shorthand Syntax for Label Triggers
+Use convenient shorthand for label-based triggers:
 
-GitHub Agentic Workflows provides convenient shorthand syntax for label-based triggers:
-
-**Basic format:**
 ```yaml wrap
 on: issue labeled bug
-```
-
-**Multiple labels (space-separated):**
-```yaml wrap
-on: issue labeled bug enhancement priority-high
-```
-
-**Multiple labels (comma-separated):**
-```yaml wrap
-on: issue labeled bug, enhancement, priority-high
-```
-
-**With explicit item type:**
-```yaml wrap
+on: issue labeled bug, enhancement, priority-high  # Multiple labels
 on: pull_request labeled needs-review, ready-to-merge
 ```
 
-All shorthand formats compile to the standard GitHub Actions syntax:
-
-```yaml wrap
-on:
-  issues:  # or pull_request
-    types: [labeled]
-    names:
-      - bug
-      - enhancement
-      - priority-high
-```
-
-**Supported entity types:**
-- `issue labeled <labels>` - Issue label events
-- `pull_request labeled <labels>` - Pull request label events
-- `discussion labeled <labels>` - Discussion label events (GitHub Actions doesn't support `names` for discussions, so only the `types` filter is applied)
-
-The shorthand syntax automatically includes `workflow_dispatch` trigger, similar to how `on: daily` expands to include both schedule and workflow_dispatch.
+All shorthand formats compile to standard GitHub Actions syntax and automatically include the `workflow_dispatch` trigger. Supported for `issue`, `pull_request`, and `discussion` events. See [LabelOps workflows](/gh-aw/examples/issue-pr-events/labelops/) for automation examples.
 
 ### Reactions (`reaction:`)
 
-An additional option  `reaction:` is available within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
+Enable emoji reactions on triggering items (issues, PRs, comments, discussions) to provide visual workflow status feedback:
 
 ```yaml wrap
 on:
@@ -402,11 +338,9 @@ on:
   reaction: "eyes"
 ```
 
-The reaction is added to the triggering item. For issues/PRs, a comment with the workflow run link is also created. For comment events in command workflows, the comment is edited to include the run link.
+The reaction is added to the triggering item. For issues/PRs, a comment with the workflow run link is created. For comment events in command workflows, the comment is edited to include the run link.
 
 **Available reactions:** `+1` 👍, `-1` 👎, `laugh` 😄, `confused` 😕, `heart` ❤️, `hooray` 🎉, `rocket` 🚀, `eyes` 👀
-
-**Job outputs** (`add_reaction`): `reaction_id`, `comment_id` (issues/PRs only), `comment_url` (issues/PRs only)
 
 ### Stop After Configuration (`stop-after:`)
 
@@ -439,15 +373,13 @@ The field accepts a string environment name that must match a configured environ
 
 Conditionally skip workflow execution when a GitHub search query has matches. Useful for preventing duplicate scheduled runs or waiting for prerequisites.
 
-**Basic Usage (String Format):**
 ```yaml wrap
 on:
   schedule:
     - cron: "0 13 * * 1-5"
-  skip-if-match: 'is:issue is:open in:title "[daily-report]"'
+  skip-if-match: 'is:issue is:open in:title "[daily-report]"'  # Skip if any match
 ```
 
-**Advanced Usage (Object Format with Threshold):**
 ```yaml wrap
 on:
   schedule:
@@ -457,54 +389,19 @@ on:
     max: 3  # Skip if 3 or more PRs match
 ```
 
-**How it works:**
-1. A pre-activation check runs the search query against the current repository
-2. If the number of matches reaches or exceeds the threshold, the workflow is skipped
-3. The query is automatically scoped to the current repository
-4. String format implies `max: 1` (skip if any matches found)
-
-**Common Use Cases:**
-
-Prevent duplicate scheduled reports:
-```yaml wrap
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-  skip-if-match: 'is:issue is:open label:weekly-summary'
-```
-
-Wait for deployment PRs to close:
-```yaml wrap
-on:
-  workflow_dispatch:
-  skip-if-match: "is:pr is:open label:deployment"
-```
-
-Skip if processing queue is full (3+ items):
-```yaml wrap
-on:
-  schedule:
-    - cron: "0 */6 * * *"
-  skip-if-match:
-    query: "is:issue is:open label:needs-processing"
-    max: 3
-```
-
-The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
+A pre-activation check runs the search query against the current repository. If matches reach or exceed the threshold (default `max: 1`), the workflow is skipped. The query is automatically scoped to the current repository and supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
 
 ### Skip-If-No-Match Condition (`skip-if-no-match:`)
 
-Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match` and is useful for waiting for prerequisites before running a workflow.
+Conditionally skip workflow execution when a GitHub search query has **no matches** (or fewer than the minimum required). This is the opposite of `skip-if-match`.
 
-**Basic Usage (String Format):**
 ```yaml wrap
 on:
   schedule:
     - cron: "0 9 * * 1"
-  skip-if-no-match: 'is:pr is:open label:ready-to-deploy'
+  skip-if-no-match: 'is:pr is:open label:ready-to-deploy'  # Skip if no matches
 ```
 
-**Advanced Usage (Object Format with Minimum Threshold):**
 ```yaml wrap
 on:
   workflow_dispatch:
@@ -513,40 +410,7 @@ on:
     min: 3  # Only run if 3 or more issues match
 ```
 
-**How it works:**
-1. A pre-activation check runs the search query against the current repository
-2. If the number of matches is less than the minimum threshold, the workflow is skipped
-3. The query is automatically scoped to the current repository
-4. String format implies `min: 1` (skip if no matches found)
-
-**Common Use Cases:**
-
-Wait for deployment PRs to be ready:
-```yaml wrap
-on:
-  schedule:
-    - cron: "0 */2 * * *"
-  skip-if-no-match: 'is:pr is:open label:ready-to-deploy'
-```
-
-Run only when multiple issues require attention:
-```yaml wrap
-on:
-  workflow_dispatch:
-  skip-if-no-match:
-    query: "is:issue is:open label:needs-review"
-    min: 5
-```
-
-Combined with skip-if-match for complex conditions:
-```yaml wrap
-on:
-  workflow_dispatch:
-  skip-if-match: "is:issue is:open label:blocked"
-  skip-if-no-match: "is:pr is:open label:ready"
-```
-
-The search uses GitHub's issue/PR search API with efficient `per_page=1` query. Supports all standard GitHub search qualifiers (`is:`, `label:`, `in:title`, `author:`, etc.).
+A pre-activation check runs the search query against the current repository. If matches are below the threshold (default `min: 1`), the workflow is skipped. Can be combined with `skip-if-match` for complex conditions. Supports all standard GitHub search qualifiers.
 
 ## Related Documentation
 
