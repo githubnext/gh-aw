@@ -32,8 +32,7 @@ on:
     workflows: ["build"]
     types: [completed]
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Workflow Run Without Branches
@@ -52,8 +51,7 @@ on:
     workflows: ["build"]
     types: [completed]
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Workflow Run Without Branches Strict
@@ -75,8 +73,7 @@ on:
       - main
       - develop
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Workflow Run With Branches
@@ -97,8 +94,7 @@ on:
     branches:
       - main
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Workflow Run With Branches Strict
@@ -116,8 +112,7 @@ on:
   push:
     branches: [main]
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Push Workflow
@@ -138,8 +133,7 @@ on:
     workflows: ["build"]
     types: [completed]
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Mixed Triggers
@@ -159,8 +153,7 @@ on:
     types: [completed]
     branches: []
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Workflow Run With Empty Branches
@@ -227,8 +220,7 @@ func TestWorkflowRunBranchValidationEdgeCases(t *testing.T) {
 			frontmatter: `---
 on: push
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # No On Field
@@ -245,8 +237,7 @@ on:
     workflows: ["build", "test"]
     types: [completed]
 tools:
-  github:
-    allowed: [list_issues]
+  github: false
 ---
 
 # Multiple Workflows
