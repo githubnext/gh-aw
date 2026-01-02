@@ -196,9 +196,9 @@ func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, s
 
 				// Apply campaign filtering if --campaign flag is specified
 				if campaignOnly {
-					// Campaign orchestrator workflows end with .campaign.g.lock.yml
+					// Campaign orchestrator workflows end with .campaign.lock.yml
 					isCampaign := strings.HasSuffix(result.Run.WorkflowName, " Campaign Orchestrator") ||
-						strings.Contains(result.Run.WorkflowPath, ".campaign.g.lock.yml")
+						strings.Contains(result.Run.WorkflowPath, ".campaign.lock.yml")
 
 					if !isCampaign {
 						if verbose {

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -196,18 +195,16 @@ func TestGetMCPGatewayConfig(t *testing.T) {
 
 func TestGenerateMCPGatewaySteps(t *testing.T) {
 	tests := []struct {
-		name             string
-		data             *WorkflowData
-		mcpServers       map[string]any
-		gatewayedServers []string
-		expectSteps      int
+		name        string
+		data        *WorkflowData
+		mcpServers  map[string]any
+		expectSteps int
 	}{
 		{
-			name:             "gateway disabled returns no steps",
-			data:             &WorkflowData{},
-			mcpServers:       map[string]any{},
-			gatewayedServers: []string{},
-			expectSteps:      0,
+			name:        "gateway disabled returns no steps",
+			data:        &WorkflowData{},
+			mcpServers:  map[string]any{},
+			expectSteps: 0,
 		},
 		{
 			name: "gateway enabled returns two steps",
@@ -224,8 +221,7 @@ func TestGenerateMCPGatewaySteps(t *testing.T) {
 			mcpServers: map[string]any{
 				"github": map[string]any{},
 			},
-			gatewayedServers: []string{"github"},
-			expectSteps:      2,
+			expectSteps: 2,
 		},
 	}
 
@@ -262,9 +258,7 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	}
 
 	step := generateMCPGatewayHealthCheckStep(config)
-	stepYAML, err := yaml.Marshal(step)
-	require.NoError(t, err)
-	stepStr := string(stepYAML)
+	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
 	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
@@ -273,51 +267,51 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_UsesCorrectPort(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
-	// Test that health check step is generated
+	// Test that the health check uses the configured port
 	step := generateMCPGatewayHealthCheckStep(config)
-	stepYAML, err := yaml.Marshal(step)
-	require.NoError(t, err)
-	stepStr := string(stepYAML)
+	stepStr := strings.Join(step, "\n")
 
-	// Should include gateway health check
+	// Should include health check with correct port
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
 	assert.Contains(t, stepStr, "http://localhost:8080")
+	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_NoGatewayedServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_IncludesMCPConfig(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
-	// Test with no gatewayed servers (only internal servers)
+	// Test that health check includes MCP config path
 	step := generateMCPGatewayHealthCheckStep(config)
-	stepYAML, err := yaml.Marshal(step)
-	require.NoError(t, err)
-	stepStr := string(stepYAML)
+	stepStr := strings.Join(step, "\n")
 
-	// Should still include health check
+	// Should include MCP config path
+	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
+	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
+
+	// Should still have basic health check
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
-	assert.Contains(t, stepStr, "http://localhost:8080")
+	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 }
 
-func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
+func TestGenerateMCPGatewayHealthCheckStep_GeneratesValidStep(t *testing.T) {
 	config := &MCPGatewayRuntimeConfig{
 		Port: 8080,
 	}
 
-	// Test with internal servers that should be skipped
+	// Test that a valid step is generated
 	step := generateMCPGatewayHealthCheckStep(config)
-	stepYAML, err := yaml.Marshal(step)
-	require.NoError(t, err)
-	stepStr := string(stepYAML)
+	stepStr := strings.Join(step, "\n")
 
-	// Should include health check
-	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	// Should generate a valid GitHub Actions step
+	assert.Contains(t, stepStr, "- name: Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 	assert.Contains(t, stepStr, "http://localhost:8080")
 }
 
@@ -721,9 +715,7 @@ func TestGenerateMCPGatewayHealthCheckStepWithInvalidPort(t *testing.T) {
 			}
 
 			step := generateMCPGatewayHealthCheckStep(config)
-			stepYAML, err := yaml.Marshal(step)
-			require.NoError(t, err)
-			stepStr := string(stepYAML)
+			stepStr := strings.Join(step, "\n")
 
 			// Should still generate valid step with default port
 			assert.Contains(t, stepStr, "Verify MCP Gateway Health")
