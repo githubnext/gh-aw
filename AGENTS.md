@@ -731,6 +731,65 @@ make minor-release  # Automated via GitHub Actions
 For investigating and resolving workflow issues:
 - **[Workflow Health Monitoring](.github/aw/runbooks/workflow-health.md)** - Comprehensive runbook for diagnosing missing-tool errors, authentication failures, MCP configuration issues, and safe-input/output problems. Includes step-by-step investigation procedures, resolution examples, and case studies from real incidents.
 
+## PR Completion Workflow
+
+When working on pull requests created by Copilot coding agent, follow this completion workflow:
+
+### Completion Criteria
+
+A PR is ready to be marked "ready for review" when ALL of the following are true:
+
+- ✅ All planned changes are complete
+- ✅ Code compiles successfully (`make build`)
+- ✅ All tests pass (`make test` or `make test-unit`)
+- ✅ Code is formatted and linted (`make fmt` and `make lint`)
+- ✅ Workflows recompiled if needed (`make recompile`)
+- ✅ Code review feedback addressed (if any)
+- ✅ No blocking security issues
+- ✅ Documentation updated (if applicable)
+
+### Marking PR as Ready
+
+**DO NOT use `gh pr ready`** - agents don't have access to the `gh` CLI command.
+
+Instead, use the GitHub MCP server's `update_pull_request` tool:
+
+```
+mcp__github__update_pull_request with:
+- owner: "githubnext"
+- repo: "gh-aw"  
+- pull_number: <PR number from context>
+- draft: false
+```
+
+**When to mark ready:**
+1. After completing all work and running `make agent-finish` successfully
+2. After addressing all code review comments that you agree with
+3. When you believe the PR is ready for human review and potential merge
+
+**When NOT to mark ready:**
+- Tests are failing
+- Build is broken
+- There are unresolved TODO comments in your changes
+- You're waiting for feedback on an approach
+- Security vulnerabilities remain unfixed
+
+### Example Workflow
+
+```bash
+# 1. Complete all changes
+git status
+git diff
+
+# 2. Validate everything
+make agent-finish  # Runs build, test, recompile, fmt, lint
+
+# 3. If all validations pass, mark PR as ready via GitHub MCP
+# Use mcp__github__update_pull_request tool with draft: false
+```
+
+**Note**: The PR will remain in draft status until you explicitly mark it ready. This is intentional - it prevents premature review requests while work is in progress.
+
 ## Available Skills Reference
 
 Skills provide specialized, detailed knowledge on specific topics. **Use them only when needed** - don't load skills preemptively.
