@@ -604,95 +604,14 @@ jobs:
           # Verify gatewayed servers (external MCP servers proxied through gateway)
           echo 'Validating gatewayed servers...'
           
-          # Verify github server is gatewayed (has HTTP URL to gateway)
-          if ! grep -q '"github"' /home/runner/.copilot/mcp-config.json; then
-            echo 'ERROR: github server not found in MCP configuration'
-            exit 1
-          fi
-          github_config=$(jq -r '.mcpServers."github"' /home/runner/.copilot/mcp-config.json)
-          if [ "$github_config" = "null" ]; then
-            echo 'ERROR: github server configuration is null'
-            exit 1
-          fi
-          github_url=$(echo "$github_config" | jq -r '.url // empty')
-          github_type=$(echo "$github_config" | jq -r '.type // empty')
-          if [ -z "$github_url" ] || [ "$github_url" = "null" ]; then
-            echo 'ERROR: github server does not have HTTP URL (not gatewayed correctly)'
-            echo "Config: $github_config"
-            exit 1
-          fi
-          if [ "$github_type" != "http" ]; then
-            echo 'ERROR: github server type is not "http" (expected for gatewayed servers)'
-            echo "Type: $github_type"
-            exit 1
-          fi
-          if ! echo "$github_url" | grep -q 'http://localhost:8080'; then
-            echo 'ERROR: github server URL does not point to gateway'
-            echo "Expected gateway URL: http://localhost:8080"
-            echo "Actual URL: $github_url"
-            exit 1
-          fi
-          echo '✓ github server is correctly gatewayed'
+          # Validate github server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "github" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
           
-          # Verify playwright server is gatewayed (has HTTP URL to gateway)
-          if ! grep -q '"playwright"' /home/runner/.copilot/mcp-config.json; then
-            echo 'ERROR: playwright server not found in MCP configuration'
-            exit 1
-          fi
-          playwright_config=$(jq -r '.mcpServers."playwright"' /home/runner/.copilot/mcp-config.json)
-          if [ "$playwright_config" = "null" ]; then
-            echo 'ERROR: playwright server configuration is null'
-            exit 1
-          fi
-          playwright_url=$(echo "$playwright_config" | jq -r '.url // empty')
-          playwright_type=$(echo "$playwright_config" | jq -r '.type // empty')
-          if [ -z "$playwright_url" ] || [ "$playwright_url" = "null" ]; then
-            echo 'ERROR: playwright server does not have HTTP URL (not gatewayed correctly)'
-            echo "Config: $playwright_config"
-            exit 1
-          fi
-          if [ "$playwright_type" != "http" ]; then
-            echo 'ERROR: playwright server type is not "http" (expected for gatewayed servers)'
-            echo "Type: $playwright_type"
-            exit 1
-          fi
-          if ! echo "$playwright_url" | grep -q 'http://localhost:8080'; then
-            echo 'ERROR: playwright server URL does not point to gateway'
-            echo "Expected gateway URL: http://localhost:8080"
-            echo "Actual URL: $playwright_url"
-            exit 1
-          fi
-          echo '✓ playwright server is correctly gatewayed'
+          # Validate playwright server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "playwright" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
           
-          # Verify serena server is gatewayed (has HTTP URL to gateway)
-          if ! grep -q '"serena"' /home/runner/.copilot/mcp-config.json; then
-            echo 'ERROR: serena server not found in MCP configuration'
-            exit 1
-          fi
-          serena_config=$(jq -r '.mcpServers."serena"' /home/runner/.copilot/mcp-config.json)
-          if [ "$serena_config" = "null" ]; then
-            echo 'ERROR: serena server configuration is null'
-            exit 1
-          fi
-          serena_url=$(echo "$serena_config" | jq -r '.url // empty')
-          serena_type=$(echo "$serena_config" | jq -r '.type // empty')
-          if [ -z "$serena_url" ] || [ "$serena_url" = "null" ]; then
-            echo 'ERROR: serena server does not have HTTP URL (not gatewayed correctly)'
-            echo "Config: $serena_config"
-            exit 1
-          fi
-          if [ "$serena_type" != "http" ]; then
-            echo 'ERROR: serena server type is not "http" (expected for gatewayed servers)'
-            echo "Type: $serena_type"
-            exit 1
-          fi
-          if ! echo "$serena_url" | grep -q 'http://localhost:8080'; then
-            echo 'ERROR: serena server URL does not point to gateway'
-            echo "Expected gateway URL: http://localhost:8080"
-            echo "Actual URL: $serena_url"
-            exit 1
-          fi
-          echo '✓ serena server is correctly gatewayed'
+          # Validate serena server
+          /tmp/gh-aw/actions/validate_gatewayed_server.sh "serena" "/home/runner/.copilot/mcp-config.json" "http://localhost:8080"
           
           echo 'All gatewayed servers validated successfully'
           

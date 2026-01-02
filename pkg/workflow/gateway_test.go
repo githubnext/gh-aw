@@ -297,25 +297,12 @@ func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.
 	// Should include gateway validation section
 	assert.Contains(t, stepStr, "Validating gatewayed servers...")
 
-	// Should validate each gatewayed server
+	// Should validate each gatewayed server using the shell script
 	for _, serverName := range gatewayedServers {
-		// Verify server presence check
-		assert.Contains(t, stepStr, fmt.Sprintf("# Verify %s server is gatewayed", serverName))
-		assert.Contains(t, stepStr, fmt.Sprintf("grep -q '\"%s\"'", serverName))
-
-		// Verify URL extraction
-		assert.Contains(t, stepStr, fmt.Sprintf("%s_url=$(echo \"$%s_config\" | jq -r '.url // empty')", serverName, serverName))
-
-		// Verify type check
-		assert.Contains(t, stepStr, fmt.Sprintf("if [ \"$%s_type\" != \"http\" ]; then", serverName))
-		assert.Contains(t, stepStr, fmt.Sprintf("ERROR: %s server type is not \"http\"", serverName))
-
-		// Verify gateway URL check
-		assert.Contains(t, stepStr, fmt.Sprintf("if ! echo \"$%s_url\" | grep -q 'http://localhost:8080'; then", serverName))
-		assert.Contains(t, stepStr, fmt.Sprintf("ERROR: %s server URL does not point to gateway", serverName))
-
-		// Verify success message
-		assert.Contains(t, stepStr, fmt.Sprintf("✓ %s server is correctly gatewayed", serverName))
+		// Verify the script is called with correct arguments
+		assert.Contains(t, stepStr, fmt.Sprintf("# Validate %s server", serverName))
+		assert.Contains(t, stepStr, fmt.Sprintf("/tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\"", serverName))
+		assert.Contains(t, stepStr, "http://localhost:8080")
 	}
 
 	// Should have completion message
@@ -351,12 +338,12 @@ func TestGenerateMCPGatewayHealthCheckStep_SkipsInternalServers(t *testing.T) {
 	stepStr := strings.Join(step, "\n")
 
 	// Should NOT validate safe-inputs or safe-outputs as gatewayed
-	assert.NotContains(t, stepStr, "# Verify safe-inputs server is gatewayed")
-	assert.NotContains(t, stepStr, "# Verify safe-outputs server is gatewayed")
+	assert.NotContains(t, stepStr, "# Validate safe-inputs server")
+	assert.NotContains(t, stepStr, "# Validate safe-outputs server")
 
 	// Should validate github as gatewayed
-	assert.Contains(t, stepStr, "# Verify github server is gatewayed")
-	assert.Contains(t, stepStr, "✓ github server is correctly gatewayed")
+	assert.Contains(t, stepStr, "# Validate github server")
+	assert.Contains(t, stepStr, "/tmp/gh-aw/actions/validate_gatewayed_server.sh \"github\"")
 }
 
 func TestGetMCPGatewayURL(t *testing.T) {

@@ -356,6 +356,7 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewaye
 		stepLines = append(stepLines,
 			"          # Verify gatewayed servers (external MCP servers proxied through gateway)",
 			"          echo 'Validating gatewayed servers...'",
+			"          ",
 		)
 		for _, serverName := range gatewayedServers {
 			// Skip internal servers (safeinputs/safeoutputs) as they're not proxied
@@ -364,40 +365,12 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewaye
 			}
 			gatewayLog.Printf("Adding validation for gatewayed server: %s", serverName)
 			stepLines = append(stepLines,
+				fmt.Sprintf("          # Validate %s server", serverName),
+				fmt.Sprintf("          /tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\" \"%s\" \"%s\"", serverName, mcpConfigPath, gatewayURL),
 				"          ",
-				fmt.Sprintf("          # Verify %s server is gatewayed (has HTTP URL to gateway)", serverName),
-				fmt.Sprintf("          if ! grep -q '\"%s\"' %s; then", serverName, mcpConfigPath),
-				fmt.Sprintf("            echo 'ERROR: %s server not found in MCP configuration'", serverName),
-				"            exit 1",
-				"          fi",
-				fmt.Sprintf("          %s_config=$(jq -r '.mcpServers.\"%s\"' %s)", serverName, serverName, mcpConfigPath),
-				fmt.Sprintf("          if [ \"$%s_config\" = \"null\" ]; then", serverName),
-				fmt.Sprintf("            echo 'ERROR: %s server configuration is null'", serverName),
-				"            exit 1",
-				"          fi",
-				fmt.Sprintf("          %s_url=$(echo \"$%s_config\" | jq -r '.url // empty')", serverName, serverName),
-				fmt.Sprintf("          %s_type=$(echo \"$%s_config\" | jq -r '.type // empty')", serverName, serverName),
-				fmt.Sprintf("          if [ -z \"$%s_url\" ] || [ \"$%s_url\" = \"null\" ]; then", serverName, serverName),
-				fmt.Sprintf("            echo 'ERROR: %s server does not have HTTP URL (not gatewayed correctly)'", serverName),
-				fmt.Sprintf("            echo \"Config: $%s_config\"", serverName),
-				"            exit 1",
-				"          fi",
-				fmt.Sprintf("          if [ \"$%s_type\" != \"http\" ]; then", serverName),
-				fmt.Sprintf("            echo 'ERROR: %s server type is not \"http\" (expected for gatewayed servers)'", serverName),
-				fmt.Sprintf("            echo \"Type: $%s_type\"", serverName),
-				"            exit 1",
-				"          fi",
-				fmt.Sprintf("          if ! echo \"$%s_url\" | grep -q '%s'; then", serverName, gatewayURL),
-				fmt.Sprintf("            echo 'ERROR: %s server URL does not point to gateway'", serverName),
-				fmt.Sprintf("            echo \"Expected gateway URL: %s\"", gatewayURL),
-				fmt.Sprintf("            echo \"Actual URL: $%s_url\"", serverName),
-				"            exit 1",
-				"          fi",
-				fmt.Sprintf("          echo '✓ %s server is correctly gatewayed'", serverName),
 			)
 		}
 		stepLines = append(stepLines,
-			"          ",
 			"          echo 'All gatewayed servers validated successfully'",
 			"          ",
 		)
