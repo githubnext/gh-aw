@@ -144,82 +144,16 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
 	if firewallEnabled {
-		// Build AWF-wrapped command
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfLogLevel = "info"
-		if firewallConfig != nil && firewallConfig.LogLevel != "" {
-			awfLogLevel = firewallConfig.LogLevel
-		}
-
 		// Get allowed domains (Codex defaults + network permissions)
 		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
 
-		// Build AWF arguments: mount points + standard flags + custom args from config
-		var awfArgs []string
-		awfArgs = append(awfArgs, "--env-all")
-
-		// Set container working directory to match GITHUB_WORKSPACE
-		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-		// Add mount arguments for required paths
-		// Always mount /tmp for temporary files, cache, and CODEX_HOME
-		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
-
-		// Always mount the workspace directory so Codex can access it
-		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
-		codexEngineLog.Print("Added workspace mount to AWF")
-
-		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
-		// This includes node binary, npm, and all global packages including Codex
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
-
-		codexEngineLog.Print("Added hostedtoolcache node mount to AWF container")
-
-		// Add custom mounts from agent config if specified
-		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			sortedMounts := make([]string, len(agentConfig.Mounts))
-			copy(sortedMounts, agentConfig.Mounts)
-			sort.Strings(sortedMounts)
-
-			for _, mount := range sortedMounts {
-				awfArgs = append(awfArgs, "--mount", mount)
-			}
-			codexEngineLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+		// Build AWF arguments using shared helper
+		awfConfig := AWFConfig{
+			AllowedDomains: allowedDomains,
+			EnableTTY:      false, // Codex is not a TUI, it outputs to stdout/stderr
+			LoggerFunc:     codexEngineLog.Printf,
 		}
-
-		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
-		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
-
-		// Pin AWF Docker image version to match the installed binary version
-		awfImageTag := getAWFImageTag(firewallConfig)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-
-		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
-
-		// Add custom args if specified in firewall config
-		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
-			awfArgs = append(awfArgs, firewallConfig.Args...)
-		}
-
-		// Add custom args from agent config if specified
-		if agentConfig != nil && len(agentConfig.Args) > 0 {
-			awfArgs = append(awfArgs, agentConfig.Args...)
-			codexEngineLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-		}
-
-		// Determine the AWF command to use (custom or standard)
-		var awfCommand string
-		if agentConfig != nil && agentConfig.Command != "" {
-			awfCommand = agentConfig.Command
-			codexEngineLog.Printf("Using custom AWF command: %s", awfCommand)
-		} else {
-			awfCommand = "sudo -E awf"
-			codexEngineLog.Print("Using standard AWF command")
-		}
+		awfArgs, awfCommand := buildAWFArgs(workflowData, awfConfig)
 
 		// Prepend PATH setup to find codex in hostedtoolcache
 		// This ensures codex and all its dependencies (including MCP servers) are accessible

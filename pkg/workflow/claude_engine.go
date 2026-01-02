@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -224,89 +223,19 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build the full command based on whether firewall is enabled
 	var command string
 	if isFirewallEnabled(workflowData) {
-		// Build the AWF-wrapped command
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfLogLevel = "info"
-		if firewallConfig != nil && firewallConfig.LogLevel != "" {
-			awfLogLevel = firewallConfig.LogLevel
-		}
-
 		// Check if safe-inputs is enabled to include host.docker.internal in allowed domains
 		hasSafeInputs := IsSafeInputsEnabled(workflowData.SafeInputs, workflowData)
 
 		// Get allowed domains (Claude defaults + network permissions + host.docker.internal if safe-inputs enabled)
 		allowedDomains := GetClaudeAllowedDomainsWithSafeInputs(workflowData.NetworkPermissions, hasSafeInputs)
 
-		// Build AWF arguments: mount points + standard flags + custom args from config
-		var awfArgs []string
-		awfArgs = append(awfArgs, "--env-all")
-
-		// TTY is required for Claude Code CLI
-		awfArgs = append(awfArgs, "--tty")
-
-		// Set container working directory to match GITHUB_WORKSPACE
-		// This ensures pwd inside the container matches what the prompt tells the AI
-		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-		claudeLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-		// Add mount arguments for required paths
-		// Always mount /tmp for temporary files and cache
-		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
-
-		// Always mount the workspace directory so Claude CLI can access it
-		// Use double quotes to allow shell variable expansion
-		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
-		claudeLog.Print("Added workspace mount to AWF")
-
-		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
-		// This includes node binary, npm, and all global packages including Claude
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
-
-		claudeLog.Print("Added hostedtoolcache node mount to AWF container")
-
-		// Add custom mounts from agent config if specified
-		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			// Sort mounts for consistent output
-			sortedMounts := make([]string, len(agentConfig.Mounts))
-			copy(sortedMounts, agentConfig.Mounts)
-			sort.Strings(sortedMounts)
-
-			for _, mount := range sortedMounts {
-				awfArgs = append(awfArgs, "--mount", mount)
-			}
-			claudeLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+		// Build AWF arguments using shared helper
+		awfConfig := AWFConfig{
+			AllowedDomains: allowedDomains,
+			EnableTTY:      true, // TTY is required for Claude Code CLI
+			LoggerFunc:     claudeLog.Printf,
 		}
-
-		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
-		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
-
-		// Pin AWF Docker image version to match the installed binary version
-		awfImageTag := getAWFImageTag(firewallConfig)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-
-		// Add custom args if specified in firewall config
-		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
-			awfArgs = append(awfArgs, firewallConfig.Args...)
-		}
-
-		// Add custom args from agent config if specified
-		if agentConfig != nil && len(agentConfig.Args) > 0 {
-			awfArgs = append(awfArgs, agentConfig.Args...)
-			claudeLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-		}
-
-		// Determine the AWF command to use (custom or standard)
-		var awfCommand string
-		if agentConfig != nil && agentConfig.Command != "" {
-			awfCommand = agentConfig.Command
-			claudeLog.Printf("Using custom AWF command: %s", awfCommand)
-		} else {
-			awfCommand = "sudo -E awf"
-			claudeLog.Print("Using standard AWF command")
-		}
+		awfArgs, awfCommand := buildAWFArgs(workflowData, awfConfig)
 
 		// Build the command with AWF wrapper
 		if promptSetup != "" {

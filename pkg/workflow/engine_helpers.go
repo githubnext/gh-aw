@@ -278,3 +278,127 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 
 	return stepLines
 }
+
+// AWFConfig contains configuration options for building AWF (Agentic Workflow Firewall) arguments.
+// This struct parameterizes the differences between engines when building AWF wrapper commands.
+type AWFConfig struct {
+	// AllowedDomains is the comma-separated list of allowed network domains
+	AllowedDomains string
+	// EnableTTY indicates whether to enable TTY for the containerized command
+	EnableTTY bool
+	// LoggerFunc is the logging function to use for debug messages (engine-specific)
+	LoggerFunc func(string, ...interface{})
+}
+
+// buildAWFArgs constructs the AWF (Agentic Workflow Firewall) argument list for wrapping
+// AI agent commands in a sandboxed container with network restrictions.
+//
+// This function encapsulates the common AWF argument building logic shared across Claude and
+// Codex engines, reducing code duplication while allowing engine-specific customization via
+// the AWFConfig parameter.
+//
+// Parameters:
+//   - workflowData: The workflow data containing firewall and agent configurations
+//   - config: Engine-specific configuration (allowed domains, TTY, logging)
+//
+// Returns:
+//   - []string: The list of AWF arguments to pass to the awf command
+//   - string: The AWF command to use (custom or "sudo -E awf")
+func buildAWFArgs(workflowData *WorkflowData, config AWFConfig) ([]string, string) {
+	firewallConfig := getFirewallConfig(workflowData)
+	agentConfig := getAgentConfig(workflowData)
+	
+	// Determine log level
+	var awfLogLevel = "info"
+	if firewallConfig != nil && firewallConfig.LogLevel != "" {
+		awfLogLevel = firewallConfig.LogLevel
+	}
+
+	// Build AWF arguments: mount points + standard flags + custom args from config
+	var awfArgs []string
+	awfArgs = append(awfArgs, "--env-all")
+
+	// Add TTY flag if enabled (required for Claude Code CLI)
+	if config.EnableTTY {
+		awfArgs = append(awfArgs, "--tty")
+	}
+
+	// Set container working directory to match GITHUB_WORKSPACE
+	awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
+	if config.LoggerFunc != nil {
+		config.LoggerFunc("Set container working directory to GITHUB_WORKSPACE")
+	}
+
+	// Add mount arguments for required paths
+	// Always mount /tmp for temporary files, cache, and agent home directories
+	awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
+
+	// Always mount the workspace directory so the agent can access it
+	awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
+	if config.LoggerFunc != nil {
+		config.LoggerFunc("Added workspace mount to AWF")
+	}
+
+	// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
+	// This includes node binary, npm, and all global packages including the AI agent CLI
+	awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
+	if config.LoggerFunc != nil {
+		config.LoggerFunc("Added hostedtoolcache node mount to AWF container")
+	}
+
+	// Add custom mounts from agent config if specified
+	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
+		// Sort mounts for consistent output
+		sortedMounts := make([]string, len(agentConfig.Mounts))
+		copy(sortedMounts, agentConfig.Mounts)
+		sort.Strings(sortedMounts)
+
+		for _, mount := range sortedMounts {
+			awfArgs = append(awfArgs, "--mount", mount)
+		}
+		if config.LoggerFunc != nil {
+			config.LoggerFunc("Added %d custom mounts from agent config", len(sortedMounts))
+		}
+	}
+
+	// Add network and logging configuration
+	awfArgs = append(awfArgs, "--allow-domains", config.AllowedDomains)
+	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+	awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
+
+	// Pin AWF Docker image version to match the installed binary version
+	awfImageTag := getAWFImageTag(firewallConfig)
+	awfArgs = append(awfArgs, "--image-tag", awfImageTag)
+	if config.LoggerFunc != nil {
+		config.LoggerFunc("Pinned AWF image tag to %s", awfImageTag)
+	}
+
+	// Add custom args if specified in firewall config
+	if firewallConfig != nil && len(firewallConfig.Args) > 0 {
+		awfArgs = append(awfArgs, firewallConfig.Args...)
+	}
+
+	// Add custom args from agent config if specified
+	if agentConfig != nil && len(agentConfig.Args) > 0 {
+		awfArgs = append(awfArgs, agentConfig.Args...)
+		if config.LoggerFunc != nil {
+			config.LoggerFunc("Added %d custom args from agent config", len(agentConfig.Args))
+		}
+	}
+
+	// Determine the AWF command to use (custom or standard)
+	var awfCommand string
+	if agentConfig != nil && agentConfig.Command != "" {
+		awfCommand = agentConfig.Command
+		if config.LoggerFunc != nil {
+			config.LoggerFunc("Using custom AWF command: %s", awfCommand)
+		}
+	} else {
+		awfCommand = "sudo -E awf"
+		if config.LoggerFunc != nil {
+			config.LoggerFunc("Using standard AWF command")
+		}
+	}
+
+	return awfArgs, awfCommand
+}

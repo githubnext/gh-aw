@@ -346,3 +346,253 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 		t.Errorf("shellEscapeArg should not add single quotes to already double-quoted string, got: %s", result)
 	}
 }
+
+// TestBuildAWFArgs tests the AWF argument builder helper function
+func TestBuildAWFArgs(t *testing.T) {
+	tests := []struct {
+		name           string
+		workflowData   *WorkflowData
+		config         AWFConfig
+		expectTTY      bool
+		expectDomains  string
+		expectMounts   int // Expected number of mount arguments (not counting --mount flag)
+	}{
+		{
+			name: "basic configuration without TTY",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{},
+			},
+			config: AWFConfig{
+				AllowedDomains: "example.com",
+				EnableTTY:      false,
+			},
+			expectTTY:     false,
+			expectDomains: "example.com",
+			expectMounts:  3, // /tmp, workspace, hostedtoolcache
+		},
+		{
+			name: "configuration with TTY enabled",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{},
+			},
+			config: AWFConfig{
+				AllowedDomains: "api.anthropic.com",
+				EnableTTY:      true,
+			},
+			expectTTY:     true,
+			expectDomains: "api.anthropic.com",
+			expectMounts:  3,
+		},
+		{
+			name: "configuration with custom mounts",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Mounts: []string{"/custom:/custom:ro", "/data:/data:rw"},
+					},
+				},
+			},
+			config: AWFConfig{
+				AllowedDomains: "example.com",
+				EnableTTY:      false,
+			},
+			expectTTY:     false,
+			expectDomains: "example.com",
+			expectMounts:  5, // /tmp, workspace, hostedtoolcache + 2 custom
+		},
+		{
+			name: "configuration with custom firewall log level",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{
+						LogLevel: "debug",
+					},
+				},
+			},
+			config: AWFConfig{
+				AllowedDomains: "example.com",
+				EnableTTY:      false,
+			},
+			expectTTY:     false,
+			expectDomains: "example.com",
+			expectMounts:  3,
+		},
+		{
+			name: "configuration with custom AWF command",
+			workflowData: &WorkflowData{
+				NetworkPermissions: &NetworkPermissions{},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Command: "custom-awf",
+					},
+				},
+			},
+			config: AWFConfig{
+				AllowedDomains: "example.com",
+				EnableTTY:      false,
+			},
+			expectTTY:     false,
+			expectDomains: "example.com",
+			expectMounts:  3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args, command := buildAWFArgs(tt.workflowData, tt.config)
+
+			// Check for TTY flag
+			hasTTY := false
+			for _, arg := range args {
+				if arg == "--tty" {
+					hasTTY = true
+					break
+				}
+			}
+			if hasTTY != tt.expectTTY {
+				t.Errorf("Expected TTY=%v, got TTY=%v", tt.expectTTY, hasTTY)
+			}
+
+			// Check for allowed domains
+			foundDomains := false
+			for i, arg := range args {
+				if arg == "--allow-domains" && i+1 < len(args) {
+					if args[i+1] != tt.expectDomains {
+						t.Errorf("Expected domains %q, got %q", tt.expectDomains, args[i+1])
+					}
+					foundDomains = true
+					break
+				}
+			}
+			if !foundDomains {
+				t.Error("Expected --allow-domains flag not found")
+			}
+
+			// Count mount arguments (each mount appears after a --mount flag)
+			mountCount := 0
+			for i, arg := range args {
+				if arg == "--mount" && i+1 < len(args) {
+					mountCount++
+				}
+			}
+			if mountCount != tt.expectMounts {
+				t.Errorf("Expected %d mounts, got %d", tt.expectMounts, mountCount)
+			}
+
+			// Check command
+			if tt.workflowData.SandboxConfig != nil && tt.workflowData.SandboxConfig.Agent != nil && tt.workflowData.SandboxConfig.Agent.Command != "" {
+				if command != tt.workflowData.SandboxConfig.Agent.Command {
+					t.Errorf("Expected custom command %q, got %q", tt.workflowData.SandboxConfig.Agent.Command, command)
+				}
+			} else {
+				if command != "sudo -E awf" {
+					t.Errorf("Expected standard command 'sudo -E awf', got %q", command)
+				}
+			}
+
+			// Verify standard arguments are present
+			expectedArgs := []string{
+				"--env-all",
+				"--container-workdir",
+				"--log-level",
+				"--proxy-logs-dir",
+				"--image-tag",
+			}
+			for _, expected := range expectedArgs {
+				found := false
+				for _, arg := range args {
+					if arg == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected argument %q not found in args", expected)
+				}
+			}
+		})
+	}
+}
+
+// TestBuildAWFArgs_CustomArgs tests custom args from firewall and agent configs
+func TestBuildAWFArgs_CustomArgs(t *testing.T) {
+	workflowData := &WorkflowData{
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Args: []string{"--firewall-arg1", "--firewall-arg2"},
+			},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Args: []string{"--agent-arg1", "--agent-arg2"},
+			},
+		},
+	}
+
+	config := AWFConfig{
+		AllowedDomains: "example.com",
+		EnableTTY:      false,
+	}
+
+	args, _ := buildAWFArgs(workflowData, config)
+
+	// Check that custom args are included
+	customArgs := []string{"--firewall-arg1", "--firewall-arg2", "--agent-arg1", "--agent-arg2"}
+	for _, customArg := range customArgs {
+		found := false
+		for _, arg := range args {
+			if arg == customArg {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected custom arg %q not found in args", customArg)
+		}
+	}
+}
+
+// TestBuildAWFArgs_MountSorting tests that custom mounts are sorted for consistency
+func TestBuildAWFArgs_MountSorting(t *testing.T) {
+	workflowData := &WorkflowData{
+		NetworkPermissions: &NetworkPermissions{},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Mounts: []string{"/z:/z:ro", "/a:/a:ro", "/m:/m:ro"},
+			},
+		},
+	}
+
+	config := AWFConfig{
+		AllowedDomains: "example.com",
+		EnableTTY:      false,
+	}
+
+	args, _ := buildAWFArgs(workflowData, config)
+
+	// Find the custom mounts in args (they come after the standard 3 mounts)
+	var customMounts []string
+	mountCount := 0
+	for i, arg := range args {
+		if arg == "--mount" && i+1 < len(args) {
+			mountCount++
+			// Skip the first 3 standard mounts
+			if mountCount > 3 {
+				customMounts = append(customMounts, args[i+1])
+			}
+		}
+	}
+
+	// Verify they are sorted
+	expectedMounts := []string{"/a:/a:ro", "/m:/m:ro", "/z:/z:ro"}
+	if len(customMounts) != len(expectedMounts) {
+		t.Errorf("Expected %d custom mounts, got %d", len(expectedMounts), len(customMounts))
+	}
+
+	for i, mount := range customMounts {
+		if mount != expectedMounts[i] {
+			t.Errorf("Mount at index %d: expected %q, got %q", i, expectedMounts[i], mount)
+		}
+	}
+}
