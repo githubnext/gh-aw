@@ -1,9 +1,9 @@
 package parser
 
 import (
-"fmt"
+	"fmt"
 
-"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
 var schemaValidationLog = logger.New("parser:schema_validation")
