@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ import (
 var runLog = logger.New("cli:run_command")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, inputs []string, verbose bool) error {
+func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, waitForCompletion bool, inputs []string, verbose bool) error {
 	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, waitForCompletion, inputs)
 
 	if workflowIdOrName == "" {
@@ -199,7 +200,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 			TrialLogicalRepoSlug: "",
 			Strict:               false,
 		}
-		if _, err := CompileWorkflows(config); err != nil {
+		if _, err := CompileWorkflows(ctx, config); err != nil {
 			return fmt.Errorf("failed to recompile workflow with engine override: %w", err)
 		}
 
@@ -265,7 +266,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 				TrialLogicalRepoSlug: "",
 				Strict:               false,
 			}
-			workflowDataList, err := CompileWorkflows(config)
+			workflowDataList, err := CompileWorkflows(ctx, config)
 			if err == nil && len(workflowDataList) == 1 {
 				workflowData := workflowDataList[0]
 				if err := determineAndAddEngineSecret(workflowData.EngineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
@@ -463,13 +464,20 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, inputs []string, verbose bool) error {
+func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, inputs []string, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
 
 	// Validate all workflows exist and are runnable before starting
 	for _, workflowName := range workflowNames {
+		// Check for cancellation
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("workflow validation cancelled: %w", ctx.Err())
+		default:
+		}
+
 		if workflowName == "" {
 			return fmt.Errorf("workflow name cannot be empty")
 		}
@@ -506,11 +514,18 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 		waitForCompletion := repeatCount > 0
 
 		for i, workflowName := range workflowNames {
+			// Check for cancellation
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("workflow execution cancelled: %w", ctx.Err())
+			default:
+			}
+
 			if len(workflowNames) > 1 {
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, inputs, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, inputs, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 

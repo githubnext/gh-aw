@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -76,6 +77,7 @@ Examples:
 			parse, _ := cmd.Flags().GetBool("parse")
 
 			return AuditWorkflowRun(
+				cmd.Context(),
 				components.Number,
 				components.Owner,
 				components.Repo,
@@ -126,8 +128,15 @@ func isPermissionError(err error) bool {
 // AuditWorkflowRun audits a single workflow run and generates a report
 // If jobID is provided (>0), focuses audit on that specific job
 // If stepNumber is provided (>0), extracts output for that specific step
-func AuditWorkflowRun(runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int) error {
+func AuditWorkflowRun(ctx context.Context, runID int64, owner, repo, hostname string, outputDir string, verbose bool, parse bool, jsonOutput bool, jobID int64, stepNumber int) error {
 	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s, jobID=%d, stepNumber=%d", runID, owner, repo, jobID, stepNumber)
+
+	// Check for cancellation before starting
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("audit cancelled: %w", ctx.Err())
+	default:
+	}
 
 	if verbose {
 		if jobID > 0 {
