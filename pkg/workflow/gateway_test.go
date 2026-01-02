@@ -828,4 +828,3 @@ func TestGenerateMCPGatewayStartStep_WithoutEnvVars(t *testing.T) {
 	assert.Contains(t, stepStr, "Start MCP Gateway")
 	assert.Contains(t, stepStr, "run: |")
 }
-
