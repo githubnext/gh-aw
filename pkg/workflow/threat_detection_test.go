@@ -814,27 +814,22 @@ func TestDownloadPatchArtifactHasConditional(t *testing.T) {
 func TestSetupScriptReferencesPromptFile(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	// Test that the setup script references the prompt file instead of WORKFLOW_MARKDOWN
-	script := compiler.buildSetupScript()
+	// Test that the setup script requires the external .cjs file
+	script := compiler.buildSetupScriptRequire()
 
-	// Verify the script checks for the prompt file
-	if !strings.Contains(script, "const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt'") {
-		t.Error("Expected setup script to check for prompt file at /tmp/gh-aw/threat-detection/prompt.txt")
+	// Verify the script uses require to load setup_threat_detection.cjs
+	if !strings.Contains(script, "require('"+SetupActionDestination+"/setup_threat_detection.cjs')") {
+		t.Error("Expected setup script to require setup_threat_detection.cjs")
 	}
 
-	// Verify the script reads the prompt file info
-	if !strings.Contains(script, "let promptFileInfo = 'No prompt file found'") {
-		t.Error("Expected setup script to initialize promptFileInfo variable")
+	// Verify setupGlobals is called
+	if !strings.Contains(script, "setupGlobals(core, github, context, exec, io)") {
+		t.Error("Expected setup script to call setupGlobals")
 	}
 
-	// Verify the script uses WORKFLOW_PROMPT_FILE placeholder
-	if !strings.Contains(script, ".replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)") {
-		t.Error("Expected setup script to replace WORKFLOW_PROMPT_FILE placeholder")
-	}
-
-	// Verify the script does NOT reference WORKFLOW_MARKDOWN
-	if strings.Contains(script, "WORKFLOW_MARKDOWN") {
-		t.Error("Setup script should not reference WORKFLOW_MARKDOWN")
+	// Verify main() is awaited
+	if !strings.Contains(script, "await main(templateContent)") {
+		t.Error("Expected setup script to await main(templateContent)")
 	}
 }
 
