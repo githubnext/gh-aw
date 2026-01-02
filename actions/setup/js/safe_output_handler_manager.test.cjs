@@ -535,7 +535,7 @@ describe("Safe Output Handler Manager", () => {
       ];
 
       let issueCounter = 100;
-      const mockCreateHandler = vi.fn().mockImplementation((message) => {
+      const mockCreateHandler = vi.fn().mockImplementation(message => {
         const tempId = message.temporary_id;
         const issueNumber = issueCounter++;
         return Promise.resolve({
