@@ -224,6 +224,40 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 // CountMessage, VerboseMessage, LocationMessage
 ```
 
+**Table Rendering:**
+```go
+// Render tables with automatic styling
+config := console.TableConfig{
+    Headers: []string{"Name", "Status", "Duration"},
+    Rows: [][]string{
+        {"workflow-1", "success", "2m 30s"},
+        {"workflow-2", "running", "1m 15s"},
+    },
+}
+fmt.Fprint(os.Stderr, console.RenderTable(config))
+```
+
+**Layout Helpers:**
+```go
+// Compose styled layouts
+title := console.LayoutTitleBox("Plan", 60)
+info := console.LayoutInfoSection("Status", "Ready")
+output := console.LayoutJoinVertical(title, "", info)
+fmt.Fprintln(os.Stderr, output)
+```
+
+**Huh Forms:**
+```go
+// Interactive forms with accessibility
+form := huh.NewForm(
+    huh.NewGroup(
+        huh.NewInput().
+            Title("Workflow name?").
+            Value(&name),
+    ),
+).WithAccessible(isAccessibleMode())
+```
+
 **Error handling:**
 ```go
 // WRONG
@@ -238,6 +272,11 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 - **NEVER** use `fmt.Println()` or `fmt.Printf()` directly - all output should go to stderr
 - Use console formatting helpers with `os.Stderr` for consistent styling
 - For simple messages without console formatting: `fmt.Fprintf(os.Stderr, "message\n")`
+
+**Documentation:**
+- See `specs/console-formatting.md` for comprehensive guide
+- See `examples/console-output/` for working examples
+- TTY detection is automatic - no manual checks needed
 
 ## Debug Logging
 

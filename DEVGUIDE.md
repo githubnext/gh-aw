@@ -753,10 +753,58 @@ For complete command development patterns including:
 
 See: **[specs/cli-command-patterns.md](specs/cli-command-patterns.md)**
 
+### Console Output Checklist for PRs
+
+When adding or modifying CLI output, verify:
+
+**Basic Requirements:**
+- [ ] All user-facing output uses `os.Stderr` (not `os.Stdout`)
+- [ ] All messages use console formatters (e.g., `FormatSuccessMessage`)
+- [ ] No manual ANSI codes or styling
+- [ ] JSON output goes to stdout, everything else to stderr
+- [ ] No hardcoded icons or emojis (use formatters)
+
+**Message Types:**
+- [ ] Success messages use `FormatSuccessMessage`
+- [ ] Errors use `FormatErrorMessage(err.Error())`
+- [ ] Warnings use `FormatWarningMessage`
+- [ ] Info messages use `FormatInfoMessage`
+- [ ] Other types use appropriate formatters (Location, Command, Progress, etc.)
+
+**Table Output:**
+- [ ] Tables use `console.RenderTable(config)` with `TableConfig`
+- [ ] Table output goes to stderr: `fmt.Fprint(os.Stderr, ...)`
+- [ ] JSON alternative provided: `RenderTableAsJSON` when appropriate
+- [ ] Headers and rows properly aligned
+- [ ] Total rows used when showing aggregated data
+
+**Interactive Forms:**
+- [ ] Huh forms include `.WithAccessible(isAccessibleMode())`
+- [ ] Forms have clear titles and descriptions
+- [ ] Validation functions provide helpful error messages
+- [ ] Multi-page forms have descriptive group titles
+- [ ] Confirmation dialogs use Affirmative/Negative labels
+
+**TTY Handling:**
+- [ ] TTY detection is automatic (via console formatters)
+- [ ] Manual TTY checks use `tty.IsStderrTerminal()` when needed
+- [ ] Output tested in both TTY and non-TTY modes
+- [ ] Plain text output works when piped
+
+**Testing:**
+- [ ] Console output tested with examples in both modes
+- [ ] Error messages verified for clarity and actionability
+- [ ] Table rendering tested with various data sizes
+- [ ] Interactive forms tested (if applicable)
+
+**Documentation:**
+See [specs/console-formatting.md](specs/console-formatting.md) for complete guide and examples.
+
 ### Related Guidelines
 
 - **Testing**: [specs/testing.md](specs/testing.md) - Comprehensive testing framework
-- **Console Output**: [skills/console-rendering/SKILL.md](skills/console-rendering/SKILL.md) - Output formatting
+- **Console Formatting**: [specs/console-formatting.md](specs/console-formatting.md) - Complete console output guide
+- **Console Rendering**: [skills/console-rendering/SKILL.md](skills/console-rendering/SKILL.md) - Struct tag rendering
 - **Error Messages**: [skills/error-messages/SKILL.md](skills/error-messages/SKILL.md) - Error message style
 - **Code Organization**: [specs/code-organization.md](specs/code-organization.md) - File structure patterns
 
