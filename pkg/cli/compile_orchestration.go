@@ -170,6 +170,17 @@ func compileSpecificFiles(
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
+	// Complete validation metrics and print report if profiling is enabled
+	if compiler.IsProfileEnabled() {
+		metrics := compiler.GetValidationMetrics()
+		if metrics != nil {
+			metrics.Complete()
+			if !config.JSONOutput {
+				metrics.PrintProfileReport()
+			}
+		}
+	}
+
 	// Post-processing
 	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount); err != nil {
 		return workflowDataList, err
@@ -330,6 +341,17 @@ func compileAllFilesInDirectory(
 
 	if config.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
+	}
+
+	// Complete validation metrics and print report if profiling is enabled
+	if compiler.IsProfileEnabled() {
+		metrics := compiler.GetValidationMetrics()
+		if metrics != nil {
+			metrics.Complete()
+			if !config.JSONOutput {
+				metrics.PrintProfileReport()
+			}
+		}
 	}
 
 	// Handle purge logic if requested

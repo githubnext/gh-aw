@@ -38,6 +38,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -59,10 +60,22 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 
 		pipValidationLog.Printf("Validating %s package: %s", packageType, pkgName)
 
+		// Track API call timing for PyPI
+		start := time.Now()
+
 		// Use pip index to check if package exists on PyPI
 		// Include --pre flag to check for pre-release versions (alpha, beta, rc)
 		cmd := exec.Command(pipCmd, "index", "versions", pkgName, "--pre")
 		output, err := cmd.CombinedOutput()
+
+		duration := time.Since(start)
+
+		// Record metrics if profiling is enabled
+		if c.IsProfileEnabled() {
+			cached := err == nil // Treat successful validation as potential cache hit
+			timedOut := duration > 10*time.Second // Consider >10s as timeout
+			c.GetValidationMetrics().RecordAPICall("PyPI", cached, duration, timedOut)
+		}
 
 		if err != nil {
 			outputStr := strings.TrimSpace(string(output))
@@ -84,6 +97,11 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 
 // validatePipPackages validates that pip packages are available on PyPI
 func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
+	// Profile validation timing if enabled
+	if c.IsProfileEnabled() {
+		defer c.GetValidationMetrics().StartValidator("pip_validation")()
+	}
+
 	packages := extractPipPackages(workflowData)
 	if len(packages) == 0 {
 		pipValidationLog.Print("No pip packages to validate")

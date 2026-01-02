@@ -35,6 +35,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -44,6 +45,11 @@ var npmValidationLog = logger.New("workflow:npm_validation")
 
 // validateNpxPackages validates that npx packages are available on npm registry
 func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
+	// Profile validation timing if enabled
+	if c.IsProfileEnabled() {
+		defer c.GetValidationMetrics().StartValidator("npm_validation")()
+	}
+
 	packages := extractNpxPackages(workflowData)
 	if len(packages) == 0 {
 		npmValidationLog.Print("No npx packages to validate")
@@ -63,9 +69,21 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	for _, pkg := range packages {
 		npmValidationLog.Printf("Validating npm package: %s", pkg)
 
+		// Track API call timing for NPM
+		start := time.Now()
+
 		// Use npm view to check if package exists
 		cmd := exec.Command("npm", "view", pkg, "name")
 		output, err := cmd.CombinedOutput()
+
+		duration := time.Since(start)
+
+		// Record metrics if profiling is enabled
+		if c.IsProfileEnabled() {
+			cached := err == nil // Treat successful validation as potential cache hit
+			timedOut := duration > 10*time.Second // Consider >10s as timeout
+			c.GetValidationMetrics().RecordAPICall("NPM", cached, duration, timedOut)
+		}
 
 		if err != nil {
 			npmValidationLog.Printf("Package validation failed for %s: %v", pkg, err)

@@ -50,6 +50,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -95,6 +96,11 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 
 // validateContainerImages validates that container images specified in MCP configs exist and are accessible
 func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
+	// Profile validation timing if enabled
+	if c.IsProfileEnabled() {
+		defer c.GetValidationMetrics().StartValidator("docker_validation")()
+	}
+
 	if workflowData.Tools == nil {
 		return nil
 	}
@@ -125,8 +131,21 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 					}
 				}
 
+				// Track API call timing for Docker Hub
+				start := time.Now()
+				cached := false // Docker image validation doesn't use explicit caching yet
+
 				// Validate the container image exists using docker
-				if err := validateDockerImage(containerImage, c.verbose); err != nil {
+				err := validateDockerImage(containerImage, c.verbose)
+				duration := time.Since(start)
+
+				// Record metrics if profiling is enabled
+				if c.IsProfileEnabled() {
+					timedOut := duration > 30*time.Second // Consider >30s as timeout
+					c.GetValidationMetrics().RecordAPICall("Docker Hub", cached, duration, timedOut)
+				}
+
+				if err != nil {
 					errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
 				} else if c.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ Container image validated: %s", containerImage)))
