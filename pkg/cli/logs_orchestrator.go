@@ -11,6 +11,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -29,8 +30,17 @@ import (
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
+func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
 	logsOrchestratorLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s, campaignOnly=%v, summaryFile=%s", workflowName, count, startDate, endDate, outputDir, campaignOnly, summaryFile)
+
+	// Check context cancellation at the start
+	select {
+	case <-ctx.Done():
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+		return ctx.Err()
+	default:
+	}
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -56,6 +66,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 	for iteration < MaxIterations {
+		// Check context cancellation
+		select {
+		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			return ctx.Err()
+		default:
+		}
+
 		// Check timeout if specified
 		if timeout > 0 {
 			elapsed := time.Since(startTime).Seconds()
@@ -477,10 +495,17 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	// Use atomic counter for thread-safe progress tracking
 	var completedCount int64
 
-	// Use conc pool for controlled concurrency with results
+	// Configure concurrent download pool with bounded parallelism.
+	// MaxConcurrentDownloads (10) balances:
+	// - GitHub API rate limits (5000 requests/hour for authenticated users)
+	// - Network bandwidth (parallel HTTP requests for artifact downloads)
+	// - System memory (artifact buffering and decompression)
+	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
 	p := pool.NewWithResults[DownloadResult]().WithMaxGoroutines(MaxConcurrentDownloads)
 
-	// Process each run concurrently
+	// Each download task runs concurrently. Panics are automatically recovered
+	// by the pool and re-raised with full stack traces after all tasks complete.
+	// This ensures one failing download doesn't break others.
 	for _, run := range actualRuns {
 		run := run // capture loop variable
 		p.Go(func() DownloadResult {
@@ -661,7 +686,10 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 		})
 	}
 
-	// Wait for all downloads to complete and collect results
+	// Wait blocks until all downloads complete or panic. The pool guarantees:
+	// - All goroutines finish (no leaks)
+	// - Panics are propagated with stack traces
+	// - Results are collected in submission order
 	results := p.Wait()
 
 	// Stop spinner with final success message

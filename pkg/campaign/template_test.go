@@ -37,7 +37,7 @@ func TestRenderOrchestratorInstructions(t *testing.T) {
 			name: "explicit state management",
 			data: CampaignPromptData{},
 			shouldContain: []string{
-				"Query worker-created issues",
+				"Query worker-created content",
 				"Query current project state",
 				"Compare and identify gaps",
 				"Decide additions",

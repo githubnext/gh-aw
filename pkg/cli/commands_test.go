@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func TestCompileWorkflows(t *testing.T) {
 				TrialMode:            false,
 				TrialLogicalRepoSlug: "",
 			}
-			_, err := CompileWorkflows(config)
+			_, err := CompileWorkflows(context.Background(), config)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -76,7 +77,7 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 			TrialMode:            false,
 			TrialLogicalRepoSlug: "",
 		}
-		_, err := CompileWorkflows(config)
+		_, err := CompileWorkflows(context.Background(), config)
 
 		if err == nil {
 			t.Error("Expected error when using --purge with specific files, got nil")
@@ -118,7 +119,7 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 			TrialMode:            false,
 			TrialLogicalRepoSlug: "",
 		}
-		_, err := CompileWorkflows(config)
+		_, err := CompileWorkflows(context.Background(), config)
 
 		if err != nil {
 			// The error should NOT be about purge flag validation
@@ -171,7 +172,7 @@ This is a test workflow to verify the --no-emit flag functionality.`
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=false should not error, got: %v", err)
 	}
@@ -198,7 +199,7 @@ This is a test workflow to verify the --no-emit flag functionality.`
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
-	_, err = CompileWorkflows(config2)
+	_, err = CompileWorkflows(context.Background(), config2)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=true should not error, got: %v", err)
 	}
@@ -336,13 +337,13 @@ func TestDisableWorkflowsFailureScenarios(t *testing.T) {
 
 func TestRunWorkflowOnGitHub(t *testing.T) {
 	// Test with empty workflow name
-	err := RunWorkflowOnGitHub("", false, "", "", "", false, false, false, []string{}, false)
+	err := RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name")
 	}
 
 	// Test with nonexistent workflow (this will fail but gracefully)
-	err = RunWorkflowOnGitHub("nonexistent-workflow", false, "", "", "", false, false, false, []string{}, false)
+	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", false, "", "", "", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow")
 	}
@@ -350,25 +351,25 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 
 func TestRunWorkflowsOnGitHub(t *testing.T) {
 	// Test with empty workflow list
-	err := RunWorkflowsOnGitHub([]string{}, 0, false, "", "", "", false, false, []string{}, false)
+	err := RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for empty workflow list")
 	}
 
 	// Test with workflow list containing empty name
-	err = RunWorkflowsOnGitHub([]string{"valid-workflow", ""}, 0, false, "", "", "", false, false, []string{}, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"valid-workflow", ""}, 0, false, "", "", "", false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for workflow list containing empty name")
 	}
 
 	// Test with nonexistent workflows (this will fail but gracefully)
-	err = RunWorkflowsOnGitHub([]string{"nonexistent-workflow1", "nonexistent-workflow2"}, 0, false, "", "", "", false, false, []string{}, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow1", "nonexistent-workflow2"}, 0, false, "", "", "", false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflows")
 	}
 
 	// Test with negative repeat seconds (should work as 0)
-	err = RunWorkflowsOnGitHub([]string{"nonexistent-workflow"}, -1, false, "", "", "", false, false, []string{}, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow"}, -1, false, "", "", "", false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflow regardless of repeat value")
 	}
@@ -418,7 +419,7 @@ Test workflow for command existence.`
 				TrialMode:            false,
 				TrialLogicalRepoSlug: "",
 			}
-			_, err := CompileWorkflows(config)
+			_, err := CompileWorkflows(context.Background(), config)
 			return err
 		}, false, "CompileWorkflows"},
 		{func() error { return RemoveWorkflows("nonexistent", false) }, false, "RemoveWorkflows"},                    // Should handle missing directory gracefully
@@ -426,10 +427,10 @@ Test workflow for command existence.`
 		{func() error { return EnableWorkflows("nonexistent") }, true, "EnableWorkflows"},                            // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("nonexistent") }, true, "DisableWorkflows"},                          // Should now also error when no workflows found to disable
 		{func() error {
-			return RunWorkflowOnGitHub("", false, "", "", "", false, false, false, []string{}, false)
+			return RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, []string{}, false)
 		}, true, "RunWorkflowOnGitHub"}, // Should error with empty workflow name
 		{func() error {
-			return RunWorkflowsOnGitHub([]string{}, 0, false, "", "", "", false, false, []string{}, false)
+			return RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, []string{}, false)
 		}, true, "RunWorkflowsOnGitHub"}, // Should error with empty workflow list
 	}
 
@@ -1077,13 +1078,13 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 func TestRunWorkflowOnGitHubWithEnable(t *testing.T) {
 	// Test with enable flag enabled (should not error for basic validation)
-	err := RunWorkflowOnGitHub("nonexistent-workflow", true, "", "", "", false, false, false, []string{}, false)
+	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", true, "", "", "", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with enable flag")
 	}
 
 	// Test with empty workflow name and enable flag
-	err = RunWorkflowOnGitHub("", true, "", "", "", false, false, false, []string{}, false)
+	err = RunWorkflowOnGitHub(context.Background(), "", true, "", "", "", false, false, false, []string{}, false)
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name regardless of enable flag")
 	}

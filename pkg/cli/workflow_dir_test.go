@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,7 +72,7 @@ This is a test workflow in a custom directory.
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with custom workflows-dir should succeed, got error: %v", err)
 	}
@@ -96,7 +97,7 @@ This is a test workflow in a custom directory.
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err == nil {
 		t.Error("CompileWorkflows with absolute workflows-dir should fail")
 	}
@@ -128,7 +129,7 @@ This is a test workflow in a custom directory.
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
 	}
-	_, err = CompileWorkflows(config)
+	_, err = CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with default workflows-dir should succeed, got error: %v", err)
 	}
@@ -235,7 +236,7 @@ on: push
 				TrialMode:            false,
 				TrialLogicalRepoSlug: "",
 			}
-			_, err = CompileWorkflows(config)
+			_, err = CompileWorkflows(context.Background(), config)
 
 			if tt.expectError {
 				if err == nil {

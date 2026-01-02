@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -529,7 +530,7 @@ func TestCompileWorkflows_EmptyMarkdownFiles(t *testing.T) {
 
 	// This will try to compile all files in .github/workflows
 	// It may fail if the directory doesn't exist, which is expected
-	CompileWorkflows(config)
+	CompileWorkflows(context.Background(), config)
 
 	// We don't check for specific error here as it depends on the repository state
 	// The test just ensures the function handles empty MarkdownFiles correctly
@@ -562,7 +563,7 @@ This is a test workflow.
 		TrialLogicalRepoSlug: "owner/trial-repo",
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 
 	// The compilation may fail for various reasons in a test environment,
 	// but it should not panic and should handle trial mode settings
@@ -880,7 +881,7 @@ Test workflow content`
 	}
 
 	// Compile workflows with purge enabled
-	result, err := CompileWorkflows(config)
+	result, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Logf("Compilation error (expected): %v", err)
 	}
@@ -1032,7 +1033,7 @@ This orchestrator has a source .campaign.md file.`
 	}
 
 	// Compile workflows with purge enabled
-	result, err := CompileWorkflows(config)
+	result, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Logf("Compilation error (expected): %v", err)
 	}
