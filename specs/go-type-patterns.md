@@ -102,7 +102,7 @@ func (v Version) IsValid() bool {
 }
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion Version = "0.0.373"
+const DefaultCopilotVersion Version = "0.0.374"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
 const DefaultClaudeCodeVersion Version = "2.0.76"

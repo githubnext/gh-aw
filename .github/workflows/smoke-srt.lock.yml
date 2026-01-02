@@ -163,7 +163,7 @@ jobs:
           npm install @anthropic-ai/sandbox-runtime
           echo "Sandbox Runtime installed successfully"
       - name: Install GitHub Copilot CLI
-        run: npm install --silent @github/copilot@0.0.373
+        run: npm install --silent @github/copilot@0.0.374
       - name: Detect repository visibility for GitHub MCP lockdown
         id: detect-repo-visibility
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -338,7 +338,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.373",
+              agent_version: "0.0.374",
               workflow_name: "Smoke SRT",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1055,7 +1055,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
           
           # Execute the installer with the specified version
-          export VERSION=0.0.373 && sudo bash /tmp/copilot-install.sh
+          export VERSION=0.0.374 && sudo bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
