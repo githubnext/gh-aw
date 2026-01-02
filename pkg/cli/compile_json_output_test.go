@@ -218,7 +218,7 @@ Test workflow
 		Verbose:       false,
 	}
 
-	_, _ = CompileWorkflows(config)
+	_, _ = CompileWorkflows(context.Background(), config)
 
 	// Restore stdout
 	w.Close()

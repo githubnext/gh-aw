@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -71,7 +72,7 @@ This workflow uses npx to run Playwright MCP.
 		Strict:         false,
 	}
 
-	workflowDataList, err := CompileWorkflows(config)
+	workflowDataList, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
 	}
@@ -193,7 +194,7 @@ This workflow does not use npm.
 		Strict:         false,
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
 	}
@@ -275,7 +276,7 @@ steps:
 		Strict:         false,
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
 	}
@@ -386,7 +387,7 @@ steps:
 		Strict:         false,
 	}
 
-	_, err := CompileWorkflows(config)
+	_, err := CompileWorkflows(context.Background(), config)
 	if err != nil {
 		t.Fatalf("compilation failed: %v", err)
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+"context"
 	"bytes"
 	"fmt"
 	"os"
