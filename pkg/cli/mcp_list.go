@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	}
 
 	// Parse the specific workflow file and extract MCP configurations
-	_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "")
+	frontmatter, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "")
 	if err != nil {
 		mcpListLog.Printf("Failed to load MCP configs from workflow: %v", err)
 		return err
@@ -48,13 +49,20 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		return nil
 	}
 
+	// Check if workflow has network access configured
+	hasNetworkAccess := checkNetworkAccess(frontmatter.Frontmatter)
+
 	// Display the MCP servers
 	if verbose {
 		// Create detailed table for verbose mode
-		headers := []string{"Name", "Type", "Command/URL", "Args", "Allowed Tools", "Env Vars"}
+		headers := []string{"Server Name", "Type", "Status", "Tools Count", "Network Access", "Command/URL"}
 		rows := make([][]string, 0, len(mcpConfigs))
 
 		for _, config := range mcpConfigs {
+			status := determineConfigStatus(config)
+			toolsCount := formatToolsCount(config.Allowed)
+			networkAccess := formatNetworkAccess(hasNetworkAccess)
+
 			commandOrURL := ""
 			if config.Command != "" {
 				commandOrURL = config.Command
@@ -63,37 +71,18 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 			} else if config.Container != "" {
 				commandOrURL = config.Container
 			}
-
-			args := ""
-			if len(config.Args) > 0 {
-				args = strings.Join(config.Args, " ")
-				// Truncate if too long
-				if len(args) > 30 {
-					args = args[:27] + "..."
-				}
-			}
-
-			allowedTools := ""
-			if len(config.Allowed) > 0 {
-				allowedTools = strings.Join(config.Allowed, ", ")
-				// Truncate if too long
-				if len(allowedTools) > 30 {
-					allowedTools = allowedTools[:27] + "..."
-				}
-			}
-
-			envVars := ""
-			if len(config.Env) > 0 {
-				envVars = fmt.Sprintf("%d defined", len(config.Env))
+			// Truncate if too long
+			if len(commandOrURL) > 40 {
+				commandOrURL = commandOrURL[:37] + "..."
 			}
 
 			rows = append(rows, []string{
 				config.Name,
 				config.Type,
+				status,
+				toolsCount,
+				networkAccess,
 				commandOrURL,
-				args,
-				allowedTools,
-				envVars,
 			})
 		}
 
@@ -102,14 +91,23 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 			Headers: headers,
 			Rows:    rows,
 		}
-		fmt.Print(console.RenderTable(tableConfig))
+		fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 	} else {
 		// Simple table for basic mode
-		headers := []string{"Name", "Type"}
+		headers := []string{"Server Name", "Status", "Tools Count", "Network Access"}
 		rows := make([][]string, 0, len(mcpConfigs))
 
 		for _, config := range mcpConfigs {
-			rows = append(rows, []string{config.Name, config.Type})
+			status := determineConfigStatus(config)
+			toolsCount := formatToolsCount(config.Allowed)
+			networkAccess := formatNetworkAccess(hasNetworkAccess)
+
+			rows = append(rows, []string{
+				config.Name,
+				status,
+				toolsCount,
+				networkAccess,
+			})
 		}
 
 		tableConfig := console.TableConfig{
@@ -215,6 +213,70 @@ func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
 	fmt.Fprintf(os.Stderr, "Run 'gh aw mcp list <workflow-name>' to list MCP servers in a specific workflow\n")
 
 	return nil
+}
+
+// determineConfigStatus checks if an MCP server configuration is valid and ready
+func determineConfigStatus(config parser.MCPServerConfig) string {
+	// Check if the configuration has the minimum required fields
+	hasExecutable := config.Command != "" || config.URL != "" || config.Container != ""
+
+	if !hasExecutable {
+		return "⚠ Incomplete"
+	}
+
+	// Configuration appears valid
+	return "✓ Ready"
+}
+
+// formatToolsCount returns a human-readable count of allowed tools
+func formatToolsCount(allowed []string) string {
+	if len(allowed) == 0 {
+		return "All tools"
+	}
+
+	// Check for wildcard
+	for _, tool := range allowed {
+		if tool == "*" {
+			return "All tools"
+		}
+	}
+
+	if len(allowed) == 1 {
+		return "1 tool"
+	}
+
+	return fmt.Sprintf("%d tools", len(allowed))
+}
+
+// formatNetworkAccess returns a formatted string indicating network access status
+func formatNetworkAccess(hasAccess bool) string {
+	if hasAccess {
+		return "✓ Enabled"
+	}
+	return "✗ Disabled"
+}
+
+// checkNetworkAccess checks if the workflow has network access configured
+func checkNetworkAccess(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+
+	// Check if network field exists and is not empty
+	if network, exists := frontmatter["network"]; exists {
+		if networkMap, ok := network.(map[string]any); ok {
+			// Check if there are any allowed domains or if network is configured
+			if allowed, hasAllowed := networkMap["allowed"]; hasAllowed {
+				if allowedList, ok := allowed.([]any); ok {
+					return len(allowedList) > 0
+				}
+			}
+			// If network map exists with any content, consider it enabled
+			return len(networkMap) > 0
+		}
+	}
+
+	return false
 }
 
 // NewMCPListSubcommand creates the mcp list subcommand
