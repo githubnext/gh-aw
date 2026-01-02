@@ -21,6 +21,9 @@ network:
     - playwright
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
+  mcp:
+    command: "awmg"
+    port: 8080
 imports:
   - shared/gh.md
 tools:
@@ -44,6 +47,8 @@ safe-outputs:
       run-failure: "🤖 ALERT: [{workflow_name}]({run_url}) {status}. ANOMALY_DETECTED. REPAIR_REQUIRED."
 timeout-minutes: 10
 strict: false
+features:
+  mcp-gateway: true
 ---
 
 # Smoke Test: Copilot Engine Validation (No Firewall)
