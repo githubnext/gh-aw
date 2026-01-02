@@ -40,10 +40,10 @@ flowchart TB
     orchestrator -.->|reads/writes| memory
     project -.->|dashboard view| orchestrator
 
-    classDef tracked fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#000
-    classDef notTracked fill:#fff3cd,stroke:#ffc107,stroke-width:2px,color:#000
-    classDef workflow fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px,color:#000
-    classDef external fill:#f8d7da,stroke:#dc3545,stroke-width:2px,color:#000
+    classDef tracked fill:#d4edda,stroke:#28a745,stroke-width:2px
+    classDef notTracked fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    classDef workflow fill:#cfe2ff,stroke:#0d6efd,stroke-width:2px
+    classDef external fill:#f8d7da,stroke:#dc3545,stroke-width:2px
 
     class spec,lock tracked
     class debug notTracked
