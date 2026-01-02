@@ -25,33 +25,72 @@ mcp_config_path="$2"
 logs_folder="$3"
 
 echo 'Waiting for MCP Gateway to be ready...'
+echo ''
+echo '=== File Locations ==='
+echo "MCP Config Path: $mcp_config_path"
+echo "Logs Folder: $logs_folder"
+echo "Gateway Log: ${logs_folder}/gateway.log"
+echo ''
+
+# Check if MCP config file exists and show its details
+echo '=== MCP Configuration File ==='
+if [ -f "$mcp_config_path" ]; then
+  echo "✓ Config file exists at: $mcp_config_path"
+  echo "File size: $(stat -f%z "$mcp_config_path" 2>/dev/null || stat -c%s "$mcp_config_path" 2>/dev/null || echo 'unknown') bytes"
+  echo "Last modified: $(stat -f%Sm "$mcp_config_path" 2>/dev/null || stat -c%y "$mcp_config_path" 2>/dev/null || echo 'unknown')"
+else
+  echo "✗ Config file NOT found at: $mcp_config_path"
+  exit 1
+fi
+echo ''
 
 # Show MCP config file content
-echo 'MCP Configuration:'
-cat "$mcp_config_path" || echo 'No MCP config file found'
+echo '=== MCP Configuration Content ==='
+cat "$mcp_config_path" || { echo 'ERROR: Failed to read MCP config file'; exit 1; }
 echo ''
 
 # Verify safeinputs and safeoutputs are present in config
+echo '=== Verifying Required Servers ==='
 if ! grep -q '"safeinputs"' "$mcp_config_path"; then
-  echo 'ERROR: safeinputs server not found in MCP configuration'
+  echo '✗ ERROR: safeinputs server not found in MCP configuration'
   exit 1
 fi
-if ! grep -q '"safeoutputs"' "$mcp_config_path"; then
-  echo 'ERROR: safeoutputs server not found in MCP configuration'
-  exit 1
-fi
-echo 'Verified: safeinputs and safeoutputs are present in configuration'
+echo '✓ safeinputs server found in configuration'
 
+if ! grep -q '"safeoutputs"' "$mcp_config_path"; then
+  echo '✗ ERROR: safeoutputs server not found in MCP configuration'
+  exit 1
+fi
+echo '✓ safeoutputs server found in configuration'
+echo ''
+
+# Check for gateway logs
+echo '=== Gateway Logs Check ==='
+if [ -f "${logs_folder}/gateway.log" ]; then
+  echo "✓ Gateway log file exists at: ${logs_folder}/gateway.log"
+  echo "Log file size: $(stat -f%z "${logs_folder}/gateway.log" 2>/dev/null || stat -c%s "${logs_folder}/gateway.log" 2>/dev/null || echo 'unknown') bytes"
+  echo "Last few lines of gateway log:"
+  tail -10 "${logs_folder}/gateway.log" 2>/dev/null || echo "Could not read log tail"
+else
+  echo "⚠ Gateway log file NOT found at: ${logs_folder}/gateway.log"
+fi
+echo ''
+
+echo '=== Testing Gateway Health ==='
 max_retries=30
 retry_count=0
 while [ $retry_count -lt $max_retries ]; do
   if curl -s -o /dev/null -w "%{http_code}" "${gateway_url}/health" | grep -q "200\|204"; then
-    echo "MCP Gateway is ready!"
-    curl -s "${gateway_url}/servers" || echo "Could not fetch servers list"
+    echo "✓ MCP Gateway is ready!"
+    echo ''
+    
+    echo '=== Gateway Servers List ==='
+    echo "Fetching servers from: ${gateway_url}/servers"
+    curl -s "${gateway_url}/servers" || echo "✗ Could not fetch servers list"
+    echo ''
     
     # Test MCP server connectivity through gateway
-    echo ''
-    echo 'Testing MCP server connectivity...'
+    echo '=== Testing MCP Server Connectivity ==='
     
     # Extract first external MCP server name from config (excluding safeinputs/safeoutputs)
     mcp_server=$(jq -r '.mcpServers | to_entries[] | select(.key != "safeinputs" and .key != "safeoutputs") | .key' "$mcp_config_path" | head -n 1)
@@ -59,8 +98,23 @@ while [ $retry_count -lt $max_retries ]; do
       echo "Testing connectivity to MCP server: $mcp_server"
       mcp_url="${gateway_url}/mcp/${mcp_server}"
       echo "MCP URL: $mcp_url"
+      echo ''
+      
+      # Check if server was rewritten in config
+      echo "Checking if '$mcp_server' was rewritten to use gateway..."
+      server_config=$(jq -r ".mcpServers.\"$mcp_server\"" "$mcp_config_path")
+      echo "Server config for '$mcp_server':"
+      echo "$server_config" | jq '.' 2>/dev/null || echo "$server_config"
+      
+      if echo "$server_config" | grep -q "gateway"; then
+        echo "✓ Server appears to be configured for gateway"
+      else
+        echo "⚠ Server may not be configured for gateway (no 'gateway' field found)"
+      fi
+      echo ''
       
       # Test with MCP initialize call
+      echo "Sending MCP initialize request..."
       response=$(curl -s -w "\n%{http_code}" -X POST "$mcp_url" \
         -H "Content-Type: application/json" \
         -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}')
@@ -70,11 +124,15 @@ while [ $retry_count -lt $max_retries ]; do
       
       echo "HTTP Status: $http_code"
       echo "Response: $body"
+      echo ''
       
       if [ "$http_code" = "200" ]; then
         echo "✓ MCP server connectivity test passed"
       else
         echo "⚠ MCP server returned HTTP $http_code (may need authentication or different request)"
+        echo ''
+        echo "Gateway logs (last 20 lines):"
+        tail -20 "${logs_folder}/gateway.log" 2>/dev/null || echo "Could not read gateway logs"
       fi
     else
       echo "No external MCP servers configured for testing"
@@ -86,9 +144,10 @@ while [ $retry_count -lt $max_retries ]; do
   echo "Waiting for gateway... (attempt $retry_count/$max_retries)"
   sleep 1
 done
-echo "Error: MCP Gateway failed to start after $max_retries attempts"
+echo "✗ Error: MCP Gateway failed to start after $max_retries attempts"
+echo ''
 
 # Show gateway logs for debugging
-echo 'Gateway logs:'
+echo '=== Gateway Logs (Full) ==='
 cat "${logs_folder}/gateway.log" || echo 'No gateway logs found'
 exit 1

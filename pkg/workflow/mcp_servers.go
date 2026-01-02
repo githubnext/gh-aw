@@ -450,7 +450,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			gatewayedServers = append(gatewayedServers, toolName)
 		}
 	}
-	gatewaySteps := generateMCPGatewaySteps(workflowData, nil, gatewayedServers)
+	gatewaySteps := generateMCPGatewaySteps(workflowData, nil)
 	for _, step := range gatewaySteps {
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
