@@ -239,7 +239,7 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
-	
+
 	// Determine host based on whether agent is disabled
 	host := "host.docker.internal"
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
@@ -249,7 +249,7 @@ func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, s
 	} else {
 		mcpRendererLog.Print("Using host.docker.internal for safe-inputs (agent enabled)")
 	}
-	
+
 	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\"\n")
 	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
 	// Note: env_vars is not supported for HTTP transport in MCP configuration

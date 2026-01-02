@@ -401,7 +401,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		log.Print("Validation completed - no lock file generated (--no-emit enabled)")
 	} else {
 		log.Printf("Writing output to: %s", lockFile)
-		
+
 		// Check if we need to force write to update timestamp
 		shouldForceWrite := false
 		if existingLockInfo, err := os.Stat(lockFile); err == nil {
@@ -419,7 +419,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				}
 			}
 		}
-		
+
 		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -432,7 +432,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			})
 			return errors.New(formattedErr)
 		}
-		
+
 		if shouldForceWrite {
 			log.Print("Updated lock file timestamp to match content generation")
 		}
