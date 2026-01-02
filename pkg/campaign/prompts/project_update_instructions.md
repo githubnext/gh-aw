@@ -8,16 +8,22 @@ Execute state writes using the `update-project` safe-output. All writes must tar
 **Campaign ID**: Extract from tracker label `{{.TrackerLabel}}` (format: `campaign:CAMPAIGN_ID`)
 {{end}}
 
-#### Adding New Issues
+#### Adding New Issues/PRs
 
-When adding an issue to the project board:
+When adding an issue or PR to the project board, use the **content number** (not URL):
 ```
 update-project:
   project: "{{.ProjectURL}}"
-  item_url: "ISSUE_URL"
-  status: "Todo"  # or "Done" if issue is already closed
+  content_type: "issue"  # or "pull_request"
+  content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
 {{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}```
+{{end}}  fields:
+    status: "Todo"  # or "Done" if issue/PR is already closed/merged
+```
+
+**How to extract content_number from URLs**:
+- Issue URL: `https://github.com/owner/repo/issues/123` → `content_number: 123`, `content_type: "issue"`
+- PR URL: `https://github.com/owner/repo/pull/456` → `content_number: 456`, `content_type: "pull_request"`
 
 **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
 - `Start Date` is set from the issue's `createdAt` timestamp
@@ -30,7 +36,8 @@ No additional configuration is needed. The dates are extracted in ISO format (YY
 ```
 update-project:
   project: "{{.ProjectURL}}"
-  item_url: "ISSUE_URL"
+  content_type: "issue"  # or "pull_request"
+  content_number: 123  # Extract from URL
   fields:
     status: "Todo"  # or "In Progress", "Blocked", "Done"
 {{if .TrackerLabel}}    campaign_id: "CAMPAIGN_ID"  # Extract from tracker label {{.TrackerLabel}}
@@ -58,22 +65,24 @@ When updating status for an existing board item:
 ```
 update-project:
   project: "{{.ProjectURL}}"
-  item_url: "ISSUE_URL"
-  status: "Done"  # or "In Progress", "Todo"
+  content_type: "issue"  # or "pull_request"
+  content_number: 123  # Extract from URL
 {{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}```
+{{end}}  fields:
+    status: "Done"  # or "In Progress", "Todo"
+```
 
 #### Idempotency
 
-- If an issue is already on the board with matching status → Skip (no-op)
-- If an issue is already on the board with different status → Update status field only
-- If an issue URL is invalid or deleted → Record failure, continue with remaining items
+- If an issue/PR is already on the board with matching status → Skip (no-op)
+- If an issue/PR is already on the board with different status → Update status field only
+- If an issue/PR URL is invalid or deleted → Record failure, continue with remaining items
 
 #### Write Operation Rules
 
 1. **Batch writes separately** - Do not mix reads and writes in the same operation
-2. **Validate before writing** - Confirm issue URL exists and is accessible
+2. **Validate before writing** - Confirm issue/PR URL exists and is accessible
 3. **Record all outcomes** - Log success/failure for each write operation
-4. **Never infer state** - Only update based on explicit issue state (open/closed)
+4. **Never infer state** - Only update based on explicit issue/PR state (open/closed/merged)
 5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
 {{end}}

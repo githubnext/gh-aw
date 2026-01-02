@@ -689,10 +689,11 @@ jobs:
           
           4.5 **Deterministic planner step (required when objective/KPIs are present)**
           
-          Before choosing additions/updates, produce a small, bounded plan that is rule-based and reproducible from the discovered state:
-          - Output at most **3** planned actions.
-          - Prefer actions that are directly connected to improving the **primary** KPI.
-          - If signals indicate risk or uncertainty, prefer smaller, reversible actions.
+          Before executing board synchronization, produce a small strategic commentary that is rule-based and reproducible from the discovered state:
+          - Output at most **3** strategic observations or recommendations.
+          - Focus on actions that are directly connected to improving the **primary** KPI.
+          - If signals indicate risk or uncertainty, note smaller, reversible next steps.
+          - **IMPORTANT**: This planning step is for strategic commentary only. It does NOT limit the number of items added to the board in steps 5-9.5. All discovered items must still be synchronized to the board per the rules below.
           
           Plan format (keep under 2KB):
           ```json
@@ -700,16 +701,19 @@ jobs:
              "objective": "...",
              "primary_kpi": "...",
              "kpi_trends": [{"name": "...", "trend": "Improving|Flat|Regressing"}],
-             "actions": [
-                {"type": "add_to_project|update_status|comment", "why": "...", "target_url": "..."}
+             "strategic_observations": [
+                {"observation": "...", "recommendation": "..."}
              ]
           }
           ```
           
           5. **Decide additions (with pacing)** - For each new item discovered:
-             - Decision: Add to board? (Default: yes for all items with tracker label or worker tracker-id)
-             - If `governance.max-new-items-per-run` is set, add at most that many new items
-             - Prefer adding oldest (or least recently updated) missing items first
+             - **CRITICAL**: All discovered items (both tracker-labeled from step 1 AND worker-created from step 2) MUST be added to the board to maintain synchronization between the campaign state and the project board.
+             - Decision: Add to board? (Default: **YES** for all items with tracker label or worker tracker-id)
+             - If `governance.max-new-items-per-run` is set, add at most that many new items in this single run (remaining items will be added in subsequent runs)
+             - When applying the governance limit, prioritize in this order:
+               1. Tracker-labeled items (campaign tasks) - add oldest first
+               2. Worker-created items (worker outputs) - add oldest first
              - Determine initial status field value based on item state:
                - Open issue/PR/discussion → "Todo" status
                - Closed issue/discussion → "Done" status
@@ -737,10 +741,12 @@ jobs:
           #### Phase 3: Write State (Execution)
           
           8. **Execute additions** - Add new items to project board
+             - Add ALL items identified in step 5 (both tracker-labeled and worker-created), up to the governance limit if set
              - Use `update-project` safe-output for each new item
              - Set predefined fields: `status` (required), optionally `priority`, `size`
              - If worker tracker-id is found in item body (issue/PR/discussion), populate `worker_workflow` field
              - Record outcome: success or failure with error details
+             - If governance limit is reached, log remaining items and note they will be processed in the next run
           
           9. **Execute status updates** - Update existing board items with status changes
              - Use `update-project` safe-output for each status change
@@ -760,11 +766,12 @@ jobs:
           #### Phase 4: Report (Output)
           
           11. **Generate status report** - Summarize execution results:
-              - Total items discovered via tracker label and worker tracker-ids (by type: issues, PRs, discussions)
-              - Items added to board this run (count and URLs, by type)
+              - Total items discovered via tracker label (by type: issues, PRs)
+              - Total items discovered via worker tracker-ids (by type: issues, PRs, discussions)
+              - Items added to board this run (count and URLs, broken down by: tracker-labeled vs worker-created)
               - Items updated on board this run (count and status changes)
               - Items with fields populated this run (count and which fields, e.g., worker_workflow)
-              - Items skipped due to governance limits (and why)
+              - Items skipped due to governance limits (count, type, and why - noting they will be added in next run)
               - Current campaign metrics: open vs closed, progress percentage
               - Any failures encountered during writes
               - Campaign completion status
@@ -807,16 +814,22 @@ jobs:
           **Campaign ID**: Extract from tracker label `campaign:go-file-size-reduction-project64` (format: `campaign:CAMPAIGN_ID`)
           
           
-          #### Adding New Issues
+          #### Adding New Issues/PRs
           
-          When adding an issue to the project board:
+          When adding an issue or PR to the project board, use the **content number** (not URL):
           ```
           update-project:
             project: "https://github.com/orgs/githubnext/projects/64"
-            item_url: "ISSUE_URL"
-            status: "Todo"  # or "Done" if issue is already closed
+            content_type: "issue"  # or "pull_request"
+            content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
             campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
+            fields:
+              status: "Todo"  # or "Done" if issue/PR is already closed/merged
           ```
+          
+          **How to extract content_number from URLs**:
+          - Issue URL: `https://github.com/owner/repo/issues/123` → `content_number: 123`, `content_type: "issue"`
+          - PR URL: `https://github.com/owner/repo/pull/456` → `content_number: 456`, `content_type: "pull_request"`
           
           **Note**: If your project board has `Start Date` and `End Date` fields, these will be **automatically populated** from the issue/PR timestamps:
           - `Start Date` is set from the issue's `createdAt` timestamp
@@ -829,7 +842,14 @@ jobs:
           ```
           update-project:
             project: "https://github.com/orgs/githubnext/projects/64"
-            item_url: "ISSUE_URL"
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+            content_type: "issue"  # or "pull_request"
+            content_number: 123  # Extract from URL
             fields:
               status: "Todo"  # or "In Progress", "Blocked", "Done"
               campaign_id: "CAMPAIGN_ID"  # Extract from tracker label campaign:go-file-size-reduction-project64
@@ -849,12 +869,6 @@ jobs:
           
           **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
           
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           Only populate fields that exist on your project board. Field names are case-sensitive and should match exactly as configured in GitHub Projects.
           
           #### Updating Existing Items
@@ -863,23 +877,25 @@ jobs:
           ```
           update-project:
             project: "https://github.com/orgs/githubnext/projects/64"
-            item_url: "ISSUE_URL"
-            status: "Done"  # or "In Progress", "Todo"
+            content_type: "issue"  # or "pull_request"
+            content_number: 123  # Extract from URL
             campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label campaign:go-file-size-reduction-project64
+            fields:
+              status: "Done"  # or "In Progress", "Todo"
           ```
           
           #### Idempotency
           
-          - If an issue is already on the board with matching status → Skip (no-op)
-          - If an issue is already on the board with different status → Update status field only
-          - If an issue URL is invalid or deleted → Record failure, continue with remaining items
+          - If an issue/PR is already on the board with matching status → Skip (no-op)
+          - If an issue/PR is already on the board with different status → Update status field only
+          - If an issue/PR URL is invalid or deleted → Record failure, continue with remaining items
           
           #### Write Operation Rules
           
           1. **Batch writes separately** - Do not mix reads and writes in the same operation
-          2. **Validate before writing** - Confirm issue URL exists and is accessible
+          2. **Validate before writing** - Confirm issue/PR URL exists and is accessible
           3. **Record all outcomes** - Log success/failure for each write operation
-          4. **Never infer state** - Only update based on explicit issue state (open/closed)
+          4. **Never infer state** - Only update based on explicit issue/PR state (open/closed/merged)
           5. **Fail gracefully** - If a write fails, record error and continue with remaining operations
           
           ### Summary
