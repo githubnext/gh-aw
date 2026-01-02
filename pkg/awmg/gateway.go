@@ -397,11 +397,20 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	rewrittenConfig := make(map[string]any)
 	mcpServers := make(map[string]any)
 
+	// Track which servers are rewritten vs ignored for summary logging
+	var rewrittenServers []string
+	var ignoredServers []string
+
 	// First, copy all servers from original (preserves non-proxied servers like safeinputs/safeoutputs)
 	gatewayLog.Printf("Copying %d servers from original config to preserve non-proxied servers", len(originalMCPServers))
 	for serverName, serverConfig := range originalMCPServers {
 		mcpServers[serverName] = serverConfig
 		gatewayLog.Printf("  Preserved server: %s", serverName)
+		
+		// Track if this server will be ignored (not rewritten)
+		if _, willBeRewritten := config.MCPServers[serverName]; !willBeRewritten {
+			ignoredServers = append(ignoredServers, serverName)
+		}
 	}
 
 	gatewayLog.Printf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))
@@ -429,6 +438,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		}
 
 		mcpServers[serverName] = serverConfig
+		rewrittenServers = append(rewrittenServers, serverName)
 	}
 
 	rewrittenConfig["mcpServers"] = mcpServers
@@ -436,11 +446,26 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	// Do NOT include gateway section in rewritten config (per requirement)
 	gatewayLog.Print("Gateway section removed from rewritten config")
 
-	// Log summary of what will be written
-	gatewayLog.Printf("Final rewritten config will have %d total servers", len(mcpServers))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Final config summary: %d total servers", len(mcpServers))))
-	for serverName := range mcpServers {
-		gatewayLog.Printf("  - %s", serverName)
+	// Log summary of servers rewritten vs ignored
+	gatewayLog.Printf("Server summary: %d rewritten, %d ignored, %d total", len(rewrittenServers), len(ignoredServers), len(mcpServers))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server summary: %d rewritten, %d ignored", len(rewrittenServers), len(ignoredServers))))
+	
+	if len(rewrittenServers) > 0 {
+		gatewayLog.Printf("Servers rewritten (proxied through gateway):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers rewritten (proxied through gateway):"))
+		for _, serverName := range rewrittenServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
+	}
+	
+	if len(ignoredServers) > 0 {
+		gatewayLog.Printf("Servers ignored (preserved as-is):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers ignored (preserved as-is):"))
+		for _, serverName := range ignoredServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
 	}
 
 	// Marshal to JSON with indentation
