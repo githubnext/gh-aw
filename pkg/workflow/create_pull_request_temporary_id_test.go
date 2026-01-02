@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCreatePullRequestTemporaryIDMapPassedToStep verifies that the temporary ID map
@@ -68,7 +69,7 @@ func TestCreatePullRequestTemporaryIDMapInConsolidatedJob(t *testing.T) {
 
 	// Build the consolidated safe outputs job
 	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
-	assert.NoError(t, err, "Building consolidated safe outputs job should not error")
+	require.NoError(t, err, "Building consolidated safe outputs job should not error")
 	assert.NotNil(t, job, "Consolidated safe outputs job should be created")
 
 	// Convert steps to string for verification
