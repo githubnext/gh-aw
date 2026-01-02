@@ -14,8 +14,9 @@ const createTestableFunction = scriptContent => {
     (scriptBody = scriptBody.replace(/const \{ addExpirationComment \} = require\("\.\/expiration_helpers\.cjs"\);?\s*/g, "")),
     (scriptBody = scriptBody.replace(/const \{ removeDuplicateTitleFromDescription \} = require\("\.\/remove_duplicate_title\.cjs"\);?\s*/g, "")),
     (scriptBody = scriptBody.replace(/const \{ getErrorMessage \} = require\("\.\/error_helpers\.cjs"\);?\s*/g, "")),
+    (scriptBody = scriptBody.replace(/const \{ replaceTemporaryIdReferences \} = require\("\.\/temporary_id\.cjs"\);?\s*/g, "")),
     new Function(
-      `\n    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID, addExpirationComment, removeDuplicateTitleFromDescription, getErrorMessage } = arguments[0];\n    \n    ${scriptBody}\n    \n    return main;\n  `
+      `\n    const { fs, crypto, github, core, context, process, console, updateActivationComment, getTrackerID, addExpirationComment, removeDuplicateTitleFromDescription, getErrorMessage, replaceTemporaryIdReferences } = arguments[0];\n    \n    ${scriptBody}\n    \n    return main;\n  `
     )
   );
 };
@@ -73,6 +74,7 @@ describe("create_pull_request.cjs", () => {
         addExpirationComment: vi.fn(),
         removeDuplicateTitleFromDescription: vi.fn((title, description) => description),
         getErrorMessage: vi.fn(error => (error instanceof Error ? error.message : String(error))),
+        replaceTemporaryIdReferences: vi.fn((text, resolvedIds) => text),
       }));
   }),
     afterEach(() => {
