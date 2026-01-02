@@ -480,6 +480,35 @@ When developing a new command:
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
 
+### YAML Library Usage
+
+**Primary YAML Library**: `goccy/go-yaml` v1.19.1
+
+gh-aw uses `goccy/go-yaml` for YAML 1.1/1.2 compatibility with GitHub Actions. See <a>specs/yaml-version-gotchas.md</a> for details on YAML version differences.
+
+**Standard YAML Library**: `go.yaml.in/yaml/v3` v3.0.4
+
+For simple YAML marshaling/unmarshaling operations where YAML 1.1/1.2 compatibility is not critical, use the canonical `go.yaml.in/yaml/v3` import path (not the deprecated `gopkg.in/yaml.v3`).
+
+**Migration from `gopkg.in/yaml.v3`**:
+- The deprecated `gopkg.in/yaml.v3` path has been migrated to the canonical `go.yaml.in/yaml/v3` path
+- Both paths provide identical APIs (`Marshal`, `Unmarshal`, `Encoder`, `Decoder`)
+- The canonical path provides better supply chain security and aligns with modern Go ecosystem practices
+- Transitive dependencies may still use `gopkg.in/yaml.v3` (e.g., `github.com/cli/go-gh/v2`) - this is acceptable
+
+**When to use each library**:
+- **`goccy/go-yaml`**: Workflow frontmatter parsing, GitHub Actions YAML generation, any YAML 1.1/1.2 sensitive operations
+- **`go.yaml.in/yaml/v3`**: Campaign specs, workflow statistics, simple configuration marshaling
+
+**Example**:
+```go
+import "go.yaml.in/yaml/v3"  // ✅ Use canonical path
+
+// Simple marshaling example
+data := map[string]any{"key": "value"}
+yamlBytes, err := yaml.Marshal(data)
+```
+
 ### Type Patterns and Best Practices
 
 Use appropriate type patterns to improve code clarity, maintainability, and type safety:
