@@ -10,7 +10,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/githubnext/gh-aw/pkg/tty"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var compileStatsLog = logger.New("cli:compile_stats")
