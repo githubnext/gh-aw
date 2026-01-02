@@ -5570,6 +5570,7 @@
     },
     "http_mcp_tool": {
       "type": "object",
+      "$comment": "HTTP-based MCP servers run externally and do not require network configuration. Network access control applies only to stdio_mcp_tool which runs in isolated containers. To control HTTP MCP server access, configure the external server itself.",
       "description": "HTTP MCP tool configuration",
       "properties": {
         "type": {
