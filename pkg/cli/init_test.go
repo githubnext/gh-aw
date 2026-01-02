@@ -54,18 +54,18 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Call the function (no MCP or campaign)
-			err = InitRepository(false, false, false, false, "", []string{}, false)
+			err = InitRepository(false, false, false, false, "", []string{}, false, false, nil)
 
 			// Check error expectation
 			if tt.wantError {
 				if err == nil {
-					t.Errorf("InitRepository() expected error, got nil")
+					t.Errorf("InitRepository(, false, nil) expected error, got nil")
 				}
 				return
 			}
 
 			if err != nil {
-				t.Fatalf("InitRepository() returned unexpected error: %v", err)
+				t.Fatalf("InitRepository(, false, nil) returned unexpected error: %v", err)
 			}
 
 			// Verify .gitattributes was created
@@ -149,15 +149,15 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	}
 
 	// Call the function first time
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	err = InitRepository(false, false, false, false, "", []string{}, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository() returned error on first call: %v", err)
+		t.Fatalf("InitRepository(, false, nil) returned error on first call: %v", err)
 	}
 
 	// Call the function second time
-	err = InitRepository(false, false, false, false, "", []string{}, false)
+	err = InitRepository(false, false, false, false, "", []string{}, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository() returned error on second call: %v", err)
+		t.Fatalf("InitRepository(, false, nil) returned error on second call: %v", err)
 	}
 
 	// Verify files still exist and are correct
@@ -211,9 +211,9 @@ func TestInitRepository_Verbose(t *testing.T) {
 	}
 
 	// Call the function with verbose=true (should not error)
-	err = InitRepository(true, false, false, false, "", []string{}, false)
+	err = InitRepository(true, false, false, false, "", []string{}, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository() returned error with verbose=true: %v", err)
+		t.Fatalf("InitRepository(, false, nil) returned error with verbose=true: %v", err)
 	}
 
 	// Verify files were created
@@ -245,8 +245,8 @@ func TestInitRepository_WithCampaignDesignerAgent(t *testing.T) {
 	}
 
 	// Call InitRepository with campaign flag enabled
-	if err := InitRepository(false, false, true, false, "", []string{}, false); err != nil {
-		t.Fatalf("InitRepository() with campaign flag returned error: %v", err)
+	if err := InitRepository(false, false, true, false, "", []string{}, false, false, nil); err != nil {
+		t.Fatalf("InitRepository(, false, nil) with campaign flag returned error: %v", err)
 	}
 
 	agentPath := filepath.Join(tempDir, ".github", "agents", "agentic-campaign-designer.agent.md")
