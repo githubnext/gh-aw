@@ -3,8 +3,8 @@
 package cli
 
 import (
-"context"
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"os/exec"
