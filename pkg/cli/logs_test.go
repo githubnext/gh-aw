@@ -1,8 +1,8 @@
 package cli
 
 import (
-"context"
 	"archive/zip"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
