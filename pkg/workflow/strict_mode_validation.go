@@ -280,6 +280,12 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 // validateStrictModeWithContext performs strict mode validations using ValidationContext
 // This is the new pattern that supports error aggregation
+//
+// Note: Currently unused as strict mode validation requires frontmatter map which is not
+// stored in WorkflowData. This will be enabled once WorkflowData includes the frontmatter
+// or the compiler orchestration is updated to pass it separately.
+//
+//nolint:unused // Reserved for future use when frontmatter is available in WorkflowData
 func (c *Compiler) validateStrictModeWithContext(ctx *ValidationContext, frontmatter map[string]any, networkPermissions *NetworkPermissions) {
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping validation")

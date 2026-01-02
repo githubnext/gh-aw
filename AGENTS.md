@@ -239,6 +239,70 @@ Keep as-is
 
 See **[specs/validation-refactoring.md](specs/validation-refactoring.md)** for step-by-step refactoring guide and examples.
 
+## ValidationContext: Error Aggregation Pattern
+
+**Target**: Collect all validation errors in one compilation run instead of failing on the first error
+
+The `ValidationContext` provides unified error aggregation across the validation pipeline, enabling developers to see all validation issues at once and fix them in a single iteration.
+
+### Architecture
+
+```go
+// Create context for error collection
+ctx := NewValidationContext(markdownPath, workflowData)
+ctx.SetPhase(PhasePreCompile)
+
+// Run validators - they add errors to context instead of returning
+validateFeaturesWithContext(ctx, workflowData)
+validateSandboxConfigWithContext(ctx, workflowData)
+c.validateStrictModeWithContext(ctx, frontmatter, networkPermissions)
+
+// Check for errors and report all together
+if ctx.HasErrors() {
+    return errors.New(ctx.Error())  // Multi-error formatted report
+}
+```
+
+### Validation Phases
+
+- **PhaseParseTime**: Validation during markdown parsing (frontmatter, syntax)
+- **PhasePreCompile**: Validation before YAML generation (configuration, features)
+- **PhasePostYAMLGeneration**: Validation after YAML is generated (expression sizes, schema)
+- **PhasePreEmit**: Final validation before writing lock file (file size, completeness)
+
+### Migration Pattern
+
+Both old and new patterns coexist during gradual migration:
+
+**Legacy Pattern (Fail-Fast)**:
+```go
+func validateFeatures(data *WorkflowData) error {
+    if /* invalid */ {
+        return fmt.Errorf("validation failed")
+    }
+    return nil
+}
+```
+
+**New Pattern (Error Aggregation)**:
+```go
+func validateFeaturesWithContext(ctx *ValidationContext, data *WorkflowData) {
+    if /* invalid */ {
+        ctx.AddError("features_validation", fmt.Errorf("validation failed"))
+    }
+}
+```
+
+### Key Benefits
+
+- **See all errors at once**: Developers discover all issues in one compilation
+- **Faster iteration**: No need to fix one error, recompile, see next error, repeat
+- **Better error reports**: IDE-parseable format with file:line:column information
+- **Phase tracking**: Clear separation of validation concerns
+- **Backward compatible**: Legacy validators continue working unchanged
+
+See **[pkg/workflow/validation_context.go](pkg/workflow/validation_context.go)** for complete implementation.
+
 ## Console Message Formatting
 
 **ALWAYS use console formatting for user output:**

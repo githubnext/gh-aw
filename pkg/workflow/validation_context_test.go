@@ -249,7 +249,7 @@ func TestErrorMethod(t *testing.T) {
 	ctx := NewValidationContext("test.md", &WorkflowData{})
 
 	// No errors - should return empty string
-	assert.Equal(t, "", ctx.Error())
+	assert.Empty(t, ctx.Error())
 
 	// Add error
 	ctx.AddError("validator1", errors.New("test error"))
@@ -331,7 +331,7 @@ func TestSetAndGetYAMLContent(t *testing.T) {
 	yamlContent := "name: test\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest"
 	ctx.SetYAMLContent(yamlContent)
 
-	assert.Equal(t, yamlContent, ctx.GetYAMLContent())
+	assert.YAMLEq(t, yamlContent, ctx.GetYAMLContent())
 }
 
 func TestVerboseFlag(t *testing.T) {
@@ -418,7 +418,7 @@ func TestErrorReportFormat(t *testing.T) {
 
 	// Check for IDE-parseable format
 	lines := strings.Split(report, "\n")
-	require.Greater(t, len(lines), 0)
+	require.NotEmpty(t, lines)
 
 	// First line should contain file:line:column: error:
 	assert.Contains(t, lines[0], "workflow.md:5:10:")

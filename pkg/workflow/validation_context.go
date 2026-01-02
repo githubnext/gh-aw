@@ -292,7 +292,7 @@ func (vc *ValidationContext) FormatReport() string {
 			output.WriteString(formatted)
 		} else {
 			// Multiple errors - format each one
-			output.WriteString(fmt.Sprintf("Found %d validation errors:\n\n", len(vc.errors)))
+			fmt.Fprintf(&output, "Found %d validation errors:\n\n", len(vc.errors))
 			for i, err := range vc.errors {
 				formatted := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
@@ -316,7 +316,7 @@ func (vc *ValidationContext) FormatReport() string {
 		if len(vc.errors) > 0 {
 			output.WriteString("\n\n")
 		}
-		output.WriteString(fmt.Sprintf("Found %d validation warnings:\n\n", len(vc.warnings)))
+		fmt.Fprintf(&output, "Found %d validation warnings:\n\n", len(vc.warnings))
 		for i, warn := range vc.warnings {
 			formatted := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{

@@ -6,6 +6,7 @@
 // domain-specific files to maintain clarity and single responsibility:
 //
 //   - validation.go: This file - package documentation only
+//   - validation_context.go: Unified validation context for error aggregation
 //   - strict_mode_validation.go: Security and strict mode validation
 //   - repository_features_validation.go: Repository capability detection
 //   - schema_validation.go: GitHub Actions schema validation
@@ -24,6 +25,56 @@
 //   - bundler_safety_validation.go: JavaScript bundle safety (require/module checks)
 //   - bundler_script_validation.go: JavaScript script content (execSync, GitHub globals)
 //   - bundler_runtime_validation.go: JavaScript runtime mode compatibility
+//
+// # Validation Patterns
+//
+// ## Legacy Pattern (Fail-Fast)
+//
+// The original validation pattern returns errors immediately, stopping compilation
+// on the first issue. This requires developers to fix one error at a time:
+//
+//	func validateSomething(data *WorkflowData) error {
+//	    if /* invalid */ {
+//	        return fmt.Errorf("validation failed")
+//	    }
+//	    return nil
+//	}
+//
+// ## New Pattern (Error Aggregation)
+//
+// The new validation pattern uses ValidationContext to collect all errors before
+// failing, improving developer iteration speed:
+//
+//	func validateSomethingWithContext(ctx *ValidationContext, data *WorkflowData) {
+//	    if /* invalid */ {
+//	        ctx.AddError("validator_name", fmt.Errorf("validation failed"))
+//	    }
+//	}
+//
+// ## Migration Strategy
+//
+// Both patterns coexist during migration:
+//   - Legacy validators continue to work unchanged
+//   - New validators add *WithContext variants
+//   - Compiler orchestration gradually adopts ValidationContext
+//   - No breaking changes to existing code
+//
+// ## Using ValidationContext
+//
+// Create a context and collect errors across multiple validators:
+//
+//	ctx := NewValidationContext(markdownPath, workflowData)
+//	ctx.SetPhase(PhasePreCompile)
+//
+//	// Run validators - they add errors to context
+//	validateFeaturesWithContext(ctx, workflowData)
+//	validateSandboxConfigWithContext(ctx, workflowData)
+//	c.validateStrictModeWithContext(ctx, frontmatter, networkPermissions)
+//
+//	// Check and report all errors together
+//	if ctx.HasErrors() {
+//	    return errors.New(ctx.Error())  // Formatted multi-error report
+//	}
 //
 // # When to Add New Validation
 //
