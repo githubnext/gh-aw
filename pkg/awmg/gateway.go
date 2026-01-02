@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -374,8 +375,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	if port == 0 {
 		port = 8080
 	}
-	// Use host.docker.internal instead of localhost to allow Docker containers to reach the gateway
-	gatewayURL := fmt.Sprintf("http://host.docker.internal:%d", port)
+	// Use localhost since the rewritten config is consumed by Copilot CLI running on the host
+	gatewayURL := fmt.Sprintf("http://localhost:%d", port)
 
 	gatewayLog.Printf("Gateway URL: %s", gatewayURL)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Gateway URL: %s", gatewayURL)))
@@ -384,17 +385,32 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	var originalMCPServers map[string]any
 	if servers, ok := originalConfig["mcpServers"].(map[string]any); ok {
 		originalMCPServers = servers
+		gatewayLog.Printf("Found %d servers in original config", len(originalMCPServers))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d servers in original config", len(originalMCPServers))))
 	} else {
 		originalMCPServers = make(map[string]any)
+		gatewayLog.Print("No mcpServers found in original config, starting with empty map")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No mcpServers found in original config"))
 	}
 
 	// Create merged config with rewritten proxied servers and preserved non-proxied servers
 	rewrittenConfig := make(map[string]any)
 	mcpServers := make(map[string]any)
 
+	// Track which servers are rewritten vs ignored for summary logging
+	var rewrittenServers []string
+	var ignoredServers []string
+
 	// First, copy all servers from original (preserves non-proxied servers like safeinputs/safeoutputs)
+	gatewayLog.Printf("Copying %d servers from original config to preserve non-proxied servers", len(originalMCPServers))
 	for serverName, serverConfig := range originalMCPServers {
 		mcpServers[serverName] = serverConfig
+		gatewayLog.Printf("  Preserved server: %s", serverName)
+
+		// Track if this server will be ignored (not rewritten)
+		if _, willBeRewritten := config.MCPServers[serverName]; !willBeRewritten {
+			ignoredServers = append(ignoredServers, serverName)
+		}
 	}
 
 	gatewayLog.Printf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))
@@ -422,12 +438,35 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		}
 
 		mcpServers[serverName] = serverConfig
+		rewrittenServers = append(rewrittenServers, serverName)
 	}
 
 	rewrittenConfig["mcpServers"] = mcpServers
 
 	// Do NOT include gateway section in rewritten config (per requirement)
 	gatewayLog.Print("Gateway section removed from rewritten config")
+
+	// Log summary of servers rewritten vs ignored
+	gatewayLog.Printf("Server summary: %d rewritten, %d ignored, %d total", len(rewrittenServers), len(ignoredServers), len(mcpServers))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server summary: %d rewritten, %d ignored", len(rewrittenServers), len(ignoredServers))))
+
+	if len(rewrittenServers) > 0 {
+		gatewayLog.Printf("Servers rewritten (proxied through gateway):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers rewritten (proxied through gateway):"))
+		for _, serverName := range rewrittenServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
+	}
+
+	if len(ignoredServers) > 0 {
+		gatewayLog.Printf("Servers ignored (preserved as-is):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers ignored (preserved as-is):"))
+		for _, serverName := range ignoredServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
+	}
 
 	// Marshal to JSON with indentation
 	data, err := json.MarshalIndent(rewrittenConfig, "", "  ")
@@ -437,14 +476,84 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		return fmt.Errorf("failed to marshal rewritten config: %w", err)
 	}
 
-	gatewayLog.Printf("Writing %d bytes to config file", len(data))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file", len(data))))
+	gatewayLog.Printf("Marshaled config to JSON: %d bytes", len(data))
+	gatewayLog.Printf("Writing to file: %s", configPath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file: %s", len(data), configPath)))
+
+	// Log a preview of the config being written (first 500 chars, redacting sensitive data)
+	preview := string(data)
+	if len(preview) > 500 {
+		preview = preview[:500] + "..."
+	}
+	// Redact any Bearer tokens in the preview
+	preview = strings.ReplaceAll(preview, config.Gateway.APIKey, "******")
+	gatewayLog.Printf("Config preview (redacted): %s", preview)
 
 	// Write back to file with restricted permissions (0600) since it contains sensitive API keys
+	gatewayLog.Printf("Writing file with permissions 0600 (owner read/write only)")
 	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		gatewayLog.Printf("Failed to write rewritten config: %v", err)
+		gatewayLog.Printf("Failed to write rewritten config to %s: %v", configPath, err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
 		return fmt.Errorf("failed to write rewritten config: %w", err)
+	}
+
+	gatewayLog.Printf("Successfully wrote config file: %s", configPath)
+
+	// Self-check: Read back the file and verify it was written correctly
+	gatewayLog.Print("Performing self-check: verifying config was written correctly")
+	verifyData, err := os.ReadFile(configPath)
+	if err != nil {
+		gatewayLog.Printf("Self-check failed: could not read back config file: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Could not verify config was written: %v", err)))
+	} else {
+		var verifyConfig map[string]any
+		if err := json.Unmarshal(verifyData, &verifyConfig); err != nil {
+			gatewayLog.Printf("Self-check failed: could not parse config: %v", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Could not parse rewritten config: %v", err)))
+		} else {
+			// Verify mcpServers section exists
+			verifyServers, ok := verifyConfig["mcpServers"].(map[string]any)
+			if !ok {
+				gatewayLog.Print("Self-check failed: mcpServers section missing or invalid")
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("ERROR: Self-check failed - mcpServers section missing"))
+				return fmt.Errorf("self-check failed: mcpServers section missing after rewrite")
+			}
+
+			// Verify all proxied servers were rewritten correctly
+			verificationErrors := []string{}
+			for serverName := range config.MCPServers {
+				serverConfig, ok := verifyServers[serverName].(map[string]any)
+				if !ok {
+					verificationErrors = append(verificationErrors, fmt.Sprintf("Server '%s' missing from rewritten config", serverName))
+					continue
+				}
+
+				// Check that server has correct type and URL
+				serverType, hasType := serverConfig["type"].(string)
+				serverURL, hasURL := serverConfig["url"].(string)
+
+				if !hasType || serverType != "http" {
+					verificationErrors = append(verificationErrors, fmt.Sprintf("Server '%s' missing 'type: http' field", serverName))
+				}
+
+				if !hasURL || !strings.Contains(serverURL, gatewayURL) {
+					verificationErrors = append(verificationErrors, fmt.Sprintf("Server '%s' URL does not point to gateway", serverName))
+				}
+			}
+
+			if len(verificationErrors) > 0 {
+				gatewayLog.Printf("Self-check found %d verification errors", len(verificationErrors))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("ERROR: Self-check found %d verification errors:", len(verificationErrors))))
+				for _, errMsg := range verificationErrors {
+					gatewayLog.Printf("  - %s", errMsg)
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("  - %s", errMsg)))
+				}
+				return fmt.Errorf("self-check failed: config rewrite verification errors")
+			}
+
+			gatewayLog.Printf("Self-check passed: all %d proxied servers correctly rewritten", len(config.MCPServers))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Self-check passed: all %d proxied servers correctly rewritten", len(config.MCPServers))))
+		}
 	}
 
 	gatewayLog.Printf("Successfully rewrote MCP config file")

@@ -133,7 +133,7 @@ func TestRewriteMCPConfigForGateway_PreservesNonProxiedServers(t *testing.T) {
 		t.Fatal("github server should have url (rewritten)")
 	}
 
-	expectedURL := "http://host.docker.internal:8080/mcp/github"
+	expectedURL := "http://localhost:8080/mcp/github"
 	if githubURL != expectedURL {
 		t.Errorf("Expected github URL %s, got %s", expectedURL, githubURL)
 	}

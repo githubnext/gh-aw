@@ -27,7 +27,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	}
 
 	// Use shared JSON MCP config renderer with unified renderer methods
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+	options := JSONMCPConfigOptions{
 		ConfigPath: "/home/runner/.copilot/mcp-config.json",
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
@@ -55,7 +55,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			},
 			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSafeInputsMCP(yaml, safeInputs)
+				renderer.RenderSafeInputsMCP(yaml, safeInputs, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
@@ -75,7 +75,15 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
 			yaml.WriteString("          find /home/runner/.copilot\n")
 		},
-	})
+	}
+
+	// Add gateway configuration if MCP gateway is enabled
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil {
+		copilotMCPLog.Print("MCP gateway is enabled, adding gateway config to MCP config")
+		options.GatewayConfig = workflowData.SandboxConfig.MCP
+	}
+
+	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, options)
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")

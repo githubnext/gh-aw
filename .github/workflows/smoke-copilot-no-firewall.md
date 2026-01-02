@@ -14,6 +14,7 @@ permissions:
 name: Smoke Copilot No Firewall
 engine: copilot
 network:
+  firewall: false
   allowed:
     - defaults
     - node
@@ -21,6 +22,8 @@ network:
     - playwright
 sandbox:
   agent: false  # Firewall disabled (migrated from network.firewall)
+  mcp:
+    port: 8080
 imports:
   - shared/gh.md
 tools:
@@ -44,25 +47,16 @@ safe-outputs:
       run-failure: "🤖 ALERT: [{workflow_name}]({run_url}) {status}. ANOMALY_DETECTED. REPAIR_REQUIRED."
 timeout-minutes: 10
 strict: false
+features:
+  mcp-gateway: true
 ---
 
-# Smoke Test: Copilot Engine Validation (No Firewall)
+# Smoke Test: Copilot Engine (No Firewall)
 
-**IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
+Run smoke tests for Copilot engine without firewall:
+1. Review last 2 merged PRs in ${{ github.repository }}
+2. Create test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt`
+3. Navigate to https://github.com with Playwright and verify page title
+4. List 3 issues using safeinputs-gh tool
 
-## Test Requirements
-
-1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-4. **Playwright MCP Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-5. **Safe Input gh Tool Testing**: Use the `safeinputs-gh` tool to run "gh issues list --limit 3" to verify the tool can access GitHub issues
-
-## Output
-
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
-
-If all tests pass, add the label `smoke-copilot-no-firewall` to the pull request.
+Add brief comment (5 lines max) with test results (✅/❌) and add label `smoke-copilot-no-firewall` if all pass.

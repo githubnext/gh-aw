@@ -221,25 +221,36 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
-func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+func (r *MCPConfigRendererUnified) RenderSafeInputsMCP(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Safe Inputs MCP: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
-		r.renderSafeInputsTOML(yaml, safeInputs)
+		r.renderSafeInputsTOML(yaml, safeInputs, workflowData)
 		return
 	}
 
 	// JSON format
-	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, r.options.IsLast, r.options.IncludeCopilotFields)
+	renderSafeInputsMCPConfigWithOptions(yaml, safeInputs, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
 // renderSafeInputsTOML generates Safe Inputs MCP configuration in TOML format
 // Uses HTTP transport exclusively
-func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig) {
+func (r *MCPConfigRendererUnified) renderSafeInputsTOML(yaml *strings.Builder, safeInputs *SafeInputsConfig, workflowData *WorkflowData) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeInputsMCPServerID + "]\n")
 	yaml.WriteString("          type = \"http\"\n")
-	yaml.WriteString("          url = \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\"\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+		mcpRendererLog.Print("Using localhost for safe-inputs (agent disabled)")
+	} else {
+		mcpRendererLog.Print("Using host.docker.internal for safe-inputs (agent enabled)")
+	}
+
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\"\n")
 	yaml.WriteString("          headers = { Authorization = \"Bearer $GH_AW_SAFE_INPUTS_API_KEY\" }\n")
 	// Note: env_vars is not supported for HTTP transport in MCP configuration
 	// Environment variables are passed via the workflow job's env: section instead
@@ -417,6 +428,9 @@ type JSONMCPConfigOptions struct {
 	FilterTool func(toolName string) bool
 	// PostEOFCommands is an optional function to add commands after the EOF (e.g., debug output)
 	PostEOFCommands func(yaml *strings.Builder)
+	// GatewayConfig is an optional gateway configuration to include in the MCP config
+	// When set, adds a "gateway" section with port and apiKey for awmg to use
+	GatewayConfig *MCPGatewayRuntimeConfig
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -685,6 +699,22 @@ func RenderJSONMCPConfig(
 
 	// Write config file footer
 	yaml.WriteString("            }\n")
+
+	// Add gateway section if configured (needed for awmg to rewrite config)
+	if options.GatewayConfig != nil {
+		yaml.WriteString("            ,\n")
+		yaml.WriteString("            \"gateway\": {\n")
+		fmt.Fprintf(yaml, "              \"port\": %d", options.GatewayConfig.Port)
+		if options.GatewayConfig.APIKey != "" {
+			yaml.WriteString(",\n")
+			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
+			yaml.WriteString("\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("            }\n")
+	}
+
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
 
