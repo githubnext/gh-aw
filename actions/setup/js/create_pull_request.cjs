@@ -295,20 +295,12 @@ async function main(config = {}) {
     // Replace temporary ID references in the body with resolved issue/PR numbers
     // This allows PRs to reference issues created earlier in the same workflow
     // by using temporary IDs like #aw_123abc456def
-    const temporaryIdMapEnv = process.env.GH_AW_TEMPORARY_ID_MAP;
-    if (temporaryIdMapEnv) {
-      try {
-        const resolvedTemporaryIds = JSON.parse(temporaryIdMapEnv);
-        if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
-          // Convert object to Map for compatibility with replaceTemporaryIdReferences
-          const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
-          const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
-          processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, currentRepo);
-          core.info(`Resolved ${tempIdMap.size} temporary ID references in PR body`);
-        }
-      } catch (error) {
-        core.warning(`Failed to parse temporary ID map: ${getErrorMessage(error)}`);
-      }
+    if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
+      // Convert object to Map for compatibility with replaceTemporaryIdReferences
+      const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
+      const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+      processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, currentRepo);
+      core.info(`Resolved ${tempIdMap.size} temporary ID references in PR body`);
     }
 
     // Remove duplicate title from description if it starts with a header matching the title
