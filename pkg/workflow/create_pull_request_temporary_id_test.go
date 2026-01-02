@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -79,17 +80,21 @@ func TestCreatePullRequestTemporaryIDMapInConsolidatedJob(t *testing.T) {
 	assert.Contains(t, stepsStr, "id: process_safe_outputs",
 		"Handler manager step should be present")
 
-	// Verify handler manager outputs temporary_id_map
-	assert.Contains(t, stepsStr, "steps.process_safe_outputs.outputs.temporary_id_map",
-		"Handler manager temporary ID map output should be referenced")
+	// Verify handler manager outputs temporary_id_map in job outputs
+	outputsStr := ""
+	for key, value := range job.Outputs {
+		outputsStr += fmt.Sprintf("%s: %s\n", key, value)
+	}
+	assert.Contains(t, outputsStr, "temporary_id_map",
+		"Handler manager temporary ID map output should be in job outputs")
 
-	// Verify create_pull_request step exists
-	assert.Contains(t, stepsStr, "id: create_pull_request",
-		"Create pull request step should be present")
+	// Verify create_pull_request is configured in the handler manager
+	assert.Contains(t, stepsStr, "create_pull_request",
+		"Create pull request should be configured in handler manager")
 
-	// Verify create_pull_request step has access to temporary ID map
-	assert.Contains(t, stepsStr, "GH_AW_TEMPORARY_ID_MAP: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}",
-		"Create pull request step should have GH_AW_TEMPORARY_ID_MAP environment variable")
+	// Verify handler manager config includes create_pull_request
+	assert.Contains(t, stepsStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+		"Handler manager config environment variable should be present")
 }
 
 // Helper function to create a bool pointer

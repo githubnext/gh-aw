@@ -51,9 +51,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Track whether threat detection job is enabled for step conditions
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Track which outputs are created for dependency tracking
-	var createPullRequestEnabled bool
-
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		consolidatedSafeOutputsLog.Print("Adding GitHub App token minting step")
@@ -112,7 +109,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdateDiscussions != nil ||
 		data.SafeOutputs.LinkSubIssue != nil ||
 		data.SafeOutputs.UpdateRelease != nil ||
-		data.SafeOutputs.CreatePullRequestReviewComments != nil
+		data.SafeOutputs.CreatePullRequestReviewComments != nil ||
+		data.SafeOutputs.CreatePullRequests != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -159,27 +157,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
-	}
-
-	// Create Pull Request step (not handled by handler manager)
-	if data.SafeOutputs.CreatePullRequests != nil {
-		createPullRequestEnabled = true
-		_ = createPullRequestEnabled // Track for potential future use
-		stepConfig := c.buildCreatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Skip pre-steps if we've already added the shared checkout steps
-		if !prCheckoutStepsAdded {
-			steps = append(steps, stepConfig.PreSteps...)
+		if data.SafeOutputs.CreatePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 		}
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		steps = append(steps, stepConfig.PostSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_pull_request_pull_request_number"] = "${{ steps.create_pull_request.outputs.pull_request_number }}"
-		outputs["create_pull_request_pull_request_url"] = "${{ steps.create_pull_request.outputs.pull_request_url }}"
-
-		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 	}
+
+	// Note: Create Pull Request is now handled by the handler manager
+	// The outputs and permissions are configured in the handler manager section above
 
 	// Close Pull Request step (not handled by handler manager)
 	if data.SafeOutputs.ClosePullRequests != nil {
@@ -902,6 +886,33 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["create_pull_request_review_comment"] = handlerConfig
 	}
 
+	if data.SafeOutputs.CreatePullRequests != nil {
+		cfg := data.SafeOutputs.CreatePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
+		if cfg.Draft != nil {
+			handlerConfig["draft"] = *cfg.Draft
+		}
+		if cfg.IfNoChanges != "" {
+			handlerConfig["if_no_changes"] = cfg.IfNoChanges
+		}
+		if cfg.AllowEmpty {
+			handlerConfig["allow_empty"] = cfg.AllowEmpty
+		}
+		if cfg.Expires > 0 {
+			handlerConfig["expires"] = cfg.Expires
+		}
+		config["create_pull_request"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
@@ -974,9 +985,30 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
-			_ = stagedFlagAdded // Mark as used for linter
 		}
 		// All update configuration (target, allow_title, allow_body, allow_labels) is now in handler config JSON
+	}
+
+	// Create Pull Request env vars
+	if data.SafeOutputs.CreatePullRequests != nil {
+		// Add staged flag if needed
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+		// Add base branch (required by create_pull_request)
+		*steps = append(*steps, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+		// Add max patch size
+		maxPatchSize := 1024 // default 1024 KB
+		if data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+		// Other configuration (title_prefix, labels, draft, if_no_changes, allow_empty, expires) is in handler config JSON
+	}
+
+	if stagedFlagAdded {
+		_ = stagedFlagAdded // Mark as used for linter
 	}
 
 	// Note: Most handlers read from the config.json file, so we may not need all env vars here

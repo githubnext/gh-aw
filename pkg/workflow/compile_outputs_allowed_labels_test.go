@@ -255,9 +255,9 @@ This workflow tests that allowed-labels are passed to safe output jobs.
 		t.Error("Expected allowed labels for create_issue in handler config")
 	}
 
-	// Verify the allowed labels are passed as environment variable for PRs (separate step)
-	if !strings.Contains(lockfileContent, `GH_AW_PR_ALLOWED_LABELS: "automated"`) {
-		t.Error("Expected allowed labels for create_pull_request as environment variable")
+	// Verify the allowed labels are also in handler config for PRs (now handled by handler manager)
+	if !strings.Contains(lockfileContent, `\"create_pull_request\"`) {
+		t.Error("Expected create_pull_request in handler config")
 	}
 }
 

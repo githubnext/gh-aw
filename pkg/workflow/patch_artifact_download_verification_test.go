@@ -82,9 +82,9 @@ in the consolidated safe_outputs job when create-pull-request is enabled.
 		t.Error("Expected patch download to have continue-on-error: true")
 	}
 
-	// 6. Verify the Create Pull Request step exists (which needs the patch)
-	if !strings.Contains(lockContentStr, "- name: Create Pull Request") {
-		t.Error("Expected 'Create Pull Request' step in safe_outputs job")
+	// 6. Verify the handler manager step exists (which processes create_pull_request)
+	if !strings.Contains(lockContentStr, "- name: Process Safe Outputs") {
+		t.Error("Expected 'Process Safe Outputs' (handler manager) step in safe_outputs job")
 	}
 
 	// 7. Verify the checkout step exists (needed for applying the patch)
@@ -92,14 +92,14 @@ in the consolidated safe_outputs job when create-pull-request is enabled.
 		t.Error("Expected 'Checkout repository' step in safe_outputs job")
 	}
 
-	// 8. Verify patch download comes BEFORE Create Pull Request step
+	// 8. Verify patch download comes BEFORE Process Safe Outputs step
 	patchDownloadPos := strings.Index(lockContentStr, "- name: Download patch artifact")
-	createPRPos := strings.Index(lockContentStr, "- name: Create Pull Request")
-	if patchDownloadPos == -1 || createPRPos == -1 {
-		t.Fatal("Both patch download and create PR steps should exist")
+	processSafeOutputsPos := strings.Index(lockContentStr, "- name: Process Safe Outputs")
+	if patchDownloadPos == -1 || processSafeOutputsPos == -1 {
+		t.Fatal("Both patch download and Process Safe Outputs steps should exist")
 	}
-	if patchDownloadPos > createPRPos {
-		t.Error("Patch download step should come BEFORE Create Pull Request step")
+	if patchDownloadPos > processSafeOutputsPos {
+		t.Error("Patch download step should come BEFORE Process Safe Outputs step")
 	}
 
 	// 9. Verify patch download comes AFTER agent output download
