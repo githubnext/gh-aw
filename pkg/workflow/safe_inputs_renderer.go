@@ -63,21 +63,28 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
 // Only supports HTTP transport mode
-func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool) {
+func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
 
 	// HTTP transport configuration - server started in separate step
 	// Add type field for HTTP (required by MCP specification for HTTP transport)
 	yaml.WriteString("                \"type\": \"http\",\n")
 
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+	}
+
 	// HTTP URL using environment variable
-	// Use host.docker.internal to allow access from firewall container
+	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
 	if includeCopilotFields {
 		// Copilot format: backslash-escaped shell variable reference
-		yaml.WriteString("                \"url\": \"http://host.docker.internal:\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
+		yaml.WriteString("                \"url\": \"http://" + host + ":\\${GH_AW_SAFE_INPUTS_PORT}\",\n")
 	} else {
 		// Claude/Custom format: direct shell variable reference
-		yaml.WriteString("                \"url\": \"http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT\",\n")
+		yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_INPUTS_PORT\",\n")
 	}
 
 	// Add Authorization header with API key

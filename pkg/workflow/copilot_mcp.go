@@ -55,7 +55,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			},
 			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSafeInputsMCP(yaml, safeInputs)
+				renderer.RenderSafeInputsMCP(yaml, safeInputs, workflowData)
 			},
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
 				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
