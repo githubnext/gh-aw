@@ -94,7 +94,7 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 	}
 
 	// Verify explicit completion criteria
-	if !strings.Contains(data.MarkdownContent, "all discovered issues are closed") {
+	if !strings.Contains(data.MarkdownContent, "all discovered items") {
 		t.Errorf("expected markdown to have explicit completion criteria, got: %q", data.MarkdownContent)
 	}
 }
@@ -133,12 +133,48 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	}
 
 	// Verify the worker discovery step is present
-	if !strings.Contains(data.MarkdownContent, "Query worker-created issues") {
+	if !strings.Contains(data.MarkdownContent, "Query worker-created content") {
 		t.Errorf("expected markdown to include worker discovery step, got: %q", data.MarkdownContent)
 	}
 
 	if !strings.Contains(data.MarkdownContent, "tracker-id:") {
 		t.Errorf("expected markdown to mention tracker-id search, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that IMPORTANT notice is present
+	if !strings.Contains(data.MarkdownContent, "**IMPORTANT**: You MUST perform SEPARATE searches for EACH worker workflow") {
+		t.Errorf("expected markdown to have IMPORTANT notice about separate searches, got: %q", data.MarkdownContent)
+	}
+
+	// Verify that each workflow has an explicit search query enumerated
+	for _, workflow := range spec.Workflows {
+		expectedSearchLine := "Search for `" + workflow + "`:"
+		if !strings.Contains(data.MarkdownContent, expectedSearchLine) {
+			t.Errorf("expected markdown to have explicit search query for %q, got: %q", workflow, data.MarkdownContent)
+		}
+		expectedTrackerID := "tracker-id: " + workflow
+		if !strings.Contains(data.MarkdownContent, expectedTrackerID) {
+			t.Errorf("expected markdown to have tracker-id for %q, got: %q", workflow, data.MarkdownContent)
+		}
+	}
+
+	// Verify that all four search types are mentioned (issues, PRs, discussions, comments)
+	if !strings.Contains(data.MarkdownContent, "type:issue") {
+		t.Errorf("expected markdown to include issue search type, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "type:pr") {
+		t.Errorf("expected markdown to include PR search type, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "Discussions:") {
+		t.Errorf("expected markdown to include discussion search, got: %q", data.MarkdownContent)
+	}
+	if !strings.Contains(data.MarkdownContent, "in:comments") {
+		t.Errorf("expected markdown to include comment search, got: %q", data.MarkdownContent)
+	}
+
+	// Verify instructions to combine results
+	if !strings.Contains(data.MarkdownContent, "Combine results from all worker searches") {
+		t.Errorf("expected markdown to mention combining results from all searches, got: %q", data.MarkdownContent)
 	}
 }
 
