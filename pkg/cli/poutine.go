@@ -117,7 +117,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	err = cmd.Run()
 
 	// Parse and display output for all files (no filtering)
-	totalWarnings, parseErr := parseAndDisplayPoutineOutputForDirectory(stdout.String(), verbose)
+	totalWarnings, parseErr := parseAndDisplayPoutineOutputForDirectory(stdout.String(), verbose, gitRoot)
 	if parseErr != nil {
 		poutineLog.Printf("Failed to parse poutine output: %v", parseErr)
 		// Fall back to showing raw output
@@ -361,7 +361,7 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 
 // parseAndDisplayPoutineOutputForDirectory parses poutine JSON output and displays all findings
 // Returns the total number of warnings found across all files
-func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool) (int, error) {
+func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRoot string) (int, error) {
 	// Parse JSON output from stdout
 	var output poutineOutput
 	if stdout == "" {
@@ -397,8 +397,37 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool) (int,
 
 	// Display findings for each file
 	for filePath, findings := range findingsByFile {
+		// Validate and sanitize file path to prevent path traversal
+		cleanPath := filepath.Clean(filePath)
+
+		// Convert to absolute path if relative
+		absPath := cleanPath
+		if !filepath.IsAbs(cleanPath) {
+			absPath = filepath.Join(gitRoot, cleanPath)
+		}
+
+		// Ensure the file is within gitRoot to prevent path traversal
+		absGitRoot, err := filepath.Abs(gitRoot)
+		if err != nil {
+			poutineLog.Printf("Failed to get absolute path for git root: %v", err)
+			continue
+		}
+
+		absPath, err = filepath.Abs(absPath)
+		if err != nil {
+			poutineLog.Printf("Failed to get absolute path for %s: %v", filePath, err)
+			continue
+		}
+
+		// Check if the resolved path is within gitRoot
+		relPath, err := filepath.Rel(absGitRoot, absPath)
+		if err != nil || strings.HasPrefix(relPath, "..") {
+			poutineLog.Printf("Skipping file outside git root: %s", filePath)
+			continue
+		}
+
 		// Read file content for context display
-		fileContent, err := os.ReadFile(filePath)
+		fileContent, err := os.ReadFile(absPath)
 		var fileLines []string
 		if err == nil {
 			fileLines = strings.Split(string(fileContent), "\n")
