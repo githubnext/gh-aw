@@ -401,6 +401,25 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		log.Print("Validation completed - no lock file generated (--no-emit enabled)")
 	} else {
 		log.Printf("Writing output to: %s", lockFile)
+		
+		// Check if we need to force write to update timestamp
+		shouldForceWrite := false
+		if existingLockInfo, err := os.Stat(lockFile); err == nil {
+			if mdInfo, err := os.Stat(markdownPath); err == nil {
+				// If lock file is newer than source file, check if content changed
+				if existingLockInfo.ModTime().After(mdInfo.ModTime()) {
+					// Read existing content to compare
+					if existingContent, err := os.ReadFile(lockFile); err == nil {
+						if string(existingContent) == yamlContent {
+							// Content hasn't changed but timestamp is wrong - force write
+							shouldForceWrite = true
+							log.Printf("Lock file timestamp is newer than source, but content unchanged - forcing write to update timestamp")
+						}
+					}
+				}
+			}
+		}
+		
 		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -412,6 +431,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				Message: fmt.Sprintf("failed to write lock file: %v", err),
 			})
 			return errors.New(formattedErr)
+		}
+		
+		if shouldForceWrite {
+			log.Print("Updated lock file timestamp to match content generation")
 		}
 
 		// Validate file size after writing
