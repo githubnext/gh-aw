@@ -22,12 +22,20 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/envutil"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/sourcegraph/conc/pool"
 )
 
 var logsOrchestratorLog = logger.New("cli:logs_orchestrator")
+
+// getMaxConcurrentDownloads returns the maximum number of concurrent downloads.
+// It reads from the GH_AW_MAX_CONCURRENT_DOWNLOADS environment variable if set,
+// validates the value is between 1 and 100, and falls back to the default if invalid.
+func getMaxConcurrentDownloads() int {
+	return envutil.GetIntFromEnv("GH_AW_MAX_CONCURRENT_DOWNLOADS", MaxConcurrentDownloads, 1, 100, logsOrchestratorLog)
+}
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(ctx context.Context, workflowName string, count int, startDate, endDate, outputDir, engine, ref string, beforeRunID, afterRunID int64, repoOverride string, verbose bool, toolGraph bool, noStaged bool, firewallOnly bool, noFirewall bool, parse bool, jsonOutput bool, timeout int, campaignOnly bool, summaryFile string) error {
@@ -495,16 +503,15 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 	// Use atomic counter for thread-safe progress tracking
 	var completedCount int64
 
+	// Get configured max concurrent downloads (default or from environment variable)
+	maxConcurrent := getMaxConcurrentDownloads()
+
 	// Configure concurrent download pool with bounded parallelism and context cancellation.
-	// MaxConcurrentDownloads (10) balances:
-	// - GitHub API rate limits (5000 requests/hour for authenticated users)
-	// - Network bandwidth (parallel HTTP requests for artifact downloads)
-	// - System memory (artifact buffering and decompression)
 	// The conc pool automatically handles panic recovery and prevents goroutine leaks.
 	// WithContext enables graceful cancellation via Ctrl+C.
 	p := pool.NewWithResults[DownloadResult]().
 		WithContext(ctx).
-		WithMaxGoroutines(MaxConcurrentDownloads)
+		WithMaxGoroutines(maxConcurrent)
 
 	// Each download task runs concurrently with context awareness.
 	// Context cancellation (e.g., via Ctrl+C) will stop all in-flight downloads gracefully.
