@@ -1,107 +1,104 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
 const { generateFooter } = require("./generate_footer.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+/** @type {string} Safe output type handled by this module */
+const HANDLER_TYPE = "create_pull_request_review_comment";
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
+/**
+ * Main handler factory for create_pull_request_review_comment
+ * Returns a message handler function that processes individual review comment messages
+ * @type {HandlerFactoryFunction}
+ */
+async function main(config = {}) {
+  // Extract configuration
+  const defaultSide = config.side || "RIGHT";
+  const commentTarget = config.target || "triggering";
+  const maxCount = config.max || 10;
 
-  // Find all create-pr-review-comment items
-  const reviewCommentItems = result.items.filter(/** @param {any} item */ item => item.type === "create_pull_request_review_comment");
-  if (reviewCommentItems.length === 0) {
-    core.info("No create-pull-request-review-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
-
-  // If in staged mode, emit step summary instead of creating review comments
-  if (isStaged) {
-    await generateStagedPreview({
-      title: "Create PR Review Comments",
-      description: "The following review comments would be created if staged mode was disabled:",
-      items: reviewCommentItems,
-      renderItem: (item, index) => {
-        let content = `#### Review Comment ${index + 1}\n`;
-        if (item.pull_request_number) {
-          const repoUrl = getRepositoryUrl();
-          const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
-          content += `**Target PR:** [#${item.pull_request_number}](${pullUrl})\n\n`;
-        } else {
-          content += `**Target:** Current PR\n\n`;
-        }
-        content += `**File:** ${item.path || "No path provided"}\n\n`;
-        content += `**Line:** ${item.line || "No line provided"}\n\n`;
-        if (item.start_line) {
-          content += `**Start Line:** ${item.start_line}\n\n`;
-        }
-        content += `**Side:** ${item.side || "RIGHT"}\n\n`;
-        content += `**Body:**\n${item.body || "No content provided"}\n\n`;
-        return content;
-      },
-    });
-    return;
-  }
-
-  // Get the side configuration from environment variable
-  const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
-  core.info(`Default comment side configuration: ${defaultSide}`);
-
-  // Get the target configuration from environment variable
-  const commentTarget = process.env.GH_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
   core.info(`PR review comment target configuration: ${commentTarget}`);
+  core.info(`Default comment side configuration: ${defaultSide}`);
+  core.info(`Max count: ${maxCount}`);
 
-  // Check if we're in a pull request context, or an issue comment context on a PR
-  const isPRContext =
-    context.eventName === "pull_request" ||
-    context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment" ||
-    (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
 
-  // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isPRContext) {
-    core.info('Target is "triggering" but not running in pull request context, skipping review comment creation');
-    return;
-  }
+  // Track created comments for outputs
+  const createdComments = [];
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
   const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
-  const createdComments = [];
+  /**
+   * Message handler function that processes a single create_pull_request_review_comment message
+   * @param {Object} message - The create_pull_request_review_comment message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status and comment details
+   */
+  return async function handleCreatePRReviewComment(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping create_pull_request_review_comment: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
+    }
 
-  // Process each review comment item
-  for (let i = 0; i < reviewCommentItems.length; i++) {
-    const commentItem = reviewCommentItems[i];
-    core.info(
-      `Processing create-pull-request-review-comment item ${i + 1}/${reviewCommentItems.length}: bodyLength=${commentItem.body ? commentItem.body.length : "undefined"}, path=${commentItem.path}, line=${commentItem.line}, startLine=${commentItem.start_line}`
-    );
+    processedCount++;
+
+    const commentItem = message;
+
+    core.info(`Processing create_pull_request_review_comment: path=${commentItem.path}, line=${commentItem.line}, bodyLength=${commentItem.body?.length || 0}`);
+
+    // Check if we're in a pull request context, or an issue comment context on a PR
+    const isPRContext =
+      context.eventName === "pull_request" ||
+      context.eventName === "pull_request_review" ||
+      context.eventName === "pull_request_review_comment" ||
+      (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
+
+    // Validate context based on target configuration
+    if (commentTarget === "triggering" && !isPRContext) {
+      core.info('Target is "triggering" but not running in pull request context, skipping review comment creation');
+      return {
+        success: false,
+        error: "Not in pull request context",
+      };
+    }
 
     // Validate required fields
     if (!commentItem.path) {
-      core.info('Missing required field "path" in review comment item');
-      continue;
+      core.warning('Missing required field "path" in review comment item');
+      return {
+        success: false,
+        error: 'Missing required field "path"',
+      };
     }
 
     if (!commentItem.line || (typeof commentItem.line !== "number" && typeof commentItem.line !== "string")) {
-      core.info('Missing or invalid required field "line" in review comment item');
-      continue;
+      core.warning('Missing or invalid required field "line" in review comment item');
+      return {
+        success: false,
+        error: 'Missing or invalid required field "line"',
+      };
     }
 
     if (!commentItem.body || typeof commentItem.body !== "string") {
-      core.info('Missing or invalid required field "body" in review comment item');
-      continue;
+      core.warning('Missing or invalid required field "body" in review comment item');
+      return {
+        success: false,
+        error: 'Missing or invalid required field "body"',
+      };
     }
 
     // Determine the PR number for this review comment
@@ -113,19 +110,28 @@ async function main() {
       if (commentItem.pull_request_number) {
         pullRequestNumber = parseInt(commentItem.pull_request_number, 10);
         if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
-          core.info(`Invalid pull request number specified: ${commentItem.pull_request_number}`);
-          continue;
+          core.warning(`Invalid pull request number specified: ${commentItem.pull_request_number}`);
+          return {
+            success: false,
+            error: `Invalid pull request number: ${commentItem.pull_request_number}`,
+          };
         }
       } else {
-        core.info('Target is "*" but no pull_request_number specified in comment item');
-        continue;
+        core.warning('Target is "*" but no pull_request_number specified in comment item');
+        return {
+          success: false,
+          error: 'Target is "*" but no pull_request_number specified',
+        };
       }
     } else if (commentTarget && commentTarget !== "triggering") {
       // Explicit PR number specified in target
       pullRequestNumber = parseInt(commentTarget, 10);
       if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
-        core.info(`Invalid pull request number in target configuration: ${commentTarget}`);
-        continue;
+        core.warning(`Invalid pull request number in target configuration: ${commentTarget}`);
+        return {
+          success: false,
+          error: `Invalid pull request number in target: ${commentTarget}`,
+        };
       }
     } else {
       // Default behavior: use triggering PR
@@ -135,14 +141,20 @@ async function main() {
       } else if (context.payload.issue && context.payload.issue.pull_request) {
         pullRequestNumber = context.payload.issue.number;
       } else {
-        core.info("Pull request context detected but no pull request found in payload");
-        continue;
+        core.warning("Pull request context detected but no pull request found in payload");
+        return {
+          success: false,
+          error: "No pull request found in payload",
+        };
       }
     }
 
     if (!pullRequestNumber) {
-      core.info("Could not determine pull request number");
-      continue;
+      core.warning("Could not determine pull request number");
+      return {
+        success: false,
+        error: "Could not determine pull request number",
+      };
     }
 
     // If we don't have the full PR details yet, fetch them
@@ -156,15 +168,21 @@ async function main() {
         pullRequest = fullPR;
         core.info(`Fetched full pull request details for PR #${pullRequestNumber}`);
       } catch (error) {
-        core.info(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${getErrorMessage(error)}`);
-        continue;
+        core.warning(`Failed to fetch pull request details for PR #${pullRequestNumber}: ${getErrorMessage(error)}`);
+        return {
+          success: false,
+          error: `Failed to fetch pull request details: ${getErrorMessage(error)}`,
+        };
       }
     }
 
     // Check if we have the commit SHA needed for creating review comments
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
-      core.info(`Pull request head commit SHA not found for PR #${pullRequestNumber} - cannot create review comment`);
-      continue;
+      core.warning(`Pull request head commit SHA not found for PR #${pullRequestNumber} - cannot create review comment`);
+      return {
+        success: false,
+        error: "Pull request head commit SHA not found",
+      };
     }
 
     core.info(`Creating review comment on PR #${pullRequestNumber}`);
@@ -172,24 +190,33 @@ async function main() {
     // Parse line numbers
     const line = parseInt(commentItem.line, 10);
     if (isNaN(line) || line <= 0) {
-      core.info(`Invalid line number: ${commentItem.line}`);
-      continue;
+      core.warning(`Invalid line number: ${commentItem.line}`);
+      return {
+        success: false,
+        error: `Invalid line number: ${commentItem.line}`,
+      };
     }
 
     let startLine = undefined;
     if (commentItem.start_line) {
       startLine = parseInt(commentItem.start_line, 10);
       if (isNaN(startLine) || startLine <= 0 || startLine > line) {
-        core.info(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
-        continue;
+        core.warning(`Invalid start_line number: ${commentItem.start_line} (must be <= line: ${line})`);
+        return {
+          success: false,
+          error: `Invalid start_line: ${commentItem.start_line}`,
+        };
       }
     }
 
     // Determine side (LEFT or RIGHT)
     const side = commentItem.side || defaultSide;
     if (side !== "LEFT" && side !== "RIGHT") {
-      core.info(`Invalid side value: ${side} (must be LEFT or RIGHT)`);
-      continue;
+      core.warning(`Invalid side value: ${side} (must be LEFT or RIGHT)`);
+      return {
+        success: false,
+        error: `Invalid side value: ${side}`,
+      };
     }
 
     // Extract body from the JSON item
@@ -233,28 +260,20 @@ async function main() {
       core.info("Created review comment #" + comment.id + ": " + comment.html_url);
       createdComments.push(comment);
 
-      // Set output for the last created comment (for backward compatibility)
-      if (i === reviewCommentItems.length - 1) {
-        core.setOutput("review_comment_id", comment.id);
-        core.setOutput("review_comment_url", comment.html_url);
-      }
+      return {
+        success: true,
+        comment_id: comment.id,
+        comment_url: comment.html_url,
+        pull_request_number: pullRequestNumber,
+      };
     } catch (error) {
       core.error(`✗ Failed to create review comment: ${getErrorMessage(error)}`);
-      throw error;
+      return {
+        success: false,
+        error: getErrorMessage(error),
+      };
     }
-  }
-
-  // Write summary for all created comments
-  if (createdComments.length > 0) {
-    let summaryContent = "\n\n## GitHub PR Review Comments\n";
-    for (const comment of createdComments) {
-      summaryContent += `- Review Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-    }
-    await core.summary.addRaw(summaryContent).write();
-  }
-
-  core.info(`Successfully created ${createdComments.length} review comment(s)`);
-  return createdComments;
+  };
 }
 
 module.exports = { main };

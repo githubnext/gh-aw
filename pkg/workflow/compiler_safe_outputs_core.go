@@ -111,7 +111,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdateIssues != nil ||
 		data.SafeOutputs.UpdateDiscussions != nil ||
 		data.SafeOutputs.LinkSubIssue != nil ||
-		data.SafeOutputs.UpdateRelease != nil
+		data.SafeOutputs.UpdateRelease != nil ||
+		data.SafeOutputs.CreatePullRequestReviewComments != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -155,6 +156,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.UpdateRelease != nil {
 			permissions.Merge(NewPermissionsContentsWrite())
 		}
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
 	}
 
 	// Create Pull Request step (not handled by handler manager)
@@ -180,16 +184,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Close Pull Request step (not handled by handler manager)
 	if data.SafeOutputs.ClosePullRequests != nil {
 		stepConfig := c.buildClosePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-
-	// Create PR Review Comment step
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		stepConfig := c.buildCreatePRReviewCommentStepConfig(data, mainJobName, threatDetectionEnabled)
 		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
 		steps = append(steps, stepYAML...)
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
@@ -881,6 +875,21 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["max"] = cfg.Max
 		}
 		config["update_release"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+		cfg := data.SafeOutputs.CreatePullRequestReviewComments
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Side != "" {
+			handlerConfig["side"] = cfg.Side
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		config["create_pull_request_review_comment"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure
