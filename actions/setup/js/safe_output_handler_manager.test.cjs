@@ -386,5 +386,183 @@ describe("Safe Output Handler Manager", () => {
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("update_project"));
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
     });
+
+    it("should register temporary IDs from deferred messages on retry", async () => {
+      const messages = [
+        {
+          type: "link_sub_issue",
+          parent_issue_number: "aw_parent123456",
+          sub_issue_number: 42,
+        },
+        {
+          type: "create_issue",
+          temporary_id: "aw_parent123456",
+          title: "Parent Issue",
+          body: "Parent body",
+        },
+      ];
+
+      // First call: link_sub_issue is deferred (parent not resolved yet)
+      // Second call: create_issue succeeds and registers temp ID
+      // Third call: link_sub_issue retry succeeds
+      const mockLinkHandler = vi
+        .fn()
+        .mockResolvedValueOnce({
+          deferred: true,
+          error: "Unresolved temporary IDs: parent: aw_parent123456",
+        })
+        .mockResolvedValueOnce({
+          parent_issue_number: 100,
+          sub_issue_number: 42,
+          success: true,
+        });
+
+      const mockCreateIssueHandler = vi.fn().mockResolvedValue({
+        repo: "owner/repo",
+        number: 100,
+        temporaryId: "aw_parent123456",
+      });
+
+      const handlers = new Map([
+        ["link_sub_issue", mockLinkHandler],
+        ["create_issue", mockCreateIssueHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+
+      // Temp ID should be registered after create_issue
+      expect(result.temporaryIdMap["aw_parent123456"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_parent123456"].number).toBe(100);
+
+      // link_sub_issue should succeed after retry
+      const linkResult = result.results.find(r => r.type === "link_sub_issue");
+      expect(linkResult.success).toBe(true);
+      expect(linkResult.deferred).toBe(false);
+    });
+
+    it("should track outputs created during deferred retry with unresolved temp IDs", async () => {
+      const messages = [
+        {
+          type: "create_issue",
+          temporary_id: "aw_aabbcc111111",
+          title: "Issue 1",
+          body: "References #aw_ddeeff222222",
+        },
+        {
+          type: "link_sub_issue",
+          parent_issue_number: "aw_aabbcc111111",
+          sub_issue_number: "aw_ddeeff222222",
+        },
+        {
+          type: "create_issue",
+          temporary_id: "aw_ddeeff222222",
+          title: "Issue 2",
+          body: "Issue 2 body",
+        },
+      ];
+
+      // create_issue for issue1: succeeds with unresolved temp ID in body
+      // link_sub_issue: deferred (parent and sub not resolved)
+      // create_issue for issue2: succeeds
+      // link_sub_issue retry: succeeds
+      const mockCreateHandler = vi
+        .fn()
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 100,
+          temporaryId: "aw_aabbcc111111",
+        })
+        .mockResolvedValueOnce({
+          repo: "owner/repo",
+          number: 101,
+          temporaryId: "aw_ddeeff222222",
+        });
+
+      const mockLinkHandler = vi
+        .fn()
+        .mockResolvedValueOnce({
+          deferred: true,
+          error: "Unresolved temporary IDs",
+        })
+        .mockResolvedValueOnce({
+          parent_issue_number: 100,
+          sub_issue_number: 101,
+          success: true,
+        });
+
+      const handlers = new Map([
+        ["create_issue", mockCreateHandler],
+        ["link_sub_issue", mockLinkHandler],
+      ]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+
+      // Both issues should have temp IDs registered
+      expect(result.temporaryIdMap["aw_aabbcc111111"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_ddeeff222222"]).toBeDefined();
+
+      // Issue 1 should be tracked for synthetic update (had unresolved temp ID in body at creation time)
+      // Note: By the time all messages are processed, the temp ID is resolved, but Issue 1 was
+      // tracked when it was created because at that moment aw_ddeeff222222 was not yet in the map
+      const trackedIssue1 = result.outputsWithUnresolvedIds.find(o => o.result.number === 100);
+      expect(trackedIssue1).toBeDefined();
+    });
+
+    it("should handle complex parent/sub-issue creation order", async () => {
+      const messages = [
+        {
+          type: "create_issue",
+          temporary_id: "aw_abc111111def",
+          title: "Parent",
+          body: "See #aw_111aaa222bbb and #aw_333ccc444ddd",
+        },
+        {
+          type: "create_issue",
+          temporary_id: "aw_111aaa222bbb",
+          title: "Sub 1",
+          body: "Sub 1 body",
+        },
+        {
+          type: "create_issue",
+          temporary_id: "aw_333ccc444ddd",
+          title: "Sub 2",
+          body: "Sub 2 body",
+        },
+      ];
+
+      let issueCounter = 100;
+      const mockCreateHandler = vi.fn().mockImplementation((message) => {
+        const tempId = message.temporary_id;
+        const issueNumber = issueCounter++;
+        return Promise.resolve({
+          repo: "owner/repo",
+          number: issueNumber,
+          temporaryId: tempId,
+        });
+      });
+
+      const handlers = new Map([["create_issue", mockCreateHandler]]);
+
+      const result = await processMessages(handlers, messages);
+
+      expect(result.success).toBe(true);
+
+      // All temp IDs should be registered
+      expect(result.temporaryIdMap["aw_abc111111def"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_111aaa222bbb"]).toBeDefined();
+      expect(result.temporaryIdMap["aw_333ccc444ddd"]).toBeDefined();
+
+      // Parent issue should be tracked (had unresolved temp IDs at creation time)
+      // When the parent was created, aw_111aaa222bbb and aw_333ccc444ddd were not yet in the map
+      const parentTracked = result.outputsWithUnresolvedIds.find(
+        o => o.result.number === 100 // Parent was issue #100
+      );
+      expect(parentTracked).toBeDefined();
+      expect(parentTracked.type).toBe("create_issue");
+    });
   });
 });
