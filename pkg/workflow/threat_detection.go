@@ -487,7 +487,8 @@ func (c *Compiler) buildParsingStep() []string {
 		"          script: |\n",
 	}
 
-	parsingScript := c.buildResultsParsingScript()
+	// Use require() to load script from the separate .cjs file
+	parsingScript := c.buildResultsParsingScriptRequire()
 	formattedParsingScript := FormatJavaScriptForYAML(parsingScript)
 	steps = append(steps, formattedParsingScript...)
 
@@ -520,7 +521,19 @@ func (c *Compiler) formatStringAsJavaScriptLiteral(s string) string {
 	return "`" + escaped + "`"
 }
 
+// buildResultsParsingScriptRequire creates the parsing script that requires the .cjs module
+func (c *Compiler) buildResultsParsingScriptRequire() string {
+	// Build a simple require statement that calls the main function
+	script := `const { setupGlobals } = require('` + SetupActionDestination + `/setup_globals.cjs');
+setupGlobals(core, github, context, exec, io);
+const { main } = require('` + SetupActionDestination + `/parse_threat_detection_results.cjs');
+await main();`
+
+	return script
+}
+
 // buildResultsParsingScript creates the results parsing portion
+// DEPRECATED: This function is replaced by buildResultsParsingScriptRequire which uses a separate .cjs file
 func (c *Compiler) buildResultsParsingScript() string {
 	return `const fs = require('fs');
 // Parse threat detection results
