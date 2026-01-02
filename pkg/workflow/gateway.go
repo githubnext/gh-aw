@@ -44,7 +44,7 @@ func getMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
 }
 
 // generateMCPGatewaySteps generates the steps to start and verify the MCP gateway
-func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any, gatewayedServers []string) []GitHubActionStep {
+func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[string]any) []GitHubActionStep {
 	if !isMCPGatewayEnabled(workflowData) {
 		return nil
 	}
@@ -54,8 +54,8 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 		return nil
 	}
 
-	gatewayLog.Printf("Generating MCP gateway steps: port=%d, container=%s, command=%s, servers=%d, gatewayed=%v",
-		config.Port, config.Container, config.Command, len(mcpServersConfig), gatewayedServers)
+	gatewayLog.Printf("Generating MCP gateway steps: port=%d, container=%s, command=%s, servers=%d",
+		config.Port, config.Container, config.Command, len(mcpServersConfig))
 
 	var steps []GitHubActionStep
 
@@ -64,7 +64,7 @@ func generateMCPGatewaySteps(workflowData *WorkflowData, mcpServersConfig map[st
 	steps = append(steps, startStep)
 
 	// Step 2: Health check to verify gateway is running
-	healthCheckStep := generateMCPGatewayHealthCheckStep(config, gatewayedServers)
+	healthCheckStep := generateMCPGatewayHealthCheckStep(config)
 	steps = append(steps, healthCheckStep)
 
 	return steps
@@ -312,8 +312,8 @@ func generateDefaultAWMGCommands(config *MCPGatewayRuntimeConfig, mcpConfigPath 
 }
 
 // generateMCPGatewayHealthCheckStep generates the step that pings the gateway to verify it's running
-func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewayedServers []string) GitHubActionStep {
-	gatewayLog.Printf("Generating MCP gateway health check step with %d gatewayed servers", len(gatewayedServers))
+func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig) GitHubActionStep {
+	gatewayLog.Print("Generating MCP gateway health check step")
 
 	port, err := validateAndNormalizePort(config.Port)
 	if err != nil {
@@ -328,113 +328,11 @@ func generateMCPGatewayHealthCheckStep(config *MCPGatewayRuntimeConfig, gatewaye
 	// MCP config file path (created by RenderMCPConfig)
 	mcpConfigPath := "/home/runner/.copilot/mcp-config.json"
 
+	// Call the bundled shell script to verify gateway health
 	stepLines := []string{
 		"      - name: Verify MCP Gateway Health",
-		"        run: |",
-		"          echo 'Waiting for MCP Gateway to be ready...'",
-		"          ",
-		"          # Show MCP config file content",
-		"          echo 'MCP Configuration:'",
-		fmt.Sprintf("          cat %s || echo 'No MCP config file found'", mcpConfigPath),
-		"          echo ''",
-		"          ",
-		"          # Verify safeinputs and safeoutputs are present in config",
-		fmt.Sprintf("          if ! grep -q '\"safeinputs\"' %s; then", mcpConfigPath),
-		"            echo 'ERROR: safeinputs server not found in MCP configuration'",
-		"            exit 1",
-		"          fi",
-		fmt.Sprintf("          if ! grep -q '\"safeoutputs\"' %s; then", mcpConfigPath),
-		"            echo 'ERROR: safeoutputs server not found in MCP configuration'",
-		"            exit 1",
-		"          fi",
-		"          echo 'Verified: safeinputs and safeoutputs are present in configuration'",
-		"          ",
+		fmt.Sprintf("        run: bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh \"%s\" \"%s\" \"%s\"", gatewayURL, mcpConfigPath, MCPGatewayLogsFolder),
 	}
-
-	// Add validation for gatewayed servers (external MCP servers proxied through gateway)
-	if len(gatewayedServers) > 0 {
-		stepLines = append(stepLines,
-			"          # Verify gatewayed servers (external MCP servers proxied through gateway)",
-			"          echo 'Validating gatewayed servers...'",
-			"          ",
-		)
-		for _, serverName := range gatewayedServers {
-			// Skip internal servers (safeinputs/safeoutputs) as they're not proxied
-			if serverName == "safe-inputs" || serverName == "safe-outputs" {
-				continue
-			}
-			gatewayLog.Printf("Adding validation for gatewayed server: %s", serverName)
-			stepLines = append(stepLines,
-				fmt.Sprintf("          # Validate %s server", serverName),
-				fmt.Sprintf("          if ! /tmp/gh-aw/actions/validate_gatewayed_server.sh \"%s\" \"%s\" \"%s\"; then", serverName, mcpConfigPath, gatewayURL),
-				"            echo 'ERROR: Server validation failed'",
-				"            echo ''",
-				"            echo 'Gateway logs:'",
-				fmt.Sprintf("            cat %s/gateway.log 2>/dev/null || echo 'No gateway logs found'", MCPGatewayLogsFolder),
-				"            exit 1",
-				"          fi",
-				"          ",
-			)
-		}
-		stepLines = append(stepLines,
-			"          echo 'All gatewayed servers validated successfully'",
-			"          ",
-		)
-	}
-
-	stepLines = append(stepLines,
-		"          max_retries=30",
-		"          retry_count=0",
-		fmt.Sprintf("          gateway_url=\"%s\"", gatewayURL),
-		"          while [ $retry_count -lt $max_retries ]; do",
-		"            if curl -s -o /dev/null -w \"%{http_code}\" \"${gateway_url}/health\" | grep -q \"200\\|204\"; then",
-		"              echo \"MCP Gateway is ready!\"",
-		"              curl -s \"${gateway_url}/servers\" || echo \"Could not fetch servers list\"",
-		"              ",
-		"              # Test MCP server connectivity through gateway",
-		"              echo ''",
-		"              echo 'Testing MCP server connectivity...'",
-		"              ",
-		"              # Extract first external MCP server name from config (excluding safeinputs/safeoutputs)",
-		fmt.Sprintf("              mcp_server=$(jq -r '.mcpServers | to_entries[] | select(.key != \"safeinputs\" and .key != \"safeoutputs\") | .key' %s | head -n 1)", mcpConfigPath),
-		"              if [ -n \"$mcp_server\" ]; then",
-		"                echo \"Testing connectivity to MCP server: $mcp_server\"",
-		"                mcp_url=\"${gateway_url}/mcp/${mcp_server}\"",
-		"                echo \"MCP URL: $mcp_url\"",
-		"                ",
-		"                # Test with MCP initialize call",
-		"                response=$(curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\" \\",
-		"                  -H \"Content-Type: application/json\" \\",
-		"                  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0.0\"}}}')",
-		"                ",
-		"                http_code=$(echo \"$response\" | tail -n 1)",
-		"                body=$(echo \"$response\" | head -n -1)",
-		"                ",
-		"                echo \"HTTP Status: $http_code\"",
-		"                echo \"Response: $body\"",
-		"                ",
-		"                if [ \"$http_code\" = \"200\" ]; then",
-		"                  echo \"✓ MCP server connectivity test passed\"",
-		"                else",
-		"                  echo \"⚠ MCP server returned HTTP $http_code (may need authentication or different request)\"",
-		"                fi",
-		"              else",
-		"                echo \"No external MCP servers configured for testing\"",
-		"              fi",
-		"              ",
-		"              exit 0",
-		"            fi",
-		"            retry_count=$((retry_count + 1))",
-		"            echo \"Waiting for gateway... (attempt $retry_count/$max_retries)\"",
-		"            sleep 1",
-		"          done",
-		"          echo \"Error: MCP Gateway failed to start after $max_retries attempts\"",
-		"          ",
-		"          # Show gateway logs for debugging",
-		"          echo 'Gateway logs:'",
-		fmt.Sprintf("          cat %s/gateway.log || echo 'No gateway logs found'", MCPGatewayLogsFolder),
-		"          exit 1",
-	)
 
 	return GitHubActionStep(stepLines)
 }

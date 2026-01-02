@@ -144,11 +144,15 @@ func TestLogsCommandArgs(t *testing.T) {
 	if cmd.Args != nil {
 		// Verify it accepts no arguments
 		err := cmd.Args(cmd, []string{})
+<<<<<<< HEAD
 		assert.NoError(t, err, "Should not error with no arguments")
+=======
+		require.NoError(t, err, "Should not error with no arguments")
+>>>>>>> f6e31cb
 
 		// Verify it accepts 1 argument
 		err = cmd.Args(cmd, []string{"workflow1"})
-		assert.NoError(t, err, "Should not error with 1 argument")
+		require.NoError(t, err, "Should not error with 1 argument")
 	}
 }
 

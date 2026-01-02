@@ -483,6 +483,283 @@ The JSON format enables various analyses:
 - Detect flaky tests by comparing results
 - Generate test execution reports
 
+## CLI Command Development
+
+When developing new CLI commands for `gh aw`, follow these established patterns and conventions to maintain consistency across the codebase.
+
+### Quick Start Guide
+
+1. **Create command file**: `pkg/cli/command_name_command.go`
+2. **Create test file**: `pkg/cli/command_name_command_test.go`
+3. **Follow the structure pattern** (see below)
+4. **Use standard flags** from `flags.go`
+5. **Implement comprehensive tests**
+6. **Run validation**: `make agent-finish`
+
+### Standard Command Structure
+
+```go
+package cli
+
+import (
+    "fmt"
+    "os"
+    
+    "github.com/githubnext/gh-aw/pkg/console"
+    "github.com/githubnext/gh-aw/pkg/logger"
+    "github.com/spf13/cobra"
+)
+
+// Logger with namespace following cli:command_name convention
+var commandLog = logger.New("cli:command_name")
+
+// NewCommandNameCommand creates the command
+func NewCommandNameCommand() *cobra.Command {
+    cmd := &cobra.Command{
+        Use:   "command-name <arg>",
+        Short: "Brief description under 80 chars (no period)",
+        Long: `Detailed description with context and examples.
+
+This command:
+- Does something useful
+- Validates inputs
+- Provides helpful feedback
+
+Examples:
+  gh aw command-name arg              # Basic usage
+  gh aw command-name arg -v           # Verbose output
+  gh aw command-name arg --flag val   # With options`,
+        Args: cobra.ExactArgs(1),
+        RunE: func(cmd *cobra.Command, args []string) error {
+            // Parse flags
+            verbose, _ := cmd.Flags().GetBool("verbose")
+            flagValue, _ := cmd.Flags().GetString("flag-name")
+            
+            // Call main function
+            return RunCommandName(args[0], flagValue, verbose)
+        },
+    }
+    
+    // Add flags
+    cmd.Flags().StringP("flag-name", "f", "default", "Flag description")
+    
+    return cmd
+}
+
+// RunCommandName executes the command logic (testable)
+func RunCommandName(arg string, flagValue string, verbose bool) error {
+    commandLog.Printf("Starting: arg=%s, flag=%s", arg, flagValue)
+    
+    // Validate inputs early
+    if arg == "" {
+        return fmt.Errorf("argument cannot be empty")
+    }
+    
+    // Execute logic
+    result, err := processCommand(arg, flagValue)
+    if err != nil {
+        commandLog.Printf("Failed: %v", err)
+        return fmt.Errorf("failed to process: %w", err)
+    }
+    
+    // Output results
+    fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(result))
+    
+    commandLog.Print("Completed successfully")
+    return nil
+}
+```
+
+### Naming Conventions
+
+| Element | Pattern | Example |
+|---------|---------|---------|
+| **Command file** | `*_command.go` | `audit_command.go` |
+| **Test file** | `*_command_test.go` | `audit_command_test.go` |
+| **Logger** | `cli:command_name` | `logger.New("cli:audit")` |
+| **Constructor** | `NewXCommand()` | `NewAuditCommand()` |
+| **Runner** | `RunX(...)` | `RunAuditWorkflowRun(...)` |
+| **Config** | `XConfig` | `AuditConfig` |
+
+### Standard Flags
+
+Use helper functions from `flags.go` for consistency:
+
+```go
+import "github.com/githubnext/gh-aw/pkg/cli"
+
+// Add common flags
+addEngineFlag(cmd)          // --engine/-e (Override AI engine)
+addRepoFlag(cmd)            // --repo/-r (Target repository)
+addOutputFlag(cmd, dir)     // --output/-o (Output directory)
+addJSONFlag(cmd)            // --json/-j (JSON output)
+```
+
+**Reserved short flags**: `-v` (verbose), `-e` (engine), `-r` (repo), `-o` (output), `-j` (json), `-f` (force/file), `-w` (watch)
+
+### Output and Error Handling
+
+**All output must go to stderr** (except JSON):
+
+```go
+// ✅ CORRECT - Console formatted, stderr
+fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Success"))
+fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Processing..."))
+fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Warning"))
+fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+
+// ❌ INCORRECT - Plain output, stdout
+fmt.Println("Success")
+fmt.Printf("Status: %s\n", status)
+```
+
+**Error wrapping with context**:
+
+```go
+// ✅ CORRECT - Context + wrapping
+if err != nil {
+    return fmt.Errorf("failed to process workflow: %w", err)
+}
+
+// ❌ INCORRECT - No context
+if err != nil {
+    return err
+}
+```
+
+### Testing Requirements
+
+Every command needs comprehensive table-driven tests:
+
+```go
+func TestRunCommand(t *testing.T) {
+    tests := []struct {
+        name      string
+        input     string
+        expected  string
+        shouldErr bool
+    }{
+        {
+            name:      "valid input",
+            input:     "test",
+            expected:  "Success",
+            shouldErr: false,
+        },
+        {
+            name:      "empty input",
+            input:     "",
+            shouldErr: true,
+        },
+        {
+            name:      "invalid format",
+            input:     "invalid@",
+            shouldErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result, err := RunCommand(tt.input)
+            
+            if tt.shouldErr {
+                assert.Error(t, err)
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.expected, result)
+            }
+        })
+    }
+}
+```
+
+**Test coverage requirements**:
+- Valid inputs
+- Invalid inputs (empty, malformed, out-of-range)
+- Edge cases (nil, empty arrays, boundary values)
+- Flag combinations
+- Error conditions
+
+### Help Text Guidelines
+
+**Short description**:
+- Under 80 characters
+- Action-oriented (starts with verb)
+- No period at the end
+- Clear and concise
+
+**Long description**:
+- Overview (what it does)
+- Context (when to use)
+- Details (behavior, options)
+- Minimum 3 practical examples
+
+**Include WorkflowIDExplanation** for workflow commands:
+
+```go
+import "github.com/githubnext/gh-aw/pkg/cli"
+
+Long: `Description...
+
+` + cli.WorkflowIDExplanation + `
+
+Examples:
+  ...`,
+```
+
+### Command Development Checklist
+
+When creating a new command, verify:
+
+- [ ] File named `*_command.go` in `pkg/cli/`
+- [ ] Logger: `logger.New("cli:command_name")`
+- [ ] `NewXCommand()` and `RunX()` functions defined
+- [ ] Short description < 80 chars, no period
+- [ ] Long description with 3+ examples
+- [ ] Standard flags used where applicable
+- [ ] Input validation implemented early
+- [ ] Console formatting for all output
+- [ ] All output to stderr (except JSON)
+- [ ] Errors wrapped with context
+- [ ] Test file `*_command_test.go` created
+- [ ] Table-driven tests with multiple scenarios
+- [ ] Valid, invalid, and edge case tests
+- [ ] `make test-unit` passes
+- [ ] `make agent-finish` passes
+
+### File Organization Patterns
+
+**Simple commands** (< 500 lines): Single file
+```
+command_name_command.go
+command_name_command_test.go
+```
+
+**Complex commands** (> 500 lines): Split into focused files
+```
+command_name_command.go       # Command definition
+command_name_config.go        # Configuration types
+command_name_helpers.go       # Utility functions
+command_name_validation.go    # Validation logic
+command_name_orchestrator.go  # Main orchestration
+```
+
+### Comprehensive Documentation
+
+For complete command development patterns including:
+- Anti-patterns to avoid
+- Complete examples with tests
+- Error handling best practices
+- Advanced patterns for complex commands
+
+See: **[specs/cli-command-patterns.md](specs/cli-command-patterns.md)**
+
+### Related Guidelines
+
+- **Testing**: [specs/testing.md](specs/testing.md) - Comprehensive testing framework
+- **Console Output**: [skills/console-rendering/SKILL.md](skills/console-rendering/SKILL.md) - Output formatting
+- **Error Messages**: [skills/error-messages/SKILL.md](skills/error-messages/SKILL.md) - Error message style
+- **Code Organization**: [specs/code-organization.md](specs/code-organization.md) - File structure patterns
+
 ## Debugging and Troubleshooting
 
 ### Common Development Issues

@@ -336,7 +336,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 			// Extract permissions
 			if permissions, hasPermissions := configMap["permissions"]; hasPermissions {
 				if permsMap, ok := permissions.(map[string]any); ok {
-					// Use gopkg.in/yaml.v3 to marshal permissions
+					// Use goccy/go-yaml to marshal permissions
 					yamlBytes, err := yaml.Marshal(permsMap)
 					if err != nil {
 						return fmt.Errorf("failed to convert permissions to YAML for job '%s': %w", jobName, err)

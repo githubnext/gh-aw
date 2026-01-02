@@ -264,24 +264,10 @@ func TestGenerateMCPGatewayHealthCheckStep(t *testing.T) {
 	stepStr := strings.Join(step, "\n")
 
 	assert.Contains(t, stepStr, "Verify MCP Gateway Health")
+	assert.Contains(t, stepStr, "bash /tmp/gh-aw/actions/verify_mcp_gateway_health.sh")
 	assert.Contains(t, stepStr, "http://localhost:8080")
-	assert.Contains(t, stepStr, "/health")
-	assert.Contains(t, stepStr, "max_retries")
-	// Verify MCP config file content is displayed
-	assert.Contains(t, stepStr, "MCP Configuration:")
-	assert.Contains(t, stepStr, "cat /home/runner/.copilot/mcp-config.json")
-	// Verify safeinputs and safeoutputs presence is checked
-	assert.Contains(t, stepStr, "grep -q '\"safeinputs\"'")
-	assert.Contains(t, stepStr, "grep -q '\"safeoutputs\"'")
-	assert.Contains(t, stepStr, "Verified: safeinputs and safeoutputs are present in configuration")
-	// Verify MCP server connectivity test is included
-	assert.Contains(t, stepStr, "Testing MCP server connectivity...")
-	assert.Contains(t, stepStr, "jq -r '.mcpServers | to_entries[]")
-	assert.Contains(t, stepStr, "select(.key != \"safeinputs\" and .key != \"safeoutputs\")")
-	assert.Contains(t, stepStr, "mcp_url=\"${gateway_url}/mcp/${mcp_server}\"")
-	assert.Contains(t, stepStr, "curl -s -w \"\\n%{http_code}\" -X POST \"$mcp_url\"")
-	assert.Contains(t, stepStr, "\"method\":\"initialize\"")
-	assert.Contains(t, stepStr, "✓ MCP server connectivity test passed")
+	assert.Contains(t, stepStr, "/home/runner/.copilot/mcp-config.json")
+	assert.Contains(t, stepStr, MCPGatewayLogsFolder)
 }
 
 func TestGenerateMCPGatewayHealthCheckStep_ValidatesGatewayedServers(t *testing.T) {

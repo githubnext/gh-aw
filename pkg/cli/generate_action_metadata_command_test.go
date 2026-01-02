@@ -83,9 +83,9 @@ module.exports = async function test(input1, required_input) {
 			metadata, err := extractActionMetadata(tt.filename, tt.content)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error")
+				require.Error(t, err, "Expected an error")
 			} else {
-				assert.NoError(t, err, "Should not error")
+				require.NoError(t, err, "Should not error")
 				require.NotNil(t, metadata, "Metadata should not be nil")
 				if tt.checkFields != nil {
 					tt.checkFields(t, metadata)
@@ -312,9 +312,13 @@ func TestGenerateActionYml(t *testing.T) {
 			err = generateActionYml(actionDir, tt.metadata)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error")
+				require.Error(t, err, "Expected an error")
 			} else {
+<<<<<<< HEAD
 				assert.NoError(t, err, "Should not error")
+=======
+				require.NoError(t, err, "Should not error")
+>>>>>>> f6e31cb
 
 				// Verify action.yml was created
 				ymlPath := filepath.Join(actionDir, "action.yml")
@@ -363,9 +367,13 @@ func TestGenerateReadme(t *testing.T) {
 			err = generateReadme(actionDir, tt.metadata)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error")
+				require.Error(t, err, "Expected an error")
 			} else {
+<<<<<<< HEAD
 				assert.NoError(t, err, "Should not error")
+=======
+				require.NoError(t, err, "Should not error")
+>>>>>>> f6e31cb
 
 				// Verify README.md was created
 				readmePath := filepath.Join(actionDir, "README.md")
