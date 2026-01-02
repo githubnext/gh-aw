@@ -428,6 +428,9 @@ type JSONMCPConfigOptions struct {
 	FilterTool func(toolName string) bool
 	// PostEOFCommands is an optional function to add commands after the EOF (e.g., debug output)
 	PostEOFCommands func(yaml *strings.Builder)
+	// GatewayConfig is an optional gateway configuration to include in the MCP config
+	// When set, adds a "gateway" section with port and apiKey for awmg to use
+	GatewayConfig *MCPGatewayRuntimeConfig
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -696,6 +699,22 @@ func RenderJSONMCPConfig(
 
 	// Write config file footer
 	yaml.WriteString("            }\n")
+
+	// Add gateway section if configured (needed for awmg to rewrite config)
+	if options.GatewayConfig != nil {
+		yaml.WriteString("            ,\n")
+		yaml.WriteString("            \"gateway\": {\n")
+		fmt.Fprintf(yaml, "              \"port\": %d", options.GatewayConfig.Port)
+		if options.GatewayConfig.APIKey != "" {
+			yaml.WriteString(",\n")
+			fmt.Fprintf(yaml, "              \"apiKey\": \"%s\"", options.GatewayConfig.APIKey)
+			yaml.WriteString("\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+		yaml.WriteString("            }\n")
+	}
+
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
 
