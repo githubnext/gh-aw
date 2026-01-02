@@ -30,6 +30,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"assign_milestone",
 		"assign_to_agent",
 		"assign_to_user",
+		"update_project",
 		"update_issue",
 		"update_pull_request",
 		"push_to_pull_request_branch",
@@ -135,6 +136,23 @@ func TestGetValidationConfigForType(t *testing.T) {
 			wantFields: []string{"title", "body", "labels", "parent", "temporary_id"},
 		},
 		{
+			name:      "update_project type",
+			typeName:  "update_project",
+			wantFound: true,
+			wantMax:   10,
+			wantFields: []string{
+				"project",
+				"campaign_id",
+				"content_type",
+				"content_number",
+				"issue",
+				"pull_request",
+				"draft_title",
+				"draft_body",
+				"fields",
+			},
+		},
+		{
 			name:       "link_sub_issue type",
 			typeName:   "link_sub_issue",
 			wantFound:  true,
@@ -236,6 +254,7 @@ func TestValidationConfigConsistency(t *testing.T) {
 		"requiresOneOf:title,body":        true,
 		"startLineLessOrEqualLine":        true,
 		"parentAndSubDifferent":           true,
+		"updateProjectValidTarget":        true,
 	}
 
 	for typeName, config := range ValidationConfig {

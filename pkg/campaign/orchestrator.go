@@ -93,7 +93,11 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	description := spec.Description
 	if strings.TrimSpace(description) == "" {
-		description = fmt.Sprintf("Orchestrator workflow for campaign '%s' (tracker: %s)", spec.ID, spec.TrackerLabel)
+		if strings.TrimSpace(spec.TrackerLabel) != "" {
+			description = fmt.Sprintf("Orchestrator workflow for campaign '%s' (tracker: %s)", spec.ID, spec.TrackerLabel)
+		} else {
+			description = fmt.Sprintf("Orchestrator workflow for campaign '%s'", spec.ID)
+		}
 	}
 
 	// Default triggers: daily schedule plus manual workflow_dispatch.
@@ -112,7 +116,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	hasDetails := false
 
 	if spec.TrackerLabel != "" {
-		fmt.Fprintf(markdownBuilder, "- Tracker label: `%s`\n", spec.TrackerLabel)
+		fmt.Fprintf(markdownBuilder, "- Tracker label (optional ingestion): `%s`\n", spec.TrackerLabel)
 		hasDetails = true
 	}
 	if strings.TrimSpace(spec.Objective) != "" {

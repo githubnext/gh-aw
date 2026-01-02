@@ -150,7 +150,7 @@
     },
     "tracker-label": {
       "type": "string",
-      "description": "Label used to associate issues/PRs with this campaign (e.g., campaign:incident-response)",
+      "description": "Optional ingestion label used to discover issues/PRs for this campaign (e.g., campaign:incident-response). Project membership is the canonical campaign scope.",
       "pattern": "^[^:]+:.+$",
       "minLength": 1
     },

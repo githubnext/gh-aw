@@ -51,7 +51,7 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 		t.Fatalf("expected markdown content to mention campaign name, got: %q", data.MarkdownContent)
 	}
 
-	if !strings.Contains(data.MarkdownContent, spec.TrackerLabel) {
+	if spec.TrackerLabel != "" && !strings.Contains(data.MarkdownContent, spec.TrackerLabel) {
 		t.Fatalf("expected markdown content to mention tracker label %q, got: %q", spec.TrackerLabel, data.MarkdownContent)
 	}
 
@@ -59,6 +59,31 @@ func TestBuildOrchestrator_BasicShape(t *testing.T) {
 	// Job permissions are computed during compilation.
 	if strings.TrimSpace(data.Permissions) != "" {
 		t.Fatalf("expected no permissions in generated orchestrator data, got: %q", data.Permissions)
+	}
+}
+
+func TestBuildOrchestrator_NoTrackerLabelDoesNotMentionTracker(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL:  "https://github.com/orgs/test/projects/1",
+		Workflows:   []string{"test-workflow"},
+		TrackerLabel: "",
+	}
+
+	mdPath := ".github/workflows/test-campaign.campaign.md"
+	data, _ := BuildOrchestrator(spec, mdPath)
+
+	if data == nil {
+		t.Fatalf("expected non-nil WorkflowData")
+	}
+
+	if strings.Contains(data.MarkdownContent, "- Tracker label") {
+		t.Fatalf("did not expect tracker label bullet when tracker-label is omitted, got: %q", data.MarkdownContent)
+	}
+
+	if strings.Contains(data.Description, "tracker:") {
+		t.Fatalf("did not expect default description to include tracker when tracker-label is omitted, got: %q", data.Description)
 	}
 }
 

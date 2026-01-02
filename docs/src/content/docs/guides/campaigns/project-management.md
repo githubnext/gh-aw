@@ -5,9 +5,49 @@ description: "Use GitHub Projects with roadmap views and custom date fields for 
 
 GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. This guide covers view configurations, custom fields, and filtering strategies to maximize campaign visibility and control.
 
+## Where summaries and metrics live
+
+- **Project board**: Canonical state for tasks (membership, status, worker/workflow, oversight flags). Keep it structured and queryable.
+- **Epic issue (campaign hub)**: Human decision log and narrative context (created via the campaign issue form, labeled `campaign` + `campaign-tracker`).
+- **Orchestrator run summary**: The per-run execution report (what changed, what was discovered, what needs attention).
+- **Repo-memory metrics**: The durable, machine-readable history (metrics/KPI snapshots written as JSON files when `metrics-glob` is configured).
+
+**Recommended wiring**: Once the campaign has an `id`, label the epic issue with `campaign:<id>` (for example `campaign:framework-upgrade`). This enables orchestrators to reliably find the hub issue and post a short per-run comment without guessing.
+
+## Make the epic issue visible on the board (Option A)
+
+If you want the campaign hub to show up directly in your Roadmap/Board/Table views, add the epic issue as a Project item.
+
+Recommended field values for the epic issue item:
+- **Worker/Workflow**: `orchestrator`
+- **Human Oversight Required**: `Yes`
+
+This keeps the hub in the human review queue and makes it easy to find from any view.
+
 ## Recommended Custom Fields for Campaigns
 
 Before configuring views, set up custom fields that provide valuable filtering and grouping capabilities:
+
+## Recommended Views (high-value defaults)
+
+After the fields below exist, create a small set of views that each answer one question:
+
+1. **Roadmap** (Roadmap layout)
+   - Group by: **Worker/Workflow**
+   - Date fields: **Start Date** and **End Date**
+   - Filter: `Status != Done`
+
+2. **Board** (Board layout)
+   - Group by: **Status**
+   - Saved filter: `Human Oversight Required = Yes` (your human review queue)
+
+3. **Backlog** (Table layout)
+   - Columns: `Status`, `Human Oversight Required`, `Worker/Workflow`, `Priority`
+   - Use “Slice by” on **Worker/Workflow** to review one worker at a time
+
+4. **Exceptions** (Table layout)
+   - Filter: `Status = Blocked OR Human Oversight Required = Yes`
+   - Keep this view small and human-operated
 
 ### Essential Campaign Fields
 
@@ -28,23 +68,28 @@ Before configuring views, set up custom fields that provide valuable filtering a
    - Purpose: Track work state across the campaign
    - Default field in most project templates
 
-4. **Start Date** (Date)
+4. **Human Oversight Required** (Single select)
+   - Values: Yes, No
+   - Purpose: Create an explicit human review queue (triage, approvals, risky changes)
+   - Use this to power a dedicated “Needs human” view
+
+5. **Start Date** (Date)
    - Purpose: When work begins (auto-populated from issue `createdAt`)
    - Required for Roadmap timeline visualization
 
-5. **End Date** (Date)
+6. **End Date** (Date)
    - Purpose: When work completes (auto-populated from issue `closedAt`)
    - Required for Roadmap timeline visualization
 
-6. **Effort** (Single select - optional)
+7. **Effort** (Single select - optional)
    - Values: Small (1-3 days), Medium (1 week), Large (2+ weeks)
    - Purpose: Estimate work size for capacity planning
 
-7. **Team** (Single select - optional)
+8. **Team** (Single select - optional)
    - Values: Frontend, Backend, DevOps, Documentation, etc.
    - Purpose: Track which team or area owns the work
 
-8. **Repository** (Single select - optional, for cross-repository campaigns)
+9. **Repository** (Single select - optional, for cross-repository campaigns)
    - Values: Repository names (e.g., "gh-aw", "docs-site", "api-server")
    - Purpose: Track which repository an item belongs to
    - Enables filtering and grouping by repository in multi-repo campaigns

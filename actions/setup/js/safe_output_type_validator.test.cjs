@@ -96,6 +96,28 @@ const SAMPLE_VALIDATION_CONFIG = {
       },
     },
   },
+  update_project: {
+    defaultMax: 10,
+    customValidation: "updateProjectValidTarget",
+    fields: {
+      project: {
+        required: true,
+        type: "string",
+        sanitize: true,
+        maxLength: 512,
+        pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+        patternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)",
+      },
+      campaign_id: { type: "string", sanitize: true, maxLength: 128 },
+      content_type: { type: "string", enum: ["issue", "pull_request", "draft_issue"] },
+      content_number: { optionalPositiveInteger: true },
+      issue: { optionalPositiveInteger: true },
+      pull_request: { optionalPositiveInteger: true },
+      draft_title: { type: "string", sanitize: true, maxLength: 256 },
+      draft_body: { type: "string", sanitize: true, maxLength: 65000 },
+      fields: { type: "object" },
+    },
+  },
 };
 
 describe("safe_output_type_validator", () => {
@@ -393,6 +415,75 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("must be different");
+    });
+  });
+
+  describe("custom validation: updateProjectValidTarget", () => {
+    it("should fail when content_type is draft_issue and draft_title is missing", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "update_project",
+          project: "https://github.com/orgs/acme/projects/42",
+          content_type: "draft_issue",
+        },
+        "update_project",
+        1
+      );
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("draft_title");
+    });
+
+    it("should pass when content_type is draft_issue and draft_title is provided", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "update_project",
+          project: "https://github.com/orgs/acme/projects/42",
+          content_type: "draft_issue",
+          draft_title: "Investigate flaky CI",
+        },
+        "update_project",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should fail when non-draft item has no target identifiers", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "update_project",
+          project: "https://github.com/orgs/acme/projects/42",
+        },
+        "update_project",
+        1
+      );
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("requires one of");
+    });
+
+    it("should pass when non-draft item provides content_number", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "update_project",
+          project: "https://github.com/orgs/acme/projects/42",
+          content_type: "issue",
+          content_number: 123,
+        },
+        "update_project",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
     });
   });
 

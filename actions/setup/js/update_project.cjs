@@ -5,6 +5,37 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Normalize a field name for matching against existing Project field names.
+ * This intentionally treats punctuation (like "/") as whitespace so that
+ * keys like "worker_workflow" can match field names like "Worker/Workflow".
+ *
+ * @param {unknown} name
+ * @returns {string}
+ */
+function normalizeFieldNameForComparison(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Convert a key-like field name (snake_case, kebab-case, etc) into a display
+ * name suitable for creating/renaming Project fields.
+ *
+ * @param {unknown} fieldKey
+ * @returns {string}
+ */
+function toProjectFieldDisplayName(fieldKey) {
+  return String(fieldKey || "")
+    .trim()
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
  * @param {string} operation - Operation description
@@ -379,19 +410,17 @@ async function updateProject(output) {
           )
         ).node.fields.nodes;
         for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
-          const normalizedFieldName = fieldName
-            .split(/[\s_-]+/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(" ");
+          const wantedFieldName = normalizeFieldNameForComparison(fieldName);
+          const displayFieldName = toProjectFieldDisplayName(fieldName);
           let valueToSet,
-            field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+            field = projectFields.find(f => normalizeFieldNameForComparison(f.name) === wantedFieldName);
           if (!field)
             if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "TEXT" }
+                    { projectId, name: displayFieldName, dataType: "TEXT" }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
@@ -403,7 +432,7 @@ async function updateProject(output) {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                    { projectId, name: displayFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
@@ -501,19 +530,17 @@ async function updateProject(output) {
           )
         ).node.fields.nodes;
         for (const [fieldName, fieldValue] of Object.entries(fieldsToUpdate)) {
-          const normalizedFieldName = fieldName
-            .split(/[\s_-]+/)
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(" ");
+          const wantedFieldName = normalizeFieldNameForComparison(fieldName);
+          const displayFieldName = toProjectFieldDisplayName(fieldName);
           let valueToSet,
-            field = projectFields.find(f => f.name.toLowerCase() === normalizedFieldName.toLowerCase());
+            field = projectFields.find(f => normalizeFieldNameForComparison(f.name) === wantedFieldName);
           if (!field)
             if ("classification" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "TEXT" }
+                    { projectId, name: displayFieldName, dataType: "TEXT" }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
@@ -525,7 +552,7 @@ async function updateProject(output) {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                    { projectId, name: displayFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {

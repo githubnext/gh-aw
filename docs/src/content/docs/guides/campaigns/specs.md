@@ -1,19 +1,20 @@
 ---
 title: "Campaign Specs"
-description: "Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring"
+description: "Define and configure agentic campaigns with spec files and GitHub Projects"
 ---
 
 Campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. The YAML frontmatter is the campaign “contract”; the body can contain optional narrative context.
 
 ## What a campaign is (in gh-aw)
 
-In GitHub Agentic Workflows, a campaign is not “a special kind of workflow.” The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative (a tracker label, a GitHub Project dashboard, and optional durable state).
+In GitHub Agentic Workflows, a campaign is not “a special kind of workflow.” The `.campaign.md` file is a specification: a reviewable contract that wires together agentic workflows around a shared initiative (a GitHub Project dashboard, optional ingestion signals like tracker labels, and optional durable state).
 
 In a typical setup:
 
 - Worker workflows do the work. They run an agent and use safe-outputs (for example `create_pull_request`, `add_comment`, or `update_issues`) for write operations.
-- A generated orchestrator workflow keeps the campaign coherent over time. It discovers items tagged with your tracker label, updates the Project board, and produces ongoing progress reporting.
+- A generated orchestrator workflow keeps the campaign coherent over time. It reads the campaign Project, updates Project fields, and produces ongoing progress reporting.
 - Repo-memory (optional) makes the campaign repeatable. It lets you store a cursor checkpoint and append-only metrics snapshots so each run can pick up where the last one left off.
+
 
 ### Mental model
 
@@ -23,7 +24,7 @@ flowchart TB
     compile["fa:fa-cogs gh aw compile"]
     debug["fa:fa-file .campaign.g.md<br/><small>debug artifact<br/>(not tracked)</small>"]
     lock["fa:fa-lock .campaign.lock.yml<br/><small>compiled workflow<br/>(tracked in git)</small>"]
-    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>discovers items via tracker-label<br/>updates Project dashboard<br/>reads/writes repo-memory</small>"]
+    orchestrator["fa:fa-sitemap Orchestrator workflow<br/><small>reads Project items<br/>updates Project fields<br/>reads/writes repo-memory</small>"]
     worker1["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
     worker2["fa:fa-robot Worker workflow<br/><small>agent + safe-outputs</small>"]
     project["fa:fa-table GitHub Project board<br/><small>campaign dashboard</small>"]
@@ -35,8 +36,8 @@ flowchart TB
     lock --> orchestrator
     orchestrator -->|triggers/coordinates| worker1
     orchestrator -->|triggers/coordinates| worker2
-    worker1 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
-    worker2 -->|creates/updates<br/>Issues/PRs with<br/>tracker-label| project
+    worker1 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
+    worker2 -->|creates/updates<br/>Issues/PRs<br/>(optional tracker-label)| project
     orchestrator -.->|reads/writes| memory
     project -.->|dashboard view| orchestrator
 
@@ -92,10 +93,29 @@ owners:
 
 - `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
 - `project-url`: the GitHub Project that acts as the campaign dashboard.
-- `tracker-label`: the label applied to issues and pull requests that belong to the campaign (commonly `campaign:<id>`). This is the key that lets the orchestrator discover work across runs.
+- `tracker-label` (optional): a label applied to issues and pull requests (commonly `campaign:<id>`) to help discovery/ingestion. For a robust campaign, Project membership is the source of truth for “in scope”.
 - `objective`: a single sentence describing what “done” means.
 - `kpis`: the measures you use to report progress (exactly one should be marked `primary`).
 - `workflows`: the participating workflow IDs. These refer to workflows in the repo (commonly `.github/workflows/<workflow-id>.md`), and they can be scheduled, event-driven, or long-running.
+
+
+## Membership contract (one Project per campaign)
+
+For a robust campaign, keep the membership rule explicit and deterministic:
+
+- “In scope” = “is a Project item in the campaign Project”.
+- Non-trackable work = Project draft item.
+- Labels, workflow history, and free-form text are not membership signals (they can still be useful context).
+
+This keeps campaigns worker-agnostic because membership does not depend on which workflow (or AI engine) created/updated an item.
+
+## Tracker labels (optional ingestion)
+
+If you want labels, treat them as a convenience for discovery/ingestion:
+
+- Worker workflows may add `tracker-label` to issues/PRs they create.
+- The orchestrator may use the label as a helper to auto-add items into the Project.
+- The Project remains the system of record for membership and progress.
 
 ## KPIs (recommended shape)
 
@@ -141,7 +161,7 @@ governance:
 
 ## Compilation and orchestrators
 
-`gh aw compile` validates campaign specs. When the spec has meaningful details (tracker label, workflows, memory paths, or a metrics glob), it also generates an orchestrator and compiles it to `.campaign.lock.yml`.
+`gh aw compile` validates campaign specs. When the spec has meaningful details (project URL, workflows, memory paths, or a metrics glob), it also generates an orchestrator and compiles it to `.campaign.lock.yml`.
 
 During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers understand the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
 

@@ -4,9 +4,7 @@
 Execute state writes using the `update-project` safe-output. All writes must target this exact project URL:
 
 **Project URL**: {{.ProjectURL}}
-{{if .TrackerLabel}}
-**Campaign ID**: Extract from tracker label `{{.TrackerLabel}}` (format: `campaign:CAMPAIGN_ID`)
-{{end}}
+**Campaign ID**: `{{.CampaignID}}` (recommended to tag items via the optional `campaign_id` field)
 
 #### Adding New Issues/PRs
 
@@ -16,8 +14,8 @@ update-project:
   project: "{{.ProjectURL}}"
   content_type: "issue"  # or "pull_request"
   content_number: 123  # Extract number from URL like https://github.com/owner/repo/issues/123
-{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}  fields:
+  campaign_id: "{{.CampaignID}}"  # Optional: tags items for this campaign
+  fields:
     status: "Todo"  # or "Done" if issue/PR is already closed/merged
 ```
 
@@ -40,8 +38,9 @@ update-project:
   content_number: 123  # Extract from URL
   fields:
     status: "Todo"  # or "In Progress", "Blocked", "Done"
-{{if .TrackerLabel}}    campaign_id: "CAMPAIGN_ID"  # Extract from tracker label {{.TrackerLabel}}
-{{end}}    worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+    campaign_id: "{{.CampaignID}}"  # Optional: tags items for this campaign
+    worker_workflow: "WORKFLOW_ID"  # Enables swimlane grouping and filtering
+    human_oversight_required: "No"  # or "Yes" - powers a dedicated human review queue
     priority: "High"  # or "Medium", "Low" - enables priority-based views
     effort: "Medium"  # or "Small", "Large" - enables capacity planning
     team: "TEAM_NAME"  # Optional: for team-based grouping
@@ -50,6 +49,7 @@ update-project:
 
 **Custom Field Benefits**:
 - `worker_workflow`: Groups items by workflow in Roadmap swimlanes; enables "Slice by" filtering in Table views (orchestrator populates this by discovering which worker created the item via tracker-id)
+- `human_oversight_required`: Creates an explicit human review queue; use a "Needs human" view filtered to "Yes"
 - `priority`: Enables priority-based filtering and sorting
 - `effort`: Supports capacity planning and workload distribution
 - `team`: Enables team-based grouping for multi-team campaigns
@@ -67,8 +67,8 @@ update-project:
   project: "{{.ProjectURL}}"
   content_type: "issue"  # or "pull_request"
   content_number: 123  # Extract from URL
-{{if .TrackerLabel}}  campaign_id: "CAMPAIGN_ID"  # Required: extract from tracker label {{.TrackerLabel}}
-{{end}}  fields:
+  campaign_id: "{{.CampaignID}}"  # Optional: tags items for this campaign
+  fields:
     status: "Done"  # or "In Progress", "Todo"
 ```
 

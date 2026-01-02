@@ -21,10 +21,12 @@ In GitHub: your org → **Projects** → **New project**.
 - Start with a **Table** view (simplest option)
 - Add a **Board** view grouped by `Status` for kanban-style tracking
 - Consider a **Roadmap** view for timeline visualization (requires Start Date/End Date fields)
+- Add a dedicated “Needs human” view filtered by `Human Oversight Required = Yes`
 
 **Recommended custom fields** (see [Project Management](/gh-aw/guides/campaigns/project-management/) for details):
 - **Status** (Single select): Todo, In Progress, Blocked, Done
 - **Worker/Workflow** (Single select): Names of your worker workflows
+- **Human Oversight Required** (Single select): Yes, No
 - **Priority** (Single select): High, Medium, Low
 - **Start Date** / **End Date** (Date): For roadmap timeline views
 
@@ -76,6 +78,21 @@ Trigger the orchestrator workflow from GitHub Actions. Its job is to keep the da
 - Adds them to the Project
 - Updates fields/status
 - Posts a short report
+
+### Where the epic issue, summaries, and metrics go
+
+- **Epic issue (campaign hub)**: The issue created from the “🚀 Start an Agentic Campaign” issue form. This is the human-facing command center for decisions and context.
+- **Campaign summaries**: Each orchestrator run should produce a short, human-readable summary in the GitHub Actions run summary. If you want the same summary posted to the epic issue, label the epic issue with `campaign:<id>` once you know the campaign id.
+- **Metrics**: Durable metrics/KPI snapshots are written to repo-memory (when enabled via metrics globs in the campaign spec). These JSON snapshots are the canonical machine-readable history; the orchestrator can also include a short “latest metrics” excerpt in the run summary and/or epic issue comment.
+
+**Tip (recommended)**: After the campaign spec exists and you know the `id`, add a label like `campaign:framework-upgrade` to the epic issue. This gives the orchestrator a deterministic way to find the hub issue and post summaries without guessing.
+
+**Make the epic issue visible on the Project board (Option A)**: Add the epic issue to the Project board (it can live alongside the campaign tasks). If your board has these fields, set:
+
+- `Worker/Workflow = orchestrator`
+- `Human Oversight Required = Yes`
+
+This keeps the campaign hub in your “Needs human” queue and makes it obvious in Roadmap/Board/Table views.
 
 ## 5) Add work items
 

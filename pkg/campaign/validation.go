@@ -77,9 +77,7 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	if strings.TrimSpace(spec.TrackerLabel) == "" {
-		problems = append(problems, "tracker-label should be set to link issues and PRs to this campaign")
-	} else if !strings.Contains(spec.TrackerLabel, ":") {
+	if strings.TrimSpace(spec.TrackerLabel) != "" && !strings.Contains(spec.TrackerLabel, ":") {
 		problems = append(problems, "tracker-label should follow a namespaced pattern (for example: campaign:security-q1-2025)")
 	}
 

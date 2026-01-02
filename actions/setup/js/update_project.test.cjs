@@ -542,6 +542,47 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
+  it("matches existing field names with slashes (Worker/Workflow) when using snake_case keys", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 88,
+      fields: {
+        worker_workflow: "orchestrator",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-worker-workflow"),
+      issueResponse("issue-id-88"),
+      existingItemResponse("issue-id-88", "item-worker-workflow"),
+      fieldsResponse([
+        {
+          id: "field-worker-workflow",
+          name: "Worker/Workflow",
+          dataType: "SINGLE_SELECT",
+          options: [{ id: "opt-orchestrator", name: "orchestrator", color: "GRAY" }],
+        },
+      ]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Should update existing field value, not try to create a new field.
+    const createdFieldCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("createProjectV2Field"));
+    expect(createdFieldCall).toBeUndefined();
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].fieldId).toBe("field-worker-workflow");
+    expect(updateCall[1].value).toEqual({ singleSelectOptionId: "opt-orchestrator" });
+  });
+
   it("rejects non-URL project identifier", async () => {
     const output = { type: "update_project", project: "My Campaign", campaign_id: "my-campaign-123" };
     await expect(updateProject(output)).rejects.toThrow(/full GitHub project URL/);

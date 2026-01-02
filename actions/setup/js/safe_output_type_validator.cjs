@@ -465,6 +465,38 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
     }
   }
 
+  if (customValidation === "updateProjectValidTarget") {
+    const contentType = item.content_type;
+
+    if (contentType === "draft_issue") {
+      const draftTitle = typeof item.draft_title === "string" ? item.draft_title.trim() : "";
+      if (!draftTitle) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} 'draft_title' is required and must be a non-empty string when 'content_type' is 'draft_issue'`,
+        };
+      }
+      return null;
+    }
+
+    const normalize = v => {
+      if (v === undefined || v === null) return "";
+      if (typeof v === "number") return Number.isFinite(v) ? String(v) : "";
+      return String(v).trim();
+    };
+
+    const hasContentNumber = normalize(item.content_number) !== "";
+    const hasIssue = normalize(item.issue) !== "";
+    const hasPullRequest = normalize(item.pull_request) !== "";
+
+    if (!hasContentNumber && !hasIssue && !hasPullRequest) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} requires one of: 'content_number', 'issue', or 'pull_request' (or set 'content_type' to 'draft_issue' with 'draft_title')`,
+      };
+    }
+  }
+
   return null;
 }
 
