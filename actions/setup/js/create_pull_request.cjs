@@ -13,13 +13,6 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 
 /**
- * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
- */
-
-/** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "create_pull_request";
-
-/**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
  * @param {string} patchContent - The full patch content
  * @returns {string} Formatted patch preview
@@ -49,20 +42,17 @@ function generatePatchPreview(patchContent) {
   return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
 }
 
-/**
- * Main handler factory for create_pull_request
- * Returns a message handler function that processes individual create_pull_request messages
- * @type {HandlerFactoryFunction}
- */
-async function main(config = {}) {
-  // Extract configuration
-  const titlePrefix = config.title_prefix || "";
-  const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
-  const draftDefault = config.draft !== undefined ? config.draft : true;
-  const ifNoChanges = config.if_no_changes || "warn";
-  const allowEmpty = config.allow_empty || false;
-  const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
-  const maxCount = config.max || 1; // PRs are typically limited to 1
+async function main() {
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("pull_request_number", "");
+  core.setOutput("pull_request_url", "");
+  core.setOutput("issue_number", "");
+  core.setOutput("issue_url", "");
+  core.setOutput("branch_name", "");
+  core.setOutput("fallback_used", "");
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
@@ -75,300 +65,305 @@ async function main(config = {}) {
     throw new Error("GH_AW_BASE_BRANCH environment variable is required");
   }
 
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
 
-  core.info(`Base branch: ${baseBranch}`);
-  if (envLabels.length > 0) {
-    core.info(`Default labels: ${envLabels.join(", ")}`);
-  }
-  if (titlePrefix) {
-    core.info(`Title prefix: ${titlePrefix}`);
-  }
-  core.info(`Draft default: ${draftDefault}`);
-  core.info(`If no changes: ${ifNoChanges}`);
-  core.info(`Allow empty: ${allowEmpty}`);
-  if (expiresHours > 0) {
-    core.info(`Pull requests expire after: ${expiresHours} hours`);
-  }
-  core.info(`Max count: ${maxCount}`);
-
-  // Track how many items we've processed for max limit
-  let processedCount = 0;
-
-  /**
-   * Message handler function that processes a single create_pull_request message
-   * @param {Object} message - The create_pull_request message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
-   * @returns {Promise<Object>} Result with success/error status and PR details
-   */
-  return async function handleCreatePullRequest(message, resolvedTemporaryIds) {
-    // Check if we've hit the max limit
-    if (processedCount >= maxCount) {
-      core.warning(`Skipping create_pull_request: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
+  // Read agent output from file
+  let outputContent = "";
+  if (agentOutputFile.trim() !== "") {
+    try {
+      outputContent = fs.readFileSync(agentOutputFile, "utf8");
+    } catch (error) {
+      core.setFailed(`Error reading agent output file: ${getErrorMessage(error)}`);
+      return;
     }
+  }
 
-    processedCount++;
+  if (outputContent.trim() === "") {
+    core.info("Agent output content is empty");
+  }
 
-    const pullRequestItem = message;
+  const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
+  const allowEmpty = (process.env.GH_AW_PR_ALLOW_EMPTY || "false").toLowerCase() === "true";
 
-    const pullRequestItem = message;
-
-    core.info(`Processing create_pull_request: title=${pullRequestItem.title}, bodyLength=${pullRequestItem.body?.length || 0}`);
-
-    // Read patch file if it exists
-    let patchContent = "";
-    let isEmpty = true;
-
-    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      // If allow-empty is enabled, we can proceed without a patch file
-      if (allowEmpty) {
-        core.info("No patch file found, but allow-empty is enabled - will create empty PR");
-      } else {
-        const error = "No patch file found - cannot create pull request without changes";
-
-        // If in staged mode, still show preview
-        if (isStaged) {
-          let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-          summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-          summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-          summaryContent += `**Message:** ${error}\n\n`;
-
-          // Write to step summary
-          await core.summary.addRaw(summaryContent).write();
-          core.info("📝 Pull request creation preview written to step summary (no patch file)");
-          return { success: false, error };
-        }
-
-        switch (ifNoChanges) {
-          case "error":
-            return { success: false, error };
-          case "ignore":
-            return { success: false, error, skipped: true };
-          case "warn":
-          default:
-            core.warning(error);
-            return { success: false, error };
-        }
-      }
+  // Check if patch file exists and has valid content
+  if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    // If allow-empty is enabled, we can proceed without a patch file
+    if (allowEmpty) {
+      core.info("No patch file found, but allow-empty is enabled - will create empty PR");
     } else {
-      patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-      isEmpty = !patchContent || !patchContent.trim();
-    }
+      const message = "No patch file found - cannot create pull request without changes";
 
-    // Check for actual error conditions (but allow empty patches as valid noop)
-    if (patchContent.includes("Failed to generate patch")) {
-      // If allow-empty is enabled, ignore patch errors and proceed
-      if (allowEmpty) {
-        core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
-        patchContent = "";
-        isEmpty = true;
-      } else {
-        const error = "Patch file contains error message - cannot create pull request without changes";
+      // If in staged mode, still show preview
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
 
-        // If in staged mode, still show preview
-        if (isStaged) {
-          let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-          summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-          summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-          summaryContent += `**Message:** ${error}\n\n`;
-
-          // Write to step summary
-          await core.summary.addRaw(summaryContent).write();
-          core.info("📝 Pull request creation preview written to step summary (patch error)");
-          return { success: false, error };
-        }
-
-        switch (ifNoChanges) {
-          case "error":
-            return { success: false, error };
-          case "ignore":
-            return { success: false, error, skipped: true };
-          case "warn":
-          default:
-            core.warning(error);
-            return { success: false, error };
-        }
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (no patch file)");
+        return;
       }
-    }
-
-    // Validate patch size (unless empty)
-    if (!isEmpty) {
-      // Get maximum patch size from environment (default: 1MB = 1024 KB)
-      const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-      const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-      const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-
-      core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-
-      if (patchSizeKb > maxSizeKb) {
-        const error = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-
-        // If in staged mode, still show preview with error
-        if (isStaged) {
-          let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-          summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-          summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-          summaryContent += `**Message:** ${error}\n\n`;
-
-          // Write to step summary
-          await core.summary.addRaw(summaryContent).write();
-          core.info("📝 Pull request creation preview written to step summary (patch size error)");
-          return { success: false, error };
-        }
-
-        return { success: false, error };
-      }
-
-      core.info("Patch size validation passed");
-    }
-
-    if (isEmpty && !isStaged && !allowEmpty) {
-      const error = "Patch file is empty - no changes to apply (noop operation)";
 
       switch (ifNoChanges) {
         case "error":
-          return { success: false, error };
+          throw new Error(message);
         case "ignore":
-          return { success: false, error, skipped: true };
+          // Silent success - no console output
+          return;
         case "warn":
         default:
-          core.warning(error);
-          return { success: false, error };
+          core.warning(message);
+          return;
       }
     }
+  }
 
-    if (!isEmpty) {
-      core.info("Patch content validation passed");
-    } else if (allowEmpty) {
-      core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
+  let patchContent = "";
+  let isEmpty = true;
+
+  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    isEmpty = !patchContent || !patchContent.trim();
+  }
+
+  // Check for actual error conditions (but allow empty patches as valid noop)
+  if (patchContent.includes("Failed to generate patch")) {
+    // If allow-empty is enabled, ignore patch errors and proceed
+    if (allowEmpty) {
+      core.info("Patch file contains error, but allow-empty is enabled - will create empty PR");
+      patchContent = "";
+      isEmpty = true;
     } else {
-      core.info("Patch file is empty - processing noop operation");
-    }
+      const message = "Patch file contains error message - cannot create pull request without changes";
 
-    // Extract title, body, and branch from the message
-    let title = pullRequestItem.title ? pullRequestItem.title.trim() : "";
+      // If in staged mode, still show preview
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
 
-    // Replace temporary ID references in the body
-    let processedBody = pullRequestItem.body || "";
-    if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
-      // Convert object to Map for compatibility with replaceTemporaryIdReferences
-      const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
-      const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
-      processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, currentRepo);
-      core.info("Resolved temporary ID references in PR body");
-    }
-
-    // Remove duplicate title from description if it starts with a header matching the title
-    processedBody = removeDuplicateTitleFromDescription(title, processedBody);
-
-    let bodyLines = processedBody.split("\n");
-    let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-
-    // If no title was found, use a default
-    if (!title) {
-      title = "Agent Output";
-    }
-
-    // Apply title prefix if provided
-    if (titlePrefix && !title.startsWith(titlePrefix)) {
-      title = titlePrefix + title;
-    }
-
-    // Add AI disclaimer with workflow name and run url
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-    const runId = context.runId;
-    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-    const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-
-    // Add fingerprint comment if present
-    const trackerIDComment = getTrackerID("markdown");
-    if (trackerIDComment) {
-      bodyLines.push(trackerIDComment);
-    }
-
-    // Add expiration comment if expires is set (only for same-repo PRs)
-    if (expiresHours > 0) {
-      const expiresDate = new Date();
-      expiresDate.setHours(expiresDate.getHours() + expiresHours);
-      const expiresString = expiresDate.toISOString();
-      bodyLines.push(``, `<!-- gh-aw-expires: ${expiresString} -->`, `<!-- gh-aw-expires-type: Pull Request -->`);
-    }
-
-    bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-
-    // Prepare the body content
-    const body = bodyLines.join("\n").trim();
-
-    // Build labels array
-    let labels = [...envLabels];
-    if (pullRequestItem.labels && Array.isArray(pullRequestItem.labels)) {
-      labels = [...labels, ...pullRequestItem.labels];
-    }
-    labels = labels
-      .filter(label => !!label)
-      .map(label => String(label).trim())
-      .filter(label => label);
-
-    // Determine draft setting - use message value if provided, otherwise use config default
-    const draft = pullRequestItem.draft !== undefined ? pullRequestItem.draft : draftDefault;
-
-    core.info(`Creating pull request with title: ${title}`);
-    core.info(`Labels: ${JSON.stringify(labels)}`);
-    core.info(`Draft: ${draft}`);
-    core.info(`Body length: ${body.length}`);
-
-    // If in staged mode, emit step summary instead of creating PR
-    if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-
-      summaryContent += `**Title:** ${title || "No title provided"}\n\n`;
-      summaryContent += `**Branch:** ${branchName || "auto-generated"}\n\n`;
-      summaryContent += `**Base:** ${baseBranch}\n\n`;
-
-      if (body) {
-        summaryContent += `**Body:**\n${body}\n\n`;
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (patch error)");
+        return;
       }
 
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-        if (patchStats.trim()) {
-          summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-          summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-        } else {
-          summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-        }
+      switch (ifNoChanges) {
+        case "error":
+          throw new Error(message);
+        case "ignore":
+          // Silent success - no console output
+          return;
+        case "warn":
+        default:
+          core.warning(message);
+          return;
+      }
+    }
+  }
+
+  // Validate patch size (unless empty)
+  if (!isEmpty) {
+    // Get maximum patch size from environment (default: 1MB = 1024 KB)
+    const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+    const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+
+    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+
+    if (patchSizeKb > maxSizeKb) {
+      const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+
+      // If in staged mode, still show preview with error
+      if (isStaged) {
+        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+        summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+        summaryContent += `**Message:** ${message}\n\n`;
+
+        // Write to step summary
+        await core.summary.addRaw(summaryContent).write();
+        core.info("📝 Pull request creation preview written to step summary (patch size error)");
+        return;
       }
 
-      // Write to step summary
-      await core.summary.addRaw(summaryContent).write();
-      core.info("📝 Pull request creation preview written to step summary");
-      return {
-        success: true,
-        staged: true,
-        title,
-        branch: branchName,
-      };
+      throw new Error(message);
     }
 
-    const randomHex = crypto.randomBytes(8).toString("hex");
-    // Use branch name from message if provided, otherwise generate unique branch name
-    if (!branchName) {
-      core.info("No branch name provided in message, generating unique branch name");
-      // Generate unique branch name using cryptographic random hex
-      branchName = `${workflowId}-${randomHex}`;
-    } else {
-      branchName = `${branchName}-${randomHex}`;
-      core.info(`Using branch name from message with added salt: ${branchName}`);
+    core.info("Patch size validation passed");
+  }
+
+  if (isEmpty && !isStaged && !allowEmpty) {
+    const message = "Patch file is empty - no changes to apply (noop operation)";
+
+    switch (ifNoChanges) {
+      case "error":
+        throw new Error("No changes to push - failing as configured by if-no-changes: error");
+      case "ignore":
+        // Silent success - no console output
+        return;
+      case "warn":
+      default:
+        core.warning(message);
+        return;
+    }
+  }
+
+  core.info(`Agent output content length: ${outputContent.length}`);
+  if (!isEmpty) {
+    core.info("Patch content validation passed");
+  } else if (allowEmpty) {
+    core.info("Patch file is empty - processing empty PR creation (allow-empty is enabled)");
+  } else {
+    core.info("Patch file is empty - processing noop operation");
+  }
+
+  // Parse the validated output JSON
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    core.setFailed(`Error parsing agent output JSON: ${getErrorMessage(error)}`);
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.warning("No valid items found in agent output");
+    return;
+  }
+
+  // Find the create-pull-request item
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
+  if (!pullRequestItem) {
+    core.warning("No create-pull-request item found in agent output");
+    return;
+  }
+
+  core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+
+  // If in staged mode, emit step summary instead of creating PR
+  if (isStaged) {
+    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+
+    summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+    summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+    summaryContent += `**Base:** ${baseBranch}\n\n`;
+
+    if (pullRequestItem.body) {
+      summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
     }
 
-    core.info(`Generated branch name: ${branchName}`);
-    core.info(`Base branch: ${baseBranch}`);
+    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchStats.trim()) {
+        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+      } else {
+        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+      }
+    }
+
+    // Write to step summary
+    await core.summary.addRaw(summaryContent).write();
+    core.info("📝 Pull request creation preview written to step summary");
+    return;
+  }
+
+  // Extract title, body, and branch from the JSON item
+  let title = pullRequestItem.title.trim();
+  let processedBody = pullRequestItem.body;
+
+  // Replace temporary ID references in the body with resolved issue/PR numbers
+  // This allows PRs to reference issues created earlier in the same workflow
+  // by using temporary IDs like #aw_123abc456def
+  const temporaryIdMapEnv = process.env.GH_AW_TEMPORARY_ID_MAP;
+  if (temporaryIdMapEnv) {
+    try {
+      const resolvedTemporaryIds = JSON.parse(temporaryIdMapEnv);
+      if (resolvedTemporaryIds && Object.keys(resolvedTemporaryIds).length > 0) {
+        // Convert object to Map for compatibility with replaceTemporaryIdReferences
+        const tempIdMap = new Map(Object.entries(resolvedTemporaryIds));
+        const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+        processedBody = replaceTemporaryIdReferences(processedBody, tempIdMap, currentRepo);
+        core.info(`Resolved ${tempIdMap.size} temporary ID references in PR body`);
+      }
+    } catch (error) {
+      core.warning(`Failed to parse temporary ID map: ${getErrorMessage(error)}`);
+    }
+  }
+
+  // Remove duplicate title from description if it starts with a header matching the title
+  processedBody = removeDuplicateTitleFromDescription(title, processedBody);
+
+  let bodyLines = processedBody.split("\n");
+  let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+
+  // If no title was found, use a default
+  if (!title) {
+    title = "Agent Output";
+  }
+
+  // Apply title prefix if provided via environment variable
+  const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+  if (titlePrefix && !title.startsWith(titlePrefix)) {
+    title = titlePrefix + title;
+  }
+
+  // Add AI disclaimer with workflow name and run url
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const runId = context.runId;
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+  // Add fingerprint comment if present
+  const trackerIDComment = getTrackerID("markdown");
+  if (trackerIDComment) {
+    bodyLines.push(trackerIDComment);
+  }
+
+  // Add expiration comment if expires is set (only for same-repo PRs)
+  addExpirationComment(bodyLines, "GH_AW_PR_EXPIRES", "Pull Request");
+
+  bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+
+  // Prepare the body content
+  const body = bodyLines.join("\n").trim();
+
+  // Parse labels from environment variable (comma-separated string)
+  const labelsEnv = process.env.GH_AW_PR_LABELS;
+  const labels = labelsEnv
+    ? labelsEnv
+        .split(",")
+        .map(/** @param {string} label */ label => label.trim())
+        .filter(/** @param {string} label */ label => label)
+    : [];
+
+  // Parse draft setting from environment variable (defaults to true)
+  const draftEnv = process.env.GH_AW_PR_DRAFT;
+  const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+
+  core.info(`Creating pull request with title: ${title}`);
+  core.info(`Labels: ${JSON.stringify(labels)}`);
+  core.info(`Draft: ${draft}`);
+  core.info(`Body length: ${body.length}`);
+
+  const randomHex = crypto.randomBytes(8).toString("hex");
+  // Use branch name from JSONL if provided, otherwise generate unique branch name
+  if (!branchName) {
+    core.info("No branch name provided in JSONL, generating unique branch name");
+    // Generate unique branch name using cryptographic random hex
+    branchName = `${workflowId}-${randomHex}`;
+  } else {
+    branchName = `${branchName}-${randomHex}`;
+    core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+  }
+
+  core.info(`Generated branch name: ${branchName}`);
+  core.info(`Base branch: ${baseBranch}`);
 
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 

@@ -51,6 +51,9 @@ func (c *Compiler) buildCreatePullRequestStepConfig(data *WorkflowData, mainJobN
 	if cfg.Expires > 0 && cfg.TargetRepoSlug == "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_EXPIRES: \"%d\"\n", cfg.Expires))
 	}
+	// Add temporary ID map from handler manager output (if handler manager is enabled)
+	// This allows PRs to reference issues created by the handler manager using temporary IDs
+	customEnvVars = append(customEnvVars, "          GH_AW_TEMPORARY_ID_MAP: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}\n")
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
 
 	condition := BuildSafeOutputType("create_pull_request")
