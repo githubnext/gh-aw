@@ -49,7 +49,8 @@
         { "$ref": "#/$defs/AssignToAgentOutput" },
         { "$ref": "#/$defs/NoOpOutput" },
         { "$ref": "#/$defs/LinkSubIssueOutput" },
-        { "$ref": "#/$defs/HideCommentOutput" }
+        { "$ref": "#/$defs/HideCommentOutput" },
+        { "$ref": "#/$defs/PullRequestReadyForReviewOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -632,6 +633,27 @@
         }
       },
       "required": ["type", "comment_id"],
+      "additionalProperties": false
+    },
+    "PullRequestReadyForReviewOutput": {
+      "title": "Pull Request Ready for Review Output",
+      "description": "Output for marking a pull request as ready for review by setting draft to false",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "pull_request_ready_for_review"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for marking the PR as ready for review (will be posted as a comment)",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "oneOf": [{ "type": "number" }, { "type": "string" }],
+          "description": "Pull request number to mark as ready (for target '*')"
+        }
+      },
+      "required": ["type", "reason"],
       "additionalProperties": false
     }
   }

@@ -574,6 +574,25 @@
     }
   },
   {
+    "name": "pull_request_ready_for_review",
+    "description": "Mark a pull request as ready for review by setting draft to false. Use this when a draft PR is complete and ready for team review. A comment with the reason will be posted to the PR to explain why it's ready.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Explanation for why the PR is ready for review. This will be posted as a comment on the PR. Be specific about what was completed or what makes it ready."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to mark as ready. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/pull/123). If omitted, marks the PR that triggered this workflow as ready."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_project",
     "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
     "inputSchema": {

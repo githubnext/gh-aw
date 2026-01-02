@@ -30,6 +30,7 @@ func getAssignToUserScript() string            { return "" }
 func getCloseDiscussionScript() string         { return "" }
 func getCloseIssueScript() string              { return "" }
 func getClosePullRequestScript() string        { return "" }
+func getPullRequestReadyForReviewScript() string { return "" }
 func getCreateCodeScanningAlertScript() string { return "" }
 func getCreateDiscussionScript() string        { return "" }
 func getCreateIssueScript() string             { return "" }

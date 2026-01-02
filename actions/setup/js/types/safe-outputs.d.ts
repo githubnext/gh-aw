@@ -301,6 +301,17 @@ interface HideCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for marking a pull request as ready for review
+ */
+interface PullRequestReadyForReviewItem extends BaseSafeOutputItem {
+  type: "pull_request_ready_for_review";
+  /** Reason for marking the PR as ready for review (posted as comment) */
+  reason: string;
+  /** Optional pull request number (uses triggering PR if not provided) */
+  pull_request_number?: number | string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -326,7 +337,8 @@ type SafeOutputItem =
   | UpdateReleaseItem
   | NoOpItem
   | LinkSubIssueItem
-  | HideCommentItem;
+  | HideCommentItem
+  | PullRequestReadyForReviewItem;
 
 /**
  * Sanitized safe output items
@@ -362,6 +374,7 @@ export {
   NoOpItem,
   LinkSubIssueItem,
   HideCommentItem,
+  PullRequestReadyForReviewItem,
   SafeOutputItem,
   SafeOutputItems,
 };

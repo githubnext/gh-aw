@@ -191,6 +191,16 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadPRWrite())
 	}
 
+	// Pull Request Ready for Review step
+	if data.SafeOutputs.PullRequestReadyForReview != nil {
+		stepConfig := c.buildPullRequestReadyForReviewStepConfig(data, mainJobName, threatDetectionEnabled)
+		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
+		steps = append(steps, stepYAML...)
+		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+
+		permissions.Merge(NewPermissionsContentsReadPRWrite())
+	}
+
 	// 9. Create Code Scanning Alert step
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		workflowFilename := GetWorkflowIDFromPath(markdownPath)

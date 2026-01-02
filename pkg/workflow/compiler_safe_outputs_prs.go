@@ -111,6 +111,40 @@ func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobNa
 	}
 }
 
+// buildPullRequestReadyForReviewStepConfig builds the configuration for marking a PR as ready for review
+func (c *Compiler) buildPullRequestReadyForReviewStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
+	cfg := data.SafeOutputs.PullRequestReadyForReview
+	prSafeOutputsLog.Print("Building pull request ready for review step config")
+
+	var customEnvVars []string
+	
+	// Add target configuration
+	customEnvVars = append(customEnvVars, BuildTargetEnvVar("GH_AW_PR_READY_TARGET", cfg.Target)...)
+	
+	// Add required labels
+	customEnvVars = append(customEnvVars, BuildRequiredLabelsEnvVar("GH_AW_PR_READY_REQUIRED_LABELS", cfg.RequiredLabels)...)
+	
+	// Add required title prefix
+	customEnvVars = append(customEnvVars, BuildRequiredTitlePrefixEnvVar("GH_AW_PR_READY_REQUIRED_TITLE_PREFIX", cfg.RequiredTitlePrefix)...)
+	
+	// Add max count
+	customEnvVars = append(customEnvVars, BuildMaxCountEnvVar("GH_AW_PR_READY_MAX_COUNT", cfg.Max)...)
+	
+	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, cfg.TargetRepoSlug)...)
+
+	condition := BuildSafeOutputType("pull_request_ready_for_review")
+
+	return SafeOutputStepConfig{
+		StepName:      "Mark PR Ready for Review",
+		StepID:        "pull_request_ready_for_review",
+		ScriptName:    "pull_request_ready_for_review",
+		Script:        getPullRequestReadyForReviewScript(),
+		CustomEnvVars: customEnvVars,
+		Condition:     condition,
+		Token:         cfg.GitHubToken,
+	}
+}
+
 // buildCreatePRReviewCommentStepConfig builds the configuration for creating a PR review comment
 func (c *Compiler) buildCreatePRReviewCommentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreatePullRequestReviewComments

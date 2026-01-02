@@ -319,6 +319,25 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["hide_comment"] = hideCommentConfig
 		}
+		if data.SafeOutputs.PullRequestReadyForReview != nil {
+			prReadyConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 1 // default
+			if data.SafeOutputs.PullRequestReadyForReview.Max > 0 {
+				maxValue = data.SafeOutputs.PullRequestReadyForReview.Max
+			}
+			prReadyConfig["max"] = maxValue
+			if data.SafeOutputs.PullRequestReadyForReview.Target != "" {
+				prReadyConfig["target"] = data.SafeOutputs.PullRequestReadyForReview.Target
+			}
+			if len(data.SafeOutputs.PullRequestReadyForReview.RequiredLabels) > 0 {
+				prReadyConfig["required_labels"] = data.SafeOutputs.PullRequestReadyForReview.RequiredLabels
+			}
+			if data.SafeOutputs.PullRequestReadyForReview.RequiredTitlePrefix != "" {
+				prReadyConfig["required_title_prefix"] = data.SafeOutputs.PullRequestReadyForReview.RequiredTitlePrefix
+			}
+			safeOutputsConfig["pull_request_ready_for_review"] = prReadyConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
@@ -585,6 +604,9 @@ func generateFilteredToolsJSON(data *WorkflowData) (string, error) {
 	}
 	if data.SafeOutputs.HideComment != nil {
 		enabledTools["hide_comment"] = true
+	}
+	if data.SafeOutputs.PullRequestReadyForReview != nil {
+		enabledTools["pull_request_ready_for_review"] = true
 	}
 	if data.SafeOutputs.UpdateProjects != nil {
 		enabledTools["update_project"] = true
