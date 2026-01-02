@@ -128,10 +128,10 @@ func TestGetActionDirectories(t *testing.T) {
 
 func TestValidateActionYml(t *testing.T) {
 	tests := []struct {
-		name           string
+		name             string
 		actionYmlContent string
-		expectError    bool
-		errorContains  string
+		expectError      bool
+		errorContains    string
 	}{
 		{
 			name: "valid node20 action",
