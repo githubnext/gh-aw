@@ -20,11 +20,12 @@ type FixConfig struct {
 	WorkflowIDs []string
 	Write       bool
 	Verbose     bool
+	WorkflowDir string // Custom workflow directory
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose)
+	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir)
 }
 
 // NewFixCommand creates the fix command
@@ -57,25 +58,29 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` fix --write             # Fix all workflows
   ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow         # Check specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` fix my-workflow --write # Fix specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` fix --dir custom/workflows # Fix workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` fix --list-codemods     # List available codemods`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listCodemods, _ := cmd.Flags().GetBool("list-codemods")
 			write, _ := cmd.Flags().GetBool("write")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			dir, _ := cmd.Flags().GetString("dir")
 
 			if listCodemods {
 				return listAvailableCodemods()
 			}
 
-			return runFixCommand(args, write, verbose)
+			return runFixCommand(args, write, verbose, dir)
 		},
 	}
 
 	cmd.Flags().Bool("write", false, "Write changes to files (default is dry-run)")
 	cmd.Flags().Bool("list-codemods", false, "List all available codemods and exit")
+	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 
 	// Register completions
 	cmd.ValidArgsFunction = CompleteWorkflowNames
+	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
 }
@@ -101,8 +106,17 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
-	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v", workflowIDs, write, verbose)
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string) error {
+	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s", workflowIDs, write, verbose, workflowDir)
+
+	// Set up workflow directory (using default if not specified)
+	if workflowDir == "" {
+		workflowDir = ".github/workflows"
+		fixLog.Printf("Using default workflow directory: %s", workflowDir)
+	} else {
+		workflowDir = filepath.Clean(workflowDir)
+		fixLog.Printf("Using custom workflow directory: %s", workflowDir)
+	}
 
 	// Get workflow files to process
 	var files []string
@@ -111,15 +125,15 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool) error {
 	if len(workflowIDs) > 0 {
 		// Process specific workflows
 		for _, workflowID := range workflowIDs {
-			file, err := resolveWorkflowFile(workflowID, verbose)
+			file, err := resolveWorkflowFileInDir(workflowID, verbose, workflowDir)
 			if err != nil {
 				return err
 			}
 			files = append(files, file)
 		}
 	} else {
-		// Process all workflows in .github/workflows
-		files, err = getMarkdownWorkflowFiles()
+		// Process all workflows in the workflow directory
+		files, err = getMarkdownWorkflowFiles(workflowDir)
 		if err != nil {
 			return err
 		}

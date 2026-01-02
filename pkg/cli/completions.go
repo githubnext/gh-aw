@@ -77,7 +77,7 @@ func ValidEngineNames() []string {
 func CompleteWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	completionsLog.Printf("Completing workflow names with prefix: %s", toComplete)
 
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		completionsLog.Printf("Failed to get workflow files: %v", err)
 		return nil, cobra.ShellCompDirectiveNoFileComp

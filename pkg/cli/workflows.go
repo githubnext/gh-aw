@@ -181,7 +181,7 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 
 // getAvailableWorkflowNames returns a list of available workflow names (without .md extension)
 func getAvailableWorkflowNames() []string {
-	mdFiles, err := getMarkdownWorkflowFiles()
+	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		return nil
 	}

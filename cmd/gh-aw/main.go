@@ -235,6 +235,7 @@ Examples:
 				WorkflowIDs: args,
 				Write:       true,
 				Verbose:     verbose,
+				WorkflowDir: dir,
 			}
 			if err := cli.RunFix(fixConfig); err != nil {
 				return err
