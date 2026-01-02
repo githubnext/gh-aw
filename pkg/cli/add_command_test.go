@@ -192,17 +192,10 @@ func TestAddCommandArgs(t *testing.T) {
 
 	// Verify it requires at least 1 arg
 	err := cmd.Args(cmd, []string{})
-<<<<<<< HEAD
-	assert.Error(t, err, "Should error with no arguments")
-
-	err = cmd.Args(cmd, []string{"workflow1"})
-	assert.NoError(t, err, "Should not error with 1 argument")
-=======
 	require.Error(t, err, "Should error with no arguments")
 
 	err = cmd.Args(cmd, []string{"workflow1"})
 	require.NoError(t, err, "Should not error with 1 argument")
->>>>>>> f6e31cb
 
 	err = cmd.Args(cmd, []string{"workflow1", "workflow2"})
 	require.NoError(t, err, "Should not error with multiple arguments")
