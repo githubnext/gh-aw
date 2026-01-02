@@ -28,10 +28,10 @@ type EngineConfig struct {
 
 // NetworkPermissions represents network access permissions
 type NetworkPermissions struct {
-	Mode              string          `yaml:"mode,omitempty"`     // "defaults" for default access
-	Allowed           []string        `yaml:"allowed,omitempty"`  // List of allowed domains
-	Firewall          *FirewallConfig `yaml:"firewall,omitempty"` // AWF firewall configuration (see firewall.go)
-	ExplicitlyDefined bool            `yaml:"-"`                  // Internal flag: true if network field was explicitly set in frontmatter
+	Mode              string   `yaml:"mode,omitempty"`    // "defaults" for default access
+	Allowed           []string `yaml:"allowed,omitempty"` // List of allowed domains
+	ExplicitlyDefined bool     `yaml:"-"`                 // Internal flag: true if network field was explicitly set in frontmatter
+	// Note: The legacy "firewall" field is no longer supported. Use sandbox.agent instead.
 }
 
 // EngineNetworkConfig combines engine configuration with top-level network permissions

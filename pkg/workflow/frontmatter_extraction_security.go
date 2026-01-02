@@ -42,10 +42,9 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				}
 			}
 
-			// Extract firewall configuration if present
-			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
-				frontmatterExtractionSecurityLog.Print("Extracting firewall configuration")
-				permissions.Firewall = c.extractFirewallConfig(firewall)
+			// Legacy firewall field is no longer supported - log warning if present
+			if _, hasFirewall := networkObj["firewall"]; hasFirewall {
+				frontmatterExtractionSecurityLog.Print("WARNING: network.firewall is no longer supported. Use sandbox.agent instead. Run 'gh aw fix' to automatically migrate.")
 			}
 
 			// Empty object {} means no network access (empty allowed list)
@@ -53,70 +52,6 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 		}
 	}
 	frontmatterExtractionSecurityLog.Print("No network permissions found in frontmatter")
-	return nil
-}
-
-// extractFirewallConfig extracts firewall configuration from various formats
-func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
-	// Handle null/empty object format: firewall: or firewall: {}
-	if firewall == nil {
-		return &FirewallConfig{
-			Enabled: true,
-		}
-	}
-
-	// Handle boolean format: firewall: true or firewall: false
-	if firewallBool, ok := firewall.(bool); ok {
-		return &FirewallConfig{
-			Enabled: firewallBool,
-		}
-	}
-
-	// Handle string format: firewall: "disable"
-	if firewallStr, ok := firewall.(string); ok {
-		if firewallStr == "disable" {
-			return &FirewallConfig{
-				Enabled: false,
-			}
-		}
-		// Unknown string format, return nil
-		return nil
-	}
-
-	// Handle object format: firewall: { args: [...], version: "..." }
-	if firewallObj, ok := firewall.(map[string]any); ok {
-		config := &FirewallConfig{
-			Enabled: true, // Default to enabled when object is specified
-		}
-
-		// Extract args if present
-		if args, hasArgs := firewallObj["args"]; hasArgs {
-			if argsSlice, ok := args.([]any); ok {
-				for _, arg := range argsSlice {
-					if argStr, ok := arg.(string); ok {
-						config.Args = append(config.Args, argStr)
-					}
-				}
-			}
-		}
-
-		// Extract version if present
-		if version, hasVersion := firewallObj["version"]; hasVersion {
-			if versionStr, ok := version.(string); ok {
-				config.Version = versionStr
-			}
-		}
-
-		// Extract log-level if present
-		if logLevel, hasLogLevel := firewallObj["log-level"]; hasLogLevel {
-			if logLevelStr, ok := logLevel.(string); ok {
-				config.LogLevel = logLevelStr
-			}
-		}
-
-		return config
-	}
-
 	return nil
 }
 

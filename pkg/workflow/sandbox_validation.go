@@ -86,10 +86,8 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 			return fmt.Errorf("sandbox-runtime is only supported with Copilot engine (current engine: %s)", engineID)
 		}
 
-		// Check for mutual exclusivity with AWF
-		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
-			return fmt.Errorf("sandbox-runtime and AWF firewall cannot be used together; please use either 'sandbox: sandbox-runtime' or 'network.firewall' but not both")
-		}
+		// Note: Check for mutual exclusivity with AWF is no longer needed
+		// network.firewall is no longer supported
 	}
 
 	// Validate config structure if provided

@@ -474,9 +474,7 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 		if len(fc.Network.Allowed) > 0 {
 			networkMap["allowed"] = fc.Network.Allowed
 		}
-		if fc.Network.Firewall != nil {
-			networkMap["firewall"] = fc.Network.Firewall
-		}
+		// Note: network.firewall field is no longer supported
 		if len(networkMap) > 0 {
 			result["network"] = networkMap
 		}
