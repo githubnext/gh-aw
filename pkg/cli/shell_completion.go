@@ -16,6 +16,54 @@ import (
 
 var shellCompletionLog = logger.New("cli:shell_completion")
 
+// FixCompletionScript post-processes the generated completion script to use "gh aw" instead of "gh".
+// This is necessary because Cobra generates completion scripts based on the binary name,
+// but GitHub CLI extensions are invoked as "gh <extension-name>".
+func FixCompletionScript(script, shellType string) string {
+	shellCompletionLog.Printf("Fixing completion script for shell: %s", shellType)
+
+	// For bash and zsh, we need to replace function names and completion directives
+	// For fish, we replace the command name in completion definitions
+	switch shellType {
+	case "bash":
+		// Replace function prefixes: __gh_ -> __gh_aw_
+		script = strings.ReplaceAll(script, "__gh_", "__gh_aw_")
+		// Replace completion function names: _gh( -> _gh_aw(
+		script = strings.ReplaceAll(script, "_gh(", "_gh_aw(")
+		// Replace completion registration: complete -o default -F __gh_completion gh
+		script = strings.ReplaceAll(script, " __gh_completion gh", " __gh_aw_completion gh")
+		// Update completion comment header
+		script = strings.ReplaceAll(script, "# bash completion V2 for gh ", "# bash completion V2 for gh aw ")
+		script = strings.ReplaceAll(script, "# bash completion for gh ", "# bash completion for gh aw ")
+		// Fix requestComp variable for bash v2: requestComp="${words[0]} __complete
+		script = strings.ReplaceAll(script, `requestComp="${words[0]} __complete`, `requestComp="gh aw __complete`)
+		// Fix requestComp variable for bash v1: requestComp="GH_ACTIVE_HELP=0 ${words[0]} __completeNoDesc
+		script = strings.ReplaceAll(script, `requestComp="GH_ACTIVE_HELP=0 ${words[0]} __completeNoDesc`, `requestComp="GH_ACTIVE_HELP=0 gh aw __completeNoDesc`)
+
+	case "zsh":
+		// Replace function names
+		script = strings.ReplaceAll(script, "__gh_", "__gh_aw_")
+		script = strings.ReplaceAll(script, "_gh(", "_gh_aw(")
+		// Update compdef to register for both "gh aw" and as a subcommand
+		script = strings.ReplaceAll(script, "#compdef gh\ncompdef _gh gh", "#compdef gh\n# Register completion for 'gh aw' as a two-word command\ncompdef _gh_aw gh")
+		// Update completion comment header
+		script = strings.ReplaceAll(script, "# zsh completion for gh ", "# zsh completion for gh aw ")
+		// Fix the requestComp to use "gh aw" instead of just the first word
+		// In zsh, words[1] is the command name (after gh), so we replace it entirely with "gh aw"
+		script = strings.ReplaceAll(script, `requestComp="${words[1]} __complete ${words[2,-1]}"`, `requestComp="gh aw __complete ${words[2,-1]}"`)
+
+	case "fish":
+		// For fish, replace completion command names
+		// Fish uses: complete -c gh ...
+		script = strings.ReplaceAll(script, "complete -c gh ", "complete -c gh -n '__fish_seen_subcommand_from aw' ")
+		// Also add completion for the aw subcommand itself
+		script = "# Fish completion for gh aw\n" + script
+	}
+
+	shellCompletionLog.Printf("Completion script fixed for %s", shellType)
+	return script
+}
+
 // ShellType represents the detected shell type
 type ShellType string
 
@@ -127,7 +175,8 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to generate bash completion: %w", err)
 	}
 
-	completionScript := buf.String()
+	// Post-process the completion script to use "gh aw" instead of "gh"
+	completionScript := FixCompletionScript(buf.String(), "bash")
 
 	// Determine installation path
 	var completionPath string
@@ -233,7 +282,8 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to generate zsh completion: %w", err)
 	}
 
-	completionScript := buf.String()
+	// Post-process the completion script to use "gh aw" instead of "gh"
+	completionScript := FixCompletionScript(buf.String(), "zsh")
 
 	// Determine installation path
 	homeDir, err := os.UserHomeDir()
@@ -295,7 +345,8 @@ func installFishCompletion(verbose bool, cmd *cobra.Command) error {
 		return fmt.Errorf("failed to generate fish completion: %w", err)
 	}
 
-	completionScript := buf.String()
+	// Post-process the completion script to use "gh aw" instead of "gh"
+	completionScript := FixCompletionScript(buf.String(), "fish")
 
 	// Determine installation path
 	homeDir, err := os.UserHomeDir()
