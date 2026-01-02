@@ -19,11 +19,10 @@ func (c *Compiler) parsePullRequestReadyForReviewConfig(outputMap map[string]any
 
 	if configData, exists := outputMap["pull-request-ready-for-review"]; exists {
 		config := &PullRequestReadyForReviewConfig{}
-		config.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse base safe output config (max, github-token)
-			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig)
+			// Parse base safe output config (max, github-token) with default max of 1
+			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig, 1)
 
 			// Parse target config using shared helper (handles target and target-repo)
 			targetConfig, isInvalid := ParseTargetConfig(configMap)
