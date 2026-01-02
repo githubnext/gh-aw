@@ -1,10 +1,10 @@
 package parser
 
 import (
-"encoding/json"
-"fmt"
-"sort"
-"strings"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
 )
 
 // Constants for suggestion limits and field generation

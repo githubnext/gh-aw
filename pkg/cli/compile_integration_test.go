@@ -4,7 +4,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"os/exec"
