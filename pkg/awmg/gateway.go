@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -384,17 +385,32 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	var originalMCPServers map[string]any
 	if servers, ok := originalConfig["mcpServers"].(map[string]any); ok {
 		originalMCPServers = servers
+		gatewayLog.Printf("Found %d servers in original config", len(originalMCPServers))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d servers in original config", len(originalMCPServers))))
 	} else {
 		originalMCPServers = make(map[string]any)
+		gatewayLog.Print("No mcpServers found in original config, starting with empty map")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No mcpServers found in original config"))
 	}
 
 	// Create merged config with rewritten proxied servers and preserved non-proxied servers
 	rewrittenConfig := make(map[string]any)
 	mcpServers := make(map[string]any)
 
+	// Track which servers are rewritten vs ignored for summary logging
+	var rewrittenServers []string
+	var ignoredServers []string
+
 	// First, copy all servers from original (preserves non-proxied servers like safeinputs/safeoutputs)
+	gatewayLog.Printf("Copying %d servers from original config to preserve non-proxied servers", len(originalMCPServers))
 	for serverName, serverConfig := range originalMCPServers {
 		mcpServers[serverName] = serverConfig
+		gatewayLog.Printf("  Preserved server: %s", serverName)
+		
+		// Track if this server will be ignored (not rewritten)
+		if _, willBeRewritten := config.MCPServers[serverName]; !willBeRewritten {
+			ignoredServers = append(ignoredServers, serverName)
+		}
 	}
 
 	gatewayLog.Printf("Transforming %d proxied servers to point to gateway", len(config.MCPServers))
@@ -422,12 +438,35 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		}
 
 		mcpServers[serverName] = serverConfig
+		rewrittenServers = append(rewrittenServers, serverName)
 	}
 
 	rewrittenConfig["mcpServers"] = mcpServers
 
 	// Do NOT include gateway section in rewritten config (per requirement)
 	gatewayLog.Print("Gateway section removed from rewritten config")
+
+	// Log summary of servers rewritten vs ignored
+	gatewayLog.Printf("Server summary: %d rewritten, %d ignored, %d total", len(rewrittenServers), len(ignoredServers), len(mcpServers))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Server summary: %d rewritten, %d ignored", len(rewrittenServers), len(ignoredServers))))
+	
+	if len(rewrittenServers) > 0 {
+		gatewayLog.Printf("Servers rewritten (proxied through gateway):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers rewritten (proxied through gateway):"))
+		for _, serverName := range rewrittenServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
+	}
+	
+	if len(ignoredServers) > 0 {
+		gatewayLog.Printf("Servers ignored (preserved as-is):")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Servers ignored (preserved as-is):"))
+		for _, serverName := range ignoredServers {
+			gatewayLog.Printf("  - %s", serverName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  - %s", serverName)))
+		}
+	}
 
 	// Marshal to JSON with indentation
 	data, err := json.MarshalIndent(rewrittenConfig, "", "  ")
@@ -437,15 +476,28 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 		return fmt.Errorf("failed to marshal rewritten config: %w", err)
 	}
 
-	gatewayLog.Printf("Writing %d bytes to config file", len(data))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file", len(data))))
+	gatewayLog.Printf("Marshaled config to JSON: %d bytes", len(data))
+	gatewayLog.Printf("Writing to file: %s", configPath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file: %s", len(data), configPath)))
+
+	// Log a preview of the config being written (first 500 chars, redacting sensitive data)
+	preview := string(data)
+	if len(preview) > 500 {
+		preview = preview[:500] + "..."
+	}
+	// Redact any Bearer tokens in the preview
+	preview = strings.ReplaceAll(preview, config.Gateway.APIKey, "******")
+	gatewayLog.Printf("Config preview (redacted): %s", preview)
 
 	// Write back to file with restricted permissions (0600) since it contains sensitive API keys
+	gatewayLog.Printf("Writing file with permissions 0600 (owner read/write only)")
 	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		gatewayLog.Printf("Failed to write rewritten config: %v", err)
+		gatewayLog.Printf("Failed to write rewritten config to %s: %v", configPath, err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
 		return fmt.Errorf("failed to write rewritten config: %w", err)
 	}
+
+	gatewayLog.Printf("Successfully wrote config file: %s", configPath)
 
 	gatewayLog.Printf("Successfully rewrote MCP config file")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully rewrote MCP config: %s", configPath)))
