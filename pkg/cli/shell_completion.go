@@ -197,7 +197,14 @@ func installBashCompletion(verbose bool, cmd *cobra.Command) error {
 	bashrcPath := filepath.Join(homeDir, ".bashrc")
 	if strings.HasPrefix(completionPath, homeDir) {
 		// For user-level installations, check if .bashrc sources the completion directory
-		bashrcContent, err := os.ReadFile(bashrcPath)
+		// Clean and validate the path to prevent path traversal
+		cleanBashrcPath := filepath.Clean(bashrcPath)
+		if !filepath.IsAbs(cleanBashrcPath) {
+			shellCompletionLog.Printf("Invalid bashrc path (not absolute): %s", bashrcPath)
+			return fmt.Errorf("invalid bashrc path: %s", bashrcPath)
+		}
+		// #nosec G304 -- bashrcPath is constructed from trusted os.UserHomeDir() and a constant filename
+		bashrcContent, err := os.ReadFile(cleanBashrcPath)
 		needsSourceLine := true
 		if err == nil {
 			if strings.Contains(string(bashrcContent), ".bash_completion.d") ||
@@ -262,7 +269,14 @@ func installZshCompletion(verbose bool, cmd *cobra.Command) error {
 
 	// Check if .zshrc configures fpath
 	zshrcPath := filepath.Join(homeDir, ".zshrc")
-	zshrcContent, err := os.ReadFile(zshrcPath)
+	// Clean and validate the path to prevent path traversal
+	cleanZshrcPath := filepath.Clean(zshrcPath)
+	if !filepath.IsAbs(cleanZshrcPath) {
+		shellCompletionLog.Printf("Invalid zshrc path (not absolute): %s", zshrcPath)
+		return fmt.Errorf("invalid zshrc path: %s", zshrcPath)
+	}
+	// #nosec G304 -- zshrcPath is constructed from trusted os.UserHomeDir() and a constant filename
+	zshrcContent, err := os.ReadFile(cleanZshrcPath)
 	needsFpath := true
 	if err == nil {
 		if strings.Contains(string(zshrcContent), userCompletionDir) {
