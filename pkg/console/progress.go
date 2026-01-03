@@ -24,8 +24,8 @@ func NewProgressBar(total int64) *ProgressBar {
 	)
 
 	// Use adaptive colors from theme system
-	prog.FullColor = string(styles.ColorSuccess.Dark)
-	prog.EmptyColor = string(styles.ColorComment.Dark)
+	prog.FullColor = styles.ColorSuccess.Dark
+	prog.EmptyColor = styles.ColorComment.Dark
 
 	return &ProgressBar{
 		progress: prog,

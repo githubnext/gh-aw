@@ -72,10 +72,10 @@ func (s *SpinnerWrapper) animate() {
 		case <-ticker.C:
 			// Get the tick message and update the model
 			msg := s.model.Tick()
-			
+
 			s.mu.Lock()
 			s.model, _ = s.model.Update(msg)
-			
+
 			// Render the spinner with the message
 			fmt.Fprintf(os.Stderr, "\r%s %s", s.model.View(), s.message)
 			s.mu.Unlock()
