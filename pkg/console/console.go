@@ -15,6 +15,23 @@ import (
 	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
+// isRunningInCI checks if we're running in a CI environment
+func isRunningInCI() bool {
+	// Common CI environment variables
+	ciVars := []string{
+		"CI",
+		"CONTINUOUS_INTEGRATION",
+		"GITHUB_ACTIONS",
+	}
+
+	for _, v := range ciVars {
+		if os.Getenv(v) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 var consoleLog = logger.New("console:console")
 
 // ErrorPosition represents a position in a source file
@@ -296,7 +313,11 @@ func FormatCommandMessage(command string) string {
 }
 
 // FormatProgressMessage formats a progress/activity message
+// In CI environments, returns an empty string to reduce verbosity
 func FormatProgressMessage(message string) string {
+	if isRunningInCI() {
+		return ""
+	}
 	return applyStyle(styles.Progress, "🔨 ") + message
 }
 

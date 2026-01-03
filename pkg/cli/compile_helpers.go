@@ -65,7 +65,9 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	if strings.HasSuffix(file, ".campaign.md") {
 		compileHelpersLog.Printf("Processing campaign spec file: %s", file)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Validating campaign spec: %s", file)))
+			if msg := console.FormatProgressMessage(fmt.Sprintf("Validating campaign spec: %s", file)); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			}
 		}
 
 		// Validate the campaign spec file and referenced workflows
@@ -122,7 +124,9 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling: %s", file)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
+		if msg := console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	}
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
@@ -215,7 +219,9 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 
 	fmt.Fprintln(os.Stderr, "Watching for file changes")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling %d modified file(s)...", len(files))))
+		if msg := console.FormatProgressMessage(fmt.Sprintf("Compiling %d modified file(s)...", len(files))); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	}
 
 	// Reset warning count before compilation
@@ -299,7 +305,9 @@ func compileModifiedFilesWithDependencies(compiler *workflow.Compiler, depGraph 
 
 	fmt.Fprintln(os.Stderr, "Watching for file changes")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
+		if msg := console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	}
 
 	// Reset warning count before compilation

@@ -105,7 +105,9 @@ func PollWithSignalHandling(options PollOptions) error {
 
 			// Still waiting, show progress if enabled
 			if options.Verbose && options.ProgressMessage != "" {
-				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(options.ProgressMessage))
+				if msg := console.FormatProgressMessage(options.ProgressMessage); msg != "" {
+					fmt.Fprintln(os.Stderr, msg)
+				}
 			}
 		}
 	}

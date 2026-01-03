@@ -65,41 +65,82 @@ func TestFormatProgressMessage(t *testing.T) {
 		name     string
 		message  string
 		expected string
+		isCI     bool
 	}{
 		{
-			name:     "simple progress message",
+			name:     "simple progress message (non-CI)",
 			message:  "Compiling workflow files...",
 			expected: "Compiling workflow files...",
+			isCI:     false,
 		},
 		{
-			name:     "build progress message",
+			name:     "build progress message (non-CI)",
 			message:  "Building application",
 			expected: "Building application",
+			isCI:     false,
 		},
 		{
-			name:     "empty message",
+			name:     "empty message (non-CI)",
 			message:  "",
 			expected: "",
+			isCI:     false,
 		},
 		{
-			name:     "message with numbers",
+			name:     "message with numbers (non-CI)",
 			message:  "Processing 5 of 10 files",
 			expected: "Processing 5 of 10 files",
+			isCI:     false,
+		},
+		{
+			name:     "simple progress message in CI",
+			message:  "Compiling workflow files...",
+			expected: "",
+			isCI:     true,
+		},
+		{
+			name:     "build progress message in CI",
+			message:  "Building application",
+			expected: "",
+			isCI:     true,
+		},
+		{
+			name:     "message with numbers in CI",
+			message:  "Processing 5 of 10 files",
+			expected: "",
+			isCI:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatProgressMessage(tt.message)
-
-			// Should contain the hammer emoji prefix
-			if !strings.Contains(result, "🔨") {
-				t.Errorf("FormatProgressMessage() should contain 🔨 prefix")
+			// Clear all CI-related env vars first to ensure clean state
+			ciVars := []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS"}
+			for _, v := range ciVars {
+				t.Setenv(v, "")
 			}
 
-			// Should contain the message text
-			if !strings.Contains(result, tt.expected) {
-				t.Errorf("FormatProgressMessage() = %v, should contain %v", result, tt.expected)
+			// Set up CI environment if needed
+			if tt.isCI {
+				t.Setenv("CI", "true")
+			}
+
+			result := FormatProgressMessage(tt.message)
+
+			if tt.isCI {
+				// In CI, should return empty string
+				if result != "" {
+					t.Errorf("FormatProgressMessage() in CI = %v, want empty string", result)
+				}
+			} else {
+				// In non-CI, should contain the hammer emoji prefix
+				if !strings.Contains(result, "🔨") {
+					t.Errorf("FormatProgressMessage() should contain 🔨 prefix")
+				}
+
+				// Should contain the message text
+				if !strings.Contains(result, tt.expected) {
+					t.Errorf("FormatProgressMessage() = %v, should contain %v", result, tt.expected)
+				}
 			}
 		})
 	}
@@ -394,6 +435,11 @@ func TestFormattingFunctionsWithSpecialCharacters(t *testing.T) {
 }
 
 func TestFormattingFunctionsWithUnicodeCharacters(t *testing.T) {
+	// Clear CI environment for this test to ensure we get formatted output
+	t.Setenv("CI", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+
 	unicodeText := "Test with unicode: 你好 🌍 café naïve résumé"
 
 	// Test that all functions handle unicode characters properly

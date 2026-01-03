@@ -532,7 +532,9 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 			}
 
 			if len(workflowNames) > 1 {
-				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
+				if msg := console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)); msg != "" {
+					fmt.Println(msg)
+				}
 			}
 
 			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, waitForCompletion, inputs, verbose); err != nil {

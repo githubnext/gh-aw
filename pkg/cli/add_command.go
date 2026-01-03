@@ -428,7 +428,9 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 	// Add each workflow
 	for i, workflow := range workflows {
 		if len(workflows) > 1 {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow.WorkflowName)))
+			if msg := console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow.WorkflowName)); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			}
 		}
 
 		// For multiple workflows, only use the name flag for the first one

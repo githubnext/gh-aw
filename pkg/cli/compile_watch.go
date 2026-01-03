@@ -136,7 +136,9 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
+			if msg := console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			}
 		}
 
 		// Use compileSingleFile to handle both regular workflows and campaign files
