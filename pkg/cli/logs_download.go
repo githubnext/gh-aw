@@ -151,11 +151,42 @@ func unzipFile(zipPath, destDir string, verbose bool) error {
 	}
 	defer r.Close()
 
+	// Calculate total size for progress bar
+	var totalSize int64
+	for _, f := range r.File {
+		if !f.FileInfo().IsDir() {
+			totalSize += int64(f.UncompressedSize64)
+		}
+	}
+
+	// Create progress bar for extraction
+	var progressBar *console.ProgressBar
+	var extractedSize int64
+	if totalSize > 0 && !verbose {
+		progressBar = console.NewProgressBar(totalSize)
+		// Show initial progress
+		fmt.Fprintf(os.Stderr, "\rExtracting: %s", progressBar.Update(0))
+	}
+
 	// Extract each file in the zip
 	for _, f := range r.File {
 		if err := extractZipFile(f, destDir, verbose); err != nil {
+			if progressBar != nil {
+				fmt.Fprintln(os.Stderr) // New line after progress bar
+			}
 			return err
 		}
+
+		// Update progress bar if not in verbose mode
+		if progressBar != nil && !f.FileInfo().IsDir() {
+			extractedSize += int64(f.UncompressedSize64)
+			fmt.Fprintf(os.Stderr, "\rExtracting: %s", progressBar.Update(extractedSize))
+		}
+	}
+
+	// Clear progress bar line and show completion
+	if progressBar != nil {
+		fmt.Fprintln(os.Stderr) // New line after progress bar
 	}
 
 	return nil

@@ -12,24 +12,24 @@ import (
 func TestNewProgressBar(t *testing.T) {
 	t.Run("creates progress bar successfully", func(t *testing.T) {
 		bar := NewProgressBar(1024)
-		
+
 		require.NotNil(t, bar, "NewProgressBar should not return nil")
 		assert.Equal(t, int64(1024), bar.total, "Total should be set correctly")
 		assert.Equal(t, int64(0), bar.current, "Current should start at 0")
 		require.NotNil(t, bar.progress, "Progress model should be initialized")
 	})
-	
+
 	t.Run("creates progress bar with zero total", func(t *testing.T) {
 		bar := NewProgressBar(0)
-		
+
 		require.NotNil(t, bar, "NewProgressBar should not return nil even with zero total")
 		assert.Equal(t, int64(0), bar.total, "Total should be 0")
 	})
-	
+
 	t.Run("creates progress bar with large total", func(t *testing.T) {
 		largeSize := int64(10 * 1024 * 1024 * 1024) // 10GB
 		bar := NewProgressBar(largeSize)
-		
+
 		require.NotNil(t, bar, "NewProgressBar should handle large sizes")
 		assert.Equal(t, largeSize, bar.total, "Total should handle large values")
 	})
@@ -37,10 +37,10 @@ func TestNewProgressBar(t *testing.T) {
 
 func TestProgressBarUpdate(t *testing.T) {
 	tests := []struct {
-		name            string
-		total           int64
-		current         int64
-		expectedInTTY   []string
+		name             string
+		total            int64
+		current          int64
+		expectedInTTY    []string
 		expectedInNonTTY []string
 	}{
 		{
@@ -79,14 +79,14 @@ func TestProgressBarUpdate(t *testing.T) {
 			expectedInNonTTY: []string{"100%", "0B", "0B"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bar := NewProgressBar(tt.total)
 			output := bar.Update(tt.current)
-			
+
 			assert.NotEmpty(t, output, "Update should return non-empty string")
-			
+
 			// In non-TTY mode, we can validate the text output
 			// In TTY mode, the output contains ANSI codes which we can't easily validate
 			// but we ensure it doesn't panic
@@ -95,7 +95,7 @@ func TestProgressBarUpdate(t *testing.T) {
 					assert.Contains(t, output, expected, "Output should contain expected text in non-TTY mode")
 				}
 			}
-			
+
 			// Verify current is updated
 			assert.Equal(t, tt.current, bar.current, "Current should be updated after Update()")
 		})
@@ -104,7 +104,7 @@ func TestProgressBarUpdate(t *testing.T) {
 
 func TestProgressBarMultipleUpdates(t *testing.T) {
 	bar := NewProgressBar(1000)
-	
+
 	// Simulate progressive updates
 	updates := []int64{0, 250, 500, 750, 1000}
 	for _, value := range updates {
@@ -152,7 +152,7 @@ func TestFormatBytes(t *testing.T) {
 		},
 		{
 			name:     "megabytes with decimal",
-			bytes:    1024 * 1024 * 5 + 512*1024, // 5.5MB
+			bytes:    1024*1024*5 + 512*1024, // 5.5MB
 			expected: "5.5MB",
 		},
 		{
@@ -176,7 +176,7 @@ func TestFormatBytes(t *testing.T) {
 			expected: "100.00GB",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatBytes(tt.bytes)
@@ -229,12 +229,12 @@ func TestProgressBarPercentageCalculation(t *testing.T) {
 			expectedPercent: 33,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bar := NewProgressBar(tt.total)
 			output := bar.Update(tt.current)
-			
+
 			// In non-TTY mode, check the percentage
 			if !isTTY() {
 				expectedStr := fmt.Sprintf("%d%%", tt.expectedPercent)
@@ -251,10 +251,10 @@ func TestProgressBarOutputFormat(t *testing.T) {
 		if isTTY() {
 			t.Skip("Test requires non-TTY mode")
 		}
-		
+
 		bar := NewProgressBar(1024 * 1024) // 1MB
 		output := bar.Update(512 * 1024)   // 512KB
-		
+
 		// Should contain: percentage, current size, total size
 		assert.Contains(t, output, "%", "Output should contain percentage symbol")
 		assert.True(t, strings.Contains(output, "KB") || strings.Contains(output, "MB"), "Output should contain size units")
@@ -266,25 +266,25 @@ func TestProgressBarEdgeCases(t *testing.T) {
 	t.Run("current exceeds total", func(t *testing.T) {
 		bar := NewProgressBar(100)
 		output := bar.Update(150)
-		
+
 		assert.NotEmpty(t, output, "Should handle current exceeding total gracefully")
-		
+
 		// In non-TTY mode, percentage will be > 100
 		if !isTTY() {
 			assert.Contains(t, output, "150%", "Should show percentage > 100")
 		}
 	})
-	
+
 	t.Run("negative current value", func(t *testing.T) {
 		bar := NewProgressBar(100)
 		output := bar.Update(-10)
-		
+
 		assert.NotEmpty(t, output, "Should handle negative values gracefully")
 	})
-	
+
 	t.Run("very small progress increments", func(t *testing.T) {
 		bar := NewProgressBar(1000000)
-		
+
 		// Update with very small increments
 		for i := int64(0); i <= 10; i++ {
 			output := bar.Update(i)
@@ -296,7 +296,7 @@ func TestProgressBarEdgeCases(t *testing.T) {
 func TestProgressBarConcurrency(t *testing.T) {
 	t.Run("multiple updates are safe", func(t *testing.T) {
 		bar := NewProgressBar(1000)
-		
+
 		// Sequential updates should be safe
 		for i := int64(0); i <= 1000; i += 100 {
 			output := bar.Update(i)
@@ -312,10 +312,10 @@ func TestProgressBarNonTTYFallback(t *testing.T) {
 		if isTTY() {
 			t.Skip("Test requires non-TTY mode to validate fallback behavior")
 		}
-		
+
 		bar := NewProgressBar(1024 * 1024) // 1MB total
 		output := bar.Update(512 * 1024)   // 512KB downloaded
-		
+
 		// Should produce something like: "50% (512.0KB/1.0MB)"
 		assert.Contains(t, output, "50%", "Should show percentage")
 		assert.Contains(t, output, "512.0KB", "Should show current size")
