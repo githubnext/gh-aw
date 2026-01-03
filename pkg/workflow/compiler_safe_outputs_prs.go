@@ -6,26 +6,6 @@ import (
 
 var prSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_prs")
 
-// buildClosePullRequestStepConfig builds the configuration for closing a pull request
-func (c *Compiler) buildClosePullRequestStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
-	cfg := data.SafeOutputs.ClosePullRequests
-
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
-
-	condition := BuildSafeOutputType("close_pull_request")
-
-	return SafeOutputStepConfig{
-		StepName:      "Close Pull Request",
-		StepID:        "close_pull_request",
-		ScriptName:    "close_pull_request",
-		Script:        getClosePullRequestScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-	}
-}
-
 // buildMarkPullRequestAsReadyForReviewStepConfig builds the configuration for marking a PR as ready for review
 func (c *Compiler) buildMarkPullRequestAsReadyForReviewStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.MarkPullRequestAsReadyForReview

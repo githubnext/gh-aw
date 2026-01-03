@@ -110,7 +110,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreatePullRequestReviewComments != nil ||
 		data.SafeOutputs.CreatePullRequests != nil ||
 		data.SafeOutputs.PushToPullRequestBranch != nil ||
-		data.SafeOutputs.UpdatePullRequests != nil
+		data.SafeOutputs.UpdatePullRequests != nil ||
+		data.SafeOutputs.ClosePullRequests != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -166,20 +167,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.UpdatePullRequests != nil {
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
+		if data.SafeOutputs.ClosePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
 	}
 
 	// Note: Create Pull Request is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
-
-	// Close Pull Request step (not handled by handler manager)
-	if data.SafeOutputs.ClosePullRequests != nil {
-		stepConfig := c.buildClosePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
 
 	// Mark Pull Request as Ready for Review step (not handled by handler manager)
 	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
@@ -959,6 +953,24 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 			handlerConfig["allow_body"] = true
 		}
 		config["update_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.ClosePullRequests != nil {
+		cfg := data.SafeOutputs.ClosePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.RequiredLabels != nil && len(cfg.RequiredLabels) > 0 {
+			handlerConfig["required_labels"] = cfg.RequiredLabels
+		}
+		if cfg.RequiredTitlePrefix != "" {
+			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
+		}
+		config["close_pull_request"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure
