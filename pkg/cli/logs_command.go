@@ -104,6 +104,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse                   # Parse logs and generate Markdown reports
   ` + string(constants.CLIExtensionPrefix) + ` logs --json                    # Output metrics in JSON format
   ` + string(constants.CLIExtensionPrefix) + ` logs --parse --json            # Generate both Markdown and JSON
+  ` + string(constants.CLIExtensionPrefix) + ` logs --pager=always            # Force interactive pager mode
+  ` + string(constants.CLIExtensionPrefix) + ` logs --pager=never             # Disable pager (standard output)
   ` + string(constants.CLIExtensionPrefix) + ` logs weekly-research --repo owner/repo  # Download logs from specific repository`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logsCommandLog.Printf("Starting logs command: args=%d", len(args))
