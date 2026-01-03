@@ -19,37 +19,6 @@ func TestNewSpinner(t *testing.T) {
 	spinner.Stop()
 }
 
-func TestNewSpinnerWithStyle(t *testing.T) {
-	tests := []struct {
-		name  string
-		style SpinnerStyle
-	}{
-		{"Dot style", SpinnerDot},
-		{"Line style", SpinnerLine},
-		{"MiniDot style", SpinnerMiniDot},
-		{"Points style", SpinnerPoints},
-		{"Globe style", SpinnerGlobe},
-		{"Moon style", SpinnerMoon},
-		{"Jump style", SpinnerJump},
-		{"Pulse style", SpinnerPulse},
-		{"Ellipsis style", SpinnerEllipsis},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			spinner := NewSpinnerWithStyle("Test message", tt.style)
-			if spinner == nil {
-				t.Fatal("NewSpinnerWithStyle returned nil")
-			}
-
-			// Test that spinner can be started and stopped without panic
-			spinner.Start()
-			time.Sleep(10 * time.Millisecond)
-			spinner.Stop()
-		})
-	}
-}
-
 func TestSpinnerAccessibilityMode(t *testing.T) {
 	// Save original environment
 	origAccessible := os.Getenv("ACCESSIBLE")

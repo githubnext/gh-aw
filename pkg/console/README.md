@@ -8,39 +8,25 @@ The `Spinner` component provides animated visual feedback during long-running op
 
 ### Features
 
-- **Multiple spinner styles**: Choose from 9 different animation styles
+- **MiniDot animation**: Minimal dot spinner (⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
 - **TTY detection**: Automatically disabled in pipes/redirects
 - **Accessibility support**: Respects `ACCESSIBLE` environment variable
 - **Color adaptation**: Uses adaptive colors for light/dark themes
 - **Thread-safe**: Safe for concurrent use with mutex protection
-
-### Available Spinner Styles
-
-The spinner supports multiple visual styles from the Bubbles library:
-
-- `SpinnerDot` (default) - Braille dots: ⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏
-- `SpinnerLine` - Simple line: | / - \
-- `SpinnerMiniDot` - Minimal dots: ⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷
-- `SpinnerPoints` - Points: ∙∙∙ ●∙∙ ∙●∙ ∙∙●
-- `SpinnerGlobe` - Globe emoji: 🌍 🌎 🌏
-- `SpinnerMoon` - Moon phases: 🌑 🌒 🌓 🌔 🌕 🌖 🌗 🌘
-- `SpinnerJump` - Jumping: ⢄ ⢂ ⢁ ⡁ ⡈ ⡐ ⡠
-- `SpinnerPulse` - Pulsing: █ ▓ ▒ ░
-- `SpinnerEllipsis` - Ellipsis: . .. ...
 
 ### Usage
 
 ```go
 import "github.com/githubnext/gh-aw/pkg/console"
 
-// Default spinner (Dot style)
+// Create and use a spinner
 spinner := console.NewSpinner("Loading...")
 spinner.Start()
 // Long-running operation
 spinner.Stop()
 
-// Custom spinner style
-spinner := console.NewSpinnerWithStyle("Processing...", console.SpinnerLine)
+// Stop with a message
+spinner := console.NewSpinner("Processing...")
 spinner.Start()
 // Long-running operation
 spinner.StopWithMessage("✓ Done!")
