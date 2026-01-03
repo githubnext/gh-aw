@@ -72,6 +72,7 @@ type ToolsConfig struct {
 	AgenticWorkflows *AgenticWorkflowsToolConfig `yaml:"agentic-workflows,omitempty"`
 	CacheMemory      *CacheMemoryToolConfig      `yaml:"cache-memory,omitempty"`
 	RepoMemory       *RepoMemoryToolConfig       `yaml:"repo-memory,omitempty"`
+	Beads            *BeadsToolConfig            `yaml:"beads,omitempty"`
 	SafetyPrompt     *bool                       `yaml:"safety-prompt,omitempty"`
 	Timeout          *int                        `yaml:"timeout,omitempty"`
 	StartupTimeout   *int                        `yaml:"startup-timeout,omitempty"`
@@ -197,6 +198,9 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	if t.RepoMemory != nil {
 		result["repo-memory"] = t.RepoMemory.Raw
 	}
+	if t.Beads != nil {
+		result["beads"] = t.Beads
+	}
 	if t.SafetyPrompt != nil {
 		result["safety-prompt"] = *t.SafetyPrompt
 	}
@@ -285,6 +289,15 @@ type CacheMemoryToolConfig struct {
 	Raw any `yaml:"-"`
 }
 
+// BeadsToolConfig represents the configuration for the Beads tool.
+// Beads is a Git-backed issue tracker that provides persistent memory for AI agents.
+// See https://github.com/steveyegge/beads for more information.
+type BeadsToolConfig struct {
+	Version  string   `yaml:"version,omitempty"`   // Beads version to install (default: latest)
+	Commands []string `yaml:"commands,omitempty"`  // Allowed Beads commands (default: all)
+	ReadOnly bool     `yaml:"read-only,omitempty"` // If true, only allow read operations
+}
+
 // MCPServerConfig represents the configuration for a custom MCP server.
 // It embeds BaseMCPServerConfig for common fields and adds workflow-specific fields.
 // This provides partial type safety for common MCP configuration fields
@@ -340,6 +353,8 @@ func (t *Tools) HasTool(name string) bool {
 		return t.CacheMemory != nil
 	case "repo-memory":
 		return t.RepoMemory != nil
+	case "beads":
+		return t.Beads != nil
 	case "safety-prompt":
 		return t.SafetyPrompt != nil
 	case "timeout":
@@ -389,6 +404,9 @@ func (t *Tools) GetToolNames() []string {
 	}
 	if t.RepoMemory != nil {
 		names = append(names, "repo-memory")
+	}
+	if t.Beads != nil {
+		names = append(names, "beads")
 	}
 	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")
