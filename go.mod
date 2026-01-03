@@ -3,9 +3,9 @@ module github.com/githubnext/gh-aw
 go 1.25.0
 
 require (
-	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
+	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
-	github.com/charmbracelet/huh v0.8.0
+	github.com/charmbracelet/huh v0.7.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250319133953-166f707985bc
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
