@@ -46,7 +46,6 @@ type listModel struct {
 	list     list.Model
 	choice   string
 	quitting bool
-	err      error
 }
 
 // Init initializes the list model

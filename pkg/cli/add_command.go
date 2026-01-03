@@ -339,7 +339,7 @@ func showInteractiveWorkflowSelection(repoSlug string, workflows []WorkflowInfo,
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("To add this workflow, run:")))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To add this workflow, run:"))
 	fmt.Fprintf(os.Stderr, "  %s add %s\n", string(constants.CLIExtensionPrefix), workflowSpec)
 	fmt.Fprintln(os.Stderr, "")
 
