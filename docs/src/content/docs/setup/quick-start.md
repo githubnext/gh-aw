@@ -12,23 +12,31 @@ sidebar:
 
 ## Prerequisites
 
-Before installing, ensure you have:
+Before you begin, ensure you have:
 
-- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
-- ✅ **GitHub account** with admin or write access to a repository
-- ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
-- ✅ **Git** installed on your machine
-- ✅ **Operating System:** Linux, macOS, or Windows with WSL
+- [ ] **GitHub CLI** (`gh`)
+  - **Why**: Required to install and run gh-aw
+  - **Install**: <https://cli.github.com> (v2.0.0 or higher)
+  - **Verify**: `gh --version` (should show version 2.0.0 or higher)
 
+- [ ] **GitHub Authentication**
+  - **Why**: Required for GitHub API access
+  - **Setup**: Run `gh auth login`
+  - **Verify**: `gh auth status` (should show "Logged in to github.com")
 
+- [ ] **GitHub account** with admin or write access to a repository
+  - **Why**: Required to add workflows and configure secrets
 
-**Verify your setup:**
+- [ ] **[GitHub Actions](https://docs.github.com/en/actions)** enabled in your repository
+  - **Why**: Workflows run on GitHub's automation platform
+  - **Verify**: Check your repository Settings → Actions → General
 
-```bash
-gh --version      # Should show version 2.0.0 or higher
-gh auth status    # Should show "Logged in to github.com"
-git --version     # Should show git version 2.x or higher
-```
+- [ ] **Git** (recommended)
+  - **Why**: To commit workflow files to your repository
+  - **Verify**: `git --version` (should show git version 2.x or higher)
+
+- [ ] **Operating System**: Linux, macOS, or Windows with WSL
+  - **Why**: Required for running the gh-aw CLI extension
 
 
 
