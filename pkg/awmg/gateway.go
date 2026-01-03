@@ -373,12 +373,19 @@ func mergeConfigs(base, override *MCPGatewayServiceConfig) *MCPGatewayServiceCon
 
 // rewriteMCPConfigForGateway rewrites the MCP config file to point all servers to the gateway
 func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConfig) error {
-	gatewayLog.Printf("Rewriting MCP config file: %s", configPath)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Rewriting MCP config file: %s", configPath)))
+	// Sanitize the path to prevent path traversal attacks
+	cleanPath := filepath.Clean(configPath)
+	if !filepath.IsAbs(cleanPath) {
+		gatewayLog.Printf("Invalid config file path (not absolute): %s", configPath)
+		return fmt.Errorf("config path must be absolute: %s", configPath)
+	}
+
+	gatewayLog.Printf("Rewriting MCP config file: %s", cleanPath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Rewriting MCP config file: %s", cleanPath)))
 
 	// Read the original config file to preserve non-proxied servers
-	gatewayLog.Printf("Reading original config from %s", configPath)
-	originalConfigData, err := os.ReadFile(configPath)
+	gatewayLog.Printf("Reading original config from %s", cleanPath)
+	originalConfigData, err := os.ReadFile(cleanPath)
 	if err != nil {
 		gatewayLog.Printf("Failed to read original config: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to read original config: %v", err)))
@@ -498,8 +505,8 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 	}
 
 	gatewayLog.Printf("Marshaled config to JSON: %d bytes", len(data))
-	gatewayLog.Printf("Writing to file: %s", configPath)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file: %s", len(data), configPath)))
+	gatewayLog.Printf("Writing to file: %s", cleanPath)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Writing %d bytes to config file: %s", len(data), cleanPath)))
 
 	// Log a preview of the config being written (first 500 chars, redacting sensitive data)
 	preview := string(data)
@@ -512,17 +519,17 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 
 	// Write back to file with restricted permissions (0600) since it contains sensitive API keys
 	gatewayLog.Printf("Writing file with permissions 0600 (owner read/write only)")
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		gatewayLog.Printf("Failed to write rewritten config to %s: %v", configPath, err)
+	if err := os.WriteFile(cleanPath, data, 0600); err != nil {
+		gatewayLog.Printf("Failed to write rewritten config to %s: %v", cleanPath, err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
 		return fmt.Errorf("failed to write rewritten config: %w", err)
 	}
 
-	gatewayLog.Printf("Successfully wrote config file: %s", configPath)
+	gatewayLog.Printf("Successfully wrote config file: %s", cleanPath)
 
 	// Self-check: Read back the file and verify it was written correctly
 	gatewayLog.Print("Performing self-check: verifying config was written correctly")
-	verifyData, err := os.ReadFile(configPath)
+	verifyData, err := os.ReadFile(cleanPath)
 	if err != nil {
 		gatewayLog.Printf("Self-check failed: could not read back config file: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Could not verify config was written: %v", err)))
