@@ -140,7 +140,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		StepID:         "create_pull_request",
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
-		Script:         getCreatePullRequestScript(),
+		Script:         "", // Legacy - handler manager uses require() to load handler from /tmp/gh-aw/actions
 		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite(),
 		Outputs:        outputs,
 		PreSteps:       preSteps,

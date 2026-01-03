@@ -42,6 +42,8 @@ interface HandlerErrorResult {
   success: false;
   /** Error message describing what went wrong */
   error: string;
+  /** Additional result properties (skipped, etc.) */
+  [key: string]: any;
 }
 
 /**

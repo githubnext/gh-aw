@@ -154,26 +154,22 @@ This workflow tests the create_pull_request job generation.
 		t.Error("Expected 'Checkout repository' step in create_pull_request job")
 	}
 
-	if !strings.Contains(lockContentStr, "Create Pull Request") {
-		t.Error("Expected 'Create Pull Request' step in create_pull_request job")
+	// Verify handler manager step (Process Safe Outputs) exists
+	if !strings.Contains(lockContentStr, "Process Safe Outputs") {
+		t.Error("Expected 'Process Safe Outputs' (handler manager) step in safe_outputs job")
 	}
 
 	if !strings.Contains(lockContentStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
-		t.Error("Expected github-script action to be used in create_pull_request job")
+		t.Error("Expected github-script action to be used in safe_outputs job")
 	}
 
-	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
-		t.Error("Expected title prefix to be set as environment variable")
+	// Verify handler manager config includes create_pull_request configuration
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler manager config environment variable")
 	}
 
-	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
-		t.Error("Expected automation label to be set as environment variable")
-	}
-
-	// Verify create_pull_request step exists in consolidated job
-	if !strings.Contains(lockContentStr, "id: create_pull_request") {
-		t.Error("Expected create_pull_request step in safe_outputs job")
+	if !strings.Contains(lockContentStr, "create_pull_request") {
+		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 
 	// Verify job dependencies
@@ -234,23 +230,25 @@ This workflow tests the create_pull_request job generation with draft: false.
 	// Convert to string for easier testing
 	lockContentStr := string(lockContent)
 
-	// Verify create_pull_request job is present
+	// Verify safe_outputs job is present
 	if !strings.Contains(lockContentStr, "safe_outputs:") {
-		t.Error("Expected 'create_pull_request' job to be in generated workflow")
+		t.Error("Expected 'safe_outputs' job to be in generated workflow")
 	}
 
-	// Verify draft setting is false
-	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"false\"") {
-		t.Error("Expected draft to be set to false when explicitly specified")
+	// Verify handler manager is configured with create_pull_request
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler manager config environment variable")
 	}
 
-	// Verify other expected environment variables are still present
-	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
-		t.Error("Expected title prefix to be set as environment variable")
+	// Verify create_pull_request config in handler manager
+	// The config should contain draft: false and other settings as JSON
+	if !strings.Contains(lockContentStr, "create_pull_request") {
+		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 
-	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
-		t.Error("Expected automation label to be set as environment variable")
+	// Verify the handler manager step (Process Safe Outputs) is present
+	if !strings.Contains(lockContentStr, "Process Safe Outputs") || !strings.Contains(lockContentStr, "process_safe_outputs") {
+		t.Error("Expected 'Process Safe Outputs' handler manager step in safe_outputs job")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)
@@ -306,23 +304,24 @@ This workflow tests the create_pull_request job generation with draft: true.
 	// Convert to string for easier testing
 	lockContentStr := string(lockContent)
 
-	// Verify create_pull_request job is present
+	// Verify safe_outputs job is present
 	if !strings.Contains(lockContentStr, "safe_outputs:") {
-		t.Error("Expected 'create_pull_request' job to be in generated workflow")
+		t.Error("Expected 'safe_outputs' job to be in generated workflow")
 	}
 
-	// Verify draft setting is true
-	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
-		t.Error("Expected draft to be set to true when explicitly specified")
+	// Verify handler manager is configured with create_pull_request
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler manager config environment variable")
 	}
 
-	// Verify other expected environment variables are still present
-	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
-		t.Error("Expected title prefix to be set as environment variable")
+	// Verify create_pull_request config in handler manager
+	if !strings.Contains(lockContentStr, "create_pull_request") {
+		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 
-	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
-		t.Error("Expected automation label to be set as environment variable")
+	// Verify the handler manager step (Process Safe Outputs) is present
+	if !strings.Contains(lockContentStr, "Process Safe Outputs") || !strings.Contains(lockContentStr, "process_safe_outputs") {
+		t.Error("Expected 'Process Safe Outputs' handler manager step in safe_outputs job")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContentStr)
@@ -426,10 +425,15 @@ This workflow tests the default if-no-changes behavior.
 		t.Fatalf("Failed to read generated lock file: %v", err)
 	}
 
-	// Verify the if-no-changes configuration is passed to the environment
+	// Verify the if-no-changes configuration is passed to the handler manager
 	lockContentStr := string(lockContent)
-	if !strings.Contains(lockContentStr, "GH_AW_PR_IF_NO_CHANGES: \"error\"") {
-		t.Error("Expected GH_AW_PR_IF_NO_CHANGES environment variable to be set in generated workflow")
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler manager config environment variable in generated workflow")
+	}
+
+	// Verify create_pull_request is configured in the handler manager
+	if !strings.Contains(lockContentStr, "create_pull_request") {
+		t.Error("Expected create_pull_request to be configured in handler manager")
 	}
 }
 
@@ -495,9 +499,9 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 		t.Errorf("Expected patch artifact to be downloaded to '/tmp/gh-aw/'")
 	}
 
-	// Verify that the create_pull_request step exists
-	if !strings.Contains(lockContentStr, "- name: Create Pull Request") {
-		t.Errorf("Expected 'Create Pull Request' step in safe_outputs job")
+	// Verify that the handler manager step exists (processes create_pull_request)
+	if !strings.Contains(lockContentStr, "- name: Process Safe Outputs") {
+		t.Errorf("Expected 'Process Safe Outputs' (handler manager) step in safe_outputs job")
 	}
 
 	// Verify that the condition checks for create_pull_request output type

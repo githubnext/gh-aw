@@ -51,9 +51,6 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Track whether threat detection job is enabled for step conditions
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Track which outputs are created for dependency tracking
-	var createPullRequestEnabled bool
-
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
 		consolidatedSafeOutputsLog.Print("Adding GitHub App token minting step")
@@ -91,12 +88,10 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add shared checkout and git config steps for PR operations
 	// Both create-pull-request and push-to-pull-request-branch need these steps,
 	// so we add them once with a combined condition to avoid duplication
-	var prCheckoutStepsAdded bool
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil {
 		consolidatedSafeOutputsLog.Print("Adding shared checkout step for PR operations")
 		checkoutSteps := c.buildSharedPRCheckoutSteps(data)
 		steps = append(steps, checkoutSteps...)
-		prCheckoutStepsAdded = true
 	}
 
 	// === Build safe output steps ===
@@ -112,7 +107,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.UpdateDiscussions != nil ||
 		data.SafeOutputs.LinkSubIssue != nil ||
 		data.SafeOutputs.UpdateRelease != nil ||
-		data.SafeOutputs.CreatePullRequestReviewComments != nil
+		data.SafeOutputs.CreatePullRequestReviewComments != nil ||
+		data.SafeOutputs.CreatePullRequests != nil ||
+		data.SafeOutputs.PushToPullRequestBranch != nil ||
+		data.SafeOutputs.UpdatePullRequests != nil ||
+		data.SafeOutputs.ClosePullRequests != nil ||
+		data.SafeOutputs.HideComment != nil
 
 	// If we have handler manager types, use the handler manager step
 	if hasHandlerManagerTypes {
@@ -159,37 +159,25 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
-	}
-
-	// Create Pull Request step (not handled by handler manager)
-	if data.SafeOutputs.CreatePullRequests != nil {
-		createPullRequestEnabled = true
-		_ = createPullRequestEnabled // Track for potential future use
-		stepConfig := c.buildCreatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Skip pre-steps if we've already added the shared checkout steps
-		if !prCheckoutStepsAdded {
-			steps = append(steps, stepConfig.PreSteps...)
+		if data.SafeOutputs.CreatePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
 		}
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		steps = append(steps, stepConfig.PostSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["create_pull_request_pull_request_number"] = "${{ steps.create_pull_request.outputs.pull_request_number }}"
-		outputs["create_pull_request_pull_request_url"] = "${{ steps.create_pull_request.outputs.pull_request_url }}"
-
-		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		}
+		if data.SafeOutputs.UpdatePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
+		if data.SafeOutputs.ClosePullRequests != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
+		if data.SafeOutputs.HideComment != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
 	}
 
-	// Close Pull Request step (not handled by handler manager)
-	if data.SafeOutputs.ClosePullRequests != nil {
-		stepConfig := c.buildClosePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
+	// Note: Create Pull Request is now handled by the handler manager
+	// The outputs and permissions are configured in the handler manager section above
 
 	// Mark Pull Request as Ready for Review step (not handled by handler manager)
 	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
@@ -260,31 +248,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 
-	// 16. Update Pull Request step
-	if data.SafeOutputs.UpdatePullRequests != nil {
-		stepConfig := c.buildUpdatePullRequestStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
+	// 16. Update Pull Request step - now handled by handler manager
 
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
-
-	// 17. Push To Pull Request Branch step
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		stepConfig := c.buildPushToPullRequestBranchStepConfig(data, mainJobName, threatDetectionEnabled)
-		// Skip pre-steps if we've already added the shared checkout steps
-		if !prCheckoutStepsAdded {
-			steps = append(steps, stepConfig.PreSteps...)
-		}
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		outputs["push_to_pull_request_branch_commit_url"] = "${{ steps.push_to_pull_request_branch.outputs.commit_url }}"
-
-		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
-	}
+	// 17. Push To Pull Request Branch step - now handled by handler manager
 
 	// 18. Upload Assets - now handled as a separate job (see buildSafeOutputsJobs)
 	// This was moved out of the consolidated job to allow proper git configuration
@@ -292,16 +258,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 	// 19. Update Release step - now handled by handler manager
 	// 20. Link Sub Issue step - now handled by handler manager
-
-	// 21. Hide Comment step
-	if data.SafeOutputs.HideComment != nil {
-		stepConfig := c.buildHideCommentStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
-	}
+	// 21. Hide Comment step - now handled by handler manager
 
 	// 22. Create Agent Task step
 	if data.SafeOutputs.CreateAgentTasks != nil {
@@ -902,6 +859,127 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["create_pull_request_review_comment"] = handlerConfig
 	}
 
+	if data.SafeOutputs.CreatePullRequests != nil {
+		cfg := data.SafeOutputs.CreatePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
+		if cfg.Draft != nil {
+			handlerConfig["draft"] = *cfg.Draft
+		}
+		if cfg.IfNoChanges != "" {
+			handlerConfig["if_no_changes"] = cfg.IfNoChanges
+		}
+		if cfg.AllowEmpty {
+			handlerConfig["allow_empty"] = cfg.AllowEmpty
+		}
+		if cfg.Expires > 0 {
+			handlerConfig["expires"] = cfg.Expires
+		}
+		// Add base branch (required for git operations)
+		handlerConfig["base_branch"] = "${{ github.ref_name }}"
+		// Add max patch size
+		maxPatchSize := 1024 // default 1024 KB
+		if data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		handlerConfig["max_patch_size"] = maxPatchSize
+		config["create_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.PushToPullRequestBranch != nil {
+		cfg := data.SafeOutputs.PushToPullRequestBranch
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if len(cfg.Labels) > 0 {
+			handlerConfig["labels"] = cfg.Labels
+		}
+		if cfg.IfNoChanges != "" {
+			handlerConfig["if_no_changes"] = cfg.IfNoChanges
+		}
+		if cfg.CommitTitleSuffix != "" {
+			handlerConfig["commit_title_suffix"] = cfg.CommitTitleSuffix
+		}
+		// Add base branch (required for git operations)
+		handlerConfig["base_branch"] = "${{ github.ref_name }}"
+		// Add max patch size
+		maxPatchSize := 1024 // default 1024 KB
+		if data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		handlerConfig["max_patch_size"] = maxPatchSize
+		config["push_to_pull_request_branch"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdatePullRequests != nil {
+		cfg := data.SafeOutputs.UpdatePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		// Boolean pointer fields indicate which fields can be updated
+		// Default to true if not specified (backward compatibility)
+		if cfg.Title != nil {
+			handlerConfig["allow_title"] = *cfg.Title
+		} else {
+			handlerConfig["allow_title"] = true
+		}
+		if cfg.Body != nil {
+			handlerConfig["allow_body"] = *cfg.Body
+		} else {
+			handlerConfig["allow_body"] = true
+		}
+		config["update_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.ClosePullRequests != nil {
+		cfg := data.SafeOutputs.ClosePullRequests
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if len(cfg.RequiredLabels) > 0 {
+			handlerConfig["required_labels"] = cfg.RequiredLabels
+		}
+		if cfg.RequiredTitlePrefix != "" {
+			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
+		}
+		config["close_pull_request"] = handlerConfig
+	}
+
+	if data.SafeOutputs.HideComment != nil {
+		cfg := data.SafeOutputs.HideComment
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.AllowedReasons) > 0 {
+			handlerConfig["allowed_reasons"] = cfg.AllowedReasons
+		}
+		config["hide_comment"] = handlerConfig
+	}
+
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
 		configJSON, err := json.Marshal(config)
@@ -974,9 +1052,22 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
-			_ = stagedFlagAdded // Mark as used for linter
 		}
 		// All update configuration (target, allow_title, allow_body, allow_labels) is now in handler config JSON
+	}
+
+	// Create Pull Request env vars
+	if data.SafeOutputs.CreatePullRequests != nil {
+		// Add staged flag if needed
+		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded {
+			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+			stagedFlagAdded = true
+		}
+		// Note: base_branch and max_patch_size are now in handler config JSON
+	}
+
+	if stagedFlagAdded {
+		_ = stagedFlagAdded // Mark as used for linter
 	}
 
 	// Note: Most handlers read from the config.json file, so we may not need all env vars here

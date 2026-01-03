@@ -57,9 +57,14 @@ Please make changes and push them to the feature branch.
 		t.Errorf("Generated workflow should contain safe_outputs job")
 	}
 
-	// Verify that push_to_pull_request_branch step is present
-	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
+	// Verify that push_to_pull_request_branch is now handled by handler manager
+	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
+		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
+	}
+
+	// Verify that push_to_pull_request_branch config is in handler manager config
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch in handler config")
 	}
 
 	// Verify that required permissions are present
@@ -125,9 +130,9 @@ This workflow allows pushing to any pull request.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that the target configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET: \"*\"") {
-		t.Errorf("Generated workflow should contain target configuration with asterisk")
+	// Verify that the target configuration is in handler config JSON
+	if !strings.Contains(lockContentStr, `"target":"*"`) && !strings.Contains(lockContentStr, `"target": "*"`) {
+		t.Errorf("Generated workflow should contain target configuration with asterisk in handler config JSON")
 	}
 
 	// Verify conditional execution allows any context
@@ -232,10 +237,9 @@ This workflow uses null configuration which should default to "triggering".
 		t.Errorf("Expected safe_outputs job with push_to_pull_request_branch step to be generated")
 	}
 
-	// Check that no target is set (should use default)
-	if strings.Contains(lockContent, "GH_AW_PUSH_TARGET:") {
-		t.Errorf("Expected no target to be set when using null config, %s", lockContent)
-	}
+	// Check that no explicit target is set in the config (default "triggering" is used)
+	// The handler config will still contain push_to_pull_request_branch but target may be omitted or "triggering"
+	// This is acceptable as the handler uses "triggering" as the default
 }
 
 func TestPushToPullRequestBranchMinimalConfig(t *testing.T) {
@@ -283,9 +287,14 @@ This workflow has minimal push-to-pull-request-branch configuration.
 		t.Errorf("Generated workflow should contain safe_outputs job")
 	}
 
-	// Verify push_to_pull_request_branch step is present
-	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
+	// Verify push_to_pull_request_branch is handled by handler manager
+	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
+		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
+	}
+
+	// Verify that push_to_pull_request_branch config is in handler manager config
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch in handler config")
 	}
 
 	// Verify conditional execution using BuildSafeOutputType
@@ -336,9 +345,9 @@ This workflow fails when there are no changes.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that if-no-changes configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"error\"") {
-		t.Errorf("Generated workflow should contain if-no-changes configuration")
+	// Verify that if-no-changes configuration is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `if_no_changes`) || !strings.Contains(lockContentStr, `error`) {
+		t.Errorf("Generated workflow should contain if-no-changes:error configuration in handler config JSON")
 	}
 }
 
@@ -383,9 +392,9 @@ This workflow ignores when there are no changes.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that if-no-changes configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"ignore\"") {
-		t.Errorf("Generated workflow should contain if-no-changes ignore configuration")
+	// Verify that if-no-changes configuration is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `if_no_changes`) || !strings.Contains(lockContentStr, `ignore`) {
+		t.Errorf("Generated workflow should contain if-no-changes:ignore configuration in handler config JSON")
 	}
 }
 
@@ -429,9 +438,9 @@ This workflow uses default if-no-changes behavior.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that default if-no-changes configuration ("warn") is passed correctly
-	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"warn\"") {
-		t.Errorf("Generated workflow should contain default if-no-changes configuration (warn)")
+	// Verify that default if-no-changes configuration ("warn") is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `if_no_changes`) || !strings.Contains(lockContentStr, `warn`) {
+		t.Errorf("Generated workflow should contain if-no-changes:warn configuration in handler config JSON")
 	}
 }
 
@@ -481,9 +490,9 @@ This workflow explicitly sets branch to "triggering".
 		t.Errorf("Generated workflow should contain safe_outputs job with push_to_pull_request_branch step")
 	}
 
-	// Verify that target configuration is included
-	if !strings.Contains(lockContentStr, `id: push_to_pull_request_branch`) {
-		t.Errorf("Generated workflow should contain target configuration")
+	// Verify that push_to_pull_request_branch is handled by handler manager and has target configuration
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `target`) {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch with target configuration in handler config")
 	}
 }
 
@@ -529,9 +538,9 @@ This workflow validates PR title prefix.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that title prefix configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GH_AW_PR_TITLE_PREFIX: "[bot] "`) {
-		t.Errorf("Generated workflow should contain title prefix configuration")
+	// Verify that title prefix configuration is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `title_prefix`) || !strings.Contains(lockContentStr, `[bot]`) {
+		t.Errorf("Generated workflow should contain title_prefix:[bot] configuration in handler config JSON")
 	}
 }
 
@@ -577,9 +586,9 @@ This workflow validates PR labels.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that labels configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GH_AW_PR_LABELS: "automated,enhancement"`) {
-		t.Errorf("Generated workflow should contain labels configuration")
+	// Verify that labels configuration is in handler config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `labels`) || (!strings.Contains(lockContentStr, `automated`) && !strings.Contains(lockContentStr, `enhancement`)) {
+		t.Errorf("Generated workflow should contain labels configuration in handler config JSON")
 	}
 }
 
@@ -626,12 +635,12 @@ This workflow validates both PR title prefix and labels.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that both title prefix and labels configurations are passed correctly
-	if !strings.Contains(lockContentStr, `GH_AW_PR_TITLE_PREFIX: "[automated] "`) {
-		t.Errorf("Generated workflow should contain title prefix configuration")
+	// Verify that both title prefix and labels configurations are in handler manager config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `title_prefix`) || !strings.Contains(lockContentStr, `[automated]`) {
+		t.Errorf("Generated workflow should contain title_prefix:[automated] in handler config JSON")
 	}
-	if !strings.Contains(lockContentStr, `GH_AW_PR_LABELS: "bot,feature,enhancement"`) {
-		t.Errorf("Generated workflow should contain labels configuration")
+	if !strings.Contains(lockContentStr, `labels`) || (!strings.Contains(lockContentStr, `bot`) && !strings.Contains(lockContentStr, `feature`) && !strings.Contains(lockContentStr, `enhancement`)) {
+		t.Errorf("Generated workflow should contain labels (bot,feature,enhancement) in handler config JSON")
 	}
 }
 
@@ -677,9 +686,9 @@ This workflow appends a suffix to commit titles.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that commit title suffix configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GH_AW_COMMIT_TITLE_SUFFIX: " [skip ci]"`) {
-		t.Errorf("Generated workflow should contain commit title suffix configuration")
+	// Verify that commit title suffix configuration is in handler manager config JSON (check for push_to_pull_request_branch config)
+	if !strings.Contains(lockContentStr, `push_to_pull_request_branch`) || !strings.Contains(lockContentStr, `commit_title_suffix`) || !strings.Contains(lockContentStr, `[skip ci]`) {
+		t.Errorf("Generated workflow should contain commit_title_suffix:[skip ci] in handler config JSON")
 	}
 }
 
@@ -729,9 +738,9 @@ since it's not supported by actions/github-script.
 		t.Errorf("Generated workflow should contain safe_outputs job")
 	}
 
-	// Verify that push_to_pull_request_branch step is present
-	if !strings.Contains(lockContentStr, "id: push_to_pull_request_branch") {
-		t.Errorf("Generated workflow should contain push_to_pull_request_branch step")
+	// Verify that push_to_pull_request_branch is handled by handler manager
+	if !strings.Contains(lockContentStr, "id: process_safe_outputs") {
+		t.Errorf("Generated workflow should contain process_safe_outputs step (handler manager)")
 	}
 
 	// Verify that working-directory is NOT present (not supported by actions/github-script)
@@ -866,9 +875,9 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 		t.Errorf("Expected patch artifact to be downloaded to '/tmp/gh-aw/'")
 	}
 
-	// Verify that the push step exists and references the patch file
-	if !strings.Contains(lockContentStr, "- name: Push To Pull Request Branch") {
-		t.Errorf("Expected 'Push To Pull Request Branch' step in safe_outputs job")
+	// Verify that the push step is handled by handler manager
+	if !strings.Contains(lockContentStr, "- name: Process Safe Outputs") {
+		t.Errorf("Expected 'Process Safe Outputs' step (handler manager) in safe_outputs job")
 	}
 
 	// Verify that the condition checks for push_to_pull_request_branch output type

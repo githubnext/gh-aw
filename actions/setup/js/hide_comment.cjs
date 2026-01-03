@@ -1,8 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+/**
+ * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
+ */
+
 const { getErrorMessage } = require("./error_helpers.cjs");
+
+/**
+ * Type constant for handler identification
+ */
+const HANDLER_TYPE = "hide_comment";
 
 /**
  * Hide a comment using the GraphQL API.
@@ -11,7 +19,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @param {string} reason - Reason for hiding (default: spam)
  * @returns {Promise<{id: string, isMinimized: boolean}>} Hidden comment details
  */
-async function hideComment(github, nodeId, reason = "spam") {
+async function hideCommentAPI(github, nodeId, reason = "spam") {
   const query = /* GraphQL */ `
     mutation ($nodeId: ID!, $classifier: ReportedContentClassifiers!) {
       minimizeComment(input: { subjectId: $nodeId, classifier: $classifier }) {
@@ -30,88 +38,98 @@ async function hideComment(github, nodeId, reason = "spam") {
   };
 }
 
+/**
+ * Main handler factory for hide_comment
+ * Returns a message handler function that processes individual hide_comment messages
+ * @type {HandlerFactoryFunction}
+ */
 async function main(config = {}) {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Extract configuration
+  const allowedReasons = config.allowed_reasons || [];
+  const maxCount = config.max || 5;
 
-  // Parse allowed reasons from config object
-  const allowedReasons = config.allowed_reasons || null;
-  if (allowedReasons && allowedReasons.length > 0) {
-    core.info(`Allowed reasons for hiding: [${allowedReasons.join(", ")}]`);
+  core.info(`Hide comment configuration: max=${maxCount}`);
+  if (allowedReasons.length > 0) {
+    core.info(`Allowed reasons: ${allowedReasons.join(", ")}`);
   }
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
+  // Track how many items we've processed for max limit
+  let processedCount = 0;
 
-  // Find all hide-comment items
-  const hideCommentItems = result.items.filter(/** @param {any} item */ item => item.type === "hide_comment");
-  if (hideCommentItems.length === 0) {
-    core.info("No hide-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${hideCommentItems.length} hide-comment item(s)`);
-
-  // If in staged mode, emit step summary instead of hiding comments
-  if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Hide Comments Preview\n\n";
-    summaryContent += "The following comments would be hidden if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < hideCommentItems.length; i++) {
-      const item = hideCommentItems[i];
-      const reason = item.reason || "spam";
-      summaryContent += `### Comment ${i + 1}\n`;
-      summaryContent += `**Node ID**: ${item.comment_id}\n`;
-      summaryContent += `**Action**: Would be hidden as ${reason}\n`;
-      summaryContent += "\n";
+  /**
+   * Message handler function that processes a single hide_comment message
+   * @param {Object} message - The hide_comment message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number}
+   * @returns {Promise<Object>} Result with success/error status
+   */
+  return async function handleHideComment(message, resolvedTemporaryIds) {
+    // Check if we've hit the max limit
+    if (processedCount >= maxCount) {
+      core.warning(`Skipping hide_comment: max count of ${maxCount} reached`);
+      return {
+        success: false,
+        error: `Max count of ${maxCount} reached`,
+      };
     }
 
-    core.summary.addRaw(summaryContent).write();
-    return;
-  }
+    processedCount++;
 
-  // Process each hide-comment item
-  for (const item of hideCommentItems) {
+    const item = message;
+
     try {
       const commentId = item.comment_id;
       if (!commentId || typeof commentId !== "string") {
-        throw new Error("comment_id is required and must be a string (GraphQL node ID)");
+        core.warning("comment_id is required and must be a string (GraphQL node ID)");
+        return {
+          success: false,
+          error: "comment_id is required and must be a string (GraphQL node ID)",
+        };
       }
 
-      const reason = item.reason || "spam";
+      const reason = item.reason || "SPAM";
 
       // Normalize reason to uppercase for GitHub API
       const normalizedReason = reason.toUpperCase();
 
       // Validate reason against allowed reasons if specified (case-insensitive)
-      if (allowedReasons && allowedReasons.length > 0) {
+      if (allowedReasons.length > 0) {
         const normalizedAllowedReasons = allowedReasons.map(r => r.toUpperCase());
         if (!normalizedAllowedReasons.includes(normalizedReason)) {
           core.warning(`Reason "${reason}" is not in allowed-reasons list [${allowedReasons.join(", ")}]. Skipping comment ${commentId}.`);
-          continue;
+          return {
+            success: false,
+            error: `Reason "${reason}" is not in allowed-reasons list`,
+          };
         }
       }
 
       core.info(`Hiding comment: ${commentId} (reason: ${normalizedReason})`);
 
-      const hideResult = await hideComment(github, commentId, normalizedReason);
+      const hideResult = await hideCommentAPI(github, commentId, normalizedReason);
 
       if (hideResult.isMinimized) {
         core.info(`Successfully hidden comment: ${commentId}`);
-        core.setOutput("comment_id", commentId);
-        core.setOutput("is_hidden", "true");
+        return {
+          success: true,
+          comment_id: commentId,
+          is_hidden: true,
+        };
       } else {
-        throw new Error(`Failed to hide comment: ${commentId}`);
+        core.error(`Failed to hide comment: ${commentId}`);
+        return {
+          success: false,
+          error: `Failed to hide comment: ${commentId}`,
+        };
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`Failed to hide comment: ${errorMessage}`);
-      core.setFailed(`Failed to hide comment: ${errorMessage}`);
-      return;
+      return {
+        success: false,
+        error: errorMessage,
+      };
     }
-  }
+  };
 }
 
-module.exports = { main };
+module.exports = { main, HANDLER_TYPE };
