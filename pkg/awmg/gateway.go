@@ -385,6 +385,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 
 	// Read the original config file to preserve non-proxied servers
 	gatewayLog.Printf("Reading original config from %s", cleanPath)
+	// #nosec G304 - cleanPath is validated: sanitized with filepath.Clean() and verified to be absolute path (lines 377-381)
 	originalConfigData, err := os.ReadFile(cleanPath)
 	if err != nil {
 		gatewayLog.Printf("Failed to read original config: %v", err)
@@ -519,6 +520,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 
 	// Write back to file with restricted permissions (0600) since it contains sensitive API keys
 	gatewayLog.Printf("Writing file with permissions 0600 (owner read/write only)")
+	// #nosec G304 - cleanPath is validated: sanitized with filepath.Clean() and verified to be absolute path (lines 377-381)
 	if err := os.WriteFile(cleanPath, data, 0600); err != nil {
 		gatewayLog.Printf("Failed to write rewritten config to %s: %v", cleanPath, err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to write rewritten config: %v", err)))
@@ -529,6 +531,7 @@ func rewriteMCPConfigForGateway(configPath string, config *MCPGatewayServiceConf
 
 	// Self-check: Read back the file and verify it was written correctly
 	gatewayLog.Print("Performing self-check: verifying config was written correctly")
+	// #nosec G304 - cleanPath is validated: sanitized with filepath.Clean() and verified to be absolute path (lines 377-381)
 	verifyData, err := os.ReadFile(cleanPath)
 	if err != nil {
 		gatewayLog.Printf("Self-check failed: could not read back config file: %v", err)
