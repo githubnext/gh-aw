@@ -112,6 +112,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.PushToPullRequestBranch != nil ||
 		data.SafeOutputs.UpdatePullRequests != nil ||
 		data.SafeOutputs.ClosePullRequests != nil ||
+		data.SafeOutputs.MarkPullRequestAsReadyForReview != nil ||
 		data.SafeOutputs.HideComment != nil
 
 	// If we have handler manager types, use the handler manager step
@@ -171,6 +172,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs.ClosePullRequests != nil {
 			permissions.Merge(NewPermissionsContentsReadPRWrite())
 		}
+		if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
+			permissions.Merge(NewPermissionsContentsReadPRWrite())
+		}
 		if data.SafeOutputs.HideComment != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
 		}
@@ -179,15 +183,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Note: Create Pull Request is now handled by the handler manager
 	// The outputs and permissions are configured in the handler manager section above
 
-	// Mark Pull Request as Ready for Review step (not handled by handler manager)
-	if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
-		stepConfig := c.buildMarkPullRequestAsReadyForReviewStepConfig(data, mainJobName, threatDetectionEnabled)
-		stepYAML := c.buildConsolidatedSafeOutputStep(data, stepConfig)
-		steps = append(steps, stepYAML...)
-		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
-
-		permissions.Merge(NewPermissionsContentsReadPRWrite())
-	}
+	// Note: Mark Pull Request as Ready for Review is now handled by the handler manager
+	// The permissions are configured in the handler manager section above
 
 	// 9. Create Code Scanning Alert step
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {

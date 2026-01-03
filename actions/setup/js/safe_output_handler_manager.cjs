@@ -33,6 +33,7 @@ const HANDLER_MAP = {
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
   close_pull_request: "./close_pull_request.cjs",
+  mark_pull_request_as_ready_for_review: "./mark_pull_request_as_ready_for_review.cjs",
   hide_comment: "./hide_comment.cjs",
 };
 

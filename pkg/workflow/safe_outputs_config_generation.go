@@ -233,6 +233,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			updatePRConfig["max"] = maxValue
 			safeOutputsConfig["update_pull_request"] = updatePRConfig
 		}
+		if data.SafeOutputs.MarkPullRequestAsReadyForReview != nil {
+			markPRReadyConfig := map[string]any{}
+			// Always include max (use configured value or default)
+			maxValue := 10 // default
+			if data.SafeOutputs.MarkPullRequestAsReadyForReview.Max > 0 {
+				maxValue = data.SafeOutputs.MarkPullRequestAsReadyForReview.Max
+			}
+			markPRReadyConfig["max"] = maxValue
+			safeOutputsConfig["mark_pull_request_as_ready_for_review"] = markPRReadyConfig
+		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
 			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
