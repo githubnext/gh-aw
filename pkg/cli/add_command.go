@@ -245,7 +245,7 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 }
 
 // handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
-// It installs the package and lists available workflows
+// It installs the package and lists available workflows with interactive selection
 func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 	addLog.Printf("Handling repo-only specification: %s", repoSpec)
 
@@ -281,6 +281,17 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 		return nil
 	}
 
+	// Try interactive selection first
+	selected, err := showInteractiveWorkflowSelection(spec.RepoSlug, workflows, spec.Version, verbose)
+	if err == nil && selected != "" {
+		// User selected a workflow, proceed to add it
+		addLog.Printf("User selected workflow: %s", selected)
+		return nil // Successfully displayed and allowed selection
+	}
+
+	// If interactive selection failed or was cancelled, fall back to table display
+	addLog.Printf("Interactive selection failed or cancelled, showing table: %v", err)
+	
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", spec.RepoSlug)))
 	fmt.Fprintln(os.Stderr, "")
@@ -303,7 +314,40 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 	return nil
 }
 
+// showInteractiveWorkflowSelection displays an interactive list of workflows
+// and allows the user to select one
+func showInteractiveWorkflowSelection(repoSlug string, workflows []WorkflowInfo, version string, verbose bool) (string, error) {
+	addLog.Printf("Showing interactive workflow selection: repo=%s, workflows=%d", repoSlug, len(workflows))
+
+	// Convert WorkflowInfo to ListItems
+	items := make([]console.ListItem, len(workflows))
+	for i, wf := range workflows {
+		items[i] = console.NewListItem(wf.Name, wf.Description, wf.ID)
+	}
+
+	// Show interactive list
+	title := fmt.Sprintf("Select a workflow from %s:", repoSlug)
+	selectedID, err := console.ShowInteractiveList(title, items)
+	if err != nil {
+		return "", err
+	}
+
+	// Build the workflow spec
+	workflowSpec := fmt.Sprintf("%s/%s", repoSlug, selectedID)
+	if version != "" {
+		workflowSpec += "@" + version
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("To add this workflow, run:")))
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", string(constants.CLIExtensionPrefix), workflowSpec)
+	fmt.Fprintln(os.Stderr, "")
+
+	return selectedID, nil
+}
+
 // displayAvailableWorkflows lists available workflows from an installed package
+// with interactive selection when in TTY mode
 func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 	addLog.Printf("Displaying available workflows for repository: %s", repoSlug)
 
@@ -318,6 +362,16 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in repository %s", repoSlug)))
 		return nil
 	}
+
+	// Try interactive selection first
+	_, err = showInteractiveWorkflowSelection(repoSlug, workflows, version, verbose)
+	if err == nil {
+		// Successfully displayed and allowed selection
+		return nil
+	}
+
+	// If interactive selection failed or was cancelled, fall back to table display
+	addLog.Printf("Interactive selection failed or cancelled, showing table: %v", err)
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", repoSlug)))
