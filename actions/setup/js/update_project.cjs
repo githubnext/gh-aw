@@ -560,12 +560,17 @@ async function updateProject(output) {
       // Backfill missing required fields for existing items
       // Only backfill if we successfully fetched existing fields
       if (existingItem && fetchedExistingFields) {
+        // Get current date in ISO format for date fields
+        const today = new Date().toISOString().split("T")[0];
+
         const requiredDefaults = {
           "Campaign Id": campaignId || output.campaign_id || "unknown",
           "Worker Workflow": "unknown",
           Repository: `${owner}/${repo}`,
           Priority: "Medium",
           Size: "Medium",
+          "Start Date": today,
+          "End Date": today,
         };
 
         for (const [fieldName, defaultValue] of Object.entries(requiredDefaults)) {
