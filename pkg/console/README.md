@@ -78,6 +78,9 @@ The progress bar uses bubbles v0.21.0+ gradient capabilities for enhanced visual
 
 ### Usage
 
+#### Determinate Mode (known total)
+Use when the total size or count is known:
+
 ```go
 import "github.com/githubnext/gh-aw/pkg/console"
 
@@ -90,18 +93,44 @@ output := bar.Update(currentBytes)
 fmt.Fprintf(os.Stderr, "\r%s", output)
 ```
 
+#### Indeterminate Mode (unknown total)
+Use when the total size or count is unknown:
+
+```go
+import "github.com/githubnext/gh-aw/pkg/console"
+
+// Create an indeterminate progress bar
+bar := console.NewIndeterminateProgressBar()
+
+// Update with current progress (shows activity without percentage)
+output := bar.Update(currentBytes)
+fmt.Fprintf(os.Stderr, "\r%s", output)
+```
+
 ### Output Examples
 
-**TTY Mode** (with color support):
+**Determinate Mode - TTY**:
 ```
 ████████████████████░░░░░░░░░░░░░░░░░  50%
 ```
 *(Displays with gradient from purple to cyan)*
 
-**Non-TTY Mode** (text fallback):
+**Determinate Mode - Non-TTY**:
 ```
 50% (512.0MB/1.00GB)
 ```
+
+**Indeterminate Mode - TTY**:
+```
+████████████████░░░░░░░░░░░░░░░░░░░░  (pulsing animation)
+```
+*(Shows pulsing progress indicator)*
+
+**Indeterminate Mode - Non-TTY**:
+```
+Processing... (512.0MB)
+```
+
 
 ## RenderStruct Function
 

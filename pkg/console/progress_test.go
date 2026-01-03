@@ -325,3 +325,94 @@ func TestProgressBarNonTTYFallback(t *testing.T) {
 		assert.Contains(t, output, "/", "Should have separator")
 	})
 }
+
+func TestNewIndeterminateProgressBar(t *testing.T) {
+	t.Run("creates indeterminate progress bar successfully", func(t *testing.T) {
+		bar := NewIndeterminateProgressBar()
+
+		require.NotNil(t, bar, "NewIndeterminateProgressBar should not return nil")
+		assert.Equal(t, int64(0), bar.total, "Total should be 0 for indeterminate mode")
+		assert.Equal(t, int64(0), bar.current, "Current should start at 0")
+		assert.True(t, bar.indeterminate, "Indeterminate flag should be true")
+		require.NotNil(t, bar.progress, "Progress model should be initialized")
+	})
+}
+
+func TestIndeterminateProgressBarUpdate(t *testing.T) {
+	t.Run("indeterminate mode with no data", func(t *testing.T) {
+		bar := NewIndeterminateProgressBar()
+		output := bar.Update(0)
+
+		assert.NotEmpty(t, output, "Update should return non-empty string")
+
+		// In non-TTY mode, should show "Processing..."
+		if !isTTY() {
+			assert.Equal(t, "Processing...", output, "Should show processing indicator")
+		}
+	})
+
+	t.Run("indeterminate mode with current value", func(t *testing.T) {
+		bar := NewIndeterminateProgressBar()
+		output := bar.Update(1024 * 1024) // 1MB processed
+
+		assert.NotEmpty(t, output, "Update should return non-empty string")
+
+		// In non-TTY mode, should show current value
+		if !isTTY() {
+			assert.Contains(t, output, "Processing...", "Should show processing text")
+			assert.Contains(t, output, "1.0MB", "Should show current size")
+		}
+	})
+
+	t.Run("indeterminate mode multiple updates", func(t *testing.T) {
+		bar := NewIndeterminateProgressBar()
+
+		// Simulate progressive updates without known total
+		updates := []int64{0, 512 * 1024, 1024 * 1024, 2 * 1024 * 1024}
+		for _, value := range updates {
+			output := bar.Update(value)
+			assert.NotEmpty(t, output, "Each update should produce output")
+			assert.Equal(t, value, bar.current, "Current should track the latest update")
+		}
+	})
+
+	t.Run("indeterminate mode produces varying output", func(t *testing.T) {
+		// Skip if not in TTY mode as the pulsing effect is only visible in TTY
+		if !isTTY() {
+			t.Skip("Test requires TTY mode to validate pulsing effect")
+		}
+
+		bar := NewIndeterminateProgressBar()
+
+		// Update with different values to create pulse effect
+		outputs := make([]string, 8)
+		for i := range outputs {
+			outputs[i] = bar.Update(int64(i * 100))
+		}
+
+		// In TTY mode, outputs should vary (pulsing effect)
+		// We just verify they're all non-empty and at least some are different
+		allSame := true
+		for i := 1; i < len(outputs); i++ {
+			if outputs[i] != outputs[0] {
+				allSame = false
+				break
+			}
+		}
+		assert.False(t, allSame, "Indeterminate progress should produce varying visual output for pulsing effect")
+	})
+}
+
+func TestProgressBarModeSelection(t *testing.T) {
+	t.Run("determinate mode has total and not indeterminate", func(t *testing.T) {
+		bar := NewProgressBar(1024)
+		assert.Equal(t, int64(1024), bar.total, "Determinate mode should have total")
+		assert.False(t, bar.indeterminate, "Determinate mode should not be indeterminate")
+	})
+
+	t.Run("indeterminate mode has no total and is indeterminate", func(t *testing.T) {
+		bar := NewIndeterminateProgressBar()
+		assert.Equal(t, int64(0), bar.total, "Indeterminate mode should have zero total")
+		assert.True(t, bar.indeterminate, "Indeterminate mode should be indeterminate")
+	})
+}
