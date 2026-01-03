@@ -15,6 +15,8 @@ Your GitHub Project **must** have these fields configured. Do not attempt partia
 - `repository` (text)
 - `priority` (single-select: "High", "Medium", "Low")
 - `size` (single-select: "Small", "Medium", "Large")
+- `start_date` (date)
+- `end_date` (date)
 
 **Campaign ID**: `{{.CampaignID}}` (this exact value must be written to `campaign_id` for every item)
 
@@ -33,6 +35,8 @@ update-project:
     repository: "owner/repo"  # Required: extract from URL
     priority: "Medium"  # Required default
     size: "Medium"  # Required default
+    start_date: "2025-12-15"  # Required: use issue/PR created_at date in YYYY-MM-DD format
+    end_date: "2026-01-03"  # Required: use closed_at/merged_at if closed/merged, else today's date
 ```
 
 **How to extract content_number from URLs**:
@@ -48,6 +52,8 @@ Deterministic defaults:
 - `repository`: extract `owner/repo` from the issue/PR URL
 - `priority`: default to `Medium` unless explicitly known
 - `size`: default to `Medium` unless explicitly known
+- `start_date`: use the issue/PR creation date (created_at) in YYYY-MM-DD format
+- `end_date`: use the issue/PR closed/merged date if closed/merged, otherwise use today's date in YYYY-MM-DD format
 
 ```
 update-project:
@@ -61,6 +67,8 @@ update-project:
     repository: "owner/repo"  # Required
     priority: "High"  # or "Medium", "Low"
     size: "Medium"  # or "Small", "Large"
+    start_date: "2025-12-15"  # Required: issue/PR created_at date
+    end_date: "2026-01-03"  # Required: closed_at/merged_at or today's date
 ```
 
 **Field semantics**:
@@ -68,6 +76,8 @@ update-project:
 - `repository`: Enables cross-repo views and grouping
 - `priority`: Enables priority-based filtering and sorting
 - `size`: Supports capacity planning and workload distribution
+- `start_date`: Required for roadmap view; use the issue/PR creation date (created_at)
+- `end_date`: Required for roadmap view; use the issue/PR closed/merged date if closed/merged, otherwise today's date
 
 **Worker Workflow Agnosticism**: Worker workflows remain campaign-agnostic. The orchestrator discovers which worker created an item (via tracker-id in the issue body) and populates the `worker_workflow` field. Workers don't need to know about campaigns or custom fields.
 
@@ -88,6 +98,8 @@ update-project:
     repository: "owner/repo"  # Required
     priority: "Medium"  # Required
     size: "Medium"  # Required
+    start_date: "2025-12-15"  # Required: issue/PR created_at date
+    end_date: "2026-01-02"  # Required: closed_at/merged_at if closed/merged
 ```
 
 #### Idempotency
