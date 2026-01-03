@@ -8,7 +8,7 @@ All safe output handlers have been successfully refactored to follow the handler
 **Old:** `main()` loads all items via `loadAgentOutput()` and processes them in a loop
 **New:** `main(config)` returns `async function(message, resolvedTemporaryIds)` that processes ONE message
 
-## Completed (10/10) ✅
+## Completed (11/11) ✅
 
 ### 1. create_issue.cjs
 - **Status:** ✅ Refactored (commit a637c3e)
@@ -54,6 +54,11 @@ All safe output handlers have been successfully refactored to follow the handler
 - **Status:** ✅ Refactored (commit fd68469)
 - **Complexity:** Medium - GraphQL-based updates
 - **Change:** Standalone implementation (300 → 172 lines)
+
+### 11. mark_pull_request_as_ready_for_review.cjs
+- **Status:** ✅ Refactored
+- **Complexity:** Medium - validates draft status, updates PR, adds comment
+- **Change:** Converted from loop-based to handler factory pattern
 
 ## Implementation Summary
 
